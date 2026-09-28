@@ -37,6 +37,16 @@ public static class LoggerExtensions
     public static void LogErrorIf(
         this ILogger logger,
         bool enabled,
+        string message,
+        params object?[] args)
+    {
+        if (enabled)
+            logger.LogError(message, args);
+    }
+
+    public static void LogErrorIf(
+        this ILogger logger,
+        bool enabled,
         Exception exception,
         string message,
         params object?[] args)
