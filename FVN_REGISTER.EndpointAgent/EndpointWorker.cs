@@ -16,20 +16,28 @@ public sealed class EndpointWorker : BackgroundService
     private readonly ILogger<EndpointWorker> _logger;
     private readonly EndpointAgentOptions _options;
     private readonly EndpointCollector _collector;
+    private readonly IHostApplicationLifetime _lifetime;
 
-    public EndpointWorker(IHttpClientFactory httpClientFactory, IOptions<EndpointAgentOptions> options, EndpointCollector collector, ILogger<EndpointWorker> logger)
+    public EndpointWorker(IHttpClientFactory httpClientFactory, IOptions<EndpointAgentOptions> options, EndpointCollector collector, ILogger<EndpointWorker> logger, IHostApplicationLifetime lifetime)
     {
         _httpClientFactory = httpClientFactory;
         _options = options.Value;
         _collector = collector;
         _logger = logger;
+        _lifetime = lifetime;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!Uri.TryCreate(_options.ApiBaseUrl?.Trim(), UriKind.Absolute, out var apiUri) || !string.Equals(apiUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            FailConfiguration("ApiBaseUrl is required and must use HTTPS.");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_options.DeviceKey) || string.IsNullOrWhiteSpace(_options.ApiKeyProtected))
         {
-            _logger.LogError("Endpoint Agent is not configured: DeviceKey and ApiKeyProtected are required.");
+            FailConfiguration("DeviceKey and ApiKeyProtected are required.");
             return;
         }
 
@@ -38,6 +46,7 @@ public sealed class EndpointWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogCritical(ex, "Endpoint Agent credential cannot be decrypted on this Windows machine.");
+            FailConfiguration("ApiKeyProtected cannot be decrypted on this Windows machine.");
             return;
         }
 
@@ -51,22 +60,19 @@ public sealed class EndpointWorker : BackgroundService
         }
     }
 
+    private void FailConfiguration(string message)
+    {
+        _logger.LogCritical("Endpoint Agent configuration invalid: {Message}", message);
+        Environment.ExitCode = 2;
+        _lifetime.StopApplication();
+    }
+
     private async Task<string> SendInventoryAsync(string apiKey, CancellationToken cancellationToken)
     {
         var request = new EndpointInventoryRequestDto(
-            _options.DeviceKey.Trim(),
-            Environment.MachineName,
-            GetSerialNumber(),
-            GetHardwareIdentity(),
-            GetAgentInstallationId(),
-            "Windows",
-            Environment.OSVersion.VersionString,
-            null,
-            null,
-            typeof(EndpointWorker).Assembly.GetName().Version?.ToString(),
-            _collector.CollectSoftware(),
-            _collector.CollectServices(),
-            _collector.CollectAntivirus());
+            _options.DeviceKey.Trim(), Environment.MachineName, GetSerialNumber(), GetHardwareIdentity(), GetAgentInstallationId(),
+            "Windows", Environment.OSVersion.VersionString, null, null, typeof(EndpointWorker).Assembly.GetName().Version?.ToString(),
+            _collector.CollectSoftware(), _collector.CollectServices(), _collector.CollectAntivirus());
 
         for (var attempt = 0; attempt < 2; attempt++)
         {
@@ -81,7 +87,7 @@ public sealed class EndpointWorker : BackgroundService
                 var rotated = await RotateCredentialAsync(apiKey, cancellationToken);
                 if (rotated == null)
                 {
-                    _logger.LogCritical("Endpoint Agent received HTTP 401 and credential rotation failed. The current credential may be expired/revoked; provision a new credential from Security Center.");
+                    _logger.LogCritical("Endpoint Agent received HTTP 401 and credential rotation failed. Provision a new credential from Security Center.");
                     response.EnsureSuccessStatusCode();
                 }
                 apiKey = rotated!.ApiKey;
@@ -106,7 +112,6 @@ public sealed class EndpointWorker : BackgroundService
             _logger.LogInformation("Endpoint inventory synchronized. Software={SoftwareCount}, Services={ServiceCount}, Antivirus={AntivirusCount}.", request.Software.Count, request.Services.Count, request.Antivirus.Count);
             return apiKey;
         }
-
         return apiKey;
     }
 
