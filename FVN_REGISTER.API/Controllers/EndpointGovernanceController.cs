@@ -2,8 +2,9 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Attributes;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Infrastructure.Services.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -30,6 +31,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpGet("policies")]
+    [SecurityFunctionDefinition("Endpoint.View", "Endpoint Governance - xem policy")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<EndpointGovernancePolicyDto>>>> GetPolicies([FromQuery] EndpointGovernanceItemType? itemType, [FromQuery] EndpointTargetType? targetType, CancellationToken ct)
     {
         var result = await _service.GetPoliciesAsync(itemType, targetType, ct);
@@ -37,6 +39,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpGet("policies/{policyId:int}")]
+    [SecurityFunctionDefinition("Endpoint.View", "Endpoint Governance - xem policy")]
     public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> GetPolicy(int policyId, CancellationToken ct)
     {
         var result = await _service.GetPolicyAsync(policyId, ct);
@@ -44,6 +47,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpPost("policies/versions")]
+    [SecurityFunctionDefinition("Endpoint.SoftwareCatalogManage", "Endpoint Governance - quản lý Software Catalog")]
     public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> CreateVersion(EndpointGovernancePolicyUpsertRequest request, CancellationToken ct)
     {
         var result = await _service.CreateVersionAsync(request, ct);
@@ -51,6 +55,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpPost("policies/{policyId:int}/submit")]
+    [SecurityFunctionDefinition("Endpoint.SoftwarePolicySubmit", "Endpoint Governance - submit Software Catalog")]
     public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> Submit(int policyId, CancellationToken ct)
     {
         var result = await _service.SubmitPolicyAsync(policyId, ct);
@@ -58,6 +63,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpPost("policies/import/preview")]
+    [SecurityFunctionDefinition("Endpoint.SoftwareCatalogManage", "Endpoint Governance - preview Software Catalog")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<EndpointGovernanceExcelPreviewDto>>> PreviewExcel(IFormFile file, [FromQuery] EndpointGovernanceItemType itemType, [FromQuery] EndpointTargetType targetType, CancellationToken ct)
     {
@@ -74,6 +80,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpPost("policies/import")]
+    [SecurityFunctionDefinition("Endpoint.SoftwareCatalogManage", "Endpoint Governance - import Software Catalog")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> ImportExcel(IFormFile file, [FromForm] string policyCode, [FromForm] string policyName, [FromForm] EndpointGovernanceItemType itemType, [FromForm] EndpointTargetType targetType, [FromForm] string? remark, CancellationToken ct)
     {
@@ -94,6 +101,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpPost("policies/{policyId:int}/publish")]
+    [SecurityFunctionDefinition("Endpoint.SoftwarePolicyApprove", "Endpoint Governance - publish Software Catalog")]
     public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> Publish(int policyId, CancellationToken ct)
     {
         var result = await _service.PublishAsync(policyId, ct);
@@ -101,6 +109,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpPost("requests")]
+    [SecurityFunctionDefinition("Endpoint.InstallRequestCreate", "Endpoint Governance - tạo Installation Request")]
     public async Task<ActionResult<ApiResponse<EndpointGovernanceRequestDto>>> CreateRequest(EndpointGovernanceRequestCreateDto request, CancellationToken ct)
     {
         var result = await _service.CreateRequestAsync(request, ct);
@@ -108,6 +117,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpGet("requests")]
+    [SecurityFunctionDefinition("Endpoint.InstallRequestView", "Endpoint Governance - xem Installation Request")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<EndpointGovernanceRequestDto>>>> GetRequests([FromQuery] bool mineOnly = true, CancellationToken ct = default)
     {
         var result = await _service.GetRequestsAsync(mineOnly, ct);
@@ -115,6 +125,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpPost("requests/{requestId:int}/security-review")]
+    [SecurityFunctionDefinition("Endpoint.SoftwareSecurityReview", "Endpoint Governance - security review")]
     public async Task<ActionResult<ApiResponse<EndpointGovernanceRequestDto>>> Review(int requestId, [FromBody] EndpointSecurityReviewRequest request, CancellationToken ct)
     {
         var result = await _service.ReviewAsync(requestId, request.Approved, request.Comment, ct);
@@ -122,6 +133,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     }
 
     [HttpGet("compliance/findings")]
+    [SecurityFunctionDefinition("Endpoint.ComplianceView", "Endpoint Governance - xem Compliance Findings")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<EndpointComplianceFindingDto>>>> GetFindings([FromQuery] long? endpointDeviceId, [FromQuery] bool openOnly = true, CancellationToken ct = default)
     {
         var result = await _service.GetFindingsAsync(endpointDeviceId, openOnly, ct);
