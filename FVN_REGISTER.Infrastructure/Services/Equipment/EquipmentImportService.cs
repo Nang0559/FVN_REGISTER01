@@ -83,14 +83,19 @@ public sealed class EquipmentImportService : IEquipmentImportService
     public async Task<EquipmentSchemaDto> CreateSchemaFromExcelAsync(string deptCode, string fileName, Stream content, string? schemaName, CancellationToken ct = default)
     { var user = RequireUser(); deptCode = deptCode.Trim().ToUpperInvariant(); await EnsureScopeAsync(user, deptCode, ct); var data = await ReadExcelAsync(fileName, content, ct); var inferred = ExcelSchemaInference.Infer(data.InferenceColumns); var name = string.IsNullOrWhiteSpace(schemaName) ? Path.GetFileNameWithoutExtension(fileName) : schemaName.Trim(); ValidateSchemaName(name); var schema = new F03EquipmentSchema { DeptCode = deptCode, SchemaName = name, SchemaKind = "Equipment", SchemaKey = Guid.NewGuid().ToString("N"), Version = 1, Status = "Draft", IsActive = true, CreatedBy = user.UserId, SourceFileName = Path.GetFileName(fileName), CreatedFromExcel = true }; await _uow.Repository<F03EquipmentSchema>().AddAsync(schema, ct); await _uow.SaveChangesAsync(ct); foreach (var field in inferred) await _uow.Repository<F03EquipmentFieldDefinition>().AddAsync(new F03EquipmentFieldDefinition { SchemaId = schema.Id, DeptCode = deptCode, FieldKey = field.FieldKey, FieldLabel = field.FieldLabel, DataType = field.DataType, IsRequired = field.IsRequired, IsImportable = true, IsActiveField = true, DisplayOrder = field.DisplayOrder, MaxLength = field.MaxLength, CreatedBy = user.UserId, IsActive = true }, ct); await _uow.SaveChangesAsync(ct); await _audit.LogAction("EQUIPMENT_SCHEMA_CREATED_FROM_EXCEL", user.UserId, $"SchemaId={schema.Id}; DeptCode={deptCode}; FileName={Path.GetFileName(fileName)}; Columns={inferred.Count}", ct: ct); return await MapSchemaAsync(schema, user.UserId, ct); }
 
-    public async Task<EquipmentImportBatchDto> StageExcelAsync(string deptCode, string fileName, Stream content, bool assignToEmployee, CancellationToken ct = default)
+    public async Task<EquipmentImportBatchDto> StageExcelAsync(string deptCode, int? schemaId, string fileName, Stream content, bool assignToEmployee, CancellationToken ct = default)
     {
         var user = RequireUser();
         deptCode = deptCode.Trim().ToUpperInvariant();
         await EnsureScopeAsync(user, deptCode, ct);
         var data = await ReadExcelAsync(fileName, content, ct);
-        var schema = await GetActiveSchemaEntityAsync(deptCode, ct);
-        if (schema == null) throw new InvalidOperationException("Không tìm thấy mẫu dữ liệu đang sử dụng.");
+        var schema = schemaId.HasValue && schemaId.Value > 0
+            ? await _uow.Repository<F03EquipmentSchema>().Query().Include(x => x.Fields)
+                .FirstOrDefaultAsync(x => x.Id == schemaId.Value && x.DeptCode == deptCode && x.Status == "Active" && x.IsActive == true, ct)
+            : await GetActiveSchemaEntityAsync(deptCode, ct);
+        if (schema == null) throw new InvalidOperationException(schemaId.HasValue
+            ? "Không tìm thấy mẫu dữ liệu đang sử dụng được chọn cho bộ phận này."
+            : "Không tìm thấy mẫu dữ liệu đang sử dụng.");
         var defs = schema.Fields.Where(x => x.IsActive == true && x.IsActiveField && x.IsImportable).OrderBy(x => x.DisplayOrder).ToList();
         var batch = new F03EquipmentImportBatch { SchemaId = schema.Id, DeptCode = deptCode, FileName = Path.GetFileName(fileName), Status = "Preview", TotalRows = data.Rows.Count, AssignToEmployee = assignToEmployee, CreatedBy = user.UserId };
         await _uow.Repository<F03EquipmentImportBatch>().AddAsync(batch, ct);
