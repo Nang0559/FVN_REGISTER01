@@ -2,10 +2,18 @@ param(
     [Parameter(Mandatory = $true)] [string]$InstallPath,
     [Parameter(Mandatory = $true)] [string]$ApiBaseUrl,
     [Parameter(Mandatory = $true)] [string]$DeviceKey,
-    [Parameter(Mandatory = $true)] [string]$ApiKeyProtected
+    [Parameter(Mandatory = $false)] [string]$ApiKeyProtected,
+    [Parameter(Mandatory = $false)] [string]$ApiKey
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($ApiKeyProtected) -and [string]::IsNullOrWhiteSpace($ApiKey)) {
+    throw 'Phải cung cấp ApiKeyProtected hoặc ApiKey.'
+}
+if (-not [string]::IsNullOrWhiteSpace($ApiKeyProtected) -and -not [string]::IsNullOrWhiteSpace($ApiKey)) {
+    throw 'Chỉ cung cấp một trong ApiKeyProtected hoặc ApiKey.'
+}
 
 $exe = Join-Path $InstallPath 'FVN_REGISTER.EndpointAgent.exe'
 if (-not (Test-Path $exe)) {
@@ -14,12 +22,21 @@ if (-not (Test-Path $exe)) {
 
 New-Item -ItemType Directory -Force -Path $InstallPath | Out-Null
 
+if ([string]::IsNullOrWhiteSpace($ApiKeyProtected)) {
+    # Secret is sent through stdin so it is not exposed in the process command line.
+    $ApiKeyProtected = ($ApiKey | & $exe --protect-secret-stdin | Select-Object -Last 1).Trim()
+    if ([string]::IsNullOrWhiteSpace($ApiKeyProtected)) {
+        throw 'Không tạo được ApiKeyProtected bằng DPAPI LocalMachine.'
+    }
+}
+
 $config = @{
     FVNEndpointAgent = @{
         ApiBaseUrl = $ApiBaseUrl
         DeviceKey = $DeviceKey
         ApiKeyProtected = $ApiKeyProtected
         IntervalMinutes = 30
+        CredentialRotationLeadDays = 30
     }
 } | ConvertTo-Json -Depth 4
 
