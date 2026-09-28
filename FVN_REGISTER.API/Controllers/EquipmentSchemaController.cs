@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Contract.Dtos.Equipment;
+using FVN_REGISTER.Contract.Responses;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -81,24 +82,45 @@ public sealed class EquipmentSchemaController : ControllerBase
         return Ok(await _service.SaveFieldDefinitionAsync(request, ct));
     }
 
-    [HttpPost("preview-excel")]
+    [HttpPost("inspect-excel")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<EquipmentSchemaFromExcelDto>> PreviewExcel([FromForm] IFormFile file, [FromQuery] string deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentExcelWorkbookDto>>> InspectExcel([FromForm] IFormFile? file, [FromQuery] string deptCode, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
-        if (file == null || file.Length == 0) return BadRequest("File Excel rỗng.");
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentExcelWorkbookDto>.Fail("File Excel rỗng."));
         await using var stream = file.OpenReadStream();
-        return Ok(await _service.PreviewSchemaFromExcelAsync(deptCode, file.FileName, stream, ct));
+        var result = await _service.InspectExcelAsync(deptCode, file.FileName, stream, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentExcelWorkbookDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentExcelWorkbookDto>.FromResult(result));
+    }
+
+    [HttpPost("preview-excel")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<ActionResult<ApiResponse<EquipmentSchemaFromExcelDto>>> PreviewExcel([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int sheetIndex = 0, CancellationToken ct = default)
+    {
+        if (!await CanAsync(ct)) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentSchemaFromExcelDto>.Fail("File Excel rỗng."));
+        if (sheetIndex < 0) return BadRequest(ApiResponse<EquipmentSchemaFromExcelDto>.Fail("Sheet Excel không hợp lệ."));
+        await using var stream = file.OpenReadStream();
+        var result = await _service.PreviewSchemaFromExcelSheetAsync(deptCode, file.FileName, stream, sheetIndex, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentSchemaFromExcelDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentSchemaFromExcelDto>.FromResult(result));
     }
 
     [HttpPost("from-excel")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<EquipmentSchemaDto>> FromExcel([FromForm] IFormFile file, [FromQuery] string deptCode, [FromQuery] string? schemaName, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentSchemaDto>>> FromExcel([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int sheetIndex = 0, [FromQuery] string? schemaName = null, CancellationToken ct = default)
     {
         if (!await CanAsync(ct)) return Forbid();
-        if (file == null || file.Length == 0) return BadRequest("File Excel rỗng.");
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentSchemaDto>.Fail("File Excel rỗng."));
+        if (sheetIndex < 0) return BadRequest(ApiResponse<EquipmentSchemaDto>.Fail("Sheet Excel không hợp lệ."));
         await using var stream = file.OpenReadStream();
-        return Ok(await _service.CreateSchemaFromExcelAsync(deptCode, file.FileName, stream, schemaName, ct));
+        var result = await _service.CreateSchemaFromExcelSheetAsync(deptCode, file.FileName, stream, sheetIndex, schemaName, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentSchemaDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentSchemaDto>.FromResult(result));
     }
 
     private async Task<bool> CanAsync(CancellationToken ct)
