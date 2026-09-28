@@ -27,6 +27,10 @@ public interface IEndpointCredentialService
         int actorUserId,
         CancellationToken cancellationToken = default);
 
+    Task<EndpointCredentialProvisionResult?> RotateWithCurrentApiKeyAsync(
+        string currentApiKey,
+        CancellationToken cancellationToken = default);
+
     Task<bool> RevokeAsync(
         string deviceKey,
         int actorUserId,
