@@ -3,6 +3,8 @@
 FVN_REGISTER - MASTER SQL DEPLOYMENT
 ===============================================================================
 Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
+ALL repository database migrations are owned by this SQL deployment chain.
+Database/ is documentation/history only and is not executed by deployment.
 ===============================================================================
 */
 
@@ -29,13 +31,10 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\14_SecurityAuthorization.sql"
 :r "$(RepoRoot)\15_PublicInformation.sql"
 
-/*
-   EQUIPMENT - single canonical deployment owner.
-   Former Database/Equipment/001-005 scripts have been consolidated into 16.
-   Do not re-introduce Database/Equipment includes here: 16 creates the base
-   tables in dependency order, then later Equipment scripts only upgrade them.
-*/
+/* Equipment canonical base + capability + form schema. */
 :r "$(RepoRoot)\16_EquipmentFlexibleImport.sql"
+:r "$(RepoRoot)\16A_EquipmentCapabilities.sql"
+:r "$(RepoRoot)\16B_EquipmentSpecificRequestForms.sql"
 
 :r "$(RepoRoot)\17_ApprovalRouteSelection.sql"
 :r "$(RepoRoot)\18_ApproverConfigurationReview.sql"
@@ -53,9 +52,8 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\27_WorkCalendarActionIndexesSeed.sql"
 :r "$(RepoRoot)\28_Verify_WorkCalendarAction.sql"
 
-/* Trip */
-:r "$(RepoRoot)\..\Database\Trips\001_Create_F03TripRequests.sql"
-:r "$(RepoRoot)\..\Database\Trips\002_Create_F03TripActual.sql"
+/* Trips canonical schema migrated from Database/Trips. */
+:r "$(RepoRoot)\28B_Trips.sql"
 
 :r "$(RepoRoot)\29_ExecutionReconciliation.sql"
 :r "$(RepoRoot)\30_Payroll.sql"
@@ -92,6 +90,7 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\54_EndpointGovernanceFoundation.sql"
 :r "$(RepoRoot)\55_Endpoint_Credentials.sql"
 :r "$(RepoRoot)\55_EndpointGovernanceCatalogApproval.sql"
+:r "$(RepoRoot)\56_EndpointGovernanceExtensions.sql"
 :r "$(RepoRoot)\57_Verify_Endpoint_Governance.sql"
 
 :r "$(RepoRoot)\99_Verify.sql"
