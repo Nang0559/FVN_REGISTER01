@@ -85,14 +85,18 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
 
-/* APPROVAL / ENDPOINT SECURITY */
+/* APPROVAL FOUNDATION MUST EXIST BEFORE ENDPOINT GOVERNANCE */
 :r "53_ApprovalUnifiedFoundation.sql"
-:r "58_EndpointSecurityCapabilities.sql"
+
+/* ENDPOINT GOVERNANCE SCHEMA */
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
 :r "55_Endpoint_Credentials.sql"
 :r "55_EndpointGovernanceCatalogApproval.sql"
 :r "56_EndpointGovernanceExtensions.sql"
+
+/* ENDPOINT SECURITY CAPABILITIES / ROLE SEED - AFTER ALL ENDPOINT OBJECTS EXIST */
+:r "58_EndpointSecurityCapabilities.sql"
 :r "57_Verify_Endpoint_Governance.sql"
 
 /* CALENDAR CAPABILITY */
