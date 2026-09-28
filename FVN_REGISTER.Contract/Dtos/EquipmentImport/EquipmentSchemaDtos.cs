@@ -45,3 +45,18 @@ public sealed class EquipmentSchemaFromExcelDto
     public int SampleRowCount { get; set; }
     public List<EquipmentFieldDefinitionDto> Fields { get; set; } = new();
 }
+
+public sealed class EquipmentExcelWorkbookDto
+{
+    public string FileName { get; set; } = string.Empty;
+    public List<EquipmentExcelSheetDto> Sheets { get; set; } = new();
+}
+
+public sealed class EquipmentExcelSheetDto
+{
+    public int Index { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int RowCount { get; set; }
+    public int ColumnCount { get; set; }
+    public bool HasData { get; set; }
+}
