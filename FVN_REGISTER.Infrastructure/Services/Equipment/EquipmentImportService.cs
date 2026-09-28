@@ -172,7 +172,8 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var rows = new List<F03EquipmentImportRow>(); var valid = 0; var invalid = 0;
         foreach (var item in data.Rows)
         {
-            ct.ThrowIfCancellationRequested(); if (item.Values.All(string.IsNullOrWhiteSpace)) continue;
+            ct.ThrowIfCancellationRequested(); if (item.Values.Values.All(string.IsNullOrWhiteSpace))
+                continue;
             var err = ValidateRow(item.Values, defs);
             if (err == null && assignToEmployee)
             {
@@ -247,7 +248,49 @@ public sealed class EquipmentImportService : IEquipmentImportService
         return new EquipmentSchemaDto { Id = schema.Id, DeptCode = schema.DeptCode, SchemaName = schema.SchemaName, SchemaKind = schema.SchemaKind, SchemaKey = schema.SchemaKey, Version = schema.Version, Status = schema.Status, IsActive = schema.IsActive == true, OwnerUserId = schema.CreatedBy, OwnerName = ownerName, SourceSchemaId = schema.SourceSchemaId, SourceFileName = schema.SourceFileName, CreatedFromExcel = schema.CreatedFromExcel, IsOwner = schema.CreatedBy == userId, CanEdit = schema.CreatedBy == userId && string.Equals(schema.Status, "Draft", StringComparison.OrdinalIgnoreCase), CanCreateVersion = schema.CreatedBy == userId, CanClone = true, Fields = schema.Fields.Where(x => x.IsActive != false).OrderBy(x => x.DisplayOrder).ThenBy(x => x.FieldLabel).Select(MapField).ToList() };
     }
 
-    private static EquipmentSchemaSummaryDto MapSummary(F03EquipmentSchema schema, int userId, string ownerName, int fieldCount) => new() { Id = schema.Id, DeptCode = schema.DeptCode, SchemaName = schema.SchemaName, SchemaKind = schema.SchemaKind, SchemaKey = schema.SchemaKey, Version = schema.Version, Status = schema.Status, IsActive = schema.IsActive == true, FieldCount = fieldCount, OwnerUserId = schema.CreatedBy, OwnerName = ownerName, SourceSchemaId = schema.SourceSchemaId, SourceFileName = schema.SourceFileName, CreatedFromExcel = schema.CreatedFromExcel, IsOwner = schema.CreatedBy == userId, CanEdit = schema.CreatedBy == userId && string.Equals(schema.Status, "Draft", StringComparison.OrdinalIgnoreCase), CanCreateVersion = schema.CreatedBy == userId, CanClone = true };
+    private static EquipmentSchemaSummaryDto MapSummary(
+    F03EquipmentSchema schema,
+    int userId,
+    string ownerName,
+    int fieldCount)
+    {
+        return new EquipmentSchemaSummaryDto
+        {
+            Id = schema.Id,
+
+            DepartmentCode = schema.DeptCode,
+            DepartmentName = schema.DeptCode,
+
+            SchemaName = schema.SchemaName,
+            SchemaKind = schema.SchemaKind,
+            SchemaKey = schema.SchemaKey,
+            Version = schema.Version,
+            Status = schema.Status,
+
+            IsActive = schema.IsActive == true,
+            FieldCount = fieldCount,
+
+            CreatedByUserId = schema.CreatedBy,
+            CreatedByUserName = ownerName,
+            CreatedAt = schema.CreatedAt,
+
+            SourceSchemaId = schema.SourceSchemaId,
+            SourceFileName = schema.SourceFileName,
+            CreatedFromExcel = schema.CreatedFromExcel,
+
+            IsOwner = schema.CreatedBy == userId,
+
+            CanEdit =
+                schema.CreatedBy == userId &&
+                string.Equals(
+                    schema.Status,
+                    "Draft",
+                    StringComparison.OrdinalIgnoreCase),
+
+            CanCreateVersion = schema.CreatedBy == userId,
+            CanClone = true
+        };
+    }
     private static EquipmentFieldDefinitionDto MapField(F03EquipmentFieldDefinition x) => new() { Id = x.Id, SchemaId = x.SchemaId, DeptCode = x.DeptCode, FieldKey = x.FieldKey, FieldLabel = x.FieldLabel, DataType = x.DataType, IsRequired = x.IsRequired, IsImportable = x.IsImportable, IsSearchable = x.IsSearchable, IsActiveField = x.IsActiveField, DisplayOrder = x.DisplayOrder, MaxLength = x.MaxLength, DefaultValue = x.DefaultValue, OptionsJson = x.OptionsJson };
     private static System.Linq.Expressions.Expression<Func<F03EquipmentFieldDefinition, EquipmentFieldDefinitionDto>> MapFieldExpression() => x => new EquipmentFieldDefinitionDto { Id=x.Id, SchemaId=x.SchemaId, DeptCode=x.DeptCode, FieldKey=x.FieldKey, FieldLabel=x.FieldLabel, DataType=x.DataType, IsRequired=x.IsRequired, IsImportable=x.IsImportable, IsSearchable=x.IsSearchable, IsActiveField=x.IsActiveField, DisplayOrder=x.DisplayOrder, MaxLength=x.MaxLength, DefaultValue=x.DefaultValue, OptionsJson=x.OptionsJson };
     private static EquipmentImportBatchDto MapBatch(F03EquipmentImportBatch x, IEnumerable<F03EquipmentImportRow>? rows = null) => new() { Id=x.Id, SchemaId=x.SchemaId, DeptCode=x.DeptCode, FileName=x.FileName, Status=x.Status, TotalRows=x.TotalRows, ValidRows=x.ValidRows, InvalidRows=x.InvalidRows, ImportedRows=x.ImportedRows, AssignToEmployee=x.AssignToEmployee, Rows=rows?.Select(r => new EquipmentImportRowDto { RowNumber=r.RowNumber, Status=r.Status, ErrorMessage=r.ErrorMessage }).ToList() ?? new() };

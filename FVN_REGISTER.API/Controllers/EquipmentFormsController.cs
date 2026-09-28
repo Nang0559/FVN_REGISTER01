@@ -7,6 +7,7 @@ using FVN_REGISTER.Contract.Dtos.PublicForms;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -36,7 +37,7 @@ public sealed class EquipmentFormsController : ControllerBase
         if (user == null) return Unauthorized();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentFormManage, ct)) return Forbid();
         var forms = await _publicForms.GetManageListAsync(ct);
-        return Ok(FVN_REGISTER.Contract.Responses.ApiResponse<List<PublicFormDto>>.Ok(forms.Where(x => x.IsActive && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)).ToList()));
+        return Ok(FVN_REGISTER.Contract.Responses.ApiResponse<List<PublicFormDto>>.Ok(forms.Where(x => x.IsActive==true && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)).ToList()));
     }
 
     [HttpPost("assignments")]
