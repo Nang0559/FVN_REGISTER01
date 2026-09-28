@@ -8,6 +8,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$uri = [Uri]$ApiBaseUrl
+if (-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https') {
+    throw 'ApiBaseUrl phải là HTTPS.'
+}
+
 if ([string]::IsNullOrWhiteSpace($ApiKeyProtected) -and [string]::IsNullOrWhiteSpace($ApiKey)) {
     throw 'Phải cung cấp ApiKeyProtected hoặc ApiKey.'
 }
