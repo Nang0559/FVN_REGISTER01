@@ -13,10 +13,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Security;
 
 /// <summary>
 /// Phát hiện các thao tác có khả năng là chức năng bảo mật từ điểm cuối HTTP và thành phần giao diện đã biên dịch.
-/// Đây là cơ chế kiểm tra an toàn, không tự cấp quyền và không tự chặn nghiệp vụ.
-/// Trong mô hình triển khai tách API và Web, API chỉ quản lý bằng chứng API; candidate giao diện
-/// chỉ được ngừng theo dõi khi có một nguồn giao diện xác nhận rõ ràng, không được suy diễn từ việc
-/// Web không được nạp vào tiến trình API.
+/// API endpoint chỉ được coi là security-function candidate khi endpoint có
+/// SecurityFunctionDefinitionAttribute. Không suy đoán FunctionCode từ tiền tố
+/// tên method/controller nữa. Đây là bằng chứng mapping explicit giữa endpoint
+/// và FunctionKey; FunctionCode vẫn lấy từ SecurityFunctionCodes/F03Functions.
+/// UI action legacy vẫn dùng candidate heuristic để không làm mất cảnh báo,
+/// nhưng không tự cấp quyền.
 /// </summary>
 public sealed class SecurityCandidateDiscovery
 {
@@ -40,41 +42,53 @@ public sealed class SecurityCandidateDiscovery
     public async Task<int> ScanAsync(CancellationToken cancellationToken = default)
     {
         var registry = await _db.SecurityFunctionRegistry
-            .Where(x => x.SourceType == "ApiEndpointCandidate" || x.SourceType == "UiActionCandidate")
+            .Where(x => x.SourceType == "ApiEndpointDefinition" || x.SourceType == "UiActionCandidate")
+            .ToDictionaryAsync(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        var functions = await _db.Functions
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && !string.IsNullOrWhiteSpace(x.FunctionKey))
             .ToDictionaryAsync(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var seenApi = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenUi = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var now = DateTime.Now;
 
-        var endpointSources = _endpointSources.ToList();
-        var apiScanAvailable = endpointSources.Count > 0;
-
-        foreach (var endpoint in endpointSources.SelectMany(x => x.Endpoints).OfType<RouteEndpoint>())
+        /*
+         * API endpoint -> Function mapping is explicit only.
+         * An endpoint without SecurityFunctionDefinitionAttribute is not assigned
+         * a FunctionKey merely because its method name starts with Create/Update/etc.
+         */
+        foreach (var endpoint in _endpointSources.SelectMany(x => x.Endpoints).OfType<RouteEndpoint>())
         {
             var action = endpoint.Metadata.GetMetadata<ControllerActionDescriptor>();
             if (action is null || endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null)
                 continue;
 
-            var methodName = action.MethodInfo.Name;
-            if (!LooksLikeBusinessAction(methodName))
-                continue;
-            if (action.MethodInfo.GetCustomAttribute<SecurityFunctionDefinitionAttribute>() is not null)
+            var definition = action.MethodInfo.GetCustomAttribute<SecurityFunctionDefinitionAttribute>();
+            if (definition is null || string.IsNullOrWhiteSpace(definition.FunctionKey))
                 continue;
 
+            var functionKey = definition.FunctionKey.Trim();
+            var functionCode = functions.TryGetValue(functionKey, out var function) ? function.FunctionCode : 0;
             var controller = TrimControllerSuffix(action.ControllerTypeInfo.Name);
-            var candidateKey = $"Candidate.Api.{controller}.{methodName}";
+            var sourceName = $"{action.ControllerTypeInfo.FullName}.{action.MethodInfo.Name}";
+            var evidence = endpoint.RoutePattern.RawText ?? string.Empty;
+            var candidateKey = $"Endpoint.{functionKey}";
             seenApi.Add(candidateKey);
+
             UpsertCandidate(
                 registry,
                 candidateKey,
-                $"Cần xác nhận chức năng {ToDisplayName(methodName)}",
+                definition.DisplayName ?? function?.FunctionName ?? functionKey,
+                functionKey,
+                functionCode,
                 controller,
-                methodName,
-                "ApiEndpointCandidate",
+                action.MethodInfo.Name,
+                "ApiEndpointDefinition",
                 action.ControllerTypeInfo.Assembly.GetName().Name,
-                $"{action.ControllerTypeInfo.FullName}.{methodName}",
-                endpoint.RoutePattern.RawText ?? string.Empty,
+                sourceName,
+                evidence,
                 now);
         }
 
@@ -112,6 +126,8 @@ public sealed class SecurityCandidateDiscovery
                         candidateKey,
                         $"Cần xác nhận thao tác giao diện {ToDisplayName(method.Name)}",
                         type.Name,
+                        0,
+                        type.Name,
                         method.Name,
                         "UiActionCandidate",
                         assembly.GetName().Name,
@@ -122,10 +138,10 @@ public sealed class SecurityCandidateDiscovery
             }
         }
 
-        if (apiScanAvailable)
+        if (_endpointSources.Any())
         {
             foreach (var item in registry.Values.Where(x =>
-                         x.SourceType == "ApiEndpointCandidate" &&
+                         x.SourceType == "ApiEndpointDefinition" &&
                          !seenApi.Contains(x.FunctionKey) &&
                          x.LifecycleStatus == "PendingRegistration"))
             {
@@ -154,6 +170,8 @@ public sealed class SecurityCandidateDiscovery
         IDictionary<string, F03SecurityFunctionRegistryItem> registry,
         string key,
         string definition,
+        string functionKey,
+        int functionCode,
         string module,
         string action,
         string sourceType,
@@ -163,19 +181,19 @@ public sealed class SecurityCandidateDiscovery
         DateTime now)
     {
         var hash = Convert.ToHexString(SHA256.HashData(
-            Encoding.UTF8.GetBytes(key + "|" + evidence))).ToLowerInvariant();
+            Encoding.UTF8.GetBytes(key + "|" + evidence + "|" + functionCode))).ToLowerInvariant();
 
         if (!registry.TryGetValue(key, out var item))
         {
             item = new F03SecurityFunctionRegistryItem
             {
                 FunctionKey = key,
-                FunctionCode = 0,
+                FunctionCode = functionCode,
                 DefinitionName = definition,
                 ModuleCode = module,
                 ActionCode = action,
                 ScopeCode = "Review",
-                LifecycleStatus = "PendingRegistration",
+                LifecycleStatus = functionCode > 0 ? "Active" : "PendingRegistration",
                 SourceType = sourceType,
                 SourceAssembly = sourceAssembly,
                 SourceTypeName = sourceTypeName,
@@ -192,11 +210,12 @@ public sealed class SecurityCandidateDiscovery
         item.LastSeenAt = now;
         item.DefinitionHash = hash;
         item.DefinitionName = definition;
+        item.FunctionCode = functionCode;
         item.SourceAssembly = sourceAssembly;
         item.SourceTypeName = sourceTypeName;
 
         if (item.LifecycleStatus is not ("Ignored" or "Retired" or "Replaced"))
-            item.LifecycleStatus = "PendingRegistration";
+            item.LifecycleStatus = functionCode > 0 ? "Active" : "PendingRegistration";
     }
 
     private static string TrimControllerSuffix(string name) =>
