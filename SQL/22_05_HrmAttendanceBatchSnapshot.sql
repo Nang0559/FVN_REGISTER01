@@ -87,7 +87,7 @@ BEGIN
     (
         CalculationBatchId,CalculationVersion,WorkDate,HrmEmployeeId,EmployeeCode,FullName,HrmDeptId,DeptCode,HrmPositionId,ShiftId,ShiftAbbr,
         CheckInGate,CheckInTime,CheckOutGate,CheckOutTime,ExitGate,ExitTime,EntryGate,EntryTime,WorkMinutesDay,WorkMinutesNight,
-        OTMinutesDay,OTMinutesNight,OTMinutesDayTC,OTMinutesNightTC,OTRecognizedMinutesDay,OTRecognizedMinutesNight,LatemInutesDay,LatemInutesNight,
+        OTMinutesDay,OTMinutesNight,OTMinutesDayTC,OTMinutesNightTC,OTRecognizedMinutesDay,OTRecognizedMinutesNight,LateMinutesDay,LateMinutesNight,
         EarlyLeaveMinutesDay,EarlyLeaveMinutesNight,RequiredMinutes,LeaveTotal,LeaveAnnual,Leave100,Leave70,LeaveUnpaid,LeaveBH100,LeaveBH70,LeaveBusinessTrip,
         LeaveCompensatory,LeaveOther,LeaveTypeCode,LeaveReason,Note,HrmType,HrmHoliday,HrmEmployeeHoliday,IsLocked,HrmBCGhiChu,HrmBCLyDoNghi,
         HrmBCNghiTotal,HrmBCNghiPhep,HrmBCNghiH100,HrmBCNghiH70,HrmBCNghiKL,HrmBCNghiBH100,HrmBCNghiBH70,HrmBCNghiCongTac,HrmBCNghiBu,HrmBCNghiKhac,
@@ -109,15 +109,6 @@ BEGIN
           AND target.WorkDate=source.WorkDate
     );
 END;
-GO
-
-/* Correct the two column names above if an older deployment created the file with a typo. */
-IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'LatemInutesDay') IS NOT NULL
-    AND COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'LateMinutesDay') IS NULL
-    EXEC sp_rename N'dbo.F03HrmAttendanceCalculatedBatchSnapshot.LatemInutesDay',N'LateMinutesDay','COLUMN';
-IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'LatemInutesNight') IS NOT NULL
-    AND COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'LateMinutesNight') IS NULL
-    EXEC sp_rename N'dbo.F03HrmAttendanceCalculatedBatchSnapshot.LatemInutesNight',N'LateMinutesNight','COLUMN';
 GO
 
 IF OBJECT_ID(N'dbo.F03HrmOTActualBatchSnapshot',N'U') IS NULL
