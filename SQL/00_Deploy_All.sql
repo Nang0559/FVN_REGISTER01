@@ -2,18 +2,30 @@
 ===============================================================================
 FVN_REGISTER - MASTER SQL DEPLOYMENT
 ===============================================================================
-Run this file from SSMS with Query -> SQLCMD Mode enabled.
-IMPORTANT: SQLCMD mode is required because this master file uses :r directives.
-The file is intended to be opened/executed while the current working directory
-is the repository SQL folder. RepoRoot is therefore a simple relative path.
+SSMS: enable Query -> SQLCMD Mode before executing this file.
 
-ALL repository database migrations are owned by this SQL deployment chain.
+IMPORTANT:
+SQLCMD :r resolves relative paths from the SQLCMD working directory, which is
+not reliably the folder containing this file in SSMS. Therefore RepoRoot must
+be supplied explicitly when running from SSMS.
+
+Recommended SSMS command-line variable:
+  SQLCMD -v RepoRoot="H:\95 - Project\17.FVN _DANGKYNGHI\FVN_REGISTER\SQL"
+
+If you open this file from another machine/path, change RepoRoot to the actual
+absolute path of this repository's SQL directory.
+
 Database/ is documentation/history only and is not executed by deployment.
 ===============================================================================
 */
 
 :on error exit
-:setvar RepoRoot "."
+
+/*
+   SSMS SQLCMD Mode does NOT provide a portable "directory of this .sql file"
+   variable. An absolute RepoRoot is therefore required for :r.
+*/
+:setvar RepoRoot "H:\95 - Project\17.FVN _DANGKYNGHI\FVN_REGISTER\SQL"
 
 /* ---------------------------------------------------------------------------
    CORE DATABASE FOUNDATION
@@ -25,10 +37,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\03_Tables.sql"
 :r "$(RepoRoot)\04_Constraints.sql"
 :r "$(RepoRoot)\05_Indexes.sql"
-
-/* 06_Seed.sql is intentionally excluded from production/master deployment. */
 :rem 06_Seed.sql intentionally excluded; run only against a disposable/test database.
-
 :r "$(RepoRoot)\07_Views.sql"
 :r "$(RepoRoot)\08_Functions.sql"
 :r "$(RepoRoot)\09_StoredProcedures.sql"
@@ -38,24 +47,17 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\11B_Permissions.sql"
 :r "$(RepoRoot)\12_Verify.sql"
 
-/* ---------------------------------------------------------------------------
-   HRM / SECURITY / PUBLIC INFORMATION
-   --------------------------------------------------------------------------- */
+/* HRM / SECURITY / PUBLIC INFORMATION */
 :r "$(RepoRoot)\13_HrmShiftMaster.sql"
 :r "$(RepoRoot)\14_SecurityAuthorization.sql"
 :r "$(RepoRoot)\15_PublicInformation.sql"
 
-/* ---------------------------------------------------------------------------
-   EQUIPMENT - CANONICAL OWNER
-   16 creates/upgrades the complete Equipment foundation before any extension.
-   --------------------------------------------------------------------------- */
+/* EQUIPMENT - CANONICAL OWNER */
 :r "$(RepoRoot)\16_EquipmentFlexibleImport.sql"
 :r "$(RepoRoot)\16A_EquipmentCapabilities.sql"
 :r "$(RepoRoot)\16B_EquipmentSpecificRequestForms.sql"
 
-/* ---------------------------------------------------------------------------
-   APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR
-   --------------------------------------------------------------------------- */
+/* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
 :r "$(RepoRoot)\17_ApprovalRouteSelection.sql"
 :r "$(RepoRoot)\18_ApproverConfigurationReview.sql"
 :r "$(RepoRoot)\19_OT_LimitRule_ScopeColumns.sql"
@@ -72,16 +74,10 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\27_WorkCalendarActionIndexesSeed.sql"
 :r "$(RepoRoot)\28_Verify_WorkCalendarAction.sql"
 
-/* ---------------------------------------------------------------------------
-   TRIPS - canonical schema migrated from Database/Trips
-   --------------------------------------------------------------------------- */
+/* TRIPS */
 :r "$(RepoRoot)\28B_Trips.sql"
 
-/* ---------------------------------------------------------------------------
-   EXECUTION / PAYROLL / APPROVAL / PUBLIC / EMAIL / SECURITY
-   Keep explicit dependency order; filename numbering is historical and is not
-   used as the dependency rule.
-   --------------------------------------------------------------------------- */
+/* EXECUTION / PAYROLL / APPROVAL / PUBLIC / EMAIL / SECURITY */
 :r "$(RepoRoot)\29_ExecutionReconciliation.sql"
 :r "$(RepoRoot)\30_Payroll.sql"
 :r "$(RepoRoot)\31_Hrm_User_Approval_Provisioning.sql"
@@ -97,10 +93,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\41_EmailCenter_ProfileCompatibility.sql"
 :r "$(RepoRoot)\41_SecurityFunctionCleanup.sql"
 
-/* ---------------------------------------------------------------------------
-   EQUIPMENT EXTENSIONS
-   All run after canonical Equipment foundation (16/16A/16B).
-   --------------------------------------------------------------------------- */
+/* EQUIPMENT EXTENSIONS */
 :r "$(RepoRoot)\42_EquipmentInspection.sql"
 :r "$(RepoRoot)\43_EquipmentHandover.sql"
 :r "$(RepoRoot)\44_SecurityAccessChange.sql"
@@ -113,16 +106,11 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\51_SecurityFunctionRegistryRecovery.sql"
 :r "$(RepoRoot)\52_Verify_SecurityFunctionRecovery.sql"
 
-/* Approval foundation must exist before endpoint governance approval links. */
+/* APPROVAL FOUNDATION BEFORE ENDPOINT SECURITY */
 :r "$(RepoRoot)\53_ApprovalUnifiedFoundation.sql"
-
-/* Endpoint security capability depends on the security foundation above. */
 :r "$(RepoRoot)\58_EndpointSecurityCapabilities.sql"
 
-/* ---------------------------------------------------------------------------
-   ENDPOINT / GOVERNANCE
-   Identity and inventory first, then credentials/catalog/extensions.
-   --------------------------------------------------------------------------- */
+/* ENDPOINT / GOVERNANCE */
 :r "$(RepoRoot)\54_Endpoint_Inventory_Compliance.sql"
 :r "$(RepoRoot)\54_EndpointGovernanceFoundation.sql"
 :r "$(RepoRoot)\55_Endpoint_Credentials.sql"
@@ -130,9 +118,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\56_EndpointGovernanceExtensions.sql"
 :r "$(RepoRoot)\57_Verify_Endpoint_Governance.sql"
 
-/* ---------------------------------------------------------------------------
-   FINAL VERIFICATION
-   --------------------------------------------------------------------------- */
+/* FINAL VERIFICATION */
 :r "$(RepoRoot)\99_Verify.sql"
 
 PRINT N'============================================================';
