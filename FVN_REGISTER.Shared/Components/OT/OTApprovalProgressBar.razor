@@ -1,0 +1,42 @@
+@using FVN_REGISTER.Contract.Dtos.Approvals
+
+<MudTooltip Text="@TooltipText" Placement="Placement.Top">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+        @foreach (var step in Steps.OrderBy(x => x.Level).Where(x => x.IsRequired || x.IsApproved != null))
+        {
+            <div style="
+                    width: 10px; height: 10px;
+                    border-radius: 50%;
+                    background: @GetDotColor(step);
+                    border: 1.5px solid @GetBorderColor(step);
+                    flex-shrink: 0;"
+                 title="@step.LevelLabel: @step.StatusText">
+            </div>
+        }
+    </MudStack>
+</MudTooltip>
+
+@code {
+    [Parameter] public IEnumerable<ApprovalStepDto> Steps { get; set; } = Array.Empty<ApprovalStepDto>();
+
+    private IEnumerable<ApprovalStepDto> DisplaySteps =>
+        Steps.OrderBy(x => x.Level)
+             .Where(x => x.IsRequired || x.IsApproved != null);
+
+    private string TooltipText =>
+        string.Join(" → ", DisplaySteps.Select(x => $"{x.LevelLabel}: {x.StatusText}"));
+
+    private static string GetDotColor(ApprovalStepDto step) => step.IsApproved switch
+    {
+        true => "#4CAF50",
+        false => "#F44336",
+        _ => step.IsRequired ? "#FF9800" : "transparent"
+    };
+
+    private static string GetBorderColor(ApprovalStepDto step) => step.IsApproved switch
+    {
+        true => "#388E3C",
+        false => "#C62828",
+        _ => step.IsRequired ? "#F57C00" : "#BDBDBD"
+    };
+}

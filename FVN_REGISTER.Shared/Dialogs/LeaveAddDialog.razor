@@ -1,0 +1,254 @@
+@using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Contract.Dtos.MasterData
+@using FVN_REGISTER.Contract.Requests.Leaves
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Shared.Services.Leaves
+@inject ILeaveCreateClientService LeaveService
+@inject IApprovalRouteClientService ApprovalRouteService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.EditCalendar" Class="mr-2" />Đăng ký nghỉ phép</MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_startDate"
+                                   @bind-Date:after="RebuildDetails"
+                                   Label="Từ ngày *"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_endDate"
+                                   @bind-Date:after="RebuildDetails"
+                                   Label="Đến ngày *"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Value="_defaultLeaveTypeCode"
+                               ValueChanged="ChangeDefaultLeaveType"
+                               Label="Loại nghỉ *"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="@(!Model.LeaveTypes.Any())">
+                        @foreach (var type in Model.LeaveTypes)
+                        {
+                            <MudSelectItem Value="@type.LeaveTypeCode">@type.LeaveTypeName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="HalfDayType"
+                               Value="@_defaultHalfDayOption"
+                               ValueChanged="ChangeDefaultHalfDay"
+                               Label="Thời lượng"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="@(!_details.Any())">
+                        <MudSelectItem Value="@HalfDayType.None">Cả ngày</MudSelectItem>
+                        <MudSelectItem Value="@HalfDayType.Morning">Nửa ngày - Sáng</MudSelectItem>
+                        <MudSelectItem Value="@HalfDayType.Afternoon">Nửa ngày - Chiều</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            @if (!Model.LeaveTypes.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">
+                    Chưa có loại nghỉ đang hoạt động. Vui lòng cấu hình F03LeaveType trước khi gửi đơn.
+                </MudAlert>
+            }
+
+            <MudTextField @bind-Value="_reason"
+                          Label="Lý do nghỉ *"
+                          Lines="3"
+                          Required="true"
+                          RequiredError="Vui lòng nhập lý do"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mt-3" />
+
+            @if (_details.Any())
+            {
+                <MudPaper Class="mt-3 pa-2" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Chi tiết từng ngày</MudText>
+                    <MudSimpleTable Dense="true" Striped="true">
+                        <thead><tr><th>Ngày</th><th>Loại nghỉ</th><th>Thời lượng</th></tr></thead>
+                        <tbody>
+                            @foreach (var detail in _details)
+                            {
+                                <tr>
+                                    <td>@detail.LeaveDate.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        @{
+                                            var detailType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == detail.LeaveTypeCode);
+                                        }
+                                        <MudText Typo="Typo.body2">
+                                            @(detailType?.LeaveTypeName ?? detail.LeaveTypeCode)
+                                        </MudText>
+                                    </td>
+                                    <td>
+                                        <MudSelect T="HalfDayType" Value="@(detail.HalfDayOption ?? HalfDayType.None)" ValueChanged="@(value => ChangeHalfDay(detail, value))" Dense="true" Margin="Margin.Dense">
+                                            <MudSelectItem Value="@HalfDayType.None">Cả ngày</MudSelectItem>
+                                            <MudSelectItem Value="@HalfDayType.Morning">Buổi sáng</MudSelectItem>
+                                            <MudSelectItem Value="@HalfDayType.Afternoon">Buổi chiều</MudSelectItem>
+                                        </MudSelect>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+
+            @if (_approvalRoute != null)
+            {
+                <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+            }
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Đóng</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">@(_saving ? "Đang gửi..." : "Gửi đơn")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public SystemMasterDataDto Model { get; set; } = default!;
+    [Parameter] public string? DefaultStart { get; set; }
+    [Parameter] public string? DefaultEnd { get; set; }
+    [Parameter] public int SelectedYear { get; set; } = DateTime.Now.Year;
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private MudForm? _form;
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+    private string _reason = string.Empty;
+    private string? _defaultLeaveTypeCode;
+    private HalfDayType _defaultHalfDayOption = HalfDayType.None;
+    private bool _saving;
+    private readonly List<LeaveRequestDetailUpsertDto> _details = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
+
+    protected override void OnInitialized()
+    {
+        if (DateTime.TryParse(DefaultStart, out var start)) _startDate = start;
+        if (DateTime.TryParse(DefaultEnd, out var end)) _endDate = end;
+        else _endDate = _startDate;
+        RebuildDetails();
+        _ = LoadApprovalRouteAsync();
+    }
+
+    private void RebuildDetails()
+    {
+        _details.Clear();
+        if (!_startDate.HasValue || !_endDate.HasValue || _startDate > _endDate) return;
+        var defaultType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == _defaultLeaveTypeCode)
+            ?? Model.LeaveTypes.FirstOrDefault();
+        if (defaultType == null) return;
+
+        _defaultLeaveTypeCode = defaultType.LeaveTypeCode;
+
+        for (var date = _startDate.Value.Date; date <= _endDate.Value.Date; date = date.AddDays(1))
+        {
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
+            if (Model.CompanyHolidays.Any(x => x.Start.Date == date)) continue;
+            _details.Add(new LeaveRequestDetailUpsertDto
+            {
+                LeaveDate = date,
+                LeaveTypeCode = defaultType.LeaveTypeCode,
+                IsHalfDay = _defaultHalfDayOption != HalfDayType.None,
+                HalfDayOption = _defaultHalfDayOption
+            });
+        }
+    }
+
+    private void ChangeDefaultLeaveType(string? code)
+    {
+        _defaultLeaveTypeCode = code;
+        if (string.IsNullOrWhiteSpace(code))
+            return;
+
+        foreach (var detail in _details)
+            detail.LeaveTypeCode = code;
+    }
+
+    private void ChangeDefaultHalfDay(HalfDayType value)
+    {
+        _defaultHalfDayOption = value;
+        foreach (var detail in _details)
+        {
+            detail.HalfDayOption = value;
+            detail.IsHalfDay = value != HalfDayType.None;
+        }
+    }
+
+    private void ChangeHalfDay(LeaveRequestDetailUpsertDto detail, HalfDayType value)
+    {
+        detail.HalfDayOption = value;
+        detail.IsHalfDay = value != HalfDayType.None;
+    }
+
+    private async Task Submit()
+    {
+        if (_startDate == null || _endDate == null || _startDate > _endDate) { Snackbar.Add("Khoảng ngày nghỉ không hợp lệ.", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_reason)) { Snackbar.Add("Vui lòng nhập lý do nghỉ.", Severity.Warning); return; }
+        if (!_details.Any()) { Snackbar.Add("Khoảng ngày không có ngày làm việc hợp lệ.", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_defaultLeaveTypeCode))
+        {
+            Snackbar.Add("Vui lòng chọn loại nghỉ.", Severity.Warning);
+            return;
+        }
+
+        var selections = _approvalSelector?.GetSelections() ?? new();
+        if (selections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+        {
+            Snackbar.Add("Vui lòng chọn người phê duyệt cho từng cấp.", Severity.Warning);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var request = new LeaveRequestUpsertDto
+            {
+                StartDate = _startDate.Value.Date,
+                EndDate = _endDate.Value.Date,
+                LeaveTypeCode = _defaultLeaveTypeCode!,
+                Reason = _reason.Trim(),
+                Details = _details.ToList(),
+                ApprovalSelections = selections
+            };
+            var result = await LeaveService.CreateLeaveAsync(request);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Gửi đơn nghỉ thất bại.", Severity.Error); return; }
+            Snackbar.Add("Đã gửi đơn nghỉ.", Severity.Success);
+            await OnSaved.InvokeAsync();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally { _saving = false; }
+    }
+
+
+    private async Task LoadApprovalRouteAsync()
+    {
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Leave);
+        if (result.IsSuccess) _approvalRoute = result.Data;
+        else Snackbar.Add(result.Message ?? "Không tải được luồng phê duyệt.", Severity.Warning);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

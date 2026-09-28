@@ -1,0 +1,106 @@
+@page "/leave/department-status"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Shared.Services.Departments
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Core.Constants
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IDepartmentStatusClientService DeptStatusService
+@inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+<PageTitle>Trạng thái hiện diện phòng ban</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
+    <div><MudText Typo="Typo.h5">Trạng thái hiện diện</MudText><MudText Typo="Typo.caption">Ngày: @_selectedDate.ToString("dd/MM/yyyy") — Cập nhật: @_loadedAt?.ToString("HH:mm:ss")</MudText></div>
+    <MudStack Row="true" Spacing="2"><MudDatePicker @bind-Date="_datePicker" Label="Chọn ngày" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" MaxDate="DateTime.Today" /><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton></MudStack>
+</MudStack>
+
+@if (_loading) { <MudProgressLinear Indeterminate="true" Class="mb-4" /> }
+
+@if (_canView && _allDepts != null)
+{
+    <MudGrid Class="mb-4">
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Tổng nhân viên</MudText><MudText Typo="Typo.h5"><b>@_allDepts.Sum(x => x.TotalEmployees)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Có mặt</MudText><MudText Typo="Typo.h5" Color="Color.Success"><b>@_allDepts.Sum(x => x.PresentCount)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Nghỉ phép</MudText><MudText Typo="Typo.h5" Color="Color.Info"><b>@_allDepts.Sum(x => x.OnLeaveCount)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Vắng KLR</MudText><MudText Typo="Typo.h5" Color="Color.Error"><b>@_allDepts.Sum(x => x.AbsentNoReasonCount)</b></MudText></MudPaper></MudItem>
+    </MudGrid>
+    <MudTable Items="_allDepts" T="DepartmentStatusDto" Hover="true" Dense="true" OnRowClick="OnDeptRowClick">
+        <HeaderContent><MudTh>Phòng ban</MudTh><MudTh>Tổng NV</MudTh><MudTh>Có mặt</MudTh><MudTh>Nghỉ phép</MudTh><MudTh>Vắng KLR</MudTh><MudTh>Tỷ lệ vắng</MudTh></HeaderContent>
+        <RowTemplate><MudTd><b>@context.DeptName</b><MudText Typo="Typo.caption">@context.DeptCode</MudText></MudTd><MudTd>@context.TotalEmployees</MudTd><MudTd>@context.PresentCount</MudTd><MudTd>@context.OnLeaveCount</MudTd><MudTd>@context.AbsentNoReasonCount</MudTd><MudTd>@context.AbsenceRate.ToString("N1")%</MudTd></RowTemplate>
+        <NoRecordsContent><MudText Class="pa-6">Không có dữ liệu.</MudText></NoRecordsContent>
+    </MudTable>
+}
+
+@if (_deptDetail != null)
+{
+    <MudDivider Class="my-4" /><MudText Typo="Typo.h6" Class="mb-3">Chi tiết: @_deptDetail.DeptName (@_deptDetail.DeptCode)</MudText>
+    <MudStack Row="true" Spacing="2" Class="mb-3"><MudTextField @bind-Value="_searchText" Placeholder="Tìm tên / mã NV..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" /><MudSelect T="string" @bind-Value="_filterStatus" Label="Trạng thái" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"><MudSelectItem Value="@("PRESENT")">Có mặt</MudSelectItem><MudSelectItem Value="@("ON_LEAVE")">Nghỉ phép</MudSelectItem><MudSelectItem Value="@("ABSENT")">Vắng KLR</MudSelectItem></MudSelect></MudStack>
+    <MudTable Items="FilteredRows" T="EmployeeStatusRow" Dense="true" Hover="true">
+        <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>Trạng thái</MudTh><MudTh>Giờ vào</MudTh><MudTh>Loại nghỉ</MudTh><MudTh>Lý do</MudTh></HeaderContent>
+        <RowTemplate><MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd><MudTd><MudChip T="string" Size="Size.Small" Style="@($"background:{context.StatusColor};color:white")">@context.StatusDisplay</MudChip></MudTd><MudTd>@(context.CheckInText ?? "—")</MudTd><MudTd>@(context.LeaveTypeName ?? "—")</MudTd><MudTd>@(context.LeaveReason ?? "—")</MudTd></RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private bool _loading;
+    private bool _canView;
+    private DateTime? _datePicker = DateTime.Today;
+    private DateTime _selectedDate = DateTime.Today;
+    private DateTime? _loadedAt;
+    private List<DepartmentStatusDto>? _allDepts;
+    private DepartmentStatusDto? _deptDetail;
+    private string _searchText = string.Empty;
+    private string? _filterStatus;
+    private readonly CancellationTokenSource _cts = new();
+
+    private IEnumerable<EmployeeStatusRow> FilteredRows => _deptDetail?.Employees.Where(x =>
+        (string.IsNullOrWhiteSpace(_filterStatus) || x.Status == _filterStatus) &&
+        (string.IsNullOrWhiteSpace(_searchText) || x.EmployeeName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) || x.EmployeeCode.Contains(_searchText, StringComparison.OrdinalIgnoreCase))) ?? Enumerable.Empty<EmployeeStatusRow>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        _canView = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.DepartmentStatusView) == true;
+        if (_canView) await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true; _selectedDate = _datePicker ?? DateTime.Today;
+        try
+        {
+            var result = await DeptStatusService.GetAllAsync(_selectedDate, _cts.Token);
+            if (result.IsSuccess) { _allDepts = result.Data; _deptDetail = null; }
+            else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
+            _loadedAt = DateTime.Now;
+        }
+        catch (Exception ex) { Logger.LogError(ex, "[DepartmentStatus] Load error"); Snackbar.Add("Lỗi tải dữ liệu.", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task OnDeptRowClick(TableRowClickEventArgs<DepartmentStatusDto> args)
+    {
+        if (args.Item != null) await LoadDeptDetailAsync(args.Item.DeptCode);
+    }
+
+    private async Task LoadDeptDetailAsync(string deptCode)
+    {
+        _loading = true;
+        try
+        {
+            var result = await DeptStatusService.GetByDeptAsync(deptCode, _selectedDate, _cts.Token);
+            if (result.IsSuccess) _deptDetail = result.Data; else Snackbar.Add(result.Message ?? "Lỗi tải chi tiết.", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+}

@@ -1,0 +1,211 @@
+@using FVN_REGISTER.Contract.Dtos.Notifications
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Notifications
+@using FVN_REGISTER.Shared.Utils
+@using Microsoft.AspNetCore.SignalR.Client
+@using MudBlazor
+@inject INotificationClientService NotifyService
+@inject ITokenStorage TokenStorage
+@inject NavigationManager Nav
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+
+<div style="position: relative; display: inline-flex;">
+    <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                   Color="Color.Inherit"
+                   OnClick="TogglePanel"
+                   aria-label="Thông báo" />
+
+    @if (NotifyService.UnreadCount > 0)
+    {
+        <span style="position:absolute; top:4px; right:4px; background:#F44336; color:white; font-size:10px; font-weight:500; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 3px; pointer-events:none; line-height:1;">
+            @(NotifyService.UnreadCount > 99 ? "99+" : NotifyService.UnreadCount.ToString())
+        </span>
+    }
+</div>
+
+@if (_panelOpen)
+{
+    <MudPaper Elevation="8" Style="position:fixed; top:56px; right:16px; width:360px; max-height:480px; z-index:9999; display:flex; flex-direction:column; border-radius:12px; overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--mud-palette-divider);">
+            <MudText Typo="Typo.subtitle1"><b>Thông báo</b></MudText>
+            <div style="display:flex; gap:4px;">
+                @if (NotifyService.UnreadCount > 0)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="MarkAllRead">Đọc tất cả</MudButton>
+                }
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="TogglePanel" />
+            </div>
+        </div>
+
+        <div style="overflow-y:auto; flex:1;">
+            @if (_loading)
+            {
+                <div style="padding:24px; text-align:center;"><MudProgressCircular Size="Size.Small" Indeterminate="true" /></div>
+            }
+            else if (!NotifyService.Notifications.Any())
+            {
+                <div style="padding:32px; text-align:center;">
+                    <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone" Style="font-size:48px; opacity:0.3;" />
+                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">Chưa có thông báo</MudText>
+                </div>
+            }
+            else
+            {
+                @foreach (var item in NotifyService.Notifications)
+                {
+                    <div @key="item.Id" style="display:flex; gap:12px; padding:12px 16px; cursor:pointer; background:@(item.IsRead ? "transparent" : "rgba(25,118,210,0.05)"); border-bottom:1px solid var(--mud-palette-divider); transition:background 0.2s;" @onclick="() => OnItemClick(item)">
+                        <div style="width:36px; height:36px; border-radius:50%; background:@GetIconBg(item.Action); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <MudIcon Icon="@GetMudIcon(item.Action)" Style="@($"color:{GetIconColor(item.Action)}; font-size:18px;")" />
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:13px; font-weight:@(item.IsRead ? "400" : "500"); color:var(--mud-palette-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@item.Title</div>
+                            @if (!string.IsNullOrEmpty(item.Body))
+                            {
+                                <div style="font-size:12px; color:var(--mud-palette-text-secondary); margin-top:2px;">@item.Body</div>
+                            }
+                            <div style="font-size:11px; color:var(--mud-palette-text-disabled); margin-top:4px;">@GetTimeAgo(item.CreatedAt)</div>
+                        </div>
+                        @if (!item.IsRead)
+                        {
+                            <div style="width:8px; height:8px; border-radius:50%; background:#1976D2; margin-top:4px; flex-shrink:0;" />
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </MudPaper>
+
+    <div style="position:fixed; inset:0; z-index:9998;" @onclick="TogglePanel" />
+}
+
+@code {
+    private bool _panelOpen;
+    private bool _loading;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NotifyService.OnChanged += OnNotifyChanged;
+        await NotifyService.InitializeAsync();
+        await ConnectSignalRAsync();
+    }
+
+    private async Task ConnectSignalRAsync()
+    {
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            var apiBase = GetApiBaseUrl();
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl($"{apiBase}/hubs/notification", options =>
+                {
+                    if (!string.IsNullOrWhiteSpace(token))
+                        options.AccessTokenProvider = () => Task.FromResult<string?>(token.Trim().Trim('"'));
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<NotificationPushDto>("ReceiveNotification", push =>
+            {
+                NotifyService.HandlePush(push);
+                _ = InvokeAsync(StateHasChanged);
+            });
+
+            _hubConnection.On<int>("BadgeUpdated", _value => _ = InvokeAsync(StateHasChanged));
+            await _hubConnection.StartAsync();
+        }
+        catch
+        {
+            // SignalR is optional; REST notification operations remain available.
+        }
+    }
+
+    private string GetApiBaseUrl()
+    {
+        var baseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7135/";
+        var uri = new Uri(baseUrl);
+        return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? string.Empty : $":{uri.Port}")}";
+    }
+
+    private async Task TogglePanel()
+    {
+        _panelOpen = !_panelOpen;
+        if (_panelOpen)
+        {
+            _loading = true;
+            await NotifyService.LoadListAsync();
+            _loading = false;
+        }
+    }
+
+    private async Task OnItemClick(NotificationDto item)
+    {
+        if (!item.IsRead)
+            await NotifyService.MarkReadAsync(item.Id);
+
+        _panelOpen = false;
+        if (!string.IsNullOrWhiteSpace(item.ActionUrl))
+            Nav.NavigateTo(item.ActionUrl);
+    }
+
+    private async Task MarkAllRead()
+    {
+        await NotifyService.MarkAllReadAsync();
+        _panelOpen = false;
+    }
+
+    private void OnNotifyChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static string GetMudIcon(NotificationAction action) => action switch
+    {
+        NotificationAction.Pending or NotificationAction.PendingNextLevel => Icons.Material.Filled.HourglassEmpty,
+        NotificationAction.Approved => Icons.Material.Filled.CheckCircle,
+        NotificationAction.Rejected => Icons.Material.Filled.Cancel,
+        NotificationAction.Reminder => Icons.Material.Filled.NotificationsActive,
+        NotificationAction.Escalated => Icons.Material.Filled.Warning,
+        _ => Icons.Material.Filled.Notifications
+    };
+
+    private static string GetIconBg(NotificationAction action) => action switch
+    {
+        NotificationAction.Approved => "rgba(76,175,80,.12)",
+        NotificationAction.Rejected => "rgba(244,67,54,.12)",
+        NotificationAction.Escalated or NotificationAction.Reminder => "rgba(255,152,0,.12)",
+        _ => "rgba(33,150,243,.12)"
+    };
+
+    private static string GetIconColor(NotificationAction action) => action switch
+    {
+        NotificationAction.Approved => "#4caf50",
+        NotificationAction.Rejected => "#f44336",
+        NotificationAction.Escalated or NotificationAction.Reminder => "#ff9800",
+        _ => "#2196f3"
+    };
+
+    private static string GetNotificationColor(NotificationAction action) => action switch
+    {
+        NotificationAction.Approved => "success",
+        NotificationAction.Rejected => "error",
+        NotificationAction.Escalated or NotificationAction.Reminder => "warning",
+        _ => "info"
+    };
+
+    private static string GetTimeAgo(DateTime createdAt)
+    {
+        var elapsed = DateTime.Now - createdAt;
+        if (elapsed.TotalMinutes < 1) return "Vừa xong";
+        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes} phút trước";
+        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours} giờ trước";
+        if (elapsed.TotalDays < 30) return $"{(int)elapsed.TotalDays} ngày trước";
+        return createdAt.ToString("dd/MM/yyyy HH:mm");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        NotifyService.OnChanged -= OnNotifyChanged;
+        if (_hubConnection != null)
+            await _hubConnection.DisposeAsync();
+    }
+}

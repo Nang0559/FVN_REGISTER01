@@ -1,0 +1,178 @@
+@page "/equipment/request-forms/{AssetId:int}"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.EquipmentForms
+@using FVN_REGISTER.Shared.Services.Equipment
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IEquipmentClientService EquipmentClient
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_forms.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">Thiết bị này hiện chưa có biểu mẫu yêu cầu được áp dụng.</MudAlert>
+    }
+    else
+    {
+        <MudStack Spacing="3">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.h5">Biểu mẫu yêu cầu của thiết bị</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Các biểu mẫu dưới đây được cấu hình theo loại thiết bị và chỉ người đang được giao thiết bị mới có thể gửi.</MudText>
+                </div>
+                <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Quay lại Sổ thiết bị</MudButton>
+            </MudStack>
+
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudPaper Class="pa-3">
+                        <MudText Typo="Typo.subtitle1">Biểu mẫu áp dụng</MudText>
+                        @foreach (var form in _forms)
+                        {
+                            <MudButton FullWidth="true" Variant="@(ReferenceEquals(form, _selectedForm) ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectForm(form))">
+                                <MudStack AlignItems="AlignItems.Start">
+                                    <MudText>@form.Title</MudText>
+                                    <MudText Typo="Typo.caption">@form.FormCode • v@form.Version@(form.RequireApproval ? " • Cần phê duyệt" : "")</MudText>
+                                </MudStack>
+                            </MudButton>
+                        }
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="8">
+                    @if (_selectedForm != null)
+                    {
+                        <MudPaper Class="pa-4">
+                            <MudText Typo="Typo.h6">@_selectedForm.Title</MudText>
+                            <MudText Typo="Typo.body2" Class="mb-4">@_selectedForm.Description</MudText>
+                            <MudText Typo="Typo.caption">Thiết bị: @_selectedForm.EquipmentCode - @_selectedForm.EquipmentName</MudText>
+                            <MudDivider Class="my-4" />
+
+                            @foreach (var question in _selectedForm.Questions.OrderBy(x => x.Sequence))
+                            {
+                                <MudStack Class="mb-4">
+                                    <MudText Typo="Typo.subtitle2">@question.QuestionText @(question.IsRequired ? "*" : "")</MudText>
+                                    @if (!string.IsNullOrWhiteSpace(question.HelpText))
+                                    {
+                                        <MudText Typo="Typo.caption">@question.HelpText</MudText>
+                                    }
+
+                                    @if (IsChoice(question))
+                                    {
+                                        <MudSelect T="string" Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label="Chọn" Variant="Variant.Outlined">
+                                            @foreach (var option in question.Options)
+                                            {
+                                                <MudSelectItem Value="@option.OptionCode">@option.OptionText</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                    else if (string.Equals(question.QuestionType, "Boolean", StringComparison.OrdinalIgnoreCase) || string.Equals(question.QuestionType, "Bool", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <MudSwitch T="bool" Value="@GetBool(question.Id)" ValueChanged="@(v => SetBool(question.Id, v))" Color="Color.Primary">Có / Không</MudSwitch>
+                                    }
+                                    else
+                                    {
+                                        <MudTextField Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label="@question.Placeholder" Variant="Variant.Outlined" InputType="@InputTypeFor(question)" />
+                                    }
+                                </MudStack>
+                            }
+
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+                                @(_selectedForm.RequireApproval ? "Sau khi gửi, yêu cầu sẽ đi vào quy trình phê duyệt Equipment hiện tại." : "Biểu mẫu này không yêu cầu phê duyệt.")
+                            </MudAlert>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SubmitAsync">Gửi yêu cầu</MudButton>
+                        </MudPaper>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudStack>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+    private bool _loading = true;
+    private bool _busy;
+    private List<EquipmentApplicableFormDto> _forms = new();
+    private EquipmentApplicableFormDto? _selectedForm;
+    private readonly Dictionary<int, string> _values = new();
+    private readonly Dictionary<int, bool> _boolValues = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        var result = await EquipmentClient.GetApplicableFormsAsync(AssetId);
+        if (result.IsSuccess)
+        {
+            _forms = result.Data ?? new();
+            _selectedForm = _forms.FirstOrDefault();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Không tải được biểu mẫu thiết bị.", Severity.Error);
+        }
+        _loading = false;
+    }
+
+    private void SelectForm(EquipmentApplicableFormDto form)
+    {
+        _selectedForm = form;
+        _values.Clear();
+        _boolValues.Clear();
+    }
+
+    private string GetValue(int id) => _values.TryGetValue(id, out var value) ? value : string.Empty;
+    private void SetValue(int id, string? value) => _values[id] = value ?? string.Empty;
+    private bool GetBool(int id) => _boolValues.TryGetValue(id, out var value) && value;
+    private void SetBool(int id, bool value) => _boolValues[id] = value;
+
+    private static bool IsChoice(EquipmentFormQuestionDto q) =>
+        q.Options.Count > 0 || string.Equals(q.QuestionType, "Select", StringComparison.OrdinalIgnoreCase) || string.Equals(q.QuestionType, "Choice", StringComparison.OrdinalIgnoreCase);
+
+    private static InputType InputTypeFor(EquipmentFormQuestionDto q)
+    {
+        if (string.Equals(q.QuestionType, "Number", StringComparison.OrdinalIgnoreCase) || string.Equals(q.QuestionType, "Decimal", StringComparison.OrdinalIgnoreCase)) return InputType.Number;
+        if (string.Equals(q.QuestionType, "Date", StringComparison.OrdinalIgnoreCase)) return InputType.Date;
+        return InputType.Text;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_selectedForm == null) return;
+        _busy = true;
+        try
+        {
+            var answers = new List<EquipmentFormAnswerRequest>();
+            foreach (var q in _selectedForm.Questions)
+            {
+                var answer = new EquipmentFormAnswerRequest { QuestionId = q.Id };
+                if (string.Equals(q.QuestionType, "Boolean", StringComparison.OrdinalIgnoreCase) || string.Equals(q.QuestionType, "Bool", StringComparison.OrdinalIgnoreCase))
+                    answer.BoolValue = GetBool(q.Id);
+                else if (string.Equals(q.QuestionType, "Number", StringComparison.OrdinalIgnoreCase) || string.Equals(q.QuestionType, "Decimal", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (decimal.TryParse(GetValue(q.Id), out var number)) answer.NumberValue = number;
+                    else answer.TextValue = GetValue(q.Id);
+                }
+                else if (string.Equals(q.QuestionType, "Date", StringComparison.OrdinalIgnoreCase) && DateTime.TryParse(GetValue(q.Id), out var date))
+                    answer.DateValue = date;
+                else
+                    answer.TextValue = GetValue(q.Id);
+                answers.Add(answer);
+            }
+
+            var result = await EquipmentClient.SubmitEquipmentFormAsync(new EquipmentFormSubmissionRequest { AssetId = AssetId, FormId = _selectedForm.FormId, Answers = answers });
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Đã gửi yêu cầu.", Severity.Success);
+                Navigation.NavigateTo("/equipment");
+            }
+            else Snackbar.Add(result.Message ?? "Không thể gửi yêu cầu.", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+}

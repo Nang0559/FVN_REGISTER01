@@ -1,0 +1,429 @@
+@page "/admin/approval-policies"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Contract.Requests.Approvals
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Approvals
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IApprovalPolicyClientService PolicyService
+@inject ISnackbar Snackbar
+
+<PageTitle>Cấu hình Approval Policy - FCC</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight:700">Cấu hình Approval Policy</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Loại yêu cầu → Phòng ban → Position người yêu cầu (tuỳ chọn) → Chức vụ/cấp phê duyệt.
+        </MudText>
+    </div>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+</MudStack>
+
+<MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+    <b>Phòng ban là bắt buộc.</b> Position của người yêu cầu có thể bỏ trống để áp dụng cho toàn bộ Position trong phòng ban.
+    <b>Chức vụ phê duyệt</b> luôn chọn từ F03Positions active; hệ thống lấy DefaultApproveLevel và RoleName từ danh sách chức vụ.
+</MudAlert>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
+    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa Approval Policy" : "Thêm Approval Policy")</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="int" @bind-Value="_form.RequestType" Label="Loại yêu cầu *" Variant="Variant.Outlined">
+                @foreach (var type in Enum.GetValues<RequestModule>())
+                {
+                    <MudSelectItem Value="@((int)type)">@RequestTypeName(type)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="string" @bind-Value="_form.DeptCode" Label="Phòng ban *"
+                       Variant="Variant.Outlined" Clearable="false">
+                @foreach (var dept in _departments)
+                {
+                    <MudSelectItem Value="@dept.DeptCode">
+                        @dept.DeptCode — @dept.DeptName
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="string" @bind-Value="_form.PositionCode" Label="Position người yêu cầu (tuỳ chọn)"
+                       Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem Value="@((string?)null)">Tất cả Position trong phòng ban</MudSelectItem>
+                @foreach (var position in _positions)
+                {
+                    <MudSelectItem Value="@position.PositionCode">
+                        @position.PositionCode — @position.PositionName
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="string"
+                       Value="_form.ApprovalPositionCode"
+                       ValueChanged="OnApprovalPositionChanged"
+                       Label="Cấp phê duyệt / Chức vụ *"
+                       Variant="Variant.Outlined">
+                @foreach (var position in _approvalPositions)
+                {
+                    <MudSelectItem Value="@position.PositionCode">
+                        @position.PositionCode — @position.PositionName
+                        @($" | Level {position.DefaultApproveLevel} | {position.RoleName}")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="1">
+            <MudNumericField T="int" @bind-Value="_form.Level" Label="Level"
+                             Variant="Variant.Outlined" Min="1" Max="7" ReadOnly="true" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="1">
+            <MudNumericField T="int" @bind-Value="_form.Sequence" Label="Thứ tự"
+                             Variant="Variant.Outlined" Min="1" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudTextField @bind-Value="_form.LevelName" Label="Tên cấp duyệt"
+                          Variant="Variant.Outlined" ReadOnly="true" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudTextField @bind-Value="_form.RoleName" Label="RoleName"
+                          Variant="Variant.Outlined" ReadOnly="true" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_form.Required" Color="Color.Primary">Bắt buộc</MudSwitch>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
+        </MudItem>
+    </MudGrid>
+
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+        @if (_editingId.HasValue)
+        {
+            <MudButton Variant="Variant.Text" OnClick="ResetForm">Hủy sửa</MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="SaveAsync" Disabled="@_loading">
+            @(_editingId.HasValue ? "Cập nhật" : "Thêm policy")
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.subtitle1"><b>Nhóm Approval Policy</b></MudText>
+        <MudSelect T="PolicyGroupMode" @bind-Value="_groupMode" Label="Nhóm theo"
+                   Variant="Variant.Outlined" Dense="true" Style="min-width:220px">
+            <MudSelectItem Value="@PolicyGroupMode.Department">Phòng ban</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Position">Position người yêu cầu</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.RequestType">Loại yêu cầu</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Role">Role</MudSelectItem>
+        </MudSelect>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="Tìm phòng ban, Position, cấp duyệt, Role..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined"
+                      Clearable="true"
+                      Immediate="true"
+                      Style="max-width:400px" />
+    </MudStack>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="mb-2" />
+}
+else if (!FilteredPolicies.Any())
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+        Không có Approval Policy phù hợp bộ lọc hiện tại.
+    </MudAlert>
+}
+else
+{
+    <MudExpansionPanels MultiExpansion="true" Class="mb-4">
+        @foreach (var group in GroupedPolicies)
+        {
+            <MudExpansionPanel Text="@group.Key">
+                <TitleContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.subtitle1"><b>@group.Key</b></MudText>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                            @($"{group.Items.Count} policy")
+                        </MudChip>
+                    </MudStack>
+                </TitleContent>
+
+                <ChildContent>
+                    <MudTable Items="group.Items" Dense="true" Hover="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>Loại yêu cầu</MudTh>
+                            <MudTh>Phòng ban</MudTh>
+                            <MudTh>Position người yêu cầu</MudTh>
+                            <MudTh>Cấp phê duyệt</MudTh>
+                            <MudTh>Level</MudTh>
+                            <MudTh>Thứ tự</MudTh>
+                            <MudTh>Bắt buộc</MudTh>
+                            <MudTh>Active</MudTh>
+                            <MudTh />
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><b>@context.RequestTypeName</b></MudTd>
+                            <MudTd>@context.DeptCode — @context.DeptName</MudTd>
+                            <MudTd>
+                                @(string.IsNullOrWhiteSpace(context.PositionCode)
+                                    ? "Tất cả Position"
+                                    : $"{context.PositionCode} — {context.PositionName}")
+                            </MudTd>
+                            <MudTd>
+                                <b>@context.ApprovalPositionCode — @context.ApprovalPositionName</b>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @context.RoleName
+                                </MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                                    @($"Level {context.Level}")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>@context.Sequence</MudTd>
+                            <MudTd>@(context.Required ? "Có" : "Không")</MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(context.IsActive ? Color.Success : Color.Default)"
+                                         Variant="Variant.Outlined">
+                                    @(context.IsActive ? "Active" : "Inactive")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudStack Row="true" Spacing="1">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                   Color="Color.Primary"
+                                                   OnClick="@(() => Edit(context))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => DeleteAsync(context))" />
+                                </MudStack>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+@code {
+    private enum PolicyGroupMode
+    {
+        Department,
+        Position,
+        RequestType,
+        Role
+    }
+
+    private List<ApprovalPolicyDto> _policies = new();
+    private List<ApprovalPolicyPositionDto> _positions = new();
+    private List<ApprovalPolicyPositionDto> _approvalPositions = new();
+    private List<DepartmentDto> _departments = new();
+    private ApprovalPolicyRequest _form = NewForm();
+    private int? _editingId;
+    private bool _loading;
+    private PolicyGroupMode _groupMode = PolicyGroupMode.Department;
+    private string _searchText = string.Empty;
+
+    private IEnumerable<ApprovalPolicyDto> FilteredPolicies =>
+        _policies.Where(MatchesSearch);
+
+    private IEnumerable<PolicyGroup> GroupedPolicies =>
+        _groupMode switch
+        {
+            PolicyGroupMode.Position => FilteredPolicies
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.PositionCode)
+                    ? $"{x.DeptCode} — {x.DeptName} / Tất cả Position"
+                    : $"{x.DeptCode} — {x.DeptName} / {x.PositionCode} — {x.PositionName}")
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.Sequence).ThenBy(p => p.Level).ToList())),
+            PolicyGroupMode.RequestType => FilteredPolicies
+                .GroupBy(x => x.RequestTypeName)
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Sequence).ToList())),
+            PolicyGroupMode.Role => FilteredPolicies
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.RoleName) ? "(Chưa cấu hình Role)" : x.RoleName)
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Level).ToList())),
+            _ => FilteredPolicies
+                .GroupBy(x => $"{x.DeptCode} — {x.DeptName}")
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.RequestTypeName).ThenBy(p => p.PositionCode).ThenBy(p => p.Sequence).ToList()))
+        };
+
+    private bool MatchesSearch(ApprovalPolicyDto x)
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+            return true;
+
+        var q = _searchText.Trim();
+        return (x.DeptCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.DeptName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.PositionCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.PositionName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.ApprovalPositionCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.ApprovalPositionName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.RequestTypeName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.RoleName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private sealed record PolicyGroup(string Key, List<ApprovalPolicyDto> Items);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var policies = await PolicyService.GetAllAsync();
+            var positions = await PolicyService.GetPositionsAsync();
+            var departments = await PolicyService.GetDepartmentsAsync();
+
+            if (policies.IsSuccess)
+                _policies = policies.Data ?? new();
+            else
+                Snackbar.Add(policies.Message ?? "Không tải được Approval Policy.", Severity.Error);
+
+            if (positions.IsSuccess)
+            {
+                _positions = positions.Data?.Where(x => x.IsActive).ToList() ?? new();
+                _approvalPositions = _positions
+                    .Where(x => x.DefaultApproveLevel.HasValue)
+                    .ToList();
+            }
+            else
+                Snackbar.Add(positions.Message ?? "Không tải được danh sách Position.", Severity.Error);
+
+            if (departments.IsSuccess)
+                _departments = departments.Data ?? new();
+            else
+                Snackbar.Add(departments.Message ?? "Không tải được danh sách phòng ban.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnApprovalPositionChanged(string value)
+    {
+        _form.ApprovalPositionCode = value ?? string.Empty;
+
+        var position = _approvalPositions.FirstOrDefault(x => x.PositionCode == _form.ApprovalPositionCode);
+        if (position == null) return;
+
+        _form.Level = position.DefaultApproveLevel ?? 0;
+        _form.LevelName = position.PositionName;
+        _form.RoleName = position.RoleName;
+    }
+
+    private async Task SaveAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = _editingId.HasValue
+                ? await PolicyService.UpdateAsync(_editingId.Value, _form)
+                : await PolicyService.CreateAsync(_form);
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu Approval Policy.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_editingId.HasValue
+                ? "Đã cập nhật Approval Policy."
+                : "Đã thêm Approval Policy.", Severity.Success);
+
+            ResetForm();
+            await LoadAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Edit(ApprovalPolicyDto row)
+    {
+        _editingId = row.Id;
+        _form = new ApprovalPolicyRequest
+        {
+            RequestType = row.RequestType,
+            DeptCode = row.DeptCode,
+            PositionCode = row.PositionCode,
+            ApprovalPositionCode = row.ApprovalPositionCode,
+            Level = row.Level,
+            Sequence = row.Sequence,
+            LevelName = row.LevelName,
+            RoleName = row.RoleName,
+            Required = row.Required,
+            IsActive = row.IsActive
+        };
+    }
+
+    private async Task DeleteAsync(ApprovalPolicyDto row)
+    {
+        var result = await PolicyService.DeleteAsync(row.Id);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể vô hiệu hóa policy.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Đã vô hiệu hóa Approval Policy.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private void ResetForm() => (_editingId, _form) = (null, NewForm());
+
+    private static ApprovalPolicyRequest NewForm() => new()
+    {
+        RequestType = (int)RequestModule.Leave,
+        DeptCode = string.Empty,
+        PositionCode = null,
+        ApprovalPositionCode = string.Empty,
+        Level = 1,
+        Sequence = 1,
+        LevelName = string.Empty,
+        RoleName = string.Empty,
+        Required = true,
+        IsActive = true
+    };
+
+    private static string RequestTypeName(RequestModule type) => type switch
+    {
+        RequestModule.Leave => "Nghỉ phép",
+        RequestModule.Overtime => "Tăng ca",
+        RequestModule.Trip => "Công tác",
+        RequestModule.Equipment => "Thiết bị",
+        _ => type.ToString()
+    };
+}

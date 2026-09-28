@@ -1,0 +1,501 @@
+USE [FVN_REGISTER];
+GO
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+BEGIN TRAN;
+
+DECLARE @Now datetime2(0)=GETDATE();
+
+-- =========================
+-- Master data: 5 realistic test rows per important lookup table
+-- =========================
+INSERT dbo.F03Departments(IsActive,CreatedBy,DeptCode,DeptName,ParentDeptCode,DisplayPriority,ShowInReport)
+SELECT 1,0,v.DeptCode,v.DeptName,v.ParentDeptCode,v.DisplayPriority,1
+FROM (VALUES
+(N'IT',N'Information Technology',NULL,1),
+(N'HR',N'Human Resources',NULL,2),
+(N'FIN',N'Finance',NULL,3),
+(N'PROD',N'Production',NULL,4),
+(N'QA',N'Quality Assurance',N'PROD',5)
+) AS v(DeptCode,DeptName,ParentDeptCode,DisplayPriority)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Departments x WHERE x.DeptCode=v.DeptCode);
+
+INSERT dbo.F03Positions(IsActive,CreatedBy,PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
+SELECT 1,0,v.PositionCode,v.PositionName,v.IsApprove,v.IsAllowApprove,v.DefaultApproveLevel
+FROM (VALUES
+(N'0001',N'Giám đốc',1,1,4),
+(N'0002',N'Sub- Leader',1,1,1),
+(N'0003',N'Worker',0,0,0),
+(N'0004',N'Chief',1,1,2),
+(N'0005',N'Manager',1,1,3),
+(N'0006',N'Leader',1,1,1),
+(N'0007',N'Kỹ thuật viên',0,0,0),
+(N'0008',N'Staff',0,0,0),
+(N'0009',N'Sen.Manager',1,1,3),
+(N'0010',N'Ast.chief',1,1,2),
+(N'0011',N'Ast.Manager',1,1,3),
+(N'0012',N'Nhân viên',0,0,0),
+(N'0013',N'13/09/1969',0,0,0),
+(N'0014',N'',0,0,0),
+(N'0015',N'Work',0,0,0),
+(N'0016',N'Pulley',0,0,0)
+) AS v(PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Positions x WHERE x.PositionCode=v.PositionCode);
+
+-- Reconcile existing seed rows to the HRM CVMa/CVTen master.
+-- PositionCode is exactly HRM CVMa; PositionName is exactly HRM CVTen.
+UPDATE p
+SET
+    p.PositionName = v.PositionName,
+    p.IsApprove = v.IsApprove,
+    p.IsAllowApprove = v.IsAllowApprove,
+    p.DefaultApproveLevel = v.DefaultApproveLevel
+FROM dbo.F03Positions p
+JOIN (VALUES
+(N'0001',N'Giám đốc',1,1,4),
+(N'0002',N'Sub- Leader',1,1,1),
+(N'0003',N'Worker',0,0,0),
+(N'0004',N'Chief',1,1,2),
+(N'0005',N'Manager',1,1,3),
+(N'0006',N'Leader',1,1,1),
+(N'0007',N'Kỹ thuật viên',0,0,0),
+(N'0008',N'Staff',0,0,0),
+(N'0009',N'Sen.Manager',1,1,3),
+(N'0010',N'Ast.chief',1,1,2),
+(N'0011',N'Ast.Manager',1,1,3),
+(N'0012',N'Nhân viên',0,0,0),
+(N'0013',N'13/09/1969',0,0,0),
+(N'0014',N'',0,0,0),
+(N'0015',N'Work',0,0,0),
+(N'0016',N'Pulley',0,0,0)
+) AS v(PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
+    ON p.PositionCode=v.PositionCode;
+
+/*
+    Approval capability is defined on the HRM Position master itself.
+    PositionCode remains the only position identity used by approval routing.
+    These flags are local approval metadata; HRM employee PositionCode is
+    never translated to EMP/SL/CHIEF/MGR/GM.
+*/
+UPDATE p
+SET
+    p.IsApprove = CASE WHEN p.PositionCode IN
+        (N'0001',N'0002',N'0004',N'0005',N'0006',N'0009',N'0010',N'0011')
+        THEN 1 ELSE 0 END,
+    p.IsAllowApprove = CASE WHEN p.PositionCode IN
+        (N'0001',N'0002',N'0004',N'0005',N'0006',N'0009',N'0010',N'0011')
+        THEN 1 ELSE 0 END,
+    p.DefaultApproveLevel = CASE p.PositionCode
+        WHEN N'0001' THEN 4
+        WHEN N'0002' THEN 1
+        WHEN N'0004' THEN 2
+        WHEN N'0005' THEN 3
+        WHEN N'0006' THEN 1
+        WHEN N'0009' THEN 3
+        WHEN N'0010' THEN 2
+        WHEN N'0011' THEN 3
+        ELSE NULL
+    END
+FROM dbo.F03Positions p
+WHERE p.PositionCode IN
+(
+    N'0001',N'0002',N'0003',N'0004',N'0005',N'0006',
+    N'0007',N'0008',N'0009',N'0010',N'0011',N'0012'
+);
+
+INSERT dbo.F03Genders(IsActive,CreatedBy,GenderCode,GenderName)
+SELECT 1,0,v.GenderCode,v.GenderName FROM (VALUES
+(N'M',N'Male'),(N'F',N'Female'),(N'O',N'Other'),(N'U',N'Unknown'),(N'N',N'Not specified')
+) AS v(GenderCode,GenderName)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Genders x WHERE x.GenderCode=v.GenderCode);
+
+INSERT dbo.F03LeaveType(IsActive,CreatedBy,LeaveTypeCode,LeaveTypeName,LeaveTypeName2,IsCountedAsLeave,HRMCode)
+SELECT 1,0,v.Code,v.Name,v.Name2,v.Counted,v.HRMCode FROM (VALUES
+(N'AL',N'Annual Leave',N'Annual Leave',1,N'AL'),
+(N'SL',N'Sick Leave',N'Sick Leave',1,N'SL'),
+(N'UL',N'Unpaid Leave',N'Unpaid Leave',0,N'UL'),
+(N'HD',N'Half Day Leave',N'Half Day Leave',1,N'HD'),
+(N'OTR',N'Other Leave',N'Other Leave',0,N'OTR')
+) AS v(Code,Name,Name2,Counted,HRMCode)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03LeaveType x WHERE x.LeaveTypeCode=v.Code);
+
+INSERT dbo.F03OTTypes(IsActive,CreatedBy,OTTypeCode,OTTypeName,OTTypeName2,RateMultiplier,HRMCode)
+SELECT 1,0,v.Code,v.Name,v.Name2,v.Rate,v.HRM FROM (VALUES
+(N'WD',N'Weekday OT',N'Weekday OT',1.5,N'OT-WD'),
+(N'SAT',N'Saturday OT',N'Saturday OT',2.0,N'OT-SAT'),
+(N'SUN',N'Sunday OT',N'Sunday OT',2.0,N'OT-SUN'),
+(N'HOL',N'Holiday OT',N'Holiday OT',3.0,N'OT-HOL'),
+(N'NIGHT',N'Night OT',N'Night OT',2.0,N'OT-NIGHT')
+) AS v(Code,Name,Name2,Rate,HRM)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTTypes x WHERE x.OTTypeCode=v.Code);
+
+INSERT dbo.F03OTCodes(IsActive,CreatedBy,ReasonCode,DisplayName,Description,DisplayOrder)
+SELECT 1,0,v.Code,v.Name,v.Description,v.SortNo FROM (VALUES
+(N'PROD',N'Production support',N'Production support',1),
+(N'MAINT',N'Maintenance',N'Machine maintenance',2),
+(N'PROJECT',N'Project deadline',N'Project deadline',3),
+(N'URGENT',N'Urgent work',N'Urgent customer/business request',4),
+(N'OTHER',N'Other',N'Other approved reason',5)
+) AS v(Code,Name,Description,SortNo)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTCodes x WHERE x.ReasonCode=v.Code);
+
+-- Work years / holidays
+-- Canonical names are F03WorkYears / F03CompanyHolidays.
+-- SQL 35 migrates the old singular names forward, but this seed is also
+-- safe to rerun after that migration has already been applied.
+DECLARE @WorkYearTable sysname =
+    CASE
+        WHEN OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NOT NULL THEN N'F03WorkYears'
+        WHEN OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NOT NULL THEN N'F03WorkYear'
+        ELSE NULL
+    END;
+
+IF @WorkYearTable IS NULL
+    THROW 50061, 'Missing work-year table: dbo.F03WorkYears / dbo.F03WorkYear.', 1;
+
+DECLARE @WorkYearSql nvarchar(max) = N'
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.' + QUOTENAME(@WorkYearTable) + N'
+    WHERE WorkYear = YEAR(@Now)
+)
+BEGIN
+    INSERT dbo.' + QUOTENAME(@WorkYearTable) + N'
+        (WorkYear,StartDate,EndDate,Remark,CreatedBy)
+    VALUES
+        (YEAR(@Now),
+         DATEFROMPARTS(YEAR(@Now),1,1),
+         DATEFROMPARTS(YEAR(@Now),12,31),
+         N''Test work year'',
+         0);
+END;';
+
+EXEC sys.sp_executesql
+    @WorkYearSql,
+    N'@Now datetime2(0)',
+    @Now=@Now;
+
+DECLARE @HolidayTable sysname =
+    CASE
+        WHEN OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NOT NULL THEN N'F03CompanyHolidays'
+        WHEN OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL THEN N'F03CompanyHoliday'
+        ELSE NULL
+    END;
+
+IF @HolidayTable IS NULL
+    THROW 50062, 'Missing holiday table: dbo.F03CompanyHolidays / dbo.F03CompanyHoliday.', 1;
+
+DECLARE @HolidaySql nvarchar(max) = N'
+INSERT dbo.' + QUOTENAME(@HolidayTable) + N'
+    (IsActive,CreatedBy,HolidayDate,Description,Year,TinhPhep)
+SELECT
+    1,
+    0,
+    v.HolidayDate,
+    v.Description,
+    YEAR(v.HolidayDate),
+    1
+FROM (VALUES
+    (DATEFROMPARTS(YEAR(@Now),1,1),N''New Year''),
+    (DATEFROMPARTS(YEAR(@Now),4,30),N''Reunification Day''),
+    (DATEFROMPARTS(YEAR(@Now),5,1),N''International Labour Day''),
+    (DATEFROMPARTS(YEAR(@Now),9,2),N''National Day''),
+    (DATEADD(day,-1,DATEFROMPARTS(YEAR(@Now),9,2)),N''Test company holiday'')
+) AS v(HolidayDate,Description)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.' + QUOTENAME(@HolidayTable) + N' h
+    WHERE h.HolidayDate = v.HolidayDate
+);';
+
+EXEC sys.sp_executesql
+    @HolidaySql,
+    N'@Now datetime2(0)',
+    @Now=@Now;
+
+-- Permissions required by F03Users.PermissionCode FK
+INSERT dbo.F03Permissions(IsActive,CreatedBy,PermissionCode,PermissionName,Detail)
+SELECT 1,0,v.PermissionCode,v.PermissionName,v.Detail
+FROM (VALUES
+(1,N'SuperAdmin',N'Full system administration access'),
+(2,N'Admin',N'Administrative data access'),
+(3,N'Editor',N'Editable business data access'),
+(4,N'Approver',N'Approval workflow access'),
+(5,N'User',N'Normal user access'),
+(6,N'Guest',N'Guest access')
+) AS v(PermissionCode,PermissionName,Detail)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Permissions p WHERE p.PermissionCode=v.PermissionCode);
+
+-- HRM -> F03User role rules used by the demo employees.
+-- Production installations should replace these mappings with the company's real matrix.
+INSERT dbo.F03HrmUserRoleRules
+(IsActive,CreatedBy,LastModifiedSource,DeptCode,PositionCode,PermissionCode,Priority,Note)
+SELECT 1,0,N'Seed',v.DeptCode,v.PositionCode,v.PermissionCode,v.Priority,v.Note
+FROM (VALUES
+(NULL,NULL,5,999,N'Default normal user'),
+(N'IT',N'0003',1,10,N'Demo E0001 SuperAdmin'),
+(N'IT',N'0002',4,20,N'Demo IT approver'),
+(N'PROD',N'0004',4,20,N'Demo production approver'),
+(N'HR',N'0005',2,20,N'Demo HR admin'),
+(N'PROD',N'0001',2,20,N'Demo production admin')
+) AS v(DeptCode,PositionCode,PermissionCode,Priority,Note)
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03HrmUserRoleRules r
+    WHERE ISNULL(r.DeptCode,N'')=ISNULL(v.DeptCode,N'')
+      AND ISNULL(r.PositionCode,N'')=ISNULL(v.PositionCode,N'')
+      AND r.PermissionCode=v.PermissionCode
+);
+
+-- =========================
+-- Employees / users
+-- Passwords below are stored using the same MD5 format required by EncryptUtils.PwdCompare.
+-- Plain-text passwords must never be stored in F03Users.Password.
+-- =========================
+INSERT dbo.F03Employees(IsActive,CreatedBy,EmployeeCode,EmployeeName,DeptCode,PositionCode,BirthDate,GenderCode,EmailAddress,PhoneNumber,FirstWorkingDate,TotalLeaveDays,EmployeeNo,LevelApprove)
+SELECT 1,0,v.Code,v.Name,v.Dept,v.Position,TRY_CONVERT(datetime2(0),v.Birth),g.Id,v.Email,v.Phone,TRY_CONVERT(datetime2(0),v.StartDate),v.LeaveDays,v.EmpNo,v.LevelApprove
+FROM (VALUES
+(N'E0001',N'Nguyen Van An',N'IT',N'0003',N'1990-02-10',N'M',N'e0001@test.local',N'0900000001',N'2020-01-06',12,1,0),
+(N'E0002',N'Tran Thi Binh',N'IT',N'0002',N'1988-06-15',N'F',N'e0002@test.local',N'0900000002',N'2019-03-11',14,2,1),
+(N'E0003',N'Le Van Cuong',N'PROD',N'0004',N'1985-09-20',N'M',N'e0003@test.local',N'0900000003',N'2018-07-02',14,3,2),
+(N'E0004',N'Pham Thi Dung',N'HR',N'0005',N'1983-12-01',N'F',N'e0004@test.local',N'0900000004',N'2017-04-03',16,4,3),
+(N'E0005',N'Hoang Van Em',N'PROD',N'0001',N'1978-11-25',N'M',N'e0005@test.local',N'0900000005',N'2015-01-05',18,5,4)
+) AS v(Code,Name,Dept,Position,Birth,GenderCode,Email,Phone,StartDate,LeaveDays,EmpNo,LevelApprove)
+INNER JOIN dbo.F03Genders g ON g.GenderCode=v.GenderCode
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Employees e WHERE e.EmployeeCode=v.Code);
+
+INSERT dbo.F03Users(IsActive,CreatedBy,Password,EmployeeCode,FullName,PermissionCode,LockoutEnable,NumLoginFailed,LevelApprove,DeptCode,Cvcode)
+SELECT 1,0,N'f925916e2754e5e03f75dd58a5733251',v.Code,v.Name,v.PermissionCode,1,0,v.LevelApprove,v.Dept,v.Position
+FROM (VALUES
+(N'E0001',N'Nguyen Van An',1,0,N'IT',N'0003'),
+(N'E0002',N'Tran Thi Binh',4,1,N'IT',N'0002'),
+(N'E0003',N'Le Van Cuong',2,2,N'PROD',N'0004'),
+(N'E0004',N'Pham Thi Dung',2,3,N'HR',N'0005'),
+(N'E0005',N'Hoang Van Em',3,4,N'PROD',N'0001')
+) AS v(Code,Name,PermissionCode,LevelApprove,Dept,Position)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Users u WHERE u.EmployeeCode=v.Code);
+
+-- Keep existing test users consistent when the seed is re-run.
+-- Test password for E0001..E0005: Test@123
+UPDATE u
+SET u.Password=N'f925916e2754e5e03f75dd58a5733251'
+FROM dbo.F03Users u
+WHERE u.EmployeeCode IN (N'E0001',N'E0002',N'E0003',N'E0004',N'E0005');
+
+DECLARE @SeedLeaveYear int = YEAR(@Now);
+DECLARE @SeedLeaveEnd date = DATEFROMPARTS(@SeedLeaveYear,12,31);
+
+INSERT dbo.F03LeaveBalances
+    (IsActive,CreatedBy,EmployeeCode,WorkYear,BaseLeaveDays,SeniorityLeaveDays,TotalDays,YearsOfService,CalculatedAt)
+SELECT
+    1,
+    0,
+    e.EmployeeCode,
+    @SeedLeaveYear,
+    12,
+    CAST(CASE
+        WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
+        ELSE
+            FLOOR((DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5.0)
+        END AS decimal(5,2)),
+    CAST(12 + CASE
+        WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
+        ELSE
+            FLOOR((DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5.0)
+        END AS decimal(5,2)),
+    CASE
+        WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
+        ELSE
+            DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+            - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END
+        END,
+    @Now
+FROM dbo.F03Employees e
+WHERE e.IsActive = 1
+  AND NOT EXISTS(
+      SELECT 1 FROM dbo.F03LeaveBalances b
+      WHERE b.EmployeeCode=e.EmployeeCode AND b.WorkYear=@SeedLeaveYear
+  );
+
+-- Security functions
+-- FunctionCode is the stable authorization key used by SecurityFunctionCodes.cs.
+-- Keep this seed aligned with the application authorization matrix.
+INSERT dbo.F03Functions
+    (IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT
+    1,0,v.FunctionCode,v.FunctionName,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.DisplayOrder
+FROM (VALUES
+(1001,N'Leave Register (Legacy)',N'Legacy leave register grant',N'Leave',N'LegacyRegister',N'Own',1001),
+(1002,N'Leave Approval (Legacy)',N'Legacy leave approval grant',N'Leave',N'LegacyApprove',N'Department',1002),
+(1003,N'Overtime Register (Legacy)',N'Legacy overtime register grant',N'Overtime',N'LegacyRegister',N'Own',1003),
+(1004,N'Trip Register (Legacy)',N'Legacy business trip register grant',N'Trip',N'LegacyRegister',N'Own',1004),
+(1005,N'Equipment Register (Legacy)',N'Legacy equipment register grant',N'Equipment',N'LegacyRegister',N'Department',1005),
+(2701,N'Dashboard',N'View dashboard',N'Dashboard',N'View',N'All',2701),
+(2001,N'Leave View',N'View leave requests',N'Leave',N'View',N'Own',2001),
+(2002,N'Leave Create',N'Create leave requests',N'Leave',N'Create',N'Own',2002),
+(2003,N'Leave Edit',N'Edit leave requests',N'Leave',N'Edit',N'Own',2003),
+(2004,N'Leave Cancel',N'Cancel leave requests',N'Leave',N'Cancel',N'Own',2004),
+(2005,N'Leave Approve',N'Approve leave requests',N'Leave',N'Approve',N'Department',2005),
+(2006,N'Leave Export',N'Export leave requests',N'Leave',N'Export',N'Department',2006),
+(2101,N'OT View',N'View overtime requests',N'Overtime',N'View',N'Own',2101),
+(2102,N'OT Create',N'Create overtime requests',N'Overtime',N'Create',N'Own',2102),
+(2103,N'OT Edit',N'Edit overtime requests',N'Overtime',N'Edit',N'Own',2103),
+(2104,N'OT Cancel',N'Cancel overtime requests',N'Overtime',N'Cancel',N'Own',2104),
+(2105,N'OT Approve',N'Approve overtime requests',N'Overtime',N'Approve',N'Department',2105),
+(2106,N'OT Reconcile',N'Reconcile overtime execution',N'Overtime',N'Reconcile',N'Department',2106),
+(2107,N'OT Export',N'Export overtime requests',N'Overtime',N'Export',N'Department',2107),
+(2201,N'Trip View',N'View business trips',N'Trip',N'View',N'Own',2201),
+(2202,N'Trip Create',N'Create business trips',N'Trip',N'Create',N'Own',2202),
+(2203,N'Trip Edit',N'Edit business trips',N'Trip',N'Edit',N'Own',2203),
+(2204,N'Trip Cancel',N'Cancel business trips',N'Trip',N'Cancel',N'Own',2204),
+(2205,N'Trip Approve',N'Approve business trips',N'Trip',N'Approve',N'Department',2205),
+(2206,N'Trip Export',N'Export business trips',N'Trip',N'Export',N'Department',2206),
+(2301,N'Equipment View',N'View equipment',N'Equipment',N'View',N'Department',2301),
+(2302,N'Equipment Create',N'Create equipment requests',N'Equipment',N'Create',N'Department',2302),
+(2303,N'Equipment Edit',N'Edit equipment requests',N'Equipment',N'Edit',N'Department',2303),
+(2304,N'Equipment Repair',N'Manage equipment repair',N'Equipment',N'Repair',N'Department',2304),
+(2305,N'Equipment Approve',N'Approve equipment requests',N'Equipment',N'Approve',N'Department',2305),
+(2306,N'Equipment Import',N'Import equipment data',N'Equipment',N'Import',N'Department',2306),
+(2307,N'Equipment Export',N'Export equipment data',N'Equipment',N'Export',N'Department',2307),
+(2401,N'User Management View',N'View users',N'UserManagement',N'View',N'All',2401),
+(2402,N'User Management Create',N'Create users',N'UserManagement',N'Create',N'All',2402),
+(2403,N'User Management Edit',N'Edit users',N'UserManagement',N'Edit',N'All',2403),
+(2404,N'User Management Lock',N'Lock or unlock users',N'UserManagement',N'Lock',N'All',2404),
+(2405,N'User Management Reset Password',N'Reset user passwords',N'UserManagement',N'ResetPassword',N'All',2405),
+(2406,N'User Management Assign Permission',N'Assign user permissions',N'UserManagement',N'AssignPermission',N'All',2406),
+(2501,N'HRM Sync View Status',N'View HRM sync status',N'HrmSync',N'ViewStatus',N'All',2501),
+(2502,N'HRM Sync',N'Run HRM synchronization',N'HrmSync',N'Sync',N'All',2502),
+(2503,N'HRM Sync Review',N'Review HRM synchronization changes',N'HrmSync',N'Review',N'All',2503),
+(2504,N'HRM Sync Retry',N'Retry failed HRM synchronization',N'HrmSync',N'Retry',N'All',2504),
+(2601,N'Security View',N'View security center',N'Security',N'View',N'All',2601),
+(2602,N'Security Manage Roles',N'Manage security roles',N'Security',N'ManageRoles',N'All',2602),
+(2603,N'Security Manage Functions',N'Manage security functions',N'Security',N'ManageFunctions',N'All',2603),
+(2604,N'Security Audit',N'View security audit',N'Security',N'Audit',N'All',2604),
+(2801,N'Public Information Manage',N'Manage public information',N'PublicInformation',N'Manage',N'All',2801),
+(2802,N'Execution Review',N'Review execution reconciliation',N'Execution',N'Review',N'All',2802),
+(2803,N'Payroll View',N'View payroll inputs',N'Payroll',N'View',N'All',2803),
+(2804,N'Payroll Prepare',N'Prepare payroll period',N'Payroll',N'Prepare',N'All',2804),
+(2805,N'Payroll Lock',N'Lock payroll period',N'Payroll',N'Lock',N'All',2805),
+(2806,N'Payroll Export',N'Export payroll inputs',N'Payroll',N'Export',N'All',2806),
+(2901,N'Attendance View',N'View attendance',N'Attendance',N'View',N'Own',2901),
+(2902,N'Attendance Export',N'Export attendance',N'Attendance',N'Export',N'Department',2902)
+) AS v(FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode
+);
+
+-- Legacy direct grant retained during the Role -> Function migration.
+-- E0001 is the seeded SuperAdmin test account and must be able to open
+-- Dashboard and the Security Center even when F03UserRoles has not yet
+-- been populated by the HRM role synchronization.
+INSERT dbo.F03UserFunctions(IdUser,IdPermission,IdFunction)
+SELECT u.Id,p.Id,f.Id
+FROM dbo.F03Users u
+CROSS JOIN dbo.F03Permissions p
+CROSS JOIN dbo.F03Functions f
+WHERE u.EmployeeCode=N'E0001'
+  AND p.PermissionCode=1
+  AND f.FunctionCode IN
+  (
+      2001,2002,2003,2004,2005,2006,
+      2101,2102,2103,2104,2105,2106,2107,
+      2201,2202,2203,2204,2205,2206,
+      2301,2302,2303,2304,2305,2306,2307,
+      2401,2402,2403,2404,2405,2406,
+      2501,2502,2503,2504,
+      2601,2602,2603,2604,
+      2701,
+      2801,2802,2803,2804,2805,2806,
+      2901,2902
+  )
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.F03UserFunctions x
+      WHERE x.IdUser=u.Id
+        AND x.IdPermission=p.Id
+        AND x.IdFunction=f.Id
+  );
+
+-- Approvers: five test approver rows
+INSERT dbo.F03Approvers(IsActive,CreatedBy,UserId,RequestType,ApproverCode,PositionCode,ApproverName,ApproverEmail,ApproverDeptCode,ApproverDeptName,ApproveForDeptCode,ApproveForDeptName,Level,RoleName)
+SELECT 1,0,u.Id,N'Leave',v.Code,v.Position,v.Name,v.Email,v.Dept,d.DeptName,v.ForDept,d2.DeptName,v.Level,v.RoleName
+FROM (VALUES
+(N'E0002',N'0002',N'Tran Thi Binh',N'e0002@test.local',N'IT',N'IT',N'IT',1,N'Lead/Sub Lead'),
+(N'E0003',N'0004',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PROD',N'IT',2,N'Chief/A Chief'),
+(N'E0004',N'0005',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',N'IT',3,N'Manager/A Manager'),
+(N'E0005',N'0001',N'Hoang Van Em',N'e0005@test.local',N'PROD',N'PROD',N'IT',4,N'General Manager'),
+(N'E0003',N'0004',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PRODUCTION',N'PROD',1,N'Lead/Sub Lead')
+) AS v(Code,Position,Name,Email,Dept,DeptName,ForDept,Level,RoleName)
+JOIN dbo.F03Users u ON u.EmployeeCode=v.Code
+JOIN dbo.F03Departments d ON d.DeptCode=v.Dept
+JOIN dbo.F03Departments d2 ON d2.DeptCode=v.ForDept
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Approvers a WHERE a.ApproverCode=v.Code AND a.RequestType=N'Leave' AND a.ApproveForDeptCode=v.ForDept AND a.Level=v.Level);
+
+-- Trip / equipment / email test data
+INSERT dbo.F03TripRequests(IsActive,CreatedBy,EmployeeCode,DeptCode,RequestStatus,TripCode,StartDate,EndDate,Destination,Purpose,CustomerOrPartner,TransportMethod,EstimatedCost,Note)
+SELECT 1,0,N'E0001',N'IT',v.Status,v.Code,v.StartDate,v.EndDate,v.Destination,v.Purpose,v.Partner,v.Transport,v.Cost,v.Note
+FROM (VALUES
+(1,N'TRIP-TEST-001','2026-09-20','2026-09-21',N'Hanoi',N'Internal IT meeting',N'FCC VN',N'Car',1500000,N'Test pending'),
+(3,N'TRIP-TEST-002','2026-09-22','2026-09-23',N'Bac Ninh',N'Factory support',N'Customer A',N'Car',2500000,N'Test approved'),
+(4,N'TRIP-TEST-003','2026-09-24','2026-09-25',N'Ha Noi',N'Partner meeting',N'Partner B',N'Car',1800000,N'Test rejected'),
+(5,N'TRIP-TEST-004','2026-09-26','2026-09-26',N'Ha Noi',N'Personal cancellation test',N'',N'Car',500000,N'Test cancelled'),
+(1,N'TRIP-TEST-005','2026-09-28','2026-09-29',N'Ho Chi Minh City',N'Project workshop',N'Customer C',N'Plane',5000000,N'Test pending')
+) AS v(Status,Code,StartDate,EndDate,Destination,Purpose,Partner,Transport,Cost,Note)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03TripRequests t WHERE t.TripCode=v.Code);
+
+INSERT dbo.F03EquipmentAssets(IsActive,CreatedBy,EquipmentCode,EquipmentName,Specification,SerialNumber,AssetCode,PurchasePrice,PurchaseDate,ExpectedDepreciationDate,DeptCode,Location,QrToken,IsQrActive,Note)
+SELECT 1,0,v.Code,v.Name,v.Spec,v.Serial,v.AssetCode,v.Price,v.PurchaseDate,v.DepDate,v.Dept,v.Location,v.Qr,1,v.Note
+FROM (VALUES
+(N'IT-TEST-001',N'Laptop Dell Latitude',N'i5/16GB/512GB',N'SN-LAP-001',N'AST-0001',25000000,'2026-01-10','2029-01-10',N'IT',N'IT Room',N'QR-TEST-001',N'Test laptop'),
+(N'IT-TEST-002',N'Laptop Lenovo ThinkPad',N'i5/16GB/512GB',N'SN-LAP-002',N'AST-0002',28000000,'2026-01-10','2029-01-10',N'IT',N'IT Room',N'QR-TEST-002',N'Test laptop'),
+(N'PROD-TEST-001',N'Barcode Scanner',N'Industrial scanner',N'SN-SCAN-001',N'AST-0003',12000000,'2026-02-15','2029-02-15',N'PROD',N'Line 1',N'QR-TEST-003',N'Production scanner'),
+(N'QA-TEST-001',N'Quality Monitor',N'24 inch monitor',N'SN-MON-001',N'AST-0004',6000000,'2026-03-01','2029-03-01',N'QA',N'QA Room',N'QR-TEST-004',N'QA monitor'),
+(N'IT-TEST-003',N'Network Switch',N'24-port managed switch',N'SN-SW-001',N'AST-0005',15000000,'2026-03-05','2029-03-05',N'IT',N'Server Room',N'QR-TEST-005',N'Network switch')
+) AS v(Code,Name,Spec,Serial,AssetCode,Price,PurchaseDate,DepDate,Dept,Location,Qr,Note)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EquipmentAssets a WHERE a.EquipmentCode=v.Code);
+
+INSERT dbo.F03EmailProfiles(IsActive,CreatedBy,ParentId,IsGroup,Code,Name,NameEn,EmailServerName,EmailServerType,EmailServerPort,EmailServerEnableSsl,EmailAccountName,EmailAddress,SiteUrl)
+SELECT 1,0,0,0,N'ITSYS',N'IT System',N'IT System',N'smtp.gmail.com',N'SMTP',587,1,N'test@test.local',N'test@test.local',N'https://localhost'
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EmailProfiles WHERE Code=N'ITSYS');
+
+-- 5 test email queue rows
+INSERT dbo.F03EmailQueues(IsActive,CreatedBy,ToEmail,Subject,Body,TemplateCode,Status)
+SELECT 1,0,v.Email,v.Subject,v.Body,N'TEST',N'Pending'
+FROM (VALUES
+(N'e0001@test.local',N'Test email 1',N'Test email queue item 1'),
+(N'e0002@test.local',N'Test email 2',N'Test email queue item 2'),
+(N'e0003@test.local',N'Test email 3',N'Test email queue item 3'),
+(N'e0004@test.local',N'Test email 4',N'Test email queue item 4'),
+(N'e0005@test.local',N'Test email 5',N'Test email queue item 5')
+) AS v(Email,Subject,Body)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EmailQueues q WHERE q.Subject=v.Subject AND q.ToEmail=v.Email);
+
+-- Business rules / escalation
+INSERT dbo.F03BusinessRules(IsActive,CreatedBy,Module,Code,Name,ConfigJson,HrmCode)
+SELECT 1,0,v.Module,v.Code,v.Name,v.Json,NULL
+FROM (VALUES
+(N'Leave',N'LEAVE_WORKDAY',N'Leave working-day rule',N'{"excludeSunday":true}'),
+(N'Leave',N'LEAVE_HALF_DAY',N'Leave half-day rule',N'{"morning":0.5,"afternoon":0.5}'),
+(N'OT',N'OT_DAILY_LIMIT',N'Daily OT limit',N'{"hours":4}'),
+(N'Trip',N'TRIP_APPROVAL',N'Trip approval',N'{"levels":3}'),
+(N'Equipment',N'EQUIPMENT_APPROVAL',N'Equipment approval',N'{"levels":2}')
+) AS v(Module,Code,Name,Json)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03BusinessRules b WHERE b.Module=v.Module AND b.Code=v.Code);
+
+INSERT dbo.F03EscalationRules(IsActive,CreatedBy,RequestModule,Level,DeptCode,WarningHours,EscalateHours,DeadlineHour)
+SELECT 1,0,v.Module,v.Level,v.Dept,v.Warning,v.Escalate,48
+FROM (VALUES
+(N'Leave',1,N'IT',24,48),(N'Leave',2,N'IT',24,48),(N'Leave',3,N'IT',24,48),
+(N'OT',1,N'IT',24,48),(N'OT',2,N'IT',24,48)
+) AS v(Module,Level,Dept,Warning,Escalate)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EscalationRules r WHERE r.RequestModule=v.Module AND r.Level=v.Level AND ISNULL(r.DeptCode,N'')=v.Dept);
+
+COMMIT;
+GO
+PRINT N'FVN_REGISTER test seed completed.';
+PRINT N'Test users: E0001..E0005 / password: Test@123 (stored as MD5 hash, TEST ONLY).';
+GO

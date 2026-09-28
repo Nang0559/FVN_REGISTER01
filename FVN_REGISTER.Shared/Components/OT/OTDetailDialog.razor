@@ -1,0 +1,224 @@
+@using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto
+@using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.OTs
+
+@inject IOTClientService OTService
+@inject ISnackbar Snackbar
+@inject ILogger<OTDetailDialog> Logger
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Timelapse" />
+            <MudText Typo="Typo.h6">Chi tiết đơn OT</MudText>
+            @if (_detail != null)
+            {
+                var (color, text) = GetStatusChip(_detail.RequestStatus);
+                <MudChip T="string" Size="Size.Small" Color="@color" Label="true">@text</MudChip>
+            }
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        @if (_loadingDetail)
+        {
+            <MudStack Spacing="2">
+                <MudSkeleton Height="28px" />
+                <MudSkeleton Height="28px" Width="70%" />
+                <MudSkeleton Height="28px" Width="50%" />
+            </MudStack>
+        }
+        else if (_detail != null)
+        {
+            <MudGrid Spacing="3">
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">Thông tin chung</MudText>
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Mã đơn</MudText>
+                    <MudText Typo="Typo.body1"><strong>#@_detail.Id</strong></MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Trạng thái</MudText>
+                    <MudText Typo="Typo.body1">@_detail.StatusText</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Người lập đơn</MudText>
+                    <MudText Typo="Typo.body1">@_detail.RequesterName (@_detail.RequesterCode)</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Phòng ban</MudText>
+                    <MudText Typo="Typo.body1">@_detail.DeptName (@_detail.DeptCode)</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Ngày đăng ký</MudText>
+                    <MudText Typo="Typo.body1">@_detail.RegisterDate.ToString("dd/MM/yyyy HH:mm")</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Ngày tăng ca</MudText>
+                    <MudText Typo="Typo.body1">@_detail.OTDate.ToString("dd/MM/yyyy")</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Loại OT</MudText>
+                    <MudText Typo="Typo.body1">@_detail.OTTypeCode</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tổng giờ OT</MudText>
+                    <MudText Typo="Typo.body1">@_detail.TotalOtHours.ToString("N1") giờ</MudText>
+                </MudItem>
+                @if (!string.IsNullOrWhiteSpace(_detail.OtPurpose))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Mục đích</MudText>
+                        <MudText Typo="Typo.body1">@_detail.OtPurpose</MudText>
+                    </MudItem>
+                }
+                @if (!string.IsNullOrWhiteSpace(_detail.Description))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Mô tả</MudText>
+                        <MudText Typo="Typo.body1">@_detail.Description</MudText>
+                    </MudItem>
+                }
+
+                @if (_detail.Details.Any())
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-1">
+                            Nhân viên tham gia
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Label="true" Class="ml-1">@_detail.Details.Count</MudChip>
+                        </MudText>
+                        <MudDivider Class="mb-2" />
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                            <thead><tr><th>Mã NV</th><th>Họ tên</th><th>Khung giờ</th><th>Giờ OT</th><th>Hạng mục</th><th>Validation</th></tr></thead>
+                            <tbody>
+                                @foreach (var emp in _detail.Details)
+                                {
+                                    <tr>
+                                        <td>@emp.EmployeeCode</td>
+                                        <td>@emp.EmployeeName</td>
+                                        <td>@emp.StartTime.ToString(@"hh\:mm") – @emp.EndTime.ToString(@"hh\:mm")</td>
+                                        <td style="text-align:right">@emp.OTHours.ToString("N1") h</td>
+                                        <td>
+                                            @emp.OTReasonCategoryCode
+                                            @if (!string.IsNullOrWhiteSpace(emp.OTReasonCategoryName)) { <div>@emp.OTReasonCategoryName</div> }
+                                            @if (!string.IsNullOrWhiteSpace(emp.OTReasonDetail)) { <MudText Typo="Typo.caption">@emp.OTReasonDetail</MudText> }
+                                        </td>
+                                        <td>
+                                            <MudChip T="string" Size="Size.Small" Color="@GetValidationColor(emp.ValidationStatus)">@emp.ValidationStatus</MudChip>
+                                            @if (!string.IsNullOrWhiteSpace(emp.ValidationMessage)) { <MudText Typo="Typo.caption">@emp.ValidationMessage</MudText> }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </MudItem>
+                }
+
+                @if (_detail.ApprovalSteps.Any())
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-1">Luồng phê duyệt</MudText>
+                        <MudDivider Class="mb-2" />
+                        <MudTimeline TimelineAlign="TimelineAlign.Start" TimelinePosition="TimelinePosition.Start">
+                            @foreach (var step in _detail.ApprovalSteps.OrderBy(x => x.Level))
+                            {
+                                <MudTimelineItem Color="@ApproveColor(step.Decision)" Icon="@ApproveIcon(step.Decision)" Size="Size.Small">
+                                    <ItemContent>
+                                        <MudText Typo="Typo.body2"><strong>Cấp @step.Level — @step.RoleName</strong>@if (!string.IsNullOrEmpty(step.ApproverCode)) { <span> — @step.ApproverCode</span> }</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @step.StatusText
+                                            @if (step.ApproveTime.HasValue) { <span> — @step.ApproveTime.Value.ToString("dd/MM/yyyy HH:mm")</span> }
+                                            @if (!string.IsNullOrEmpty(step.Comment)) { <em class="ml-1">— @step.Comment</em> }
+                                        </MudText>
+                                    </ItemContent>
+                                </MudTimelineItem>
+                            }
+                        </MudTimeline>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true">Không tìm thấy dữ liệu chi tiết của đơn OT này.</MudAlert>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Close">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int OTRequestId { get; set; }
+
+    private OTRequestDto? _detail;
+    private bool _loadingDetail = true;
+
+    protected override async Task OnInitializedAsync() => await LoadDetailAsync();
+
+    private async Task LoadDetailAsync()
+    {
+        if (OTRequestId <= 0)
+        {
+            _loadingDetail = false;
+            return;
+        }
+
+        _loadingDetail = true;
+        try
+        {
+            var result = await OTService.GetDetailAsync(OTRequestId);
+            if (result.IsSuccess && result.Data != null)
+                _detail = result.Data;
+            else
+                Snackbar.Add(result.Message ?? "Không tải được chi tiết.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[OT_DETAIL_DIALOG] OpenDetail id={Id}", OTRequestId);
+            Snackbar.Add("Lỗi tải chi tiết đơn OT.", Severity.Error);
+        }
+        finally
+        {
+            _loadingDetail = false;
+        }
+    }
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+
+    private static (Color color, string text) GetStatusChip(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => (Color.Success, "Hoàn tất"),
+        ApprovalStatus.Rejected => (Color.Error, "Từ chối"),
+        ApprovalStatus.Cancelled => (Color.Default, "Đã hủy"),
+        ApprovalStatus.InProgress => (Color.Info, "Đang xử lý"),
+        _ => (Color.Warning, "Chờ duyệt")
+    };
+
+    private static Color ApproveColor(DecisionType status) => status switch
+    {
+        DecisionType.Approved => Color.Success,
+        DecisionType.Rejected => Color.Error,
+        _ => Color.Warning
+    };
+
+    private static string ApproveIcon(DecisionType status) => status switch
+    {
+        DecisionType.Approved => Icons.Material.Filled.CheckCircle,
+        DecisionType.Rejected => Icons.Material.Filled.Cancel,
+        _ => Icons.Material.Filled.HourglassEmpty
+    };
+
+    private static Color GetValidationColor(ValidationStatus status) => status switch
+    {
+        ValidationStatus.Valid => Color.Success,
+        ValidationStatus.Warning => Color.Warning,
+        ValidationStatus.Invalid => Color.Error,
+        _ => Color.Default
+    };
+}

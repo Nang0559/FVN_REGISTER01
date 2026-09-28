@@ -1,0 +1,101 @@
+@page "/ot/approvals"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Components.OT
+@using FVN_REGISTER.Shared.Services.Approvals
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IApprovalListClientService ApprovalService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Phê duyệt OT</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1">
+    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+    Phê duyệt đơn OT
+</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Danh sách đơn OT đang chờ phê duyệt
+</MudText>
+
+<MudTabs Elevation="2" Rounded="true" Class="mb-4" @bind-ActivePanelIndex="_activeLevel">
+    <MudTabPanel Icon="@Icons.Material.Filled.AllInclusive">
+        <TabContent><MudText>Tất cả (@_allPending.Count)</MudText></TabContent>
+        <ChildContent>
+            <OTApprovalList Items="_allPending" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
+        </ChildContent>
+    </MudTabPanel>
+    @foreach (var level in ApprovalLevels)
+    {
+        <MudTabPanel Icon="@Icons.Material.Filled.SupervisorAccount">
+            <TabContent><MudText>Cấp @level (@PendingAtLevel(level).Count)</MudText></TabContent>
+            <ChildContent>
+                <OTApprovalList Items="@PendingAtLevel(level)" Level="@level" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
+            </ChildContent>
+        </MudTabPanel>
+    }
+</MudTabs>
+
+@code {
+    private bool _isLoading = true;
+    private int _activeLevel;
+    private List<PendingApprovalItemDto> _allPending = new();
+    private readonly CancellationTokenSource _cts = new();
+
+    // Approval level is workflow data, not a hard-coded list of role/permission IDs.
+    private IEnumerable<int> ApprovalLevels => _allPending
+        .Where(x => GetCurrentApprovalLevel(x) > 0)
+        .Select(GetCurrentApprovalLevel)
+        .Distinct()
+        .OrderBy(x => x);
+
+    protected override async Task OnInitializedAsync() => await LoadPending();
+
+    private async Task LoadPending()
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await ApprovalService.GetPendingAsync(_cts.Token);
+            if (result.IsSuccess && result.Data != null)
+            {
+                _allPending = result.Data.SelectMany(x => x.Requests)
+                    .Where(x => x.Kind == RequestModule.Overtime)
+                    .ToList();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "Không tải được danh sách.", Severity.Warning);
+            }
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[OT_APPROVAL] Load error");
+            Snackbar.Add("Lỗi tải danh sách chờ duyệt.", Severity.Error);
+        }
+        finally { _isLoading = false; }
+    }
+
+    private List<PendingApprovalItemDto> PendingAtLevel(int level) =>
+        _allPending.Where(x => GetCurrentApprovalLevel(x) == level && x.CanApprove).ToList();
+
+    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps
+            .OrderBy(x => x.Level)
+            .FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
+
+    private void ViewDetail(int id) => Nav.NavigateTo($"/ot/detail/{id}");
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

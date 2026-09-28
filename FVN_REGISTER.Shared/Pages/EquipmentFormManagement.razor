@@ -1,0 +1,275 @@
+@page "/equipment/form-management"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Contract.Dtos.EquipmentForms
+@using FVN_REGISTER.Contract.Dtos.PublicForms
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Equipment
+@using FVN_REGISTER.Shared.Services.Security
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IEquipmentClientService EquipmentClient
+@inject ISecurityClientService SecurityClient
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <div>
+                <MudText Typo="Typo.h5">Biểu mẫu áp dụng theo loại thiết bị</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Biểu mẫu được tạo bằng chức năng Biểu mẫu chung. Chỉ người được Security Center chỉ định cho từng loại thiết bị mới được cấu hình biểu mẫu áp dụng.</MudText>
+            </div>
+            <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Quay lại</MudButton>
+        </MudStack>
+
+        @if (_loading)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else if (_schemas.Count == 0)
+        {
+            <MudAlert Severity="Severity.Warning">
+                Bạn chưa được chỉ định quyền quản lý biểu mẫu cho bất kỳ loại thiết bị nào. SuperAdmin có thể cấu hình người phụ trách theo từng loại thiết bị.
+            </MudAlert>
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudPaper Class="pa-3">
+                        <MudText Typo="Typo.subtitle1">Loại / schema thiết bị được phụ trách</MudText>
+                        @foreach (var schema in _schemas.OrderBy(x => x.DeptCode).ThenBy(x => x.SchemaName))
+                        {
+                            <MudButton FullWidth="true" Variant="@(schema.Id == _selectedSchemaId ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectSchemaAsync(schema))">
+                                @schema.DeptCode — @schema.SchemaName — v@schema.Version
+                            </MudButton>
+                        }
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="8">
+                    @if (_selectedSchemaId.HasValue)
+                    {
+                        <MudPaper Class="pa-4">
+                            <MudText Typo="Typo.h6">Biểu mẫu đang áp dụng</MudText>
+                            <MudText Typo="Typo.caption">Schema: @_selectedSchemaName</MudText>
+                            <MudDivider Class="my-3" />
+                            @if (_assignments.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Info">Chưa có biểu mẫu nào được gán cho loại thiết bị này.</MudAlert>
+                            }
+                            else
+                            {
+                                @foreach (var assignment in _assignments.Where(x => x.IsActiveAssignment))
+                                {
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                                        <MudText>@assignment.FormCode — @assignment.FormTitle</MudText>
+                                        <MudButton Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveAsync(assignment.Id))">Ngừng áp dụng</MudButton>
+                                    </MudStack>
+                                }
+                            }
+                            <MudDivider Class="my-3" />
+                            <MudText Typo="Typo.subtitle2">Thêm biểu mẫu</MudText>
+                            <MudSelect T="int" @bind-Value="_selectedFormId" Label="Biểu mẫu đã phát hành" Variant="Variant.Outlined" Class="mt-2">
+                                @foreach (var form in _catalog.Where(x => x.IsActive && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    <MudSelectItem Value="@form.Id">@form.FormCode — @form.Title</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudNumericField T="int" @bind-Value="_displayOrder" Label="Thứ tự hiển thị" Min="0" Class="mt-2" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="@(_selectedFormId <= 0)" OnClick="AssignAsync">Áp dụng cho loại thiết bị</MudButton>
+                        </MudPaper>
+
+                        @if (_isSuperAdmin)
+                        {
+                            <MudPaper Class="pa-4 mt-3" Outlined="true">
+                                <MudText Typo="Typo.h6">Người phụ trách loại thiết bị</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Chỉ SuperAdmin được chỉ định người có quyền cấu hình biểu mẫu cho schema này. Quyền vẫn phải có capability <b>EquipmentFormManage (2320)</b>.
+                                </MudText>
+                                <MudStack Row="true" Spacing="2" Class="mt-3">
+                                    <MudSelect T="string" Label="Nhân viên" Variant="Variant.Outlined" @bind-Value="_operatorEmployeeCode" Style="min-width:360px">
+                                        @foreach (var employee in _operatorEmployees)
+                                        {
+                                            <MudSelectItem T="string" Value="@employee.EmployeeCode">
+                                                @employee.EmployeeCode — @employee.EmployeeName — @employee.DeptCode — @employee.DeptName — @employee.PositionCode — @employee.PositionName
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_savingOperator || string.IsNullOrWhiteSpace(_operatorEmployeeCode))" OnClick="AddOperatorAsync">
+                                        Chỉ định
+                                    </MudButton>
+                                </MudStack>
+                                <MudTable T="FeatureOperatorAssignmentDto" Items="_operatorAssignments" Dense="true" Hover="true" Class="mt-3">
+                                    <HeaderContent>
+                                        <MudTh>Nhân viên</MudTh>
+                                        <MudTh>Phòng ban</MudTh>
+                                        <MudTh>Chức vụ</MudTh>
+                                        <MudTh Style="text-align:center">Xử lý</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd><b>@context.EmployeeCode</b> — @context.EmployeeName</MudTd>
+                                        <MudTd>@context.DeptCode — @context.DeptName</MudTd>
+                                        <MudTd>@context.PositionCode — @context.PositionName</MudTd>
+                                        <MudTd Style="text-align:center">
+                                            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveOperatorAsync(context))">Bỏ chỉ định</MudButton>
+                                        </MudTd>
+                                    </RowTemplate>
+                                    <NoRecordsContent><MudText Class="pa-2">Chưa có người phụ trách.</MudText></NoRecordsContent>
+                                </MudTable>
+                            </MudPaper>
+                        }
+                    }
+                </MudItem>
+            </MudGrid>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private List<EquipmentSchemaSummaryDto> _schemas = new();
+    private List<EquipmentFormAssignmentDto> _assignments = new();
+    private List<PublicFormDto> _catalog = new();
+    private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
+    private List<FeatureOperatorAssignmentDto> _operatorAssignments = new();
+    private int? _selectedSchemaId;
+    private string _selectedSchemaName = string.Empty;
+    private int _selectedFormId;
+    private int _displayOrder;
+    private string _operatorEmployeeCode = string.Empty;
+    private bool _isSuperAdmin;
+    private bool _savingOperator;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityClient.GetMyPermissionsAsync();
+        _isSuperAdmin = permissions.IsSuccess && permissions.Data?.PermissionCode == UserPermissionCodes.SuperAdmin;
+
+        var schemas = await EquipmentClient.GetSchemasAsync();
+        var forms = await EquipmentClient.GetEquipmentFormCatalogAsync();
+        if (!schemas.IsSuccess || !forms.IsSuccess)
+        {
+            Snackbar.Add(schemas.Message ?? forms.Message ?? "Không thể tải dữ liệu biểu mẫu thiết bị.", Severity.Error);
+            _loading = false;
+            return;
+        }
+
+        _catalog = forms.Data ?? new();
+        var candidates = schemas.Data?.Where(x => x.IsActive).ToList() ?? new();
+        var manageable = new List<EquipmentSchemaSummaryDto>();
+        foreach (var schema in candidates)
+        {
+            var access = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaKey);
+            if (access.IsSuccess) manageable.Add(schema);
+        }
+        _schemas = manageable;
+
+        if (_isSuperAdmin)
+        {
+            var employees = await SecurityClient.GetFeatureOperatorEmployeesAsync();
+            _operatorEmployees = employees.IsSuccess ? employees.Data ?? new() : new();
+        }
+
+        var first = _schemas.FirstOrDefault();
+        if (first != null) await SelectSchemaAsync(first);
+        _loading = false;
+    }
+
+    private async Task SelectSchemaAsync(EquipmentSchemaSummaryDto schema)
+    {
+        var result = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaKey);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Bạn không có quyền quản lý loại thiết bị này.", Severity.Warning);
+            return;
+        }
+        _selectedSchemaId = schema.Id;
+        _selectedSchemaName = $"{schema.DeptCode} — {schema.SchemaName} — v{schema.Version}";
+        _assignments = result.Data ?? new();
+        _selectedFormId = 0;
+        _operatorEmployeeCode = string.Empty;
+        await LoadOperatorsAsync(schema);
+    }
+
+    private async Task LoadOperatorsAsync(EquipmentSchemaSummaryDto schema)
+    {
+        if (!_isSuperAdmin)
+        {
+            _operatorAssignments = new();
+            return;
+        }
+        var result = await SecurityClient.GetFeatureOperatorsAsync(SecurityFunctionCodes.EquipmentFormManage, "EQUIPMENT_SCHEMA", schema.Id);
+        _operatorAssignments = result.IsSuccess ? result.Data ?? new() : new();
+    }
+
+    private async Task AddOperatorAsync()
+    {
+        if (!_selectedSchemaId.HasValue || string.IsNullOrWhiteSpace(_operatorEmployeeCode) || !_isSuperAdmin) return;
+        _savingOperator = true;
+        try
+        {
+            var result = await SecurityClient.AddFeatureOperatorAsync(new SaveFeatureOperatorAssignmentRequest
+            {
+                FunctionCode = SecurityFunctionCodes.EquipmentFormManage,
+                ResourceType = "EQUIPMENT_SCHEMA",
+                ResourceId = _selectedSchemaId.Value,
+                EmployeeCode = _operatorEmployeeCode
+            });
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Đã chỉ định người phụ trách loại thiết bị.", Severity.Success);
+                _operatorEmployeeCode = string.Empty;
+                var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId.Value);
+                if (schema != null) await LoadOperatorsAsync(schema);
+            }
+            else Snackbar.Add(result.Message ?? "Không thể chỉ định người phụ trách.", Severity.Error);
+        }
+        finally { _savingOperator = false; }
+    }
+
+    private async Task RemoveOperatorAsync(FeatureOperatorAssignmentDto assignment)
+    {
+        if (!_isSuperAdmin) return;
+        var result = await SecurityClient.RemoveFeatureOperatorAsync(assignment.Id);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể bỏ chỉ định.", Severity.Error);
+            return;
+        }
+        Snackbar.Add("Đã bỏ chỉ định người phụ trách.", Severity.Success);
+        var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId);
+        if (schema != null) await LoadOperatorsAsync(schema);
+    }
+
+    private async Task AssignAsync()
+    {
+        if (!_selectedSchemaId.HasValue || _selectedFormId <= 0) return;
+        var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId.Value);
+        if (schema == null) return;
+        var result = await EquipmentClient.AssignEquipmentFormAsync(new EquipmentFormAssignmentRequest { EquipmentSchemaKey = schema.SchemaKey, FormId = _selectedFormId, DisplayOrder = _displayOrder });
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã áp dụng biểu mẫu cho loại thiết bị.", Severity.Success);
+            await SelectSchemaAsync(schema);
+        }
+        else Snackbar.Add(result.Message ?? "Không thể áp dụng biểu mẫu.", Severity.Error);
+    }
+
+    private async Task RemoveAsync(int assignmentId)
+    {
+        var result = await EquipmentClient.RemoveEquipmentFormAssignmentAsync(assignmentId);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã ngừng áp dụng biểu mẫu.", Severity.Success);
+            if (_selectedSchemaId.HasValue)
+            {
+                var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId.Value);
+                if (schema != null) await SelectSchemaAsync(schema);
+            }
+        }
+        else Snackbar.Add(result.Message ?? "Không thể ngừng áp dụng biểu mẫu.", Severity.Error);
+    }
+}

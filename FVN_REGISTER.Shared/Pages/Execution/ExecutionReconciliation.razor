@@ -1,0 +1,380 @@
+@page "/execution"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using FVN_REGISTER.Contract.Dtos.Execution
+@using Microsoft.AspNetCore.Components.Forms
+@using FVN_REGISTER.Shared.Services.Execution
+@inject IExecutionReconciliationClientService ExecutionService
+@inject ISnackbar Snackbar
+
+<PageTitle>Đối soát thực tế</PageTitle>
+
+@if (_detail is not null)
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h6">
+                Chi tiết @_detail.Reconciliation.ModuleCode / @_detail.Reconciliation.SourceId
+            </MudText>
+            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="CloseDetail">Đóng</MudButton>
+        </MudStack>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.body2">
+                    Trạng thái: <b>@_detail.Reconciliation.ReconciliationStatus</b>
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.body2">
+                    Planned: @_detail.Reconciliation.PlannedState
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.body2">
+                    Actual: @_detail.Reconciliation.ActualState
+                </MudText>
+            </MudItem>
+        </MudGrid>
+
+        @if (_detail.Confirmation is not null)
+        {
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle1">Xác nhận nhân viên</MudText>
+            <MudText Typo="Typo.body2">
+                Decision: <b>@_detail.Confirmation.Decision</b> —
+                Status: <b>@_detail.Confirmation.Status</b>
+            </MudText>
+            @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.Comment))
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-2">@_detail.Confirmation.Comment</MudAlert>
+            }
+            @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.ReviewNote))
+            {
+                <MudAlert Severity="Severity.Warning" Class="mt-2">
+                    Ghi chú review: @_detail.Confirmation.ReviewNote
+                </MudAlert>
+            }
+        }
+
+        @if (_detail.Evidence.Count > 0)
+        {
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle1">Evidence</MudText>
+            <MudTable Items="_detail.Evidence" Dense="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Loại</MudTh>
+                    <MudTh>FileId</MudTh>
+                    <MudTh>Tham chiếu</MudTh>
+                    <MudTh>Review</MudTh>
+                    <MudTh>Ghi chú HR</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.EvidenceType</MudTd>
+                    <MudTd>@(context.FileId?.ToString() ?? "-")</MudTd>
+                    <MudTd>@(context.ReferenceNo ?? context.ExternalUrl ?? "-")</MudTd>
+                    <MudTd>@context.ReviewStatus</MudTd>
+                    <MudTd>@(context.ReviewNote ?? "-")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+
+        @if (_detail.HrResolution is not null)
+        {
+            <MudDivider Class="my-3" />
+            <MudAlert Severity="@(_detail.HrResolution.Decision == "OK" ? Severity.Success : Severity.Warning)">
+                <b>HR: @_detail.HrResolution.Decision</b> —
+                @_detail.HrResolution.Reason
+            </MudAlert>
+        }
+    </MudPaper>
+}
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <MudText Typo="Typo.h5">Đối soát thực tế</MudText>
+        <MudStack Row="true" Spacing="1">
+            <MudDatePicker @bind-Date="_from" Label="Từ ngày" />
+            <MudDatePicker @bind-Date="_to" Label="Đến ngày" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Tải lại</MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">Không có reconciliation trong khoảng thời gian đã chọn.</MudAlert>
+    }
+    else
+    {
+        <MudTable Items="_items" Hover="true" Dense="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Ngày</MudTh>
+                <MudTh>Module</MudTh>
+                <MudTh>Nguồn</MudTh>
+                <MudTh>Participant</MudTh>
+                <MudTh>Dự kiến</MudTh>
+                <MudTh>Thực tế</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel="Module">@context.ModuleCode</MudTd>
+                <MudTd DataLabel="Nguồn">@context.SourceType / @context.SourceId</MudTd>
+                <MudTd DataLabel="Participant">@(context.ParticipantId ?? "-")</MudTd>
+                <MudTd DataLabel="Dự kiến">@(context.PlannedState ?? "-")</MudTd>
+                <MudTd DataLabel="Thực tế">@(context.ActualState ?? "-")</MudTd>
+                <MudTd DataLabel="Trạng thái">@context.ReconciliationStatus</MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small" Variant="Variant.Text"
+                               OnClick="@(() => OpenDetailAsync(context.Id))">
+                        Chi tiết
+                    </MudButton>
+                    @if (context.RequiresConfirmation && context.ConfirmationId == null)
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   OnClick="@(() => OpenConfirmationAsync(context))">
+                            Xác nhận
+                        </MudButton>
+                    }
+                    else if (context.ConfirmationId != null)
+                    {
+                        <MudStack Row="true" Spacing="1">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Đã gửi xác nhận</MudChip>
+                            @if (context.RequiresEvidence)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                           OnClick="@(() => OpenEvidenceAsync(context))">
+                                    Bổ sung evidence
+                                </MudButton>
+                            }
+                        </MudStack>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+    @if (_confirmationOpen && _selected is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6">Xác nhận @_selected.ModuleCode / @_selected.SourceId</MudText>
+            <MudSelect T="string" @bind-Value="_decision" Label="Kết luận" Variant="Variant.Outlined" Class="mt-3">
+                <MudSelectItem Value="@("CONFIRMED")">Xác nhận đúng</MudSelectItem>
+                <MudSelectItem Value="@("REJECTED")">Từ chối / cần xử lý lại</MudSelectItem>
+            </MudSelect>
+            <MudTextField @bind-Value="_comment" Label="Ghi chú" Variant="Variant.Outlined" Lines="3" Class="mt-3" />
+            <MudCheckBox @bind-Value="_evidenceRequired" Label="Yêu cầu bổ sung bằng chứng" />
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-3">
+                <MudButton OnClick="CloseConfirmation">Hủy</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitConfirmationAsync">Gửi xác nhận</MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+
+    @if (_evidenceOpen && _selected is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6">Bổ sung evidence</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">
+                @_selected.ModuleCode / @_selected.SourceId — có thể dùng mã tham chiếu hoặc URL chứng từ.
+            </MudText>
+            <MudTextField @bind-Value="_evidenceType" Label="Loại evidence" Variant="Variant.Outlined" Required="true" />
+            <MudTextField @bind-Value="_referenceNo" Label="Số tham chiếu" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTextField @bind-Value="_externalUrl" Label="URL chứng từ (http/https)" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTextField @bind-Value="_evidenceDescription" Label="Mô tả" Variant="Variant.Outlined" Lines="3" Class="mt-2" />
+            <MudNumericField T="int?" @bind-Value="_fileId" Label="FileId chứng từ đã upload" Variant="Variant.Outlined" Class="mt-2" />
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-3">
+                <MudButton OnClick="CloseEvidence">Hủy</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitEvidenceAsync">Gửi evidence</MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+
+@code {
+    private DateTime? _from = DateTime.Today.AddDays(-30);
+    private DateTime? _to = DateTime.Today.AddDays(30);
+    private List<ExecutionReconciliationDto> _items = [];
+    private bool _loading;
+    private bool _confirmationOpen;
+    private ExecutionReconciliationDto? _selected;
+    private string _decision = "CONFIRMED";
+    private string? _comment;
+    private bool _evidenceRequired;
+    private bool _evidenceOpen;
+    private string _evidenceType = "DOCUMENT";
+    private string? _referenceNo;
+    private string? _externalUrl;
+    private string? _evidenceDescription;
+    private int? _fileId;
+    private IBrowserFile? _evidenceFile;
+    private ExecutionReconciliationDetailDto? _detail;
+
+    [SupplyParameterFromQuery(Name = "reconciliationId")]
+    public long? ReconciliationId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (ReconciliationId.HasValue)
+            await OpenDetailAsync(ReconciliationId.Value);
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_from is null || _to is null) return;
+        if (_to.Value.Date < _from.Value.Date)
+        {
+            Snackbar.Add("Khoảng ngày không hợp lệ.", Severity.Warning);
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var result = await ExecutionService.GetMineAsync(
+                DateOnly.FromDateTime(_from.Value.Date),
+                DateOnly.FromDateTime(_to.Value.Date));
+
+            if (result.IsSuccess && result.Data is not null)
+                _items = result.Data.ToList();
+            else
+                Snackbar.Add(result.Message ?? "Không tải được dữ liệu đối soát.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Task OpenConfirmationAsync(ExecutionReconciliationDto item)
+    {
+        _selected = item;
+        _decision = "CONFIRMED";
+        _comment = null;
+        _evidenceRequired = item.RequiresEvidence;
+        _confirmationOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private void CloseConfirmation() => _confirmationOpen = false;
+
+    private async Task OpenDetailAsync(long reconciliationId)
+    {
+        var result = await ExecutionService.GetDetailAsync(reconciliationId);
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Snackbar.Add(result.Message ?? "Không tải được chi tiết đối soát.", Severity.Error);
+            return;
+        }
+
+        _detail = result.Data;
+    }
+
+    private void CloseDetail() => _detail = null;
+
+    private Task OpenEvidenceAsync(ExecutionReconciliationDto item)
+    {
+        _selected = item;
+        _evidenceOpen = true;
+        _evidenceType = "DOCUMENT";
+        _referenceNo = null;
+        _externalUrl = null;
+        _evidenceDescription = null;
+        _fileId = null;
+        _evidenceFile = null;
+        return Task.CompletedTask;
+    }
+
+    private void CloseEvidence() => _evidenceOpen = false;
+
+    private async Task SubmitEvidenceAsync()
+    {
+        if (_selected?.ConfirmationId is not long confirmationId)
+        {
+            Snackbar.Add("Chưa có confirmation để bổ sung evidence.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_evidenceType))
+        {
+            Snackbar.Add("Vui lòng nhập loại evidence.", Severity.Warning);
+            return;
+        }
+
+        if (_evidenceFile is not null)
+        {
+            var upload = await ExecutionService.UploadEvidenceFileAsync(
+                confirmationId,
+                _evidenceFile);
+
+            if (!upload.IsSuccess || upload.Data <= 0)
+            {
+                Snackbar.Add(upload.Message ?? "Không thể upload file evidence.", Severity.Error);
+                return;
+            }
+
+            _fileId = upload.Data;
+        }
+
+        var result = await ExecutionService.AddEvidenceAsync(
+            confirmationId,
+            new ExecutionEvidenceRequest(
+                _evidenceType,
+                _fileId,
+                _referenceNo,
+                _externalUrl,
+                _evidenceDescription));
+
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể thêm evidence.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Đã gửi evidence.", Severity.Success);
+        _evidenceOpen = false;
+        await LoadAsync();
+        if (_selected is not null)
+            await OpenDetailAsync(_selected.Id);
+    }
+
+    private void OnEvidenceFileSelected(InputFileChangeEventArgs e)
+    {
+        _evidenceFile = e.File;
+        _fileId = null;
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.##} KB";
+        return $"{bytes / (1024d * 1024d):0.##} MB";
+    }
+
+    private async Task SubmitConfirmationAsync()
+    {
+        if (_selected is null) return;
+
+        var result = await ExecutionService.SubmitConfirmationAsync(
+            _selected.Id,
+            new ExecutionConfirmationRequest(_decision, _comment, _evidenceRequired));
+
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không gửi được xác nhận.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Đã gửi xác nhận.", Severity.Success);
+        _confirmationOpen = false;
+        await LoadAsync();
+        if (_selected is not null)
+            await OpenDetailAsync(_selected.Id);
+    }
+}

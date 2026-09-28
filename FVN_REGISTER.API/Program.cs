@@ -1,0 +1,261 @@
+using FVN_REGISTER.Application.Factories;
+using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Actions;
+using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Application.Interfaces.Common;
+using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.Companies;
+using FVN_REGISTER.Application.Interfaces.EmailTemplates;
+using FVN_REGISTER.Application.Interfaces.Emails;
+using FVN_REGISTER.Application.Interfaces.Employees;
+using FVN_REGISTER.Application.Interfaces.Equipment;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
+using FVN_REGISTER.Application.Interfaces.Histories;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.Notifications;
+using FVN_REGISTER.Application.Interfaces.OT;
+using FVN_REGISTER.Application.Interfaces.Payroll;
+using FVN_REGISTER.Application.Interfaces.OTTypes;
+using FVN_REGISTER.Application.Interfaces.OTLimitRules;
+using FVN_REGISTER.Application.Interfaces.PublicInformation;
+using FVN_REGISTER.Application.Interfaces.PublicForms;
+using FVN_REGISTER.Application.Interfaces.Orchestrators;
+using FVN_REGISTER.Application.Interfaces.Reports;
+using FVN_REGISTER.Application.Interfaces.Statics;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.Dashboards;
+using FVN_REGISTER.Application.Interfaces.UserManagers;
+using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Models.Subjects;
+using FVN_REGISTER.Application.Orchestrators;
+using FVN_REGISTER.Contract.Dtos.Leaves;
+using FVN_REGISTER.Contract.Dtos.OT;
+using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Infrastructure.Hubs;
+using FVN_REGISTER.Infrastructure.Repositories;
+using FVN_REGISTER.Infrastructure.Services.Approvals;
+using FVN_REGISTER.Infrastructure.Services.Actions;
+using FVN_REGISTER.Infrastructure.Services.Auths;
+using FVN_REGISTER.Infrastructure.Services.Companies;
+using FVN_REGISTER.Infrastructure.Services.Calendar;
+using FVN_REGISTER.Infrastructure.Services.Calendar.Rules;
+using FVN_REGISTER.Infrastructure.Services.Execution;
+using FVN_REGISTER.Infrastructure.Services.Common;
+using FVN_REGISTER.Infrastructure.Services.Emails;
+using FVN_REGISTER.Infrastructure.Services.Employees;
+using FVN_REGISTER.Infrastructure.Services.Equipment;
+using FVN_REGISTER.Infrastructure.Services.Security;
+using FVN_REGISTER.Infrastructure.Services.Histories;
+using FVN_REGISTER.Infrastructure.Services.HrmSync;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Readers;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.SourceRows;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs;
+using FVN_REGISTER.Infrastructure.Services.Jobs;
+using FVN_REGISTER.Infrastructure.Services.Leaves;
+using FVN_REGISTER.Infrastructure.Services.Notifications;
+using FVN_REGISTER.Infrastructure.Services.OT;
+using FVN_REGISTER.Infrastructure.Services.Payroll;
+using FVN_REGISTER.Infrastructure.Services.OTs;
+using FVN_REGISTER.Infrastructure.Services.PublicInformation;
+using FVN_REGISTER.Infrastructure.Services.PublicForms;
+using FVN_REGISTER.Infrastructure.Services.Reports;
+using FVN_REGISTER.Infrastructure.Services.Statics;
+using FVN_REGISTER.Infrastructure.Services.Dashboards;
+using FVN_REGISTER.Infrastructure.Services.Users;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Infrastructure;
+using FVN_REGISTER.Infrastructure.Utils;
+using FVN_REGISTER.Infrastructure.Services;
+using FVN_REGISTER.Infrastructure.Services.Departments;
+using FVN_REGISTER.Application.Policies;
+using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Exceptions;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[]
+{
+    "https://localhost:7264", "http://localhost:5120", "http://localhost:5017", "https://localhost:7135"
+};
+
+builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
+    .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<BackgroundWorkerHealthRegistry>();
+builder.Services.AddHealthChecks().AddCheck<BackgroundWorkerHealthCheck>("background-workers");
+builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
+builder.Services.Configure<AppOptions>(opts => opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
+
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? throw new InvalidOperationException("Jwt configuration is missing.");
+if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) || Encoding.UTF8.GetByteCount(jwtOptions.SecretKey) < 32) throw new InvalidOperationException("Jwt:SecretKey is required and must be at least 32 bytes. For Development, use .NET User Secrets or Jwt__SecretKey. For Production, use Jwt__SecretKey.");
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer)) throw new InvalidOperationException("Jwt:Issuer is required.");
+if (string.IsNullOrWhiteSpace(jwtOptions.Audience)) throw new InvalidOperationException("Jwt:Audience is required.");
+if (jwtOptions.AccessTokenHours <= 0) throw new InvalidOperationException("Jwt:AccessTokenHours must be greater than zero.");
+if (jwtOptions.RememberMeDays <= 0) throw new InvalidOperationException("Jwt:RememberMeDays must be greater than zero.");
+builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(jwtOptions));
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required. For Development, set it with .NET User Secrets or the ConnectionStrings__DefaultConnection environment variable. For Production, use ConnectionStrings__DefaultConnection.");
+builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection();
+builder.Services.AddSignalR();
+
+// Common / master data
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<INetworkService, NetworkService>();
+builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
+builder.Services.AddScoped<IWorkCalendarService, WorkCalendarService>();
+builder.Services.AddScoped<ISharedWorkCalendarService, SharedWorkCalendarService>();
+builder.Services.AddScoped<ICalendarDayRuleEngine, CalendarDayRuleEngine>();
+builder.Services.AddScoped<ICalendarDayRule, AttendanceNumericVarianceRule>();
+builder.Services.AddScoped<ICalendarDayRule, OtNoActualRule>();
+builder.Services.AddScoped<ICalendarDayRule, LeaveAttendanceConflictRule>();
+builder.Services.AddScoped<ICalendarDayRule, TripAttendanceConflictRule>();
+builder.Services.AddScoped<ICalendarDayRule, OtActualWithoutRequestRule>();
+builder.Services.AddScoped<ICalendarModuleRegistry, CalendarModuleRegistry>();
+builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "OT"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "LEAVE"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "TRIP"));
+builder.Services.AddScoped<ICalendarModuleProvider, AttendanceCalendarModuleProvider>();
+builder.Services.AddScoped<IActionItemService, ActionItemService>();
+builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
+builder.Services.AddScoped<IExecutionReconciliationService, ExecutionReconciliationService>();
+builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
+builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+builder.Services.AddScoped<IDepartmentLookupService, DepartmentLookupService>();
+builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementService>();
+
+// Dashboard / Leave
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddScoped<IDashboardOrchestrator, DashboardOrchestrator>();
+builder.Services.AddScoped<IModuleDashboardProvider, LeaveDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, OTDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, TripDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, EquipmentDashboardProvider>();
+builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
+builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
+builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
+builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
+builder.Services.AddScoped<ILeaveService, LeaveService>();
+builder.Services.AddScoped<ILeaveEntitlementService, LeaveEntitlementService>();
+
+// Reports
+builder.Services.AddScoped<IReportService, LeaveReportService>();
+builder.Services.AddScoped<IReportService, OTReportService>();
+builder.Services.AddScoped<IReportService, OperationalReportService>();
+builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
+
+// OT
+builder.Services.AddScoped<IOTQueryService, OTQueryService>();
+builder.Services.AddScoped<IOTValidator, OTValidator>();
+builder.Services.AddScoped<IOTService, OTService>();
+builder.Services.AddScoped<IPayrollInputService, PayrollInputService>();
+builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
+builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
+builder.Services.AddScoped<IOTLimitRuleManagementService, OTLimitRuleManagementService>();
+builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
+
+// Trip
+builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripService, FVN_REGISTER.Infrastructure.Services.Trips.TripService>();
+builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripActualService, FVN_REGISTER.Infrastructure.Services.Trips.TripActualService>();
+
+// Equipment
+builder.Services.AddScoped<IEquipmentService, EquipmentService>();
+builder.Services.AddScoped<IEquipmentImportService, EquipmentImportService>();
+builder.Services.AddScoped<IEquipmentQrCodeService, QrCodeService>();
+builder.Services.AddScoped<IEquipmentInspectionService, EquipmentInspectionService>();
+builder.Services.AddScoped<IEquipmentFormService, EquipmentFormService>();
+
+// Auth / users
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IUserLogService, UserLogService>();
+builder.Services.AddScoped<IEmployeeUserResolver, EmployeeUserResolver>();
+builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
+builder.Services.AddScoped<ISessionTerminationNotifier, SignalRSessionTerminationNotifier>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+builder.Services.AddScoped<IAccessChangeService, AccessChangeService>();
+builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAssignmentService>();
+builder.Services.AddScoped<SecurityFunctionRegistryService>();
+builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
+builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
+builder.Services.AddScoped<IPublicFormService, PublicFormService>();
+builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
+builder.Services.AddScoped<IApprovalPolicyService, ApprovalPolicyService>();
+builder.Services.AddScoped<IApprovalRouteService, ApprovalRouteService>();
+builder.Services.AddScoped<IApprovalSelectionService, ApprovalSelectionService>();
+builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
+builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
+builder.Services.AddScoped<IEndpointGovernanceService, EndpointGovernanceService>();
+builder.Services.AddScoped<EndpointGovernanceExcelImportService>();
+
+// History / email / notifications
+builder.Services.AddScoped<INotificationFactory, NotificationFactory>();
+builder.Services.AddScoped<IApprovalHistoryService, ApprovalHistoryService>();
+builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, TripHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, EquipmentHistoryHandler>();
+builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
+builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationService>();
+
+// Approval: provider -> engine -> workflow -> cross-module inbox/resolver
+builder.Services.AddScoped<LeaveApprovalProvider>();
+builder.Services.AddScoped<OTApprovalProvider>();
+builder.Services.AddScoped<TripApprovalProvider>();
+builder.Services.AddScoped<EquipmentApprovalProvider>();
+builder.Services.AddScoped<PayrollApprovalProvider>();
+builder.Services.AddScoped<EndpointGovernanceApprovalProvider>();
+builder.Services.AddScoped<IApprovalProvider<LeaveRequestSubject>>(sp => sp.GetRequiredService<LeaveApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<OTRequestSubject>>(sp => sp.GetRequiredService<OTApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<TripRequestSubject>>(sp => sp.GetRequiredService<TripApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<EquipmentRequestSubject>>(sp => sp.GetRequiredService<EquipmentApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<PayrollPeriodSubject>>(sp => sp.GetRequiredService<PayrollApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<EndpointGovernanceRequestSubject>>(sp => sp.GetRequiredService<EndpointGovernanceApprovalProvider>());
+builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<OTRequestSubject>, ApprovalEngine<OTRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<TripRequestSubject>, ApprovalEngine<TripRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<EquipmentRequestSubject>, ApprovalEngine<EquipmentRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<PayrollPeriodSubject>, ApprovalEngine<PayrollPeriodSubject>>();
+builder.Services.AddScoped<IApprovalEngine<EndpointGovernanceRequestSubject>, ApprovalEngine<EndpointGovernanceRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LeaveRequestSubject>, ApprovalWorkflowOrchestrator<LeaveRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, ApprovalWorkflowOrchestrator<OTRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<TripRequestSubject>, ApprovalWorkflowOrchestrator<TripRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EquipmentRequestSubject>, ApprovalWorkflowOrchestrator<EquipmentRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<PayrollPeriodSubject>, ApprovalWorkflowOrchestrator<PayrollPeriodSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject>, ApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
+builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
+builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
+
+// HRM Sync
+builder.Services.AddScoped<IHrmSourceReader<HrmDepartmentSourceRow>, HrmDepartmentSourceReader>();
+builder.Services.AddScoped<IHrmSourceReader<HrmEmployeeSourceRow>, HrmEmployeeSourceReader>();
+builder.Services.AddScoped<IHrmSourceReader<HrmLeaveTypeSourceRow>, HrmLeaveTypeSourceReader>();
+builder.Services.AddScoped<IHrmSourceReader<HrmPositionSourceRow>, HrmPositionSourceReader>();
+builder.Services.AddScoped<IHrmStagingImporter, DepartmentStagingImporter>();
+builder.Services.AddScoped<IHrmStagingImporter, EmployeeStagingImporter>();
+builder.Services.AddScoped<IHrmStagingImporter, LeaveTypeStagingImporter>();
+builder.Services.AddScoped<IHrmStagingImporter, PositionStagingImporter>();
+builder.Services.AddScoped<IHrmSyncJob, DepartmentHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, EmployeeHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, LeaveTypeHrmSyncJob>();

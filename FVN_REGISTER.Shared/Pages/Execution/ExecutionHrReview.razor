@@ -1,0 +1,290 @@
+@page "/execution/hr"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Execution
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inject IHttpClientWithAuth Http
+@inject FVN_REGISTER.Shared.Services.Execution.IExecutionReconciliationClientService ExecutionService
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>HR xử lý đối soát</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-5">
+    <MudPaper Outlined="true" Class="pa-5">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h5">HR xử lý đối soát</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    Hàng chờ chung cho HR. Resolve OK/NG sẽ đi qua Execution Resolution và correction pipeline.
+                </MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" Disabled="_loading" OnClick="LoadAsync">Làm mới</MudButton>
+        </MudStack>
+
+        <MudGrid Class="mt-4" Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" Label="Module" @bind-Value="_module" Clearable="true">
+                        <MudSelectItem Value="@("OT")">OT</MudSelectItem>
+                    <MudSelectItem Value="@("LEAVE")">Leave</MudSelectItem>
+                    <MudSelectItem Value="@("TRIP")">Trip</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" Label="Trạng thái" @bind-Value="_status">
+                    <MudSelectItem Value="@("Mismatch")">Mismatch</MudSelectItem>
+                    <MudSelectItem Value="@("AwaitingConfirmation")">AwaitingConfirmation</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Lọc</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+    }
+
+    <MudPaper Outlined="true" Class="pa-4 mt-4 payroll-no-print">
+        <MudTextField @bind-Value="_resolveReason" Label="Lý do Resolve" Placeholder="Bắt buộc khi Resolve" Variant="Variant.Outlined" Class="mb-3" />
+    </MudPaper>
+
+    <MudPaper Outlined="true" Class="pa-4 mt-4">
+        <MudTable Items="_items" Dense="true" Hover="true" Bordered="true" Loading="_loading">
+            <HeaderContent>
+                <MudTh>Ngày</MudTh>
+                <MudTh>Nhân viên</MudTh>
+                <MudTh>Module</MudTh>
+                <MudTh>Planned</MudTh>
+                <MudTh>Actual</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                <MudTh>Evidence</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd><b>@context.EmployeeCode</b><br />@context.EmployeeName</MudTd>
+                <MudTd>@context.ModuleCode</MudTd>
+                <MudTd>@context.PlannedState</MudTd>
+                <MudTd>@context.ActualState</MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small">@context.ReconciliationStatus</MudChip></MudTd>
+                <MudTd>@(context.RequiresEvidence ? "Bắt buộc" : "Không")</MudTd>
+                <MudTd>
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled"
+                                   Disabled="_busy" OnClick="@(() => ResolveAsync(context, "OK"))">
+                            OK
+                        </MudButton>
+                        <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                                   Disabled="_busy" OnClick="@(() => ResolveAsync(context, "NG"))">
+                            NG
+                        </MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text"
+                                   OnClick="@(() => OpenDetailAsync(context.Id))">
+                            Chi tiết
+                        </MudButton>
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4">Không còn phản hồi Mismatch/AwaitingConfirmation trong phạm vi.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+    @if (_detail is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h6">
+                    Chi tiết @_detail.Reconciliation.ModuleCode / @_detail.Reconciliation.SourceId
+                </MudText>
+                <MudButton Size="Size.Small" OnClick="CloseDetail">Đóng</MudButton>
+            </MudStack>
+
+            @if (_detail.Evidence.Count > 0)
+            {
+                <MudTextField @bind-Value="_evidenceReviewNote"
+                              Label="Ghi chú review evidence"
+                              Variant="Variant.Outlined"
+                              Lines="2"
+                              Class="mt-3 mb-2" />
+                <MudTable Items="_detail.Evidence" Dense="true" Class="mt-3">
+                    <HeaderContent>
+                        <MudTh>Evidence</MudTh>
+                        <MudTh>FileId</MudTh>
+                        <MudTh>Trạng thái</MudTh>
+                        <MudTh>Ghi chú</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.EvidenceType</MudTd>
+                        <MudTd>@(context.FileId?.ToString() ?? "-")</MudTd>
+                        <MudTd>@context.ReviewStatus</MudTd>
+                        <MudTd>@(context.ReviewNote ?? "-")</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small" Color="Color.Success"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "Approved"))">
+                                    Duyệt
+                                </MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Warning"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "NeedMoreEvidence"))">
+                                    Cần bổ sung
+                                </MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "Rejected"))">
+                                    Từ chối
+                                </MudButton>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">Chưa có evidence.</MudAlert>
+            }
+
+            @if (_detail.Confirmation is not null)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">
+                    Employee decision: @_detail.Confirmation.Decision —
+                    Status: @_detail.Confirmation.Status
+                </MudAlert>
+            }
+
+            @if (_detail.HrResolution is not null)
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-3">
+                    HR đã xử lý: @_detail.HrResolution.Decision — @_detail.HrResolution.Reason
+                </MudAlert>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private IReadOnlyList<ExecutionHrReviewItemDto> _items = Array.Empty<ExecutionHrReviewItemDto>();
+    private string? _module;
+    private string _status = "Mismatch";
+    private bool _loading;
+    private bool _busy;
+    private string? _error;
+    private string _resolveReason = string.Empty;
+    private string? _evidenceReviewNote;
+    private ExecutionReconciliationDetailDto? _detail;
+
+    [SupplyParameterFromQuery(Name = "reconciliationId")]
+    public long? ReconciliationId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (ReconciliationId.HasValue)
+            await OpenDetailAsync(ReconciliationId.Value);
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var query = $"api/execution/hr/reconciliations?status={Uri.EscapeDataString(_status)}";
+            if (!string.IsNullOrWhiteSpace(_module))
+                query += $"&moduleCode={Uri.EscapeDataString(_module)}";
+
+            var r = await Http.GetAsync<List<ExecutionHrReviewItemDto>>(query);
+            if (!r.IsSuccess)
+            {
+                _error = r.Message ?? "Không tải được hàng chờ HR.";
+                return;
+            }
+
+            _items = r.Data ?? new List<ExecutionHrReviewItemDto>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenDetailAsync(long reconciliationId)
+    {
+        var result = await Http.GetAsync<ExecutionReconciliationDetailDto>(
+            $"api/execution/hr/reconciliations/{reconciliationId}/detail");
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Snackbar.Add(result.Message ?? "Không tải được chi tiết.", Severity.Error);
+            return;
+        }
+
+        _detail = result.Data;
+    }
+
+    private void CloseDetail() => _detail = null;
+
+    private async Task ReviewEvidenceAsync(long evidenceId, string status)
+    {
+        _busy = true;
+        try
+        {
+            var request = new ExecutionEvidenceReviewRequest(status, _evidenceReviewNote?.Trim());
+            var result = await Http.PostAsync<ExecutionEvidenceDto>(
+                $"api/execution/hr/evidence/{evidenceId}/review", request);
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Review evidence thất bại.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Evidence đã chuyển sang {status}.", Severity.Success);
+            _evidenceReviewNote = null;
+            if (_detail is not null)
+                await OpenDetailAsync(_detail.Reconciliation.Id);
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResolveAsync(ExecutionHrReviewItemDto item, string decision)
+    {
+        if (string.IsNullOrWhiteSpace(_resolveReason))
+        {
+            Snackbar.Add("Phải nhập lý do xử lý.", Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var request = new ExecutionHrResolutionRequest(decision, _resolveReason.Trim(), "REFRESH");
+            var r = await Http.PostAsync<ExecutionHrResolutionDto>(
+                $"api/execution/hr/reconciliations/{item.Id}/resolve", request);
+
+            if (!r.IsSuccess)
+            {
+                Snackbar.Add(r.Message ?? "Resolve thất bại.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Đã xử lý {item.EmployeeCode} / {item.ModuleCode} = {decision}.", Severity.Success);
+            _resolveReason = string.Empty;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}
