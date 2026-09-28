@@ -3,12 +3,26 @@ GO
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
-/* Endpoint capability registry. This extends the existing Security Center only.
-   It does not create a second RBAC system. SuperAdmin receives the initial
-   administrative baseline; all later user/role assignment remains in Security Center. */
+/*
+===============================================================================
+Endpoint capability registry
+
+Security model:
+- F03Functions remains the single capability/function catalog.
+- Endpoint Governance does NOT create a second RBAC system.
+- SuperAdmin keeps the administrative baseline.
+- IT receives a dedicated role (RoleCode 7) for Endpoint Governance.
+- Endpoint function assignment is still managed through F03RoleFunctions /
+  Security Center; this script only creates the canonical IT role and baseline.
+===============================================================================
+*/
 
 IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
     THROW 51580, N'F03Functions is required before applying Endpoint capabilities.', 1;
+IF OBJECT_ID(N'dbo.F03Roles', N'U') IS NULL
+    THROW 51582, N'F03Roles is required before applying Endpoint capabilities.', 1;
+IF OBJECT_ID(N'dbo.F03RoleFunctions', N'U') IS NULL
+    THROW 51583, N'F03RoleFunctions is required before applying Endpoint capabilities.', 1;
 
 DECLARE @Functions TABLE
 (
@@ -70,7 +84,7 @@ VALUES
 );
 GO
 
-/* Synchronize the stable registry entries without changing any user/role assignment. */
+/* Stable registry entries. No role/user assignment is inferred here. */
 INSERT INTO dbo.F03SecurityFunctionRegistry
 (
     FunctionKey, FunctionCode, DefinitionName, ModuleCode, ActionCode, ScopeCode,
@@ -86,16 +100,55 @@ WHERE f.ModuleCode = N'Endpoint'
   AND NOT EXISTS (SELECT 1 FROM dbo.F03SecurityFunctionRegistry r WHERE r.FunctionKey = f.FunctionKey);
 GO
 
-/* Initial baseline for the existing SuperAdmin role only. */
+/*
+Dedicated IT role for Endpoint Governance.
+RoleCode 7 is intentionally reserved here instead of reusing SuperAdmin/Admin.
+If code 7 already exists with a different role, stop rather than silently
+changing an existing security role.
+*/
+IF EXISTS (SELECT 1 FROM dbo.F03Roles WHERE RoleCode = 7 AND RoleName <> N'IT Endpoint Operator')
+    THROW 51584, N'RoleCode 7 is already used by another role. Resolve the role-code collision before applying Endpoint capabilities.', 1;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Roles WHERE RoleCode = 7)
+BEGIN
+    INSERT INTO dbo.F03Roles
+    (
+        RoleCode, RoleName, Detail, IsSystem, IsActive, CreatedBy, CreatedAt
+    )
+    VALUES
+    (
+        7,
+        N'IT Endpoint Operator',
+        N'Quản trị Endpoint Governance: inventory, compliance, software/service catalog, installation request và exception theo Security Center.',
+        0,
+        1,
+        0,
+        GETDATE()
+    );
+END;
+GO
+
+/*
+Initial baseline:
+- SuperAdmin keeps all Endpoint capabilities.
+- IT Endpoint Operator receives all Endpoint Governance capabilities.
+No other role receives Endpoint permissions automatically.
+*/
 INSERT INTO dbo.F03RoleFunctions (IdRole, IdFunction, IsActive, CreatedBy, CreatedAt)
 SELECT r.Id, f.Id, 1, 0, GETDATE()
 FROM dbo.F03Roles r
-JOIN dbo.F03Functions f ON f.FunctionCode BETWEEN 3101 AND 3124 AND f.ModuleCode = N'Endpoint' AND f.IsActive = 1
+JOIN dbo.F03Functions f
+  ON f.FunctionCode BETWEEN 3101 AND 3124
+ AND f.ModuleCode = N'Endpoint'
+ AND f.IsActive = 1
 WHERE r.IsActive = 1
-  AND r.RoleCode = 1
+  AND r.RoleCode IN (1, 7)
   AND NOT EXISTS
   (
-      SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole = r.Id AND rf.IdFunction = f.Id
+      SELECT 1
+      FROM dbo.F03RoleFunctions rf
+      WHERE rf.IdRole = r.Id
+        AND rf.IdFunction = f.Id
   );
 GO
 
