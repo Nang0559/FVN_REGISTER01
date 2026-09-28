@@ -24,11 +24,20 @@ public sealed class EndpointInventoryService : IEndpointInventoryService
         if (string.IsNullOrWhiteSpace(request.DeviceKey)) throw new ArgumentException("DeviceKey is required.", nameof(request));
         if (request.DeviceKey.Length > 100) throw new ArgumentException("DeviceKey is too long.", nameof(request));
         if (request.Software.Count > 5000 || request.Services.Count > 2000 || request.Antivirus.Count > 100) throw new ArgumentException("Inventory payload exceeds the supported limit.");
+
         var now = DateTime.UtcNow;
         var deviceKey = request.DeviceKey.Trim();
+        var inventoryHash = ComputeInventoryHash(request);
         var device = await _db.EndpointDevices.SingleOrDefaultAsync(x => x.DeviceKey == deviceKey, cancellationToken);
         var isNew = device == null;
-        if (device == null) { device = new F03EndpointDevice { DeviceKey = deviceKey, CreatedAt = now, IdentityStatus = "PendingReview" }; _db.EndpointDevices.Add(device); }
+        var inventoryChanged = isNew || !Same(device!.LastInventoryHash, inventoryHash);
+
+        if (device == null)
+        {
+            device = new F03EndpointDevice { DeviceKey = deviceKey, CreatedAt = now, IdentityStatus = "PendingReview" };
+            _db.EndpointDevices.Add(device);
+        }
+
         var newComputerName = Trim(request.ComputerName, 255);
         var newSerialNumber = Trim(request.SerialNumber, 255);
         var newHardwareUuid = Trim(request.HardwareUuid, 255);
@@ -47,26 +56,93 @@ public sealed class EndpointInventoryService : IEndpointInventoryService
                 if (hardwareChanged) await UpsertAlertAsync(device.Id, "HARDWARE_IDENTITY_CHANGED", "High", "Định danh phần cứng của endpoint đã thay đổi.", $"Serial cũ: {device.SerialNumber}; Serial mới: {newSerialNumber}; Hardware UUID cũ: {device.HardwareUuid}; UUID mới: {newHardwareUuid}", null, cancellationToken);
             }
         }
-        device.ComputerName = newComputerName; device.SerialNumber = newSerialNumber; device.HardwareUuid = newHardwareUuid; device.AgentInstallationId = newAgentInstallationId;
-        device.OsName = Trim(request.OsName, 255); device.OsVersion = Trim(request.OsVersion, 100); device.AgentVersion = Trim(request.AgentVersion, 50); device.LastSeenUtc = now; device.Status = "Online"; device.Source = "FVNAgent"; device.UpdatedAt = now;
+
+        device.ComputerName = newComputerName;
+        device.SerialNumber = newSerialNumber;
+        device.HardwareUuid = newHardwareUuid;
+        device.AgentInstallationId = newAgentInstallationId;
+        device.OsName = Trim(request.OsName, 255);
+        device.OsVersion = Trim(request.OsVersion, 100);
+        device.AgentVersion = Trim(request.AgentVersion, 50);
+        device.LastSeenUtc = now;
+        device.Status = "Online";
+        device.Source = "FVNAgent";
+        device.UpdatedAt = now;
         if (isNew && request.EquipmentAssetId.HasValue && await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.Id == request.EquipmentAssetId.Value, cancellationToken)) device.EquipmentAssetId = request.EquipmentAssetId;
         if (isNew) device.IdentityStatus = "PendingReview";
-        device.LastInventoryHash = ComputeInventoryHash(request);
+        device.LastInventoryHash = inventoryHash;
+
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
-        var oldSoftware = await _db.EndpointSoftwareInventory.Where(x => x.EndpointDeviceId == device.Id).ToListAsync(cancellationToken);
-        var oldServices = await _db.EndpointServiceInventory.Where(x => x.EndpointDeviceId == device.Id).ToListAsync(cancellationToken);
-        var antivirusSet = _db.Set<F03EndpointAntivirusInventory>();
-        var oldAntivirus = await antivirusSet.Where(x => x.EndpointDeviceId == device.Id).ToListAsync(cancellationToken);
-        _db.EndpointSoftwareInventory.RemoveRange(oldSoftware); _db.EndpointServiceInventory.RemoveRange(oldServices); antivirusSet.RemoveRange(oldAntivirus);
-        foreach (var item in request.Software.Where(x => !string.IsNullOrWhiteSpace(x.Name)).GroupBy(x => Normalize(x.Name), StringComparer.OrdinalIgnoreCase).Select(x => x.First()))
-            _db.EndpointSoftwareInventory.Add(new F03EndpointSoftwareInventory { EndpointDeviceId = device.Id, NormalizedName = Normalize(item.Name), DisplayName = Trim(item.DisplayName ?? item.Name, 255), Publisher = Trim(item.Publisher, 255), Version = Trim(item.Version, 100), Architecture = Trim(item.Architecture, 30), InstallDate = item.InstallDate, InstallLocation = Trim(item.InstallLocation, 1000), DetectedAtUtc = now, Source = "FVNAgent" });
-        foreach (var item in request.Services.Where(x => !string.IsNullOrWhiteSpace(x.ServiceName)).GroupBy(x => x.ServiceName.Trim(), StringComparer.OrdinalIgnoreCase).Select(x => x.First()))
-            _db.EndpointServiceInventory.Add(new F03EndpointServiceInventory { EndpointDeviceId = device.Id, ServiceName = Trim(item.ServiceName, 255)!, DisplayName = Trim(item.DisplayName, 255), State = Trim(item.State, 30), StartMode = Trim(item.StartMode, 30), BinaryPathHash = Trim(item.BinaryPathHash, 128), DetectedAtUtc = now, Source = "FVNAgent" });
-        foreach (var item in request.Antivirus.Where(x => !string.IsNullOrWhiteSpace(x.ProductName)).GroupBy(x => x.ProductName.Trim(), StringComparer.OrdinalIgnoreCase).Select(x => x.First()))
-            antivirusSet.Add(new F03EndpointAntivirusInventory { EndpointDeviceId = device.Id, ProductName = Trim(item.ProductName, 255)!, ProductVersion = Trim(item.ProductVersion, 100), EngineVersion = Trim(item.EngineVersion, 100), DefinitionVersion = Trim(item.DefinitionVersion, 100), DefinitionUpdatedAtUtc = item.DefinitionUpdatedAtUtc, AntivirusEnabled = item.AntivirusEnabled, RealTimeProtectionEnabled = item.RealTimeProtectionEnabled, ProtectionStatus = Trim(item.ProtectionStatus, 50), RunningMode = Trim(item.RunningMode, 50), Source = Trim(item.Source, 30) ?? "FVNAgent", DetectedAtUtc = now });
-        await _db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken);
-        await _compliance.EvaluateAsync(device.Id, cancellationToken);
+
+        if (inventoryChanged)
+        {
+            var oldSoftware = await _db.EndpointSoftwareInventory.Where(x => x.EndpointDeviceId == device.Id).ToListAsync(cancellationToken);
+            var oldServices = await _db.EndpointServiceInventory.Where(x => x.EndpointDeviceId == device.Id).ToListAsync(cancellationToken);
+            var antivirusSet = _db.Set<F03EndpointAntivirusInventory>();
+            var oldAntivirus = await antivirusSet.Where(x => x.EndpointDeviceId == device.Id).ToListAsync(cancellationToken);
+            _db.EndpointSoftwareInventory.RemoveRange(oldSoftware);
+            _db.EndpointServiceInventory.RemoveRange(oldServices);
+            antivirusSet.RemoveRange(oldAntivirus);
+
+            foreach (var item in request.Software
+                         .Where(x => !string.IsNullOrWhiteSpace(x.Name))
+                         .GroupBy(x => BuildSoftwareKey(x), StringComparer.OrdinalIgnoreCase)
+                         .Select(x => x.First()))
+            {
+                _db.EndpointSoftwareInventory.Add(new F03EndpointSoftwareInventory
+                {
+                    EndpointDeviceId = device.Id,
+                    NormalizedName = Normalize(item.Name),
+                    DisplayName = Trim(item.DisplayName ?? item.Name, 255),
+                    Publisher = Trim(item.Publisher, 255),
+                    Version = Trim(item.Version, 100),
+                    Architecture = Trim(item.Architecture, 30),
+                    InstallDate = item.InstallDate,
+                    InstallLocation = Trim(item.InstallLocation, 1000),
+                    DetectedAtUtc = now,
+                    Source = "FVNAgent"
+                });
+            }
+
+            foreach (var item in request.Services.Where(x => !string.IsNullOrWhiteSpace(x.ServiceName)).GroupBy(x => x.ServiceName.Trim(), StringComparer.OrdinalIgnoreCase).Select(x => x.First()))
+            {
+                _db.EndpointServiceInventory.Add(new F03EndpointServiceInventory
+                {
+                    EndpointDeviceId = device.Id,
+                    ServiceName = Trim(item.ServiceName, 255)!,
+                    DisplayName = Trim(item.DisplayName, 255),
+                    State = Trim(item.State, 30),
+                    StartMode = Trim(item.StartMode, 30),
+                    BinaryPathHash = Trim(item.BinaryPathHash, 128),
+                    DetectedAtUtc = now,
+                    Source = "FVNAgent"
+                });
+            }
+
+            foreach (var item in request.Antivirus.Where(x => !string.IsNullOrWhiteSpace(x.ProductName)).GroupBy(x => x.ProductName.Trim(), StringComparer.OrdinalIgnoreCase).Select(x => x.First()))
+            {
+                antivirusSet.Add(new F03EndpointAntivirusInventory
+                {
+                    EndpointDeviceId = device.Id,
+                    ProductName = Trim(item.ProductName, 255)!,
+                    ProductVersion = Trim(item.ProductVersion, 100),
+                    EngineVersion = Trim(item.EngineVersion, 100),
+                    DefinitionVersion = Trim(item.DefinitionVersion, 100),
+                    DefinitionUpdatedAtUtc = item.DefinitionUpdatedAtUtc,
+                    AntivirusEnabled = item.AntivirusEnabled,
+                    RealTimeProtectionEnabled = item.RealTimeProtectionEnabled,
+                    ProtectionStatus = Trim(item.ProtectionStatus, 50),
+                    RunningMode = Trim(item.RunningMode, 50),
+                    Source = Trim(item.Source, 30) ?? "FVNAgent",
+                    DetectedAtUtc = now
+                });
+            }
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        await tx.CommitAsync(cancellationToken);
+        if (inventoryChanged) await _compliance.EvaluateAsync(device.Id, cancellationToken);
         return await ToSummaryAsync(device.Id, cancellationToken);
     }
 
@@ -120,12 +196,13 @@ public sealed class EndpointInventoryService : IEndpointInventoryService
 
     private static string ComputeInventoryHash(EndpointInventoryRequestDto request)
     {
-        var software = request.Software.Where(x => !string.IsNullOrWhiteSpace(x.Name)).Select(x => string.Join("|", Normalize(x.Name), x.Publisher?.Trim(), x.Version?.Trim())).OrderBy(x => x, StringComparer.OrdinalIgnoreCase);
+        var software = request.Software.Where(x => !string.IsNullOrWhiteSpace(x.Name)).Select(x => string.Join("|", Normalize(x.Name), x.Publisher?.Trim(), x.Version?.Trim(), x.Architecture?.Trim())).OrderBy(x => x, StringComparer.OrdinalIgnoreCase);
         var services = request.Services.Where(x => !string.IsNullOrWhiteSpace(x.ServiceName)).Select(x => string.Join("|", x.ServiceName.Trim(), x.State?.Trim(), x.StartMode?.Trim(), x.BinaryPathHash?.Trim())).OrderBy(x => x, StringComparer.OrdinalIgnoreCase);
         var antivirus = request.Antivirus.Where(x => !string.IsNullOrWhiteSpace(x.ProductName)).Select(x => string.Join("|", x.ProductName.Trim(), x.ProductVersion?.Trim(), x.DefinitionVersion?.Trim(), x.DefinitionUpdatedAtUtc?.ToString("O"), x.AntivirusEnabled, x.RealTimeProtectionEnabled, x.ProtectionStatus)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", software.Concat(services).Concat(antivirus)))));
     }
 
+    private static string BuildSoftwareKey(EndpointSoftwareInventoryDto item) => string.Join("|", Normalize(item.Name), item.Publisher?.Trim(), item.Version?.Trim(), item.Architecture?.Trim());
     private static bool Same(string? left, string? right) => string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
     private static string Normalize(string value) => value.Trim().ToUpperInvariant();
     private static string? Trim(string? value, int max) => string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, max)];
