@@ -259,3 +259,70 @@ builder.Services.AddScoped<IHrmStagingImporter, PositionStagingImporter>();
 builder.Services.AddScoped<IHrmSyncJob, DepartmentHrmSyncJob>();
 builder.Services.AddScoped<IHrmSyncJob, EmployeeHrmSyncJob>();
 builder.Services.AddScoped<IHrmSyncJob, LeaveTypeHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, OTTypeHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, PositionHrmSyncJob>();
+builder.Services.AddScoped<IHrmStagingImporterResolver, HrmStagingImporterResolver>();
+builder.Services.AddScoped<IHrmSyncJobResolver, HrmSyncJobResolver>();
+builder.Services.AddScoped<IHrmSyncReviewQueryService, HrmSyncReviewQueryService>();
+builder.Services.AddScoped<IHrmSyncService, HrmSyncService>();
+builder.Services.AddScoped<IHrmAttendanceCalculationService, HrmAttendanceCalculationService>();
+builder.Services.AddScoped<IHrmAttendanceExcelExportService, HrmAttendanceExcelExportService>();
+builder.Services.AddScoped<IHrmUserRoleRuleService, HrmUserRoleRuleService>();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.MapInboundClaims = false;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidIssuer = jwtOptions.Issuer,
+        ValidateAudience = true,
+        ValidAudience = jwtOptions.Audience,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.FromMinutes(5),
+        NameClaimType = "name",
+        RoleClaimType = "role"
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
+            var qs = context.Request.Query["access_token"].ToString();
+            if (!string.IsNullOrEmpty(qs)) { context.Token = qs; return Task.CompletedTask; }
+            var header = context.Request.Headers["Authorization"].ToString();
+            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) context.Token = header["Bearer ".Length..];
+            return Task.CompletedTask;
+        }
+    };
+});
+
+builder.Services.AddAuthorization();
+builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var feature = context.Features.Get<IExceptionHandlerFeature>();
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsJsonAsync(new { message = feature?.Error.Message ?? "Unexpected error." });
+}));
+app.UseHttpsRedirection();
+app.UseCors("FccCorsPolicy");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHealthChecks("/health");
+app.MapHub<NotificationHub>("/hubs/notifications");
+
+app.Run();
