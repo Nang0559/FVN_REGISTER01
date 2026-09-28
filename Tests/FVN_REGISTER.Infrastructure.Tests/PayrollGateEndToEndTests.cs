@@ -1,6 +1,4 @@
 using FVN_REGISTER.Core.Entities.WorkCalendar;
-using FVN_REGISTER.Contract.Dtos.Security;
-using MudBlazor;
 using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Infrastructure.Services.Payroll;
 using Microsoft.EntityFrameworkCore;
