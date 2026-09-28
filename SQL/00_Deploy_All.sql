@@ -97,14 +97,14 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "56_EndpointGovernanceExtensions.sql"
 
 /* ENDPOINT SECURITY CAPABILITIES / ROLE SEED - AFTER ALL ENDPOINT OBJECTS EXIST */
-:r "58_EndpointSecurityCapabilities.sql"
 :r "57_Verify_Endpoint_Governance.sql"
-
-/* ENDPOINT AGENT DATA / CATALOG / FINDING RETENTION */
-:r "60_EndpointAgentDataHardening.sql"
+:r "58_EndpointSecurityCapabilities.sql"
 
 /* CALENDAR CAPABILITY */
 :r "59_CalendarViewCapability.sql"
+
+/* ENDPOINT AGENT DATA / CATALOG / FINDING RETENTION */
+:r "60_EndpointAgentDataHardening.sql"
 
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
