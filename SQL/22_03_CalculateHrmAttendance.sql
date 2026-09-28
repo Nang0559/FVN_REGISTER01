@@ -95,14 +95,6 @@ BEGIN
        WHEN ISNULL(a.RequiredMinutes,0)>0 AND ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)=a.RequiredMinutes THEN NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N'')
        ELSE CONVERT(nvarchar(50),CONVERT(float,(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0))/60.0)) END,
        OtDisplayValue=CASE
-       /*
-          L/holiday classification must come from the HRM attendance result
-          (BCNgayLe / BCNgayLeNV), not from tblCa.CNgaynghi (HrmHoliday).
-          CNgaynghi describes the shift calendar and can mark a regular
-          Saturday/day-off for everyone on that shift, which caused false
-          "L" values in OT exports for employees whose HRM report did not
-          classify that date as a holiday.
-       */
        WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)<=0
             THEN CASE WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN N'L' ELSE N'' END
        WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN
@@ -111,7 +103,7 @@ BEGIN
                  ELSE N'NL'+LEFT(COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'C'),1)+CONVERT(nvarchar(20),ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)) END
        WHEN ISNULL(a.HrmShiftDayType,0) IN (2,3) THEN
             N'CN'+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
-       ELSE CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0)) END
+       ELSE CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0) END
    FROM dbo.F03HrmAttendanceCalculated a WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
    FETCH NEXT FROM staff_cur INTO @StaffID;
   END
@@ -164,6 +156,9 @@ BEGIN
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId;
  END TRY
  BEGIN CATCH
+     /* XACT_ABORT is ON: the per-date transaction is doomed after an error and must be
+        rolled back before the Run row can be updated, otherwise the run stays 'Running'. */
+     IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
      UPDATE dbo.F03HrmAttendanceCalculationRun
      SET Status=N'Failed',FinishedAt=GETDATE(),ErrorMessage=ERROR_MESSAGE()
      WHERE CalculationBatchId=@BatchId;
