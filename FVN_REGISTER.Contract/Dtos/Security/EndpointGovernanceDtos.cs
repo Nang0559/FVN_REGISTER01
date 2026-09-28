@@ -10,7 +10,8 @@ public sealed record EndpointGovernancePolicyItemDto(
     string? Publisher,
     string? VersionConstraint,
     bool IsAllowed,
-    string? Remark);
+    string? Remark,
+    string? AliasNames = null);
 
 public sealed record EndpointGovernancePolicyDto(
     int Id,
