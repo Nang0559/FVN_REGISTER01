@@ -42,6 +42,9 @@ public sealed partial class EquipmentClientService
         }
     }
 
+    public Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(string deptCode, IBrowserFile file, CancellationToken ct)
+        => PreviewSchemaFromExcelAsync(deptCode, file, 0, ct);
+
     public async Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(
         string deptCode,
         IBrowserFile file,
@@ -81,6 +84,9 @@ public sealed partial class EquipmentClientService
                 "Không thể đọc cấu trúc Excel để tạo mẫu dữ liệu.");
         }
     }
+
+    public Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaFromExcelAsync(string deptCode, IBrowserFile file, string? schemaName, CancellationToken ct)
+        => CreateSchemaFromExcelAsync(deptCode, file, schemaName, 0, ct);
 
     public async Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaFromExcelAsync(
         string deptCode,
@@ -129,6 +135,9 @@ public sealed partial class EquipmentClientService
                 "Không thể tạo mẫu dữ liệu từ Excel.");
         }
     }
+
+    public Task<ApiResponse<EquipmentImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee, CancellationToken ct)
+        => StageImportAsync(deptCode, schemaId, file, assignToEmployee, 0, ct);
 
     public async Task<ApiResponse<EquipmentImportBatchDto>> StageImportAsync(
         string deptCode,
