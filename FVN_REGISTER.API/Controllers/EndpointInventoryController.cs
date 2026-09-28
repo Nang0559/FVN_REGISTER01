@@ -4,6 +4,7 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Attributes;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Infrastructure.Services.Security;
@@ -35,6 +36,7 @@ public sealed class EndpointInventoryController : ControllerBase
     }
 
     [HttpGet]
+    [SecurityFunctionDefinition("Endpoint.InventoryView", "Endpoint Inventory - xem danh sách")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<EndpointInventorySummaryDto>>>> GetAll(CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
@@ -44,6 +46,7 @@ public sealed class EndpointInventoryController : ControllerBase
     }
 
     [HttpGet("{deviceKey}")]
+    [SecurityFunctionDefinition("Endpoint.InventoryView", "Endpoint Inventory - xem thiết bị")]
     public async Task<ActionResult<ApiResponse<EndpointInventorySummaryDto>>> Get(string deviceKey, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
@@ -53,6 +56,7 @@ public sealed class EndpointInventoryController : ControllerBase
     }
 
     [HttpPost("{endpointDeviceId:long}/evaluate")]
+    [SecurityFunctionDefinition("Endpoint.ComplianceView", "Endpoint Compliance - đánh giá")]
     public async Task<ActionResult<ApiResponse<int>>> Evaluate(long endpointDeviceId, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
@@ -62,6 +66,7 @@ public sealed class EndpointInventoryController : ControllerBase
     }
 
     [HttpPut("{endpointDeviceId:long}/equipment")]
+    [SecurityFunctionDefinition("Equipment.Assign", "Endpoint - liên kết Equipment")]
     public async Task<ActionResult<ApiResponse<bool>>> LinkEquipment(long endpointDeviceId, EndpointEquipmentLinkRequest request, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
