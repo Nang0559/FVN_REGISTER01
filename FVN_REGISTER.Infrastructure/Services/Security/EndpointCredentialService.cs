@@ -39,11 +39,7 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
 
         var expires = reader.IsDBNull(1) ? (DateTime?)null : reader.GetDateTime(1);
         var active = expires.HasValue && expires.Value > DateTime.UtcNow;
-        return new EndpointCredentialStatusDto(
-            normalized,
-            true,
-            active,
-            expires.HasValue ? new DateTimeOffset(expires.Value, TimeSpan.Zero) : null);
+        return new EndpointCredentialStatusDto(normalized, true, active, expires.HasValue ? new DateTimeOffset(expires.Value, TimeSpan.Zero) : null);
     }
 
     public async Task<EndpointCredentialProvisionResult> ProvisionAsync(EndpointCredentialProvisionDto request, int actorUserId, CancellationToken cancellationToken = default)
@@ -77,24 +73,37 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
             await _db.SaveChangesAsync(cancellationToken);
         }
 
-        var secret = GenerateSecret();
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(secret));
-        var expires = DateTime.UtcNow.AddYears(1);
-        var connectionForCredentials = _db.Database.GetDbConnection();
-        await using var revoke = connectionForCredentials.CreateCommand();
-        revoke.CommandText = "UPDATE dbo.F03EndpointCredentials SET RevokedAtUtc = SYSUTCDATETIME() WHERE EndpointDeviceId = @endpointId AND RevokedAtUtc IS NULL;";
-        AddParameter(revoke, "@endpointId", endpointId.Value);
-        if (connectionForCredentials.State != System.Data.ConnectionState.Open) await connectionForCredentials.OpenAsync(cancellationToken);
-        await revoke.ExecuteNonQueryAsync(cancellationToken);
-        await using var insert = connectionForCredentials.CreateCommand();
-        insert.CommandText = """
-            INSERT INTO dbo.F03EndpointCredentials (EndpointDeviceId, SecretHash, CreatedAtUtc, ExpiresAtUtc, CreatedBy)
-            VALUES (@endpointId, @secretHash, SYSUTCDATETIME(), @expiresAtUtc, @createdBy);
-            """;
-        AddParameter(insert, "@endpointId", endpointId.Value); AddParameter(insert, "@secretHash", hash); AddParameter(insert, "@expiresAtUtc", expires); AddParameter(insert, "@createdBy", actorUserId);
-        await insert.ExecuteNonQueryAsync(cancellationToken);
+        var result = await RotateForEndpointAsync(endpointId.Value, deviceKey, actorUserId, cancellationToken);
         await tx.CommitAsync(cancellationToken);
-        return new EndpointCredentialProvisionResult(deviceKey, secret, new DateTimeOffset(expires, TimeSpan.Zero));
+        return result;
+    }
+
+    public async Task<EndpointCredentialProvisionResult?> RotateWithCurrentApiKeyAsync(string currentApiKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(currentApiKey)) return null;
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(currentApiKey));
+        var connection = _db.Database.GetDbConnection();
+        await using var lookup = connection.CreateCommand();
+        lookup.CommandText = """
+            SELECT TOP (1) d.Id, d.DeviceKey
+            FROM dbo.F03EndpointCredentials c
+            INNER JOIN dbo.F03EndpointDevices d ON d.Id = c.EndpointDeviceId
+            WHERE c.SecretHash = @hash
+              AND c.RevokedAtUtc IS NULL
+              AND c.ExpiresAtUtc > SYSUTCDATETIME();
+            """;
+        AddParameter(lookup, "@hash", hash);
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
+        await using var reader = await lookup.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return null;
+        var endpointId = reader.GetInt64(0);
+        var deviceKey = reader.GetString(1);
+        await reader.DisposeAsync();
+
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+        var result = await RotateForEndpointAsync(endpointId, deviceKey, 0, cancellationToken);
+        await tx.CommitAsync(cancellationToken);
+        return result;
     }
 
     public async Task<bool> RevokeAsync(string deviceKey, int actorUserId, CancellationToken cancellationToken = default)
@@ -110,6 +119,27 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
         AddParameter(command, "@deviceKey", NormalizeDeviceKey(deviceKey));
         if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
+    private async Task<EndpointCredentialProvisionResult> RotateForEndpointAsync(long endpointId, string deviceKey, int actorUserId, CancellationToken cancellationToken)
+    {
+        var secret = GenerateSecret();
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(secret));
+        var expires = DateTime.UtcNow.AddYears(1);
+        var connection = _db.Database.GetDbConnection();
+        await using var revoke = connection.CreateCommand();
+        revoke.CommandText = "UPDATE dbo.F03EndpointCredentials SET RevokedAtUtc = SYSUTCDATETIME() WHERE EndpointDeviceId = @endpointId AND RevokedAtUtc IS NULL;";
+        AddParameter(revoke, "@endpointId", endpointId);
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
+        await revoke.ExecuteNonQueryAsync(cancellationToken);
+        await using var insert = connection.CreateCommand();
+        insert.CommandText = """
+            INSERT INTO dbo.F03EndpointCredentials (EndpointDeviceId, SecretHash, CreatedAtUtc, ExpiresAtUtc, CreatedBy)
+            VALUES (@endpointId, @secretHash, SYSUTCDATETIME(), @expiresAtUtc, @createdBy);
+            """;
+        AddParameter(insert, "@endpointId", endpointId); AddParameter(insert, "@secretHash", hash); AddParameter(insert, "@expiresAtUtc", expires); AddParameter(insert, "@createdBy", actorUserId);
+        await insert.ExecuteNonQueryAsync(cancellationToken);
+        return new EndpointCredentialProvisionResult(deviceKey, secret, new DateTimeOffset(expires, TimeSpan.Zero));
     }
 
     private async Task<long?> FindEndpointIdAsync(string deviceKey, CancellationToken cancellationToken)
