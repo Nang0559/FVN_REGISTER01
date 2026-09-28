@@ -12,6 +12,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Security;
 public sealed class EndpointComplianceService : IEndpointComplianceService
 {
     private const int MaxAntivirusDefinitionAgeDays = 7;
+    private static readonly SemaphoreSlim CleanupGate = new(1, 1);
+    private static int _lastCleanupDay = -1;
     private readonly IUnitOfWork _uow;
     public EndpointComplianceService(IUnitOfWork uow) => _uow = uow;
 
@@ -37,34 +39,20 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
         var currentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var changed = 0;
 
-        foreach (var item in software)
-        {
-            var finding = EvaluateSoftware(device, softwarePolicy, softwareItems, item, now);
-            changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
-        }
-        foreach (var item in services)
-        {
-            var finding = EvaluateService(device, servicePolicy, serviceItems, item, now);
-            changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
-        }
+        foreach (var item in software) changed += await UpsertFindingAsync(EvaluateSoftware(device, softwarePolicy, softwareItems, item, now), openFindings, currentKeys, cancellationToken);
+        foreach (var item in services) changed += await UpsertFindingAsync(EvaluateService(device, servicePolicy, serviceItems, item, now), openFindings, currentKeys, cancellationToken);
         if (antivirus.Count == 0)
         {
-            var finding = CreateFinding(device, null, null, EndpointGovernanceItemType.Antivirus, "Antivirus", null, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_NOT_DETECTED", "Endpoint Agent không phát hiện antivirus/security product hoạt động trên máy.", now);
-            changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
+            changed += await UpsertFindingAsync(CreateFinding(device, null, null, EndpointGovernanceItemType.Antivirus, "Antivirus", null, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_NOT_DETECTED", "Endpoint Agent không phát hiện antivirus/security product hoạt động trên máy.", now), openFindings, currentKeys, cancellationToken);
         }
         else
         {
-            foreach (var item in antivirus)
-            {
-                var finding = EvaluateAntivirus(device, item, now);
-                changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
-            }
+            foreach (var item in antivirus) changed += await UpsertFindingAsync(EvaluateAntivirus(device, item, now), openFindings, currentKeys, cancellationToken);
         }
 
         foreach (var old in openFindings)
         {
-            var key = FindingKey(old);
-            if (!currentKeys.Contains(key))
+            if (!currentKeys.Contains(FindingKey(old)))
             {
                 old.ResolvedAtUtc = now;
                 old.EvaluatedAtUtc = now;
@@ -73,7 +61,26 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
         }
 
         await _uow.SaveChangesAsync(cancellationToken);
+        await TryCleanupRetentionAsync(now, cancellationToken);
         return changed;
+    }
+
+    private async Task TryCleanupRetentionAsync(DateTime now, CancellationToken ct)
+    {
+        if (now.Hour < 3 || Volatile.Read(ref _lastCleanupDay) == now.DayOfYear) return;
+        await CleanupGate.WaitAsync(ct);
+        try
+        {
+            if (_lastCleanupDay == now.DayOfYear) return;
+            await _uow.ExecuteSqlRawAsync("EXEC dbo.usp_CleanupEndpointComplianceFindings @RetentionDays={0}, @BatchSize={1}", ct, 180, 5000);
+            Volatile.Write(ref _lastCleanupDay, now.DayOfYear);
+        }
+        catch (Exception ex)
+        {
+            // Retention must never make endpoint compliance fail.
+            System.Diagnostics.Debug.WriteLine($"Endpoint finding cleanup failed: {ex.Message}");
+        }
+        finally { CleanupGate.Release(); }
     }
 
     private async Task<int> UpsertFindingAsync(F03EndpointComplianceFinding finding, List<F03EndpointComplianceFinding> openFindings, HashSet<string> currentKeys, CancellationToken cancellationToken)
@@ -85,7 +92,6 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
             foreach (var old in resolved) old.ResolvedAtUtc = finding.EvaluatedAtUtc;
             return resolved.Count;
         }
-
         currentKeys.Add(key);
         var existing = openFindings.FirstOrDefault(x => string.Equals(FindingKey(x), key, StringComparison.OrdinalIgnoreCase));
         if (existing != null)
@@ -98,7 +104,6 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
             existing.ResolvedAtUtc = null;
             return 1;
         }
-
         await _uow.Repository<F03EndpointComplianceFinding>().AddAsync(finding, cancellationToken);
         openFindings.Add(finding);
         return 1;
@@ -106,16 +111,11 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
 
     private static F03EndpointComplianceFinding EvaluateAntivirus(F03EndpointDevice device, F03EndpointAntivirusInventory item, DateTime at)
     {
-        if (item.AntivirusEnabled == false || item.RealTimeProtectionEnabled == false)
-            return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.ProductVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_PROTECTION_DISABLED", "Antivirus hoặc Real-time Protection đang tắt.", at);
-        if (item.AntivirusEnabled is null || item.RealTimeProtectionEnabled is null)
-            return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.ProductVersion, EndpointComplianceResult.Unknown, "ANTIVIRUS_STATUS_UNKNOWN", "Không xác định được đầy đủ trạng thái bảo vệ antivirus.", at);
-        if (!string.Equals(item.ProtectionStatus, "Protected", StringComparison.OrdinalIgnoreCase))
-            return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.ProductVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_NOT_PROTECTED", $"Trạng thái bảo vệ hiện tại: {item.ProtectionStatus ?? "Unknown"}.", at);
-        if (!item.DefinitionUpdatedAtUtc.HasValue)
-            return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.Unknown, "ANTIVIRUS_DEFINITION_UNKNOWN", "Không có thời điểm cập nhật database/signature antivirus.", at);
-        if (at - item.DefinitionUpdatedAtUtc.Value > TimeSpan.FromDays(MaxAntivirusDefinitionAgeDays))
-            return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_DEFINITION_STALE", $"Database/signature antivirus đã quá {MaxAntivirusDefinitionAgeDays} ngày chưa cập nhật.", at);
+        if (item.AntivirusEnabled == false || item.RealTimeProtectionEnabled == false) return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.ProductVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_PROTECTION_DISABLED", "Antivirus hoặc Real-time Protection đang tắt.", at);
+        if (item.AntivirusEnabled is null || item.RealTimeProtectionEnabled is null) return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.ProductVersion, EndpointComplianceResult.Unknown, "ANTIVIRUS_STATUS_UNKNOWN", "Không xác định được đầy đủ trạng thái bảo vệ antivirus.", at);
+        if (!string.Equals(item.ProtectionStatus, "Protected", StringComparison.OrdinalIgnoreCase)) return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.ProductVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_NOT_PROTECTED", $"Trạng thái bảo vệ hiện tại: {item.ProtectionStatus ?? "Unknown"}.", at);
+        if (!item.DefinitionUpdatedAtUtc.HasValue) return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.Unknown, "ANTIVIRUS_DEFINITION_UNKNOWN", "Không có thời điểm cập nhật database/signature antivirus.", at);
+        if (at - item.DefinitionUpdatedAtUtc.Value > TimeSpan.FromDays(MaxAntivirusDefinitionAgeDays)) return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_DEFINITION_STALE", $"Database/signature antivirus đã quá {MaxAntivirusDefinitionAgeDays} ngày chưa cập nhật.", at);
         return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.Compliant, "ANTIVIRUS_COMPLIANT", "Antivirus đang hoạt động và database/signature còn trong thời hạn kiểm tra.", at);
     }
 
@@ -145,8 +145,7 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
     {
         var normalizedObserved = Normalize(observed);
         if (PatternMatches(item.NormalizedName, normalizedObserved)) return true;
-        if (string.IsNullOrWhiteSpace(item.AliasNames)) return false;
-        return item.AliasNames.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(alias => PatternMatches(alias, normalizedObserved));
+        return !string.IsNullOrWhiteSpace(item.AliasNames) && item.AliasNames.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(alias => PatternMatches(alias, normalizedObserved));
     }
 
     private static bool PatternMatches(string? pattern, string observed)
@@ -155,8 +154,7 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
         var normalized = Normalize(pattern);
         if (normalized.StartsWith("REGEX:", StringComparison.Ordinal))
         {
-            try { return Regex.IsMatch(observed, normalized[6..], RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)); }
-            catch (ArgumentException) { return false; }
+            try { return Regex.IsMatch(observed, normalized[6..], RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)); } catch (ArgumentException) { return false; }
         }
         if (normalized.Contains('*') || normalized.Contains('?'))
         {
@@ -167,20 +165,10 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
     }
 
     private static F03EndpointComplianceFinding CreateFinding(F03EndpointDevice device, F03EndpointGovernancePolicy? policy, long? inventoryItemId, EndpointGovernanceItemType itemType, string observedName, string? observedVersion, EndpointComplianceResult result, string code, string message, DateTime at, int? policyItemId = null)
-        => new()
-        {
-            EndpointDeviceId = device.Id, PolicyId = policy?.Id, PolicyVersion = policy?.Version ?? 0, PolicyItemId = policyItemId,
-            ItemType = itemType, InventoryItemId = inventoryItemId, Result = result, ObservedName = observedName, ObservedVersion = observedVersion,
-            FindingCode = code, FindingMessage = message, EvaluatedAtUtc = at, ResolvedAtUtc = result == EndpointComplianceResult.Compliant ? at : null,
-            CreatedAt = at, CreatedBy = 0, LastModifiedSource = "EndpointComplianceService"
-        };
+        => new() { EndpointDeviceId = device.Id, PolicyId = policy?.Id, PolicyVersion = policy?.Version ?? 0, PolicyItemId = policyItemId, ItemType = itemType, InventoryItemId = inventoryItemId, Result = result, ObservedName = observedName, ObservedVersion = observedVersion, FindingCode = code, FindingMessage = message, EvaluatedAtUtc = at, ResolvedAtUtc = result == EndpointComplianceResult.Compliant ? at : null, CreatedAt = at, CreatedBy = 0, LastModifiedSource = "EndpointComplianceService" };
 
-    private static bool SameFindingIdentity(F03EndpointComplianceFinding left, F03EndpointComplianceFinding right)
-        => left.EndpointDeviceId == right.EndpointDeviceId && left.PolicyId == right.PolicyId && left.PolicyVersion == right.PolicyVersion && left.PolicyItemId == right.PolicyItemId && left.ItemType == right.ItemType && left.InventoryItemId == right.InventoryItemId;
-
-    private static string FindingKey(F03EndpointComplianceFinding x)
-        => string.Join("|", x.EndpointDeviceId, x.PolicyId, x.PolicyVersion, x.PolicyItemId, (int)x.ItemType, x.InventoryItemId, x.FindingCode, Normalize(x.ObservedName), x.ObservedVersion?.Trim());
-
+    private static bool SameFindingIdentity(F03EndpointComplianceFinding left, F03EndpointComplianceFinding right) => left.EndpointDeviceId == right.EndpointDeviceId && left.PolicyId == right.PolicyId && left.PolicyVersion == right.PolicyVersion && left.PolicyItemId == right.PolicyItemId && left.ItemType == right.ItemType && left.InventoryItemId == right.InventoryItemId;
+    private static string FindingKey(F03EndpointComplianceFinding x) => string.Join("|", x.EndpointDeviceId, x.PolicyId, x.PolicyVersion, x.PolicyItemId, (int)x.ItemType, x.InventoryItemId, x.FindingCode, Normalize(x.ObservedName), x.ObservedVersion?.Trim());
     private static bool IsServer(string? osName) => !string.IsNullOrWhiteSpace(osName) && osName.Contains("server", StringComparison.OrdinalIgnoreCase);
     private static string Normalize(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();
     private static bool PublisherMatches(string? expected, string? actual) => string.IsNullOrWhiteSpace(expected) || PatternMatches(expected, Normalize(actual));
