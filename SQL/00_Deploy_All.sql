@@ -42,6 +42,8 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "14_SecurityAuthorization.sql"
 /* F03Users 2FA schema must exist before any later 2FA/security consumers. */
 :r "14A_SecurityTwoFactorColumns.sql"
+/* Managed data scopes are consumed by AuthorizationService/GetManagedScopesAsync. */
+:r "14B_SecurityManagedScopes.sql"
 :r "15_PublicInformation.sql"
 
 /* EQUIPMENT - CANONICAL OWNER */
