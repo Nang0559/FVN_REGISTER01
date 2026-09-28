@@ -12,8 +12,10 @@ Security model:
 - Endpoint Governance does NOT create a second RBAC system.
 - SuperAdmin keeps the administrative baseline.
 - IT receives a dedicated role (RoleCode 7) for Endpoint Governance.
-- Endpoint function assignment is still managed through F03RoleFunctions /
-  Security Center; this script only creates the canonical IT role and baseline.
+- Endpoint function assignment is managed through F03RoleFunctions /
+  Security Center.
+- Existing active F03Users in HRM department IT are provisioned with the IT
+  Endpoint Operator role; this is idempotent and does not remove other roles.
 ===============================================================================
 */
 
@@ -23,6 +25,8 @@ IF OBJECT_ID(N'dbo.F03Roles', N'U') IS NULL
     THROW 51582, N'F03Roles is required before applying Endpoint capabilities.', 1;
 IF OBJECT_ID(N'dbo.F03RoleFunctions', N'U') IS NULL
     THROW 51583, N'F03RoleFunctions is required before applying Endpoint capabilities.', 1;
+IF OBJECT_ID(N'dbo.F03UserRoles', N'U') IS NULL
+    THROW 51585, N'F03UserRoles is required before applying Endpoint capabilities.', 1;
 
 DECLARE @Functions TABLE
 (
@@ -84,7 +88,7 @@ VALUES
 );
 GO
 
-/* Stable registry entries. No role/user assignment is inferred here. */
+/* Stable registry entries. */
 INSERT INTO dbo.F03SecurityFunctionRegistry
 (
     FunctionKey, FunctionCode, DefinitionName, ModuleCode, ActionCode, ScopeCode,
@@ -102,9 +106,7 @@ GO
 
 /*
 Dedicated IT role for Endpoint Governance.
-RoleCode 7 is intentionally reserved here instead of reusing SuperAdmin/Admin.
-If code 7 already exists with a different role, stop rather than silently
-changing an existing security role.
+RoleCode 7 is reserved here instead of reusing SuperAdmin/Admin.
 */
 IF EXISTS (SELECT 1 FROM dbo.F03Roles WHERE RoleCode = 7 AND RoleName <> N'IT Endpoint Operator')
     THROW 51584, N'RoleCode 7 is already used by another role. Resolve the role-code collision before applying Endpoint capabilities.', 1;
@@ -128,12 +130,7 @@ BEGIN
 END;
 GO
 
-/*
-Initial baseline:
-- SuperAdmin keeps all Endpoint capabilities.
-- IT Endpoint Operator receives all Endpoint Governance capabilities.
-No other role receives Endpoint permissions automatically.
-*/
+/* Initial baseline for SuperAdmin and IT Endpoint Operator. */
 INSERT INTO dbo.F03RoleFunctions (IdRole, IdFunction, IsActive, CreatedBy, CreatedAt)
 SELECT r.Id, f.Id, 1, 0, GETDATE()
 FROM dbo.F03Roles r
@@ -149,6 +146,25 @@ WHERE r.IsActive = 1
       FROM dbo.F03RoleFunctions rf
       WHERE rf.IdRole = r.Id
         AND rf.IdFunction = f.Id
+  );
+GO
+
+/* Provision the dedicated Endpoint role to existing active HRM-IT users. */
+INSERT INTO dbo.F03UserRoles
+(
+    IdUser, IdRole, IsPrimary, IsActive, CreatedBy, CreatedAt
+)
+SELECT u.Id, r.Id, 0, 1, 0, GETDATE()
+FROM dbo.F03Users u
+JOIN dbo.F03Roles r ON r.RoleCode = 7 AND r.IsActive = 1
+WHERE u.IsActive = 1
+  AND UPPER(LTRIM(RTRIM(ISNULL(u.DeptCode, N'')))) = N'IT'
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.F03UserRoles ur
+      WHERE ur.IdUser = u.Id
+        AND ur.IdRole = r.Id
   );
 GO
 
