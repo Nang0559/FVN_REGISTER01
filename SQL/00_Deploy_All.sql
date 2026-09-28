@@ -29,7 +29,13 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\03_Tables.sql"
 :r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\04_Constraints.sql"
 :r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\05_Indexes.sql"
-:rem 06_Seed.sql intentionally excluded; run only against a disposable/test database.
+
+/* Seed is now part of the master deployment. FunctionKey compatibility must
+   run immediately before the seed because older databases may have a NOT NULL
+   F03Functions.FunctionKey column. */
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\06A_FunctionKeyCompatibility.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\06_Seed.sql"
+
 :r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\07_Views.sql"
 :r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\08_Functions.sql"
 :r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\09_StoredProcedures.sql"
