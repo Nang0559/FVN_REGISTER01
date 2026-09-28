@@ -2,12 +2,13 @@
 ===============================================================================
 FVN_REGISTER - MASTER SQL DEPLOYMENT
 ===============================================================================
-SSMS: enable Query -> SQLCMD Mode before executing this file.
+SSMS: Query -> SQLCMD Mode must be enabled.
 
 IMPORTANT:
-SQLCMD :r resolves relative paths from the SQLCMD working directory, which is
-not reliably the folder containing this file in SSMS. Therefore RepoRoot is
-set to the actual local SQL directory used by this deployment machine.
+SSMS SQLCMD :r resolves include files from the SQLCMD startup directory,
+not reliably from the directory containing this .sql file. This master script
+therefore uses explicit absolute paths for every :r include on the deployment
+machine.
 
 Current SQL directory:
   H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL
@@ -18,99 +19,99 @@ Database/ is documentation/history only and is not executed by deployment.
 
 :on error exit
 
-:setvar RepoRoot "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
-
-/* CORE DATABASE FOUNDATION */
-:r "$(RepoRoot)\01_Database.sql"
-:r "$(RepoRoot)\02A_Preflight.sql"
-:r "$(RepoRoot)\02B_Schemas.sql"
-:r "$(RepoRoot)\02C_TablePrerequisites.sql"
-:r "$(RepoRoot)\03_Tables.sql"
-:r "$(RepoRoot)\04_Constraints.sql"
-:r "$(RepoRoot)\05_Indexes.sql"
+/* ---------------------------------------------------------------------------
+   CORE DATABASE FOUNDATION
+   --------------------------------------------------------------------------- */
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\01_Database.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\02A_Preflight.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\02B_Schemas.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\02C_TablePrerequisites.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\03_Tables.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\04_Constraints.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\05_Indexes.sql"
 :rem 06_Seed.sql intentionally excluded; run only against a disposable/test database.
-:r "$(RepoRoot)\07_Views.sql"
-:r "$(RepoRoot)\08_Functions.sql"
-:r "$(RepoRoot)\09_StoredProcedures.sql"
-:r "$(RepoRoot)\10A_Audit.sql"
-:r "$(RepoRoot)\10B_Triggers.sql"
-:r "$(RepoRoot)\11A_Automation.sql"
-:r "$(RepoRoot)\11B_Permissions.sql"
-:r "$(RepoRoot)\12_Verify.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\07_Views.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\08_Functions.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\09_StoredProcedures.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\10A_Audit.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\10B_Triggers.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\11A_Automation.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\11B_Permissions.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\12_Verify.sql"
 
 /* HRM / SECURITY / PUBLIC INFORMATION */
-:r "$(RepoRoot)\13_HrmShiftMaster.sql"
-:r "$(RepoRoot)\14_SecurityAuthorization.sql"
-:r "$(RepoRoot)\15_PublicInformation.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\13_HrmShiftMaster.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\14_SecurityAuthorization.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\15_PublicInformation.sql"
 
 /* EQUIPMENT - CANONICAL OWNER */
-:r "$(RepoRoot)\16_EquipmentFlexibleImport.sql"
-:r "$(RepoRoot)\16A_EquipmentCapabilities.sql"
-:r "$(RepoRoot)\16B_EquipmentSpecificRequestForms.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\16_EquipmentFlexibleImport.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\16A_EquipmentCapabilities.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\16B_EquipmentSpecificRequestForms.sql"
 
 /* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
-:r "$(RepoRoot)\17_ApprovalRouteSelection.sql"
-:r "$(RepoRoot)\18_ApproverConfigurationReview.sql"
-:r "$(RepoRoot)\19_OT_LimitRule_ScopeColumns.sql"
-:r "$(RepoRoot)\20_Reports.sql"
-:r "$(RepoRoot)\21_Verify_Reports.sql"
-:r "$(RepoRoot)\22_00_HrmAttendanceTables.sql"
-:r "$(RepoRoot)\22_02_HrmCompatibleTimeKeepingForStaff.sql"
-:r "$(RepoRoot)\22_03_CalculateHrmAttendance.sql"
-:r "$(RepoRoot)\22_04_HrmAttendanceHistory.sql"
-:r "$(RepoRoot)\23_LeaveBalanceUpgrade.sql"
-:r "$(RepoRoot)\24_WorkYearUpgrade.sql"
-:r "$(RepoRoot)\25_RemoveLegacyOTSync.sql"
-:r "$(RepoRoot)\26_WorkCalendarAction.sql"
-:r "$(RepoRoot)\27_WorkCalendarActionIndexesSeed.sql"
-:r "$(RepoRoot)\28_Verify_WorkCalendarAction.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\17_ApprovalRouteSelection.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\18_ApproverConfigurationReview.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\19_OT_LimitRule_ScopeColumns.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\20_Reports.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\21_Verify_Reports.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\22_00_HrmAttendanceTables.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\22_02_HrmCompatibleTimeKeepingForStaff.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\22_03_CalculateHrmAttendance.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\22_04_HrmAttendanceHistory.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\23_LeaveBalanceUpgrade.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\24_WorkYearUpgrade.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\25_RemoveLegacyOTSync.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\26_WorkCalendarAction.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\27_WorkCalendarActionIndexesSeed.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\28_Verify_WorkCalendarAction.sql"
 
 /* TRIPS */
-:r "$(RepoRoot)\28B_Trips.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\28B_Trips.sql"
 
 /* EXECUTION / PAYROLL / APPROVAL / PUBLIC / EMAIL / SECURITY */
-:r "$(RepoRoot)\29_ExecutionReconciliation.sql"
-:r "$(RepoRoot)\30_Payroll.sql"
-:r "$(RepoRoot)\31_Hrm_User_Approval_Provisioning.sql"
-:r "$(RepoRoot)\32_ExecutionReviewSecurity.sql"
-:r "$(RepoRoot)\32_PasswordResetRequests.sql"
-:r "$(RepoRoot)\33_DocumentationConsistency.sql"
-:r "$(RepoRoot)\34_OT_Leave_Limits.sql"
-:r "$(RepoRoot)\35_WorkCalendar.sql"
-:r "$(RepoRoot)\36_ApprovalPolicyDepartmentPosition.sql"
-:r "$(RepoRoot)\37_PublicRegistrationForms.sql"
-:r "$(RepoRoot)\39_AuditBaseCompatibility.sql"
-:r "$(RepoRoot)\40_EmailCenter.sql"
-:r "$(RepoRoot)\41_EmailCenter_ProfileCompatibility.sql"
-:r "$(RepoRoot)\41_SecurityFunctionCleanup.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\29_ExecutionReconciliation.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\30_Payroll.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\31_Hrm_User_Approval_Provisioning.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\32_ExecutionReviewSecurity.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\32_PasswordResetRequests.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\33_DocumentationConsistency.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\34_OT_Leave_Limits.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\35_WorkCalendar.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\36_ApprovalPolicyDepartmentPosition.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\37_PublicRegistrationForms.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\39_AuditBaseCompatibility.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\40_EmailCenter.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\41_EmailCenter_ProfileCompatibility.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\41_SecurityFunctionCleanup.sql"
 
 /* EQUIPMENT EXTENSIONS */
-:r "$(RepoRoot)\42_EquipmentInspection.sql"
-:r "$(RepoRoot)\43_EquipmentHandover.sql"
-:r "$(RepoRoot)\44_SecurityAccessChange.sql"
-:r "$(RepoRoot)\45_EquipmentResponsibilityAndRepair.sql"
-:r "$(RepoRoot)\46_SecurityFunctionRegistry.sql"
-:r "$(RepoRoot)\47_Verify_SecurityFunctionRegistry.sql"
-:r "$(RepoRoot)\48_SecurityTwoFactorSuperAdminCompatibility.sql"
-:r "$(RepoRoot)\49_Verify_SecurityTwoFactorSuperAdmin.sql"
-:r "$(RepoRoot)\50_EquipmentManageCapability.sql"
-:r "$(RepoRoot)\51_SecurityFunctionRegistryRecovery.sql"
-:r "$(RepoRoot)\52_Verify_SecurityFunctionRecovery.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\42_EquipmentInspection.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\43_EquipmentHandover.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\44_SecurityAccessChange.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\45_EquipmentResponsibilityAndRepair.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\46_SecurityFunctionRegistry.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\47_Verify_SecurityFunctionRegistry.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\48_SecurityTwoFactorSuperAdminCompatibility.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\49_Verify_SecurityTwoFactorSuperAdmin.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\50_EquipmentManageCapability.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\51_SecurityFunctionRegistryRecovery.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\52_Verify_SecurityFunctionRecovery.sql"
 
 /* APPROVAL FOUNDATION BEFORE ENDPOINT SECURITY */
-:r "$(RepoRoot)\53_ApprovalUnifiedFoundation.sql"
-:r "$(RepoRoot)\58_EndpointSecurityCapabilities.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\53_ApprovalUnifiedFoundation.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\58_EndpointSecurityCapabilities.sql"
 
 /* ENDPOINT / GOVERNANCE */
-:r "$(RepoRoot)\54_Endpoint_Inventory_Compliance.sql"
-:r "$(RepoRoot)\54_EndpointGovernanceFoundation.sql"
-:r "$(RepoRoot)\55_Endpoint_Credentials.sql"
-:r "$(RepoRoot)\55_EndpointGovernanceCatalogApproval.sql"
-:r "$(RepoRoot)\56_EndpointGovernanceExtensions.sql"
-:r "$(RepoRoot)\57_Verify_Endpoint_Governance.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\54_Endpoint_Inventory_Compliance.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\54_EndpointGovernanceFoundation.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\55_Endpoint_Credentials.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\55_EndpointGovernanceCatalogApproval.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\56_EndpointGovernanceExtensions.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\57_Verify_Endpoint_Governance.sql"
 
 /* FINAL VERIFICATION */
-:r "$(RepoRoot)\99_Verify.sql"
+:r "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL\99_Verify.sql"
 
 PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment completed.';
