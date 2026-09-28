@@ -21,16 +21,21 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class EndpointInventoryController : ControllerBase
 {
     private readonly FVNWEBAPPContext _db;
-    private readonly EndpointInventoryService _service;
     private readonly IEndpointComplianceService _compliance;
+    private readonly IEndpointInventoryService _service;
     private readonly ICurrentUserService _currentUser;
     private readonly AppAuthorizationService _authorization;
 
-    public EndpointInventoryController(FVNWEBAPPContext db, IEndpointComplianceService compliance, ICurrentUserService currentUser, AppAuthorizationService authorization)
+    public EndpointInventoryController(
+        FVNWEBAPPContext db,
+        IEndpointComplianceService compliance,
+        IEndpointInventoryService service,
+        ICurrentUserService currentUser,
+        AppAuthorizationService authorization)
     {
         _db = db;
         _compliance = compliance;
-        _service = new EndpointInventoryService(db, compliance);
+        _service = service;
         _currentUser = currentUser;
         _authorization = authorization;
     }
