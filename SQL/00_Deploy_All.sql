@@ -10,29 +10,9 @@ MANUAL RUN from PowerShell/cmd (must be inside the SQL folder, because all
 paths below are relative to the current directory):
   cd "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
   sqlcmd -S "SERVER\INSTANCE" -U sa -I -b -f 65001 -i "00_Deploy_All.sql"
-  (-I  = QUOTED_IDENTIFIER ON, required by filtered indexes)
-  (-b  = stop on first error, -f 65001 = read files as UTF-8)
 
 SSMS: relative :r paths depend on the SSMS working directory and are not
 reliable. Use Deploy.ps1 or sqlcmd instead.
-
-TEST SEED (06A/06/06B): creates demo users E0001..E0005 (password Test@123),
-demo email queue rows, demo trips/equipment. File 48 REQUIRES user E0001.
-- Test database : run Deploy.ps1 with -IncludeSeed (or remove the "-- [SEED] "
-                  prefix from the three seed lines below).
-- Real database : leave the seed off, but E0001 (SuperAdmin) must already exist
-                  in dbo.F03Users before file 48, otherwise the run stops with
-                  error 51482.
-
-ORDER CHANGES compared with the original master:
-  - 12_Verify.sql moved to the end (before 99_Verify.sql), because it checks
-    tables created later (F03ApprovalPolicies is created in 17).
-  - 16B moved after 37 (it alters dbo.F03PublicFormSubmissions, created in 37).
-  - 31 moved after 36 (it uses F03ApprovalPolicies.ApprovalPositionCode,
-    added in 36).
-  - Seed block added before 48.
-  - ":rem" replaced by a normal comment (":rem" is not a valid sqlcmd command).
-  - :setvar RepoRoot removed; relative paths are used.
 
 Database/ is documentation/history only and is not executed by deployment.
 ===============================================================================
@@ -48,7 +28,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "03_Tables.sql"
 :r "04_Constraints.sql"
 :r "05_Indexes.sql"
--- 06_Seed.sql is NOT part of the normal deployment (see the seed block before 48).
+-- 06_Seed.sql is NOT part of the normal deployment.
 :r "07_Views.sql"
 :r "08_Functions.sql"
 :r "09_StoredProcedures.sql"
@@ -56,17 +36,18 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "10B_Triggers.sql"
 :r "11A_Automation.sql"
 :r "11B_Permissions.sql"
--- 12_Verify.sql runs near the end (before 99_Verify.sql).
 
 /* HRM / SECURITY / PUBLIC INFORMATION */
 :r "13_HrmShiftMaster.sql"
 :r "14_SecurityAuthorization.sql"
+/* F03Users 2FA schema must exist before any later 2FA/security consumers. */
+:r "14A_SecurityTwoFactorColumns.sql"
 :r "15_PublicInformation.sql"
 
 /* EQUIPMENT - CANONICAL OWNER */
 :r "16_EquipmentFlexibleImport.sql"
 :r "16A_EquipmentCapabilities.sql"
--- 16B_EquipmentSpecificRequestForms.sql runs after 37 (needs F03PublicFormSubmissions).
+-- 16B_EquipmentSpecificRequestForms.sql runs after 37.
 
 /* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
 :r "17_ApprovalRouteSelection.sql"
@@ -91,7 +72,6 @@ Database/ is documentation/history only and is not executed by deployment.
 /* EXECUTION / PAYROLL / APPROVAL / PUBLIC / EMAIL / SECURITY */
 :r "29_ExecutionReconciliation.sql"
 :r "30_Payroll.sql"
--- 31_Hrm_User_Approval_Provisioning.sql runs after 36 (needs ApprovalPositionCode).
 :r "32_ExecutionReviewSecurity.sql"
 :r "32_PasswordResetRequests.sql"
 :r "33_DocumentationConsistency.sql"
@@ -113,12 +93,6 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "45_EquipmentResponsibilityAndRepair.sql"
 :r "46_SecurityFunctionRegistry.sql"
 :r "47_Verify_SecurityFunctionRegistry.sql"
-
-/* TEST SEED - creates E0001 SuperAdmin required by 48. TEST DATABASES ONLY.
-   Order must stay 06A -> 06 -> 06B. Enabled by Deploy.ps1 -IncludeSeed. */
--- [SEED] :r "06A_FunctionKeyCompatibility.sql"
--- [SEED] :r "06_Seed.sql"
--- [SEED] :r "06B_FunctionKeyBackfill.sql"
 
 :r "48_SecurityTwoFactorSuperAdminCompatibility.sql"
 :r "49_Verify_SecurityTwoFactorSuperAdmin.sql"
