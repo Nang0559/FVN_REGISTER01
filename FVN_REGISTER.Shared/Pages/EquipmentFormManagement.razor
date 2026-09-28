@@ -73,7 +73,7 @@
                             <MudDivider Class="my-3" />
                             <MudText Typo="Typo.subtitle2">Thêm biểu mẫu</MudText>
                             <MudSelect T="int" @bind-Value="_selectedFormId" Label="Biểu mẫu đã phát hành" Variant="Variant.Outlined" Class="mt-2">
-                                @foreach (var form in _catalog.Where(x => x.IsActive && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)))
+                                @foreach (var form in _catalog.Where(x => x.IsActive == true && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)))
                                 {
                                     <MudSelectItem Value="@form.Id">@form.FormCode — @form.Title</MudSelectItem>
                                 }
