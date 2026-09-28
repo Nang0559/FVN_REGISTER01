@@ -40,6 +40,9 @@ Database/ is documentation/history only and is not executed by deployment.
 /* HRM / SECURITY / PUBLIC INFORMATION */
 :r "13_HrmShiftMaster.sql"
 :r "14_SecurityAuthorization.sql"
+:r "14A_SecurityTwoFactorColumns.sql"
+:r "14B_SecurityManagedScopes.sql"
+:r "14C_SecurityFeatureOperatorAssignments.sql"
 :r "15_PublicInformation.sql"
 
 /* EQUIPMENT - CANONICAL OWNER */
@@ -107,6 +110,12 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "55_EndpointGovernanceCatalogApproval.sql"
 :r "56_EndpointGovernanceExtensions.sql"
 :r "57_Verify_Endpoint_Governance.sql"
+
+/* CALENDAR CAPABILITY */
+:r "59_CalendarViewCapability.sql"
+
+/* AUTHORIZATION SCHEMA GATE */
+:r "14D_SecuritySchemaVerify.sql"
 
 /* FINAL VERIFICATION */
 :r "12_Verify.sql"
