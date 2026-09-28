@@ -38,9 +38,12 @@ public interface IEquipmentClientService
     Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaVersionAsync(int schemaId, CancellationToken ct = default);
     Task<ApiResponse<EquipmentExcelWorkbookDto>> InspectExcelAsync(string deptCode, IBrowserFile file, CancellationToken ct = default);
     Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(string deptCode, IBrowserFile file, int sheetIndex = 0, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(string deptCode, IBrowserFile file, CancellationToken ct);
     Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaFromExcelAsync(string deptCode, IBrowserFile file, string? schemaName = null, int sheetIndex = 0, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaFromExcelAsync(string deptCode, IBrowserFile file, string? schemaName, CancellationToken ct);
     Task<ApiResponse<EquipmentFieldDefinitionDto>> SaveSchemaFieldAsync(SaveEquipmentFieldDefinitionRequest request, CancellationToken ct = default);
     Task<ApiResponse<EquipmentImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee = false, int sheetIndex = 0, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee, CancellationToken ct);
     Task<ApiResponse<EquipmentImportCommitResultDto>> CommitImportAsync(int batchId, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentAssetDto>>> GetRegisteredInspectionAssetsAsync(string? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentInspectionTemplateDto>>> GetInspectionTemplatesAsync(string? deptCode = null, CancellationToken ct = default);
