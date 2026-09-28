@@ -28,7 +28,15 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\13_HrmShiftMaster.sql"
 :r "$(RepoRoot)\14_SecurityAuthorization.sql"
 :r "$(RepoRoot)\15_PublicInformation.sql"
+
+/*
+   EQUIPMENT - single canonical deployment owner.
+   Former Database/Equipment/001-005 scripts have been consolidated into 16.
+   Do not re-introduce Database/Equipment includes here: 16 creates the base
+   tables in dependency order, then later Equipment scripts only upgrade them.
+*/
 :r "$(RepoRoot)\16_EquipmentFlexibleImport.sql"
+
 :r "$(RepoRoot)\17_ApprovalRouteSelection.sql"
 :r "$(RepoRoot)\18_ApproverConfigurationReview.sql"
 :r "$(RepoRoot)\19_OT_LimitRule_ScopeColumns.sql"
@@ -44,13 +52,6 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\26_WorkCalendarAction.sql"
 :r "$(RepoRoot)\27_WorkCalendarActionIndexesSeed.sql"
 :r "$(RepoRoot)\28_Verify_WorkCalendarAction.sql"
-
-/* Equipment */
-:r "$(RepoRoot)\..\Database\Equipment\001_Create_F03EquipmentAssets.sql"
-:r "$(RepoRoot)\..\Database\Equipment\002_Create_F03EquipmentRequests.sql"
-:r "$(RepoRoot)\..\Database\Equipment\003_Create_F03EquipmentRepairHistory.sql"
-:r "$(RepoRoot)\..\Database\Equipment\004_Seed_EquipmentFunction.sql"
-:r "$(RepoRoot)\..\Database\Equipment\005_EquipmentDepartmentSchema.sql"
 
 /* Trip */
 :r "$(RepoRoot)\..\Database\Trips\001_Create_F03TripRequests.sql"
@@ -70,6 +71,8 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\40_EmailCenter.sql"
 :r "$(RepoRoot)\41_EmailCenter_ProfileCompatibility.sql"
 :r "$(RepoRoot)\41_SecurityFunctionCleanup.sql"
+
+/* Equipment extensions - all execute after canonical Equipment base (16). */
 :r "$(RepoRoot)\42_EquipmentInspection.sql"
 :r "$(RepoRoot)\43_EquipmentHandover.sql"
 :r "$(RepoRoot)\44_SecurityAccessChange.sql"
