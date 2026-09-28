@@ -18,9 +18,34 @@ public sealed partial class EquipmentClientService
             "create schema version",
             ct);
 
+    public async Task<ApiResponse<EquipmentExcelWorkbookDto>> InspectExcelAsync(
+        string deptCode,
+        IBrowserFile file,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            await using var stream = file.OpenReadStream(25 * 1024 * 1024, ct);
+            using var content = new MultipartFormDataContent();
+            using var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            content.Add(fileContent, "file", file.Name);
+            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
+            return await _http.PostMultipartAsync<EquipmentExcelWorkbookDto>(
+                $"api/equipment/schemas/inspect-excel?{query}", content, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] Inspect Excel failed. DeptCode={DeptCode}, FileName={FileName}", deptCode, file.Name);
+            return ApiResponse<EquipmentExcelWorkbookDto>.Fail("Không thể đọc danh sách sheet Excel.");
+        }
+    }
+
     public async Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(
         string deptCode,
         IBrowserFile file,
+        int sheetIndex = 0,
         CancellationToken ct = default)
     {
         try
@@ -35,7 +60,7 @@ public sealed partial class EquipmentClientService
                 deptCode.Trim().ToUpperInvariant());
 
             return await _http.PostMultipartAsync<EquipmentSchemaFromExcelDto>(
-                $"api/equipment/schemas/preview-excel?deptCode={normalizedDeptCode}",
+                $"api/equipment/schemas/preview-excel?deptCode={normalizedDeptCode}&sheetIndex={sheetIndex}",
                 content,
                 ct);
         }
@@ -61,6 +86,7 @@ public sealed partial class EquipmentClientService
         string deptCode,
         IBrowserFile file,
         string? schemaName = null,
+        int sheetIndex = 0,
         CancellationToken ct = default)
     {
         try
@@ -72,7 +98,8 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var query =
-                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
+                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
+                $"&sheetIndex={sheetIndex}";
 
             if (!string.IsNullOrWhiteSpace(schemaName))
             {
@@ -108,6 +135,7 @@ public sealed partial class EquipmentClientService
         int? schemaId,
         IBrowserFile file,
         bool assignToEmployee = false,
+        int sheetIndex = 0,
         CancellationToken ct = default)
     {
         try
@@ -120,7 +148,8 @@ public sealed partial class EquipmentClientService
 
             var query =
                 $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
-                $"&assignToEmployee={assignToEmployee}";
+                $"&assignToEmployee={assignToEmployee}" +
+                $"&sheetIndex={sheetIndex}";
 
             if (schemaId.HasValue)
             {
