@@ -37,12 +37,12 @@ BEGIN
 
         EmployeeCode nvarchar(50) NOT NULL,
         NodeType nvarchar(30) NOT NULL,
-        NodeCode nvarchar(100) NULL,
-        FactoryCode nvarchar(100) NULL,
-        DeptCode nvarchar(100) NULL,
-        SubDepartmentCode nvarchar(100) NULL,
+        NodeCode nvarchar(50) NULL,
+        FactoryCode nvarchar(50) NULL,
+        DeptCode nvarchar(20) NULL,
+        SubDepartmentCode nvarchar(20) NULL,
         IncludeChildren bit NOT NULL
-            CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(0),
+            CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(1),
         Remark nvarchar(500) NULL
     );
 END;
@@ -79,23 +79,56 @@ BEGIN
         ALTER TABLE dbo.F03ManagedScopes ADD NodeType nvarchar(30) NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'NodeCode') IS NULL
-        ALTER TABLE dbo.F03ManagedScopes ADD NodeCode nvarchar(100) NULL;
+        ALTER TABLE dbo.F03ManagedScopes ADD NodeCode nvarchar(50) NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'FactoryCode') IS NULL
-        ALTER TABLE dbo.F03ManagedScopes ADD FactoryCode nvarchar(100) NULL;
+        ALTER TABLE dbo.F03ManagedScopes ADD FactoryCode nvarchar(50) NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'DeptCode') IS NULL
-        ALTER TABLE dbo.F03ManagedScopes ADD DeptCode nvarchar(100) NULL;
+        ALTER TABLE dbo.F03ManagedScopes ADD DeptCode nvarchar(20) NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'SubDepartmentCode') IS NULL
-        ALTER TABLE dbo.F03ManagedScopes ADD SubDepartmentCode nvarchar(100) NULL;
+        ALTER TABLE dbo.F03ManagedScopes ADD SubDepartmentCode nvarchar(20) NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'IncludeChildren') IS NULL
         ALTER TABLE dbo.F03ManagedScopes ADD IncludeChildren bit NOT NULL
-            CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(0);
+            CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(1);
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'Remark') IS NULL
         ALTER TABLE dbo.F03ManagedScopes ADD Remark nvarchar(500) NULL;
+END;
+GO
+
+/* Align IncludeChildren with F03ManagedScope's canonical default=true. */
+DECLARE @includeDefault sysname;
+SELECT @includeDefault = dc.name
+FROM sys.default_constraints dc
+JOIN sys.columns c
+  ON c.object_id = dc.parent_object_id
+ AND c.column_id = dc.parent_column_id
+WHERE dc.parent_object_id = OBJECT_ID(N'dbo.F03ManagedScopes')
+  AND c.name = N'IncludeChildren';
+
+IF @includeDefault IS NOT NULL
+BEGIN
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM sys.default_constraints dc
+        WHERE dc.object_id = OBJECT_ID(N'dbo.F03ManagedScopes')
+          AND dc.name = @includeDefault
+          AND REPLACE(REPLACE(dc.definition,N'(',N''),N')',N'') IN (N'1',N'((1))')
+    )
+    BEGIN
+        EXEC(N'ALTER TABLE dbo.F03ManagedScopes DROP CONSTRAINT [' + @includeDefault + N']');
+        ALTER TABLE dbo.F03ManagedScopes
+            ADD CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(1) FOR IncludeChildren;
+    END;
+END
+ELSE
+BEGIN
+    ALTER TABLE dbo.F03ManagedScopes
+        ADD CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(1) FOR IncludeChildren;
 END;
 GO
 
@@ -104,7 +137,7 @@ UPDATE dbo.F03ManagedScopes
 SET IsActive = ISNULL(IsActive,1),
     CreatedBy = ISNULL(CreatedBy,0),
     CreatedAt = ISNULL(CreatedAt,GETDATE()),
-    IncludeChildren = ISNULL(IncludeChildren,0)
+    IncludeChildren = ISNULL(IncludeChildren,1)
 WHERE IsActive IS NULL
    OR CreatedAt IS NULL
    OR IncludeChildren IS NULL;
