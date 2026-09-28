@@ -1,6 +1,6 @@
 /*
 FVN_REGISTER - SQL 04 Constraints
-Idempotent integrity rules. No cross-database dependency is created here.
+Idempotent integrity rules. Cross-database HRM cleanup is optional and guarded.
 */
 USE [FVN_REGISTER];
 GO
@@ -61,7 +61,6 @@ GO
 PRINT N'04_Constraints: OK';
 GO
 
-
 /* HRM shift master business keys. */
 IF OBJECT_ID(N'dbo.F03Shifts',N'U') IS NOT NULL
 AND EXISTS (SELECT 1 FROM dbo.F03Shifts GROUP BY ShiftCode HAVING COUNT(*)>1)
@@ -77,10 +76,27 @@ IF OBJECT_ID(N'dbo.F03ShiftSchedules',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03ShiftSchedules') AND name=N'UX_F03ShiftSchedules_Code')
     CREATE UNIQUE INDEX UX_F03ShiftSchedules_Code ON dbo.F03ShiftSchedules(ScheduleCode);
 
-UPDATE t SET IsActive=0,ModifiedAt=GETDATE(),ModifiedBy=0
-FROM dbo.F03ShiftSchedules t
-WHERE t.LastModifiedSource=N'HRM'
-  AND NOT EXISTS (SELECT 1 FROM HRM.dbo.CC_LichTrinhCa s WHERE s.Ma=t.ScheduleCode);
+/*
+  HRM is an external/read-only source. The cleanup is only executed when both
+  the HRM database and the expected source table exist. This keeps the FVN
+  schema deployable on environments where HRM is not installed or not exposed.
+*/
+IF DB_ID(N'HRM') IS NOT NULL
+   AND OBJECT_ID(N'HRM.dbo.CC_LichTrinhCa', N'U') IS NOT NULL
+BEGIN
+    UPDATE t
+       SET IsActive=0,
+           ModifiedAt=GETDATE(),
+           ModifiedBy=0
+    FROM dbo.F03ShiftSchedules t
+    WHERE t.LastModifiedSource=N'HRM'
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM HRM.dbo.CC_LichTrinhCa s
+          WHERE s.Ma=t.ScheduleCode
+      );
+END;
 GO
 
 IF OBJECT_ID(N'dbo.F03ShiftScheduleDays',N'U') IS NOT NULL
