@@ -26,18 +26,9 @@ public sealed class EndpointInventoryController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly AppAuthorizationService _authorization;
 
-    public EndpointInventoryController(
-        FVNWEBAPPContext db,
-        IEndpointComplianceService compliance,
-        IEndpointInventoryService service,
-        ICurrentUserService currentUser,
-        AppAuthorizationService authorization)
+    public EndpointInventoryController(FVNWEBAPPContext db, IEndpointComplianceService compliance, IEndpointInventoryService service, ICurrentUserService currentUser, AppAuthorizationService authorization)
     {
-        _db = db;
-        _compliance = compliance;
-        _service = service;
-        _currentUser = currentUser;
-        _authorization = authorization;
+        _db = db; _compliance = compliance; _service = service; _currentUser = currentUser; _authorization = authorization;
     }
 
     [HttpGet]
@@ -81,8 +72,7 @@ public sealed class EndpointInventoryController : ControllerBase
         if (device == null) return NotFound(ApiResponse<bool>.Fail("Không tìm thấy Endpoint device.", 404));
         var equipmentExists = await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.Id == request.EquipmentAssetId, ct);
         if (!equipmentExists) return BadRequest(ApiResponse<bool>.Fail("Equipment Asset không tồn tại."));
-        device.EquipmentAssetId = request.EquipmentAssetId;
-        device.UpdatedAt = DateTime.UtcNow;
+        device.EquipmentAssetId = request.EquipmentAssetId; device.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Ok(ApiResponse<bool>.Ok(true));
     }
@@ -99,6 +89,9 @@ public sealed class EndpointInventoryController : ControllerBase
         try
         {
             var result = await _service.UpsertInventoryAsync(trustedRequest, ct);
+            var credentialStatus = await _credentialStatusAsync(deviceKey, ct);
+            if (credentialStatus?.ExpiresAtUtc is DateTime expiresAtUtc)
+                Response.Headers["X-FVN-ApiKey-Expires-Utc"] = new DateTimeOffset(expiresAtUtc, TimeSpan.Zero).ToString("O");
             return Ok(ApiResponse<EndpointInventorySummaryDto>.Ok(result));
         }
         catch (ArgumentException ex) { return BadRequest(ApiResponse<EndpointInventorySummaryDto>.Fail(ex.Message)); }
@@ -113,17 +106,28 @@ public sealed class EndpointInventoryController : ControllerBase
             SELECT TOP (1) d.DeviceKey
             FROM dbo.F03EndpointCredentials c
             INNER JOIN dbo.F03EndpointDevices d ON d.Id = c.EndpointDeviceId
-            WHERE c.SecretHash = @hash
-              AND c.RevokedAtUtc IS NULL
-              AND c.ExpiresAtUtc > SYSUTCDATETIME();
+            WHERE c.SecretHash = @hash AND c.RevokedAtUtc IS NULL AND c.ExpiresAtUtc > SYSUTCDATETIME();
             """;
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = "@hash";
-        parameter.DbType = DbType.Binary;
-        parameter.Value = hash;
-        command.Parameters.Add(parameter);
+        var parameter = command.CreateParameter(); parameter.ParameterName = "@hash"; parameter.DbType = DbType.Binary; parameter.Value = hash; command.Parameters.Add(parameter);
         if (connection.State != ConnectionState.Open) await connection.OpenAsync(cancellationToken);
         var value = await command.ExecuteScalarAsync(cancellationToken);
         return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+    }
+
+    private async Task<(DateTime? ExpiresAtUtc)?> _credentialStatusAsync(string deviceKey, CancellationToken ct)
+    {
+        var connection = _db.Database.GetDbConnection();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT TOP (1) ExpiresAtUtc
+            FROM dbo.F03EndpointCredentials c
+            INNER JOIN dbo.F03EndpointDevices d ON d.Id = c.EndpointDeviceId
+            WHERE d.DeviceKey = @deviceKey AND c.RevokedAtUtc IS NULL
+            ORDER BY c.CreatedAtUtc DESC;
+            """;
+        var parameter = command.CreateParameter(); parameter.ParameterName = "@deviceKey"; parameter.Value = deviceKey; command.Parameters.Add(parameter);
+        if (connection.State != ConnectionState.Open) await connection.OpenAsync(ct);
+        var value = await command.ExecuteScalarAsync(ct);
+        return value == null || value == DBNull.Value ? null : (DateTime?)Convert.ToDateTime(value);
     }
 }
