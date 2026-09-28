@@ -16,13 +16,16 @@ public sealed class EndpointCredentialController : ControllerBase
 {
     private readonly ICurrentUserService _currentUser;
     private readonly FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService _authorization;
-    private readonly EndpointCredentialService _service;
+    private readonly IEndpointCredentialService _service;
 
-    public EndpointCredentialController(FVN_REGISTER.Infrastructure.FVNWEBAPPContext db, ICurrentUserService currentUser, FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization)
+    public EndpointCredentialController(
+        ICurrentUserService currentUser,
+        FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization,
+        IEndpointCredentialService service)
     {
         _currentUser = currentUser;
         _authorization = authorization;
-        _service = new EndpointCredentialService(db);
+        _service = service;
     }
 
     [HttpGet("{deviceKey}/status")]
