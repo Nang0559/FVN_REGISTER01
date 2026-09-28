@@ -265,13 +265,13 @@ public sealed class EquipmentController : ControllerBase
 
     [HttpPost("import")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<EquipmentImportBatchDto>> Import(IFormFile file, [FromQuery] string deptCode, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
+    public async Task<ActionResult<EquipmentImportBatchDto>> Import(IFormFile file, [FromQuery] string deptCode, [FromQuery] int? schemaId = null, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest("File Excel rỗng.");
         deptCode = deptCode.Trim().ToUpperInvariant();
         await using var stream = file.OpenReadStream();
-        return Ok(await _import.StageExcelAsync(deptCode, file.FileName, stream, assignToEmployee, ct));
+        return Ok(await _import.StageExcelAsync(deptCode, schemaId, file.FileName, stream, assignToEmployee, ct));
     }
 
     [HttpGet("import/{batchId:int}")]
