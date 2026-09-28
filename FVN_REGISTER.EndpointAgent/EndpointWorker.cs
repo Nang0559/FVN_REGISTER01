@@ -1,6 +1,6 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Management;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FVN_REGISTER.Contract.Dtos.Security;
@@ -10,6 +10,8 @@ namespace FVN_REGISTER.EndpointAgent;
 
 public sealed class EndpointWorker : BackgroundService
 {
+    private sealed record RotationResult(string DeviceKey, string ApiKey, DateTimeOffset ExpiresAtUtc);
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<EndpointWorker> _logger;
     private readonly EndpointAgentOptions _options;
@@ -82,7 +84,7 @@ public sealed class EndpointWorker : BackgroundService
                     _logger.LogCritical("Endpoint Agent received HTTP 401 and credential rotation failed. The current credential may be expired/revoked; provision a new credential from Security Center.");
                     response.EnsureSuccessStatusCode();
                 }
-                apiKey = rotated.ApiKey;
+                apiKey = rotated!.ApiKey;
                 PersistProtectedSecret(apiKey);
                 _logger.LogWarning("Endpoint Agent credential was rotated after HTTP 401.");
                 continue;
@@ -98,10 +100,7 @@ public sealed class EndpointWorker : BackgroundService
                     PersistProtectedSecret(apiKey);
                     _logger.LogInformation("Endpoint Agent credential rotated proactively; new expiry is {ExpiresAtUtc}.", rotated.ExpiresAtUtc);
                 }
-                else
-                {
-                    _logger.LogWarning("Endpoint Agent credential is close to expiry but proactive rotation was rejected.");
-                }
+                else _logger.LogWarning("Endpoint Agent credential is close to expiry but proactive rotation was rejected.");
             }
 
             _logger.LogInformation("Endpoint inventory synchronized. Software={SoftwareCount}, Services={ServiceCount}, Antivirus={AntivirusCount}.", request.Software.Count, request.Services.Count, request.Antivirus.Count);
@@ -111,7 +110,7 @@ public sealed class EndpointWorker : BackgroundService
         return apiKey;
     }
 
-    private async Task<EndpointCredentialProvisionResult?> RotateCredentialAsync(string currentApiKey, CancellationToken cancellationToken)
+    private async Task<RotationResult?> RotateCredentialAsync(string currentApiKey, CancellationToken cancellationToken)
     {
         try
         {
@@ -123,7 +122,10 @@ public sealed class EndpointWorker : BackgroundService
             if (!response.IsSuccessStatusCode) return null;
             using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
             if (!document.RootElement.TryGetProperty("data", out var data)) return null;
-            return data.Deserialize<EndpointCredentialProvisionResult>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            var apiKey = data.TryGetProperty("apiKey", out var key) ? key.GetString() : null;
+            var deviceKey = data.TryGetProperty("deviceKey", out var device) ? device.GetString() : null;
+            var expires = data.TryGetProperty("expiresAtUtc", out var expiry) && expiry.TryGetDateTimeOffset(out var expiresAtUtc) ? expiresAtUtc : (DateTimeOffset?)null;
+            return string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(deviceKey) || !expires.HasValue ? null : new RotationResult(deviceKey, apiKey, expires.Value);
         }
         catch (Exception ex)
         {
@@ -146,7 +148,6 @@ public sealed class EndpointWorker : BackgroundService
         var root = JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? new JsonObject();
         var section = root["FVNEndpointAgent"]?.AsObject() ?? new JsonObject();
         section["ApiKeyProtected"] = WindowsSecretStore.Protect(apiKey);
-        section["CredentialRotationLeadDays"] = 30;
         root["FVNEndpointAgent"] = section;
         File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
