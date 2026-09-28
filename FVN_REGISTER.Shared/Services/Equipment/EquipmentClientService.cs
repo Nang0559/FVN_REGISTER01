@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
@@ -13,7 +14,15 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
 {
     private readonly IHttpClientWithAuth _http;
     private readonly ILogger<EquipmentClientService> _logger;
-    public EquipmentClientService(IHttpClientWithAuth http, ILogger<EquipmentClientService> logger) { _http = http; _logger = logger; }
+
+    public EquipmentClientService(
+        IHttpClientWithAuth http,
+        ILogger<EquipmentClientService> logger)
+    {
+        _http = http;
+        _logger = logger;
+    }
+
     public Task<ApiResponse<List<DepartmentDto>>> GetEquipmentDepartmentsAsync(CancellationToken ct = default) => Get<List<DepartmentDto>>("api/equipment/schemas/departments", "departments", ct);
     public Task<ApiResponse<EquipmentActionAccessDto>> GetActionsAsync(CancellationToken ct = default) => Get<EquipmentActionAccessDto>("api/equipment/actions", "actions", ct);
     public Task<ApiResponse<bool>> HasAccessAsync(CancellationToken ct = default) => Get<bool>("api/equipment/access", "access", ct);
@@ -45,11 +54,29 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
     public Task<ApiResponse<List<EquipmentAssetDto>>> GetRegisteredInspectionAssetsAsync(string? deptCode = null, CancellationToken ct = default) => Get<List<EquipmentAssetDto>>(string.IsNullOrWhiteSpace(deptCode) ? "api/equipment-inspections/registered-assets" : $"api/equipment-inspections/registered-assets?deptCode={Uri.EscapeDataString(deptCode)}", "registered inspection assets", ct);
     public Task<ApiResponse<List<EquipmentInspectionTemplateDto>>> GetInspectionTemplatesAsync(string? deptCode = null, CancellationToken ct = default) => Get<List<EquipmentInspectionTemplateDto>>(string.IsNullOrWhiteSpace(deptCode) ? "api/equipment-inspections/templates" : $"api/equipment-inspections/templates?deptCode={Uri.EscapeDataString(deptCode)}", "inspection templates", ct);
     public Task<ApiResponse<EquipmentInspectionTemplateDto>> GetInspectionTemplateAsync(int id, CancellationToken ct = default) => Get<EquipmentInspectionTemplateDto>($"api/equipment-inspections/templates/{id}", "inspection template", ct);
+
     public async Task<ApiResponse<EquipmentInspectionTemplateImportResultDto>> ImportInspectionTemplateExcelAsync(IBrowserFile file, CancellationToken ct = default)
     {
-        try { await using var stream=file.OpenReadStream(10*1024*1024,ct); using var form=new MultipartFormDataContent(); using var fc=new StreamContent(stream); fc.Headers.ContentType=new MediaTypeHeaderValue("application/octet-stream"); form.Add(fc,"file",file.Name); return await _http.PostMultipartAsync<EquipmentInspectionTemplateImportResultDto>("api/equipment-inspections/templates/import",form,ct); }
-        catch(OperationCanceledException) when(ct.IsCancellationRequested){throw;} catch(Exception ex){_logger.LogError(ex,"[EQUIPMENT_CLIENT] checklist import");return ApiResponse<EquipmentInspectionTemplateImportResultDto>.Fail("Không thể import checklist Excel.");}
+        try
+        {
+            await using var stream = file.OpenReadStream(10 * 1024 * 1024, ct);
+            using var form = new MultipartFormDataContent();
+            using var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            form.Add(fileContent, "file", file.Name);
+            return await _http.PostMultipartAsync<EquipmentInspectionTemplateImportResultDto>("api/equipment-inspections/templates/import", form, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] Checklist import failed. FileName={FileName}", file.Name);
+            return ApiResponse<EquipmentInspectionTemplateImportResultDto>.Fail("Không thể import checklist Excel.");
+        }
     }
+
     public Task<ApiResponse<EquipmentInspectionTemplateDto>> SaveInspectionTemplateAsync(EquipmentInspectionTemplateUpsertRequest request, CancellationToken ct = default) => Post<EquipmentInspectionTemplateDto>("api/equipment-inspections/templates", request, "save inspection template", ct);
     public Task<ApiResponse<EquipmentInspectionTemplateDto>> CloneInspectionTemplateAsync(int id, string? name = null, CancellationToken ct = default) => Post<EquipmentInspectionTemplateDto>($"api/equipment-inspections/templates/{id}/clone", new EquipmentInspectionTemplateCloneRequest { TemplateName = name }, "clone inspection template", ct);
     public Task<ApiResponse<List<EquipmentInspectionAssignmentDto>>> GetInspectionAssignmentsAsync(int? equipmentId = null, CancellationToken ct = default) => Get<List<EquipmentInspectionAssignmentDto>>(equipmentId.HasValue ? $"api/equipment-inspections/assignments?equipmentId={equipmentId}" : "api/equipment-inspections/assignments", "inspection assignments", ct);
@@ -72,40 +99,65 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
             content.Add(fileContent, "file", file.Name);
             return await _http.PostMultipartAsync<EquipmentInspectionEvidenceDto>($"api/equipment-inspections/tasks/{taskId}/evidence?itemId={itemId}", content, ct);
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { _logger.LogError(ex, "[EQUIPMENT_CLIENT] inspection evidence"); return ApiResponse<EquipmentInspectionEvidenceDto>.Fail("Không thể tải hình ảnh kiểm tra."); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] Inspection evidence upload failed. TaskId={TaskId}, ItemId={ItemId}, FileName={FileName}", taskId, itemId, file.Name);
+            return ApiResponse<EquipmentInspectionEvidenceDto>.Fail("Không thể tải hình ảnh kiểm tra.");
+        }
     }
 
-    public async Task<ApiResponse<EquipmentImportBatchDto>> StageImportAsync(string deptCode, IBrowserFile file, bool assignToEmployee = false, CancellationToken ct = default)
+    private async Task<ApiResponse<T>> Get<T>(string url, string op, CancellationToken ct)
     {
         try
         {
-            await using var stream = file.OpenReadStream(25 * 1024 * 1024, ct);
-            using var content = new MultipartFormDataContent();
-            using var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-            content.Add(fileContent, "file", file.Name);
-            return await _http.PostMultipartAsync<EquipmentImportBatchDto>($"api/equipment/import?deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}&assignToEmployee={assignToEmployee}", content, ct);
+            return await _http.GetAsync<T>(url, ct);
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { _logger.LogError(ex, "[EQUIPMENT_CLIENT] stage import"); return ApiResponse<EquipmentImportBatchDto>.Fail("Không thể staging file Excel."); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] {Op}", op);
+            return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị.");
+        }
     }
-    private async Task<ApiResponse<T>> Get<T>(string url, string op, CancellationToken ct)
-    {
-        try { return await _http.GetAsync<T>(url, ct); }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { _logger.LogError(ex, "[EQUIPMENT_CLIENT] {Op}", op); return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị."); }
-    }
+
     private async Task<ApiResponse<T>> Post<T>(string url, object body, string op, CancellationToken ct)
     {
-        try { return await _http.PostAsync<T>(url, body, ct); }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { _logger.LogError(ex, "[EQUIPMENT_CLIENT] {Op}", op); return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị."); }
+        try
+        {
+            return await _http.PostAsync<T>(url, body, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] {Op}", op);
+            return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị.");
+        }
     }
+
     private async Task<ApiResponse<T>> Put<T>(string url, object body, string op, CancellationToken ct)
     {
-        try { return await _http.PutAsync<T>(url, body, ct); }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { _logger.LogError(ex, "[EQUIPMENT_CLIENT] {Op}", op); return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị."); }
+        try
+        {
+            return await _http.PutAsync<T>(url, body, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] {Op}", op);
+            return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị.");
+        }
     }
 }
