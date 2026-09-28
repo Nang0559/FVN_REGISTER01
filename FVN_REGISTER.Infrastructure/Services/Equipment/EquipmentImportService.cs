@@ -172,8 +172,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var rows = new List<F03EquipmentImportRow>(); var valid = 0; var invalid = 0;
         foreach (var item in data.Rows)
         {
-            ct.ThrowIfCancellationRequested(); if (item.Values.Values.All(string.IsNullOrWhiteSpace))
-                continue;
+            ct.ThrowIfCancellationRequested(); if (item.Values.Values.All(string.IsNullOrWhiteSpace)) continue;
             var err = ValidateRow(item.Values, defs);
             if (err == null && assignToEmployee)
             {
@@ -248,45 +247,28 @@ public sealed class EquipmentImportService : IEquipmentImportService
         return new EquipmentSchemaDto { Id = schema.Id, DeptCode = schema.DeptCode, SchemaName = schema.SchemaName, SchemaKind = schema.SchemaKind, SchemaKey = schema.SchemaKey, Version = schema.Version, Status = schema.Status, IsActive = schema.IsActive == true, OwnerUserId = schema.CreatedBy, OwnerName = ownerName, SourceSchemaId = schema.SourceSchemaId, SourceFileName = schema.SourceFileName, CreatedFromExcel = schema.CreatedFromExcel, IsOwner = schema.CreatedBy == userId, CanEdit = schema.CreatedBy == userId && string.Equals(schema.Status, "Draft", StringComparison.OrdinalIgnoreCase), CanCreateVersion = schema.CreatedBy == userId, CanClone = true, Fields = schema.Fields.Where(x => x.IsActive != false).OrderBy(x => x.DisplayOrder).ThenBy(x => x.FieldLabel).Select(MapField).ToList() };
     }
 
-    private static EquipmentSchemaSummaryDto MapSummary(
-    F03EquipmentSchema schema,
-    int userId,
-    string ownerName,
-    int fieldCount)
+    private static EquipmentSchemaSummaryDto MapSummary(F03EquipmentSchema schema, int userId, string ownerName, int fieldCount)
     {
         return new EquipmentSchemaSummaryDto
         {
             Id = schema.Id,
-
             DepartmentCode = schema.DeptCode,
             DepartmentName = schema.DeptCode,
-
             SchemaName = schema.SchemaName,
             SchemaKind = schema.SchemaKind,
             SchemaKey = schema.SchemaKey,
             Version = schema.Version,
             Status = schema.Status,
-
             IsActive = schema.IsActive == true,
             FieldCount = fieldCount,
-
             CreatedByUserId = schema.CreatedBy,
             CreatedByUserName = ownerName,
             CreatedAt = schema.CreatedAt,
-
             SourceSchemaId = schema.SourceSchemaId,
             SourceFileName = schema.SourceFileName,
             CreatedFromExcel = schema.CreatedFromExcel,
-
             IsOwner = schema.CreatedBy == userId,
-
-            CanEdit =
-                schema.CreatedBy == userId &&
-                string.Equals(
-                    schema.Status,
-                    "Draft",
-                    StringComparison.OrdinalIgnoreCase),
-
+            CanEdit = schema.CreatedBy == userId && string.Equals(schema.Status, "Draft", StringComparison.OrdinalIgnoreCase),
             CanCreateVersion = schema.CreatedBy == userId,
             CanClone = true
         };
@@ -327,5 +309,42 @@ public sealed class EquipmentImportService : IEquipmentImportService
             var inference=headers.Select((h,i)=>new ExcelSchemaInference.InputColumn(h,sampleValues[i])).ToList(); return new ExcelData{Headers=headers,Rows=rows,SampleRowCount=Math.Min(rows.Count,200),InferenceColumns=inference};
         }
     }
-    private static string GetCellText(ICell? cell, DataFormatter formatter, IFormulaEvaluator evaluator){if(cell==null)return string.Empty;if(DateUtil.IsCellDateFormatted(cell)&&cell.CellType!=CellType.Formula)return string.Format(CultureInfo.InvariantCulture,"{0:dd/MM/yyyy}",cell.DateCellValue);return formatter.FormatCellValue(cell,evaluator);}
+
+    private static string GetCellText(ICell? cell, DataFormatter formatter, IFormulaEvaluator evaluator)
+    {
+        if (cell == null)
+            return string.Empty;
+
+        // NPOI DateUtil.IsCellDateFormatted() expects a numeric cell. Calling it
+        // for a text cell whose style happens to be a date style causes:
+        // "Cannot get a numeric value from a text cell".
+        // Always check the cell type first and never run DateUtil against a text/formula cell.
+        if (cell.CellType == CellType.Formula)
+        {
+            try
+            {
+                return formatter.FormatCellValue(cell, evaluator);
+            }
+            catch (InvalidOperationException)
+            {
+                // Keep Excel import resilient when a formula cannot be evaluated.
+                return formatter.FormatCellValue(cell);
+            }
+        }
+
+        if (cell.CellType == CellType.Numeric)
+        {
+            try
+            {
+                if (DateUtil.IsCellDateFormatted(cell))
+                    return cell.DateCellValue.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+            }
+            catch (InvalidOperationException)
+            {
+                // A malformed/custom Excel style must not abort the whole import.
+            }
+        }
+
+        return formatter.FormatCellValue(cell);
+    }
 }
