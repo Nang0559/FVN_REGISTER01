@@ -100,6 +100,9 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "58_EndpointSecurityCapabilities.sql"
 :r "57_Verify_Endpoint_Governance.sql"
 
+/* ENDPOINT AGENT DATA / CATALOG / FINDING RETENTION */
+:r "60_EndpointAgentDataHardening.sql"
+
 /* CALENDAR CAPABILITY */
 :r "59_CalendarViewCapability.sql"
 
