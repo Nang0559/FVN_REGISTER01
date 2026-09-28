@@ -12,6 +12,7 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\01_Database.sql"
 :r "$(RepoRoot)\02A_Preflight.sql"
 :r "$(RepoRoot)\02B_Schemas.sql"
+:r "$(RepoRoot)\02C_TablePrerequisites.sql"
 :r "$(RepoRoot)\03_Tables.sql"
 :r "$(RepoRoot)\04_Constraints.sql"
 :r "$(RepoRoot)\05_Indexes.sql"
