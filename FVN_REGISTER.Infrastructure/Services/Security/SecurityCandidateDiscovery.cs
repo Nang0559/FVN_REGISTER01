@@ -12,13 +12,11 @@ using Microsoft.EntityFrameworkCore;
 namespace FVN_REGISTER.Infrastructure.Services.Security;
 
 /// <summary>
-/// Phát hiện các thao tác có khả năng là chức năng bảo mật từ điểm cuối HTTP và thành phần giao diện đã biên dịch.
-/// API endpoint chỉ được coi là security-function candidate khi endpoint có
-/// SecurityFunctionDefinitionAttribute. Không suy đoán FunctionCode từ tiền tố
-/// tên method/controller nữa. Đây là bằng chứng mapping explicit giữa endpoint
-/// và FunctionKey; FunctionCode vẫn lấy từ SecurityFunctionCodes/F03Functions.
-/// UI action legacy vẫn dùng candidate heuristic để không làm mất cảnh báo,
-/// nhưng không tự cấp quyền.
+/// Discovers security-function candidates from compiled API endpoints and UI components.
+/// API endpoint mapping is explicit: SecurityFunctionDefinitionAttribute is the only
+/// source that can associate an endpoint with a FunctionKey. Method-name prefixes are
+/// never used to assign a FunctionCode. An [Authorize] endpoint without an explicit
+/// definition is recorded only as an unmapped review candidate (FunctionCode = 0).
 /// </summary>
 public sealed class SecurityCandidateDiscovery
 {
@@ -42,7 +40,7 @@ public sealed class SecurityCandidateDiscovery
     public async Task<int> ScanAsync(CancellationToken cancellationToken = default)
     {
         var registry = await _db.SecurityFunctionRegistry
-            .Where(x => x.SourceType == "ApiEndpointDefinition" || x.SourceType == "UiActionCandidate")
+            .Where(x => x.SourceType is "ApiEndpointDefinition" or "ApiEndpointUnmapped" or "UiActionCandidate")
             .ToDictionaryAsync(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var functions = await _db.Functions
@@ -54,26 +52,52 @@ public sealed class SecurityCandidateDiscovery
         var seenUi = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var now = DateTime.Now;
 
-        /*
-         * API endpoint -> Function mapping is explicit only.
-         * An endpoint without SecurityFunctionDefinitionAttribute is not assigned
-         * a FunctionKey merely because its method name starts with Create/Update/etc.
-         */
         foreach (var endpoint in _endpointSources.SelectMany(x => x.Endpoints).OfType<RouteEndpoint>())
         {
             var action = endpoint.Metadata.GetMetadata<ControllerActionDescriptor>();
             if (action is null || endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null)
                 continue;
 
-            var definition = action.MethodInfo.GetCustomAttribute<SecurityFunctionDefinitionAttribute>();
-            if (definition is null || string.IsNullOrWhiteSpace(definition.FunctionKey))
-                continue;
+            var definition = action.MethodInfo.GetCustomAttribute<SecurityFunctionDefinitionAttribute>()
+                             ?? action.ControllerTypeInfo.GetCustomAttribute<SecurityFunctionDefinitionAttribute>();
 
-            var functionKey = definition.FunctionKey.Trim();
-            var functionCode = functions.TryGetValue(functionKey, out var function) ? function.FunctionCode : 0;
+            var requiresAuthorization = endpoint.Metadata.GetMetadata<IAuthorizeData>() is not null
+                                         || action.MethodInfo.GetCustomAttribute<AuthorizeAttribute>() is not null
+                                         || action.ControllerTypeInfo.GetCustomAttribute<AuthorizeAttribute>() is not null;
+
             var controller = TrimControllerSuffix(action.ControllerTypeInfo.Name);
             var sourceName = $"{action.ControllerTypeInfo.FullName}.{action.MethodInfo.Name}";
             var evidence = endpoint.RoutePattern.RawText ?? string.Empty;
+
+            if (definition is null || string.IsNullOrWhiteSpace(definition.FunctionKey))
+            {
+                if (!requiresAuthorization)
+                    continue;
+
+                var unmappedKey = $"Unmapped.Api.{sourceName}";
+                seenApi.Add(unmappedKey);
+                UpsertCandidate(
+                    registry,
+                    unmappedKey,
+                    $"API endpoint yêu cầu authorization nhưng chưa khai báo SecurityFunctionDefinition: {sourceName}",
+                    unmappedKey,
+                    0,
+                    controller,
+                    action.MethodInfo.Name,
+                    "ApiEndpointUnmapped",
+                    action.ControllerTypeInfo.Assembly.GetName().Name,
+                    sourceName,
+                    evidence,
+                    "Review",
+                    now);
+                continue;
+            }
+
+            var functionKey = definition.FunctionKey.Trim();
+            var functionCode = functions.TryGetValue(functionKey, out var function) ? function.FunctionCode : 0;
+            var moduleCode = definition.ModuleCode ?? function?.ModuleCode ?? controller;
+            var actionCode = definition.ActionCode ?? function?.ActionCode ?? action.MethodInfo.Name;
+            var scopeCode = definition.ScopeCode ?? function?.ScopeCode ?? "Review";
             var candidateKey = $"Endpoint.{functionKey}";
             seenApi.Add(candidateKey);
 
@@ -83,12 +107,13 @@ public sealed class SecurityCandidateDiscovery
                 definition.DisplayName ?? function?.FunctionName ?? functionKey,
                 functionKey,
                 functionCode,
-                controller,
-                action.MethodInfo.Name,
+                moduleCode,
+                actionCode,
                 "ApiEndpointDefinition",
                 action.ControllerTypeInfo.Assembly.GetName().Name,
                 sourceName,
                 evidence,
+                scopeCode,
                 now);
         }
 
@@ -133,6 +158,7 @@ public sealed class SecurityCandidateDiscovery
                         assembly.GetName().Name,
                         $"{type.FullName}.{method.Name}",
                         type.FullName ?? type.Name,
+                        "Review",
                         now);
                 }
             }
@@ -141,7 +167,7 @@ public sealed class SecurityCandidateDiscovery
         if (_endpointSources.Any())
         {
             foreach (var item in registry.Values.Where(x =>
-                         x.SourceType == "ApiEndpointDefinition" &&
+                         (x.SourceType == "ApiEndpointDefinition" || x.SourceType == "ApiEndpointUnmapped") &&
                          !seenApi.Contains(x.FunctionKey) &&
                          x.LifecycleStatus == "PendingRegistration"))
             {
@@ -178,6 +204,7 @@ public sealed class SecurityCandidateDiscovery
         string? sourceAssembly,
         string sourceTypeName,
         string evidence,
+        string scopeCode,
         DateTime now)
     {
         var hash = Convert.ToHexString(SHA256.HashData(
@@ -192,7 +219,7 @@ public sealed class SecurityCandidateDiscovery
                 DefinitionName = definition,
                 ModuleCode = module,
                 ActionCode = action,
-                ScopeCode = "Review",
+                ScopeCode = scopeCode,
                 LifecycleStatus = functionCode > 0 ? "Active" : "PendingRegistration",
                 SourceType = sourceType,
                 SourceAssembly = sourceAssembly,
@@ -211,6 +238,9 @@ public sealed class SecurityCandidateDiscovery
         item.DefinitionHash = hash;
         item.DefinitionName = definition;
         item.FunctionCode = functionCode;
+        item.ModuleCode = module;
+        item.ActionCode = action;
+        item.ScopeCode = scopeCode;
         item.SourceAssembly = sourceAssembly;
         item.SourceTypeName = sourceTypeName;
 
