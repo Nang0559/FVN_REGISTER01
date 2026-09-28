@@ -1,3 +1,8 @@
+/* Equipment responsibility / repair upgrade.
+   Base Equipment tables are created by Database/Equipment/001-003.
+   Import batch metadata is owned by SQL/16_EquipmentFlexibleImport.sql.
+   This migration only upgrades that table when the prerequisite exists. */
+
 IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'OperatingResponsibleDeptCode') IS NULL ALTER TABLE dbo.F03EquipmentAssets ADD OperatingResponsibleDeptCode nvarchar(20) NULL;
 IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'OperatingResponsibleEmployeeCode') IS NULL ALTER TABLE dbo.F03EquipmentAssets ADD OperatingResponsibleEmployeeCode nvarchar(50) NULL;
 IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'OperatingResponsibleAssignedAt') IS NULL ALTER TABLE dbo.F03EquipmentAssets ADD OperatingResponsibleAssignedAt datetime2 NULL;
@@ -12,9 +17,17 @@ IF COL_LENGTH(N'dbo.F03EquipmentRepairHistory', N'RepairFeedback') IS NULL ALTER
 IF COL_LENGTH(N'dbo.F03EquipmentRepairHistory', N'CompletedAt') IS NULL ALTER TABLE dbo.F03EquipmentRepairHistory ADD CompletedAt datetime2 NULL;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03EquipmentAssets_OperatingResponsible' AND object_id=OBJECT_ID(N'dbo.F03EquipmentAssets')) CREATE INDEX IX_F03EquipmentAssets_OperatingResponsible ON dbo.F03EquipmentAssets(OperatingResponsibleEmployeeCode, OperatingResponsibleDeptCode);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03EquipmentRequests_RepairAssignee' AND object_id=OBJECT_ID(N'dbo.F03EquipmentRequests')) CREATE INDEX IX_F03EquipmentRequests_RepairAssignee ON dbo.F03EquipmentRequests(RepairAssigneeEmployeeCode, RequestStatus);
-IF COL_LENGTH(N'dbo.F03EquipmentImportBatches', N'AssignToEmployee') IS NULL
+GO
+
+/* F03EquipmentImportBatches is owned/created by SQL/16.
+   Do not silently create a second definition here; only upgrade when available.
+   Full deployment runs SQL/16 before this migration. */
+IF OBJECT_ID(N'dbo.F03EquipmentImportBatches', N'U') IS NOT NULL
 BEGIN
-    ALTER TABLE dbo.F03EquipmentImportBatches ADD AssignToEmployee bit NOT NULL CONSTRAINT DF_F03EquipmentImportBatches_AssignToEmployee DEFAULT (0);
+    IF COL_LENGTH(N'dbo.F03EquipmentImportBatches', N'AssignToEmployee') IS NULL
+    BEGIN
+        ALTER TABLE dbo.F03EquipmentImportBatches ADD AssignToEmployee bit NOT NULL CONSTRAINT DF_F03EquipmentImportBatches_AssignToEmployee DEFAULT (0);
+    END;
 END;
 GO
 

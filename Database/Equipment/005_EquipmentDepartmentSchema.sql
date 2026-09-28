@@ -4,13 +4,10 @@
   consumer, but the model is reusable: SchemaKind identifies future consumers
   such as Checklist, Attendance and Payroll.
 
-  Rules:
-    - CreatedBy is the owner/editor of the schema family.
-    - Users with the Import/Schema capability in the same department can view,
-      use and clone other users' schemas, but cannot edit them.
-    - Clone creates a new SchemaKey and therefore an independent schema family.
-    - Versions within one SchemaKey belong to the same owner and are immutable
-      once Active; a new Draft version is created for later changes.
+  This script is intentionally self-contained for the Equipment database
+  deployment. In particular, F03EquipmentImportBatches must exist before its
+  SchemaId foreign key/index is upgraded. SQL/16_EquipmentFlexibleImport.sql
+  remains compatible and becomes a no-op for objects already created here.
 */
 
 IF OBJECT_ID(N'dbo.F03EquipmentSchemas', N'U') IS NULL
@@ -50,7 +47,6 @@ IF COL_LENGTH(N'dbo.F03EquipmentSchemas', N'CreatedFromExcel') IS NULL
     ALTER TABLE dbo.F03EquipmentSchemas ADD CreatedFromExcel bit NOT NULL CONSTRAINT DF_F03EquipmentSchemas_CreatedFromExcel DEFAULT(0);
 GO
 
-/* Existing versions are grouped by department + schema name. */
 UPDATE s
 SET SchemaKey = CONVERT(varchar(64), HASHBYTES('SHA2_256', CONCAT(UPPER(LTRIM(RTRIM(s.DeptCode))), N'|', UPPER(LTRIM(RTRIM(s.SchemaName))))), 2)
 FROM dbo.F03EquipmentSchemas s
@@ -123,6 +119,73 @@ BEGIN
 END;
 GO
 
+/*
+  Import batch/row metadata is part of the Equipment schema contract.
+  Previously SQL/16 created the batch table, while this script only upgraded it.
+  Running Database/Equipment scripts independently therefore caused Msg 1088.
+*/
+IF OBJECT_ID(N'dbo.F03EquipmentImportBatches', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.F03EquipmentImportBatches
+    (
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03EquipmentImportBatches PRIMARY KEY,
+        SchemaId int NULL,
+        DeptCode nvarchar(20) NOT NULL,
+        FileName nvarchar(260) NOT NULL,
+        Status nvarchar(30) NOT NULL,
+        TotalRows int NOT NULL CONSTRAINT DF_F03EquipmentImportBatches_TotalRows DEFAULT(0),
+        ValidRows int NOT NULL CONSTRAINT DF_F03EquipmentImportBatches_ValidRows DEFAULT(0),
+        InvalidRows int NOT NULL CONSTRAINT DF_F03EquipmentImportBatches_InvalidRows DEFAULT(0),
+        ImportedRows int NOT NULL CONSTRAINT DF_F03EquipmentImportBatches_ImportedRows DEFAULT(0),
+        CompletedAt datetime2 NULL,
+        IsActive bit NULL CONSTRAINT DF_F03EquipmentImportBatches_IsActive DEFAULT(1),
+        CreatedBy int NOT NULL,
+        CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03EquipmentImportBatches_CreatedAt DEFAULT(SYSDATETIME()),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2 NULL,
+        LastModifiedSource nvarchar(100) NULL
+    );
+END
+ELSE
+BEGIN
+    IF COL_LENGTH(N'dbo.F03EquipmentImportBatches', N'SchemaId') IS NULL
+        ALTER TABLE dbo.F03EquipmentImportBatches ADD SchemaId int NULL;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.F03EquipmentImportRows', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.F03EquipmentImportRows
+    (
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03EquipmentImportRows PRIMARY KEY,
+        BatchId int NOT NULL,
+        RowNumber int NOT NULL,
+        RawJson nvarchar(max) NOT NULL,
+        Status nvarchar(30) NOT NULL,
+        ErrorMessage nvarchar(2000) NULL,
+        AssetId int NULL,
+        IsActive bit NULL CONSTRAINT DF_F03EquipmentImportRows_IsActive DEFAULT(1),
+        CreatedBy int NOT NULL,
+        CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03EquipmentImportRows_CreatedAt DEFAULT(SYSDATETIME()),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2 NULL,
+        LastModifiedSource nvarchar(100) NULL
+    );
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_F03EquipmentImportRows_Batch')
+BEGIN
+    ALTER TABLE dbo.F03EquipmentImportRows WITH CHECK
+        ADD CONSTRAINT FK_F03EquipmentImportRows_Batch
+        FOREIGN KEY(BatchId) REFERENCES dbo.F03EquipmentImportBatches(Id) ON DELETE NO ACTION;
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03EquipmentImportRows_Batch_Status' AND object_id = OBJECT_ID(N'dbo.F03EquipmentImportRows'))
+    CREATE INDEX IX_F03EquipmentImportRows_Batch_Status ON dbo.F03EquipmentImportRows(BatchId, Status);
+GO
+
 /* Bootstrap one active schema for each department represented by legacy fields. */
 DECLARE @DeptCode nvarchar(20), @SchemaId int;
 DECLARE dept_cursor CURSOR LOCAL FAST_FORWARD FOR
@@ -133,6 +196,7 @@ OPEN dept_cursor;
 FETCH NEXT FROM dept_cursor INTO @DeptCode;
 WHILE @@FETCH_STATUS = 0
 BEGIN
+    SET @SchemaId = NULL;
     SELECT TOP (1) @SchemaId = Id
     FROM dbo.F03EquipmentSchemas
     WHERE DeptCode = @DeptCode AND Status = N'Active' AND IsActive = 1
@@ -184,18 +248,17 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03EquipmentFieldDefi
 GO
 
 /* Import batches are bound to the exact schema version used for staging. */
-IF OBJECT_ID(N'dbo.F03EquipmentImportBatches', N'U') IS NOT NULL
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_F03EquipmentImportBatches_F03EquipmentSchemas')
 BEGIN
-    IF COL_LENGTH(N'dbo.F03EquipmentImportBatches', N'SchemaId') IS NULL
-        ALTER TABLE dbo.F03EquipmentImportBatches ADD SchemaId int NULL;
-    IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_F03EquipmentImportBatches_F03EquipmentSchemas')
-        ALTER TABLE dbo.F03EquipmentImportBatches WITH CHECK
-            ADD CONSTRAINT FK_F03EquipmentImportBatches_F03EquipmentSchemas
-            FOREIGN KEY(SchemaId) REFERENCES dbo.F03EquipmentSchemas(Id) ON DELETE NO ACTION;
-    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03EquipmentImportBatches_Dept_Schema_Status' AND object_id = OBJECT_ID(N'dbo.F03EquipmentImportBatches'))
-        CREATE INDEX IX_F03EquipmentImportBatches_Dept_Schema_Status
-            ON dbo.F03EquipmentImportBatches(DeptCode, SchemaId, Status);
+    ALTER TABLE dbo.F03EquipmentImportBatches WITH CHECK
+        ADD CONSTRAINT FK_F03EquipmentImportBatches_F03EquipmentSchemas
+        FOREIGN KEY(SchemaId) REFERENCES dbo.F03EquipmentSchemas(Id) ON DELETE NO ACTION;
 END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03EquipmentImportBatches_Dept_Schema_Status' AND object_id = OBJECT_ID(N'dbo.F03EquipmentImportBatches'))
+    CREATE INDEX IX_F03EquipmentImportBatches_Dept_Schema_Status
+        ON dbo.F03EquipmentImportBatches(DeptCode, SchemaId, Status);
 GO
 
 /* Only fields belonging to the active version are importable by legacy callers. */
