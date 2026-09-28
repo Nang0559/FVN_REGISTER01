@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Attributes;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Infrastructure.Services.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -25,6 +26,7 @@ public sealed class EndpointCredentialController : ControllerBase
     }
 
     [HttpGet("{deviceKey}/status")]
+    [SecurityFunctionDefinition("Endpoint.CredentialProvision", "Endpoint Credential - xem/provision status")]
     public async Task<IActionResult> Status(string deviceKey, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
@@ -46,6 +48,7 @@ public sealed class EndpointCredentialController : ControllerBase
     }
 
     [HttpPost("provision")]
+    [SecurityFunctionDefinition("Endpoint.CredentialProvision", "Endpoint Credential - provision/rotate")]
     public async Task<IActionResult> Provision([FromBody] EndpointCredentialProvisionDto request, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
@@ -67,6 +70,7 @@ public sealed class EndpointCredentialController : ControllerBase
     }
 
     [HttpPost("{deviceKey}/revoke")]
+    [SecurityFunctionDefinition("Endpoint.CredentialRevoke", "Endpoint Credential - revoke")]
     public async Task<IActionResult> Revoke(string deviceKey, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
