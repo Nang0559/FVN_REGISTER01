@@ -265,13 +265,17 @@ public sealed class EquipmentController : ControllerBase
 
     [HttpPost("import")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<EquipmentImportBatchDto>> Import(IFormFile file, [FromQuery] string deptCode, [FromQuery] int? schemaId = null, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<EquipmentImportBatchDto>>> Import([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int? schemaId = null, [FromQuery] int sheetIndex = 0, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        if (file == null || file.Length == 0) return BadRequest("File Excel rỗng.");
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentImportBatchDto>.Fail("File Excel rỗng."));
+        if (sheetIndex < 0) return BadRequest(ApiResponse<EquipmentImportBatchDto>.Fail("Sheet Excel không hợp lệ."));
         deptCode = deptCode.Trim().ToUpperInvariant();
         await using var stream = file.OpenReadStream();
-        return Ok(await _import.StageExcelAsync(deptCode, schemaId, file.FileName, stream, assignToEmployee, ct));
+        var result = await _import.StageExcelSheetAsync(deptCode, schemaId, file.FileName, stream, sheetIndex, assignToEmployee, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentImportBatchDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentImportBatchDto>.FromResult(result));
     }
 
     [HttpGet("import/{batchId:int}")]
