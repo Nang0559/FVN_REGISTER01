@@ -7,19 +7,21 @@ SET XACT_ABORT ON;
 ===============================================================================
 F03Functions / FunctionKey compatibility
 -------------------------------------------------------------------------------
-06_Seed.sql seeds F03Functions by FunctionCode. Some existing FVN_REGISTER
-installations already contain a NOT NULL FunctionKey column from the security
-schema. SQL Server therefore rejects the seed when FunctionKey is omitted.
+06_Seed.sql inserts F03Functions without FunctionKey. Existing installations
+may already have a NOT NULL FunctionKey plus UX_F03Functions_FunctionKey.
 
-This migration makes the column compatible with the canonical seed without
-changing FunctionCode, which remains the stable authorization identifier.
+A default of N'' alone is not sufficient when the unique index is active:
+multiple seed rows would all receive the same empty value and SQL Server would
+raise Msg 2601. Therefore the compatibility migration temporarily removes the
+FunctionKey unique index. 06B backfills deterministic FN_<FunctionCode> values
+and recreates the unique index after the seed has completed.
 ===============================================================================
 */
 
 IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
     THROW 50071, 'Missing dbo.F03Functions. Run 03_Tables.sql before 06A_FunctionKeyCompatibility.sql.', 1;
 
-/* New/older installations: add the missing compatibility column. */
+/* New/older installations: add the compatibility column if it is missing. */
 IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NULL
 BEGIN
     ALTER TABLE dbo.F03Functions
@@ -28,9 +30,9 @@ END;
 GO
 
 /*
-   The seed INSERT intentionally supplies FunctionCode but not FunctionKey.
-   Give FunctionKey a deterministic default so both old and new databases
-   accept that INSERT. Existing values are preserved.
+   06_Seed.sql does not provide FunctionKey. Keep a compatibility default so
+   NOT NULL legacy schemas can accept the insert. The value is deliberately
+   temporary and is replaced by 06B using FunctionCode.
 */
 IF EXISTS
 (
@@ -58,9 +60,8 @@ END;
 GO
 
 /*
-   For rows already present, derive a deterministic key from FunctionCode.
-   This is only a compatibility fallback; application authorization continues
-   to use FunctionCode as the stable numeric identity.
+   Existing rows must be normalized before the unique index is removed/rebuilt.
+   FunctionCode is the canonical stable authorization identity.
 */
 UPDATE f
 SET f.FunctionKey = CONCAT(N'FN_', CONVERT(nvarchar(20), f.FunctionCode))
@@ -69,9 +70,25 @@ WHERE NULLIF(LTRIM(RTRIM(f.FunctionKey)), N'') IS NULL
   AND f.FunctionCode IS NOT NULL;
 GO
 
-/* Verify the compatibility contract before 06_Seed.sql starts. */
+/*
+   Defer the unique FunctionKey index until after 06_Seed.sql.
+   This is the critical fix for Msg 2601: every seed row currently receives
+   the temporary default N'', so uniqueness cannot be enforced during seed.
+*/
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.F03Functions')
+      AND name = N'UX_F03Functions_FunctionKey'
+)
+BEGIN
+    DROP INDEX [UX_F03Functions_FunctionKey] ON dbo.F03Functions;
+END;
+GO
+
 IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NULL
     THROW 50072, 'F03Functions.FunctionKey was not created.', 1;
 
-PRINT N'06A_FunctionKeyCompatibility: F03Functions.FunctionKey is ready for 06_Seed.sql.';
+PRINT N'06A_FunctionKeyCompatibility: FunctionKey ready; unique index deferred until 06B.';
 GO
