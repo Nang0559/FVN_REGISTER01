@@ -77,7 +77,7 @@
                                     }
                                     else
                                     {
-                                        <MudTextField Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label="@question.Placeholder" Variant="Variant.Outlined" InputType="@InputTypeFor(question)" />
+                                        <MudTextField T="string" Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label="@question.Placeholder" Variant="Variant.Outlined" InputType="@InputTypeFor(question)" />
                                     }
                                 </MudStack>
                             }
