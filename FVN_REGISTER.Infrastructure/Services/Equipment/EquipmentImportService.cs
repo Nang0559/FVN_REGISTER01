@@ -83,10 +83,40 @@ public sealed class EquipmentImportService : IEquipmentImportService
     public async Task<EquipmentSchemaDto> CreateSchemaFromExcelAsync(string deptCode, string fileName, Stream content, string? schemaName, CancellationToken ct = default)
     { var user = RequireUser(); deptCode = deptCode.Trim().ToUpperInvariant(); await EnsureScopeAsync(user, deptCode, ct); var data = await ReadExcelAsync(fileName, content, ct); var inferred = ExcelSchemaInference.Infer(data.InferenceColumns); var name = string.IsNullOrWhiteSpace(schemaName) ? Path.GetFileNameWithoutExtension(fileName) : schemaName.Trim(); ValidateSchemaName(name); var schema = new F03EquipmentSchema { DeptCode = deptCode, SchemaName = name, SchemaKind = "Equipment", SchemaKey = Guid.NewGuid().ToString("N"), Version = 1, Status = "Draft", IsActive = true, CreatedBy = user.UserId, SourceFileName = Path.GetFileName(fileName), CreatedFromExcel = true }; await _uow.Repository<F03EquipmentSchema>().AddAsync(schema, ct); await _uow.SaveChangesAsync(ct); foreach (var field in inferred) await _uow.Repository<F03EquipmentFieldDefinition>().AddAsync(new F03EquipmentFieldDefinition { SchemaId = schema.Id, DeptCode = deptCode, FieldKey = field.FieldKey, FieldLabel = field.FieldLabel, DataType = field.DataType, IsRequired = field.IsRequired, IsImportable = true, IsActiveField = true, DisplayOrder = field.DisplayOrder, MaxLength = field.MaxLength, CreatedBy = user.UserId, IsActive = true }, ct); await _uow.SaveChangesAsync(ct); await _audit.LogAction("EQUIPMENT_SCHEMA_CREATED_FROM_EXCEL", user.UserId, $"SchemaId={schema.Id}; DeptCode={deptCode}; FileName={Path.GetFileName(fileName)}; Columns={inferred.Count}", ct: ct); return await MapSchemaAsync(schema, user.UserId, ct); }
 
-    public async Task<EquipmentImportBatchDto> PreviewImportAsync(EquipmentImportPreviewRequest request, CancellationToken ct = default)
+    public async Task<EquipmentImportBatchDto> StageExcelAsync(string deptCode, string fileName, Stream content, bool assignToEmployee, CancellationToken ct = default)
     {
-        var user = RequireUser(); await EnsureScopeAsync(user, request.DeptCode, ct); var data = await ReadExcelAsync(request.FileName, request.Content, ct); var schema = request.SchemaId.HasValue ? await _uow.Repository<F03EquipmentSchema>().Query().Include(x => x.Fields).FirstOrDefaultAsync(x => x.Id == request.SchemaId.Value && x.IsActive == true, ct) : await GetActiveSchemaEntityAsync(request.DeptCode, ct); if (schema == null) throw new InvalidOperationException("Không tìm thấy mẫu dữ liệu đang sử dụng."); await EnsureScopeAsync(user, schema.DeptCode, ct); var defs = schema.Fields.Where(x => x.IsActive == true && x.IsActiveField && x.IsImportable).OrderBy(x => x.DisplayOrder).ToList(); var batch = new F03EquipmentImportBatch { SchemaId = schema.Id, DeptCode = request.DeptCode.Trim().ToUpperInvariant(), FileName = Path.GetFileName(request.FileName), Status = "Preview", TotalRows = data.Rows.Count, AssignToEmployee = request.AssignToEmployee, CreatedBy = user.UserId }; await _uow.Repository<F03EquipmentImportBatch>().AddAsync(batch, ct); await _uow.SaveChangesAsync(ct);
-        foreach (var item in data.Rows) { var error = ValidateRow(item.Values, defs); var row = new F03EquipmentImportRow { BatchId = batch.Id, RowNumber = item.RowNumber, RawJson = JsonSerializer.Serialize(item.Values), Status = error == null ? "Valid" : "Invalid", ErrorMessage = error }; await _uow.Repository<F03EquipmentImportRow>().AddAsync(row, ct); } await _uow.SaveChangesAsync(ct); var valid = await _uow.Repository<F03EquipmentImportRow>().Query().CountAsync(x => x.BatchId == batch.Id && x.Status == "Valid", ct); var invalid = data.Rows.Count - valid; batch.ValidRows = valid; batch.InvalidRows = invalid; batch.Status = invalid == 0 ? "Ready" : "Preview"; await _uow.SaveChangesAsync(ct); return MapBatch(batch, await _uow.Repository<F03EquipmentImportRow>().Query().Where(x => x.BatchId == batch.Id).OrderBy(x => x.RowNumber).Select(x => new EquipmentImportRowDto { RowNumber = x.RowNumber, Status = x.Status, ErrorMessage = x.ErrorMessage }).ToListAsync(ct));
+        var user = RequireUser();
+        deptCode = deptCode.Trim().ToUpperInvariant();
+        await EnsureScopeAsync(user, deptCode, ct);
+        var data = await ReadExcelAsync(fileName, content, ct);
+        var schema = await GetActiveSchemaEntityAsync(deptCode, ct);
+        if (schema == null) throw new InvalidOperationException("Không tìm thấy mẫu dữ liệu đang sử dụng.");
+        var defs = schema.Fields.Where(x => x.IsActive == true && x.IsActiveField && x.IsImportable).OrderBy(x => x.DisplayOrder).ToList();
+        var batch = new F03EquipmentImportBatch { SchemaId = schema.Id, DeptCode = deptCode, FileName = Path.GetFileName(fileName), Status = "Preview", TotalRows = data.Rows.Count, AssignToEmployee = assignToEmployee, CreatedBy = user.UserId };
+        await _uow.Repository<F03EquipmentImportBatch>().AddAsync(batch, ct);
+        await _uow.SaveChangesAsync(ct);
+        foreach (var item in data.Rows)
+        {
+            var error = ValidateRow(item.Values, defs);
+            await _uow.Repository<F03EquipmentImportRow>().AddAsync(new F03EquipmentImportRow { BatchId = batch.Id, RowNumber = item.RowNumber, RawJson = JsonSerializer.Serialize(item.Values), Status = error == null ? "Valid" : "Invalid", ErrorMessage = error }, ct);
+        }
+        await _uow.SaveChangesAsync(ct);
+        var valid = await _uow.Repository<F03EquipmentImportRow>().Query().CountAsync(x => x.BatchId == batch.Id && x.Status == "Valid", ct);
+        batch.ValidRows = valid;
+        batch.InvalidRows = data.Rows.Count - valid;
+        batch.Status = batch.InvalidRows == 0 ? "Ready" : "Preview";
+        await _uow.SaveChangesAsync(ct);
+        return MapBatch(batch, await _uow.Repository<F03EquipmentImportRow>().Query().Where(x => x.BatchId == batch.Id).OrderBy(x => x.RowNumber).Select(x => new EquipmentImportRowDto { RowNumber = x.RowNumber, Status = x.Status, ErrorMessage = x.ErrorMessage }).ToListAsync(ct));
+    }
+
+    public async Task<EquipmentImportBatchDto?> GetBatchAsync(int batchId, CancellationToken ct = default)
+    {
+        var user = RequireUser();
+        var batch = await _uow.Repository<F03EquipmentImportBatch>().Query().FirstOrDefaultAsync(x => x.Id == batchId && x.IsActive == true, ct);
+        if (batch == null) return null;
+        await EnsureScopeAsync(user, batch.DeptCode, ct);
+        var rows = await _uow.Repository<F03EquipmentImportRow>().Query().Where(x => x.BatchId == batch.Id).OrderBy(x => x.RowNumber).Select(x => new EquipmentImportRowDto { RowNumber = x.RowNumber, Status = x.Status, ErrorMessage = x.ErrorMessage }).ToListAsync(ct);
+        return MapBatch(batch, rows);
     }
 
     public async Task<EquipmentImportCommitResultDto> CommitAsync(int batchId, CancellationToken ct = default)
