@@ -33,3 +33,4 @@ WHERE i.name IN
  N'IX_F03OTRequests_Calendar')
 ORDER BY TableName, IndexName;
 GO
+GO

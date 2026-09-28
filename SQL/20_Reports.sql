@@ -130,3 +130,4 @@ GO
 
 PRINT N'Reporting views/indexes created.';
 GO
+GO

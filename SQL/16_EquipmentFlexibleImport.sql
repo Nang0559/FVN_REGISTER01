@@ -346,7 +346,14 @@ END;
 CLOSE dept_cursor; DEALLOCATE dept_cursor;
 GO
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.F03EquipmentFieldDefinitions') AND name=N'SchemaId' AND is_nullable=1)
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03EquipmentFieldDefinitions_Schema_FieldKey' AND object_id=OBJECT_ID(N'dbo.F03EquipmentFieldDefinitions'))
+        DROP INDEX UX_F03EquipmentFieldDefinitions_Schema_FieldKey ON dbo.F03EquipmentFieldDefinitions;
     ALTER TABLE dbo.F03EquipmentFieldDefinitions ALTER COLUMN SchemaId INT NOT NULL;
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03EquipmentFieldDefinitions_Schema_FieldKey' AND object_id=OBJECT_ID(N'dbo.F03EquipmentFieldDefinitions'))
+    CREATE UNIQUE INDEX UX_F03EquipmentFieldDefinitions_Schema_FieldKey ON dbo.F03EquipmentFieldDefinitions(SchemaId,FieldKey);
 GO
 
 /* Canonical import capability */

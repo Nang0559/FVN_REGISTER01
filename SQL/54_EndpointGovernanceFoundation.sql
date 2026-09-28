@@ -162,3 +162,4 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03EndpointCompliance
 
 COMMIT TRANSACTION;
 GO
+GO

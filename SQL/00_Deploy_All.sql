@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===============================================================================
 FVN_REGISTER - MASTER SQL DEPLOYMENT
 ===============================================================================
@@ -28,7 +28,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\03_Tables.sql"
 :r "$(RepoRoot)\04_Constraints.sql"
 :r "$(RepoRoot)\05_Indexes.sql"
-:rem 06_Seed.sql intentionally excluded; run only against a disposable/test database.
+-- 06_Seed.sql intentionally excluded; run only against a disposable/test database.
 :r "$(RepoRoot)\07_Views.sql"
 :r "$(RepoRoot)\08_Functions.sql"
 :r "$(RepoRoot)\09_StoredProcedures.sql"
@@ -36,7 +36,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "$(RepoRoot)\10B_Triggers.sql"
 :r "$(RepoRoot)\11A_Automation.sql"
 :r "$(RepoRoot)\11B_Permissions.sql"
-:r "$(RepoRoot)\12_Verify.sql"
+
 
 /* HRM / SECURITY / PUBLIC INFORMATION */
 :r "$(RepoRoot)\13_HrmShiftMaster.sql"
@@ -50,6 +50,7 @@ Database/ is documentation/history only and is not executed by deployment.
 
 /* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
 :r "$(RepoRoot)\17_ApprovalRouteSelection.sql"
+:r "$(RepoRoot)\12_Verify.sql"
 :r "$(RepoRoot)\18_ApproverConfigurationReview.sql"
 :r "$(RepoRoot)\19_OT_LimitRule_ScopeColumns.sql"
 :r "$(RepoRoot)\20_Reports.sql"
@@ -116,3 +117,4 @@ PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment completed.';
 PRINT N'============================================================';
 GO
+
