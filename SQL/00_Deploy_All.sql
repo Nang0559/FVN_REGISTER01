@@ -6,14 +6,11 @@ SSMS: enable Query -> SQLCMD Mode before executing this file.
 
 IMPORTANT:
 SQLCMD :r resolves relative paths from the SQLCMD working directory, which is
-not reliably the folder containing this file in SSMS. Therefore RepoRoot must
-be supplied explicitly when running from SSMS.
+not reliably the folder containing this file in SSMS. Therefore RepoRoot is
+set to the actual local SQL directory used by this deployment machine.
 
-Recommended SSMS command-line variable:
-  SQLCMD -v RepoRoot="H:\95 - Project\17.FVN _DANGKYNGHI\FVN_REGISTER\SQL"
-
-If you open this file from another machine/path, change RepoRoot to the actual
-absolute path of this repository's SQL directory.
+Current SQL directory:
+  H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL
 
 Database/ is documentation/history only and is not executed by deployment.
 ===============================================================================
@@ -21,15 +18,9 @@ Database/ is documentation/history only and is not executed by deployment.
 
 :on error exit
 
-/*
-   SSMS SQLCMD Mode does NOT provide a portable "directory of this .sql file"
-   variable. An absolute RepoRoot is therefore required for :r.
-*/
-:setvar RepoRoot "H:\95 - Project\17.FVN _DANGKYNGHI\FVN_REGISTER\SQL"
+:setvar RepoRoot "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
 
-/* ---------------------------------------------------------------------------
-   CORE DATABASE FOUNDATION
-   --------------------------------------------------------------------------- */
+/* CORE DATABASE FOUNDATION */
 :r "$(RepoRoot)\01_Database.sql"
 :r "$(RepoRoot)\02A_Preflight.sql"
 :r "$(RepoRoot)\02B_Schemas.sql"
