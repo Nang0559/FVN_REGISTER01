@@ -2,13 +2,8 @@
 FVN_REGISTER - SQL 02C Table prerequisites
 
 03_Tables.sql contains compatibility ALTER TABLE statements near its beginning.
-SQL Server resolves those ALTER TABLE targets when compiling the batch, before the
-CREATE TABLE statements later in 03_Tables.sql are reached. On a clean database
-this causes Msg 1088 for F03Employees / F03StagingEmployee (and can affect the
-related OT tables as well).
-
-Create the canonical tables first. 03_Tables.sql then becomes idempotent and
-its later upgrade blocks can safely reconcile existing installations.
+Create the canonical prerequisite tables first, then verify them in the same
+SQLCMD deployment/database context before 03_Tables.sql is loaded.
 */
 USE [FVN_REGISTER];
 GO
@@ -140,5 +135,20 @@ BEGIN
 END;
 GO
 
-PRINT N'02C_TablePrerequisites: OK';
+/* Fail early with an explicit diagnostic if the deployment context is wrong. */
+IF DB_NAME() <> N'FVN_REGISTER'
+    THROW 51010, N'02C_TablePrerequisites phải chạy trong database FVN_REGISTER.', 1;
+
+IF OBJECT_ID(N'dbo.F03Employees', N'U') IS NULL
+    THROW 51011, N'02C không tạo được dbo.F03Employees.', 1;
+IF OBJECT_ID(N'dbo.F03StagingEmployee', N'U') IS NULL
+    THROW 51012, N'02C không tạo được dbo.F03StagingEmployee.', 1;
+IF OBJECT_ID(N'dbo.F03OTTypes', N'U') IS NULL
+    THROW 51013, N'02C không tạo được dbo.F03OTTypes.', 1;
+IF OBJECT_ID(N'dbo.F03OTEmployees', N'U') IS NULL
+    THROW 51014, N'02C không tạo được dbo.F03OTEmployees.', 1;
+IF OBJECT_ID(N'dbo.F03StagingOTType', N'U') IS NULL
+    THROW 51015, N'02C không tạo được dbo.F03StagingOTType.', 1;
+
+PRINT N'02C_TablePrerequisites: OK - prerequisite tables verified in FVN_REGISTER';
 GO
