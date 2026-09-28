@@ -46,6 +46,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "22_02_HrmCompatibleTimeKeepingForStaff.sql"
 :r "22_03_CalculateHrmAttendance.sql"
 :r "22_04_HrmAttendanceHistory.sql"
+:r "22_05_HrmAttendanceBatchSnapshot.sql"
 :r "23_LeaveBalanceUpgrade.sql"
 :r "24_WorkYearUpgrade.sql"
 :r "25_RemoveLegacyOTSync.sql"
