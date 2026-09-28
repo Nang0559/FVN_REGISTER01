@@ -94,6 +94,9 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "56_EndpointGovernanceExtensions.sql"
 :r "57_Verify_Endpoint_Governance.sql"
 
+/* CALENDAR CAPABILITY */
+:r "59_CalendarViewCapability.sql"
+
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
 
