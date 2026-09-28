@@ -1,4 +1,4 @@
-﻿/*
+/*
 FVN_REGISTER - SQL 12 Final Verification
 Canonical verification for the current production architecture.
 
@@ -146,18 +146,18 @@ IF NOT EXISTS (
 IF NOT EXISTS (
     SELECT 1
     FROM sys.indexes
-    WHERE name=N'UX_F03ApprovalPolicies_Request_Dept_Position_Level'
+    WHERE name=N'UX_F03ApprovalPolicies_Request_Position_Level'
       AND object_id=OBJECT_ID(N'dbo.F03ApprovalPolicies')
 )
-    THROW 51237,'Missing unique index UX_F03ApprovalPolicies_Request_Dept_Position_Level.',1;
+    THROW 51237,'Missing unique index UX_F03ApprovalPolicies_Request_Position_Level.',1;
 
 IF EXISTS (
-    SELECT RequestType,DeptCode,PositionCode,Level
+    SELECT RequestType,PositionCode,Level
     FROM dbo.F03ApprovalPolicies
-    GROUP BY RequestType,DeptCode,PositionCode,Level
+    GROUP BY RequestType,PositionCode,Level
     HAVING COUNT(*) > 1
 )
-    THROW 51238,'Duplicate approval policies exist for RequestType + DeptCode + PositionCode + Level.',1;
+    THROW 51238,'Duplicate approval policies exist for RequestType + PositionCode + Level.',1;
 
 /* Legacy requester-position/group columns must not remain. */
 IF COL_LENGTH(N'dbo.F03ApprovalPolicies',N'GroupCode') IS NOT NULL
@@ -232,4 +232,3 @@ SELECT
 
 PRINT N'12_Verify: PASS';
 GO
-

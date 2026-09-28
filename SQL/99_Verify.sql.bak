@@ -1,4 +1,4 @@
-﻿USE [FVN_REGISTER];
+USE [FVN_REGISTER];
 GO
 SET NOCOUNT ON;
 SELECT DB_NAME() AS DatabaseName;
@@ -443,7 +443,7 @@ IF NOT EXISTS (
     WHERE r.RoleCode IN (1,2) AND f.FunctionCode=2911
 )
     THROW 53058, N'SuperAdmin/Admin must have Attendance.Calculate.', 1;
-IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2308 AND FunctionName=N'Equipment.Cancel' AND ScopeCode=N'Own')
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2308 AND FunctionName=N'Equipment.Cancel' AND ScopeCode=N'Own' AND ISNULL(IsActive,1)=1)
     THROW 53059, N'Missing Equipment.Cancel capability 2308.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3081 AND FunctionName=N'EmailQueue.Manage' AND ISNULL(IsActive,1)=1)
     THROW 53060, N'Missing EmailQueue.Manage capability 3081.', 1;
