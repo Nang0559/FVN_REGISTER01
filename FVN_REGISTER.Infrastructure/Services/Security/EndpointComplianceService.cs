@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Enums;
@@ -20,13 +21,11 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
         if (device == null) return 0;
         var targetType = IsServer(device.OsName) ? EndpointTargetType.Server : EndpointTargetType.Workstation;
         var now = DateTime.UtcNow;
-
         var policies = await _uow.Repository<F03EndpointGovernancePolicy>().Query().AsNoTracking()
             .Where(x => x.IsActive == true && x.IsPublished && x.EffectiveFromUtc <= now && (x.EffectiveToUtc == null || x.EffectiveToUtc >= now) && (x.TargetType == targetType || x.TargetType == EndpointTargetType.Both))
             .OrderByDescending(x => x.Version).ToListAsync(cancellationToken);
         var policyIds = policies.Select(x => x.Id).ToList();
         var policyItems = policyIds.Count == 0 ? new List<F03EndpointGovernancePolicyItem>() : await _uow.Repository<F03EndpointGovernancePolicyItem>().Query().AsNoTracking().Where(x => policyIds.Contains(x.PolicyId) && x.IsActive == true).ToListAsync(cancellationToken);
-
         var softwarePolicy = policies.FirstOrDefault(x => x.ItemType == EndpointGovernanceItemType.Software);
         var servicePolicy = policies.FirstOrDefault(x => x.ItemType == EndpointGovernanceItemType.WindowsService);
         var softwareItems = softwarePolicy == null ? [] : policyItems.Where(x => x.PolicyId == softwarePolicy.Id).ToList();
@@ -35,22 +34,74 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
         var services = await _uow.Repository<F03EndpointServiceInventory>().Query().AsNoTracking().Where(x => x.EndpointDeviceId == endpointDeviceId).ToListAsync(cancellationToken);
         var antivirus = await _uow.Repository<F03EndpointAntivirusInventory>().Query().AsNoTracking().Where(x => x.EndpointDeviceId == endpointDeviceId).ToListAsync(cancellationToken);
         var openFindings = await _uow.Repository<F03EndpointComplianceFinding>().Query().Where(x => x.EndpointDeviceId == endpointDeviceId && x.ResolvedAtUtc == null).ToListAsync(cancellationToken);
-        foreach (var old in openFindings) old.ResolvedAtUtc = now;
+        var currentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var changed = 0;
 
-        var count = 0;
-        foreach (var item in software) { await _uow.Repository<F03EndpointComplianceFinding>().AddAsync(EvaluateSoftware(device, softwarePolicy, softwareItems, item, now), cancellationToken); count++; }
-        foreach (var item in services) { await _uow.Repository<F03EndpointComplianceFinding>().AddAsync(EvaluateService(device, servicePolicy, serviceItems, item, now), cancellationToken); count++; }
+        foreach (var item in software)
+        {
+            var finding = EvaluateSoftware(device, softwarePolicy, softwareItems, item, now);
+            changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
+        }
+        foreach (var item in services)
+        {
+            var finding = EvaluateService(device, servicePolicy, serviceItems, item, now);
+            changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
+        }
         if (antivirus.Count == 0)
         {
-            await _uow.Repository<F03EndpointComplianceFinding>().AddAsync(CreateFinding(device, null, null, EndpointGovernanceItemType.Antivirus, "Antivirus", null, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_NOT_DETECTED", "Endpoint Agent không phát hiện antivirus/security product hoạt động trên máy.", now), cancellationToken);
-            count++;
+            var finding = CreateFinding(device, null, null, EndpointGovernanceItemType.Antivirus, "Antivirus", null, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_NOT_DETECTED", "Endpoint Agent không phát hiện antivirus/security product hoạt động trên máy.", now);
+            changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
         }
         else
         {
-            foreach (var item in antivirus) { await _uow.Repository<F03EndpointComplianceFinding>().AddAsync(EvaluateAntivirus(device, item, now), cancellationToken); count++; }
+            foreach (var item in antivirus)
+            {
+                var finding = EvaluateAntivirus(device, item, now);
+                changed += await UpsertFindingAsync(finding, openFindings, currentKeys, cancellationToken);
+            }
         }
+
+        foreach (var old in openFindings)
+        {
+            var key = FindingKey(old);
+            if (!currentKeys.Contains(key))
+            {
+                old.ResolvedAtUtc = now;
+                old.EvaluatedAtUtc = now;
+                changed++;
+            }
+        }
+
         await _uow.SaveChangesAsync(cancellationToken);
-        return count;
+        return changed;
+    }
+
+    private async Task<int> UpsertFindingAsync(F03EndpointComplianceFinding finding, List<F03EndpointComplianceFinding> openFindings, HashSet<string> currentKeys, CancellationToken cancellationToken)
+    {
+        var key = FindingKey(finding);
+        if (finding.Result == EndpointComplianceResult.Compliant)
+        {
+            var resolved = openFindings.Where(x => SameFindingIdentity(x, finding)).ToList();
+            foreach (var old in resolved) old.ResolvedAtUtc = finding.EvaluatedAtUtc;
+            return resolved.Count;
+        }
+
+        currentKeys.Add(key);
+        var existing = openFindings.FirstOrDefault(x => string.Equals(FindingKey(x), key, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            existing.Result = finding.Result;
+            existing.ObservedName = finding.ObservedName;
+            existing.ObservedVersion = finding.ObservedVersion;
+            existing.FindingMessage = finding.FindingMessage;
+            existing.EvaluatedAtUtc = finding.EvaluatedAtUtc;
+            existing.ResolvedAtUtc = null;
+            return 1;
+        }
+
+        await _uow.Repository<F03EndpointComplianceFinding>().AddAsync(finding, cancellationToken);
+        openFindings.Add(finding);
+        return 1;
     }
 
     private static F03EndpointComplianceFinding EvaluateAntivirus(F03EndpointDevice device, F03EndpointAntivirusInventory item, DateTime at)
@@ -63,8 +114,7 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
             return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.ProductVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_NOT_PROTECTED", $"Trạng thái bảo vệ hiện tại: {item.ProtectionStatus ?? "Unknown"}.", at);
         if (!item.DefinitionUpdatedAtUtc.HasValue)
             return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.Unknown, "ANTIVIRUS_DEFINITION_UNKNOWN", "Không có thời điểm cập nhật database/signature antivirus.", at);
-        var age = at - item.DefinitionUpdatedAtUtc.Value;
-        if (age > TimeSpan.FromDays(MaxAntivirusDefinitionAgeDays))
+        if (at - item.DefinitionUpdatedAtUtc.Value > TimeSpan.FromDays(MaxAntivirusDefinitionAgeDays))
             return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.NonCompliant, "ANTIVIRUS_DEFINITION_STALE", $"Database/signature antivirus đã quá {MaxAntivirusDefinitionAgeDays} ngày chưa cập nhật.", at);
         return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Antivirus, item.ProductName, item.DefinitionVersion, EndpointComplianceResult.Compliant, "ANTIVIRUS_COMPLIANT", "Antivirus đang hoạt động và database/signature còn trong thời hạn kiểm tra.", at);
     }
@@ -73,7 +123,7 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
     {
         var name = item.DisplayName ?? item.NormalizedName;
         if (policy == null) return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.Software, name, item.Version, EndpointComplianceResult.Unknown, "NO_ACTIVE_POLICY", "Chưa có Software Catalog đang được publish cho loại endpoint này.", at);
-        var match = policyItems.FirstOrDefault(x => string.Equals(x.NormalizedName, item.NormalizedName, StringComparison.OrdinalIgnoreCase));
+        var match = policyItems.FirstOrDefault(x => NameMatches(x, item.NormalizedName));
         if (match == null) return CreateFinding(device, policy, item.Id, EndpointGovernanceItemType.Software, name, item.Version, EndpointComplianceResult.NonCompliant, "NOT_IN_CATALOG", "Phần mềm không có trong danh sách phần mềm được phép.", at);
         if (!match.IsAllowed) return CreateFinding(device, policy, item.Id, EndpointGovernanceItemType.Software, name, item.Version, EndpointComplianceResult.NonCompliant, "EXPLICITLY_DENIED", "Phần mềm có trong catalog nhưng item đang bị đánh dấu không được phép.", at, match.Id);
         if (!PublisherMatches(match.Publisher, item.Publisher)) return CreateFinding(device, policy, item.Id, EndpointGovernanceItemType.Software, name, item.Version, EndpointComplianceResult.NonCompliant, "PUBLISHER_MISMATCH", "Publisher thực tế không khớp publisher được phê duyệt.", at, match.Id);
@@ -85,10 +135,35 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
     {
         var name = item.DisplayName ?? item.ServiceName;
         if (policy == null) return CreateFinding(device, null, item.Id, EndpointGovernanceItemType.WindowsService, name, null, EndpointComplianceResult.Unknown, "NO_ACTIVE_POLICY", "Chưa có Windows Service Catalog đang được publish cho loại endpoint này.", at);
-        var match = policyItems.FirstOrDefault(x => string.Equals(x.NormalizedName, Normalize(item.ServiceName), StringComparison.OrdinalIgnoreCase));
+        var match = policyItems.FirstOrDefault(x => NameMatches(x, Normalize(item.ServiceName)));
         if (match == null) return CreateFinding(device, policy, item.Id, EndpointGovernanceItemType.WindowsService, name, null, EndpointComplianceResult.NonCompliant, "NOT_IN_CATALOG", "Windows Service không có trong danh sách dịch vụ được phép.", at);
         if (!match.IsAllowed) return CreateFinding(device, policy, item.Id, EndpointGovernanceItemType.WindowsService, name, null, EndpointComplianceResult.NonCompliant, "EXPLICITLY_DENIED", "Windows Service có trong catalog nhưng item đang bị đánh dấu không được phép.", at, match.Id);
         return CreateFinding(device, policy, item.Id, EndpointGovernanceItemType.WindowsService, name, null, EndpointComplianceResult.Compliant, "COMPLIANT", "Windows Service phù hợp catalog đã publish.", at, match.Id);
+    }
+
+    private static bool NameMatches(F03EndpointGovernancePolicyItem item, string observed)
+    {
+        var normalizedObserved = Normalize(observed);
+        if (PatternMatches(item.NormalizedName, normalizedObserved)) return true;
+        if (string.IsNullOrWhiteSpace(item.AliasNames)) return false;
+        return item.AliasNames.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(alias => PatternMatches(alias, normalizedObserved));
+    }
+
+    private static bool PatternMatches(string? pattern, string observed)
+    {
+        if (string.IsNullOrWhiteSpace(pattern)) return false;
+        var normalized = Normalize(pattern);
+        if (normalized.StartsWith("REGEX:", StringComparison.Ordinal))
+        {
+            try { return Regex.IsMatch(observed, normalized[6..], RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)); }
+            catch (ArgumentException) { return false; }
+        }
+        if (normalized.Contains('*') || normalized.Contains('?'))
+        {
+            var regex = "^" + Regex.Escape(normalized).Replace("\\*", ".*").Replace("\\?", ".") + "$";
+            return Regex.IsMatch(observed, regex, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+        }
+        return string.Equals(normalized, observed, StringComparison.OrdinalIgnoreCase);
     }
 
     private static F03EndpointComplianceFinding CreateFinding(F03EndpointDevice device, F03EndpointGovernancePolicy? policy, long? inventoryItemId, EndpointGovernanceItemType itemType, string observedName, string? observedVersion, EndpointComplianceResult result, string code, string message, DateTime at, int? policyItemId = null)
@@ -96,14 +171,19 @@ public sealed class EndpointComplianceService : IEndpointComplianceService
         {
             EndpointDeviceId = device.Id, PolicyId = policy?.Id, PolicyVersion = policy?.Version ?? 0, PolicyItemId = policyItemId,
             ItemType = itemType, InventoryItemId = inventoryItemId, Result = result, ObservedName = observedName, ObservedVersion = observedVersion,
-            FindingCode = code, FindingMessage = message, EvaluatedAtUtc = at,
-            ResolvedAtUtc = result == EndpointComplianceResult.Compliant ? at : null,
+            FindingCode = code, FindingMessage = message, EvaluatedAtUtc = at, ResolvedAtUtc = result == EndpointComplianceResult.Compliant ? at : null,
             CreatedAt = at, CreatedBy = 0, LastModifiedSource = "EndpointComplianceService"
         };
 
+    private static bool SameFindingIdentity(F03EndpointComplianceFinding left, F03EndpointComplianceFinding right)
+        => left.EndpointDeviceId == right.EndpointDeviceId && left.PolicyId == right.PolicyId && left.PolicyVersion == right.PolicyVersion && left.PolicyItemId == right.PolicyItemId && left.ItemType == right.ItemType && left.InventoryItemId == right.InventoryItemId;
+
+    private static string FindingKey(F03EndpointComplianceFinding x)
+        => string.Join("|", x.EndpointDeviceId, x.PolicyId, x.PolicyVersion, x.PolicyItemId, (int)x.ItemType, x.InventoryItemId, x.FindingCode, Normalize(x.ObservedName), x.ObservedVersion?.Trim());
+
     private static bool IsServer(string? osName) => !string.IsNullOrWhiteSpace(osName) && osName.Contains("server", StringComparison.OrdinalIgnoreCase);
     private static string Normalize(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();
-    private static bool PublisherMatches(string? expected, string? actual) => string.IsNullOrWhiteSpace(expected) || string.Equals(Normalize(expected), Normalize(actual), StringComparison.OrdinalIgnoreCase);
+    private static bool PublisherMatches(string? expected, string? actual) => string.IsNullOrWhiteSpace(expected) || PatternMatches(expected, Normalize(actual));
 
     private static bool VersionMatches(string? actual, string? constraint)
     {
