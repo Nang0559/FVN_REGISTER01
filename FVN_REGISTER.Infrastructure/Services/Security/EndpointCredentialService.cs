@@ -1,7 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
+using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Security;
-using FVN_REGISTER.Core.Entities.Security;
+using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Security;
 public sealed class EndpointCredentialService : IEndpointCredentialService
 {
     private readonly FVNWEBAPPContext _db;
-    public EndpointCredentialService(FVNWEBAPPContext db) => _db = db;
+    private readonly IAuditService _audit;
+
+    public EndpointCredentialService(FVNWEBAPPContext db, IAuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     public async Task<EndpointCredentialStatusDto> GetStatusAsync(string deviceKey, CancellationToken cancellationToken = default)
     {
@@ -18,15 +25,12 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
         var connection = _db.Database.GetDbConnection();
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT TOP (1)
-                d.Id,
-                c.ExpiresAtUtc
+            SELECT TOP (1) d.Id, c.ExpiresAtUtc
             FROM dbo.F03EndpointDevices d
             OUTER APPLY (
                 SELECT TOP (1) ExpiresAtUtc
                 FROM dbo.F03EndpointCredentials
-                WHERE EndpointDeviceId = d.Id
-                  AND RevokedAtUtc IS NULL
+                WHERE EndpointDeviceId = d.Id AND RevokedAtUtc IS NULL
                 ORDER BY CreatedAtUtc DESC
             ) c
             WHERE d.DeviceKey = @deviceKey;
@@ -36,7 +40,6 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
             return new EndpointCredentialStatusDto(normalized, false, false, null);
-
         var expires = reader.IsDBNull(1) ? (DateTime?)null : reader.GetDateTime(1);
         var active = expires.HasValue && expires.Value > DateTime.UtcNow;
         return new EndpointCredentialStatusDto(normalized, true, active, expires.HasValue ? new DateTimeOffset(expires.Value, TimeSpan.Zero) : null);
@@ -73,8 +76,9 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
             await _db.SaveChangesAsync(cancellationToken);
         }
 
-        var result = await RotateForEndpointAsync(endpointId.Value, deviceKey, actorUserId, cancellationToken);
+        var result = await RotateForEndpointAsync(endpointId.Value, deviceKey, actorUserId, "PROVISION", cancellationToken);
         await tx.CommitAsync(cancellationToken);
+        await _audit.LogAction("EndpointCredential.Provision", actorUserId, $"Provision credential for endpoint {deviceKey}.", ct: cancellationToken);
         return result;
     }
 
@@ -88,9 +92,7 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
             SELECT TOP (1) d.Id, d.DeviceKey
             FROM dbo.F03EndpointCredentials c
             INNER JOIN dbo.F03EndpointDevices d ON d.Id = c.EndpointDeviceId
-            WHERE c.SecretHash = @hash
-              AND c.RevokedAtUtc IS NULL
-              AND c.ExpiresAtUtc > SYSUTCDATETIME();
+            WHERE c.SecretHash = @hash AND c.RevokedAtUtc IS NULL AND c.ExpiresAtUtc > SYSUTCDATETIME();
             """;
         AddParameter(lookup, "@hash", hash);
         if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
@@ -101,51 +103,77 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
         await reader.DisposeAsync();
 
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
-        var result = await RotateForEndpointAsync(endpointId, deviceKey, 0, cancellationToken);
+        var result = await RotateForEndpointAsync(endpointId, deviceKey, actorUserId: null, "AUTO_ROTATE", cancellationToken);
         await tx.CommitAsync(cancellationToken);
+        await _audit.LogAction("EndpointCredential.Rotate", null, $"Automatic credential rotation for endpoint {deviceKey}.", ct: cancellationToken);
         return result;
     }
 
     public async Task<bool> RevokeAsync(string deviceKey, int actorUserId, CancellationToken cancellationToken = default)
     {
+        var normalized = NormalizeDeviceKey(deviceKey);
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
         var connection = _db.Database.GetDbConnection();
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            UPDATE c SET RevokedAtUtc = SYSUTCDATETIME()
+            UPDATE c SET RevokedAtUtc = SYSUTCDATETIME(), RevokedBy = @actor
             FROM dbo.F03EndpointCredentials c
             INNER JOIN dbo.F03EndpointDevices d ON d.Id = c.EndpointDeviceId
             WHERE d.DeviceKey = @deviceKey AND c.RevokedAtUtc IS NULL;
             """;
-        AddParameter(command, "@deviceKey", NormalizeDeviceKey(deviceKey));
+        AddParameter(command, "@deviceKey", normalized); AddParameter(command, "@actor", actorUserId);
         if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
-        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+        var affected = await command.ExecuteNonQueryAsync(cancellationToken);
+        if (affected > 0)
+        {
+            await ExecuteAuditRowAsync(normalized, null, "REVOKE", actorUserId, "Credential revoked by Security Center.", cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+            await _audit.LogAction("EndpointCredential.Revoke", actorUserId, $"Revoke credential for endpoint {normalized}.", ct: cancellationToken);
+            return true;
+        }
+        await tx.RollbackAsync(cancellationToken);
+        return false;
     }
 
-    private async Task<EndpointCredentialProvisionResult> RotateForEndpointAsync(long endpointId, string deviceKey, int actorUserId, CancellationToken cancellationToken)
+    private async Task<EndpointCredentialProvisionResult> RotateForEndpointAsync(long endpointId, string deviceKey, int? actorUserId, string actionCode, CancellationToken cancellationToken)
     {
         var secret = GenerateSecret();
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(secret));
         var expires = DateTime.UtcNow.AddYears(1);
         var connection = _db.Database.GetDbConnection();
         await using var revoke = connection.CreateCommand();
-        revoke.CommandText = "UPDATE dbo.F03EndpointCredentials SET RevokedAtUtc = SYSUTCDATETIME() WHERE EndpointDeviceId = @endpointId AND RevokedAtUtc IS NULL;";
-        AddParameter(revoke, "@endpointId", endpointId);
+        revoke.CommandText = "UPDATE dbo.F03EndpointCredentials SET RevokedAtUtc = SYSUTCDATETIME(), RevokedBy = @actor WHERE EndpointDeviceId = @endpointId AND RevokedAtUtc IS NULL;";
+        AddParameter(revoke, "@endpointId", endpointId); AddParameter(revoke, "@actor", actorUserId);
         if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
         await revoke.ExecuteNonQueryAsync(cancellationToken);
         await using var insert = connection.CreateCommand();
         insert.CommandText = """
             INSERT INTO dbo.F03EndpointCredentials (EndpointDeviceId, SecretHash, CreatedAtUtc, ExpiresAtUtc, CreatedBy)
+            OUTPUT INSERTED.Id
             VALUES (@endpointId, @secretHash, SYSUTCDATETIME(), @expiresAtUtc, @createdBy);
             """;
         AddParameter(insert, "@endpointId", endpointId); AddParameter(insert, "@secretHash", hash); AddParameter(insert, "@expiresAtUtc", expires); AddParameter(insert, "@createdBy", actorUserId);
-        await insert.ExecuteNonQueryAsync(cancellationToken);
+        var credentialId = Convert.ToInt64(await insert.ExecuteScalarAsync(cancellationToken));
+        await ExecuteAuditRowAsync(deviceKey, credentialId, actionCode, actorUserId, actionCode == "AUTO_ROTATE" ? "Automatic agent rotation." : "Credential provisioned/rotated by Security Center.", cancellationToken);
         return new EndpointCredentialProvisionResult(deviceKey, secret, new DateTimeOffset(expires, TimeSpan.Zero));
+    }
+
+    private async Task ExecuteAuditRowAsync(string deviceKey, long? credentialId, string actionCode, int? actorUserId, string detail, CancellationToken ct)
+    {
+        var connection = _db.Database.GetDbConnection();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO dbo.F03EndpointCredentialAudit (EndpointCredentialId, EndpointDeviceId, ActionCode, ActorUserId, Detail)
+            SELECT @credentialId, Id, @actionCode, @actorUserId, @detail FROM dbo.F03EndpointDevices WHERE DeviceKey = @deviceKey;
+            """;
+        AddParameter(command, "@credentialId", credentialId); AddParameter(command, "@deviceKey", deviceKey); AddParameter(command, "@actionCode", actionCode); AddParameter(command, "@actorUserId", actorUserId); AddParameter(command, "@detail", detail);
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(ct);
+        await command.ExecuteNonQueryAsync(ct);
     }
 
     private async Task<long?> FindEndpointIdAsync(string deviceKey, CancellationToken cancellationToken)
     {
-        var connection = _db.Database.GetDbConnection();
-        await using var command = connection.CreateCommand();
+        var connection = _db.Database.GetDbConnection(); await using var command = connection.CreateCommand();
         command.CommandText = "SELECT TOP (1) Id FROM dbo.F03EndpointDevices WHERE DeviceKey = @deviceKey;";
         AddParameter(command, "@deviceKey", deviceKey);
         if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
