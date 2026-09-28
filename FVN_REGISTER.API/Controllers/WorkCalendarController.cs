@@ -44,7 +44,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
         if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct))
             return Forbid();
 
@@ -72,11 +72,11 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
         var isOwnEmployee = string.Equals(
             UserInfo.EmployeeCode?.Trim(),
             employeeCode?.Trim(),
             StringComparison.OrdinalIgnoreCase);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: isOwnEmployee, ct);
 
         if (isOwnEmployee)
         {
@@ -111,7 +111,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
         if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct))
             return Forbid();
 
@@ -136,11 +136,11 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
         var isOwnEmployee = string.Equals(
             UserInfo.EmployeeCode?.Trim(),
             employeeCode?.Trim(),
             StringComparison.OrdinalIgnoreCase);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: isOwnEmployee, ct);
 
         if (isOwnEmployee)
         {
@@ -218,6 +218,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (await _authorization.HasAsync(user, SecurityFunctionCodes.CalendarView, ct))
             return true;
 
+        // Own calendar is self-service data: modules already contains the caller's own modules.
         // Self-service calendar access can come from any module view
         // capability. This never expands the caller's data scope to another
         // employee; cross-employee access remains Calendar.View + ManagedScope.
@@ -226,9 +227,24 @@ public sealed class WorkCalendarController : BaseApiController
 
     private async Task<HashSet<string>> GetAuthorizedModulesAsync(
         FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto user,
+        bool includeOwnData,
         CancellationToken ct)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Self-service: every authenticated employee can see their own OT / leave /
+        // trip / attendance on "Lịch của tôi". This does not depend on the
+        // department-scoped module View capabilities (e.g. Attendance.View is
+        // intentionally NOT granted to the normal User role) and never widens
+        // access to another employee's data.
+        if (includeOwnData)
+        {
+            result.Add("OT");
+            result.Add("LEAVE");
+            result.Add("TRIP");
+            result.Add("ATTENDANCE");
+            return result;
+        }
 
         if (await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct))
             result.Add("OT");
