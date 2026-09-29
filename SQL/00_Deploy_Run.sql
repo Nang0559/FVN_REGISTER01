@@ -19,6 +19,7 @@
 :r "14A_SecurityTwoFactorColumns.sql"
 :r "14B_SecurityManagedScopes.sql"
 :r "14C_SecurityFeatureOperatorAssignments.sql"
+:r "14E_AttendanceCalculateCapability.sql"
 :r "15_PublicInformation.sql"
 :r "16_EquipmentFlexibleImport.sql"
 :r "16A_EquipmentCapabilities.sql"
