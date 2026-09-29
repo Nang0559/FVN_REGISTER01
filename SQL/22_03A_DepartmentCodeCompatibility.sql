@@ -89,6 +89,18 @@ SET @Definition = REPLACE(
     )'
 );
 
+/* OBJECT_DEFINITION returns the original CREATE PROCEDURE text. The generated
+   batch is executed dynamically, so it must be converted to ALTER PROCEDURE
+   because the procedure already exists. */
+DECLARE @CreatePos int = PATINDEX(N'%CREATE[ ]+PROCEDURE%', UPPER(@Definition));
+IF @CreatePos = 0
+    SET @CreatePos = PATINDEX(N'%CREATE[ ]+PROC%', UPPER(@Definition));
+
+IF @CreatePos = 0
+    THROW 51338, N'DepartmentCode patch failed: existing procedure definition does not contain CREATE PROCEDURE.', 1;
+
+SET @Definition = STUFF(@Definition, @CreatePos, 16, N'ALTER PROCEDURE');
+
 IF CHARINDEX(N'TRY_CONVERT(int,NULLIF(@DeptCode', @Definition) > 0
     THROW 51333, N'DepartmentCode patch failed: unsafe DeptCode-to-int conversion remains.', 1;
 
