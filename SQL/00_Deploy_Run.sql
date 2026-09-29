@@ -67,6 +67,7 @@
 :r "50_EquipmentManageCapability.sql"
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
+:r "51_SecurityAdminCompatibility.sql"
 :r "53_ApprovalUnifiedFoundation.sql"
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
