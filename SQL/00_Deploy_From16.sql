@@ -1,6 +1,6 @@
 ﻿/*
 ===============================================================================
-FVN_REGISTER - MASTER SQL DEPLOYMENT
+FVN_REGISTER deployment from SQL/16 onward.
 ===============================================================================
 SSMS: enable Query -> SQLCMD Mode before executing this file.
 Current SQL directory:
@@ -19,7 +19,9 @@ Current SQL directory:
 :r "22_00_HrmAttendanceTables.sql"
 :r "22_02_HrmCompatibleTimeKeepingForStaff.sql"
 :r "22_03_CalculateHrmAttendance.sql"
+:r "22_03A_DepartmentCodeCompatibility.sql"
 :r "22_04_HrmAttendanceHistory.sql"
+:r "22_05_HrmAttendanceBatchSnapshot.sql"
 :r "23_LeaveBalanceUpgrade.sql"
 :r "24_WorkYearUpgrade.sql"
 :r "25_RemoveLegacyOTSync.sql"
@@ -54,15 +56,22 @@ Current SQL directory:
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
 :r "53_ApprovalUnifiedFoundation.sql"
-:r "58_EndpointSecurityCapabilities.sql"
+
+/* ENDPOINT GOVERNANCE - schema must exist before capability seed/verify */
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
 :r "55_Endpoint_Credentials.sql"
 :r "55_EndpointGovernanceCatalogApproval.sql"
 :r "56_EndpointGovernanceExtensions.sql"
 :r "57_Verify_Endpoint_Governance.sql"
+:r "58_EndpointSecurityCapabilities.sql"
+:r "59_CalendarViewCapability.sql"
 :r "60_EndpointAgentDataHardening.sql"
+
+/* Authorization schema gate for an already-established 01-15 baseline. */
+:r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
+
 PRINT N'FVN_REGISTER SQL deployment completed.';
 GO
