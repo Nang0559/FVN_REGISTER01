@@ -1,4 +1,4 @@
-using FVN_REGISTER.Application.Factories;
+﻿using FVN_REGISTER.Application.Factories;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Auths;
@@ -133,7 +133,6 @@ builder.Services.AddScoped<ICalendarModuleProvider, AttendanceCalendarModuleProv
 builder.Services.AddScoped<IActionItemService, ActionItemService>();
 builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
 builder.Services.AddScoped<IExecutionReconciliationService, ExecutionReconciliationService>();
-builder.Services.AddScoped<IExecutionHrResolutionService, ExecutionHrResolutionService>();
 builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
 builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
@@ -197,21 +196,14 @@ builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAss
 builder.Services.AddScoped<SecurityFunctionRegistryService>();
 builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 
-// Background workers. Each can be switched off with BackgroundWorkers:<Name>:Enabled=false
-// (e.g. Email on a development database). Default is enabled.
-void AddWorker<TWorker>(string name) where TWorker : class, Microsoft.Extensions.Hosting.IHostedService
-{
-    if (builder.Configuration.GetValue<bool?>($"BackgroundWorkers:{name}:Enabled") ?? true)
-        builder.Services.AddHostedService<TWorker>();
-}
-AddWorker<HrmAttendanceCalculationWorker>("HrmAttendanceCalculation");
-AddWorker<HrmSyncBackgroundWorker>("HrmSync");
-AddWorker<ExecutionReconciliationBackgroundWorker>("ExecutionReconciliation");
-AddWorker<ActionItemLifecycleBackgroundWorker>("ActionItemLifecycle");
-AddWorker<EscalationBackgroundWorker>("Escalation");
-AddWorker<EquipmentInspectionBackgroundWorker>("EquipmentInspection");
-AddWorker<EmailBackgroundWorker>("Email");
-
+// Background workers (BackgroundService) - trước đây chưa được đăng ký nên không chạy
+builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
+builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
+builder.Services.AddHostedService<EmailBackgroundWorker>();
+builder.Services.AddHostedService<EscalationBackgroundWorker>();
+builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
+builder.Services.AddHostedService<ExecutionReconciliationBackgroundWorker>();
+builder.Services.AddHostedService<EquipmentInspectionBackgroundWorker>();
 builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
 builder.Services.AddScoped<IPublicFormService, PublicFormService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
@@ -221,9 +213,6 @@ builder.Services.AddScoped<IApprovalSelectionService, ApprovalSelectionService>(
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 builder.Services.AddScoped<IEndpointGovernanceService, EndpointGovernanceService>();
-builder.Services.AddScoped<IEndpointComplianceService, EndpointComplianceService>();
-builder.Services.AddScoped<IEndpointInventoryService, EndpointInventoryService>();
-builder.Services.AddScoped<IEndpointCredentialService, EndpointCredentialService>();
 builder.Services.AddScoped<EndpointGovernanceExcelImportService>();
 
 // History / email / notifications
@@ -317,7 +306,7 @@ builder.Services.AddAuthentication(options =>
             if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
             var qs = context.Request.Query["access_token"].ToString();
             if (!string.IsNullOrEmpty(qs)) { context.Token = qs; return Task.CompletedTask; }
-            var header = context.HttpContext.Request.Headers["Authorization"].ToString();
+            var header = context.Request.Headers["Authorization"].ToString();
             if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) context.Token = header["Bearer ".Length..];
             return Task.CompletedTask;
         }
