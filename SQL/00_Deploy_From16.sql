@@ -55,13 +55,14 @@ Current SQL directory:
 :r "50_EquipmentManageCapability.sql"
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
-:r "53_ApprovalUnifiedFoundation.sql"
 
 /* The 01-15 baseline normally contains the canonical RBAC catalog. Keep this
    patch here as well so From16 can repair the capability on an existing DB. */
 :r "14E_AttendanceCalculateCapability.sql"
+:r "51_SecurityAdminCompatibility.sql"
 
 /* ENDPOINT GOVERNANCE - schema must exist before capability seed/verify */
+:r "53_ApprovalUnifiedFoundation.sql"
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
 :r "55_Endpoint_Credentials.sql"
@@ -72,6 +73,7 @@ Current SQL directory:
 :r "59_CalendarViewCapability.sql"
 :r "60_EndpointAgentDataHardening.sql"
 :r "61_RequestModuleEmailTemplates.sql"
+:r "62_SuperAdminFullAccess.sql"
 
 /* Authorization schema gate for an already-established 01-15 baseline. */
 :r "14D_SecuritySchemaVerify.sql"
