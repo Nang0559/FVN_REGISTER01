@@ -106,6 +106,9 @@ Database/ is documentation/history only and is not executed by deployment.
 /* ENDPOINT AGENT DATA / CATALOG / FINDING RETENTION */
 :r "60_EndpointAgentDataHardening.sql"
 
+/* REQUEST MODULE EMAIL TEMPLATE COMPATIBILITY */
+:r "61_RequestModuleEmailTemplates.sql"
+
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
 
