@@ -42,26 +42,33 @@ END;
 GO
 
 /*
-    IMPORTANT: all indexes that depend on PositionCode / DeptCode must be
-    removed BEFORE ALTER COLUMN. SQL Server rejects ALTER COLUMN while a
-    dependent index exists (error 5074/4922).
+    IMPORTANT:
+    SQL Server will not ALTER COLUMN while ANY index depends on PositionCode.
+    Older databases can contain the legacy indexes as well as the canonical
+    v4 names. Do not rely only on the expected names: discover every ordinary
+    index that actually contains PositionCode and remove it before ALTER.
 
-    This handles both the current v4 index names and the older index names
-    found on databases that were partially upgraded.
+    Primary keys / unique constraints are intentionally not removed here.
+    The approval-policy table is not expected to use PositionCode as its PK;
+    if an unexpected PK/constraint depends on it, fail explicitly instead of
+    silently changing a key definition.
 */
 DECLARE @IndexName sysname;
 DECLARE @Sql nvarchar(max);
 
 DECLARE index_cursor CURSOR LOCAL FAST_FORWARD FOR
-SELECT i.name
+SELECT DISTINCT i.name
 FROM sys.indexes AS i
+JOIN sys.index_columns AS ic
+  ON ic.object_id = i.object_id
+ AND ic.index_id = i.index_id
+JOIN sys.columns AS c
+  ON c.object_id = ic.object_id
+ AND c.column_id = ic.column_id
 WHERE i.object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
-  AND i.name IN
-  (
-      N'UX_F03ApprovalPolicies_Request_Position_Level',
-      N'UX_F03ApprovalPolicies_Request_Dept_Position_Level',
-      N'IX_F03ApprovalPolicies_Route'
-  );
+  AND c.name = N'PositionCode'
+  AND i.is_primary_key = 0
+  AND i.is_unique_constraint = 0;
 
 OPEN index_cursor;
 FETCH NEXT FROM index_cursor INTO @IndexName;
@@ -76,6 +83,27 @@ END;
 
 CLOSE index_cursor;
 DEALLOCATE index_cursor;
+
+/*
+    If a PK/unique constraint unexpectedly depends on PositionCode, do not
+    proceed with a partial schema change. The deployment must stop with a
+    useful diagnostic rather than SQL Server's generic 5074/4922 message.
+*/
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.indexes AS i
+    JOIN sys.index_columns AS ic
+      ON ic.object_id = i.object_id
+     AND ic.index_id = i.index_id
+    JOIN sys.columns AS c
+      ON c.object_id = ic.object_id
+     AND c.column_id = ic.column_id
+    WHERE i.object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+      AND c.name = N'PositionCode'
+      AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1)
+)
+    THROW 51002, 'PositionCode is still referenced by a primary/unique constraint; migration stopped safely.', 1;
 GO
 
 /* PositionCode is the optional requester-position refinement in v4. */
@@ -99,16 +127,8 @@ END;
 GO
 
 /*
-    Existing v4 indexes may already exist when this script is re-run after a
-    partial deployment. They are recreated below after data normalization.
-*/
-
-/*
     Existing rows have no reliable department / approver-position information.
-    Retire them before the new foreign keys are created. Do NOT use a
-    sentinel value here: DeptCode and ApprovalPositionCode are nvarchar(20),
-    and a sentinel longer than 20 characters causes error 8152 and leaves
-    NULL values behind, which then makes the NOT NULL ALTER fail with 515.
+    Retire them before the new foreign keys are created.
 
     Valid v4 rows (both values supplied) are preserved.
     Legacy rows that cannot be mapped safely are deleted from the active
@@ -122,13 +142,17 @@ WHERE p.DeptCode IS NULL
    OR LTRIM(RTRIM(p.ApprovalPositionCode)) = N'';
 GO
 
-IF NOT EXISTS
+IF EXISTS
 (
     SELECT 1
     FROM sys.foreign_keys
     WHERE name = N'FK_F03ApprovalPolicies_F03Departments'
       AND parent_object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
 )
+BEGIN
+    /* Existing FK is retained. */
+END
+ELSE
 BEGIN
     ALTER TABLE dbo.F03ApprovalPolicies
         ADD CONSTRAINT FK_F03ApprovalPolicies_F03Departments
@@ -137,13 +161,17 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS
+IF EXISTS
 (
     SELECT 1
     FROM sys.foreign_keys
     WHERE name = N'FK_F03ApprovalPolicies_ApprovalPosition'
       AND parent_object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
 )
+BEGIN
+    /* Existing FK is retained. */
+END
+ELSE
 BEGIN
     ALTER TABLE dbo.F03ApprovalPolicies
         ADD CONSTRAINT FK_F03ApprovalPolicies_ApprovalPosition
