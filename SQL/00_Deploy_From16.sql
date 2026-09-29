@@ -67,6 +67,7 @@ Current SQL directory:
 :r "58_EndpointSecurityCapabilities.sql"
 :r "59_CalendarViewCapability.sql"
 :r "60_EndpointAgentDataHardening.sql"
+:r "61_RequestModuleEmailTemplates.sql"
 
 /* Authorization schema gate for an already-established 01-15 baseline. */
 :r "14D_SecuritySchemaVerify.sql"
