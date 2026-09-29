@@ -18,6 +18,7 @@
 :r "58_EndpointSecurityCapabilities.sql"
 :r "59_CalendarViewCapability.sql"
 :r "60_EndpointAgentDataHardening.sql"
+:r "61_RequestModuleEmailTemplates.sql"
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
