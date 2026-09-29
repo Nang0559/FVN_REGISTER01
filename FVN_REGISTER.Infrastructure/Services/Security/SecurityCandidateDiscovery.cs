@@ -40,7 +40,9 @@ public sealed class SecurityCandidateDiscovery
     public async Task<int> ScanAsync(CancellationToken cancellationToken = default)
     {
         var registry = await _db.SecurityFunctionRegistry
-            .Where(x => x.SourceType is "ApiEndpointDefinition" or "ApiEndpointUnmapped" or "UiActionCandidate")
+            .Where(x => x.SourceType == "ApiEndpointDefinition"
+                     || x.SourceType == "ApiEndpointUnmapped"
+                     || x.SourceType == "UiActionCandidate")
             .ToDictionaryAsync(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var functions = await _db.Functions
@@ -244,7 +246,7 @@ public sealed class SecurityCandidateDiscovery
         item.SourceAssembly = sourceAssembly;
         item.SourceTypeName = sourceTypeName;
 
-        if (item.LifecycleStatus is not ("Ignored" or "Retired" or "Replaced"))
+        if (item.LifecycleStatus != "Ignored" && item.LifecycleStatus != "Retired" && item.LifecycleStatus != "Replaced")
             item.LifecycleStatus = functionCode > 0 ? "Active" : "PendingRegistration";
     }
 
