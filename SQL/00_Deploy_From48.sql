@@ -8,6 +8,9 @@
 :r "52_Verify_SecurityFunctionRecovery.sql"
 :r "53_ApprovalUnifiedFoundation.sql"
 
+/* Repair canonical attendance calculation capability on existing databases. */
+:r "14E_AttendanceCalculateCapability.sql"
+
 /* ENDPOINT GOVERNANCE - schema must exist before capability seed/verify */
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
