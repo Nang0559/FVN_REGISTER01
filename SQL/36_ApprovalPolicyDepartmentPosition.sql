@@ -10,15 +10,6 @@ GO
         DeptCode    (required)
         PositionCode (optional requester position refinement)
         ApprovalPositionCode (required approver position)
-
-    The selected approval position is resolved against F03Positions.
-    Its DefaultApproveLevel supplies Level; RoleName is resolved by the
-    application from that level/request type. F03Approvers then supplies
-    the actual employee candidates for that position and department.
-
-    Existing v3 rows cannot be safely inferred into a department or an
-    approval position. They are therefore retired from the active model.
-    Admin must recreate them using the new policy UI.
 */
 
 IF OBJECT_ID(N'dbo.F03ApprovalPolicies', N'U') IS NULL
@@ -42,16 +33,12 @@ END;
 GO
 
 /*
-    IMPORTANT:
     SQL Server will not ALTER COLUMN while ANY index depends on PositionCode.
-    Older databases can contain the legacy indexes as well as the canonical
-    v4 names. Do not rely only on the expected names: discover every ordinary
-    index that actually contains PositionCode and remove it before ALTER.
+    Discover every ordinary index that actually contains PositionCode instead
+    of relying only on historical index names.
 
-    Primary keys / unique constraints are intentionally not removed here.
-    The approval-policy table is not expected to use PositionCode as its PK;
-    if an unexpected PK/constraint depends on it, fail explicitly instead of
-    silently changing a key definition.
+    Primary keys / unique constraints are intentionally preserved. If one
+    unexpectedly depends on PositionCode, fail explicitly and safely.
 */
 DECLARE @IndexName sysname;
 DECLARE @Sql nvarchar(max);
@@ -84,11 +71,6 @@ END;
 CLOSE index_cursor;
 DEALLOCATE index_cursor;
 
-/*
-    If a PK/unique constraint unexpectedly depends on PositionCode, do not
-    proceed with a partial schema change. The deployment must stop with a
-    useful diagnostic rather than SQL Server's generic 5074/4922 message.
-*/
 IF EXISTS
 (
     SELECT 1
@@ -103,7 +85,9 @@ IF EXISTS
       AND c.name = N'PositionCode'
       AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1)
 )
+BEGIN
     THROW 51002, 'PositionCode is still referenced by a primary/unique constraint; migration stopped safely.', 1;
+END;
 GO
 
 /* PositionCode is the optional requester-position refinement in v4. */
@@ -126,14 +110,7 @@ BEGIN
 END;
 GO
 
-/*
-    Existing rows have no reliable department / approver-position information.
-    Retire them before the new foreign keys are created.
-
-    Valid v4 rows (both values supplied) are preserved.
-    Legacy rows that cannot be mapped safely are deleted from the active
-    policy table; they must be recreated through the new policy UI.
-*/
+/* Retire legacy policies that cannot be mapped safely to the v4 scope. */
 DELETE p
 FROM dbo.F03ApprovalPolicies AS p
 WHERE p.DeptCode IS NULL
@@ -142,17 +119,18 @@ WHERE p.DeptCode IS NULL
    OR LTRIM(RTRIM(p.ApprovalPositionCode)) = N'';
 GO
 
-IF EXISTS
+/*
+    Do not use IF/ELSE here. Separate IF NOT EXISTS statements are deliberately
+    used because this migration is executed through SQLCMD/Deploy.ps1 against
+    databases with different historical FK states.
+*/
+IF NOT EXISTS
 (
     SELECT 1
     FROM sys.foreign_keys
     WHERE name = N'FK_F03ApprovalPolicies_F03Departments'
       AND parent_object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
 )
-BEGIN
-    /* Existing FK is retained. */
-END
-ELSE
 BEGIN
     ALTER TABLE dbo.F03ApprovalPolicies
         ADD CONSTRAINT FK_F03ApprovalPolicies_F03Departments
@@ -161,17 +139,13 @@ BEGIN
 END;
 GO
 
-IF EXISTS
+IF NOT EXISTS
 (
     SELECT 1
     FROM sys.foreign_keys
     WHERE name = N'FK_F03ApprovalPolicies_ApprovalPosition'
       AND parent_object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
 )
-BEGIN
-    /* Existing FK is retained. */
-END
-ELSE
 BEGIN
     ALTER TABLE dbo.F03ApprovalPolicies
         ADD CONSTRAINT FK_F03ApprovalPolicies_ApprovalPosition
