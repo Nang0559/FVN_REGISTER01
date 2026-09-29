@@ -6,7 +6,6 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
-    <!-- Development secrets are loaded from .NET User Secrets. Production uses environment variables. -->
     <UserSecretsId>FVN_REGISTER_API</UserSecretsId>
   </PropertyGroup>
 
@@ -14,12 +13,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-
-    <!-- Keep the Swagger runtime components explicit so self-contained/published API
-         deployments always carry the assemblies required by AddSwaggerGen(). -->
-    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.6" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.6" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.6" />
   </ItemGroup>
 
   <ItemGroup>

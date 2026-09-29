@@ -16,6 +16,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "04_Constraints.sql"
 :r "05_Indexes.sql"
 -- 06_Seed.sql is intentionally excluded from normal deployment.
+-- [SEED] :r "06_Seed_All_Modules.sql"
 :r "07_Views.sql"
 :r "08_Functions.sql"
 :r "09_StoredProcedures.sql"
