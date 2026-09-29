@@ -2,8 +2,7 @@ param(
     [Parameter(Mandatory = $true)] [string]$InstallPath,
     [Parameter(Mandatory = $true)] [string]$ApiBaseUrl,
     [Parameter(Mandatory = $true)] [string]$DeviceKey,
-    [Parameter(Mandatory = $false)] [string]$ApiKeyProtected,
-    [Parameter(Mandatory = $false)] [string]$ApiKey
+    [Parameter(Mandatory = $false)] [string]$ApiKeyProtected
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,11 +12,8 @@ if (-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https') {
     throw 'ApiBaseUrl phải là HTTPS.'
 }
 
-if ([string]::IsNullOrWhiteSpace($ApiKeyProtected) -and [string]::IsNullOrWhiteSpace($ApiKey)) {
-    throw 'Phải cung cấp ApiKeyProtected hoặc ApiKey.'
-}
-if (-not [string]::IsNullOrWhiteSpace($ApiKeyProtected) -and -not [string]::IsNullOrWhiteSpace($ApiKey)) {
-    throw 'Chỉ cung cấp một trong ApiKeyProtected hoặc ApiKey.'
+if ([string]::IsNullOrWhiteSpace($ApiKeyProtected) -and -not [Environment]::UserInteractive) {
+    throw 'Non-interactive installation phải cung cấp ApiKeyProtected.'
 }
 
 $exe = Join-Path $InstallPath 'FVN_REGISTER.EndpointAgent.exe'
@@ -28,8 +24,16 @@ if (-not (Test-Path $exe)) {
 New-Item -ItemType Directory -Force -Path $InstallPath | Out-Null
 
 if ([string]::IsNullOrWhiteSpace($ApiKeyProtected)) {
-    # Secret is sent through stdin so it is not exposed in the process command line.
-    $ApiKeyProtected = ($ApiKey | & $exe --protect-secret-stdin | Select-Object -Last 1).Trim()
+    $secureApiKey = Read-Host 'Nhập API key của Endpoint (không được ghi vào command history)' -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey)
+    try {
+        $plainApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+        $ApiKeyProtected = ($plainApiKey | & $exe --protect-secret-stdin | Select-Object -Last 1).Trim()
+    }
+    finally {
+        if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+        $plainApiKey = $null
+    }
     if ([string]::IsNullOrWhiteSpace($ApiKeyProtected)) {
         throw 'Không tạo được ApiKeyProtected bằng DPAPI LocalMachine.'
     }
