@@ -29,8 +29,6 @@ SET @Definition = REPLACE(
     N'DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=TRY_CONVERT(int,NULLIF(@DeptCode,N''''));',
     N'DECLARE @BatchId uniqueidentifier=NEWID(),@NormalizedDeptCode nvarchar(20)=NULLIF(LTRIM(RTRIM(@DeptCode)),N'''');'
 );
-
-/* Also support the same declaration when formatting/spaces differ. */
 SET @Definition = REPLACE(
     @Definition,
     N'DECLARE @BatchId uniqueidentifier = NEWID(), @HrmDeptId int = TRY_CONVERT(int, NULLIF(@DeptCode, N''''));',
@@ -48,9 +46,6 @@ SET @Definition = REPLACE(
     N'(@HrmDeptId IS NULL OR HrmDeptId=@HrmDeptId)',
     N'(@NormalizedDeptCode IS NULL OR DeptCode=@NormalizedDeptCode)'
 );
-
-/* HRM source NVMaBP is the numeric HRM department identifier; compare it to
-   the textual DeptCode without converting DeptCode to an integer. */
 SET @Definition = REPLACE(
     @Definition,
     N'(@HrmDeptId IS NULL OR nv.NVMaBP=@HrmDeptId)',
@@ -62,9 +57,7 @@ SET @Definition = REPLACE(
     N'(@NormalizedDeptCode IS NULL OR CONVERT(nvarchar(20),NVMaBP)=@NormalizedDeptCode)'
 );
 
-/* The OT-actual cleanup contains a multiline EXISTS predicate in the canonical
-   procedure. Replace that complete block as well; matching only the one-line
-   predicate leaves @HrmDeptId behind and aborts deployment with 51334. */
+/* Replace the multiline OT-actual cleanup predicate as well. */
 SET @Definition = REPLACE(
     @Definition,
     N'(
@@ -89,37 +82,43 @@ SET @Definition = REPLACE(
     )'
 );
 
-/* OBJECT_DEFINITION can expose CREATE PROCEDURE, CREATE PROC, or CREATE OR ALTER
-   depending on how the procedure was originally installed. The previous
-   PATINDEX pattern incorrectly treated '+' as a literal character and could
-   therefore report that CREATE PROCEDURE was missing. Normalize all supported
-   headers to ALTER before executing the existing procedure definition. */
-SET @Definition = REPLACE(@Definition, N'CREATE OR ALTER PROCEDURE', N'ALTER PROCEDURE');
-SET @Definition = REPLACE(@Definition, N'CREATE OR ALTER PROC', N'ALTER PROC');
-SET @Definition = REPLACE(@Definition, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-SET @Definition = REPLACE(@Definition, N'CREATE PROC', N'ALTER PROC');
+/*
+   OBJECT_DEFINITION returns the stored module text, and SQL Server preserves
+   the original whitespace/comments. Therefore do not depend on one exact
+   spelling such as "CREATE PROCEDURE". Find the actual CREATE token and the
+   following PROCEDURE/PROC token and replace the complete header keyword.
+   This handles CREATE PROCEDURE, CREATE   PROCEDURE, CREATE + newline,
+   CREATE OR ALTER PROCEDURE, and equivalent PROC forms.
+*/
+DECLARE @CreatePos int = CHARINDEX(N'CREATE', UPPER(@Definition));
+IF @CreatePos = 0
+    THROW 51338, N'DepartmentCode patch failed: CREATE keyword not found in existing procedure definition.', 1;
 
-/* OBJECT_DEFINITION normally starts with the procedure header. If the header
-   was formatted with a line break between CREATE and PROCEDURE, normalize that
-   supported form too. */
-SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + CHAR(10) + N'PROCEDURE', N'ALTER PROCEDURE');
-SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(10) + N'PROCEDURE', N'ALTER PROCEDURE');
-SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + N'PROCEDURE', N'ALTER PROCEDURE');
-SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + CHAR(10) + N'PROC', N'ALTER PROC');
-SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(10) + N'PROC', N'ALTER PROC');
-SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + N'PROC', N'ALTER PROC');
+DECLARE @ProcedurePos int = CHARINDEX(N'PROCEDURE', UPPER(@Definition), @CreatePos + 6);
+DECLARE @ProcPos int = CHARINDEX(N'PROC', UPPER(@Definition), @CreatePos + 6);
 
-/* Fail closed if the header was not normalized. */
-DECLARE @Header nvarchar(200) = LTRIM(SUBSTRING(@Definition, 1, 200));
+/* Prefer PROCEDURE when it is the first valid module keyword after CREATE. */
+IF @ProcedurePos > 0 AND (@ProcPos = 0 OR @ProcedurePos <= @ProcPos)
+BEGIN
+    /* Replace everything from CREATE through PROCEDURE with ALTER PROCEDURE. */
+    SET @Definition = STUFF(@Definition, @CreatePos, (@ProcedurePos + LEN(N'PROCEDURE')) - @CreatePos, N'ALTER PROCEDURE');
+END
+ELSE IF @ProcPos > 0
+BEGIN
+    SET @Definition = STUFF(@Definition, @CreatePos, (@ProcPos + LEN(N'PROC')) - @CreatePos, N'ALTER PROC');
+END
+ELSE
+    THROW 51338, N'DepartmentCode patch failed: could not locate PROCEDURE/PROC after CREATE in existing procedure definition.', 1;
+
+/* Fail closed if the resulting module is not an ALTER definition. */
+DECLARE @Header nvarchar(400) = LTRIM(SUBSTRING(@Definition, 1, 400));
 IF @Header NOT LIKE N'ALTER PROCEDURE%' AND @Header NOT LIKE N'ALTER PROC%'
-    THROW 51338, N'DepartmentCode patch failed: could not normalize the existing procedure header to ALTER PROCEDURE.', 1;
+    THROW 51338, N'DepartmentCode patch failed: normalized definition does not begin with ALTER PROCEDURE/ALTER PROC.', 1;
 
 IF CHARINDEX(N'TRY_CONVERT(int,NULLIF(@DeptCode', @Definition) > 0
     THROW 51333, N'DepartmentCode patch failed: unsafe DeptCode-to-int conversion remains.', 1;
-
 IF CHARINDEX(N'TRY_CONVERT(int, NULLIF(@DeptCode', @Definition) > 0
     THROW 51333, N'DepartmentCode patch failed: unsafe DeptCode-to-int conversion remains.', 1;
-
 IF CHARINDEX(N'@HrmDeptId', @Definition) > 0
     THROW 51334, N'DepartmentCode patch failed: obsolete @HrmDeptId scope variable remains.', 1;
 
@@ -132,10 +131,8 @@ IF @InstalledDefinition IS NULL
 
 IF CHARINDEX(N'@HrmDeptId', @InstalledDefinition) > 0
     THROW 51336, N'DepartmentCode patch failed: installed procedure still contains @HrmDeptId.', 1;
-
 IF CHARINDEX(N'TRY_CONVERT(int,NULLIF(@DeptCode', @InstalledDefinition) > 0
     THROW 51337, N'DepartmentCode patch failed: installed procedure still converts DeptCode to int.', 1;
-
 IF CHARINDEX(N'TRY_CONVERT(int, NULLIF(@DeptCode', @InstalledDefinition) > 0
     THROW 51337, N'DepartmentCode patch failed: installed procedure still converts DeptCode to int.', 1;
 
