@@ -194,6 +194,26 @@ BEGIN
 END;
 GO
 
+/*
+  Schema repair for databases where this table was created by an older patch.
+  The application model is authoritative; expand-only ALTERs are safe for existing data.
+*/
+IF OBJECT_ID(N'dbo.F03SecurityFunctionRegistry',N'U') IS NOT NULL
+BEGIN
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN FunctionKey nvarchar(150) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN DefinitionName nvarchar(150) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ModuleCode nvarchar(50) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ActionCode nvarchar(50) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ScopeCode nvarchar(30) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN LifecycleStatus nvarchar(30) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN SourceType nvarchar(30) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN SourceAssembly nvarchar(250) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN SourceTypeName nvarchar(250) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ReplacementFunctionKey nvarchar(150) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN DefinitionHash nvarchar(128) NOT NULL;
+END;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.F03SecurityFunctionRegistry') AND name = N'UX_F03SecurityFunctionRegistry_FunctionKey')
     CREATE UNIQUE INDEX UX_F03SecurityFunctionRegistry_FunctionKey ON dbo.F03SecurityFunctionRegistry(FunctionKey);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.F03SecurityFunctionRegistry') AND name = N'IX_F03SecurityFunctionRegistry_Status')
@@ -206,9 +226,13 @@ INSERT INTO dbo.F03SecurityFunctionRegistry
     FunctionKey, FunctionCode, DefinitionName, ModuleCode, ActionCode, ScopeCode,
     LifecycleStatus, SourceType, DefinitionHash, FirstDiscoveredAt, LastSeenAt, IsIgnored
 )
-SELECT f.FunctionKey, f.FunctionCode, f.FunctionName, f.ModuleCode, f.ActionCode, f.ScopeCode,
+SELECT f.FunctionKey, f.FunctionCode,
+       LEFT(f.FunctionName, 150),
+       LEFT(f.ModuleCode, 50),
+       LEFT(f.ActionCode, 50),
+       LEFT(f.ScopeCode, 30),
        CASE WHEN f.LifecycleStatus IN (N'Retired',N'Replaced') THEN f.LifecycleStatus ELSE N'Active' END,
-       f.SourceType,
+       LEFT(f.SourceType, 30),
        CONVERT(varchar(128), HASHBYTES('SHA2_256', CONCAT(f.FunctionKey, N'|', f.FunctionCode, N'|', f.FunctionName)), 2),
        f.CreatedAt,
        ISNULL(f.LastSeenAt,f.CreatedAt),
