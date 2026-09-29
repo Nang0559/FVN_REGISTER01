@@ -41,57 +41,70 @@ BEGIN
 END;
 GO
 
-/* PositionCode is the optional requester-position refinement in v4. */
-ALTER TABLE dbo.F03ApprovalPolicies
-    ALTER COLUMN PositionCode nvarchar(20) NULL;
+/*
+    IMPORTANT: all indexes that depend on PositionCode / DeptCode must be
+    removed BEFORE ALTER COLUMN. SQL Server rejects ALTER COLUMN while a
+    dependent index exists (error 5074/4922).
+
+    This handles both the current v4 index names and the older index names
+    found on databases that were partially upgraded.
+*/
+DECLARE @IndexName sysname;
+DECLARE @Sql nvarchar(max);
+
+DECLARE index_cursor CURSOR LOCAL FAST_FORWARD FOR
+SELECT i.name
+FROM sys.indexes AS i
+WHERE i.object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+  AND i.name IN
+  (
+      N'UX_F03ApprovalPolicies_Request_Position_Level',
+      N'UX_F03ApprovalPolicies_Request_Dept_Position_Level',
+      N'IX_F03ApprovalPolicies_Route'
+  );
+
+OPEN index_cursor;
+FETCH NEXT FROM index_cursor INTO @IndexName;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SET @Sql = N'DROP INDEX ' + QUOTENAME(@IndexName)
+             + N' ON dbo.F03ApprovalPolicies;';
+    EXEC sys.sp_executesql @Sql;
+    FETCH NEXT FROM index_cursor INTO @IndexName;
+END;
+
+CLOSE index_cursor;
+DEALLOCATE index_cursor;
 GO
 
+/* PositionCode is the optional requester-position refinement in v4. */
 IF EXISTS
 (
     SELECT 1
-    FROM sys.indexes
-    WHERE name = N'UX_F03ApprovalPolicies_Request_Position_Level'
-      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+      AND name = N'PositionCode'
+      AND
+      (
+          system_type_id <> TYPE_ID(N'nvarchar')
+          OR max_length <> 40
+          OR is_nullable = 0
+      )
 )
 BEGIN
-    DROP INDEX UX_F03ApprovalPolicies_Request_Position_Level
-        ON dbo.F03ApprovalPolicies;
+    ALTER TABLE dbo.F03ApprovalPolicies
+        ALTER COLUMN PositionCode nvarchar(20) NULL;
 END;
 GO
 
 /*
     Existing v4 indexes may already exist when this script is re-run after a
-    partial deployment. They depend on DeptCode / ApprovalPositionCode, so
-    remove them before changing column nullability. They are recreated below.
+    partial deployment. They are recreated below after data normalization.
 */
-IF EXISTS
-(
-    SELECT 1
-    FROM sys.indexes
-    WHERE name = N'UX_F03ApprovalPolicies_Request_Dept_Position_Level'
-      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
-)
-BEGIN
-    DROP INDEX UX_F03ApprovalPolicies_Request_Dept_Position_Level
-        ON dbo.F03ApprovalPolicies;
-END;
-GO
-
-IF EXISTS
-(
-    SELECT 1
-    FROM sys.indexes
-    WHERE name = N'IX_F03ApprovalPolicies_Route'
-      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
-)
-BEGIN
-    DROP INDEX IX_F03ApprovalPolicies_Route
-        ON dbo.F03ApprovalPolicies;
-END;
-GO
 
 /*
-    Old rows have no reliable department / approver-position information.
+    Existing rows have no reliable department / approver-position information.
     Retire them before the new foreign keys are created. Do NOT use a
     sentinel value here: DeptCode and ApprovalPositionCode are nvarchar(20),
     and a sentinel longer than 20 characters causes error 8152 and leaves
@@ -102,7 +115,7 @@ GO
     policy table; they must be recreated through the new policy UI.
 */
 DELETE p
-FROM dbo.F03ApprovalPolicies p
+FROM dbo.F03ApprovalPolicies AS p
 WHERE p.DeptCode IS NULL
    OR LTRIM(RTRIM(p.DeptCode)) = N''
    OR p.ApprovalPositionCode IS NULL
@@ -137,8 +150,6 @@ BEGIN
         FOREIGN KEY (ApprovalPositionCode)
         REFERENCES dbo.F03Positions(PositionCode);
 END;
-GO
-
 GO
 
 ALTER TABLE dbo.F03ApprovalPolicies
