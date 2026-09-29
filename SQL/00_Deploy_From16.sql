@@ -55,10 +55,9 @@ Current SQL directory:
 :r "50_EquipmentManageCapability.sql"
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
-:r "53_ApprovalUnifiedFoundation.sql
-"
+:r "53_ApprovalUnifiedFoundation.sql"
 
-/* The 01-15 baseline normally contains the canonical RBAC catalog.  Keep this
+/* The 01-15 baseline normally contains the canonical RBAC catalog. Keep this
    patch here as well so From16 can repair the capability on an existing DB. */
 :r "14E_AttendanceCalculateCapability.sql"
 
