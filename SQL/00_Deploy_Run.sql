@@ -4,7 +4,6 @@
 :r "01_Database.sql"
 :r "02A_Preflight.sql"
 :r "02B_Schemas.sql"
-:r "02C_TablePrerequisites.sql"
 :r "03_Tables.sql"
 :r "04_Constraints.sql"
 :r "05_Indexes.sql"
@@ -67,7 +66,7 @@
 :r "50_EquipmentManageCapability.sql"
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
-:r "53_ApprovalUnifiedFoundation.sql
+:r "53_ApprovalUnifiedFoundation.sql"
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
 :r "55_Endpoint_Credentials.sql"
