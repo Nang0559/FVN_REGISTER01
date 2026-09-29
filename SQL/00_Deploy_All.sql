@@ -15,7 +15,6 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "03_Tables.sql"
 :r "04_Constraints.sql"
 :r "05_Indexes.sql"
--- 06_Seed.sql is intentionally excluded from normal deployment.
 -- [SEED] :r "06_Seed_All_Modules.sql"
 :r "07_Views.sql"
 :r "08_Functions.sql"
@@ -88,6 +87,9 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
 
+/* ADMIN/RBAC COMPATIBILITY */
+:r "51_SecurityAdminCompatibility.sql"
+
 /* APPROVAL FOUNDATION MUST EXIST BEFORE ENDPOINT GOVERNANCE */
 :r "53_ApprovalUnifiedFoundation.sql"
 
@@ -110,6 +112,9 @@ Database/ is documentation/history only and is not executed by deployment.
 
 /* REQUEST MODULE EMAIL TEMPLATE COMPATIBILITY */
 :r "61_RequestModuleEmailTemplates.sql"
+
+/* CANONICAL SUPERADMIN FULL-ACCESS INVARIANT */
+:r "62_SuperAdminFullAccess.sql"
 
 /* FINAL RUNTIME SCHEMA COMPATIBILITY GATE */
 :r "62_RuntimeSchemaCompatibility.sql"
