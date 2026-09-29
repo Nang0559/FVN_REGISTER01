@@ -6,6 +6,7 @@
 :r "50_EquipmentManageCapability.sql"
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
+:r "51_SecurityAdminCompatibility.sql"
 :r "53_ApprovalUnifiedFoundation.sql"
 
 /* Repair canonical attendance calculation capability on existing databases. */
@@ -22,6 +23,7 @@
 :r "59_CalendarViewCapability.sql"
 :r "60_EndpointAgentDataHardening.sql"
 :r "61_RequestModuleEmailTemplates.sql"
+:r "62_SuperAdminFullAccess.sql"
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
