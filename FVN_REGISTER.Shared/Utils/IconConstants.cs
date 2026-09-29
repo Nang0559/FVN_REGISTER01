@@ -1,5 +1,4 @@
 ﻿
-
 namespace FVN_REGISTER.Shared.Utils
 {
     public static class IconConstants
@@ -7,9 +6,14 @@ namespace FVN_REGISTER.Shared.Utils
         // 1. Module Icons
         public static class Module
         {
-            public const string Leave = "Icons.Material.Filled.EventAvailable";    // Nghỉ phép
-            public const string Overtime = "Icons.Material.Filled.AccessTime";     // Tăng ca
-            public const string Trip = "Icons.Material.Filled.FlightTakeoff";     // Công tác
+            public const string Leave = "Icons.Material.Filled.EventAvailable";
+            public const string Overtime = "Icons.Material.Filled.AccessTime";
+            public const string Trip = "Icons.Material.Filled.FlightTakeoff";
+            public const string Attendance = "Icons.Material.Filled.AccessTimeFilled";
+            public const string Equipment = "Icons.Material.Filled.DevicesOther";
+            public const string Payroll = "Icons.Material.Filled.Payments";
+            public const string AccessChange = "Icons.Material.Filled.Security";
+            public const string Endpoint = "Icons.Material.Filled.Computer";
             public const string Default = "Icons.Material.Filled.Dashboard";
         }
 
@@ -45,7 +49,8 @@ namespace FVN_REGISTER.Shared.Utils
             public const string Reminder = "Icons.Material.Filled.NotificationsActive";
             public const string System = "Icons.Material.Filled.Info";
         }
-        //5. Email
+
+        // 5. Email
         public static class Email
         {
             public const string Pending = "Icons.Material.Filled.Schedule";
