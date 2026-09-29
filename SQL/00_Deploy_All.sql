@@ -109,6 +109,9 @@ Database/ is documentation/history only and is not executed by deployment.
 /* REQUEST MODULE EMAIL TEMPLATE COMPATIBILITY */
 :r "61_RequestModuleEmailTemplates.sql"
 
+/* FINAL RUNTIME SCHEMA COMPATIBILITY GATE */
+:r "62_RuntimeSchemaCompatibility.sql"
+
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
 
