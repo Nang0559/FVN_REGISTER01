@@ -89,17 +89,30 @@ SET @Definition = REPLACE(
     )'
 );
 
-/* OBJECT_DEFINITION returns the original CREATE PROCEDURE text. The generated
-   batch is executed dynamically, so it must be converted to ALTER PROCEDURE
-   because the procedure already exists. */
-DECLARE @CreatePos int = PATINDEX(N'%CREATE[ ]+PROCEDURE%', UPPER(@Definition));
-IF @CreatePos = 0
-    SET @CreatePos = PATINDEX(N'%CREATE[ ]+PROC%', UPPER(@Definition));
+/* OBJECT_DEFINITION can expose CREATE PROCEDURE, CREATE PROC, or CREATE OR ALTER
+   depending on how the procedure was originally installed. The previous
+   PATINDEX pattern incorrectly treated '+' as a literal character and could
+   therefore report that CREATE PROCEDURE was missing. Normalize all supported
+   headers to ALTER before executing the existing procedure definition. */
+SET @Definition = REPLACE(@Definition, N'CREATE OR ALTER PROCEDURE', N'ALTER PROCEDURE');
+SET @Definition = REPLACE(@Definition, N'CREATE OR ALTER PROC', N'ALTER PROC');
+SET @Definition = REPLACE(@Definition, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
+SET @Definition = REPLACE(@Definition, N'CREATE PROC', N'ALTER PROC');
 
-IF @CreatePos = 0
-    THROW 51338, N'DepartmentCode patch failed: existing procedure definition does not contain CREATE PROCEDURE.', 1;
+/* OBJECT_DEFINITION normally starts with the procedure header. If the header
+   was formatted with a line break between CREATE and PROCEDURE, normalize that
+   supported form too. */
+SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + CHAR(10) + N'PROCEDURE', N'ALTER PROCEDURE');
+SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(10) + N'PROCEDURE', N'ALTER PROCEDURE');
+SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + N'PROCEDURE', N'ALTER PROCEDURE');
+SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + CHAR(10) + N'PROC', N'ALTER PROC');
+SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(10) + N'PROC', N'ALTER PROC');
+SET @Definition = REPLACE(@Definition, N'CREATE' + CHAR(13) + N'PROC', N'ALTER PROC');
 
-SET @Definition = STUFF(@Definition, @CreatePos, 16, N'ALTER PROCEDURE');
+/* Fail closed if the header was not normalized. */
+DECLARE @Header nvarchar(200) = LTRIM(SUBSTRING(@Definition, 1, 200));
+IF @Header NOT LIKE N'ALTER PROCEDURE%' AND @Header NOT LIKE N'ALTER PROC%'
+    THROW 51338, N'DepartmentCode patch failed: could not normalize the existing procedure header to ALTER PROCEDURE.', 1;
 
 IF CHARINDEX(N'TRY_CONVERT(int,NULLIF(@DeptCode', @Definition) > 0
     THROW 51333, N'DepartmentCode patch failed: unsafe DeptCode-to-int conversion remains.', 1;
