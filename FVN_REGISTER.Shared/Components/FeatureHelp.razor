@@ -2,6 +2,7 @@
 @using FVN_REGISTER.Shared.Services.Language
 @implements IDisposable
 @inject NavigationManager Navigation
+@inject ILanguageService Language
 
 <MudTooltip Text='@Language.T("help.tooltip")'>
     <MudIconButton Icon="@Icons.Material.Filled.HelpOutline" Color="Color.Inherit" Size="Size.Medium" OnClick="Open" />
@@ -39,18 +40,21 @@
 
 @code {
     private bool _open;
-    private HelpContent _content = HelpCatalog.Resolve(Language.Current, "/");
+    private HelpContent _content = new("HOME_WORKSPACE", string.Empty, string.Empty, string.Empty, Array.Empty<string>(), string.Empty, string.Empty);
 
     protected override void OnInitialized()
     {
         Language.LanguageChanged += OnLanguageChanged;
         Navigation.LocationChanged += OnLocationChanged;
-        _content = HelpCatalog.Resolve(Language.Current, Navigation.ToBaseRelativePath(Navigation.Uri));
+        _content = ResolveCurrentContent();
     }
+
+    private HelpContent ResolveCurrentContent() =>
+        HelpCatalog.Resolve(Language.Current, Navigation.ToBaseRelativePath(Navigation.Uri));
 
     private void Open()
     {
-        _content = HelpCatalog.Resolve(Language.Current, Navigation.ToBaseRelativePath(Navigation.Uri));
+        _content = ResolveCurrentContent();
         _open = true;
     }
 
@@ -64,7 +68,7 @@
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        _content = HelpCatalog.Resolve(Language.Current, Navigation.ToBaseRelativePath(Navigation.Uri));
+        _content = ResolveCurrentContent();
         _ = InvokeAsync(StateHasChanged);
     }
 
