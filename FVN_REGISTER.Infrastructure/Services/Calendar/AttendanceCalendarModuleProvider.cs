@@ -27,11 +27,17 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         CalendarContext context,
         CancellationToken cancellationToken = default)
     {
-        // Do not join F03Employees using LTRIM/RTRIM on both sides here.
-        // The calendar context has already resolved the canonical EmployeeCode.
-        // Querying the calculated attendance table directly by EmployeeCode + WorkDate
-        // lets SQL Server use the dedicated composite index and avoids a scan over the
-        // potentially large attendance-calculation table.
+        // IMPORTANT:
+        // Database.SqlQuery<T> binds string interpolation as nvarchar(4000).
+        // HRM EmployeeCode is commonly varchar/char. Comparing a varchar column
+        // with nvarchar(4000) can make SQL Server inject CONVERT_IMPLICIT on the
+        // column and turn the EmployeeCode + WorkDate lookup into a scan.
+        // The calendar is opened for a single employee, so preserving an index
+        // seek here is critical.
+        //
+        // Convert the parameter to varchar on the parameter side. This keeps the
+        // column untouched and remains seekable whether EmployeeCode is varchar
+        // or nvarchar.
         var rows = await _db.Database.SqlQuery<AttendanceCalendarRow>($"""
             SELECT
                 a.WorkDate,
@@ -61,7 +67,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                 a.HrmBCLyDoNghi,
                 a.HrmBCGhiChu
             FROM dbo.F03HrmAttendanceCalculated AS a
-            WHERE a.EmployeeCode = {context.EmployeeCode}
+            WHERE a.EmployeeCode = CONVERT(varchar(50), {context.EmployeeCode})
               AND a.WorkDate >= {context.From}
               AND a.WorkDate <= {context.To}
             ORDER BY a.WorkDate
