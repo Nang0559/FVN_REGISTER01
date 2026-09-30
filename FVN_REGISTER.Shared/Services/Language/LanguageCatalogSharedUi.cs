@@ -1,0 +1,39 @@
+namespace FVN_REGISTER.Shared.Services.Language;
+
+/// <summary>
+/// Shared UI text used by reusable components. Keeping these keys here prevents
+/// module pages from reintroducing hard-coded Vietnamese text.
+/// </summary>
+public static class LanguageCatalogSharedUi
+{
+    private static readonly IReadOnlyDictionary<string, string> Vi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["workspace.overview"] = "TỔNG QUAN WORKSPACE", ["workspace.list"] = "Danh sách", ["workspace.register"] = "Đăng ký", ["workspace.quickActions"] = "Thao tác nhanh",
+        ["workspace.summary"] = "Tổng quan chỉ tổng hợp trạng thái; quy trình nghiệp vụ vẫn được xử lý tại Đăng ký/Danh sách/Phê duyệt.", ["workspace.openCalendar"] = "Mở lịch", ["workspace.myTasks"] = "Việc cần tôi xử lý",
+        ["equipment.assigned.title"] = "Thiết bị tôi đang phụ trách", ["equipment.assigned.description"] = "Thiết bị được giao trực tiếp hoặc phân công vận hành.", ["equipment.assigned.catalog"] = "Sổ thiết bị", ["equipment.assigned.none"] = "Chưa có thiết bị được giao.",
+        ["equipment.assigned.department"] = "Bộ phận", ["equipment.assigned.location"] = "Vị trí", ["equipment.assigned.role"] = "Vai trò", ["equipment.assigned.responsible"] = "Người phụ trách", ["equipment.assigned.operator"] = "Người vận hành", ["equipment.assigned.repair"] = "Yêu cầu sửa chữa",
+        ["equipment.qr.title"] = "Quét QR thiết bị", ["equipment.qr.starting"] = "Đang mở camera...", ["equipment.qr.start"] = "Bật camera quét QR", ["equipment.qr.stop"] = "Dừng", ["equipment.qr.readSuccess"] = "Đã đọc QR. Đang tải thông tin thiết bị...", ["equipment.qr.loadFailed"] = "Không tải được bộ quét QR: {0}", ["equipment.qr.startFailed"] = "Không thể khởi động bộ quét QR.", ["equipment.qr.cameraFailed"] = "Không thể truy cập camera: {0}",
+        ["dashboard.overtimeType"] = "Làm thêm giờ", ["help.context"] = "Trợ giúp ngữ cảnh", ["approval.approver"] = "Người phê duyệt", ["approval.noRoute"] = "Chưa cấu hình cấp phê duyệt cho chức vụ hiện tại. Không thể gửi đơn.", ["approval.level"] = "Cấp {0}", ["approval.noApprover"] = "Chưa có người phê duyệt phù hợp cho cấp này.", ["approval.selectApprover"] = "Chọn người phê duyệt *",
+        ["calendar.filter.all"] = "Tất cả", ["calendar.filter.company"] = "Công ty", ["calendar.filter.attendance"] = "Chấm công", ["calendar.filter.leave"] = "Nghỉ phép", ["calendar.filter.ot"] = "Làm thêm giờ", ["calendar.filter.trip"] = "Công tác", ["calendar.issue"] = "Có vấn đề cần xử lý", ["calendar.holiday"] = "Nghỉ", ["calendar.shift"] = "Ca {0}",
+        ["calendar.approved"] = "✓ Đã duyệt", ["calendar.pending"] = "⏳ Chờ duyệt", ["calendar.inProgress"] = "⏳ Đang duyệt", ["calendar.rejected"] = "✕ Từ chối", ["calendar.cancelled"] = "Đã hủy", ["calendar.needsRevision"] = "↻ Cần chỉnh sửa", ["calendar.level"] = "Cấp {0}", ["calendar.register"] = "+ Đăng ký", ["calendar.today"] = "Hôm nay", ["calendar.month"] = "Tháng", ["calendar.list"] = "Danh sách",
+        ["calendar.day"] = "Ngày {0}", ["calendar.companyHolidayOtOnly"] = "Ngày nghỉ công ty — chỉ đăng ký OT.", ["calendar.planAttendance"] = "Kế hoạch & chấm công", ["calendar.shiftLabel"] = "Ca", ["calendar.in"] = "VÀO", ["calendar.out"] = "RA", ["calendar.workHours"] = "Giờ công", ["calendar.hours"] = "giờ", ["calendar.noAttendance"] = "Chưa có dữ liệu chấm công.", ["calendar.registrations"] = "Đăng ký", ["calendar.halfDay"] = "nửa ngày", ["calendar.attention"] = "Cần chú ý", ["calendar.newRegistration"] = "Đăng ký mới", ["calendar.cancelReason"] = "Lý do hủy", ["calendar.cancelPlaceholder"] = "Ví dụ: Tôi bị ốm, xin hủy OT ngày này.", ["calendar.confirmCancel"] = "Xác nhận hủy",
+        ["calendar.registerDay"] = "Đăng ký ngày {0}", ["calendar.chooseBusiness"] = "Chọn nghiệp vụ muốn đăng ký cho ngày này.", ["calendar.registerLeave"] = "Đăng ký nghỉ", ["calendar.registerOt"] = "Đăng ký làm thêm giờ", ["calendar.registerTrip"] = "Đăng ký công tác", ["calendar.noAvailableRegistration"] = "Ngày này hiện không có nghiệp vụ đăng ký khả dụng."
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> Ja = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["workspace.overview"] = "ワークスペース概要", ["workspace.list"] = "一覧", ["workspace.register"] = "申請", ["workspace.quickActions"] = "クイック操作", ["workspace.summary"] = "概要では状態のみを集約し、業務フローは申請・一覧・承認で処理します。", ["workspace.openCalendar"] = "カレンダーを開く", ["workspace.myTasks"] = "自分の処理待ち",
+        ["equipment.assigned.title"] = "担当中の設備", ["equipment.assigned.description"] = "直接割り当てられた設備、または運用担当として割り当てられた設備です。", ["equipment.assigned.catalog"] = "設備台帳", ["equipment.assigned.none"] = "割り当てられた設備はありません。", ["equipment.assigned.department"] = "部署", ["equipment.assigned.location"] = "場所", ["equipment.assigned.role"] = "役割", ["equipment.assigned.responsible"] = "担当者", ["equipment.assigned.operator"] = "運用担当", ["equipment.assigned.repair"] = "修理を依頼",
+        ["equipment.qr.title"] = "設備QRをスキャン", ["equipment.qr.starting"] = "カメラを起動中...", ["equipment.qr.start"] = "QRスキャン用カメラを起動", ["equipment.qr.stop"] = "停止", ["equipment.qr.readSuccess"] = "QRを読み取りました。設備情報を読み込んでいます...", ["equipment.qr.loadFailed"] = "QRスキャナーを読み込めませんでした: {0}", ["equipment.qr.startFailed"] = "QRスキャナーを起動できません。", ["equipment.qr.cameraFailed"] = "カメラにアクセスできません: {0}",
+        ["dashboard.overtimeType"] = "残業", ["help.context"] = "コンテキストヘルプ", ["approval.approver"] = "承認者", ["approval.noRoute"] = "現在の役職に承認ルートが設定されていないため、申請できません。", ["approval.level"] = "第{0}承認", ["approval.noApprover"] = "この承認レベルに該当する承認者がいません。", ["approval.selectApprover"] = "承認者を選択 *",
+        ["calendar.filter.all"] = "すべて", ["calendar.filter.company"] = "会社", ["calendar.filter.attendance"] = "勤怠", ["calendar.filter.leave"] = "休暇", ["calendar.filter.ot"] = "残業", ["calendar.filter.trip"] = "出張", ["calendar.issue"] = "対応が必要な問題があります", ["calendar.holiday"] = "休日", ["calendar.shift"] = "シフト {0}", ["calendar.approved"] = "✓ 承認済み", ["calendar.pending"] = "⏳ 承認待ち", ["calendar.inProgress"] = "⏳ 承認中", ["calendar.rejected"] = "✕ 却下", ["calendar.cancelled"] = "キャンセル済み", ["calendar.needsRevision"] = "↻ 修正が必要", ["calendar.level"] = "第{0}承認", ["calendar.register"] = "+ 申請", ["calendar.today"] = "今日", ["calendar.month"] = "月", ["calendar.list"] = "一覧",
+        ["calendar.day"] = "{0}日", ["calendar.companyHolidayOtOnly"] = "会社休日 — 残業のみ申請できます。", ["calendar.planAttendance"] = "勤務予定・勤怠", ["calendar.shiftLabel"] = "シフト", ["calendar.in"] = "出勤", ["calendar.out"] = "退勤", ["calendar.workHours"] = "勤務時間", ["calendar.hours"] = "時間", ["calendar.noAttendance"] = "勤怠データがありません。", ["calendar.registrations"] = "申請", ["calendar.halfDay"] = "半日", ["calendar.attention"] = "要確認", ["calendar.newRegistration"] = "新規申請", ["calendar.cancelReason"] = "取消理由", ["calendar.cancelPlaceholder"] = "例：体調不良のため、この日の残業を取消します。", ["calendar.confirmCancel"] = "取消を確認",
+        ["calendar.registerDay"] = "{0}日の申請", ["calendar.chooseBusiness"] = "この日に申請する業務を選択してください。", ["calendar.registerLeave"] = "休暇を申請", ["calendar.registerOt"] = "残業を申請", ["calendar.registerTrip"] = "出張を申請", ["calendar.noAvailableRegistration"] = "この日は現在、利用可能な申請業務がありません。"
+    };
+
+    public static bool TryGet(LanguageCode language, string key, out string value)
+    {
+        var source = language == LanguageCode.Ja ? Ja : Vi;
+        return source.TryGetValue(key, out value!);
+    }
+}

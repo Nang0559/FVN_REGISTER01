@@ -55,6 +55,12 @@ public sealed class LanguageService : ILanguageService
             value = LanguageCatalogRemaining.TryGet(_current, key, out var remainingValue) ? remainingValue : key;
         if (string.Equals(value, key, StringComparison.Ordinal))
             value = LanguageCatalogUiCommon.TryGet(_current, key, out var commonValue) ? commonValue : key;
+        if (string.Equals(value, key, StringComparison.Ordinal))
+            value = LanguageCatalogLayout.TryGet(_current, key, out var layoutValue) ? layoutValue : key;
+        if (string.Equals(value, key, StringComparison.Ordinal))
+            value = LanguageCatalogSharedUi.TryGet(_current, key, out var sharedValue) ? sharedValue : key;
+        if (string.Equals(value, key, StringComparison.Ordinal))
+            value = LanguageCatalogCalendar.TryGet(_current, key, out var calendarValue) ? calendarValue : key;
 
         if (args.Length == 0)
             return value;
