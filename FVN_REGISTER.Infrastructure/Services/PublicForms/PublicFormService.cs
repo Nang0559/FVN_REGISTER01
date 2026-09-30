@@ -204,7 +204,7 @@ public sealed class PublicFormService : IPublicFormService
     private async Task CloseAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().FirstOrDefaultAsync(x=>x.Id==id,ct);
-        if(e==null)return ServiceResult.Fail("Không tìm thấy biểu mẫu.");
+        if(e==null)throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
         e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);
     }
 
