@@ -14,7 +14,7 @@ for path in LANG_DIR.glob('LanguageCatalog*.cs'):
     text = path.read_text(encoding='utf-8-sig')
     for m in PAIR_RE.finditer(text):
         key = m.group('key')
-        value = bytes(m.group('value'), 'utf-8').decode('unicode_escape')
+        value = m.group('value').replace(r'\"', '"').replace(r'\\', '\\').replace(r'\n', '\n')
         if value and value not in mapping:
             mapping[value] = key
 
