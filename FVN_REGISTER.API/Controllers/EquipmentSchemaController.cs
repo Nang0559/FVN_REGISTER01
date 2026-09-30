@@ -84,6 +84,50 @@ public sealed class EquipmentSchemaController : ControllerBase
             : BadRequest(ApiResponse<EquipmentSchemaDto>.FromResult(result));
     }
 
+    [HttpDelete("{schemaId:int}")]
+    public async Task<ActionResult<ApiResponse<bool>>> Delete(int schemaId, CancellationToken ct)
+    {
+        if (!await CanAsync(ct)) return Forbid();
+
+        var user = _currentUser.GetCurrentUser();
+        if (user == null) return Unauthorized();
+
+        var schema = await _db.EquipmentSchemas
+            .FirstOrDefaultAsync(x => x.Id == schemaId && x.IsActive == true, ct);
+        if (schema == null)
+            return NotFound(ApiResponse<bool>.Fail("Mẫu dữ liệu không tồn tại hoặc đã được xóa.", 404));
+
+        if (!user.IsAdmin && schema.CreatedBy != user.UserId)
+            return Forbid();
+
+        if (!user.IsAdmin && !string.IsNullOrWhiteSpace(user.DeptCode) &&
+            !string.Equals(schema.DeptCode, user.DeptCode, StringComparison.OrdinalIgnoreCase))
+            return Forbid();
+
+        if (!string.Equals(schema.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(ApiResponse<bool>.Fail("Chỉ được xóa mẫu dữ liệu ở trạng thái Bản nháp."));
+
+        var hasActiveVersion = await _db.EquipmentSchemas
+            .AsNoTracking()
+            .AnyAsync(x => x.IsActive == true && x.SourceSchemaId == schemaId, ct);
+        if (hasActiveVersion)
+            return BadRequest(ApiResponse<bool>.Fail("Không thể xóa mẫu vì đã có phiên bản khác được tạo từ mẫu này."));
+
+        var hasImportHistory = await _db.EquipmentImportBatches
+            .AsNoTracking()
+            .AnyAsync(x => x.SchemaId == schemaId, ct);
+        if (hasImportHistory)
+            return BadRequest(ApiResponse<bool>.Fail("Không thể xóa mẫu vì mẫu đã được sử dụng cho lịch sử import Excel."));
+
+        schema.IsActive = false;
+        schema.ModifiedBy = user.UserId;
+        schema.ModifiedAt = DateTime.Now;
+        schema.LastModifiedSource = "EquipmentSchema.DeleteDraft";
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(ApiResponse<bool>.Ok(true, "Đã xóa mẫu dữ liệu bản nháp."));
+    }
+
     [HttpPut("fields")]
     public async Task<ActionResult<EquipmentFieldDefinitionDto>> SaveField([FromBody] SaveEquipmentFieldDefinitionRequest request, CancellationToken ct)
     {
