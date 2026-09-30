@@ -26,12 +26,15 @@ window.workCalendar = (function () {
     function setDays(days){_days=new Map();(days||[]).forEach(day=>_days.set(day.date,day));}
     function buttonText(){return{today:label('today','Today'),month:label('month','Month'),list:label('list','List')};}
 
-    function init(element,dotNetRef,days,initialDate,locale,labels){
-        if(!element||!element.isConnected)return false;
-        if(typeof FullCalendar==='undefined'||!FullCalendar.Calendar)return false;
+    function init(element,dotNetRef,days,initialDate,locale,labels,retry){
+        retry=retry||0;
+        if(!element||!element.isConnected||typeof FullCalendar==='undefined'||!FullCalendar.Calendar){
+            if(retry<20)setTimeout(()=>init(element,dotNetRef,days,initialDate,locale,labels,retry+1),50);
+            return;
+        }
         _dotNetRef=dotNetRef;_labels=labels||{};setDays(days);if(_calendar){_calendar.destroy();_calendar=null;}
         _calendar=new FullCalendar.Calendar(element,{initialView:'dayGridMonth',initialDate:initialDate,locale:locale||'vi',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,listMonth'},buttonText:buttonText(),height:'auto',selectable:false,events:[],dateClick:info=>{if(_dotNetRef)_dotNetRef.invokeMethodAsync('OnCalendarDateClick',info.dateStr);},datesSet:info=>{if(_dotNetRef)_dotNetRef.invokeMethodAsync('OnCalendarRangeChanged',info.startStr,info.endStr);},dayCellClassNames:arg=>{const day=_days.get(dayKey(arg.date)),c=[],w=arg.date.getDay();if(w===6)c.push('fcc-saturday');else if(w===0)c.push('fcc-sunday');if(day?.holiday)c.push('fcc-company-holiday');if((day?.registrations||[]).some(x=>String(x.moduleCode).toUpperCase()==='LEAVE'))c.push('fcc-leave-day');if(day?.canRegister)c.push('fcc-registration-open');if((day?.issues||[]).some(x=>Number(x.severity||0)>=3))c.push('fcc-day-critical');else if((day?.issues||[]).some(x=>Number(x.severity||0)===2))c.push('fcc-day-warning');return c;},dayCellDidMount:renderCell});
-        _calendar.render(); return true;
+        _calendar.render();
     }
     function setLocale(locale,labels){_labels=labels||_labels;if(!_calendar)return;_calendar.setOption('locale',locale||'vi');_calendar.setOption('buttonText',buttonText());requestAnimationFrame(renderAllCells);}
     function updateDays(days){if(!_calendar)return;setDays(days);requestAnimationFrame(renderAllCells);}
