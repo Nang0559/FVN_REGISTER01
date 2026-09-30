@@ -54,8 +54,7 @@ public sealed class ExecutionController : BaseApiController
         if (last.DayNumber - first.DayNumber > 93)
             return BadRequest(ApiResponse<object>.Fail("Đối soát chỉ cho phép tối đa 94 ngày mỗi lần tải."));
 
-        var result = await _execution.GetMineAsync(UserInfo.EmployeeCode, first, last, ct);
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(await _execution.GetMineAsync(UserInfo.EmployeeCode, first, last, ct));
     }
 
     [HttpPost("me/attendance-feedback")]
@@ -68,26 +67,7 @@ public sealed class ExecutionController : BaseApiController
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        try
-        {
-            var result = await _execution.EnsureAttendanceFeedbackAsync(
-                UserInfo.EmployeeCode,
-                date,
-                ct);
-            return Ok(ApiResponse<object>.Ok(result));
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ApiResponse<object>.Fail(ex.Message));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ApiResponse<object>.Fail(ex.Message));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(ApiResponse<object>.Fail(ex.Message));
-        }
+        return HandleResult(await _execution.EnsureAttendanceFeedbackAsync(UserInfo.EmployeeCode, date, ct));
     }
 
     [HttpGet("me/{reconciliationId:long}")]
@@ -99,9 +79,7 @@ public sealed class ExecutionController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var result = await _execution.GetAsync(UserInfo.EmployeeCode, reconciliationId, ct);
-        return result is null
-            ? NotFound(ApiResponse<object>.Fail("Không tìm thấy reconciliation."))
-            : Ok(ApiResponse<object>.Ok(result));
+        return result.IsSuccess ? Ok(ApiResponse<object>.FromResult(result)) : NotFound(ApiResponse<object>.FromResult(result));
     }
 
     [HttpGet("me/{reconciliationId:long}/detail")]
@@ -113,9 +91,7 @@ public sealed class ExecutionController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var result = await _execution.GetDetailAsync(UserInfo.EmployeeCode, reconciliationId, ct);
-        return result is null
-            ? NotFound(ApiResponse<object>.Fail("Không tìm thấy reconciliation."))
-            : Ok(ApiResponse<object>.Ok(result));
+        return result.IsSuccess ? Ok(ApiResponse<object>.FromResult(result)) : NotFound(ApiResponse<object>.FromResult(result));
     }
 
     [HttpPost("me/{reconciliationId:long}/confirmation")]
@@ -129,8 +105,7 @@ public sealed class ExecutionController : BaseApiController
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var result = await _execution.SubmitConfirmationAsync(UserInfo.EmployeeCode, reconciliationId, request, ct);
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(await _execution.SubmitConfirmationAsync(UserInfo.EmployeeCode, reconciliationId, request, ct));
     }
 
     [HttpPost("me/confirmations/{confirmationId:long}/evidence/upload")]
@@ -149,17 +124,7 @@ public sealed class ExecutionController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Vui lòng chọn file evidence."));
 
         await using var stream = file.OpenReadStream();
-        var fileId = await _execution.UploadEvidenceFileAsync(
-            UserInfo.EmployeeCode,
-            userId,
-            confirmationId,
-            file.FileName,
-            file.ContentType,
-            file.Length,
-            stream,
-            ct);
-
-        return Ok(ApiResponse<int>.Ok(fileId));
+        return HandleResult(await _execution.UploadEvidenceFileAsync(UserInfo.EmployeeCode,userId,confirmationId,file.FileName,file.ContentType,file.Length,stream,ct));
     }
 
     [HttpPost("me/confirmations/{confirmationId:long}/evidence")]
@@ -173,8 +138,7 @@ public sealed class ExecutionController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh người dùng hợp lệ."));
 
-        var result = await _execution.AddEvidenceAsync(UserInfo.EmployeeCode, userId, confirmationId, request, ct);
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(await _execution.AddEvidenceAsync(UserInfo.EmployeeCode,userId,confirmationId,request,ct));
     }
 
 }
