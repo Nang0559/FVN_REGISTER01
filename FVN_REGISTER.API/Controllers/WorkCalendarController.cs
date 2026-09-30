@@ -45,7 +45,7 @@ public sealed class WorkCalendarController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var employeeCode = UserInfo.EmployeeCode.Trim();
-        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
         if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct))
             return Forbid();
 
@@ -81,7 +81,7 @@ public sealed class WorkCalendarController : BaseApiController
             UserInfo.EmployeeCode.Trim(),
             employeeCode,
             StringComparison.OrdinalIgnoreCase);
-        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: isOwnEmployee, ct);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
 
         if (isOwnEmployee)
         {
@@ -117,7 +117,7 @@ public sealed class WorkCalendarController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var employeeCode = UserInfo.EmployeeCode.Trim();
-        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
         if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct))
             return Forbid();
 
@@ -150,7 +150,7 @@ public sealed class WorkCalendarController : BaseApiController
             UserInfo.EmployeeCode.Trim(),
             employeeCode,
             StringComparison.OrdinalIgnoreCase);
-        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: isOwnEmployee, ct);
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
 
         if (isOwnEmployee)
         {
@@ -236,22 +236,9 @@ public sealed class WorkCalendarController : BaseApiController
 
     private async Task<HashSet<string>> GetAuthorizedModulesAsync(
         FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto user,
-        bool includeOwnData,
         CancellationToken ct)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Self-service: every authenticated employee can see their own OT / leave /
-        // trip / attendance on "Lịch của tôi". This does not depend on department-scoped
-        // module View capabilities and never widens access to another employee's data.
-        if (includeOwnData)
-        {
-            result.Add("OT");
-            result.Add("LEAVE");
-            result.Add("TRIP");
-            result.Add("ATTENDANCE");
-            return result;
-        }
 
         if (await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct))
             result.Add("OT");
