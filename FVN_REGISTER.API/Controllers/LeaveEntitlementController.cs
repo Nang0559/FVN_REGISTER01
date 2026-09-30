@@ -1,11 +1,9 @@
 using FVN_REGISTER.Application.Interfaces.Leaves;
-using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using FVN_REGISTER.Application.Interfaces.Users;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -15,8 +13,6 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class LeaveEntitlementController : BaseApiController
 {
     private readonly ILeaveEntitlementService _service;
-    private readonly ICurrentUserService _currentUser;
-
     public LeaveEntitlementController(
         ILeaveEntitlementService service,
         ICurrentUserService currentUser,
@@ -26,7 +22,6 @@ public sealed class LeaveEntitlementController : BaseApiController
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
-        _currentUser = currentUser;
     }
 
     [HttpGet("me")]
@@ -34,7 +29,7 @@ public sealed class LeaveEntitlementController : BaseApiController
         [FromQuery] int? year,
         CancellationToken ct)
     {
-        var user = _currentUser.GetCurrentUser();
+        var user = CurrentUser.GetCurrentUser();
         if (user == null || string.IsNullOrWhiteSpace(user.EmployeeCode))
             return Unauthorized();
 
