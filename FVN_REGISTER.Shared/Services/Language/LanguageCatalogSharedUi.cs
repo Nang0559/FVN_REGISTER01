@@ -35,6 +35,11 @@ public static class LanguageCatalogSharedUi
         ["equipment.qr.cameraFailed"] = "Không thể truy cập camera: {0}",
         ["dashboard.overtimeType"] = "Làm thêm giờ",
         ["help.context"] = "Trợ giúp ngữ cảnh",
+        ["approval.approver"] = "Người phê duyệt",
+        ["approval.noRoute"] = "Chưa cấu hình cấp phê duyệt cho chức vụ hiện tại. Không thể gửi đơn.",
+        ["approval.level"] = "Cấp {0}",
+        ["approval.noApprover"] = "Chưa có người phê duyệt phù hợp cho cấp này.",
+        ["approval.selectApprover"] = "Chọn người phê duyệt *",
     };
 
     private static readonly IReadOnlyDictionary<string, string> Ja = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -66,6 +71,11 @@ public static class LanguageCatalogSharedUi
         ["equipment.qr.cameraFailed"] = "カメラにアクセスできません: {0}",
         ["dashboard.overtimeType"] = "残業",
         ["help.context"] = "コンテキストヘルプ",
+        ["approval.approver"] = "承認者",
+        ["approval.noRoute"] = "現在の役職に承認ルートが設定されていないため、申請できません。",
+        ["approval.level"] = "第{0}承認",
+        ["approval.noApprover"] = "この承認レベルに該当する承認者がいません。",
+        ["approval.selectApprover"] = "承認者を選択 *",
     };
 
     public static bool TryGet(LanguageCode language, string key, out string value)
