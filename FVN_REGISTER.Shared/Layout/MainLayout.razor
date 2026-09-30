@@ -1,7 +1,7 @@
 @using Microsoft.Extensions.Logging
-@* File: FVN_REGISTER.Shared/Layout/MainLayout.razor *@
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Language
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Security
@@ -29,18 +29,17 @@
             <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="DrawerToggle" Color="Color.Inherit" />
             <MudText Typo="Typo.h6" Class="ml-1">FCC Smart Portal</MudText>
             <MudSpacer />
+            <MudSelect T="LanguageCode" Value="@Language.Current" ValueChanged="SetLanguageAsync" Variant="Variant.Text" Dense="true" Class="mr-2" Style="min-width:110px;color:white">
+                <MudSelectItem Value="LanguageCode.Vi">@Language.T("language.vi")</MudSelectItem>
+                <MudSelectItem Value="LanguageCode.Ja">@Language.T("language.ja")</MudSelectItem>
+            </MudSelect>
             <NotificationBell />
             <FeatureHelp />
 
-            <MudMenu Label="@(_user.User?.FullName ?? "Nhân viên FCC")"
-                     Variant="Variant.Text"
-                     Color="Color.Inherit"
-                     StartIcon="@Icons.Material.Filled.AccountCircle"
-                     EndIcon="@Icons.Material.Filled.ArrowDropDown"
-                     AnchorOrigin="Origin.BottomRight"
-                     TransformOrigin="Origin.TopRight"
-                     Dense="true"
-                     Class="ml-auto">
+            <MudMenu Label="@(_user.User?.FullName ?? Language.T("common.user"))"
+                     Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle"
+                     EndIcon="@Icons.Material.Filled.ArrowDropDown" AnchorOrigin="Origin.BottomRight"
+                     TransformOrigin="Origin.TopRight" Dense="true" Class="ml-auto">
                 <ChildContent>
                     <div class="pa-4" style="min-width:220px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
@@ -49,23 +48,23 @@
                             </MudAvatar>
                             <div>
                                 <MudText Typo="Typo.subtitle2">@(_user.User?.FullName ?? "N/A")</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Mã NV: @(_user.User?.EmployeeCode ?? "N/A")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("common.employeeCode"): @(_user.User?.EmployeeCode ?? "N/A")</MudText>
                             </div>
                         </MudStack>
                     </div>
                     <MudDivider />
-                    <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">Hồ sơ của tôi</MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">Đổi mật khẩu</MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Filled.Devices" OnClick="@(() => _nav.NavigateTo("/admin/sessions"))">Thiết bị & phiên đăng nhập</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">@Language.T("common.profile")</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">@Language.T("common.changePassword")</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Devices" OnClick="@(() => _nav.NavigateTo("/admin/sessions"))">@Language.T("common.sessions")</MudMenuItem>
                     @if (_permissions?.Has(SecurityFunctionCodes.LeaveCreate) == true)
                     {
                         <MudDivider />
-                        <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => _nav.NavigateTo("/leave/create"))">Đăng ký nghỉ phép</MudMenuItem>
-                        <MudMenuItem Icon="@Icons.Material.Filled.History" OnClick="@(() => _nav.NavigateTo("/leave/history"))">Lịch sử đơn của tôi</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => _nav.NavigateTo("/leave/create"))">@Language.T("leave.create")</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.History" OnClick="@(() => _nav.NavigateTo("/leave/history"))">@Language.T("leave.history")</MudMenuItem>
                     }
                     <MudDivider />
                     <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
-                        <MudText Color="Color.Error">Đăng xuất</MudText>
+                        <MudText Color="Color.Error">@Language.T("common.logout")</MudText>
                     </MudMenuItem>
                 </ChildContent>
             </MudMenu>
@@ -85,8 +84,11 @@
     private bool _drawerOpen = true;
     private bool _isLoading = true;
     private PermissionSnapshotDto? _permissions;
+
     protected override async Task OnInitializedAsync()
     {
+        Language.LanguageChanged += OnLanguageChanged;
+        await Language.InitializeAsync();
         try
         {
             _isLoading = true;
@@ -100,22 +102,17 @@
             await _user.InitializeAsync();
             var permissionResult = await _securityService.GetMyPermissionsAsync();
             if (permissionResult.IsSuccess) _permissions = permissionResult.Data;
-            Logger.LogInfoIf(
-                Debug,
-                "[{Component}] Init done. User={UserId}, PermissionCode={PermissionCode}",
-                ComponentName,
-                _user.User?.UserId,
-                _user.User?.PermissionCode);
+            Logger.LogInfoIf(Debug, "[{Component}] Init done. User={UserId}, PermissionCode={PermissionCode}", ComponentName, _user.User?.UserId, _user.User?.PermissionCode);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "[{Component}] Initialization failed", ComponentName);
         }
-        finally
-        {
-            _isLoading = false;
-        }
+        finally { _isLoading = false; }
     }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    private Task SetLanguageAsync(LanguageCode language) => Language.SetLanguageAsync(language);
 
     private async Task HandleLogout()
     {
@@ -124,5 +121,5 @@
     }
 
     private void DrawerToggle() => _drawerOpen = !_drawerOpen;
-    public void Dispose() { }
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }
