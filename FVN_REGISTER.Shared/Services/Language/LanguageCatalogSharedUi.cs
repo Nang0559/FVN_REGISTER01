@@ -34,6 +34,7 @@ public static class LanguageCatalogSharedUi
         ["equipment.qr.startFailed"] = "Không thể khởi động bộ quét QR.",
         ["equipment.qr.cameraFailed"] = "Không thể truy cập camera: {0}",
         ["dashboard.overtimeType"] = "Làm thêm giờ",
+        ["help.context"] = "Trợ giúp ngữ cảnh",
     };
 
     private static readonly IReadOnlyDictionary<string, string> Ja = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -64,6 +65,7 @@ public static class LanguageCatalogSharedUi
         ["equipment.qr.startFailed"] = "QRスキャナーを起動できません。",
         ["equipment.qr.cameraFailed"] = "カメラにアクセスできません: {0}",
         ["dashboard.overtimeType"] = "残業",
+        ["help.context"] = "コンテキストヘルプ",
     };
 
     public static bool TryGet(LanguageCode language, string key, out string value)
