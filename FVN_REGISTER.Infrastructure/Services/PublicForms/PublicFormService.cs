@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.PublicForms;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Contract.Dtos.PublicForms;
 using FVN_REGISTER.Contract.Requests.PublicForms;
 using FVN_REGISTER.Core.Entities.PublicForms;
@@ -11,6 +12,22 @@ namespace FVN_REGISTER.Infrastructure.Services.PublicForms;
 
 public sealed class PublicFormService : IPublicFormService
 {
+    public Task<ServiceResult<List<PublicFormDto>>> GetManageListAsync(CancellationToken ct=default)=>GuardAsync(()=>GetManageListAsyncCoreAsync(ct));
+    public Task<ServiceResult<List<PublicFormDto>>> GetAvailableAsync(string e,string? d,string? p,CancellationToken ct=default)=>GuardAsync(()=>GetAvailableAsyncCoreAsync(e,d,p,ct));
+    public Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudienceDepartmentsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetAudienceDepartmentsAsyncCoreAsync(ct));
+    public Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudiencePositionsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetAudiencePositionsAsyncCoreAsync(ct));
+    public Task<ServiceResult<PublicFormAudienceEmployeePageDto>> SearchAudienceEmployeesAsync(string? s,int page,int size,CancellationToken ct=default)=>GuardAsync(()=>SearchAudienceEmployeesAsyncCoreAsync(s,page,size,ct));
+    public async Task<ServiceResult<PublicFormDto>> GetAsync(int id,CancellationToken ct=default){var v=await GetAsyncCoreAsync(id,ct);return v is null?ServiceResult<PublicFormDto>.Fail("Không tìm thấy biểu mẫu."):ServiceResult<PublicFormDto>.Ok(v);}
+    public Task<ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest q,int actor,CancellationToken ct=default)=>GuardAsync(()=>CreateAsyncCoreAsync(q,actor,ct));
+    public Task<ServiceResult<PublicFormDto>> UpdateAsync(int id,SavePublicFormRequest q,int actor,CancellationToken ct=default)=>GuardAsync(()=>UpdateAsyncCoreAsync(id,q,actor,ct));
+    public Task<ServiceResult> PublishAsync(int id,int actor,CancellationToken ct=default)=>GuardAsync(()=>PublishAsyncCoreAsync(id,actor,ct));
+    public Task<ServiceResult> CloseAsync(int id,int actor,CancellationToken ct=default)=>GuardAsync(()=>CloseAsyncCoreAsync(id,actor,ct));
+    public Task<ServiceResult<int>> SubmitAsync(int id,string e,string? d,string? p,IReadOnlyCollection<PublicFormAnswerRequest> a,CancellationToken ct=default)=>GuardAsync(()=>SubmitAsyncCoreAsync(id,e,d,p,a,ct));
+    public Task<ServiceResult<List<PublicFormDto>>> GetSubmissionFormsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionFormsAsyncCoreAsync(ct));
+    public Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsync(int id,PublicFormSubmissionQueryDto q,string scope,CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionsAsyncCoreAsync(id,q,scope,ct));
+    public Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsync(int id,PublicFormSubmissionQueryDto q,string scope,CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionSummaryAsyncCoreAsync(id,q,scope,ct));
+    public Task<ServiceResult<byte[]>> ExportSubmissionsAsync(int id,PublicFormSubmissionQueryDto q,string scope,CancellationToken ct=default)=>GuardAsync(()=>ExportSubmissionsAsyncCoreAsync(id,q,scope,ct));
+
     private static readonly HashSet<string> QuestionTypes = new(StringComparer.OrdinalIgnoreCase)
     { "Text","Textarea","Number","Date","Time","DateTime","SingleChoice","MultiChoice","YesNo","Department","Employee","File" };
     private static readonly HashSet<string> AudienceTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -18,7 +35,7 @@ public sealed class PublicFormService : IPublicFormService
     private readonly IUnitOfWork _uow;
     public PublicFormService(IUnitOfWork uow) => _uow = uow;
 
-    public async Task<List<PublicFormDto>> GetManageListAsync(CancellationToken ct = default)
+    private async Task<List<PublicFormDto>> GetManageListAsyncCoreAsync(CancellationToken ct = default)
     {
         var rows = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options)
@@ -26,7 +43,7 @@ public sealed class PublicFormService : IPublicFormService
         return rows.Select(Map).ToList();
     }
 
-    public async Task<List<PublicFormDto>> GetAvailableAsync(string employeeCode, string? deptCode, string? positionCode, CancellationToken ct = default)
+    private async Task<List<PublicFormDto>> GetAvailableAsyncCoreAsync(string employeeCode, string? deptCode, string? positionCode, CancellationToken ct = default)
     {
         var normalizedEmployeeCode = employeeCode.Trim();
         var normalizedDeptCode = deptCode?.Trim();
@@ -65,7 +82,7 @@ public sealed class PublicFormService : IPublicFormService
         return rows.Select(Map).ToList();
     }
 
-    public async Task<List<PublicFormAudienceLookupDto>> GetAudienceDepartmentsAsync(CancellationToken ct = default)
+    private async Task<List<PublicFormAudienceLookupDto>> GetAudienceDepartmentsAsyncCoreAsync(CancellationToken ct = default)
     {
         return await _uow.Repository<F03Department>().Query()
             .AsNoTracking()
@@ -80,7 +97,7 @@ public sealed class PublicFormService : IPublicFormService
             .ToListAsync(ct);
     }
 
-    public async Task<List<PublicFormAudienceLookupDto>> GetAudiencePositionsAsync(CancellationToken ct = default)
+    private async Task<List<PublicFormAudienceLookupDto>> GetAudiencePositionsAsyncCoreAsync(CancellationToken ct = default)
     {
         return await _uow.Repository<F03Position>().Query()
             .AsNoTracking()
@@ -94,7 +111,7 @@ public sealed class PublicFormService : IPublicFormService
             .ToListAsync(ct);
     }
 
-    public async Task<PublicFormAudienceEmployeePageDto> SearchAudienceEmployeesAsync(
+    private async Task<PublicFormAudienceEmployeePageDto> SearchAudienceEmployeesAsyncCoreAsync(
         string? search,
         int page,
         int pageSize,
@@ -140,7 +157,7 @@ public sealed class PublicFormService : IPublicFormService
         };
     }
 
-    public async Task<PublicFormDto?> GetAsync(int id, CancellationToken ct = default)
+    private async Task<PublicFormDto?> GetAsyncCoreAsync(int id, CancellationToken ct = default)
     {
         var x = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options)
@@ -148,7 +165,7 @@ public sealed class PublicFormService : IPublicFormService
         return x == null ? null : Map(x);
     }
 
-    public async Task<ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
+    private async Task<ServiceResult<PublicFormDto>> CreateAsyncCoreAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         await ValidateAsync(request, ct);
         var exists = await _uow.Repository<F03PublicForm>().Query().AnyAsync(x => x.FormCode == request.FormCode.Trim(), ct);
@@ -159,7 +176,7 @@ public sealed class PublicFormService : IPublicFormService
         return ServiceResult<PublicFormDto>.Ok(Map(entity));
     }
 
-    public async Task<ServiceResult<PublicFormDto>> UpdateAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
+    private async Task<ServiceResult<PublicFormDto>> UpdateAsyncCoreAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         await ValidateAsync(request, ct);
         var entity = await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).ThenInclude(x=>x.Options).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
@@ -174,7 +191,7 @@ public sealed class PublicFormService : IPublicFormService
         return ServiceResult<PublicFormDto>.Ok(Map(entity));
     }
 
-    public async Task<ServiceResult> PublishAsync(int id,int actorUserId,CancellationToken ct=default)
+    private async Task<ServiceResult> PublishAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(e==null)return ServiceResult.Fail("Không tìm thấy biểu mẫu.");
@@ -184,14 +201,14 @@ public sealed class PublicFormService : IPublicFormService
         e.Status="Published";e.PublishedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return ServiceResult.Ok();
     }
 
-    public async Task<ServiceResult> CloseAsync(int id,int actorUserId,CancellationToken ct=default)
+    private async Task<ServiceResult> CloseAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(e==null)return ServiceResult.Fail("Không tìm thấy biểu mẫu.");
         e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return ServiceResult.Ok();
     }
 
-    public async Task<ServiceResult<int>> SubmitAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<PublicFormAnswerRequest> answers,CancellationToken ct=default)
+    private async Task<ServiceResult<int>> SubmitAsyncCoreAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<PublicFormAnswerRequest> answers,CancellationToken ct=default)
     {
         var now=DateTime.Now;
         var form=await _uow.Repository<F03PublicForm>().Query()
@@ -226,6 +243,9 @@ public sealed class PublicFormService : IPublicFormService
         await _uow.SaveChangesAsync(ct);
         return ServiceResult<int>.Ok(sub.Id);
     }
+
+    private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult<T>.Fail(ex.Message);}}
+    private static async Task<ServiceResult> GuardAsync(Func<Task> op){try{await op();return ServiceResult.Ok();}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult.Fail(ex.Message);}}
 
     private static bool Matches(F03PublicForm x,string employeeCode,string? deptCode,string? positionCode)
         => x.Audiences.Any(a => a.IsActive == true && a.ScopeType=="AllCompany"
@@ -360,10 +380,10 @@ public sealed class PublicFormService : IPublicFormService
         foreach(var a in r.Audiences) e.Audiences.Add(new F03PublicFormAudience{FormId=e.Id,ScopeType=a.ScopeType.Trim(),ScopeValue=a.ScopeValue?.Trim()});
     }
     private static PublicFormDto Map(F03PublicForm x)=>new(){Id=x.Id,FormCode=x.FormCode,Title=x.Title,Description=x.Description,CategoryCode=x.CategoryCode,Status=x.Status,StartAt=x.StartAt,EndAt=x.EndAt,AllowMultipleSubmit=x.AllowMultipleSubmit,RequireApproval=x.RequireApproval,MaxSubmissions=x.MaxSubmissions,Version=x.Version,IsActive=x.IsActive,Questions=x.Questions.OrderBy(q=>q.Sequence).Select(q=>new PublicFormQuestionDto{Id=q.Id,QuestionCode=q.QuestionCode,QuestionText=q.QuestionText,QuestionType=q.QuestionType,HelpText=q.HelpText,Placeholder=q.Placeholder,IsRequired=q.IsRequired,Sequence=q.Sequence,Options=q.Options.OrderBy(o=>o.Sequence).Select(o=>new PublicFormOptionDto{Id=o.Id,OptionCode=o.OptionCode,OptionText=o.OptionText,Sequence=o.Sequence}).ToList()}).ToList(),Audiences=x.Audiences.Where(a=>a.IsActive==true).Select(a=>new PublicFormAudienceDto{Id=a.Id,ScopeType=a.ScopeType,ScopeValue=a.ScopeValue}).ToList()};
-    public async Task<List<PublicFormDto>> GetSubmissionFormsAsync(CancellationToken ct = default)
-        => await GetManageListAsync(ct);
+    private async Task<List<PublicFormDto>> GetSubmissionFormsAsyncCoreAsync(CancellationToken ct = default)
+        => await GetManageListAsyncCoreAsync(ct);
 
-    public async Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
+    private async Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
     {
         var form = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options)
@@ -390,7 +410,7 @@ public sealed class PublicFormService : IPublicFormService
         });
     }
 
-    public async Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
+    private async Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
     {
         var form = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options).FirstOrDefaultAsync(x => x.Id == formId, ct);
