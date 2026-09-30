@@ -41,6 +41,9 @@ public interface IEquipmentClientService
     Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(string deptCode, IBrowserFile file, CancellationToken ct);
     Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaFromExcelAsync(string deptCode, IBrowserFile file, string? schemaName = null, int sheetIndex = 0, CancellationToken ct = default);
     Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaFromExcelAsync(string deptCode, IBrowserFile file, string? schemaName, CancellationToken ct);
+    Task<ApiResponse<EquipmentExcelGridDto>> GetExcelGridAsync(string deptCode, IBrowserFile file, int sheetIndex, int maxRows = 200, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelRangeAsync(string deptCode, IBrowserFile file, EquipmentExcelRangeRequest range, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaFromExcelRangeAsync(string deptCode, IBrowserFile file, EquipmentExcelRangeRequest range, string? schemaName = null, CancellationToken ct = default);
     Task<ApiResponse<EquipmentFieldDefinitionDto>> SaveSchemaFieldAsync(SaveEquipmentFieldDefinitionRequest request, CancellationToken ct = default);
     Task<ApiResponse<EquipmentImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee = false, int sheetIndex = 0, CancellationToken ct = default);
     Task<ApiResponse<EquipmentImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee, CancellationToken ct);

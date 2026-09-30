@@ -207,6 +207,116 @@ public sealed class EquipmentImportService : IEquipmentImportService
         catch (KeyNotFoundException ex) { return ServiceResult<EquipmentImportBatchDto>.Fail(ex.Message); }
     }
 
+    public async Task<ServiceResult<EquipmentExcelGridDto>> GetExcelGridAsync(string deptCode, string fileName, Stream content, int sheetIndex, int maxRows = 200, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireUser();
+            deptCode = deptCode.Trim().ToUpperInvariant();
+            await EnsureScopeAsync(user, deptCode, ct);
+            if (content == null || !content.CanRead) return ServiceResult<EquipmentExcelGridDto>.Fail("File Excel không hợp lệ.");
+            if (maxRows <= 0) maxRows = 200;
+            maxRows = Math.Min(maxRows, 2000);
+
+            await using var buffered = new MemoryStream();
+            await content.CopyToAsync(buffered, ct);
+            buffered.Position = 0;
+            IWorkbook workbook;
+            try { workbook = WorkbookFactory.Create(buffered); }
+            catch (Exception ex) when (ex is IOException || ex is InvalidDataException || ex is ArgumentException)
+            { return ServiceResult<EquipmentExcelGridDto>.Fail("Không thể đọc file Excel. Hãy kiểm tra file không bị hỏng và đúng định dạng."); }
+
+            using (workbook)
+            {
+                if (sheetIndex < 0 || sheetIndex >= workbook.NumberOfSheets) return ServiceResult<EquipmentExcelGridDto>.Fail($"Sheet Excel không hợp lệ (index={sheetIndex}).");
+                var ws = workbook.GetSheetAt(sheetIndex);
+                var formatter = new DataFormatter();
+                var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+
+                var totalRowCount = Math.Max(0, ws.LastRowNum - ws.FirstRowNum + 1);
+                var lastRowToRead = Math.Min(ws.LastRowNum, ws.FirstRowNum + maxRows - 1);
+
+                // Xác định số cột hiển thị = cột dài nhất trong số các dòng sẽ tải, để lưới preview không bị cụt cột.
+                var columnCount = 0;
+                for (var r = ws.FirstRowNum; r <= lastRowToRead; r++)
+                {
+                    var row = ws.GetRow(r);
+                    if (row != null) columnCount = Math.Max(columnCount, (int)row.LastCellNum);
+                }
+
+                var rows = new List<EquipmentExcelGridRowDto>();
+                for (var r = ws.FirstRowNum; r <= lastRowToRead; r++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var row = ws.GetRow(r);
+                    var cells = new List<string?>(columnCount);
+                    for (var c = 0; c < columnCount; c++) cells.Add(row == null ? string.Empty : GetCellText(row.GetCell(c), formatter, evaluator));
+                    rows.Add(new EquipmentExcelGridRowDto { RowIndex = r, IsGroupedOrHidden = IsGroupedOrHiddenRow(row), Cells = cells });
+                }
+
+                return ServiceResult<EquipmentExcelGridDto>.Ok(new EquipmentExcelGridDto
+                {
+                    FileName = Path.GetFileName(fileName),
+                    SheetIndex = sheetIndex,
+                    TotalRowCount = totalRowCount,
+                    ColumnCount = columnCount,
+                    Rows = rows
+                });
+            }
+        }
+        catch (ArgumentException ex) { return ServiceResult<EquipmentExcelGridDto>.Fail(ex.Message); }
+        catch (InvalidOperationException ex) { return ServiceResult<EquipmentExcelGridDto>.Fail(ex.Message); }
+    }
+
+    public async Task<ServiceResult<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelRangeAsync(string deptCode, string fileName, Stream content, EquipmentExcelRangeRequest range, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireUser();
+            deptCode = deptCode.Trim().ToUpperInvariant();
+            await EnsureScopeAsync(user, deptCode, ct);
+            if (range == null) return ServiceResult<EquipmentSchemaFromExcelDto>.Fail("Chưa chọn vùng dữ liệu.");
+            var data = await ReadExcelAsync(fileName, content, ct, range.SheetIndex, range.HeaderRowIndex, range.SelectedColumnIndexes, range.DataStartRowIndex, range.DataEndRowIndex);
+            var inferred = ExcelSchemaInference.Infer(data.InferenceColumns);
+            return ServiceResult<EquipmentSchemaFromExcelDto>.Ok(new EquipmentSchemaFromExcelDto
+            {
+                FileName = Path.GetFileName(fileName),
+                SuggestedSchemaName = Path.GetFileNameWithoutExtension(fileName),
+                ColumnCount = data.Headers.Count,
+                SampleRowCount = data.SampleRowCount,
+                Fields = inferred.Select(x => new EquipmentFieldDefinitionDto { DeptCode = deptCode, FieldKey = x.FieldKey, FieldLabel = x.FieldLabel, DataType = x.DataType, IsRequired = x.IsRequired, IsImportable = true, IsActiveField = true, DisplayOrder = x.DisplayOrder, MaxLength = x.MaxLength }).ToList()
+            });
+        }
+        catch (ArgumentException ex) { return ServiceResult<EquipmentSchemaFromExcelDto>.Fail(ex.Message); }
+        catch (InvalidOperationException ex) { return ServiceResult<EquipmentSchemaFromExcelDto>.Fail(ex.Message); }
+        catch (KeyNotFoundException ex) { return ServiceResult<EquipmentSchemaFromExcelDto>.Fail(ex.Message); }
+    }
+
+    public async Task<ServiceResult<EquipmentSchemaDto>> CreateSchemaFromExcelRangeAsync(string deptCode, string fileName, Stream content, EquipmentExcelRangeRequest range, string? schemaName, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireUser();
+            deptCode = deptCode.Trim().ToUpperInvariant();
+            await EnsureScopeAsync(user, deptCode, ct);
+            if (range == null) return ServiceResult<EquipmentSchemaDto>.Fail("Chưa chọn vùng dữ liệu.");
+            var data = await ReadExcelAsync(fileName, content, ct, range.SheetIndex, range.HeaderRowIndex, range.SelectedColumnIndexes, range.DataStartRowIndex, range.DataEndRowIndex);
+            var inferred = ExcelSchemaInference.Infer(data.InferenceColumns);
+            var name = string.IsNullOrWhiteSpace(schemaName) ? Path.GetFileNameWithoutExtension(fileName) : schemaName.Trim();
+            ValidateSchemaName(name);
+            var schema = new F03EquipmentSchema { DeptCode = deptCode, SchemaName = name, SchemaKind = "Equipment", SchemaKey = Guid.NewGuid().ToString("N"), Version = 1, Status = "Draft", IsActive = true, CreatedBy = user.UserId, SourceFileName = Path.GetFileName(fileName), CreatedFromExcel = true };
+            await _uow.Repository<F03EquipmentSchema>().AddAsync(schema, ct);
+            await _uow.SaveChangesAsync(ct);
+            foreach (var field in inferred) await _uow.Repository<F03EquipmentFieldDefinition>().AddAsync(new F03EquipmentFieldDefinition { SchemaId = schema.Id, DeptCode = deptCode, FieldKey = field.FieldKey, FieldLabel = field.FieldLabel, DataType = field.DataType, IsRequired = field.IsRequired, IsImportable = true, IsActiveField = true, DisplayOrder = field.DisplayOrder, MaxLength = field.MaxLength, CreatedBy = user.UserId, IsActive = true }, ct);
+            await _uow.SaveChangesAsync(ct);
+            await _audit.LogAction("EQUIPMENT_SCHEMA_CREATED_FROM_EXCEL", user.UserId, $"SchemaId={schema.Id}; DeptCode={deptCode}; FileName={Path.GetFileName(fileName)}; SheetIndex={range.SheetIndex}; HeaderRow={range.HeaderRowIndex}; Columns={inferred.Count}", ct: ct);
+            return ServiceResult<EquipmentSchemaDto>.Ok(await MapSchemaAsync(schema, user.UserId, ct));
+        }
+        catch (ArgumentException ex) { return ServiceResult<EquipmentSchemaDto>.Fail(ex.Message); }
+        catch (InvalidOperationException ex) { return ServiceResult<EquipmentSchemaDto>.Fail(ex.Message); }
+        catch (KeyNotFoundException ex) { return ServiceResult<EquipmentSchemaDto>.Fail(ex.Message); }
+    }
+
     public async Task<EquipmentSchemaFromExcelDto> PreviewSchemaFromExcelAsync(string deptCode, string fileName, Stream content, CancellationToken ct = default)
     { var user = RequireUser(); await EnsureScopeAsync(user, deptCode, ct); var data = await ReadExcelAsync(fileName, content, ct); var inferred = ExcelSchemaInference.Infer(data.InferenceColumns); return new EquipmentSchemaFromExcelDto { FileName = Path.GetFileName(fileName), SuggestedSchemaName = Path.GetFileNameWithoutExtension(fileName), ColumnCount = data.Headers.Count, SampleRowCount = data.SampleRowCount, Fields = inferred.Select(x => new EquipmentFieldDefinitionDto { DeptCode = deptCode.Trim().ToUpperInvariant(), FieldKey = x.FieldKey, FieldLabel = x.FieldLabel, DataType = x.DataType, IsRequired = x.IsRequired, IsImportable = true, IsActiveField = true, DisplayOrder = x.DisplayOrder, MaxLength = x.MaxLength }).ToList() }; }
 
@@ -290,14 +400,97 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto RequireUser()=>_currentUser.GetCurrentUser()??throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
     private sealed class ExcelData { public List<string> Headers { get; init; } = new(); public List<ExcelRow> Rows { get; init; } = new(); public int SampleRowCount { get; init; } public List<ExcelSchemaInference.InputColumn> InferenceColumns { get; init; } = new(); }
     private sealed class ExcelRow { public int RowNumber { get; init; } public Dictionary<string,string?> Values { get; init; } = new(StringComparer.OrdinalIgnoreCase); }
-    private static async Task<ExcelData> ReadExcelAsync(string fileName, Stream content, CancellationToken ct, int sheetIndex = 0)
+
+    /// <summary>
+    /// Một dòng được coi là "group" (dòng con/dòng tổng của Excel Outline) hoặc đang bị ẩn (thu gọn group)
+    /// nếu OutlineLevel > 0 hoặc ZeroHeight = true. Các dòng này luôn bị bỏ qua khi lấy schema/dữ liệu,
+    /// bất kể vùng dữ liệu người dùng đã chọn là gì.
+    /// </summary>
+    private static bool IsGroupedOrHiddenRow(IRow? row) => row != null && (row.ZeroHeight || row.OutlineLevel > 0);
+
+    private static async Task<ExcelData> ReadExcelAsync(
+        string fileName, Stream content, CancellationToken ct,
+        int sheetIndex = 0,
+        int? headerRowIndex = null,
+        IReadOnlyList<int>? selectedColumnIndexes = null,
+        int? dataStartRowIndex = null,
+        int? dataEndRowIndex = null)
     {
-        if(content==null||!content.CanRead) throw new ArgumentException("File Excel không hợp lệ."); await using var buffered=new MemoryStream(); await content.CopyToAsync(buffered,ct); buffered.Position=0; IWorkbook wb; try{wb=WorkbookFactory.Create(buffered);}catch(Exception ex){throw new InvalidOperationException("Không thể đọc file Excel. Hãy kiểm tra file không bị mã hóa/hỏng và đúng định dạng.",ex);} using(wb)
+        if (content == null || !content.CanRead) throw new ArgumentException("File Excel không hợp lệ.");
+        await using var buffered = new MemoryStream();
+        await content.CopyToAsync(buffered, ct);
+        buffered.Position = 0;
+        IWorkbook wb;
+        try { wb = WorkbookFactory.Create(buffered); }
+        catch (Exception ex) { throw new InvalidOperationException("Không thể đọc file Excel. Hãy kiểm tra file không bị mã hóa/hỏng và đúng định dạng.", ex); }
+        using (wb)
         {
-            if (sheetIndex < 0 || sheetIndex >= wb.NumberOfSheets) throw new InvalidOperationException($"Sheet Excel không hợp lệ (index={sheetIndex})."); var ws=wb.GetSheetAt(sheetIndex)??throw new InvalidOperationException("File Excel không có sheet."); var formatter=new DataFormatter(); var evaluator=wb.GetCreationHelper().CreateFormulaEvaluator(); var first=ws.FirstRowNum; while(first<=ws.LastRowNum&&ws.GetRow(first)==null)first++; if(first>ws.LastRowNum)throw new InvalidOperationException("File Excel không có dữ liệu."); var headerRow=ws.GetRow(first)!; var lastCol=headerRow.LastCellNum; if(lastCol<=0)throw new InvalidOperationException("Excel phải có tiêu đề và ít nhất một cột.");
-            var headers=Enumerable.Range(0,lastCol).Select(i=>GetCellText(headerRow.GetCell(i),formatter,evaluator).Trim()).ToList(); if(headers.Any(string.IsNullOrWhiteSpace))throw new InvalidOperationException($"Sheet '{wb.GetSheetName(sheetIndex)}' có cột tiêu đề bị trống."); var normalized=headers.Select(NormalizeKey).ToList(); if(normalized.Count!=normalized.Distinct(StringComparer.OrdinalIgnoreCase).Count())throw new InvalidOperationException("Excel có tên cột trùng nhau sau khi chuẩn hóa. Hãy đổi tên các cột trước khi tạo mẫu dữ liệu.");
-            var rows=new List<ExcelRow>(); var sampleValues=headers.Select(_=>new List<string?>()).ToList(); for(var rowIndex=first+1;rowIndex<=ws.LastRowNum;rowIndex++){ct.ThrowIfCancellationRequested();var excelRow=ws.GetRow(rowIndex);if(excelRow==null)continue;var data=new Dictionary<string,string?>(StringComparer.OrdinalIgnoreCase);for(var col=0;col<headers.Count;col++){var value=GetCellText(excelRow.GetCell(col),formatter,evaluator).Trim();data[headers[col]]=value;if(sampleValues[col].Count<200)sampleValues[col].Add(value);}if(data.Values.All(string.IsNullOrWhiteSpace))continue;rows.Add(new ExcelRow{RowNumber=rowIndex+1,Values=data});}
-            var inference=headers.Select((h,i)=>new ExcelSchemaInference.InputColumn(h,sampleValues[i])).ToList(); return new ExcelData{Headers=headers,Rows=rows,SampleRowCount=Math.Min(rows.Count,200),InferenceColumns=inference};
+            if (sheetIndex < 0 || sheetIndex >= wb.NumberOfSheets) throw new InvalidOperationException($"Sheet Excel không hợp lệ (index={sheetIndex}).");
+            var ws = wb.GetSheetAt(sheetIndex) ?? throw new InvalidOperationException("File Excel không có sheet.");
+            var formatter = new DataFormatter();
+            var evaluator = wb.GetCreationHelper().CreateFormulaEvaluator();
+
+            int first;
+            if (headerRowIndex.HasValue)
+            {
+                first = headerRowIndex.Value;
+                if (first < ws.FirstRowNum || first > ws.LastRowNum) throw new InvalidOperationException($"Dòng tiêu đề đã chọn (dòng {first + 1}) không hợp lệ trong sheet '{wb.GetSheetName(sheetIndex)}'.");
+                if (ws.GetRow(first) == null) throw new InvalidOperationException($"Dòng tiêu đề đã chọn (dòng {first + 1}) không có dữ liệu.");
+            }
+            else
+            {
+                // Tự nhận diện: bỏ qua các dòng trống và các dòng thuộc group/đang ẩn khi tìm dòng tiêu đề đầu tiên.
+                first = ws.FirstRowNum;
+                while (first <= ws.LastRowNum && (ws.GetRow(first) == null || IsGroupedOrHiddenRow(ws.GetRow(first)))) first++;
+                if (first > ws.LastRowNum) throw new InvalidOperationException("File Excel không có dữ liệu.");
+            }
+            var headerRow = ws.GetRow(first)!;
+            var lastCol = headerRow.LastCellNum;
+            if (lastCol <= 0) throw new InvalidOperationException("Excel phải có tiêu đề và ít nhất một cột.");
+
+            // Cột sẽ lấy schema: theo lựa chọn của người dùng, hoặc mặc định toàn bộ cột có tiêu đề.
+            List<int> columnIndexes;
+            if (selectedColumnIndexes != null && selectedColumnIndexes.Count > 0)
+            {
+                columnIndexes = selectedColumnIndexes.Distinct().OrderBy(x => x).ToList();
+                var invalid = columnIndexes.Where(c => c < 0 || c >= lastCol).ToList();
+                if (invalid.Count > 0) throw new InvalidOperationException($"Cột đã chọn không hợp lệ trong sheet '{wb.GetSheetName(sheetIndex)}': {string.Join(", ", invalid.Select(c => c + 1))}.");
+            }
+            else
+            {
+                columnIndexes = Enumerable.Range(0, lastCol).ToList();
+            }
+
+            var headers = columnIndexes.Select(i => GetCellText(headerRow.GetCell(i), formatter, evaluator).Trim()).ToList();
+            if (headers.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException($"Sheet '{wb.GetSheetName(sheetIndex)}' có cột tiêu đề bị trống trong các cột đã chọn.");
+            var normalized = headers.Select(NormalizeKey).ToList();
+            if (normalized.Count != normalized.Distinct(StringComparer.OrdinalIgnoreCase).Count()) throw new InvalidOperationException("Excel có tên cột trùng nhau sau khi chuẩn hóa. Hãy đổi tên các cột hoặc bỏ bớt cột trùng trước khi tạo mẫu dữ liệu.");
+
+            // Vùng dữ liệu để hệ thống nhận định loại dữ liệu: theo lựa chọn của người dùng, mặc định là ngay sau dòng tiêu đề đến hết sheet.
+            var dataStart = dataStartRowIndex ?? (first + 1);
+            var dataEnd = Math.Min(dataEndRowIndex ?? ws.LastRowNum, ws.LastRowNum);
+            if (dataStart < 0) dataStart = 0;
+
+            var rows = new List<ExcelRow>();
+            var sampleValues = headers.Select(_ => new List<string?>()).ToList();
+            for (var rowIndex = dataStart; rowIndex <= dataEnd; rowIndex++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var excelRow = ws.GetRow(rowIndex);
+                if (excelRow == null) continue;
+                if (IsGroupedOrHiddenRow(excelRow)) continue; // bỏ qua dòng group/đang ẩn, không đưa vào schema/dữ liệu
+                var data = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+                for (var c = 0; c < columnIndexes.Count; c++)
+                {
+                    var value = GetCellText(excelRow.GetCell(columnIndexes[c]), formatter, evaluator).Trim();
+                    data[headers[c]] = value;
+                    if (sampleValues[c].Count < 200) sampleValues[c].Add(value);
+                }
+                if (data.Values.All(string.IsNullOrWhiteSpace)) continue;
+                rows.Add(new ExcelRow { RowNumber = rowIndex + 1, Values = data });
+            }
+            var inference = headers.Select((h, i) => new ExcelSchemaInference.InputColumn(h, sampleValues[i])).ToList();
+            return new ExcelData { Headers = headers, Rows = rows, SampleRowCount = Math.Min(rows.Count, 200), InferenceColumns = inference };
         }
     }
     private static string GetCellText(ICell? cell, DataFormatter formatter, IFormulaEvaluator evaluator)

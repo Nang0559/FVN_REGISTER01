@@ -32,12 +32,67 @@
                 <MudPaper Outlined="true" Class="pa-4 mb-3">
                     <MudText Typo="Typo.h6">Tạo mẫu dữ liệu</MudText><MudText Typo="body2" Class="mud-text-secondary mt-1">Có hai cách: lấy cấu trúc từ Excel hoặc tự định nghĩa từng trường.</MudText>
                     <MudTextField T="string" @bind-Value="_newSchemaName" Label="Tên mẫu dữ liệu" Variant="Variant.Outlined" Class="mt-3"/><MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-2" OnClick="CreateManualSchemaAsync">Tạo mẫu thủ công</MudButton>
-                    <MudDivider Class="my-4"/><MudText Typo="Typo.subtitle1">Tạo từ Excel</MudText><MudText Typo="body2" Class="mud-text-secondary">Hệ thống đọc tiêu đề và dữ liệu mẫu để đề xuất kiểu dữ liệu, bắt buộc và độ dài.</MudText>
+                    <MudDivider Class="my-4"/><MudText Typo="Typo.subtitle1">Tạo từ Excel</MudText><MudText Typo="body2" Class="mud-text-secondary">Chọn file → xem trước → chọn sheet, dòng tiêu đề, cột và vùng dữ liệu → lấy Schema.</MudText>
                     <MudFileUpload T="IBrowserFile" FilesChanged="OnSchemaFileChanged" Accept=".xls,.xlsx,.xlsm" MaxFileSize="25000000" Class="mt-3"><CustomContent Context="fileUpload"><MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@fileUpload.OpenFilePickerAsync">Chọn file Excel</MudButton></CustomContent><SelectedTemplate>@if(context!=null){<MudText Typo="Typo.caption">Đã chọn: @context.Name</MudText>}</SelectedTemplate></MudFileUpload>
-                    <MudButton Variant="Variant.Filled" Color="Color.Info" Class="mt-2" Disabled="@(_schemaFile == null || _readingExcel)" OnClick="PreviewExcelAsync">@(_readingExcel?"Đang đọc Excel...":"Đọc cấu trúc Excel")</MudButton>
-                    @if(_excelPreview!=null){<MudAlert Severity="Severity.Success" Class="mt-3">File <b>@_excelPreview.FileName</b>: @_excelPreview.ColumnCount cột, @_excelPreview.SampleRowCount dòng mẫu.</MudAlert><MudTextField T="string" @bind-Value="_newSchemaName" Label="Tên mẫu dữ liệu đề xuất" Variant="Variant.Outlined" Class="mt-2"/><MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-2" Disabled="@_creatingFromExcel" OnClick="CreateFromExcelAsync">@(_creatingFromExcel?"Đang tạo...":"Tạo mẫu từ Excel")</MudButton>}
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" Class="mt-2" Disabled="@(_schemaFile == null || _loadingSheets)" OnClick="LoadExcelPreviewAsync">@(_loadingSheets?"Đang tải...":"Xem trước Excel")</MudButton>
                 </MudPaper>
             </MudItem>
+            @if(_sheets.Count>0)
+            {
+                <MudItem xs="12">
+                    <MudPaper Outlined="true" Class="pa-4 mb-3">
+                        <MudText Typo="Typo.h6">Chọn sheet, dòng tiêu đề, cột và vùng dữ liệu</MudText>
+                        <MudSelect T="int" Label="Sheet" Value="_selectedSheetIndex" ValueChanged="@(async (int v) => { _selectedSheetIndex = v; await LoadGridAsync(); })" Variant="Variant.Outlined" Dense="true" Class="mt-2">
+                            @foreach(var s in _sheets){<MudSelectItem Value="@s.Index">@s.Name (@s.RowCount dòng)@(s.HasData?"":" — trống")</MudSelectItem>}
+                        </MudSelect>
+                        @if(_loadingGrid)
+                        {
+                            <MudProgressCircular Indeterminate="true" Class="mt-2"/>
+                        }
+                        else if(_grid!=null)
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">Chọn dòng tiêu đề (cột đầu), tick cột cần lấy trên dòng tiêu đề. Dòng tô xám là dòng group/đang ẩn trong Excel — hệ thống luôn bỏ qua, không tính vào schema hay dữ liệu.</MudText>
+                            <div style="overflow-x:auto;max-height:420px;overflow-y:auto" class="mt-2">
+                                <table style="border-collapse:collapse;width:100%;font-size:0.8rem">
+                                    <tbody>
+                                    @foreach(var row in _grid.Rows)
+                                    {
+                                        <tr style="@(row.IsGroupedOrHidden ? "opacity:0.45;background:#f5f5f5" : (row.RowIndex==_headerRowIndex ? "background:#e3f2fd" : ""))">
+                                            <td style="white-space:nowrap;padding:2px 6px;border:1px solid #eee">
+                                                <input type="radio" name="headerRow" disabled="@row.IsGroupedOrHidden" checked="@(_headerRowIndex==row.RowIndex)" @onchange="@(() => SelectHeaderRow(row.RowIndex))" />
+                                                &nbsp;#@(row.RowIndex+1)@(row.IsGroupedOrHidden?" (group)":"")
+                                            </td>
+                                            @for(var c=0;c<row.Cells.Count;c++)
+                                            {
+                                                var col=c;
+                                                <td style="padding:2px 6px;border:1px solid #eee;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                                    @if(row.RowIndex==_headerRowIndex)
+                                                    {
+                                                        <input type="checkbox" checked="@_selectedColumns.Contains(col)" @onchange="@(e => ToggleColumn(col, (bool)e.Value!))" />
+                                                    }
+                                                    @row.Cells[c]
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudGrid Spacing="2" Class="mt-3">
+                                <MudItem xs="6" sm="3"><MudNumericField T="int?" Label="Dòng dữ liệu bắt đầu" Value="@(_dataStartRowIndex.HasValue ? _dataStartRowIndex.Value+1 : (int?)null)" ValueChanged="@((int? v) => _dataStartRowIndex = v.HasValue ? v.Value-1 : (int?)null)" Variant="Variant.Outlined" Dense="true"/></MudItem>
+                                <MudItem xs="6" sm="3"><MudNumericField T="int?" Label="Dòng dữ liệu kết thúc" Value="@(_dataEndRowIndex.HasValue ? _dataEndRowIndex.Value+1 : (int?)null)" ValueChanged="@((int? v) => _dataEndRowIndex = v.HasValue ? v.Value-1 : (int?)null)" Variant="Variant.Outlined" Dense="true"/></MudItem>
+                                <MudItem xs="12" sm="6"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_headerRowIndex==null || _selectedColumns.Count==0 || _readingExcel)" OnClick="PreviewRangeAsync">@(_readingExcel?"Đang lấy Schema...":"Lấy Schema")</MudButton></MudItem>
+                            </MudGrid>
+                            @if(_excelPreview!=null)
+                            {
+                                <MudAlert Severity="Severity.Success" Class="mt-3">File <b>@_excelPreview.FileName</b>: @_excelPreview.ColumnCount cột, @_excelPreview.SampleRowCount dòng mẫu.</MudAlert>
+                                <MudTextField T="string" @bind-Value="_newSchemaName" Label="Tên mẫu dữ liệu đề xuất" Variant="Variant.Outlined" Class="mt-2"/>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-2" Disabled="@_creatingFromExcel" OnClick="CreateFromRangeAsync">@(_creatingFromExcel?"Đang tạo...":"Tạo mẫu từ Excel")</MudButton>
+                            }
+                        }
+                    </MudPaper>
+                </MudItem>
+            }
             <MudItem xs="12" md="8">
                 <MudPaper Outlined="true" Class="pa-4 mb-3"><MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center"><div><MudText Typo="Typo.h6">Mẫu dữ liệu của phòng @_deptCode</MudText><MudText Typo="body2" Class="mud-text-secondary">Người có quyền trong phòng được xem và nhân bản mẫu của người khác.</MudText></div><MudChip T="string" Size="Size.Small">@_schemas.Count mẫu / phiên bản</MudChip></MudStack>
                     @if(_schemas.Count==0){<MudAlert Severity="Severity.Info" Class="mt-3">Phòng ban chưa có mẫu dữ liệu.</MudAlert>}else{<MudTable Items="_schemas" Dense="true" Hover="true" Class="mt-3"><HeaderContent><MudTh>Mẫu dữ liệu</MudTh><MudTh>Phiên bản</MudTh><MudTh>Trạng thái</MudTh><MudTh>Người tạo</MudTh><MudTh>Số trường</MudTh><MudTh>Thao tác</MudTh></HeaderContent><RowTemplate><MudTd>@context.SchemaName</MudTd><MudTd>v@context.Version</MudTd><MudTd>@StatusText(context.Status)</MudTd><MudTd>@context.OwnerName</MudTd><MudTd>@context.FieldCount</MudTd><MudTd><MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap"><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>SelectSchemaAsync(context.Id))">Xem</MudButton>@if(context.CanEdit){<MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(()=>SelectSchemaAsync(context.Id))">Sửa</MudButton>}<MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>CloneSchemaAsync(context.Id))">Nhân bản</MudButton>@if(context.CanCreateVersion){<MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>CreateVersionAsync(context.Id))">Tạo phiên bản</MudButton>}</MudStack></MudTd></RowTemplate></MudTable>}
@@ -57,13 +112,103 @@
 @code {
     private sealed record DataTypeOption(string Code,string Name);
     private static readonly IReadOnlyList<DataTypeOption> DataTypes=new[]{new DataTypeOption("Text","Văn bản"),new DataTypeOption("Integer","Số nguyên"),new DataTypeOption("Decimal","Số thập phân"),new DataTypeOption("Currency","Tiền tệ"),new DataTypeOption("Date","Ngày"),new DataTypeOption("DateTime","Ngày giờ"),new DataTypeOption("Boolean","Đúng / Sai"),new DataTypeOption("Email","Email"),new DataTypeOption("Choice","Danh sách lựa chọn")};
-    private bool _ready,_access,_readingExcel,_creatingFromExcel; private string _deptCode=string.Empty,_newSchemaName="Mẫu thiết bị"; private List<DepartmentDto> _departments=new(); private List<EquipmentSchemaSummaryDto> _schemas=new(); private EquipmentSchemaDto? _schema; private IBrowserFile? _schemaFile; private EquipmentSchemaFromExcelDto? _excelPreview; private SaveEquipmentFieldDefinitionRequest _newField=new(){DataType="Text",IsImportable=true,IsActiveField=true,DisplayOrder=1};
+    private bool _ready,_access,_readingExcel,_creatingFromExcel,_loadingSheets,_loadingGrid; private string _deptCode=string.Empty,_newSchemaName="Mẫu thiết bị"; private List<DepartmentDto> _departments=new(); private List<EquipmentSchemaSummaryDto> _schemas=new(); private EquipmentSchemaDto? _schema; private IBrowserFile? _schemaFile; private EquipmentSchemaFromExcelDto? _excelPreview; private SaveEquipmentFieldDefinitionRequest _newField=new(){DataType="Text",IsImportable=true,IsActiveField=true,DisplayOrder=1};
+    private List<EquipmentExcelSheetDto> _sheets=new(); private int _selectedSheetIndex; private EquipmentExcelGridDto? _grid; private int? _headerRowIndex; private readonly HashSet<int> _selectedColumns=new(); private int? _dataStartRowIndex; private int? _dataEndRowIndex;
     protected override async Task OnInitializedAsync(){var access=await EquipmentClient.HasImportAccessAsync();_access=access.IsSuccess&&access.Data;if(_access){var departments=await EquipmentClient.GetEquipmentDepartmentsAsync();if(departments.IsSuccess)_departments=departments.Data??new();if(_departments.Count>0)_deptCode=_departments[0].DeptCode;await LoadSchemasAsync();}_ready=true;}
     private async Task LoadSchemasAsync(){if(string.IsNullOrWhiteSpace(_deptCode))return;var result=await EquipmentClient.GetSchemasAsync(_deptCode);if(result.IsSuccess)_schemas=result.Data??new();else Snackbar.Add(result.Message??"Không tải được mẫu dữ liệu.",Severity.Error);_schema=null;}
     private async Task SelectSchemaAsync(int id){var result=await EquipmentClient.GetSchemaAsync(id);if(result.IsSuccess)_schema=result.Data;else Snackbar.Add(result.Message??"Không tải được mẫu dữ liệu.",Severity.Error);}
-    private void OnSchemaFileChanged(IBrowserFile? file){_schemaFile=file;_excelPreview=null;}
-    private async Task PreviewExcelAsync(){if(_schemaFile==null||string.IsNullOrWhiteSpace(_deptCode))return;_readingExcel=true;try{var result=await EquipmentClient.PreviewSchemaFromExcelAsync(_deptCode,_schemaFile);if(result.IsSuccess){_excelPreview=result.Data;if(!string.IsNullOrWhiteSpace(_excelPreview?.SuggestedSchemaName))_newSchemaName=_excelPreview.SuggestedSchemaName;}else Snackbar.Add(result.Message??"Không đọc được cấu trúc Excel.",Severity.Error);}finally{_readingExcel=false;}}
-    private async Task CreateFromExcelAsync(){if(_schemaFile==null||string.IsNullOrWhiteSpace(_deptCode))return;_creatingFromExcel=true;try{var result=await EquipmentClient.CreateSchemaFromExcelAsync(_deptCode,_schemaFile,_newSchemaName);if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add("Đã tạo mẫu dữ liệu từ Excel ở trạng thái Bản nháp.",Severity.Success);}else Snackbar.Add(result.Message??"Không tạo được mẫu dữ liệu từ Excel.",Severity.Error);}finally{_creatingFromExcel=false;}}
+    private void OnSchemaFileChanged(IBrowserFile? file){_schemaFile=file;_excelPreview=null;_sheets=new();_grid=null;_headerRowIndex=null;_selectedColumns.Clear();_dataStartRowIndex=null;_dataEndRowIndex=null;}
+
+    private async Task LoadExcelPreviewAsync()
+    {
+        if(_schemaFile==null||string.IsNullOrWhiteSpace(_deptCode)) return;
+        _loadingSheets=true; _sheets=new(); _grid=null; _excelPreview=null; _headerRowIndex=null; _selectedColumns.Clear(); _dataStartRowIndex=null; _dataEndRowIndex=null;
+        try
+        {
+            var result=await EquipmentClient.InspectExcelAsync(_deptCode,_schemaFile);
+            if(result.IsSuccess)
+            {
+                _sheets=result.Data?.Sheets??new();
+                if(_sheets.Count==0){Snackbar.Add("File Excel không có sheet.",Severity.Warning);return;}
+                _selectedSheetIndex=_sheets.FirstOrDefault(s=>s.HasData)?.Index??_sheets[0].Index;
+                await LoadGridAsync();
+            }
+            else Snackbar.Add(result.Message??"Không đọc được danh sách sheet.",Severity.Error);
+        }
+        finally{_loadingSheets=false;}
+    }
+
+    private async Task LoadGridAsync()
+    {
+        if(_schemaFile==null) return;
+        _loadingGrid=true; _grid=null; _headerRowIndex=null; _selectedColumns.Clear(); _dataStartRowIndex=null; _dataEndRowIndex=null; _excelPreview=null;
+        try
+        {
+            var result=await EquipmentClient.GetExcelGridAsync(_deptCode,_schemaFile,_selectedSheetIndex,200);
+            if(result.IsSuccess)
+            {
+                _grid=result.Data;
+                var firstUsable=_grid?.Rows.FirstOrDefault(r=>!r.IsGroupedOrHidden);
+                if(firstUsable!=null) SelectHeaderRow(firstUsable.RowIndex);
+            }
+            else Snackbar.Add(result.Message??"Không tải được preview dữ liệu Excel.",Severity.Error);
+        }
+        finally{_loadingGrid=false;}
+    }
+
+    private void SelectHeaderRow(int rowIndex)
+    {
+        if(_grid==null) return;
+        _headerRowIndex=rowIndex; _selectedColumns.Clear();
+        var header=_grid.Rows.FirstOrDefault(r=>r.RowIndex==rowIndex);
+        if(header!=null) for(var c=0;c<header.Cells.Count;c++) if(!string.IsNullOrWhiteSpace(header.Cells[c])) _selectedColumns.Add(c);
+        _dataStartRowIndex=rowIndex+1;
+        _dataEndRowIndex=_grid.Rows.Count>0?_grid.Rows.Max(r=>r.RowIndex):rowIndex;
+    }
+
+    private void ToggleColumn(int col,bool value){ if(value) _selectedColumns.Add(col); else _selectedColumns.Remove(col); }
+
+    private EquipmentExcelRangeRequest? BuildRange()
+    {
+        if(_headerRowIndex==null) return null;
+        return new EquipmentExcelRangeRequest
+        {
+            SheetIndex=_selectedSheetIndex,
+            HeaderRowIndex=_headerRowIndex.Value,
+            SelectedColumnIndexes=_selectedColumns.Count>0?_selectedColumns.OrderBy(x=>x).ToList():null,
+            DataStartRowIndex=_dataStartRowIndex,
+            DataEndRowIndex=_dataEndRowIndex
+        };
+    }
+
+    private async Task PreviewRangeAsync()
+    {
+        var range=BuildRange();
+        if(range==null||_schemaFile==null){Snackbar.Add("Hãy chọn dòng tiêu đề trước.",Severity.Warning);return;}
+        if(_selectedColumns.Count==0){Snackbar.Add("Hãy chọn ít nhất một cột.",Severity.Warning);return;}
+        _readingExcel=true;
+        try
+        {
+            var result=await EquipmentClient.PreviewSchemaFromExcelRangeAsync(_deptCode,_schemaFile,range);
+            if(result.IsSuccess){_excelPreview=result.Data;if(!string.IsNullOrWhiteSpace(_excelPreview?.SuggestedSchemaName))_newSchemaName=_excelPreview.SuggestedSchemaName;}
+            else Snackbar.Add(result.Message??"Không đọc được cấu trúc Excel theo vùng đã chọn.",Severity.Error);
+        }
+        finally{_readingExcel=false;}
+    }
+
+    private async Task CreateFromRangeAsync()
+    {
+        var range=BuildRange();
+        if(range==null||_schemaFile==null) return;
+        _creatingFromExcel=true;
+        try
+        {
+            var result=await EquipmentClient.CreateSchemaFromExcelRangeAsync(_deptCode,_schemaFile,range,_newSchemaName);
+            if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add("Đã tạo mẫu dữ liệu từ Excel ở trạng thái Bản nháp.",Severity.Success);}
+            else Snackbar.Add(result.Message??"Không tạo được mẫu dữ liệu từ Excel.",Severity.Error);
+        }
+        finally{_creatingFromExcel=false;}
+    }
     private async Task CreateManualSchemaAsync(){if(string.IsNullOrWhiteSpace(_deptCode)||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new EquipmentSchemaUpsertRequest{DeptCode=_deptCode,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add("Đã tạo mẫu dữ liệu ở trạng thái Bản nháp.",Severity.Success);}else Snackbar.Add(result.Message??"Không tạo được mẫu dữ liệu.",Severity.Error);}
     private async Task CloneSchemaAsync(int schemaId){var result=await EquipmentClient.CloneSchemaAsync(schemaId,new EquipmentSchemaCloneRequest{Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add("Đã nhân bản mẫu thành một mẫu mới thuộc quyền quản lý của bạn.",Severity.Success);}else Snackbar.Add(result.Message??"Không nhân bản được mẫu dữ liệu.",Severity.Error);}
     private async Task CreateVersionAsync(int schemaId){var result=await EquipmentClient.CreateSchemaVersionAsync(schemaId);if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add($"Đã tạo phiên bản v{result.Data?.Version} ở trạng thái Bản nháp.",Severity.Success);}else Snackbar.Add(result.Message??"Không tạo được phiên bản mới.",Severity.Error);}

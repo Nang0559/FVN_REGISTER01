@@ -123,6 +123,60 @@ public sealed class EquipmentSchemaController : ControllerBase
             : BadRequest(ApiResponse<EquipmentSchemaDto>.FromResult(result));
     }
 
+    /// <summary>Trả về lưới ô thô của một sheet để người dùng preview và tự chọn dòng tiêu đề/cột/vùng dữ liệu trước khi lấy schema.</summary>
+    [HttpPost("excel-grid")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<ActionResult<ApiResponse<EquipmentExcelGridDto>>> ExcelGrid([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int sheetIndex = 0, [FromQuery] int maxRows = 200, CancellationToken ct = default)
+    {
+        if (!await CanAsync(ct)) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentExcelGridDto>.Fail("File Excel rỗng."));
+        if (sheetIndex < 0) return BadRequest(ApiResponse<EquipmentExcelGridDto>.Fail("Sheet Excel không hợp lệ."));
+        await using var stream = file.OpenReadStream();
+        var result = await _service.GetExcelGridAsync(deptCode, file.FileName, stream, sheetIndex, maxRows, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentExcelGridDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentExcelGridDto>.FromResult(result));
+    }
+
+    /// <summary>Suy luận schema đúng theo vùng (dòng tiêu đề + cột + vùng dữ liệu) người dùng đã chọn trên preview.</summary>
+    [HttpPost("preview-excel-range")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<ActionResult<ApiResponse<EquipmentSchemaFromExcelDto>>> PreviewExcelRange([FromForm] IFormFile? file, [FromForm] string range, [FromQuery] string deptCode, CancellationToken ct = default)
+    {
+        if (!await CanAsync(ct)) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentSchemaFromExcelDto>.Fail("File Excel rỗng."));
+        var parsed = ParseRange(range);
+        if (parsed == null) return BadRequest(ApiResponse<EquipmentSchemaFromExcelDto>.Fail("Vùng dữ liệu đã chọn không hợp lệ."));
+        await using var stream = file.OpenReadStream();
+        var result = await _service.PreviewSchemaFromExcelRangeAsync(deptCode, file.FileName, stream, parsed, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentSchemaFromExcelDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentSchemaFromExcelDto>.FromResult(result));
+    }
+
+    /// <summary>Tạo mẫu dữ liệu (Draft) đúng theo vùng người dùng đã chọn trên preview.</summary>
+    [HttpPost("from-excel-range")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<ActionResult<ApiResponse<EquipmentSchemaDto>>> FromExcelRange([FromForm] IFormFile? file, [FromForm] string range, [FromQuery] string deptCode, [FromQuery] string? schemaName = null, CancellationToken ct = default)
+    {
+        if (!await CanAsync(ct)) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentSchemaDto>.Fail("File Excel rỗng."));
+        var parsed = ParseRange(range);
+        if (parsed == null) return BadRequest(ApiResponse<EquipmentSchemaDto>.Fail("Vùng dữ liệu đã chọn không hợp lệ."));
+        await using var stream = file.OpenReadStream();
+        var result = await _service.CreateSchemaFromExcelRangeAsync(deptCode, file.FileName, stream, parsed, schemaName, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentSchemaDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentSchemaDto>.FromResult(result));
+    }
+
+    private static EquipmentExcelRangeRequest? ParseRange(string? rangeJson)
+    {
+        if (string.IsNullOrWhiteSpace(rangeJson)) return null;
+        try { return System.Text.Json.JsonSerializer.Deserialize<EquipmentExcelRangeRequest>(rangeJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+        catch (System.Text.Json.JsonException) { return null; }
+    }
+
     private async Task<bool> CanAsync(CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
