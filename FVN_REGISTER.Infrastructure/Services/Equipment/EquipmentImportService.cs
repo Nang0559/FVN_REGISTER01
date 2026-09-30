@@ -331,15 +331,45 @@ public sealed class EquipmentImportService : IEquipmentImportService
             if (range == null) return ServiceResult<EquipmentSchemaDto>.Fail("Chưa chọn vùng dữ liệu.");
             var data = await ReadExcelAsync(fileName, content, ct, range.SheetIndex, range.HeaderRowIndex, range.SelectedColumnIndexes, range.DataStartRowIndex, range.DataEndRowIndex);
             var inferred = ExcelSchemaInference.Infer(data.InferenceColumns);
+            if (inferred.Count == 0) return ServiceResult<EquipmentSchemaDto>.Fail("Không xác định được trường dữ liệu từ vùng Excel đã chọn. Hãy kiểm tra dòng tiêu đề và các cột đã chọn.");
             var name = string.IsNullOrWhiteSpace(schemaName) ? Path.GetFileNameWithoutExtension(fileName) : schemaName.Trim();
             ValidateSchemaName(name);
-            var schema = new F03EquipmentSchema { DeptCode = deptCode, SchemaName = name, SchemaKind = "Equipment", SchemaKey = Guid.NewGuid().ToString("N"), Version = 1, Status = "Draft", IsActive = true, CreatedBy = user.UserId, SourceFileName = Path.GetFileName(fileName), CreatedFromExcel = true };
-            await _uow.Repository<F03EquipmentSchema>().AddAsync(schema, ct);
-            await _uow.SaveChangesAsync(ct);
-            foreach (var field in inferred) await _uow.Repository<F03EquipmentFieldDefinition>().AddAsync(new F03EquipmentFieldDefinition { SchemaId = schema.Id, DeptCode = deptCode, FieldKey = field.FieldKey, FieldLabel = field.FieldLabel, DataType = field.DataType, IsRequired = field.IsRequired, IsImportable = true, IsActiveField = true, DisplayOrder = field.DisplayOrder, MaxLength = field.MaxLength, CreatedBy = user.UserId, IsActive = true }, ct);
-            await _uow.SaveChangesAsync(ct);
-            await _audit.LogAction("EQUIPMENT_SCHEMA_CREATED_FROM_EXCEL", user.UserId, $"SchemaId={schema.Id}; DeptCode={deptCode}; FileName={Path.GetFileName(fileName)}; SheetIndex={range.SheetIndex}; HeaderRow={range.HeaderRowIndex}; Columns={inferred.Count}", ct: ct);
-            return ServiceResult<EquipmentSchemaDto>.Ok(await MapSchemaAsync(schema, user.UserId, ct));
+            await using var transaction = await _uow.BeginTransactionAsync(ct);
+            try
+            {
+                var schema = new F03EquipmentSchema { DeptCode = deptCode, SchemaName = name, SchemaKind = "Equipment", SchemaKey = Guid.NewGuid().ToString("N"), Version = 1, Status = "Draft", IsActive = true, CreatedBy = user.UserId, SourceFileName = Path.GetFileName(fileName), CreatedFromExcel = true };
+                await _uow.Repository<F03EquipmentSchema>().AddAsync(schema, ct);
+                await _uow.SaveChangesAsync(ct);
+
+                foreach (var field in inferred)
+                {
+                    await _uow.Repository<F03EquipmentFieldDefinition>().AddAsync(new F03EquipmentFieldDefinition
+                    {
+                        SchemaId = schema.Id,
+                        DeptCode = deptCode,
+                        FieldKey = field.FieldKey,
+                        FieldLabel = field.FieldLabel,
+                        DataType = field.DataType,
+                        IsRequired = field.IsRequired,
+                        IsImportable = true,
+                        IsActiveField = true,
+                        DisplayOrder = field.DisplayOrder,
+                        MaxLength = field.MaxLength,
+                        CreatedBy = user.UserId,
+                        IsActive = true
+                    }, ct);
+                }
+
+                await _uow.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+                await _audit.LogAction("EQUIPMENT_SCHEMA_CREATED_FROM_EXCEL", user.UserId, $"SchemaId={schema.Id}; DeptCode={deptCode}; FileName={Path.GetFileName(fileName)}; SheetIndex={range.SheetIndex}; HeaderRow={range.HeaderRowIndex}; Columns={inferred.Count}", ct: ct);
+                return ServiceResult<EquipmentSchemaDto>.Ok(await ReloadAndMapSchemaAsync(schema.Id, user.UserId, ct), "Đã tạo mẫu dữ liệu từ Excel ở trạng thái Bản nháp.");
+            }
+            catch
+            {
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
         }
         catch (ArgumentException ex) { return ServiceResult<EquipmentSchemaDto>.Fail(ex.Message); }
         catch (InvalidOperationException ex) { return ServiceResult<EquipmentSchemaDto>.Fail(ex.Message); }
