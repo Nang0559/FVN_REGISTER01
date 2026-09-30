@@ -40,18 +40,18 @@ else
 
         <MudPaper Class="pa-4" Elevation="1">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Nhân viên</MudText><MudText>@(_item.EmployeeName ?? _item.EmployeeCode)</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Bộ phận</MudText><MudText>@(_item.DeptCode ?? "—")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Từ ngày</MudText><MudText>@_item.StartDate.ToString("dd/MM/yyyy")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Đến ngày</MudText><MudText>@_item.EndDate.ToString("dd/MM/yyyy")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.employee")</MudText><MudText>@(_item.EmployeeName ?? _item.EmployeeCode)</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("nav.departments")</MudText><MudText>@(_item.DeptCode ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.startDate")</MudText><MudText>@_item.StartDate.ToString("dd/MM/yyyy")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.endDate")</MudText><MudText>@_item.EndDate.ToString("dd/MM/yyyy")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Địa điểm</MudText><MudText>@_item.Destination</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Khách hàng / đối tác</MudText><MudText>@(_item.CustomerOrPartner ?? "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Mục đích</MudText><MudText Style="white-space:pre-wrap">@_item.Purpose</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("trip.purpose")</MudText><MudText Style="white-space:pre-wrap">@_item.Purpose</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Phương tiện</MudText><MudText>@(_item.TransportMethod ?? "—")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Chi phí dự kiến</MudText><MudText>@(_item.EstimatedCost.HasValue ? _item.EstimatedCost.Value.ToString("N0") + " ₫" : "—")</MudText></MudItem>
                 <MudItem xs="12"><MudText Typo="Typo.caption">Nhân viên đi cùng</MudText><MudText>@(_item.CompanionEmployeeCodes ?? "—")</MudText></MudItem>
                 <MudItem xs="12"><MudText Typo="Typo.caption">Lưu trú</MudText><MudText>@(_item.Accommodation ?? "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Ghi chú</MudText><MudText Style="white-space:pre-wrap">@(_item.Note ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("common.note")</MudText><MudText Style="white-space:pre-wrap">@(_item.Note ?? "—")</MudText></MudItem>
             </MudGrid>
 
             <MudDivider Class="my-4" />
@@ -62,7 +62,7 @@ else
                         @(_submitting ? "Đang gửi..." : "Gửi duyệt")
                     </MudButton>
                 }
-                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/trip/history"))">Quay lại</MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/trip/history"))">@Language.T("common.back")</MudButton>
             </MudStack>
         </MudPaper>
     </MudStack>

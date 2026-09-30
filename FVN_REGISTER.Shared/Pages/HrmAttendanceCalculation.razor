@@ -20,12 +20,12 @@
  <MudText Typo="Typo.body2" Class="mb-4">FVN đọc dữ liệu HRM và lưu kết quả tính giờ vào database FVN.</MudText>
  <MudGrid>
   <MudItem xs="12" md="4">
-   <MudSelect T="string" Label="Bộ phận" @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
+   <MudSelect T="string" Label='@Language.T("nav.departments")' @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
     @foreach(var d in _departments){<MudSelectItem Value="@d.DeptCode">@d.DeptCode - @d.DeptName</MudSelectItem>}
    </MudSelect>
   </MudItem>
-  <MudItem xs="12" md="3"><MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
-  <MudItem xs="12" md="3"><MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
+  <MudItem xs="12" md="3"><MudDatePicker Label='@Language.T("common.startDate")' @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
+  <MudItem xs="12" md="3"><MudDatePicker Label='@Language.T("common.endDate")' @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
   <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton></MudItem>
  </MudGrid>
  @if(_running){<MudProgressLinear Indeterminate="true" Class="mt-4"/>}

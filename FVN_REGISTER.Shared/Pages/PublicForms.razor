@@ -6,7 +6,7 @@
 @inherits AppComponentBase
 @inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
-<PageTitle>Biểu mẫu đăng ký</PageTitle>
+<PageTitle>@Language.T("nav.publicForms")</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4"><b>Biểu mẫu đang mở</b></MudText>
 @if(_loading){<MudProgressLinear Indeterminate="true" />}
 else if(!_items.Any()){<MudAlert Severity="Severity.Info">Hiện không có biểu mẫu nào dành cho bạn.</MudAlert>}

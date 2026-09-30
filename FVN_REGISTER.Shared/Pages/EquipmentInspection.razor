@@ -45,7 +45,7 @@
                     }
                     else if (item.InputType == "Text")
                     {
-                        <MudTextField @bind-Value="item.ValueText" Label="Ghi chú" Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="item.ValueText" Label='@Language.T("common.note")' Variant="Variant.Outlined" />
                     }
                     else
                     {
@@ -55,7 +55,7 @@
                             <MudRadio Value="@((bool?)null)">N/A</MudRadio>
                         </MudRadioGroup>
                     }
-                    <MudTextField @bind-Value="item.Note" Label="Ghi chú" Variant="Variant.Outlined" Class="mt-2" />
+                    <MudTextField @bind-Value="item.Note" Label='@Language.T("common.note")' Variant="Variant.Outlined" Class="mt-2" />
                     @if (item.RequireImage)
                     {
                         <MudAlert Severity="Severity.Info" Class="mt-2">Hạng mục yêu cầu tối thiểu @item.MinImages ảnh.</MudAlert>

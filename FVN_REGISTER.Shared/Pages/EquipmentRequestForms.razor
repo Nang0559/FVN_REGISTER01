@@ -64,7 +64,7 @@
 
                                     @if (IsChoice(question))
                                     {
-                                        <MudSelect T="string" Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label="Chọn" Variant="Variant.Outlined">
+                                        <MudSelect T="string" Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label='@Language.T("common.select")' Variant="Variant.Outlined">
                                             @foreach (var option in question.Options)
                                             {
                                                 <MudSelectItem Value="@option.OptionCode">@option.OptionText</MudSelectItem>

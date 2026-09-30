@@ -59,7 +59,7 @@
                             <MudSelectItem Value="@("Quarterly")">Hàng quý</MudSelectItem>
                             <MudSelectItem Value="@("Yearly")">Hàng năm</MudSelectItem>
                         </MudSelect>
-                        <MudSelect T="string" @bind-Value="_template.Status" Label="Trạng thái" Variant="Variant.Outlined" Class="mt-3">
+                        <MudSelect T="string" @bind-Value="_template.Status" Label='@Language.T("common.status")' Variant="Variant.Outlined" Class="mt-3">
                             <MudSelectItem Value="@("Draft")">Draft</MudSelectItem>
                             <MudSelectItem Value="@("Active")">Active</MudSelectItem>
                             <MudSelectItem Value="@("Inactive")">Inactive</MudSelectItem>
@@ -141,7 +141,7 @@
                 <MudAlert Severity="Severity.Info" Class="mb-4">Chỉ thiết bị đã đăng ký và đang Active mới xuất hiện trong danh sách.</MudAlert>
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="int" @bind-Value="_assignment.EquipmentId" Label="Thiết bị" Variant="Variant.Outlined">
+                        <MudSelect T="int" @bind-Value="_assignment.EquipmentId" Label='@Language.T("nav.equipment")' Variant="Variant.Outlined">
                             @foreach (var a in _assets) { <MudSelectItem Value="@a.Id">@a.EquipmentCode – @a.EquipmentName</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
@@ -181,11 +181,11 @@
             </MudPaper>
         </MudTabPanel>
 
-        <MudTabPanel Text="Báo cáo">
+        <MudTabPanel Text='@Language.T("nav.report")'>
             <MudPaper Class="pa-4" Outlined="true">
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
-                    <MudDatePicker @bind-Date="_from" Label="Từ ngày" />
-                    <MudDatePicker @bind-Date="_to" Label="Đến ngày" />
+                    <MudDatePicker @bind-Date="_from" Label='@Language.T("common.startDate")' />
+                    <MudDatePicker @bind-Date="_to" Label='@Language.T("common.endDate")' />
                     <MudButton Variant="Variant.Filled" OnClick="LoadReportAsync">Xem báo cáo</MudButton>
                 </MudStack>
                 @if (_report != null)

@@ -21,7 +21,7 @@
             }
         </div>
     </DialogContent>
-    <DialogActions><MudButton OnClick="Cancel">Hủy</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Confirm" Disabled="@(!_selected.Any())">Thêm @_selected.Count</MudButton></DialogActions>
+    <DialogActions><MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Confirm" Disabled="@(!_selected.Any())">Thêm @_selected.Count</MudButton></DialogActions>
 </MudDialog>
 
 @code {

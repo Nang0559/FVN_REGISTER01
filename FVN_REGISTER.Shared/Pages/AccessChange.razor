@@ -25,7 +25,7 @@
     </MudStack>
 
     <MudTabs Rounded="true" Elevation="2">
-        <MudTabPanel Text="Lập phiếu">
+        <MudTabPanel Text='@Language.T("access.create")'>
             <MudPaper Outlined="true" Class="pa-4">
                 <MudAlert Severity="Severity.Info" Class="mb-4">
                     Người tiếp nhận hiện tại: <b>@(CurrentUser.User?.EmployeeCode ?? "...") - @(CurrentUser.User?.FullName ?? "")</b>.
@@ -34,7 +34,7 @@
 
                 <MudGrid Spacing="3">
                     <MudItem xs="12" md="4">
-                        <MudSelect T="RequestModule" Value="_module" ValueChanged="OnModuleChanged" Label="Nghiệp vụ" Variant="Variant.Outlined">
+                        <MudSelect T="RequestModule" Value="_module" ValueChanged="OnModuleChanged" Label='@Language.T("approval.module")' Variant="Variant.Outlined">
                             <MudSelectItem Value="RequestModule.Leave">Nghỉ phép</MudSelectItem>
                             <MudSelectItem Value="RequestModule.Overtime">OT</MudSelectItem>
                             <MudSelectItem Value="RequestModule.Trip">Công tác</MudSelectItem>
@@ -42,7 +42,7 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="8">
-                        <MudSelect T="AccessChangeEmployeeOptionDto" Value="_oldEmployee" ValueChanged="OnOldChanged" Label="Nhân sự cũ" Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
+                        <MudSelect T="AccessChangeEmployeeOptionDto" Value="_oldEmployee" ValueChanged="OnOldChanged" Label='@Language.T("access.oldEmployee")' Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
                             @foreach (var e in _employees.Where(x => !string.Equals(x.EmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase)))
                             {
                                 <MudSelectItem T="AccessChangeEmployeeOptionDto" Value="@e">@EmployeeLabel(e)</MudSelectItem>
@@ -53,10 +53,10 @@
                     @if (_module == RequestModule.Equipment)
                     {
                         <MudItem xs="12" md="6">
-                            <MudCheckBox T="bool" Value="_transferResponsible" ValueChanged="@OnTransferResponsibleChanged" Label="Bàn giao thiết bị người cũ đang phụ trách" />
+                            <MudCheckBox T="bool" Value="_transferResponsible" ValueChanged="@OnTransferResponsibleChanged" Label='@Language.T("access.transferResponsible")' />
                         </MudItem>
                         <MudItem xs="12" md="6">
-                            <MudCheckBox @bind-Value="_transferApprover" Label="Bàn giao vai trò approver thiết bị" />
+                            <MudCheckBox @bind-Value="_transferApprover" Label='@Language.T("access.transferApprover")' />
                         </MudItem>
                         @if (_transferResponsible || _transferApprover)
                         {
@@ -127,7 +127,7 @@
                     </MudItem>
 
                     <MudItem xs="12">
-                        <MudTextField @bind-Value="_reason" Label="Lý do" Lines="3" Variant="Variant.Outlined" Required="true" />
+                        <MudTextField @bind-Value="_reason" Label='@Language.T("common.reason")' Lines="3" Variant="Variant.Outlined" Required="true" />
                     </MudItem>
                     <MudItem xs="12">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_busy" OnClick="SubmitAsync">Gửi phiếu phê duyệt</MudButton>
@@ -136,7 +136,7 @@
             </MudPaper>
         </MudTabPanel>
 
-        <MudTabPanel Text="Phiếu của tôi">
+        <MudTabPanel Text='@Language.T("access.mine")'>
             <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
                 <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Người cũ</MudTh><MudTh>Người nhận</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thông tin trước bàn giao</MudTh></HeaderContent>
                 <RowTemplate>
@@ -144,14 +144,14 @@
                     <MudTd>
                         @if (!string.IsNullOrWhiteSpace(context.PreChangeSnapshotJson))
                         {
-                            <MudExpansionPanels><MudExpansionPanel Text="Thông tin trước bàn giao"><MudText Typo="Typo.caption" Style="white-space:pre-wrap">@context.PreChangeSnapshotJson</MudText></MudExpansionPanel></MudExpansionPanels>
+                            <MudExpansionPanels><MudExpansionPanel Text='@Language.T("access.preChange")'><MudText Typo="Typo.caption" Style="white-space:pre-wrap">@context.PreChangeSnapshotJson</MudText></MudExpansionPanel></MudExpansionPanels>
                         }
                     </MudTd>
                 </RowTemplate>
             </MudTable>
         </MudTabPanel>
 
-        <MudTabPanel Text="Chờ tôi duyệt">
+        <MudTabPanel Text='@Language.T("access.pending")'>
             <MudTable Items="_pending" Dense="true" Hover="true" Class="pa-4">
                 <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Thay đổi</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thông tin trước bàn giao</MudTh><MudTh></MudTh></HeaderContent>
                 <RowTemplate>
@@ -170,7 +170,7 @@
             </MudTable>
         </MudTabPanel>
 
-        <MudTabPanel Text="IT xử lý">
+        <MudTabPanel Text='@Language.T("access.itQueue")'>
             <MudTable Items="_itQueue" Dense="true" Hover="true" Class="pa-4">
                 <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Người cũ</MudTh><MudTh>Người nhận</MudTh><MudTh>Function</MudTh><MudTh></MudTh></HeaderContent>
                 <RowTemplate>

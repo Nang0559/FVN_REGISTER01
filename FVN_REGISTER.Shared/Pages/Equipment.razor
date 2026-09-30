@@ -54,18 +54,18 @@ else
             {
                 <MudTabPanel Text="Đăng ký thiết bị">
                     <MudGrid Class="pa-4">
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label="Tên thiết bị" Required="true" /></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label='@Language.T("equipment.name")' Required="true" /></MudItem>
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="Mã tài sản" /></MudItem>
                         <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="Thông số / Model" /></MudItem>
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="Serial Number" /></MudItem>
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label="Vị trí" /></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label='@Language.T("equipment.location")' /></MudItem>
                         <MudItem xs="12" md="4"><MudNumericField @bind-Value="_form.PurchasePrice" Label="Giá thành" Min="0" /></MudItem>
                         <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_purchase" Label="Ngày mua" /></MudItem>
                         <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_depreciation" Label="Ngày khấu hao dự kiến" /></MudItem>
                         <MudItem xs="12" md="6"><MudSelect T="string" @bind-Value="_form.ResponsibleEmployeeCode" Label="Giao cho nhân viên (tuỳ chọn)" Clearable="true"><MudSelectItem Value="@string.Empty">-- Không giao cá nhân --</MudSelectItem>@foreach(var e in _assignmentEmployees){<MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode - @e.EmployeeName</MudSelectItem>}</MudSelect></MudItem>
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.DeptCode" Label="Bộ phận" Required="true" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.DeptCode" Label='@Language.T("nav.departments")' Required="true" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
                         <MudItem xs="12"><ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" /></MudItem>
-                        <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="Ghi chú" Lines="3" /></MudItem>
+                        <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label='@Language.T("common.note")' Lines="3" /></MudItem>
                         <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy">Tạo đăng ký & sinh QR</MudButton></MudItem>
                     </MudGrid>
                     @if (_created != null)

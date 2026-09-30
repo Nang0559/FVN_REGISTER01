@@ -27,7 +27,7 @@
         }
         else { <MudAlert Severity="Severity.Info">Chưa có đơn OT nào của phòng ban trong ngày này.</MudAlert> }
     </DialogContent>
-    <DialogActions><MudButton OnClick="@(() => MudDialog.Cancel())">Đóng</MudButton></DialogActions>
+    <DialogActions><MudButton OnClick="@(() => MudDialog.Cancel())">@Language.T("common.close")</MudButton></DialogActions>
 </MudDialog>
 
 @code {

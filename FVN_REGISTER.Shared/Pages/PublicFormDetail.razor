@@ -25,7 +25,7 @@ else
     @if(!string.IsNullOrWhiteSpace(q.HelpText)){<MudText Typo="Typo.caption" Color="Color.Secondary">@q.HelpText</MudText>}
     @if(q.QuestionType=="SingleChoice")
     {
-      <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="@StringChanged(q.Id)" Label="Chọn" Variant="Variant.Outlined">
+      <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="@StringChanged(q.Id)" Label='@Language.T("common.select")' Variant="Variant.Outlined">
        @foreach(var o in q.Options.Where(x=>x.Id>0)){<MudSelectItem Value="@o.OptionCode">@o.OptionText</MudSelectItem>}
       </MudSelect>
     }
@@ -39,7 +39,7 @@ else
     }
     else if(q.QuestionType=="Date")
     {
-      <MudDatePicker Date="@DateValue(q.Id)" DateChanged="@DateChanged(q.Id)" Label="Ngày" Variant="Variant.Outlined" />
+      <MudDatePicker Date="@DateValue(q.Id)" DateChanged="@DateChanged(q.Id)" Label='@Language.T("dashboard.days")' Variant="Variant.Outlined" />
     }
     else
     {

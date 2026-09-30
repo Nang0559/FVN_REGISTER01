@@ -39,8 +39,8 @@ else
             <MudCard Elevation="2">
                 <MudCardContent>
                     <MudTextField Label="Tên đăng nhập" Value="@_model.UserName" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-                    <MudTextField Label="Phòng ban" Value="@_model.DeptCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-                    <MudTextField Label="Vị trí" Value="@_model.PositionCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label='@Language.T("common.department")' Value="@_model.DeptCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label='@Language.T("equipment.location")' Value="@_model.PositionCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
                     <MudTextField Label="Email liên lạc (HRM)" Value="@_model.Email" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Email được đồng bộ từ HRM; không chỉnh sửa tại FVN_REGISTER." Class="mb-4" />
                     <MudTextField Label="Đường dẫn ảnh đại diện (URL)" @bind-Value="_avatarUrl" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
                 </MudCardContent>

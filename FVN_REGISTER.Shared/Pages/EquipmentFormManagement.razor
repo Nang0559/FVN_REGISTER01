@@ -90,7 +90,7 @@
                                     Chỉ SuperAdmin được chỉ định người có quyền cấu hình biểu mẫu cho schema này. Quyền vẫn phải có capability <b>EquipmentFormManage (2320)</b>.
                                 </MudText>
                                 <MudStack Row="true" Spacing="2" Class="mt-3">
-                                    <MudSelect T="string" Label="Nhân viên" Variant="Variant.Outlined" @bind-Value="_operatorEmployeeCode" Style="min-width:360px">
+                                    <MudSelect T="string" Label='@Language.T("common.employee")' Variant="Variant.Outlined" @bind-Value="_operatorEmployeeCode" Style="min-width:360px">
                                         @foreach (var employee in _operatorEmployees)
                                         {
                                             <MudSelectItem T="string" Value="@employee.EmployeeCode">

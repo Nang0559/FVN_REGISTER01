@@ -10,7 +10,7 @@
 @inject NavigationManager Navigation
 @inherits AppComponentBase
 
-<PageTitle>Lịch sử công tác</PageTitle>
+<PageTitle>@Language.T("nav.tripHistory")</PageTitle>
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-3" Elevation="1">
@@ -52,7 +52,7 @@
                     <MudTh>Địa điểm</MudTh>
                     <MudTh>Khách hàng / đối tác</MudTh>
                     <MudTh>Chi phí</MudTh>
-                    <MudTh>Trạng thái</MudTh>
+                    <MudTh>@Language.T("common.status")</MudTh>
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>

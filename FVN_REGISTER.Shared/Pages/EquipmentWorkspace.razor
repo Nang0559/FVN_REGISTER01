@@ -34,7 +34,7 @@
     {
         <MudPaper Outlined="true" Class="pa-5 mb-4">
             <MudText Typo="Typo.h6" Class="mb-3">1. Chọn phòng ban và mẫu dữ liệu</MudText>
-            <MudSelect T="string" Label="Phòng ban" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
+            <MudSelect T="string" Label='@Language.T("common.department")' @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
                 @foreach (var dept in _departments)
                 {
                     <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode – @dept.DeptName</MudSelectItem>

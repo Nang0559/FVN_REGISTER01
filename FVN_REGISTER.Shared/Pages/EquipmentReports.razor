@@ -15,11 +15,11 @@
     </MudStack>
     <MudPaper Outlined="true" Class="pa-4 mb-4">
         <MudGrid>
-            <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.DeptCode" Label="Bộ phận" /></MudItem>
-            <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.ResponsibleEmployeeCode" Label="Người phụ trách" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.DeptCode" Label='@Language.T("nav.departments")' /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.ResponsibleEmployeeCode" Label='@Language.T("equipment.employee")' /></MudItem>
             <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.RepairResponsibleDeptCode" Label="Bộ phận sửa chữa" /></MudItem>
-            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_from" Label="Từ ngày" /></MudItem>
-            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_to" Label="Đến ngày" /></MudItem>
+            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_from" Label='@Language.T("common.startDate")' /></MudItem>
+            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_to" Label='@Language.T("common.endDate")' /></MudItem>
             <MudItem xs="12" md="4"><MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Tra cứu</MudButton></MudItem>
         </MudGrid>
     </MudPaper>

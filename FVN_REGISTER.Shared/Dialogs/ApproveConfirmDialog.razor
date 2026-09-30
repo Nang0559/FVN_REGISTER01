@@ -1,4 +1,4 @@
-﻿@* Dùng chung cho approve và reject *@
+@* Dùng chung cho approve và reject *@
 <MudDialog>
     <DialogContent>
         <MudText Class="mb-3">@Message</MudText>
@@ -11,7 +11,7 @@
         }
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudButton Color="@Color" Variant="Variant.Filled"
                    OnClick="Confirm"
                    Disabled="@(ShowComment && string.IsNullOrWhiteSpace(_comment))">
