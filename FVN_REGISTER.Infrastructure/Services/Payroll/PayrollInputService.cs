@@ -30,6 +30,14 @@ public sealed class PayrollInputService : IPayrollInputService
 
     public Task<ServiceResult<PayrollPeriodDto>> GetOrCreateCurrentPeriodAsync(int actorUserId, CancellationToken ct = default) => GuardValueAsync(() => GetOrCreateCurrentPeriodCoreAsync(actorUserId, ct));
 
+    private static async Task<ServiceResult<T>> GuardValueAsync<T>(Func<Task<T>> operation)
+    {
+        try { return ServiceResult<T>.Ok(await operation()); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult<T>.Fail(ex.Message); }
+    }
+
     private async Task<PayrollPeriodDto> GetOrCreateCurrentPeriodCoreAsync(int actorUserId, CancellationToken ct = default)
     {
         var rows = await _db.PayrollCalculationPeriods
