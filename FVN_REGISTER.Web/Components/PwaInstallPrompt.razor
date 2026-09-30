@@ -5,7 +5,9 @@
 @if (_visible)
 {
     <div class="pwa-install-prompt" role="status" aria-live="polite">
-        <div class="pwa-install-icon" aria-hidden="true">⇩</div>
+        <div class="pwa-install-icon" aria-hidden="true">
+            <img src="/pwa/icon-192.svg" alt="" />
+        </div>
         <div class="pwa-install-content">
             <strong>@Title</strong>
             <span>@Description</span>
@@ -25,37 +27,71 @@
     private bool IsJapanese => _language.StartsWith("ja", StringComparison.OrdinalIgnoreCase);
     private string Title => IsJapanese ? "アプリをインストール" : "Cài đặt ứng dụng";
     private string Description => _iosSafari
-        ? (IsJapanese ? "Safariの共有メニューから「ホーム画面に追加」を選択してください。" : "Mở Chia sẻ → Thêm vào Màn hình chính để cài ứng dụng.")
-        : (IsJapanese ? "ホーム画面からすばやくアクセスできます。" : "Truy cập e-Approval nhanh hơn như một ứng dụng.");
-    private string InstallText => _iosSafari ? (IsJapanese ? "確認" : "Cách cài") : (IsJapanese ? "インストール" : "Cài đặt");
+        ? (IsJapanese
+            ? "Safariの共有メニューから「ホーム画面に追加」を選択してください。"
+            : "Mở Chia sẻ → Thêm vào Màn hình chính để cài ứng dụng.")
+        : (IsJapanese
+            ? "ホーム画面からすばやくアクセスできます。"
+            : "Truy cập e-Approval nhanh hơn như một ứng dụng.");
+    private string InstallText => _iosSafari
+        ? (IsJapanese ? "確認" : "Cách cài")
+        : (IsJapanese ? "インストール" : "Cài đặt");
     private string CloseText => IsJapanese ? "閉じる" : "Đóng";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || _initialized) return;
         _initialized = true;
+
         _dotNetRef = DotNetObjectReference.Create(this);
-        _language = await JS.InvokeAsync<string>("eval", "(navigator.language || 'vi').toLowerCase()");
+        _language = await JS.InvokeAsync<string>("fvnPwa.getLanguage");
         await JS.InvokeVoidAsync("fvnPwa.registerServiceWorker");
         await JS.InvokeVoidAsync("fvnPwa.initialize", _dotNetRef);
+
         if (await JS.InvokeAsync<bool>("fvnPwa.isStandalone")) return;
+
         _iosSafari = await JS.InvokeAsync<bool>("fvnPwa.isIosSafari");
-        if (_iosSafari) { _visible = true; await InvokeAsync(StateHasChanged); }
+        if (_iosSafari)
+        {
+            _visible = true;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     [JSInvokable]
-    public async Task OnInstallAvailable() { _iosSafari = false; _visible = true; await InvokeAsync(StateHasChanged); }
+    public async Task OnInstallAvailable()
+    {
+        _iosSafari = false;
+        _visible = true;
+        await InvokeAsync(StateHasChanged);
+    }
 
     [JSInvokable]
-    public async Task OnAppInstalled() { _visible = false; await InvokeAsync(StateHasChanged); }
+    public async Task OnAppInstalled()
+    {
+        _visible = false;
+        await InvokeAsync(StateHasChanged);
+    }
 
     [JSInvokable]
-    public async Task OnAlreadyInstalled() { _visible = false; await InvokeAsync(StateHasChanged); }
+    public async Task OnAlreadyInstalled()
+    {
+        _visible = false;
+        await InvokeAsync(StateHasChanged);
+    }
 
     private async Task InstallAsync()
     {
-        if (_iosSafari) { _visible = false; await InvokeAsync(StateHasChanged); return; }
-        if (await JS.InvokeAsync<bool>("fvnPwa.prompt")) _visible = false;
+        if (_iosSafari)
+        {
+            _visible = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (await JS.InvokeAsync<bool>("fvnPwa.prompt"))
+            _visible = false;
+
         await InvokeAsync(StateHasChanged);
     }
 
@@ -70,7 +106,8 @@
 
 <style>
     .pwa-install-prompt{position:fixed;z-index:2000;right:20px;bottom:20px;display:flex;align-items:center;gap:12px;max-width:min(460px,calc(100vw - 32px));padding:12px 14px;border:1px solid rgba(0,0,0,.12);border-radius:14px;background:#fff;box-shadow:0 8px 30px rgba(0,0,0,.18);font-family:Roboto,Arial,sans-serif}
-    .pwa-install-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:10px;background:#0366d6;color:#fff;font-size:22px;font-weight:700}
+    .pwa-install-icon{width:42px;height:42px;flex:0 0 42px;overflow:hidden;border-radius:10px;background:#0366d6}
+    .pwa-install-icon img{display:block;width:100%;height:100%;object-fit:cover}
     .pwa-install-content{min-width:0;display:flex;flex-direction:column;gap:2px}.pwa-install-content strong{font-size:14px}.pwa-install-content span{font-size:12px;line-height:1.35;color:#555}
     .pwa-install-button{border:0;border-radius:9px;padding:9px 12px;background:#0366d6;color:#fff;font-weight:600;cursor:pointer;white-space:nowrap}.pwa-install-close{border:0;background:transparent;color:#666;font-size:22px;line-height:1;cursor:pointer;padding:4px}
     @media(max-width:600px){.pwa-install-prompt{left:12px;right:12px;bottom:12px;max-width:none}}
