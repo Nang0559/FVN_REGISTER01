@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FVN_REGISTER.Contract.Utils;
 using System.Linq.Expressions;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Services.Execution;
@@ -23,6 +24,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     private readonly IAuthorizationService _authorization;
     private readonly INotificationService _notificationService;
     private readonly ILogger<ExecutionHrResolutionService> _logger;
+    public Task<ServiceResult<IReadOnlyList<ExecutionHrReviewItemDto>>> GetPendingAsync(int uid,string? m,string? s,DateOnly? f,DateOnly? t,CancellationToken ct=default)=>GuardAsync(()=>GetPendingAsyncCoreAsync(uid,m,s,f,t,ct));
+    public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(int uid,string e,long id,CancellationToken ct=default){var v=await GetDetailAsyncCoreAsync(uid,e,id,ct);return v is null?ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation."):ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);}
+    public Task<ServiceResult<ExecutionEvidenceDto>> ReviewEvidenceAsync(int uid,string e,long id,ExecutionEvidenceReviewRequest q,CancellationToken ct=default)=>GuardAsync(()=>ReviewEvidenceAsyncCoreAsync(uid,e,id,q,ct));
+    public Task<ServiceResult<ExecutionHrResolutionDto>> ResolveAsync(int uid,string e,long id,ExecutionHrResolutionRequest q,CancellationToken ct=default)=>GuardAsync(()=>ResolveAsyncCoreAsync(uid,e,id,q,ct));
+
     public const int HrExecutionReviewFunctionCode = FVN_REGISTER.Core.Constants.SecurityFunctionCodes.ExecutionReview;
 
     private readonly FVNWEBAPPContext _db;
@@ -41,7 +47,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<ExecutionHrReviewItemDto>> GetPendingAsync(
+    private async Task<IReadOnlyList<ExecutionHrReviewItemDto>> GetPendingAsyncCoreAsync(
         int userId,
         string? moduleCode,
         string? status,
@@ -166,7 +172,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         return result;
     }
 
-    public async Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
+    private async Task<ExecutionReconciliationDetailDto?> GetDetailAsyncCoreAsync(
         int userId,
         string employeeCode,
         long reconciliationId,
@@ -233,6 +239,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             hrResolution);
     }
 
+    private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<T>.Fail(ex.Message);}}
+
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
         x => new ExecutionReconciliationDto(
             x.Id, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId,
@@ -240,7 +248,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             x.ReconciliationStatus, x.RequiresConfirmation, x.RequiresEvidence,
             x.ConfirmationId, x.ActionId);
 
-    public async Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
+    private async Task<ExecutionEvidenceDto> ReviewEvidenceAsyncCoreAsync(
         int userId,
         string employeeCode,
         long evidenceId,
@@ -371,7 +379,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             evidence.ReviewNote);
     }
 
-    public async Task<ExecutionHrResolutionDto> ResolveAsync(
+    private async Task<ExecutionHrResolutionDto> ResolveAsyncCoreAsync(
         int userId,
         string employeeCode,
         long reconciliationId,
