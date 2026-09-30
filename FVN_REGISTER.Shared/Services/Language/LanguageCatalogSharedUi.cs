@@ -1,0 +1,72 @@
+namespace FVN_REGISTER.Shared.Services.Language;
+
+/// <summary>
+/// Shared UI text used by reusable components. Keeping these keys here prevents
+/// module pages from reintroducing hard-coded Vietnamese text.
+/// </summary>
+public static class LanguageCatalogSharedUi
+{
+    private static readonly IReadOnlyDictionary<string, string> Vi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["workspace.overview"] = "TỔNG QUAN WORKSPACE",
+        ["workspace.list"] = "Danh sách",
+        ["workspace.register"] = "Đăng ký",
+        ["workspace.quickActions"] = "Thao tác nhanh",
+        ["workspace.summary"] = "Tổng quan chỉ tổng hợp trạng thái; quy trình nghiệp vụ vẫn được xử lý tại Đăng ký/Danh sách/Phê duyệt.",
+        ["workspace.openCalendar"] = "Mở lịch",
+        ["workspace.myTasks"] = "Việc cần tôi xử lý",
+        ["equipment.assigned.title"] = "Thiết bị tôi đang phụ trách",
+        ["equipment.assigned.description"] = "Thiết bị được giao trực tiếp hoặc phân công vận hành.",
+        ["equipment.assigned.catalog"] = "Sổ thiết bị",
+        ["equipment.assigned.none"] = "Chưa có thiết bị được giao.",
+        ["equipment.assigned.department"] = "Bộ phận",
+        ["equipment.assigned.location"] = "Vị trí",
+        ["equipment.assigned.responsible"] = "Người phụ trách",
+        ["equipment.assigned.operator"] = "Người vận hành",
+        ["equipment.assigned.repair"] = "Yêu cầu sửa chữa",
+        ["equipment.qr.title"] = "Quét QR thiết bị",
+        ["equipment.qr.starting"] = "Đang mở camera...",
+        ["equipment.qr.start"] = "Bật camera quét QR",
+        ["equipment.qr.stop"] = "Dừng",
+        ["equipment.qr.readSuccess"] = "Đã đọc QR. Đang tải thông tin thiết bị...",
+        ["equipment.qr.loadFailed"] = "Không tải được bộ quét QR: {0}",
+        ["equipment.qr.startFailed"] = "Không thể khởi động bộ quét QR.",
+        ["equipment.qr.cameraFailed"] = "Không thể truy cập camera: {0}",
+        ["dashboard.overtimeType"] = "Làm thêm giờ",
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> Ja = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["workspace.overview"] = "ワークスペース概要",
+        ["workspace.list"] = "一覧",
+        ["workspace.register"] = "申請",
+        ["workspace.quickActions"] = "クイック操作",
+        ["workspace.summary"] = "概要では状態のみを集約し、業務フローは申請・一覧・承認で処理します。",
+        ["workspace.openCalendar"] = "カレンダーを開く",
+        ["workspace.myTasks"] = "自分の処理待ち",
+        ["equipment.assigned.title"] = "担当中の設備",
+        ["equipment.assigned.description"] = "直接割り当てられた設備、または運用担当として割り当てられた設備です。",
+        ["equipment.assigned.catalog"] = "設備台帳",
+        ["equipment.assigned.none"] = "割り当てられた設備はありません。",
+        ["equipment.assigned.department"] = "部署",
+        ["equipment.assigned.location"] = "場所",
+        ["equipment.assigned.responsible"] = "担当者",
+        ["equipment.assigned.operator"] = "運用担当",
+        ["equipment.assigned.repair"] = "修理を依頼",
+        ["equipment.qr.title"] = "設備QRをスキャン",
+        ["equipment.qr.starting"] = "カメラを起動中...",
+        ["equipment.qr.start"] = "QRスキャン用カメラを起動",
+        ["equipment.qr.stop"] = "停止",
+        ["equipment.qr.readSuccess"] = "QRを読み取りました。設備情報を読み込んでいます...",
+        ["equipment.qr.loadFailed"] = "QRスキャナーを読み込めませんでした: {0}",
+        ["equipment.qr.startFailed"] = "QRスキャナーを起動できません。",
+        ["equipment.qr.cameraFailed"] = "カメラにアクセスできません: {0}",
+        ["dashboard.overtimeType"] = "残業",
+    };
+
+    public static bool TryGet(LanguageCode language, string key, out string value)
+    {
+        var source = language == LanguageCode.Ja ? Ja : Vi;
+        return source.TryGetValue(key, out value!);
+    }
+}
