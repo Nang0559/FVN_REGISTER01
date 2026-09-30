@@ -1,5 +1,6 @@
 const CACHE_NAME = 'fvn-register-pwa-v2';
 const APP_SHELL = [
+  '/',
   '/manifest.json',
   '/pwa/icon-192.svg',
   '/pwa/icon-512.svg'
@@ -40,8 +41,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static PWA assets use cache-first; navigations stay network-first so the
-  // installed app always receives the current Blazor application.
+  // Static PWA assets use cache-first.
   const isPwaAsset = url.pathname === '/manifest.json' || url.pathname.startsWith('/pwa/');
   if (isPwaAsset) {
     event.respondWith(
@@ -50,9 +50,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Navigations stay network-first so the installed app receives the current
+  // Blazor application. The cached root is only an offline fallback.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/manifest.json'))
+      fetch(event.request).catch(() => caches.match('/'))
     );
   }
 });
