@@ -55,6 +55,8 @@ public sealed class LanguageService : ILanguageService
             value = LanguageCatalogRemaining.TryGet(_current, key, out var remainingValue) ? remainingValue : key;
         if (string.Equals(value, key, StringComparison.Ordinal))
             value = LanguageCatalogUiCommon.TryGet(_current, key, out var commonValue) ? commonValue : key;
+        if (string.Equals(value, key, StringComparison.Ordinal))
+            value = LanguageCatalogLayout.TryGet(_current, key, out var layoutValue) ? layoutValue : key;
 
         if (args.Length == 0)
             return value;
