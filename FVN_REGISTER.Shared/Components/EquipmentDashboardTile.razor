@@ -33,7 +33,7 @@
                                 <MudText Typo="Typo.caption">@asset.EquipmentCode • @asset.AssetCode</MudText>
                                 <MudText Typo="Typo.body2" Class="mt-2">@Language.T("equipment.assigned.department"): @asset.DeptCode</MudText>
                                 <MudText Typo="Typo.body2">@Language.T("equipment.assigned.location"): @asset.Location</MudText>
-                                <MudText Typo="Typo.body2">@Language.T("common.position"): @(string.Equals(asset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) ? Language.T("equipment.assigned.responsible") : Language.T("equipment.assigned.operator"))</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.assigned.role"): @(string.Equals(asset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) ? Language.T("equipment.assigned.responsible") : Language.T("equipment.assigned.operator"))</MudText>
                                 @if (CurrentUser.User?.Functions.Contains(SecurityFunctionCodes.EquipmentRepair) == true)
                                 {
                                     <MudButton Size="Size.Small" Variant="Variant.Filled" Class="mt-3" OnClick="@(() => Navigation.NavigateTo("/equipment"))">@Language.T("equipment.assigned.repair")</MudButton>
