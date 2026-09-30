@@ -103,7 +103,7 @@ public sealed class PublicFormsController : BaseApiController
     public async Task<IActionResult> Create([FromBody] Contract.Requests.PublicForms.SavePublicFormRequest request,CancellationToken ct)
     {
         if(UserInfo==null)return Unauthorized(); if(!await CanManageAsync(ct))return Forbid();
-        var result=await _service.CreateAsync(request,UserInfo.UserId,ct); await LogActionAsync($"Tạo biểu mẫu {request.FormCode}"); return HandleResult(result);
+        var result=await _service.CreateAsync(request,UserInfo.UserId,ct); if(result.IsSuccess) await LogActionAsync($"Tạo biểu mẫu {request.FormCode}"); return HandleResult(result);
     }
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id,[FromBody] Contract.Requests.PublicForms.SavePublicFormRequest request,CancellationToken ct)
