@@ -2,12 +2,21 @@ window.workCalendar = (function () {
     let _calendar = null;
     let _dotNetRef = null;
     let _days = new Map();
+    let _labels = {};
 
     function dayKey(date) {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return year + '-' + month + '-' + day;
+    }
+
+    function label(key, fallback) {
+        return _labels[key] || fallback || '';
+    }
+
+    function formatLabel(key, value, fallback) {
+        return label(key, fallback).replace('{0}', value ?? '');
     }
 
     function clearCustomContent(cell) {
@@ -47,7 +56,7 @@ window.workCalendar = (function () {
                 (critical ? 'critical' : warning ? 'warning' : 'info');
 
             marker.textContent = '?';
-            marker.title = 'Có vấn đề cần xử lý';
+            marker.title = label('issue', 'Issue requires attention');
 
             marker.addEventListener('click', function (event) {
                 event.preventDefault();
@@ -72,13 +81,10 @@ window.workCalendar = (function () {
         if (day.holiday) {
             appendLine(
                 body,
-                'Nghỉ: ' + day.holiday,
+                label('holiday', 'Holiday') + ': ' + day.holiday,
                 'fcc-calendar-day-line holiday');
         }
 
-        // Leave registrations use the compact "P" marker from the
-        // self-service calendar convention. Keep the full registration
-        // details below it so status/approval information remains available.
         const leaveRegistrations = (day.registrations || [])
             .filter(x => String(x.moduleCode).toUpperCase() === 'LEAVE');
 
@@ -86,13 +92,13 @@ window.workCalendar = (function () {
             appendLine(
                 body,
                 'P',
-                'fcc-calendar-day-line leave-marker'); 
+                'fcc-calendar-day-line leave-marker');
         }
 
         if (day.shift) {
             appendLine(
                 body,
-                'Ca ' + day.shift,
+                formatLabel('shift', day.shift, 'Shift {0}'),
                 'fcc-calendar-day-line shift');
         }
 
@@ -135,24 +141,24 @@ window.workCalendar = (function () {
             let statusText = registration.approvalStatus || '';
 
             if (registration.isApproved || status === 'approved') {
-                statusText = '✓ Đã duyệt';
+                statusText = label('approved', statusText);
             } else if (status === 'pending') {
-                statusText = '⏳ Chờ duyệt';
+                statusText = label('pending', statusText);
             } else if (status === 'inprogress') {
-                statusText = '⏳ Đang duyệt';
+                statusText = label('inProgress', statusText);
             } else if (status === 'rejected') {
-                statusText = '✕ Từ chối';
+                statusText = label('rejected', statusText);
             } else if (status === 'cancelled') {
-                statusText = 'Đã hủy';
+                statusText = label('cancelled', statusText);
             } else if (status === 'needsrevision') {
-                statusText = '↻ Cần chỉnh sửa';
+                statusText = label('needsRevision', statusText);
             }
 
             const approvalParts = [statusText];
 
             if (registration.approvalLevel != null && !registration.isApproved) {
                 approvalParts.push(
-                    'Cấp ' + registration.approvalLevel +
+                    formatLabel('level', registration.approvalLevel, 'Level {0}') +
                     (registration.approvalLevelName
                         ? ' · ' + registration.approvalLevelName
                         : ''));
@@ -174,7 +180,7 @@ window.workCalendar = (function () {
         if (day.canRegister) {
             appendLine(
                 body,
-                '+ Đăng ký',
+                label('register', '+ Register'),
                 'fcc-calendar-day-line registration-open');
         }
 
@@ -206,8 +212,17 @@ window.workCalendar = (function () {
         });
     }
 
-    function init(element, dotNetRef, days, initialDate) {
+    function buttonText() {
+        return {
+            today: label('today', 'Today'),
+            month: label('month', 'Month'),
+            list: label('list', 'List')
+        };
+    }
+
+    function init(element, dotNetRef, days, initialDate, locale, labels) {
         _dotNetRef = dotNetRef;
+        _labels = labels || {};
         setDays(days);
 
         if (_calendar) {
@@ -217,7 +232,7 @@ window.workCalendar = (function () {
         _calendar = new FullCalendar.Calendar(element, {
             initialView: 'dayGridMonth',
             initialDate: initialDate,
-            locale: 'vi',
+            locale: locale || 'vi',
 
             headerToolbar: {
                 left: 'prev,next today',
@@ -225,12 +240,7 @@ window.workCalendar = (function () {
                 right: 'dayGridMonth,listMonth'
             },
 
-            buttonText: {
-                today: 'Hôm nay',
-                month: 'Tháng',
-                list: 'Danh sách'
-            },
-
+            buttonText: buttonText(),
             height: 'auto',
             selectable: false,
             events: [],
@@ -292,6 +302,15 @@ window.workCalendar = (function () {
         _calendar.render();
     }
 
+    function setLocale(locale, labels) {
+        _labels = labels || _labels;
+        if (!_calendar) return;
+
+        _calendar.setOption('locale', locale || 'vi');
+        _calendar.setOption('buttonText', buttonText());
+        requestAnimationFrame(renderAllCells);
+    }
+
     function updateDays(days) {
         if (!_calendar) return;
 
@@ -307,10 +326,12 @@ window.workCalendar = (function () {
 
         _dotNetRef = null;
         _days = new Map();
+        _labels = {};
     }
 
     return {
         init: init,
+        setLocale: setLocale,
         updateDays: updateDays,
         destroy: destroy
     };
