@@ -181,7 +181,7 @@ public sealed class PublicFormService : IPublicFormService
         await ValidateAsync(request, ct);
         var entity = await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).ThenInclude(x=>x.Options).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
         if (entity == null) throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
-        if (entity.Status == "Published") return ServiceResult<PublicFormDto>.Fail("Không sửa trực tiếp biểu mẫu đã Publish.");
+        if (entity.Status == "Published") throw new InvalidOperationException("Không sửa trực tiếp biểu mẫu đã Publish.");
         entity.FormCode=request.FormCode.Trim(); entity.Title=request.Title.Trim(); entity.Description=request.Description?.Trim(); entity.CategoryCode=request.CategoryCode?.Trim();
         entity.StartAt=request.StartAt; entity.EndAt=request.EndAt; entity.AllowMultipleSubmit=request.AllowMultipleSubmit; entity.RequireApproval=request.RequireApproval; entity.MaxSubmissions=request.MaxSubmissions;
         entity.ModifiedBy=actorUserId; entity.ModifiedAt=DateTime.Now;
@@ -194,18 +194,18 @@ public sealed class PublicFormService : IPublicFormService
     private async Task PublishAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
-        if(e==null)return ServiceResult.Fail("Không tìm thấy biểu mẫu.");
-        if(e.Status=="Archived")return ServiceResult.Fail("Biểu mẫu đã Archive.");
-        if(e.Questions.Count==0)return ServiceResult.Fail("Biểu mẫu phải có ít nhất một câu hỏi.");
-        if(e.Audiences.Count==0)return ServiceResult.Fail("Biểu mẫu phải có đối tượng đăng ký.");
-        e.Status="Published";e.PublishedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return ServiceResult.Ok();
+        if(e==null)throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
+        if(e.Status=="Archived")throw new InvalidOperationException("Biểu mẫu đã Archive.");
+        if(e.Questions.Count==0)throw new ArgumentException("Biểu mẫu phải có ít nhất một câu hỏi.");
+        if(e.Audiences.Count==0)throw new ArgumentException("Biểu mẫu phải có đối tượng đăng ký.");
+        e.Status="Published";e.PublishedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);
     }
 
     private async Task CloseAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(e==null)return ServiceResult.Fail("Không tìm thấy biểu mẫu.");
-        e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return ServiceResult.Ok();
+        e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);
     }
 
     private async Task<int> SubmitAsyncCoreAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<PublicFormAnswerRequest> answers,CancellationToken ct=default)
@@ -215,33 +215,33 @@ public sealed class PublicFormService : IPublicFormService
             .Include(x=>x.Questions).ThenInclude(x=>x.Options)
             .Include(x=>x.Audiences)
             .FirstOrDefaultAsync(x=>x.Id==formId,ct);
-        if(form==null) return ServiceResult<int>.Fail("Không tìm thấy biểu mẫu.");
+        if(form==null) throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
         if(form.Status!="Published" || (form.StartAt.HasValue&&form.StartAt>now) || (form.EndAt.HasValue&&form.EndAt<now))
-            return ServiceResult<int>.Fail("Biểu mẫu không còn nhận đăng ký.");
+            throw new InvalidOperationException("Biểu mẫu không còn nhận đăng ký.");
         if(!Matches(form,employeeCode,deptCode,positionCode))
-            return ServiceResult<int>.Fail("Bạn không thuộc đối tượng được phép đăng ký.");
+            throw new UnauthorizedAccessException("Bạn không thuộc đối tượng được phép đăng ký.");
         var activeSubmissionQuery=_uow.Repository<F03PublicFormSubmission>().Query().Where(x=>x.FormId==formId&&x.Status!="Cancelled");
-        if(form.MaxSubmissions.HasValue && await activeSubmissionQuery.CountAsync(ct)>=form.MaxSubmissions.Value) return ServiceResult<int>.Fail("Biểu mẫu đã đủ số lượng đăng ký.");
+        if(form.MaxSubmissions.HasValue && await activeSubmissionQuery.CountAsync(ct)>=form.MaxSubmissions.Value) throw new InvalidOperationException("Biểu mẫu đã đủ số lượng đăng ký.");
         if(!form.AllowMultipleSubmit && await activeSubmissionQuery.AnyAsync(x=>x.EmployeeCode==employeeCode,ct))
-            return ServiceResult<int>.Fail("Bạn đã đăng ký biểu mẫu này.");
+            throw new InvalidOperationException("Bạn đã đăng ký biểu mẫu này.");
         var required=form.Questions.Where(q=>q.IsRequired&&q.IsActive==true).Select(q=>q.Id).ToHashSet();
         var provided=answers.Select(x=>x.QuestionId).ToHashSet();
-        if(required.Any(id=>!provided.Contains(id))) return ServiceResult<int>.Fail("Vui lòng hoàn tất các câu hỏi bắt buộc.");
+        if(required.Any(id=>!provided.Contains(id))) throw new ArgumentException("Vui lòng hoàn tất các câu hỏi bắt buộc.");
         foreach(var a in answers)
         {
             var q=form.Questions.FirstOrDefault(x=>x.Id==a.QuestionId&&x.IsActive==true);
-            if(q==null) return ServiceResult<int>.Fail("Có câu hỏi không hợp lệ.");
+            if(q==null) throw new ArgumentException("Có câu hỏi không hợp lệ.");
             if((q.QuestionType=="SingleChoice"||q.QuestionType=="MultiChoice") && !string.IsNullOrWhiteSpace(a.JsonValue))
             {
                 var selected=a.JsonValue.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
-                if(selected.Any(v=>!q.Options.Any(o=>o.IsActive==true&&o.OptionCode==v))) return ServiceResult<int>.Fail($"Lựa chọn không hợp lệ cho {q.QuestionCode}.");
+                if(selected.Any(v=>!q.Options.Any(o=>o.IsActive==true&&o.OptionCode==v))) throw new ArgumentException($"Lựa chọn không hợp lệ cho {q.QuestionCode}.");
             }
         }
         var sub=new F03PublicFormSubmission{FormId=formId,EmployeeCode=employeeCode,SubmittedAt=now,Status="Submitted",FormVersion=form.Version};
         foreach(var a in answers) sub.Answers.Add(new F03PublicFormAnswer{QuestionId=a.QuestionId,TextValue=a.TextValue,NumberValue=a.NumberValue,DateValue=a.DateValue,BoolValue=a.BoolValue,JsonValue=a.JsonValue});
         await _uow.Repository<F03PublicFormSubmission>().AddAsync(sub,ct);
         await _uow.SaveChangesAsync(ct);
-        return ServiceResult<int>.Ok(sub.Id);
+        return sub.Id;
     }
 
     private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult<T>.Fail(ex.Message);}}
