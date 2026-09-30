@@ -49,7 +49,7 @@ public sealed class PayrollInputService : IPayrollInputService
         return Map(row);
     }
 
-    public Task<ServiceResult<IReadOnlyList<PayrollPeriodDto>>> GetPeriodsAsync(CancellationToken ct = default) => GuardAsync(GetPeriodsCoreAsync);
+    public Task<ServiceResult<IReadOnlyList<PayrollPeriodDto>>> GetPeriodsAsync(CancellationToken ct = default) => GuardAsync(() => GetPeriodsCoreAsync(ct));
 
     private async Task<IReadOnlyList<PayrollPeriodDto>> GetPeriodsCoreAsync(CancellationToken ct = default)
         => await _db.PayrollCalculationPeriods.AsNoTracking()
