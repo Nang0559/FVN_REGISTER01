@@ -37,7 +37,7 @@ public sealed class TripController : ControllerBase
         CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.TripCreate, ct)) return Forbid();
-        return Ok(await _service.CreateDraftAsync(request, ct));
+        var result = await _service.CreateDraftAsync(request, ct); return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
     [HttpPut("{id:int}")]
@@ -45,15 +45,14 @@ public sealed class TripController : ControllerBase
         int id, [FromBody] CreateTripRequestDto request, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
-        return Ok(await _service.UpdateDraftAsync(id, request, ct));
+        var result = await _service.UpdateDraftAsync(id, request, ct); return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
     [HttpPost("{id:int}/cancel")]
     public async Task<IActionResult> Cancel(int id, [FromBody] CancelTripRequestDto request, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.TripCancel, ct)) return Forbid();
-        await _service.CancelAsync(id, request.Reason, ct);
-        return Ok();
+        var result = await _service.CancelAsync(id, request.Reason, ct); return result.IsSuccess ? Ok(ApiResponse<object>.FromResult(result)) : BadRequest(ApiResponse<object>.FromResult(result));
     }
 
     [HttpPost("{id:int}/submit")]
@@ -70,14 +69,14 @@ public sealed class TripController : ControllerBase
     {
         if (!await CanAsync(SecurityFunctionCodes.TripView, ct)) return Forbid();
         var result = await _service.GetAsync(id, ct);
-        return result == null ? NotFound() : Ok(result);
+        return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : NotFound(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
     [HttpGet("mine")]
     public async Task<ActionResult<List<TripRequestDto>>> Mine(CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.TripView, ct)) return Forbid();
-        return Ok(await _service.GetMineAsync(ct));
+        var result = await _service.GetMineAsync(ct); return result.IsSuccess ? Ok(ApiResponse<List<TripRequestDto>>.FromResult(result)) : BadRequest(ApiResponse<List<TripRequestDto>>.FromResult(result));
     }
 
     private async Task<bool> CanAsync(int functionCode, CancellationToken ct)
