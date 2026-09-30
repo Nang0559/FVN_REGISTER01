@@ -28,7 +28,7 @@ public sealed class PayrollInputService : IPayrollInputService
         _currentUser = currentUser;
     }
 
-    public Task<ServiceResult<PayrollPeriodDto>> GetOrCreateCurrentPeriodAsync(int actorUserId, CancellationToken ct = default) => GuardAsync(() => GetOrCreateCurrentPeriodCoreAsync(actorUserId, ct));
+    public Task<ServiceResult<PayrollPeriodDto>> GetOrCreateCurrentPeriodAsync(int actorUserId, CancellationToken ct = default) => GuardValueAsync(() => GetOrCreateCurrentPeriodCoreAsync(actorUserId, ct));
 
     private async Task<PayrollPeriodDto> GetOrCreateCurrentPeriodCoreAsync(int actorUserId, CancellationToken ct = default)
     {
