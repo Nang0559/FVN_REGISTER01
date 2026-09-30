@@ -7,7 +7,7 @@ namespace FVN_REGISTER.Application.Interfaces.Equipment;
 public interface IEquipmentImportService
 {
     Task<List<EquipmentFieldDefinitionDto>> GetFieldDefinitionsAsync(string deptCode, CancellationToken ct = default);
-    Task<EquipmentFieldDefinitionDto> SaveFieldDefinitionAsync(SaveEquipmentFieldDefinitionRequest request, CancellationToken ct = default);
+    Task<ServiceResult<EquipmentFieldDefinitionDto>> SaveFieldDefinitionAsync(SaveEquipmentFieldDefinitionRequest request, CancellationToken ct = default);
 
     Task<List<EquipmentSchemaSummaryDto>> GetSchemasAsync(string? deptCode, CancellationToken ct = default);
     Task<EquipmentSchemaDto?> GetSchemaAsync(int schemaId, CancellationToken ct = default);
