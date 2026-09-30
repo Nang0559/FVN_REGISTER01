@@ -461,7 +461,7 @@ public sealed class PublicFormService : IPublicFormService
         return ServiceResult<PublicFormSubmissionSummaryDto>.Ok(summary);
     }
 
-    public async Task<ServiceResult<byte[]>> ExportSubmissionsAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
+    private async Task<ServiceResult<byte[]>> ExportSubmissionsAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
     {
         var form = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options).FirstOrDefaultAsync(x => x.Id == formId, ct);
