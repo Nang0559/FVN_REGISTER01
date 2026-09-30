@@ -79,8 +79,8 @@
                                 </table>
                             </div>
                             <MudGrid Spacing="2" Class="mt-3">
-                                <MudItem xs="6" sm="3"><MudNumericField T="int?" Label="Dòng dữ liệu bắt đầu" Value="@(_dataStartRowIndex.HasValue ? _dataStartRowIndex.Value+1 : (int?)null)" ValueChanged="@((int? v) => _dataStartRowIndex = v.HasValue ? v.Value-1 : (int?)null)" Variant="Variant.Outlined" Dense="true"/></MudItem>
-                                <MudItem xs="6" sm="3"><MudNumericField T="int?" Label="Dòng dữ liệu kết thúc" Value="@(_dataEndRowIndex.HasValue ? _dataEndRowIndex.Value+1 : (int?)null)" ValueChanged="@((int? v) => _dataEndRowIndex = v.HasValue ? v.Value-1 : (int?)null)" Variant="Variant.Outlined" Dense="true"/></MudItem>
+                                <MudItem xs="6" sm="3"><MudNumericField T="int?" Label="Dòng dữ liệu bắt đầu" Value="@(_dataStartRowIndex.HasValue ? _dataStartRowIndex.Value+1 : (int?)null)" ValueChanged="@((int? v) => _dataStartRowIndex = v.HasValue ? v.Value-1 : (int?)null)" Variant="Variant.Outlined"/></MudItem>
+                                <MudItem xs="6" sm="3"><MudNumericField T="int?" Label="Dòng dữ liệu kết thúc" Value="@(_dataEndRowIndex.HasValue ? _dataEndRowIndex.Value+1 : (int?)null)" ValueChanged="@((int? v) => _dataEndRowIndex = v.HasValue ? v.Value-1 : (int?)null)" Variant="Variant.Outlined"/></MudItem>
                                 <MudItem xs="12" sm="6"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_headerRowIndex==null || _selectedColumns.Count==0 || _readingExcel)" OnClick="PreviewRangeAsync">@(_readingExcel?"Đang lấy Schema...":"Lấy Schema")</MudButton></MudItem>
                             </MudGrid>
                             @if(_excelPreview!=null)
