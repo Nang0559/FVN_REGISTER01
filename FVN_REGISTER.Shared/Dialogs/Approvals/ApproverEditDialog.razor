@@ -42,7 +42,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverName" Label="Họ tên" Variant="Variant.Outlined" ReadOnly="true" /></MudItem>
-                <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverEmail" Label="Email" Variant="Variant.Outlined" InputType="InputType.Email" ReadOnly="true" /></MudItem>
+                <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverEmail" Label='@Language.T("common.email")' Variant="Variant.Outlined" InputType="InputType.Email" ReadOnly="true" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="Model.RoleName" Label="Tên vai trò" Variant="Variant.Outlined" /></MudItem>
             </MudGrid>
         </MudForm>
