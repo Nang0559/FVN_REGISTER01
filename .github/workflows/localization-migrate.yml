@@ -18,13 +18,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install PowerShell
-        shell: bash
-        run: pwsh -NoProfile -Command '$PSVersionTable.PSVersion'
-
       - name: Apply localization migration
-        shell: pwsh
-        run: ./scripts/apply-ui-localization.ps1
+        run: python3 ./scripts/apply-ui-localization.py
+
+      - name: Build Shared project
+        run: dotnet build FVN_REGISTER.Shared/FVN_REGISTER.Shared.csproj --no-restore
 
       - name: Commit generated localization changes
         shell: bash
@@ -35,6 +33,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add FVN_REGISTER.Shared/**/*.razor FVN_REGISTER.Shared/*.razor
+          git add FVN_REGISTER.Shared scripts
           git commit -m "feat(i18n): localize remaining Razor UI"
           git push
