@@ -58,28 +58,40 @@ public sealed class EquipmentSchemaController : ControllerBase
     public async Task<ActionResult<EquipmentSchemaDto>> Save([FromBody] EquipmentSchemaUpsertRequest request, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
-        return Ok(await _service.SaveSchemaAsync(request, ct));
+        var result = await _service.SaveSchemaAsync(request, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentSchemaDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentSchemaDto>.FromResult(result));
     }
 
     [HttpPost("{schemaId:int}/clone")]
     public async Task<ActionResult<EquipmentSchemaDto>> Clone(int schemaId, [FromBody] EquipmentSchemaCloneRequest request, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
-        return Ok(await _service.CloneSchemaAsync(schemaId, request, ct));
+        var result = await _service.CloneSchemaAsync(schemaId, request, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentSchemaDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentSchemaDto>.FromResult(result));
     }
 
     [HttpPost("{schemaId:int}/version")]
     public async Task<ActionResult<EquipmentSchemaDto>> CreateVersion(int schemaId, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
-        return Ok(await _service.CreateVersionAsync(schemaId, ct));
+        var result = await _service.CreateVersionAsync(schemaId, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentSchemaDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentSchemaDto>.FromResult(result));
     }
 
     [HttpPut("fields")]
     public async Task<ActionResult<EquipmentFieldDefinitionDto>> SaveField([FromBody] SaveEquipmentFieldDefinitionRequest request, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
-        return Ok(await _service.SaveFieldDefinitionAsync(request, ct));
+        var result = await _service.SaveFieldDefinitionAsync(request, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentFieldDefinitionDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentFieldDefinitionDto>.FromResult(result));
     }
 
     [HttpPost("inspect-excel")]
