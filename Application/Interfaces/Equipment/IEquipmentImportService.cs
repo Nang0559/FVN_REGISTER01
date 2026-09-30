@@ -13,7 +13,7 @@ public interface IEquipmentImportService
     Task<EquipmentSchemaDto?> GetSchemaAsync(int schemaId, CancellationToken ct = default);
     Task<ServiceResult<EquipmentSchemaDto>> SaveSchemaAsync(EquipmentSchemaUpsertRequest request, CancellationToken ct = default);
     Task<ServiceResult<EquipmentSchemaDto>> CloneSchemaAsync(int schemaId, EquipmentSchemaCloneRequest request, CancellationToken ct = default);
-    Task<EquipmentSchemaDto> CreateVersionAsync(int schemaId, CancellationToken ct = default);
+    Task<ServiceResult<EquipmentSchemaDto>> CreateVersionAsync(int schemaId, CancellationToken ct = default);
     Task<ServiceResult<EquipmentExcelWorkbookDto>> InspectExcelAsync(string deptCode, string fileName, Stream content, CancellationToken ct = default);
     Task<ServiceResult<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelSheetAsync(string deptCode, string fileName, Stream content, int sheetIndex, CancellationToken ct = default);
     Task<ServiceResult<EquipmentSchemaDto>> CreateSchemaFromExcelSheetAsync(string deptCode, string fileName, Stream content, int sheetIndex, string? schemaName, CancellationToken ct = default);
