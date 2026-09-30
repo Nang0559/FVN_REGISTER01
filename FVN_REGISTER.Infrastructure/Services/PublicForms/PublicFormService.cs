@@ -165,7 +165,7 @@ public sealed class PublicFormService : IPublicFormService
         return x == null ? null : Map(x);
     }
 
-    private async Task<ServiceResult<PublicFormDto>> CreateAsyncCoreAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
+    private async Task<PublicFormDto> CreateAsyncCoreAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         await ValidateAsync(request, ct);
         var exists = await _uow.Repository<F03PublicForm>().Query().AnyAsync(x => x.FormCode == request.FormCode.Trim(), ct);
@@ -176,7 +176,7 @@ public sealed class PublicFormService : IPublicFormService
         return ServiceResult<PublicFormDto>.Ok(Map(entity));
     }
 
-    private async Task<ServiceResult<PublicFormDto>> UpdateAsyncCoreAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
+    private async Task<PublicFormDto> UpdateAsyncCoreAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         await ValidateAsync(request, ct);
         var entity = await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).ThenInclude(x=>x.Options).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
@@ -191,7 +191,7 @@ public sealed class PublicFormService : IPublicFormService
         return ServiceResult<PublicFormDto>.Ok(Map(entity));
     }
 
-    private async Task<ServiceResult> PublishAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
+    private async Task PublishAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(e==null)return ServiceResult.Fail("Không tìm thấy biểu mẫu.");
@@ -201,14 +201,14 @@ public sealed class PublicFormService : IPublicFormService
         e.Status="Published";e.PublishedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return ServiceResult.Ok();
     }
 
-    private async Task<ServiceResult> CloseAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
+    private async Task CloseAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(e==null)return ServiceResult.Fail("Không tìm thấy biểu mẫu.");
         e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return ServiceResult.Ok();
     }
 
-    private async Task<ServiceResult<int>> SubmitAsyncCoreAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<PublicFormAnswerRequest> answers,CancellationToken ct=default)
+    private async Task<int> SubmitAsyncCoreAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<PublicFormAnswerRequest> answers,CancellationToken ct=default)
     {
         var now=DateTime.Now;
         var form=await _uow.Repository<F03PublicForm>().Query()
@@ -383,12 +383,12 @@ public sealed class PublicFormService : IPublicFormService
     private async Task<List<PublicFormDto>> GetSubmissionFormsAsyncCoreAsync(CancellationToken ct = default)
         => await GetManageListAsyncCoreAsync(ct);
 
-    private async Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
+    private async Task<PublicFormSubmissionListDto> GetSubmissionsAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
     {
         var form = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options)
             .FirstOrDefaultAsync(x => x.Id == formId, ct);
-        if (form == null) return ServiceResult<PublicFormSubmissionListDto>.Fail("Không tìm thấy biểu mẫu.");
+        if (form == null) throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
 
         var q = BuildSubmissionQuery(formId, query, scopeCode);
         var total = await q.CountAsync(ct);
@@ -401,7 +401,7 @@ public sealed class PublicFormService : IPublicFormService
         var employees = await _uow.Repository<F03Employee>().Query().AsNoTracking()
             .Where(x => employeeCodes.Contains(x.EmployeeCode)).ToDictionaryAsync(x => x.EmployeeCode, ct);
 
-        return ServiceResult<PublicFormSubmissionListDto>.Ok(new PublicFormSubmissionListDto
+        return new PublicFormSubmissionListDto
         {
             FormId = form.Id, FormCode = form.FormCode, FormTitle = form.Title,
             TotalCount = total, Page = page, PageSize = pageSize,
@@ -410,11 +410,11 @@ public sealed class PublicFormService : IPublicFormService
         });
     }
 
-    private async Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
+    private async Task<PublicFormSubmissionSummaryDto> GetSubmissionSummaryAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
     {
         var form = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options).FirstOrDefaultAsync(x => x.Id == formId, ct);
-        if (form == null) return ServiceResult<PublicFormSubmissionSummaryDto>.Fail("Không tìm thấy biểu mẫu.");
+        if (form == null) throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
 
         var rows = await BuildSubmissionQuery(formId, query, scopeCode).AsNoTracking().Include(x => x.Answers).ToListAsync(ct);
         var employeeCodes = rows.Select(x => x.EmployeeCode).Distinct().ToList();
@@ -458,14 +458,14 @@ public sealed class PublicFormService : IPublicFormService
             });
         }
 
-        return ServiceResult<PublicFormSubmissionSummaryDto>.Ok(summary);
+        return summary;
     }
 
-    private async Task<ServiceResult<byte[]>> ExportSubmissionsAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
+    private async Task<byte[]> ExportSubmissionsAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
     {
         var form = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options).FirstOrDefaultAsync(x => x.Id == formId, ct);
-        if (form == null) return ServiceResult<byte[]>.Fail("Không tìm thấy biểu mẫu.");
+        if (form == null) throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
 
         var rows = await BuildSubmissionQuery(formId, query, scopeCode).AsNoTracking().Include(x => x.Answers)
             .OrderByDescending(x => x.SubmittedAt).ToListAsync(ct);
@@ -503,7 +503,7 @@ public sealed class PublicFormService : IPublicFormService
         sheet.Columns().AdjustToContents();
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        return ServiceResult<byte[]>.Ok(stream.ToArray());
+        return stream.ToArray();
     }
 
     private IQueryable<F03PublicFormSubmission> BuildSubmissionQuery(int formId, PublicFormSubmissionQueryDto query, string scopeCode)
