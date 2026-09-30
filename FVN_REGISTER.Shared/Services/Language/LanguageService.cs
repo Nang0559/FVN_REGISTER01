@@ -48,7 +48,9 @@ public sealed class LanguageService : ILanguageService
     {
         var value = LanguageCatalog.Get(_current, key);
         if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogAdditional.TryGet(_current, key, out var additional) ? additional : value;
+            value = LanguageCatalogAdditional.TryGet(_current, key, out var additional) ? additional : key;
+        if (string.Equals(value, key, StringComparison.Ordinal))
+            value = LanguageCatalogModules.TryGet(_current, key, out var moduleValue) ? moduleValue : key;
 
         if (args.Length == 0)
             return value;
