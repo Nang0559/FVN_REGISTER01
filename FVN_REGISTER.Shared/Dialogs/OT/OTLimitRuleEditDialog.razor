@@ -34,10 +34,10 @@
                 @if (Model.ScopeType == OTLimitScopeType.Employee)
                 {
                     <MudItem xs="12" sm="4">
-                        <MudTextField @bind-Value="Model.EmployeeCode" Label="Mã nhân viên" Variant="Variant.Outlined" HelperText="Để trống nếu áp dụng theo vị trí/phòng ban." />
+                        <MudTextField @bind-Value="Model.EmployeeCode" Label='@Language.T("common.employeeCode")' Variant="Variant.Outlined" HelperText="Để trống nếu áp dụng theo vị trí/phòng ban." />
                     </MudItem>
                     <MudItem xs="12" sm="4">
-                        <MudTextField @bind-Value="Model.DeptCode" Label="Mã phòng ban" Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="Model.DeptCode" Label='@Language.T("common.departmentCode")' Variant="Variant.Outlined" />
                     </MudItem>
                     <MudItem xs="12" sm="4">
                         <MudTextField @bind-Value="Model.PositionCode" Label="Mã vị trí" Variant="Variant.Outlined" />
@@ -54,7 +54,7 @@
                 }
 
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="Model.Description" Label="Mô tả" Variant="Variant.Outlined" Lines="3" MaxLength="500" />
+                    <MudTextField @bind-Value="Model.Description" Label='@Language.T("common.description")' Variant="Variant.Outlined" Lines="3" MaxLength="500" />
                 </MudItem>
 
                 <MudItem xs="12">
@@ -64,7 +64,7 @@
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_saving" OnClick="Save">
             @(_saving ? "Đang lưu..." : "Lưu")
         </MudButton>

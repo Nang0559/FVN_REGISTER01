@@ -44,7 +44,7 @@
             <MudSwitch T="bool" @bind-Value="_activeOnly" Label="Đang làm việc" Color="Color.Success" Class="mt-1" />
         </MudItem>
         <MudItem xs="12" sm="2">
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">Xem tất cả</MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">@Language.T("dashboard.viewAll")</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
@@ -61,8 +61,8 @@ else if (_isFiltered)
         <MudTable Items="FilteredEmployees" Dense="true" Hover="true" Striped="true">
             <HeaderContent>
                 <MudTh>Mã NV</MudTh><MudTh>Họ tên</MudTh><MudTh>Bộ phận</MudTh><MudTh>@Language.T("common.email")</MudTh>
-                <MudTh Style="text-align:center">Phép tồn</MudTh><MudTh Style="text-align:center">OT năm</MudTh>
-                <MudTh Style="text-align:center">Trạng thái</MudTh><MudTh Style="text-align:center">Thao tác</MudTh>
+                <MudTh Style="text-align:center">Phép tồn</MudTh><MudTh Style="text-align:center">@Language.T("dashboard.otYear")</MudTh>
+                <MudTh Style="text-align:center">@Language.T("common.status")</MudTh><MudTh Style="text-align:center">@Language.T("security.actions")</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.EmployeeCode</MudTd>
@@ -128,14 +128,14 @@ else
                                                     <MudMenuItem Icon="@Icons.Material.Filled.BarChart" OnClick="@(() => OpenOtDetailDialog(emp))">Xem OT chi tiết</MudMenuItem>
                                                     <MudMenuItem Icon="@(emp.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" OnClick="@(() => ToggleEmployee(emp))">@(emp.IsActive ? "Vô hiệu hóa" : "Kích hoạt")</MudMenuItem>
                                                     <MudDivider />
-                                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => ConfirmDelete(emp))"><MudText Color="Color.Error">Xóa</MudText></MudMenuItem>
+                                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => ConfirmDelete(emp))"><MudText Color="Color.Error">@Language.T("common.delete")</MudText></MudMenuItem>
                                                 </MudMenu>
                                             </MudStack>
                                             @if (!string.IsNullOrWhiteSpace(emp.PositionName)) { <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.PositionCode — @emp.PositionName</MudText> }
                                             <MudDivider />
                                             <MudGrid Spacing="1">
                                                 <MudItem xs="6"><MudText Typo="Typo.caption" Color="Color.Secondary">Phép tồn</MudText><MudText Style="font-weight:700">@emp.RemainingLeave.ToString("N1") ngày</MudText></MudItem>
-                                                <MudItem xs="6"><MudText Typo="Typo.caption" Color="Color.Secondary">Giờ OT</MudText><MudText Style="font-weight:700">@emp.OtHoursThisYear.ToString("N1") h</MudText></MudItem>
+                                                <MudItem xs="6"><MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("payroll.otHours")</MudText><MudText Style="font-weight:700">@emp.OtHoursThisYear.ToString("N1") h</MudText></MudItem>
                                             </MudGrid>
                                             <MudText Typo="Typo.caption" Style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap" Color="Color.Secondary">@emp.EmailAddress</MudText>
                                         </MudStack>

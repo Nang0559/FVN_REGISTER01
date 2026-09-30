@@ -35,7 +35,7 @@
                         <MudText Typo="Typo.body2"><b>@(Day.Attendance?.CheckOut?.ToString("HH:mm") ?? "-")</b></MudText>
                     </MudItem>
                     <MudItem xs="6" md="3">
-                        <MudText Typo="Typo.caption">Giờ công</MudText>
+                        <MudText Typo="Typo.caption">@Language.T("payroll.workHours")</MudText>
                         <MudText Typo="Typo.body2">
                             <b>@(Day.Attendance?.ActualHours?.ToString("0.##") ?? "-") / @(Day.Attendance?.RequiredHours?.ToString("0.##") ?? "-") giờ</b>
                         </MudText>
@@ -114,7 +114,7 @@
                 }
 
                 <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
-                    <MudButton OnClick="Close">Hủy</MudButton>
+                    <MudButton OnClick="Close">@Language.T("common.cancel")</MudButton>
                     <MudButton Color="Color.Primary"
                                Variant="Variant.Filled"
                                Disabled="@(_saving || _loading || string.IsNullOrWhiteSpace(_comment) || (Action.RequiresAttachment && _file is null))"
@@ -127,7 +127,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Close">Đóng</MudButton>
+        <MudButton OnClick="Close">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 

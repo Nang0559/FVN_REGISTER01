@@ -123,7 +123,7 @@
 
                 <MudItem xs="12" sm="6">
                     <MudSelect T="int?"
-                               Label="Cấp duyệt"
+                               Label='@Language.T("approval.level")'
                                @bind-Value="Model.LevelApprove"
                                Variant="Variant.Outlined"
                                Clearable="true">
@@ -146,7 +146,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudButton Color="Color.Primary"
                    Variant="Variant.Filled"
                    OnClick="Submit"

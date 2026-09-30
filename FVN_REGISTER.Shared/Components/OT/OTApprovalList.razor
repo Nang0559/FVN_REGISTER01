@@ -37,7 +37,7 @@
                         <MudItem xs="12" sm="3"><OTApprovalProgressBar Steps="@item.ApprovalSteps" /></MudItem>
                         <MudItem xs="12" sm="2" Class="d-flex justify-end">
                             <MudStack Row="true" Spacing="1">
-                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => OnViewDetail.InvokeAsync(item.RequestId))">Chi tiết</MudButton>
+                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => OnViewDetail.InvokeAsync(item.RequestId))">@Language.T("common.detail")</MudButton>
                                 @if (item.CanApprove)
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Disabled="_busy" OnClick="@(() => Approve(item))" />

@@ -32,13 +32,13 @@
         </MudItem>
         <MudItem xs="12" sm="8"><MudTextField @bind-Value="_form.Title" Label="Tiêu đề *" Variant="Variant.Outlined" /></MudItem>
         <MudItem xs="12"><MudTextField @bind-Value="_form.Summary" Label="Tóm tắt" Variant="Variant.Outlined" /></MudItem>
-        <MudItem xs="12"><MudTextField @bind-Value="_form.Content" Label="Nội dung" Lines="8" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12"><MudTextField @bind-Value="_form.Content" Label='@Language.T("public.content")' Lines="8" Variant="Variant.Outlined" /></MudItem>
         <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_from" Label="Hiệu lực từ" Variant="Variant.Outlined" /></MudItem>
         <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_to" Label="Hiệu lực đến" Variant="Variant.Outlined" /></MudItem>
         <MudItem xs="12"><MudSwitch T="bool" @bind-Value="_form.IsImportant">Đánh dấu quan trọng</MudSwitch></MudItem>
     </MudGrid>
     <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-        <MudButton Variant="Variant.Text" OnClick="New">Hủy</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="New">@Language.T("common.cancel")</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Lưu nháp</MudButton>
     </MudStack>
 </MudPaper>
@@ -47,7 +47,7 @@
 else
 {
     <MudTable Items="_items" Dense="true" Hover="true">
-        <HeaderContent><MudTh>Loại</MudTh><MudTh>Tiêu đề</MudTh><MudTh>Trạng thái</MudTh><MudTh>Hiệu lực</MudTh><MudTh /></HeaderContent>
+        <HeaderContent><MudTh>@Language.T("common.type")</MudTh><MudTh>Tiêu đề</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>Hiệu lực</MudTh><MudTh /></HeaderContent>
         <RowTemplate>
             <MudTd>@TypeName(context.Type)</MudTd>
             <MudTd><b>@context.Title</b><MudText Typo="Typo.body2">@context.Summary</MudText></MudTd>

@@ -29,12 +29,12 @@
         <MudItem xs="12" sm="6">
             <MudSelect T="bool?" Label="Lọc theo trạng thái" Value="_filterActive" ValueChanged="OnActiveFilterChanged"
                        Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                <MudSelectItem T="bool?" Value="@((bool?)true)">Đang hoạt động</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)true)">@Language.T("common.enabled")</MudSelectItem>
                 <MudSelectItem T="bool?" Value="@((bool?)false)">Đã ngừng hoạt động</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">Xem tất cả</MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">@Language.T("dashboard.viewAll")</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
@@ -50,10 +50,10 @@ else
             <HeaderContent>
                 <MudTh>Mã bộ phận</MudTh>
                 <MudTh>Tên bộ phận</MudTh>
-                <MudTh Style="text-align:center">Nhân viên</MudTh>
-                <MudTh>Ngày tạo</MudTh>
-                <MudTh>Trạng thái</MudTh>
-                <MudTh Style="text-align:center">Thao tác</MudTh>
+                <MudTh Style="text-align:center">@Language.T("ot.employee")</MudTh>
+                <MudTh>@Language.T("common.createdAt")</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
+                <MudTh Style="text-align:center">@Language.T("security.actions")</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd><MudText Typo="Typo.body2" Style="font-weight:600">@context.DeptCode</MudText></MudTd>

@@ -36,7 +36,7 @@
                 Function đã có mã sẽ đăng ký trực tiếp. Candidate API/UI chưa có mã sẽ mở form để quản trị viên gán FunctionCode trước; không được tự cấp quyền.
             </MudText>
             <MudTable T="SecurityFunctionRegistryItemDto" Items="PendingRegistration" Dense="true" Hover="true" Bordered="true" Loading="_busy">
-                <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Module</MudTh><MudTh>Action</MudTh><MudTh>Source</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
+                <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Module</MudTh><MudTh>Action</MudTh><MudTh>Source</MudTh><MudTh>@Language.T("security.actions")</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.FunctionKey</b><br /><MudText Typo="Typo.caption">@context.DefinitionName</MudText></MudTd>
                     <MudTd>@(context.FunctionCode > 0 ? context.FunctionCode.ToString() : "Chưa gán")</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.SourceType</MudTd>
@@ -52,7 +52,7 @@
 
         <MudTabPanel Text="Chờ ngừng / thay thế" Icon="@Icons.Material.Filled.WarningAmber">
             <MudTable T="SecurityFunctionRegistryItemDto" Items="PendingRetirement" Dense="true" Hover="true" Bordered="true">
-                <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Last seen</MudTh><MudTh>Thay thế</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
+                <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Last seen</MudTh><MudTh>Thay thế</MudTh><MudTh>@Language.T("security.actions")</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.FunctionKey</b><br /><MudText Typo="Typo.caption">@context.DefinitionName</MudText></MudTd>
                     <MudTd>@context.FunctionCode</MudTd><MudTd>@context.LastSeenAt.ToString("dd/MM/yyyy HH:mm")</MudTd>

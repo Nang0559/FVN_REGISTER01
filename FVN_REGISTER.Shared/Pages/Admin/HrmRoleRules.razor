@@ -22,14 +22,14 @@
     </div>
     <MudSpacer />
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+               OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
 </MudStack>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
     <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa rule" : "Thêm rule")</MudText>
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string" @bind-Value="_form.DeptCode" Label="Phòng ban" Variant="Variant.Outlined" Clearable="true">
+            <MudSelect T="string" @bind-Value="_form.DeptCode" Label='@Language.T("ot.department")' Variant="Variant.Outlined" Clearable="true">
                 <MudSelectItem T="string" Value="@null">Tất cả phòng ban</MudSelectItem>
                 @foreach (var dept in _departments)
                 {
@@ -38,7 +38,7 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string" @bind-Value="_form.PositionCode" Label="Chức vụ" Variant="Variant.Outlined" Clearable="true">
+            <MudSelect T="string" @bind-Value="_form.PositionCode" Label='@Language.T("hrm.position")' Variant="Variant.Outlined" Clearable="true">
                 <MudSelectItem T="string" Value="@null">Tất cả chức vụ</MudSelectItem>
                 @foreach (var position in _positions)
                 {
@@ -62,7 +62,7 @@
             <MudSwitch T="bool" @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
         </MudItem>
         <MudItem xs="12">
-            <MudTextField @bind-Value="_form.Note" Label="Ghi chú" Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="_form.Note" Label='@Language.T("common.note")' Variant="Variant.Outlined" />
         </MudItem>
     </MudGrid>
     <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
@@ -80,11 +80,11 @@
 <MudTable Items="_rules" Dense="true" Hover="true" Striped="true" Loading="_loading">
     <HeaderContent>
         <MudTh>Priority</MudTh>
-        <MudTh>Phòng ban</MudTh>
-        <MudTh>Chức vụ</MudTh>
+        <MudTh>@Language.T("ot.department")</MudTh>
+        <MudTh>@Language.T("hrm.position")</MudTh>
         <MudTh>@Language.T("security.role")</MudTh>
         <MudTh>Active</MudTh>
-        <MudTh>Ghi chú</MudTh>
+        <MudTh>@Language.T("common.note")</MudTh>
         <MudTh />
     </HeaderContent>
     <RowTemplate>

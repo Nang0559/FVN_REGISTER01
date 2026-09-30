@@ -21,22 +21,22 @@
         </MudSelect>
         <MudStack Class="mt-4" Spacing="1">
             <MudText Typo="Typo.subtitle2">Quyền module thiết bị</MudText>
-            <MudCheckBox @bind-Value="_equipmentAccess">Sổ quản lý thiết bị</MudCheckBox>
-            <MudCheckBox @bind-Value="_equipmentImportAccess">Import Excel thiết bị</MudCheckBox>
+            <MudCheckBox @bind-Value="_equipmentAccess">@Language.T("equipment.register")</MudCheckBox>
+            <MudCheckBox @bind-Value="_equipmentImportAccess">@Language.T("equipment.import")</MudCheckBox>
             <MudText Typo="Typo.caption" Color="Color.Secondary">
                 Chỉ user được cấp quyền mới nhìn thấy và gọi được chức năng tương ứng.
             </MudText>
         </MudStack>
 
         <MudTextField @bind-Value="Request.DeptCode"
-                      Label="Mã phòng ban"
+                      Label='@Language.T("common.departmentCode")'
                       Variant="Variant.Outlined"
                       Margin="Margin.Dense"
                       Class="mt-3" />
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudButton OnClick="Submit"
                    Variant="Variant.Filled"
                    Color="Color.Primary">

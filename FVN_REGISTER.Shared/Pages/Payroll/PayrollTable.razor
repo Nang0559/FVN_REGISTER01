@@ -8,7 +8,7 @@
 @inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
-<PageTitle>Bảng công tính lương</PageTitle>
+<PageTitle>@Language.T("payroll.table")</PageTitle>
 
 <style>
     @@media print {
@@ -23,7 +23,7 @@
     <MudPaper Outlined="true" Class="pa-5 payroll-no-print">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <div>
-                <MudText Typo="Typo.h5">Bảng công tính lương</MudText>
+                <MudText Typo="Typo.h5">@Language.T("payroll.table")</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">
                     Kỳ lương theo chu kỳ 21 → 20. Chỉ được in khi toàn bộ Execution đã được giải quyết.
                 </MudText>
@@ -105,8 +105,8 @@
             {
                 <MudTable Items="_inputs" Dense="true" Hover="true" Striped="true" Bordered="true">
                     <HeaderContent>
-                        <MudTh>Nhân viên</MudTh>
-                        <MudTh>Ngày</MudTh>
+                        <MudTh>@Language.T("ot.employee")</MudTh>
+                        <MudTh>@Language.T("ot.date")</MudTh>
                         <MudTh Style="text-align:right">Giờ công (phút)</MudTh>
                         <MudTh Style="text-align:right">Nghỉ</MudTh>
                         <MudTh Style="text-align:right">OT (phút)</MudTh>

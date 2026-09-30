@@ -28,7 +28,7 @@ else
     <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
             <div>
-                <MudText Typo="Typo.h5">Sổ quản lý thiết bị</MudText>
+                <MudText Typo="Typo.h5">@Language.T("equipment.register")</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Đăng ký • phê duyệt • QR • lịch sử sửa chữa • import theo schema phòng ban</MudText>
             </div>
             <MudStack Row="true" Spacing="2">
@@ -36,11 +36,11 @@ else
                 @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
                 { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Checklist" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection"))">Checklist của tôi</MudButton> }
                 @if (_actions?.Transfer == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">Bàn giao thiết bị</MudButton> }
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">@Language.T("equipment.handover")</MudButton> }
                 @if (_actions?.InspectionManage == true || _actions?.InspectionReport == true)
                 { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection-management"))">Quản lý kiểm tra</MudButton> }
                 @if (_actions?.Export == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assessment" OnClick="@(() => Navigation.NavigateTo("/equipment/reports"))">Báo cáo thiết bị</MudButton> }
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assessment" OnClick="@(() => Navigation.NavigateTo("/equipment/reports"))">@Language.T("report.equipment")</MudButton> }
                 @if (_actions?.Import == true)
                 {
                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">@Language.T("home.importExcel")</MudButton>
@@ -107,7 +107,7 @@ else
                                     <MudDivider Class="my-3" />
                                     <MudText Typo="Typo.subtitle2">Lịch sử sửa chữa đã phê duyệt</MudText>
                                     <MudTable Items="_scannedAsset.RepairHistory" Dense="true" Hover="true">
-                                        <HeaderContent><MudTh>Ngày</MudTh><MudTh>Nội dung</MudTh><MudTh>Đơn vị</MudTh><MudTh>Chi phí</MudTh></HeaderContent>
+                                        <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("public.content")</MudTh><MudTh>Đơn vị</MudTh><MudTh>Chi phí</MudTh></HeaderContent>
                                         <RowTemplate><MudTd>@context.RepairDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.RepairContent</MudTd><MudTd>@context.RepairVendor</MudTd><MudTd>@context.RepairCost?.ToString("N0")</MudTd></RowTemplate>
                                     </MudTable>
                                     @if (_actions?.Repair == true || string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
@@ -131,7 +131,7 @@ else
 
             <MudTabPanel Text="Yêu cầu của tôi">
                 <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
-                    <HeaderContent><MudTh>Loại</MudTh><MudTh>Thiết bị</MudTh><MudTh>Bộ phận</MudTh><MudTh>Trạng thái</MudTh></HeaderContent>
+                    <HeaderContent><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("nav.departments")</MudTh><MudTh>@Language.T("common.status")</MudTh></HeaderContent>
                     <RowTemplate><MudTd>@context.RequestKind</MudTd><MudTd>@context.EquipmentName</MudTd><MudTd>@context.DeptCode</MudTd><MudTd>@context.RequestStatus</MudTd></RowTemplate>
                 </MudTable>
             </MudTabPanel>

@@ -26,7 +26,7 @@
         </div>
         <MudSpacer />
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
-                   OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+                   OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 
     @if (_error != null)
@@ -40,7 +40,7 @@
                 <MudItem xs="12" md="7">
                     <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
-                            <MudText Typo="Typo.h6">Tài khoản</MudText>
+                            <MudText Typo="Typo.h6">@Language.T("common.account")</MudText>
                             <MudSpacer />
                             <MudTextField @bind-Value="_search" Placeholder="Tìm nhân viên..." Immediate="true"
                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -50,10 +50,10 @@
                         <MudTable T="UserAccountDto" Items="FilteredUsers" Hover="true" Dense="true" Loading="_loading"
                                   OnRowClick="@(args => SelectUser(args))">
                             <HeaderContent>
-                                <MudTh>Nhân viên</MudTh>
-                                <MudTh>Phòng ban</MudTh>
+                                <MudTh>@Language.T("ot.employee")</MudTh>
+                                <MudTh>@Language.T("ot.department")</MudTh>
                                 <MudTh>Role chính</MudTh>
-                                <MudTh>Trạng thái</MudTh>
+                                <MudTh>@Language.T("common.status")</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd><b>@context.FullName</b><br /><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
@@ -180,12 +180,12 @@
                               Bordered="true"
                               Striped="true">
                         <HeaderContent>
-                            <MudTh>Mã NV</MudTh>
-                            <MudTh>Họ tên</MudTh>
-                            <MudTh>Phòng ban</MudTh>
+                            <MudTh>@Language.T("common.employeeCode")</MudTh>
+                            <MudTh>@Language.T("common.employeeName")</MudTh>
+                            <MudTh>@Language.T("ot.department")</MudTh>
                             <MudTh>Thời gian</MudTh>
-                            <MudTh>Ghi chú</MudTh>
-                            <MudTh Style="text-align:center">Xử lý</MudTh>
+                            <MudTh>@Language.T("common.note")</MudTh>
+                            <MudTh Style="text-align:center">@Language.T("calendar.handle")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.EmployeeCode</b></MudTd>
@@ -218,7 +218,7 @@
         </MudTabPanel>
         }
 
-        <MudTabPanel Text="Role → Function / Action" Icon="@Icons.Material.Filled.GridView">
+        <MudTabPanel Text='@Language.T("security.roles")' Icon="@Icons.Material.Filled.GridView">
             <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px; overflow-x:auto">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
                     <div>
@@ -361,7 +361,7 @@
                             Chỉ định
                         </MudButton>
                         <MudButton Variant="Variant.Outlined" OnClick="LoadFeatureOperatorsAsync"
-                                   Disabled="_loadingOperators">Làm mới</MudButton>
+                                   Disabled="_loadingOperators">@Language.T("common.refresh")</MudButton>
                     </MudStack>
 
                     <MudDivider Class="my-4" />
@@ -371,10 +371,10 @@
                         <HeaderContent>
                             <MudTh>Function</MudTh>
                             <MudTh>Resource</MudTh>
-                            <MudTh>Nhân viên</MudTh>
-                            <MudTh>Phòng ban</MudTh>
-                            <MudTh>Chức vụ</MudTh>
-                            <MudTh Style="text-align:center">Xử lý</MudTh>
+                            <MudTh>@Language.T("ot.employee")</MudTh>
+                            <MudTh>@Language.T("ot.department")</MudTh>
+                            <MudTh>@Language.T("hrm.position")</MudTh>
+                            <MudTh Style="text-align:center">@Language.T("calendar.handle")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>@context.FunctionCode</MudTd>
@@ -413,7 +413,7 @@
                             <MudTh>Thời gian</MudTh>
                             <MudTh>User</MudTh>
                             <MudTh>Action</MudTh>
-                            <MudTh>Nội dung</MudTh>
+                            <MudTh>@Language.T("public.content")</MudTh>
                             <MudTh>IP</MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -447,7 +447,7 @@
                 </MudPaper>
             </MudStack>
         </MudTabPanel>
-        <MudTabPanel Text="2FA theo tài khoản" Icon="@Icons.Material.Filled.Security">
+        <MudTabPanel Text='@Language.T("security.twoFactor")' Icon="@Icons.Material.Filled.Security">
             @if (CanManageTwoFactor)
             {
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
@@ -460,11 +460,11 @@
                                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
                     <MudTable T="TwoFactorAdminUserDto" Items="FilteredTwoFactorUsers" Hover="true" Dense="true" Loading="_loadingTwoFactor">
                         <HeaderContent>
-                            <MudTh>Nhân viên</MudTh>
-                            <MudTh>Phòng ban</MudTh>
-                            <MudTh>Bắt buộc 2FA</MudTh>
-                            <MudTh>Đã đăng ký</MudTh>
-                            <MudTh>Thao tác</MudTh>
+                            <MudTh>@Language.T("ot.employee")</MudTh>
+                            <MudTh>@Language.T("ot.department")</MudTh>
+                            <MudTh>@Language.T("security.twoFactorRequired")</MudTh>
+                            <MudTh>@Language.T("trip.registered")</MudTh>
+                            <MudTh>@Language.T("security.actions")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.FullName</b><br /><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>

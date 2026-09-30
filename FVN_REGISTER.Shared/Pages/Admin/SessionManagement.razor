@@ -7,16 +7,16 @@
 @inject IAuthClientService AuthService
 @inject ISnackbar Snackbar
 
-<PageTitle>Thiết bị & phiên đăng nhập</PageTitle>
+<PageTitle>@Language.T("security.sessions")</PageTitle>
 
 <MudStack Spacing="3">
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Thiết bị & phiên đăng nhập</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("security.sessions")</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">Xem và đăng xuất các thiết bị đang sử dụng tài khoản này.</MudText>
         </div>
         <MudSpacer />
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 
     @if (_error != null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
@@ -28,8 +28,8 @@
         {
             <MudTable Items="_sessions" Hover="true" Dense="true" Striped="true">
                 <HeaderContent>
-                    <MudTh>Thiết bị</MudTh><MudTh>Loại</MudTh><MudTh>Đăng nhập</MudTh>
-                    <MudTh>Hoạt động cuối</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh>
+                    <MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("common.login")</MudTh>
+                    <MudTh>Hoạt động cuối</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.DeviceName</b></MudTd>
@@ -38,13 +38,13 @@
                     <MudTd>@(context.LastSeenAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>
                     <MudTd>
                         @if (context.IsCurrent) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Thiết bị hiện tại</MudChip> }
-                        else { <MudChip T="string" Size="Size.Small">Đang hoạt động</MudChip> }
+                        else { <MudChip T="string" Size="Size.Small">@Language.T("common.enabled")</MudChip> }
                     </MudTd>
                     <MudTd>
                         <div class="d-flex justify-end">
                             <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
                                        Disabled="context.IsCurrent || _revokingId == context.Id"
-                                       OnClick="@(() => RevokeAsync(context))">Đăng xuất</MudButton>
+                                       OnClick="@(() => RevokeAsync(context))">@Language.T("common.logout")</MudButton>
                         </div>
                     </MudTd>
                 </RowTemplate>

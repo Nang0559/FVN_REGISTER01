@@ -22,7 +22,7 @@
     </div>
     <MudSpacer />
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+               OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
 </MudStack>
 
 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
@@ -105,7 +105,7 @@
         </MudItem>
 
         <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
-            <MudSwitch T="bool" @bind-Value="_form.Required" Color="Color.Primary">Bắt buộc</MudSwitch>
+            <MudSwitch T="bool" @bind-Value="_form.Required" Color="Color.Primary">@Language.T("common.required")</MudSwitch>
         </MudItem>
 
         <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
@@ -130,7 +130,7 @@
         <MudText Typo="Typo.subtitle1"><b>Nhóm Approval Policy</b></MudText>
         <MudSelect T="PolicyGroupMode" @bind-Value="_groupMode" Label="Nhóm theo"
                    Variant="Variant.Outlined" Dense="true" Style="min-width:220px">
-            <MudSelectItem Value="@PolicyGroupMode.Department">Phòng ban</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Department">@Language.T("ot.department")</MudSelectItem>
             <MudSelectItem Value="@PolicyGroupMode.Position">Position người yêu cầu</MudSelectItem>
             <MudSelectItem Value="@PolicyGroupMode.RequestType">Loại yêu cầu</MudSelectItem>
             <MudSelectItem Value="@PolicyGroupMode.Role">@Language.T("security.role")</MudSelectItem>
@@ -176,12 +176,12 @@ else
                     <MudTable Items="group.Items" Dense="true" Hover="true" Striped="true">
                         <HeaderContent>
                             <MudTh>Loại yêu cầu</MudTh>
-                            <MudTh>Phòng ban</MudTh>
+                            <MudTh>@Language.T("ot.department")</MudTh>
                             <MudTh>Position người yêu cầu</MudTh>
                             <MudTh>Cấp phê duyệt</MudTh>
                             <MudTh>Level</MudTh>
                             <MudTh>Thứ tự</MudTh>
-                            <MudTh>Bắt buộc</MudTh>
+                            <MudTh>@Language.T("common.required")</MudTh>
                             <MudTh>Active</MudTh>
                             <MudTh />
                         </HeaderContent>

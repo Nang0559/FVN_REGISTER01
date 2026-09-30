@@ -19,20 +19,20 @@
     <MudDivider />
     <MudDrawerContainer Class="pa-4">
         <MudText Typo="Typo.body2" Class="mb-4">@_content.Summary</MudText>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Luồng thao tác</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.flow")</MudText>
         <MudPaper Outlined="true" Class="pa-3 mb-4" Style="white-space:pre-line;font-family:monospace;font-size:.82rem">@_content.Flow</MudPaper>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Các bước</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.steps")</MudText>
         <MudList T="string" Dense="true" Class="mb-4">
             @foreach (var step in _content.Steps)
             {
                 <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
             }
         </MudList>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Ví dụ</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.example")</MudText>
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@_content.Example</MudAlert>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Quyền & dữ liệu</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.security")</MudText>
         <MudText Typo="Typo.body2" Class="mb-4">@_content.Security</MudText>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MenuBook" OnClick="OpenGuide">Mở tài liệu chi tiết</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MenuBook" OnClick="OpenGuide">@Language.T("help.openGuide")</MudButton>
     </MudDrawerContainer>
 </MudDrawer>
 

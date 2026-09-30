@@ -52,9 +52,9 @@
                       Hover="true"
                       Style="border-radius:10px; overflow:hidden">
                 <HeaderContent>
-                    <MudTh>Tháng</MudTh>
+                    <MudTh>@Language.T("ot.month")</MudTh>
                     <MudTh Style="text-align:right">Số ngày</MudTh>
-                    <MudTh Style="text-align:right">Số giờ</MudTh>
+                    <MudTh Style="text-align:right">@Language.T("ot.hours")</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>Tháng @context.Month</MudTd>
@@ -95,7 +95,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">Đóng</MudButton>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 

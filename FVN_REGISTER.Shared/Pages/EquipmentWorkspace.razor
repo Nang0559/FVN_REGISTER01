@@ -69,7 +69,7 @@
                 <MudText Typo="Typo.h6">2. Cấu trúc được dùng để kiểm tra Excel</MudText>
                 <MudTable Items="_schema.Fields.Where(x => x.IsActiveField && x.IsImportable).OrderBy(x => x.DisplayOrder)" Dense="true" Class="mt-3">
                     <HeaderContent>
-                        <MudTh>Trường dữ liệu</MudTh><MudTh>Kiểu dữ liệu</MudTh><MudTh>Bắt buộc</MudTh><MudTh>Độ dài</MudTh><MudTh>Giá trị mặc định</MudTh>
+                        <MudTh>Trường dữ liệu</MudTh><MudTh>Kiểu dữ liệu</MudTh><MudTh>@Language.T("common.required")</MudTh><MudTh>Độ dài</MudTh><MudTh>Giá trị mặc định</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.FieldLabel <span class="mud-text-secondary">(@context.FieldKey)</span></MudTd>

@@ -34,22 +34,22 @@
     <MudGrid>
         <MudItem xs="12" sm="4">
             <MudSelect T="OTLimitType?" Label="Loại giới hạn" @bind-Value="_limitType" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Daily)">Ngày</MudSelectItem>
-                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Weekly)">Tuần</MudSelectItem>
-                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Monthly)">Tháng</MudSelectItem>
-                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Yearly)">Năm</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Daily)">@Language.T("ot.date")</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Weekly)">@Language.T("ot.week")</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Monthly)">@Language.T("ot.month")</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Yearly)">@Language.T("ot.year")</MudSelectItem>
                 <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Special)">Đặc biệt</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="4">
-            <MudSelect T="OTLimitScopeType?" Label="Phạm vi" @bind-Value="_scopeType" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelect T="OTLimitScopeType?" Label='@Language.T("security.scope")' @bind-Value="_scopeType" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
                 <MudSelectItem T="OTLimitScopeType?" Value="@((OTLimitScopeType?)OTLimitScopeType.Employee)">Nhân viên / vị trí</MudSelectItem>
-                <MudSelectItem T="OTLimitScopeType?" Value="@((OTLimitScopeType?)OTLimitScopeType.Department)">Phòng ban</MudSelectItem>
+                <MudSelectItem T="OTLimitScopeType?" Value="@((OTLimitScopeType?)OTLimitScopeType.Department)">@Language.T("ot.department")</MudSelectItem>
                 <MudSelectItem T="OTLimitScopeType?" Value="@((OTLimitScopeType?)OTLimitScopeType.Block)">Khối</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="4">
-            <MudSelect T="bool?" Label="Trạng thái" @bind-Value="_isActive" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelect T="bool?" Label='@Language.T("common.status")' @bind-Value="_isActive" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
                 <MudSelectItem T="bool?" Value="@((bool?)true)">Đang áp dụng</MudSelectItem>
                 <MudSelectItem T="bool?" Value="@((bool?)false)">Đang tạm dừng</MudSelectItem>
             </MudSelect>
@@ -66,12 +66,12 @@ else
     <MudPaper Elevation="1" Style="border-radius:12px; overflow:hidden">
         <MudTable Items="@FilteredRules" Dense="true" Hover="true" Striped="true">
             <HeaderContent>
-                <MudTh>Loại</MudTh>
-                <MudTh>Phạm vi</MudTh>
+                <MudTh>@Language.T("common.type")</MudTh>
+                <MudTh>@Language.T("security.scope")</MudTh>
                 <MudTh>Hạn mức</MudTh>
-                <MudTh>Mô tả</MudTh>
-                <MudTh>Trạng thái</MudTh>
-                <MudTh Style="text-align:center">Thao tác</MudTh>
+                <MudTh>@Language.T("common.description")</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
+                <MudTh Style="text-align:center">@Language.T("security.actions")</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>

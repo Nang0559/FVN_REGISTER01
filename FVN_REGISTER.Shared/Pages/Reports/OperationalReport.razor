@@ -32,19 +32,19 @@ else
             {
                 <MudTabPanel Text="Theo phòng ban" />
                 <MudTabPanel Text="Theo nhân viên" />
-                <MudTabPanel Text="Chi tiết" />
+                <MudTabPanel Text='@Language.T("common.detail")' />
                 <MudTabPanel Text="Trạng thái duyệt" />
             }
             else if (ModuleKey == "equipment")
             {
                 <MudTabPanel Text="Theo phòng ban" />
                 <MudTabPanel Text="Cây thiết bị & checklist" />
-                <MudTabPanel Text="Sửa chữa" />
+                <MudTabPanel Text='@Language.T("equipment.repair")' />
             }
             else if (ModuleKey == "attendance")
             {
                 <MudTabPanel Text="Tổng hợp" />
-                <MudTabPanel Text="Chi tiết" />
+                <MudTabPanel Text='@Language.T("common.detail")' />
             }
         </MudTabs>
         @if (ModuleKey == "equipment" && _tab == 1)
@@ -52,13 +52,13 @@ else
             <MudPaper Outlined="true" Class="pa-3 mb-3">
                 <MudGrid>
                     <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="_query.FromDate" Label="Từ ngày" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudDatePicker @bind-Date="_query.FromDate" Label='@Language.T("trip.fromDate")' Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="_query.ToDate" Label="Đến ngày" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudDatePicker @bind-Date="_query.ToDate" Label='@Language.T("trip.toDate")' Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
                             @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
@@ -76,7 +76,7 @@ else
         <ReportBase @ref="_base" ReportType="_type" Query="_query">
             <AdditionalFilters>
                 <MudItem xs="12" sm="3">
-                    <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
                         <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
                         @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
                     </MudSelect>
@@ -84,7 +84,7 @@ else
                 @if (_type is ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.AttendanceDetail)
                 {
                     <MudItem xs="12" sm="3">
-                        <MudAutocomplete T="KeyValuePair<string,string>" Label="Nhân viên" Value="@_employee" ValueChanged="OnEmployeeChanged" SearchFunc="SearchEmployees" ToStringFunc="@(x=>x.Value)" Clearable="true" />
+                        <MudAutocomplete T="KeyValuePair<string,string>" Label='@Language.T("ot.employee")' Value="@_employee" ValueChanged="OnEmployeeChanged" SearchFunc="SearchEmployees" ToStringFunc="@(x=>x.Value)" Clearable="true" />
                     </MudItem>
                 }
             </AdditionalFilters>

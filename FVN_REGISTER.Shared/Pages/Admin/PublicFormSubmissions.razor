@@ -34,13 +34,13 @@
 
         <MudItem xs="12" sm="3">
             <MudTextField @bind-Value="_departmentCode"
-                          Label="Phòng ban"
+                          Label='@Language.T("ot.department")'
                           Variant="Variant.Outlined" />
         </MudItem>
 
         <MudItem xs="12" sm="2">
-            <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Variant="Variant.Outlined">
-                <MudSelectItem Value="@string.Empty">Tất cả</MudSelectItem>
+            <MudSelect T="string" @bind-Value="_status" Label='@Language.T("common.status")' Variant="Variant.Outlined">
+                <MudSelectItem Value="@string.Empty">@Language.T("common.all")</MudSelectItem>
                 <MudSelectItem Value="@("Submitted")">Submitted</MudSelectItem>
                 <MudSelectItem Value="@("Approved")">Approved</MudSelectItem>
                 <MudSelectItem Value="@("Rejected")">Rejected</MudSelectItem>
@@ -60,13 +60,13 @@
 
         <MudItem xs="12" sm="3">
             <MudDatePicker @bind-Date="_fromDate"
-                           Label="Từ ngày"
+                           Label='@Language.T("trip.fromDate")'
                            Variant="Variant.Outlined" />
         </MudItem>
 
         <MudItem xs="12" sm="3">
             <MudDatePicker @bind-Date="_toDate"
-                           Label="Đến ngày"
+                           Label='@Language.T("trip.toDate")'
                            Variant="Variant.Outlined" />
         </MudItem>
 
@@ -145,11 +145,11 @@
 
         <MudTable Items="_result.Items" Dense="true" Hover="true" Bordered="true" FixedHeader="true" Height="600px">
             <HeaderContent>
-                <MudTh>Mã NV</MudTh>
-                <MudTh>Họ tên</MudTh>
-                <MudTh>Bộ phận</MudTh>
+                <MudTh>@Language.T("common.employeeCode")</MudTh>
+                <MudTh>@Language.T("common.employeeName")</MudTh>
+                <MudTh>@Language.T("nav.departments")</MudTh>
                 <MudTh>Thời gian</MudTh>
-                <MudTh>Trạng thái</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
                 @foreach (var question in _result.Questions)
                 {
                     <MudTh>@question.QuestionText</MudTh>

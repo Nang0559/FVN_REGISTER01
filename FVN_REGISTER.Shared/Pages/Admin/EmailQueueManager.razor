@@ -16,13 +16,13 @@
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <MudText Typo="Typo.h5"><MudIcon Icon="@Icons.Material.Filled.MarkEmailUnread" Class="mr-2" />Quản lý Email Queue</MudText>
-    <MudStack Row="true" Spacing="2"><MudButton Variant="Variant.Outlined" OnClick="LoadData" Disabled="_loading">Làm mới</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="TriggerQueue" Disabled="_processing">@(_processing ? "Đang xử lý..." : "Xử lý ngay")</MudButton></MudStack>
+    <MudStack Row="true" Spacing="2"><MudButton Variant="Variant.Outlined" OnClick="LoadData" Disabled="_loading">@Language.T("common.refresh")</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="TriggerQueue" Disabled="_processing">@(_processing ? "Đang xử lý..." : "Xử lý ngay")</MudButton></MudStack>
 </MudStack>
 
 <MudPaper Class="pa-3 mb-3">
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-            <MudSelectItem Value="@("Pending")">Chờ gửi</MudSelectItem><MudSelectItem Value="@("Retry")">Retry</MudSelectItem><MudSelectItem Value="@("Failed")">Thất bại</MudSelectItem><MudSelectItem Value="@("Sent")">Đã gửi</MudSelectItem><MudSelectItem Value="@("Cancelled")">Đã hủy</MudSelectItem>
+        <MudSelect T="string" @bind-Value="_status" Label='@Language.T("common.status")' Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelectItem Value="@("Pending")">Chờ gửi</MudSelectItem><MudSelectItem Value="@("Retry")">Retry</MudSelectItem><MudSelectItem Value="@("Failed")">Thất bại</MudSelectItem><MudSelectItem Value="@("Sent")">Đã gửi</MudSelectItem><MudSelectItem Value="@("Cancelled")">@Language.T("leave.statusCancelled")</MudSelectItem>
         </MudSelect>
         <MudTextField @bind-Value="_search" Placeholder="Tìm email/template..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
         @if (_selected.Any()) { <MudButton Color="Color.Success" OnClick="RetrySelected">Retry (@_selected.Count)</MudButton><MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="CancelSelected">Hủy (@_selected.Count)</MudButton> }
@@ -30,7 +30,7 @@
 </MudPaper>
 
 <MudTable T="EmailQueueDto" Items="FilteredItems" Dense="true" Hover="true" MultiSelection="true" @bind-SelectedItems="_selected">
-    <HeaderContent><MudTh>ID</MudTh><MudTh>Người nhận</MudTh><MudTh>Template</MudTh><MudTh>Trạng thái</MudTh><MudTh>Retry</MudTh><MudTh>Tạo lúc</MudTh><MudTh></MudTh></HeaderContent>
+    <HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("access.newEmployee")</MudTh><MudTh>Template</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>Retry</MudTh><MudTh>Tạo lúc</MudTh><MudTh></MudTh></HeaderContent>
     <RowTemplate>
         <MudTd>@context.Id</MudTd><MudTd>@context.ToEmail</MudTd><MudTd>@context.TemplateCode</MudTd>
         <MudTd><MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@StatusText(context.Status)</MudChip></MudTd>
@@ -49,7 +49,7 @@
     <MudDialog Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
         <TitleContent><MudText>Chi tiết Email #@_view.Id — @_view.TemplateCode</MudText></TitleContent>
         <DialogContent><MudText>Người nhận: @_view.ToEmail</MudText><MudText>Trạng thái: @StatusText(_view.Status)</MudText><MudText Typo="Typo.caption" Class="mt-3">@_view.ErrorMessage</MudText><MudPaper Class="pa-3 mt-2" Elevation="0"><pre style="white-space:pre-wrap">@_view.Payload</pre></MudPaper></DialogContent>
-        <DialogActions><MudButton OnClick="CloseDialog">Đóng</MudButton></DialogActions>
+        <DialogActions><MudButton OnClick="CloseDialog">@Language.T("common.close")</MudButton></DialogActions>
     </MudDialog>
 }
 

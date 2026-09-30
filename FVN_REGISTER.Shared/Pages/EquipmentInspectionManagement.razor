@@ -64,9 +64,9 @@
                             <MudSelectItem Value="@("Active")">Active</MudSelectItem>
                             <MudSelectItem Value="@("Inactive")">Inactive</MudSelectItem>
                         </MudSelect>
-                        <MudTextField @bind-Value="_template.Description" Label="Mô tả" Lines="3" Variant="Variant.Outlined" Class="mt-3" />
+                        <MudTextField @bind-Value="_template.Description" Label='@Language.T("common.description")' Lines="3" Variant="Variant.Outlined" Class="mt-3" />
                         <MudStack Row="true" Class="mt-4">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTemplateAsync">Lưu</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTemplateAsync">@Language.T("common.save")</MudButton>
                             @if (_template.Id > 0)
                             {
                                 <MudButton Variant="Variant.Outlined" OnClick="CloneTemplateAsync">Nhân bản version</MudButton>
@@ -127,7 +127,7 @@
             <MudPaper Class="pa-4 ma-4" Outlined="true">
                 <MudText Typo="Typo.h6">Checklist hiện có</MudText>
                 <MudTable Items="_templates" Dense="true" Hover="true">
-                    <HeaderContent><MudTh>Department</MudTh><MudTh>Tên</MudTh><MudTh>Version</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
+                    <HeaderContent><MudTh>Department</MudTh><MudTh>@Language.T("common.name")</MudTh><MudTh>Version</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.DeptCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>v@context.Version</MudTd><MudTd>@context.Frequency</MudTd><MudTd>@context.Status</MudTd>
                         <MudTd><MudButton Size="Size.Small" OnClick="@(() => EditTemplate(context))">Mở</MudButton><MudButton Size="Size.Small" OnClick="@(() => CloneExistingAsync(context))">Nhân bản</MudButton></MudTd>
@@ -175,7 +175,7 @@
                     <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AssignAsync">Gán checklist cho thiết bị</MudButton></MudItem>
                 </MudGrid>
                 <MudTable Items="_assignments" Dense="true" Class="mt-4">
-                    <HeaderContent><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Check</MudTh><MudTh>Approve</MudTh></HeaderContent>
+                    <HeaderContent><MudTh>@Language.T("equipment.title")</MudTh><MudTh>Checklist</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Check</MudTh><MudTh>Approve</MudTh></HeaderContent>
                     <RowTemplate><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>@context.Frequency</MudTd><MudTd>@context.InspectorEmployeeCode</MudTd><MudTd>@context.ApproverEmployeeCode</MudTd></RowTemplate>
                 </MudTable>
             </MudPaper>
@@ -193,13 +193,13 @@
                     <MudGrid Class="mt-4">
                         <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tổng<br/><b>@_report.Total</b></MudPaper></MudItem>
                         <MudItem xs="6" md="2"><MudPaper Class="pa-3">Hoàn thành<br/><b>@_report.Completed</b></MudPaper></MudItem>
-                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Chờ xử lý<br/><b>@_report.Pending</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">@Language.T("status.pending")<br/><b>@_report.Pending</b></MudPaper></MudItem>
                         <MudItem xs="6" md="2"><MudPaper Class="pa-3">Quá hạn<br/><b>@_report.Overdue</b></MudPaper></MudItem>
                         <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tỷ lệ hoàn thành<br/><b>@_report.CompletionRate%</b></MudPaper></MudItem>
                         <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tỷ lệ đạt<br/><b>@_report.PassRate%</b></MudPaper></MudItem>
                     </MudGrid>
                     <MudTable Items="_report.Rows" Dense="true" Class="mt-4">
-                        <HeaderContent><MudTh>Ngày</MudTh><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Người check</MudTh><MudTh>Trạng thái</MudTh><MudTh>Kết quả</MudTh></HeaderContent>
+                        <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>Checklist</MudTh><MudTh>Người check</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("hrm.result")</MudTh></HeaderContent>
                         <RowTemplate><MudTd>@context.ScheduledDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>@context.InspectorEmployeeCode</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.Result</MudTd></RowTemplate>
                     </MudTable>
                 }

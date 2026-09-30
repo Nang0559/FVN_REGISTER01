@@ -21,7 +21,7 @@
                 <MudText Typo="Typo.h5">Biểu mẫu áp dụng theo loại thiết bị</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Biểu mẫu được tạo bằng chức năng Biểu mẫu chung. Chỉ người được Security Center chỉ định cho từng loại thiết bị mới được cấu hình biểu mẫu áp dụng.</MudText>
             </div>
-            <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Quay lại</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">@Language.T("common.back")</MudButton>
         </MudStack>
 
         @if (_loading)
@@ -104,10 +104,10 @@
                                 </MudStack>
                                 <MudTable T="FeatureOperatorAssignmentDto" Items="_operatorAssignments" Dense="true" Hover="true" Class="mt-3">
                                     <HeaderContent>
-                                        <MudTh>Nhân viên</MudTh>
-                                        <MudTh>Phòng ban</MudTh>
-                                        <MudTh>Chức vụ</MudTh>
-                                        <MudTh Style="text-align:center">Xử lý</MudTh>
+                                        <MudTh>@Language.T("ot.employee")</MudTh>
+                                        <MudTh>@Language.T("ot.department")</MudTh>
+                                        <MudTh>@Language.T("hrm.position")</MudTh>
+                                        <MudTh Style="text-align:center">@Language.T("calendar.handle")</MudTh>
                                     </HeaderContent>
                                     <RowTemplate>
                                         <MudTd><b>@context.EmployeeCode</b> — @context.EmployeeName</MudTd>

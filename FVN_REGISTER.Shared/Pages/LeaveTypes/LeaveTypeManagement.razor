@@ -25,15 +25,15 @@
             <MudTextField T="string" @bind-Value="_search" Immediate="true" Clearable="true" Label="Tìm theo mã hoặc tên" Variant="Variant.Outlined" Margin="Margin.Dense" />
         </MudItem>
         <MudItem xs="12" sm="3">
-            <MudSelect T="bool?" @bind-Value="_isActive" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelect T="bool?" @bind-Value="_isActive" Label='@Language.T("common.status")' Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
                 <MudSelectItem T="bool?" Value="true">Đang dùng</MudSelectItem>
                 <MudSelectItem T="bool?" Value="false">Tạm dừng</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="3">
             <MudSelect T="bool?" @bind-Value="_isCountedAsLeave" Label="Tính phép" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                <MudSelectItem T="bool?" Value="true">Có</MudSelectItem>
-                <MudSelectItem T="bool?" Value="false">Không</MudSelectItem>
+                <MudSelectItem T="bool?" Value="true">@Language.T("common.yes")</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">@Language.T("common.no")</MudSelectItem>
             </MudSelect>
         </MudItem>
     </MudGrid>
@@ -54,7 +54,7 @@
             </MudGrid>
         </MudForm>
         <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-            <MudButton Variant="Variant.Text" OnClick="CancelEdit">Hủy</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="CancelEdit">@Language.T("common.cancel")</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_saving ? "Đang lưu..." : "Lưu")</MudButton>
         </MudStack>
     </MudPaper>

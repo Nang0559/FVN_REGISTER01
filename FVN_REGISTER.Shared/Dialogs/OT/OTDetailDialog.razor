@@ -17,10 +17,10 @@
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Ngày OT</MudText><MudText>@_detail.OTDate.ToString("dd/MM/yyyy")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Loại OT</MudText><MudText>@_detail.OTTypeCode</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Người lập</MudText><MudText>@_detail.RequesterName (@_detail.RequesterCode)</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Phòng ban</MudText><MudText>@_detail.DeptName</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("ot.department")</MudText><MudText>@_detail.DeptName</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Tổng giờ</MudText><MudText>@_detail.TotalOtHours.ToString("N1") h</MudText></MudItem>
                 <MudItem xs="12"><MudText Typo="Typo.caption">Mục đích / mô tả</MudText><MudText>@_detail.OtPurpose — @_detail.Description</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.subtitle2">Nhân viên tham gia (@_detail.Details.Count)</MudText><MudDivider Class="mb-2" /><MudSimpleTable Dense="true" Hover="true"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>Hạng mục</th><th>Giờ</th><th>Validation</th></tr></thead><tbody>@foreach(var emp in _detail.Details){<tr><td>@emp.EmployeeCode</td><td>@emp.EmployeeName</td><td>@emp.OTReasonCategoryCode</td><td>@emp.StartTime.ToString(@"hh\:mm") - @emp.EndTime.ToString(@"hh\:mm") (@emp.OTHours.ToString("N1")h)</td><td><MudChip T="string" Size="Size.Small" Color="@GetValidationColor(emp.ValidationStatus)">@emp.ValidationStatus</MudChip></td></tr>}</tbody></MudSimpleTable></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.subtitle2">Nhân viên tham gia (@_detail.Details.Count)</MudText><MudDivider Class="mb-2" /><MudSimpleTable Dense="true" Hover="true"><thead><tr><th>@Language.T("common.employeeCode")</th><th>@Language.T("common.employeeName")</th><th>Hạng mục</th><th>Giờ</th><th>Validation</th></tr></thead><tbody>@foreach(var emp in _detail.Details){<tr><td>@emp.EmployeeCode</td><td>@emp.EmployeeName</td><td>@emp.OTReasonCategoryCode</td><td>@emp.StartTime.ToString(@"hh\:mm") - @emp.EndTime.ToString(@"hh\:mm") (@emp.OTHours.ToString("N1")h)</td><td><MudChip T="string" Size="Size.Small" Color="@GetValidationColor(emp.ValidationStatus)">@emp.ValidationStatus</MudChip></td></tr>}</tbody></MudSimpleTable></MudItem>
                 @if (_detail.ApprovalSteps.Any())
                 {
                     <MudItem xs="12"><MudText Typo="Typo.subtitle2">Luồng phê duyệt</MudText><MudDivider Class="mb-2" />
@@ -34,7 +34,7 @@
         }
         else { <MudAlert Severity="Severity.Warning">Không tìm thấy dữ liệu chi tiết.</MudAlert> }
     </DialogContent>
-    <DialogActions><MudButton Variant="Variant.Text" OnClick="Close">Đóng</MudButton></DialogActions>
+    <DialogActions><MudButton Variant="Variant.Text" OnClick="Close">@Language.T("common.close")</MudButton></DialogActions>
 </MudDialog>
 
 @code {

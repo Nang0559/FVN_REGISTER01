@@ -11,11 +11,11 @@
     <DialogContent>
         <MudSimpleTable Dense="true" Class="mb-3">
             <tbody>
-                <tr><td><b>Mã NV</b></td><td>@Item.EmployeeCode</td></tr>
+                <tr><td><b>@Language.T("common.employeeCode")</b></td><td>@Item.EmployeeCode</td></tr>
                 <tr><td><b>Loại đơn</b></td><td>@GetKindDisplay(Item.Kind)</td></tr>
                 <tr><td><b>Thời gian</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
                 <tr><td><b>Số lượng</b></td><td>@Item.TotalUnits.ToString("N1") @GetUnitLabel(Item.Kind)</td></tr>
-                <tr><td><b>Phòng ban</b></td><td>@Item.DeptName</td></tr>
+                <tr><td><b>@Language.T("ot.department")</b></td><td>@Item.DeptName</td></tr>
                 <tr><td><b>Cấp đang chờ</b></td><td>@CurrentApprovalLevel</td></tr>
                 <tr><td><b>Người duyệt</b></td><td>@(CurrentApproverName ?? "—")</td></tr>
             </tbody>
@@ -34,7 +34,7 @@
 
     <DialogActions>
         <MudButton OnClick="@(() => MudDialog.Cancel())"
-                   Variant="Variant.Text">Đóng</MudButton>
+                   Variant="Variant.Text">@Language.T("common.close")</MudButton>
 
         <MudButton Color="Color.Error"
                    Variant="Variant.Outlined"

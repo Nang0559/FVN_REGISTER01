@@ -85,10 +85,10 @@ else if (_form != null)
                 else
                 {
                     <MudTable Items="_employees" Dense="true" Hover="true">
-                        <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>Nội dung</MudTh><MudTh>Giờ</MudTh><MudTh></MudTh></HeaderContent>
+                        <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("public.content")</MudTh><MudTh>Giờ</MudTh><MudTh></MudTh></HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
-                            <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Label="Nội dung" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Label='@Language.T("public.content")' Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
                             <MudTd>@context.OTHours.ToString("N1") h</MudTd>
                             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveEmployee(context))" /></MudTd>
                         </RowTemplate>
@@ -112,10 +112,10 @@ else if (_form != null)
 
                     <MudTable Items="_limitPreview.Employees" Dense="true" Hover="true" Bordered="true">
                         <HeaderContent>
-                            <MudTh>Nhân viên</MudTh>
-                            <MudTh>Tuần</MudTh>
-                            <MudTh>Tháng</MudTh>
-                            <MudTh>Năm</MudTh>
+                            <MudTh>@Language.T("ot.employee")</MudTh>
+                            <MudTh>@Language.T("ot.week")</MudTh>
+                            <MudTh>@Language.T("ot.month")</MudTh>
+                            <MudTh>@Language.T("ot.year")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>

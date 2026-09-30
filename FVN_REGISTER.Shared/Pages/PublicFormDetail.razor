@@ -31,7 +31,7 @@ else
     }
     else if(q.QuestionType=="YesNo")
     {
-      <MudSwitch T="bool?" Value="@BoolValue(q.Id)" ValueChanged="@BoolChanged(q.Id)">Có</MudSwitch>
+      <MudSwitch T="bool?" Value="@BoolValue(q.Id)" ValueChanged="@BoolChanged(q.Id)">@Language.T("common.yes")</MudSwitch>
     }
     else if(q.QuestionType=="Number")
     {

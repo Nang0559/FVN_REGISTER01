@@ -18,7 +18,7 @@
     </MudStack>
     <MudStack Row="true" Spacing="2">
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync"))">Quản lý đồng bộ</MudButton>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 </MudStack>
 
@@ -39,7 +39,7 @@ else
             <MudTh>Entity</MudTh>
             <MudTh>Key</MudTh>
             <MudTh>Loại flag</MudTh>
-            <MudTh>Nội dung</MudTh>
+            <MudTh>@Language.T("public.content")</MudTh>
             <MudTh>Phát hiện</MudTh>
             <MudTh></MudTh>
         </HeaderContent>

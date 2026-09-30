@@ -48,13 +48,13 @@
           Elevation="2"
           T="UserAccountDto">
     <HeaderContent>
-        <MudTh>Mã NV</MudTh>
-        <MudTh>Họ tên</MudTh>
-        <MudTh>Phòng ban</MudTh>
-        <MudTh>Quyền</MudTh>
-        <MudTh Style="text-align:center">Trạng thái</MudTh>
+        <MudTh>@Language.T("common.employeeCode")</MudTh>
+        <MudTh>@Language.T("common.employeeName")</MudTh>
+        <MudTh>@Language.T("ot.department")</MudTh>
+        <MudTh>@Language.T("security.permission")</MudTh>
+        <MudTh Style="text-align:center">@Language.T("common.status")</MudTh>
         <MudTh Style="text-align:center">Đăng nhập cuối</MudTh>
-        <MudTh Style="text-align:center">Thao tác</MudTh>
+        <MudTh Style="text-align:center">@Language.T("security.actions")</MudTh>
     </HeaderContent>
 
     <RowTemplate>
@@ -80,7 +80,7 @@
         <MudTd Style="text-align:center">
             @if (!context.IsActive)
             {
-                <MudChip T="string" Size="Size.Small" Color="Color.Default">Không hoạt động</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">@Language.T("common.inactive")</MudChip>
             }
             else if (context.IsCurrentlyLocked)
             {
@@ -88,7 +88,7 @@
             }
             else
             {
-                <MudChip T="string" Size="Size.Small" Color="Color.Success">Hoạt động</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("common.active")</MudChip>
             }
         </MudTd>
         <MudTd Style="text-align:center">

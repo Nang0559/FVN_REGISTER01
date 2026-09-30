@@ -11,7 +11,7 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
         <div><MudText Typo="Typo.h5">Báo cáo quản lý thiết bị</MudText><MudText Typo="Typo.body2">Tài sản • người phụ trách • sửa chữa • lịch sử bàn giao</MudText></div>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportAsync" Disabled="_busy">Xuất Excel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportAsync" Disabled="_busy">@Language.T("common.exportExcel")</MudButton>
     </MudStack>
     <MudPaper Outlined="true" Class="pa-4 mb-4">
         <MudGrid>
@@ -24,7 +24,7 @@
         </MudGrid>
     </MudPaper>
     <MudTable Items="_rows" Dense="true" Hover="true">
-        <HeaderContent><MudTh>Thiết bị</MudTh><MudTh>Bộ phận</MudTh><MudTh>Người phụ trách</MudTh><MudTh>Vận hành</MudTh><MudTh>Sửa chữa</MudTh><MudTh>Bàn giao</MudTh></HeaderContent>
+        <HeaderContent><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("nav.departments")</MudTh><MudTh>@Language.T("equipment.employee")</MudTh><MudTh>Vận hành</MudTh><MudTh>@Language.T("equipment.repair")</MudTh><MudTh>Bàn giao</MudTh></HeaderContent>
         <RowTemplate>
             <MudTd><b>@context.EquipmentCode</b><br/>@context.EquipmentName</MudTd>
             <MudTd>@context.DeptCode</MudTd>

@@ -29,15 +29,15 @@
             </MudItem>
             <MudItem xs="12">
                 <MudTextField @bind-Value="Request.DeptCode"
-                              Label="Mã phòng ban"
+                              Label='@Language.T("common.departmentCode")'
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12">
                 <MudStack Spacing="1" Class="mt-2">
                 <MudText Typo="Typo.subtitle2">Quyền module thiết bị</MudText>
-                <MudCheckBox @bind-Value="_equipmentAccess">Sổ quản lý thiết bị</MudCheckBox>
-                <MudCheckBox @bind-Value="_equipmentImportAccess">Import Excel thiết bị</MudCheckBox>
+                <MudCheckBox @bind-Value="_equipmentAccess">@Language.T("equipment.register")</MudCheckBox>
+                <MudCheckBox @bind-Value="_equipmentImportAccess">@Language.T("equipment.import")</MudCheckBox>
             </MudStack>
             <MudSelect T="int" @bind-Value="Request.PermissionCode"
                            Label="Quyền (*)"
@@ -52,7 +52,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudButton OnClick="Submit"
                    Variant="Variant.Filled"
                    Color="Color.Primary"

@@ -12,10 +12,10 @@
 @inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
 
-<PageTitle>Biểu mẫu đăng ký</PageTitle>
+<PageTitle>@Language.T("public.forms")</PageTitle>
 
 <MudText Typo="Typo.h5">
-    <b>Biểu mẫu đăng ký</b>
+    <b>@Language.T("public.forms")</b>
 </MudText>
 
 <MudText Typo="Typo.body2"
@@ -40,7 +40,7 @@
 
         <MudItem xs="12">
             <MudTextField @bind-Value="_form.Description"
-                          Label="Mô tả"
+                          Label='@Language.T("common.description")'
                           Variant="Variant.Outlined" />
         </MudItem>
 
@@ -95,10 +95,10 @@
                        ValueChanged="OnAudienceTypeChanged"
                        Label="Đối tượng đăng ký"
                        Variant="Variant.Outlined">
-                <MudSelectItem Value="@("AllCompany")">Toàn công ty</MudSelectItem>
-                <MudSelectItem Value="@("Department")">Phòng ban</MudSelectItem>
-                <MudSelectItem Value="@("Position")">Vị trí</MudSelectItem>
-                <MudSelectItem Value="@("Employee")">Nhân viên</MudSelectItem>
+                <MudSelectItem Value="@("AllCompany")">@Language.T("public.company")</MudSelectItem>
+                <MudSelectItem Value="@("Department")">@Language.T("ot.department")</MudSelectItem>
+                <MudSelectItem Value="@("Position")">@Language.T("equipment.location")</MudSelectItem>
+                <MudSelectItem Value="@("Employee")">@Language.T("ot.employee")</MudSelectItem>
             </MudSelect>
         </MudItem>
 
@@ -153,8 +153,8 @@
                                       Class="mt-3">
                                 <HeaderContent>
                                     <MudTh Style="width:56px"></MudTh>
-                                    <MudTh>Mã NV</MudTh>
-                                    <MudTh>Họ tên</MudTh>
+                                    <MudTh>@Language.T("common.employeeCode")</MudTh>
+                                    <MudTh>@Language.T("common.employeeName")</MudTh>
                                     <MudTh>Phòng · Vị trí</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
@@ -236,7 +236,7 @@
         {
             <MudItem xs="12" sm="8">
                 <MudAlert Severity="Severity.Info">
-                    <b>Toàn công ty</b>: áp dụng cho tất cả nhân viên. Không có ô nhập mã đối tượng.
+                    <b>@Language.T("public.company")</b>: áp dụng cho tất cả nhân viên. Không có ô nhập mã đối tượng.
                 </MudAlert>
             </MudItem>
         }
@@ -271,7 +271,7 @@
                 <MudItem xs="12" sm="3">
                     <MudSelect T="string"
                                @bind-Value="q.QuestionType"
-                               Label="Loại"
+                               Label='@Language.T("common.type")'
                                Variant="Variant.Outlined">
                         @foreach (var t in Types)
                         {
@@ -320,10 +320,10 @@
 
 <MudTable Items="_items" Dense="true" Hover="true">
     <HeaderContent>
-        <MudTh>Mã</MudTh>
+        <MudTh>@Language.T("common.code")</MudTh>
         <MudTh>Tiêu đề</MudTh>
         <MudTh>Thời gian</MudTh>
-        <MudTh>Trạng thái</MudTh>
+        <MudTh>@Language.T("common.status")</MudTh>
         <MudTh>Đối tượng</MudTh>
         <MudTh />
     </HeaderContent>
@@ -340,7 +340,7 @@
         <MudTd>
             @if (context.Audiences.Any(x => x.ScopeType == "AllCompany"))
             {
-                <MudChip T="string" Size="Size.Small">Toàn công ty</MudChip>
+                <MudChip T="string" Size="Size.Small">@Language.T("public.company")</MudChip>
             }
             else
             {

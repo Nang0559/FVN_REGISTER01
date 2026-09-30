@@ -134,13 +134,13 @@ else
         <MudTable Items="@_status.LastRun.Jobs" Dense="true" Hover="true" Striped="true">
             <HeaderContent>
                 <MudTh>Master</MudTh>
-                <MudTh>Trạng thái</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
                 <MudTh Style="text-align:right">Nguồn</MudTh>
-                <MudTh Style="text-align:right">Thêm</MudTh>
+                <MudTh Style="text-align:right">@Language.T("common.add")</MudTh>
                 <MudTh Style="text-align:right">Cập nhật</MudTh>
                 <MudTh Style="text-align:right">Vô hiệu</MudTh>
                 <MudTh Style="text-align:right">Không đổi</MudTh>
-                <MudTh>Chi tiết</MudTh>
+                <MudTh>@Language.T("common.detail")</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd><b>@context.EntityType</b></MudTd>

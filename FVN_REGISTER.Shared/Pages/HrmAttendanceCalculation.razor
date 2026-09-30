@@ -16,7 +16,7 @@
 
 <MudPaper Class="pa-6">
  @if (!_canCalculate) { <MudAlert Severity="Severity.Error">Bạn không có quyền thực hiện tính giờ HRM.</MudAlert> } else {
- <MudText Typo="Typo.h5">Tính giờ theo HRM</MudText>
+ <MudText Typo="Typo.h5">@Language.T("hrm.calculate")</MudText>
  <MudText Typo="Typo.body2" Class="mb-4">FVN đọc dữ liệu HRM và lưu kết quả tính giờ vào database FVN.</MudText>
  <MudGrid>
   <MudItem xs="12" md="4">

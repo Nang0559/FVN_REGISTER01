@@ -17,11 +17,11 @@
         {
             <MudGrid Spacing="3">
                 <MudItem xs="4">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Mã</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.code")</MudText>
                     <MudText Typo="Typo.body1" Style="font-weight:700; font-family:monospace">@Item.LeaveTypeCode</MudText>
                 </MudItem>
                 <MudItem xs="8">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tên</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.name")</MudText>
                     <MudText Typo="Typo.body1" Style="font-weight:600">@Item.LeaveTypeName</MudText>
                 </MudItem>
 
@@ -48,7 +48,7 @@
                 <MudItem xs="12"><MudDivider /></MudItem>
 
                 <MudItem xs="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Trạng thái</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.status")</MudText>
                     <MudChip T="string" Color="@(Item.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Class="mt-1">
                         @(Item.IsActive ? "Đang dùng" : "Tạm dừng")
                     </MudChip>
@@ -58,7 +58,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Đóng</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 

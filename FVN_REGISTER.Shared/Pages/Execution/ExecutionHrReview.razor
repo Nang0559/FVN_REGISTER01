@@ -19,7 +19,7 @@
                     Hàng chờ chung cho HR. Resolve OK/NG sẽ đi qua Execution Resolution và correction pipeline.
                 </MudText>
             </div>
-            <MudButton Variant="Variant.Outlined" Disabled="_loading" OnClick="LoadAsync">Làm mới</MudButton>
+            <MudButton Variant="Variant.Outlined" Disabled="_loading" OnClick="LoadAsync">@Language.T("common.refresh")</MudButton>
         </MudStack>
 
         <MudGrid Class="mt-4" Spacing="2">
@@ -31,7 +31,7 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="4">
-                <MudSelect T="string" Label="Trạng thái" @bind-Value="_status">
+                <MudSelect T="string" Label='@Language.T("common.status")' @bind-Value="_status">
                     <MudSelectItem Value="@("Mismatch")">Mismatch</MudSelectItem>
                     <MudSelectItem Value="@("AwaitingConfirmation")">AwaitingConfirmation</MudSelectItem>
                 </MudSelect>
@@ -54,12 +54,12 @@
     <MudPaper Outlined="true" Class="pa-4 mt-4">
         <MudTable Items="_items" Dense="true" Hover="true" Bordered="true" Loading="_loading">
             <HeaderContent>
-                <MudTh>Ngày</MudTh>
-                <MudTh>Nhân viên</MudTh>
+                <MudTh>@Language.T("ot.date")</MudTh>
+                <MudTh>@Language.T("ot.employee")</MudTh>
                 <MudTh>Module</MudTh>
                 <MudTh>Planned</MudTh>
                 <MudTh>Actual</MudTh>
-                <MudTh>Trạng thái</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
                 <MudTh>Evidence</MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
@@ -100,7 +100,7 @@
                 <MudText Typo="Typo.h6">
                     Chi tiết @_detail.Reconciliation.ModuleCode / @_detail.Reconciliation.SourceId
                 </MudText>
-                <MudButton Size="Size.Small" OnClick="CloseDetail">Đóng</MudButton>
+                <MudButton Size="Size.Small" OnClick="CloseDetail">@Language.T("common.close")</MudButton>
             </MudStack>
 
             @if (_detail.Evidence.Count > 0)
@@ -114,8 +114,8 @@
                     <HeaderContent>
                         <MudTh>Evidence</MudTh>
                         <MudTh>FileId</MudTh>
-                        <MudTh>Trạng thái</MudTh>
-                        <MudTh>Ghi chú</MudTh>
+                        <MudTh>@Language.T("common.status")</MudTh>
+                        <MudTh>@Language.T("common.note")</MudTh>
                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>

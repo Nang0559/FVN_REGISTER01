@@ -1,4 +1,4 @@
-﻿@* FVN_REGISTER.Shared/Pages/Admin/EmailTemplates.razor *@
+@* FVN_REGISTER.Shared/Pages/Admin/EmailTemplates.razor *@
 @page "/admin/email-templates"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos
@@ -119,9 +119,9 @@ else
             <HeaderContent>
                 <MudTh><MudTableSortLabel SortBy="new Func<EmailTemplateDto,object>(x=>x.Code)">Code</MudTableSortLabel></MudTh>
                 <MudTh>Tiêu đề</MudTh>
-                <MudTh>Trạng thái</MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<EmailTemplateDto,object>(x=>x.CreatedAt ?? DateTime.MinValue)">Ngày tạo</MudTableSortLabel></MudTh>
-                <MudTh>Thao tác</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<EmailTemplateDto,object>(x=>x.CreatedAt ?? DateTime.MinValue)">@Language.T("common.createdAt")</MudTableSortLabel></MudTh>
+                <MudTh>@Language.T("security.actions")</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>
@@ -428,7 +428,7 @@ else
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="CloseEditor" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="CloseEditor" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudSpacer />
         <MudButton Color="Color.Info" Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Visibility"
@@ -470,7 +470,7 @@ else
         }
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="@(() => _showPreview = false)">Đóng</MudButton>
+        <MudButton OnClick="@(() => _showPreview = false)">@Language.T("common.close")</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Edit"
                    OnClick="@(() => { _showPreview = false; OpenEditor(_previewModel); })">

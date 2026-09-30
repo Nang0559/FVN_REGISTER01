@@ -24,7 +24,7 @@
         <MudText Typo="Typo.caption" Color="Color.Secondary">Đăng ký năm, khóa/mở năm và quản lý ngày nghỉ từ Excel.</MudText>
     </div>
     <MudSpacer />
-    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
 </MudStack>
 
 <MudTabs Elevation="1" Rounded="true" TabPanelsClass="pa-4">
@@ -40,21 +40,21 @@
             <MudPaper Class="pa-4 mb-4" Outlined="true">
                 <MudText Typo="Typo.subtitle1" Style="font-weight:700">@( _editYear.Id == 0 ? "Đăng ký năm mới" : "Cập nhật năm")</MudText>
                 <MudGrid Class="mt-1">
-                    <MudItem xs="12" sm="3"><MudNumericField T="int" @bind-Value="_editYear.Year" Label="Năm" Variant="Variant.Outlined" /></MudItem>
-                    <MudItem xs="12" sm="3"><MudDatePicker @bind-Date="_start" Label="Từ ngày" Variant="Variant.Outlined" /></MudItem>
-                    <MudItem xs="12" sm="3"><MudDatePicker @bind-Date="_end" Label="Đến ngày" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="3"><MudNumericField T="int" @bind-Value="_editYear.Year" Label='@Language.T("ot.year")' Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="3"><MudDatePicker @bind-Date="_start" Label='@Language.T("trip.fromDate")' Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="3"><MudDatePicker @bind-Date="_end" Label='@Language.T("trip.toDate")' Variant="Variant.Outlined" /></MudItem>
                     <MudItem xs="12" sm="3"><MudSwitch @bind-Value="_editYear.IsActive" Color="Color.Success" Label="Kích hoạt ngay" /></MudItem>
-                    <MudItem xs="12"><MudTextField @bind-Value="_editYear.Remark" Label="Ghi chú" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="_editYear.Remark" Label='@Language.T("common.note")' Variant="Variant.Outlined" /></MudItem>
                 </MudGrid>
                 <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-                    <MudButton Variant="Variant.Text" OnClick="CancelYear">Hủy</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveYear" Disabled="@_loading">Lưu</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="CancelYear">@Language.T("common.cancel")</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveYear" Disabled="@_loading">@Language.T("common.save")</MudButton>
                 </MudStack>
             </MudPaper>
         }
 
         <MudTable Items="_years" Dense="true" Hover="true" Striped="true">
-            <HeaderContent><MudTh>Năm</MudTh><MudTh>Thời gian</MudTh><MudTh>Ghi chú</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh></HeaderContent>
+            <HeaderContent><MudTh>@Language.T("ot.year")</MudTh><MudTh>Thời gian</MudTh><MudTh>@Language.T("common.note")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh></HeaderContent>
             <RowTemplate>
                 <MudTd><b>@context.YearName</b></MudTd>
                 <MudTd>@context.StartDate.ToString("dd/MM/yyyy") → @context.EndDate.ToString("dd/MM/yyyy")</MudTd>
@@ -73,7 +73,7 @@
         <MudPaper Class="pa-4 mb-4" Outlined="true">
             <MudGrid Class="align-center">
                 <MudItem xs="12" sm="4"><MudDatePicker @bind-Date="_holidayDate" Label="Ngày nghỉ" Variant="Variant.Outlined" /></MudItem>
-                <MudItem xs="12" sm="4"><MudTextField @bind-Value="_holidayDescription" Label="Mô tả" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="12" sm="4"><MudTextField @bind-Value="_holidayDescription" Label='@Language.T("common.description")' Variant="Variant.Outlined" /></MudItem>
                 <MudItem xs="12" sm="2"><MudSwitch @bind-Value="_holidayPaid" Color="Color.Primary" Label="Tính phép" /></MudItem>
                 <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveHoliday">@( _editHolidayId == 0 ? "Thêm" : "Cập nhật")</MudButton></MudItem>
             </MudGrid>
@@ -113,7 +113,7 @@
         </MudPaper>
 
         <MudTable Items="FilteredHolidays" Dense="true" Hover="true" Striped="true">
-            <HeaderContent><MudTh>Ngày</MudTh><MudTh>Năm</MudTh><MudTh>Mô tả</MudTh><MudTh>Tính phép</MudTh><MudTh></MudTh></HeaderContent>
+            <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("ot.year")</MudTh><MudTh>@Language.T("common.description")</MudTh><MudTh>Tính phép</MudTh><MudTh></MudTh></HeaderContent>
             <RowTemplate>
                 <MudTd>@context.HolidayDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@context.Year</MudTd>

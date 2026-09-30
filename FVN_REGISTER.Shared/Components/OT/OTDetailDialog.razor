@@ -41,7 +41,7 @@
                     <MudText Typo="Typo.body1"><strong>#@_detail.Id</strong></MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Trạng thái</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.status")</MudText>
                     <MudText Typo="Typo.body1">@_detail.StatusText</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
@@ -49,7 +49,7 @@
                     <MudText Typo="Typo.body1">@_detail.RequesterName (@_detail.RequesterCode)</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Phòng ban</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("ot.department")</MudText>
                     <MudText Typo="Typo.body1">@_detail.DeptName (@_detail.DeptCode)</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
@@ -71,14 +71,14 @@
                 @if (!string.IsNullOrWhiteSpace(_detail.OtPurpose))
                 {
                     <MudItem xs="12">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Mục đích</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("trip.purpose")</MudText>
                         <MudText Typo="Typo.body1">@_detail.OtPurpose</MudText>
                     </MudItem>
                 }
                 @if (!string.IsNullOrWhiteSpace(_detail.Description))
                 {
                     <MudItem xs="12">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Mô tả</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.description")</MudText>
                         <MudText Typo="Typo.body1">@_detail.Description</MudText>
                     </MudItem>
                 }
@@ -92,7 +92,7 @@
                         </MudText>
                         <MudDivider Class="mb-2" />
                         <MudSimpleTable Dense="true" Hover="true" Striped="true">
-                            <thead><tr><th>Mã NV</th><th>Họ tên</th><th>Khung giờ</th><th>Giờ OT</th><th>Hạng mục</th><th>Validation</th></tr></thead>
+                            <thead><tr><th>@Language.T("common.employeeCode")</th><th>@Language.T("common.employeeName")</th><th>Khung giờ</th><th>@Language.T("payroll.otHours")</th><th>Hạng mục</th><th>Validation</th></tr></thead>
                             <tbody>
                                 @foreach (var emp in _detail.Details)
                                 {
@@ -148,7 +148,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Close">Đóng</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Close">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 

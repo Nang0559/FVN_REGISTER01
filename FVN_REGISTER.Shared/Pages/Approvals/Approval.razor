@@ -16,7 +16,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<PageTitle>Phê duyệt</PageTitle>
+<PageTitle>@Language.T("approval.title")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
     <MudStack Spacing="0">
@@ -31,12 +31,12 @@
                       AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Immediate="true" Style="min-width:220px" />
         <MudSelect T="RequestModule?" @bind-Value="_kindFilter" Label="Loại đơn" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">@Language.T("nav.reportLeave")</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">@Language.T("nav.reportOt")</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">Công tác</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">@Language.T("trip.title")</MudSelectItem>
         </MudSelect>
-        <MudSwitch @bind-Value="_onlyCanApprove" Color="Color.Primary" Label="Chờ tôi duyệt" Size="Size.Small" />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+        <MudSwitch @bind-Value="_onlyCanApprove" Color="Color.Primary" Label='@Language.T("access.pending")' Size="Size.Small" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 </MudStack>
 
@@ -46,8 +46,8 @@
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudText>Đã chọn <b>@_selectedItems.Count</b> đơn</MudText>
             <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="OnBatchApprove" Disabled="_processing">Duyệt</MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="OpenBatchRejectDialog" Disabled="_processing">Từ chối</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="OnBatchApprove" Disabled="_processing">@Language.T("common.approve")</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="OpenBatchRejectDialog" Disabled="_processing">@Language.T("common.reject")</MudButton>
             <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => _selectedItems.Clear())">Bỏ chọn</MudButton>
         </MudStack>
     </MudPaper>
@@ -62,8 +62,8 @@
     <MudTable Items="FilteredItems" @bind-SelectedItems="_selectedItems" MultiSelection="true" Hover="true" Dense="true"
               Breakpoint="Breakpoint.Sm" T="PendingApprovalItemDto" Loading="_loading">
         <HeaderContent>
-            <MudTh>Nhân viên</MudTh><MudTh>Loại đơn</MudTh><MudTh>Thời gian</MudTh><MudTh>Số lượng</MudTh>
-            <MudTh>Tiến trình</MudTh><MudTh>Cấp chờ</MudTh><MudTh>Thao tác</MudTh>
+            <MudTh>@Language.T("ot.employee")</MudTh><MudTh>Loại đơn</MudTh><MudTh>Thời gian</MudTh><MudTh>Số lượng</MudTh>
+            <MudTh>Tiến trình</MudTh><MudTh>Cấp chờ</MudTh><MudTh>@Language.T("security.actions")</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Nhân viên">

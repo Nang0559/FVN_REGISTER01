@@ -14,7 +14,7 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
         <div><MudText Typo="Typo.h4">Kiểm tra thiết bị</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Checklist được tạo tự động theo thiết bị đã được phân công.</MudText></div>
-        <MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Làm mới</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="LoadAsync">@Language.T("common.refresh")</MudButton>
     </MudStack>
 
     @if (_tasks.Count == 0)
@@ -24,7 +24,7 @@
     else
     {
         <MudTable Items="_tasks" Hover="true" Dense="true" Class="mt-4">
-            <HeaderContent><MudTh>Hạn</MudTh><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Trạng thái</MudTh><MudTh>Kết quả</MudTh><MudTh></MudTh></HeaderContent>
+            <HeaderContent><MudTh>Hạn</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>Checklist</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("hrm.result")</MudTh><MudTh></MudTh></HeaderContent>
             <RowTemplate><MudTd>@context.DueAt.ToString("dd/MM/yyyy HH:mm")</MudTd><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName v@context.TemplateVersion</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.Result</MudTd><MudTd><MudButton Size="Size.Small" OnClick="@(() => OpenTaskAsync(context.Id))">Mở</MudButton></MudTd></RowTemplate>
         </MudTable>
     }
@@ -79,8 +79,8 @@
                 }
                 @if (_task.Status == "WaitingApproval")
                 {
-                    <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="ApproveAsync">Phê duyệt</MudButton>
-                    <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="RejectAsync">Từ chối</MudButton>
+                    <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="ApproveAsync">@Language.T("approval.title")</MudButton>
+                    <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="RejectAsync">@Language.T("common.reject")</MudButton>
                 }
             </MudStack>
         </MudPaper>

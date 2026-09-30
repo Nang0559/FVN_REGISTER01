@@ -43,27 +43,27 @@
 <MudPaper Class="pa-3 mb-4">
     <MudGrid>
         <MudItem xs="12" sm="3">
-            <MudSelect T="int" @bind-Value="_year" Label="Năm" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelect T="int" @bind-Value="_year" Label='@Language.T("ot.year")' Variant="Variant.Outlined" Margin="Margin.Dense">
                 @foreach (var year in _years) { <MudSelectItem Value="@year">@year</MudSelectItem> }
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="3">
-            <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                <MudSelectItem Value="@("Pending")">Chờ duyệt</MudSelectItem>
-                <MudSelectItem Value="@("Approved")">Đã duyệt</MudSelectItem>
-                <MudSelectItem Value="@("Rejected")">Từ chối</MudSelectItem>
-                <MudSelectItem Value="@("Cancelled")">Đã hủy</MudSelectItem>
+            <MudSelect T="string" @bind-Value="_status" Label='@Language.T("common.status")' Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem Value="@("Pending")">@Language.T("dashboard.pending")</MudSelectItem>
+                <MudSelectItem Value="@("Approved")">@Language.T("approval.approved")</MudSelectItem>
+                <MudSelectItem Value="@("Rejected")">@Language.T("common.reject")</MudSelectItem>
+                <MudSelectItem Value="@("Cancelled")">@Language.T("leave.statusCancelled")</MudSelectItem>
             </MudSelect>
         </MudItem>
-        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="_fromDate" Label="Từ ngày" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Clearable="true" /></MudItem>
-        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="_toDate" Label="Đến ngày" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Clearable="true" /></MudItem>
-        <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" OnClick="Reload">Tìm kiếm</MudButton></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="_fromDate" Label='@Language.T("trip.fromDate")' Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="_toDate" Label='@Language.T("trip.toDate")' Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" OnClick="Reload">@Language.T("common.search")</MudButton></MudItem>
     </MudGrid>
 </MudPaper>
 
 <MudTable T="HistoryItemDto" ServerData="ServerReload" @ref="_table" Dense="true" Hover="true" Loading="_loading">
     <HeaderContent>
-        <MudTh>Ngày</MudTh><MudTh>Loại</MudTh><MudTh>Thời gian</MudTh><MudTh>Số lượng</MudTh><MudTh>Trạng thái</MudTh><MudTh>Tiến trình</MudTh><MudTh></MudTh>
+        <MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>Thời gian</MudTh><MudTh>Số lượng</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>Tiến trình</MudTh><MudTh></MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.SubmittedAt.ToString("dd/MM/yyyy")</MudTd>

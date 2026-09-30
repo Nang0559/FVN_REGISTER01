@@ -4,7 +4,7 @@
     <TitleContent><MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />Chọn nhân viên OT <MudChip T="string" Size="Size.Small">@Employees.Count người</MudChip></MudText></TitleContent>
     <DialogContent>
         <MudTextField @bind-Value="_searchText" Label="Tìm tên hoặc mã nhân viên" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-3" />
-        <MudCheckBox T="bool" Value="@IsAllSelected" ValueChanged="ToggleAll" Label="Chọn tất cả" />
+        <MudCheckBox T="bool" Value="@IsAllSelected" ValueChanged="ToggleAll" Label='@Language.T("common.selectAll")' />
         <MudDivider Class="mb-2" />
         <div style="max-height:400px;overflow-y:auto;">
             @foreach (var emp in Filtered)

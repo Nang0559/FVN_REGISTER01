@@ -73,7 +73,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isSaving">Hủy</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isSaving">@Language.T("common.cancel")</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="Submit" Disabled="@_isSaving">
             @(_isSaving ? "Đang lưu..." : (IsNew ? "Thêm mới" : "Lưu thay đổi"))

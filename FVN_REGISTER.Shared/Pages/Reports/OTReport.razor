@@ -28,7 +28,7 @@
         @if (_activeTab == 0 || _activeTab == 1 || _activeTab == 3)
         {
             <MudItem xs="12" sm="3">
-                <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
                     <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
                     @foreach (var dept in _departments ?? new())
                     {
@@ -41,7 +41,7 @@
         @if (_activeTab == 1 || _activeTab == 2)
         {
             <MudItem xs="12" sm="3">
-                <MudAutocomplete T="KeyValuePair<string,string>" Label="Nhân viên"
+                <MudAutocomplete T="KeyValuePair<string,string>" Label='@Language.T("ot.employee")'
                                  Value="@_selectedEmployee" ValueChanged="OnEmployeeChanged"
                                  SearchFunc="SearchEmployees" ToStringFunc="@(e => e.Value)"
                                  Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined"
@@ -52,7 +52,7 @@
         @if (_activeTab == 4)
         {
             <MudItem xs="12" sm="3">
-                <MudSelect T="int?" Label="Năm" @bind-Value="_query.WorkYear" Margin="Margin.Dense" Variant="Variant.Outlined">
+                <MudSelect T="int?" Label='@Language.T("ot.year")' @bind-Value="_query.WorkYear" Margin="Margin.Dense" Variant="Variant.Outlined">
                     @for (int y = DateTime.Now.Year; y >= 2022; y--)
                     {
                         var yr = y;
@@ -61,7 +61,7 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="3">
-                <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
                     <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
                     @foreach (var dept in _departments ?? new())
                     {

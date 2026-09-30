@@ -153,7 +153,7 @@
             @if (_cancelAction is not null)
             {
                 <MudPaper Outlined="true" Class="pa-3 mt-3">
-                    <MudText Typo="Typo.subtitle2">Hủy OT</MudText>
+                    <MudText Typo="Typo.subtitle2">@Language.T("ot.cancel")</MudText>
                     <MudTextField @bind-Value="_cancelReason"
                                   Label="Lý do hủy"
                                   Variant="Variant.Outlined"
@@ -162,7 +162,7 @@
                                   Placeholder="Ví dụ: Tôi bị ốm, xin hủy OT ngày này." />
 
                     <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-2">
-                        <MudButton OnClick="@(() => _cancelAction = null)">Không</MudButton>
+                        <MudButton OnClick="@(() => _cancelAction = null)">@Language.T("common.no")</MudButton>
                         <MudButton Color="Color.Error"
                                    Variant="Variant.Filled"
                                    Disabled="@string.IsNullOrWhiteSpace(_cancelReason)"
@@ -176,7 +176,7 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Close">Đóng</MudButton>
+        <MudButton OnClick="Close">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 
