@@ -1,32 +1,57 @@
 let deferredInstallPrompt = null;
 let installDotNetRef = null;
 
+function isStandaloneDisplayMode() {
+  return window.matchMedia?.('(display-mode: standalone)').matches === true
+    || window.navigator.standalone === true;
+}
+
+function isIosSafariBrowser() {
+  const ua = window.navigator.userAgent || '';
+  const isIos = /iPad|iPhone|iPod/.test(ua)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  return isIos && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+}
+
+// Capture the event as soon as the script is loaded. In Blazor Server the
+// component may render after beforeinstallprompt has already fired.
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+
+  if (installDotNetRef) {
+    installDotNetRef.invokeMethodAsync('OnInstallAvailable');
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  installDotNetRef?.invokeMethodAsync('OnAppInstalled');
+});
+
 window.fvnPwa = {
   initialize: function (dotNetRef) {
     installDotNetRef = dotNetRef;
 
-    window.addEventListener('beforeinstallprompt', event => {
-      event.preventDefault();
-      deferredInstallPrompt = event;
-      installDotNetRef?.invokeMethodAsync('OnInstallAvailable');
-    });
+    if (isStandaloneDisplayMode()) {
+      dotNetRef?.invokeMethodAsync('OnAlreadyInstalled');
+      return;
+    }
 
-    window.addEventListener('appinstalled', () => {
-      deferredInstallPrompt = null;
-      installDotNetRef?.invokeMethodAsync('OnAppInstalled');
-    });
-
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-      installDotNetRef?.invokeMethodAsync('OnAlreadyInstalled');
+    if (deferredInstallPrompt) {
+      dotNetRef?.invokeMethodAsync('OnInstallAvailable');
     }
   },
 
   prompt: async function () {
     if (!deferredInstallPrompt) return false;
 
-    deferredInstallPrompt.prompt();
-    const result = await deferredInstallPrompt.userChoice;
+    const promptEvent = deferredInstallPrompt;
     deferredInstallPrompt = null;
+
+    promptEvent.prompt();
+    const result = await promptEvent.userChoice;
     return result?.outcome === 'accepted';
   },
 
@@ -35,13 +60,15 @@ window.fvnPwa = {
   },
 
   isStandalone: function () {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return isStandaloneDisplayMode();
   },
 
   isIosSafari: function () {
-    const ua = window.navigator.userAgent || '';
-    const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    return isIos && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+    return isIosSafariBrowser();
+  },
+
+  getLanguage: function () {
+    return (navigator.language || 'vi').toLowerCase();
   },
 
   registerServiceWorker: async function () {
@@ -56,3 +83,11 @@ window.fvnPwa = {
     }
   }
 };
+
+// Register independently of Blazor rendering so the PWA capability is ready
+// even when the interactive component is rendered later.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => window.fvnPwa?.registerServiceWorker(), { once: true });
+} else {
+  window.fvnPwa?.registerServiceWorker();
+}
