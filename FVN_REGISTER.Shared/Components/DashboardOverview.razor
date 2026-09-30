@@ -182,8 +182,8 @@ else
 
     protected override void OnInitialized() => Language.LanguageChanged += OnLanguageChanged;
     private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
-    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) => item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
-    private string GetKindDisplay(RequestModule kind) => kind switch { RequestModule.Overtime => "OT", RequestModule.Trip => Language.T("dashboard.tripType"), RequestModule.Leave => Language.T("dashboard.leaveType"), _ => kind.ToString() };
+    private string GetKindDisplay(RequestModule kind) => kind switch { RequestModule.Overtime => Language.T("dashboard.overtimeType"), RequestModule.Trip => Language.T("dashboard.tripType"), RequestModule.Leave => Language.T("dashboard.leaveType"), _ => kind.ToString() };
+    private int GetCurrentApprovalLevel(PendingApprovalItemDto item) => item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
     private string GetWidgetTitle(string? title)
     {
         if (string.IsNullOrWhiteSpace(title)) return string.Empty;
@@ -191,7 +191,7 @@ else
         {
             "Đơn chờ duyệt" => Language.T("dashboard.pending"),
             "Nghỉ phép" => Language.T("dashboard.leaveType"),
-            "OT" => "OT",
+            "OT" => Language.T("dashboard.overtimeType"),
             "Công tác" => Language.T("dashboard.tripType"),
             _ => title
         };
