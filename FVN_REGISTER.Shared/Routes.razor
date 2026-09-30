@@ -1,9 +1,7 @@
-﻿@using FVN_REGISTER.Shared.Pages
+@using FVN_REGISTER.Shared.Pages
 @using Microsoft.AspNetCore.Components.Authorization
 
 <CascadingAuthenticationState>
-    @* Các provider của MudBlazor đặt ở đây để dùng được toàn app *@
-    @* ĐẶT DUY NHẤT TẠI ĐÂY *@
     <MudThemeProvider Theme="_currentTheme" />
     <MudPopoverProvider />
     <MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.ExtraSmall" />
@@ -11,26 +9,24 @@
 
     <Router AppAssembly="@typeof(Layout.MainLayout).Assembly">
         <Found Context="routeData">
-            @* Dùng AuthorizeRouteView để quản lý đăng nhập *@
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
                 <NotAuthorized>
                     @if (!context.User.Identity?.IsAuthenticated ?? true)
                     {
-                        @* Tự tạo component này hoặc redirect thủ công *@
-                        <RedirectToLogin /> 
+                        <RedirectToLogin />
                     }
                     else
                     {
-                        <RouteStatusPopup Message="Bạn không có quyền truy cập." Severity="Severity.Error" />
+                        <RouteStatusPopup Message="@Language.T("route.forbidden")" Severity="Severity.Error" />
                     }
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />
         </Found>
         <NotFound>
-            <PageTitle>Not found</PageTitle>
+            <PageTitle>@Language.T("route.notFound")</PageTitle>
             <LayoutView Layout="@typeof(Layout.MainLayout)">
-                <RouteStatusPopup Message="Không tìm thấy trang này (404 Not Found)." Severity="Severity.Warning" />
+                <RouteStatusPopup Message="@Language.T("route.notFound")" Severity="Severity.Warning" />
             </LayoutView>
         </NotFound>
     </Router>
