@@ -1,6 +1,5 @@
-const CACHE_NAME = 'fvn-register-pwa-v1';
+const CACHE_NAME = 'fvn-register-pwa-v2';
 const APP_SHELL = [
-  '/',
   '/manifest.json',
   '/pwa/icon-192.svg',
   '/pwa/icon-512.svg'
@@ -32,15 +31,28 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request).then(cached => cached || caches.match('/')))
-  );
+  // Never cache API/auth/Blazor responses. This application is a Blazor
+  // Server app and caching those responses can expose stale or user-specific
+  // data after a login/session change.
+  if (url.pathname.startsWith('/api/') ||
+      url.pathname.startsWith('/_blazor') ||
+      url.pathname.startsWith('/_framework/')) {
+    return;
+  }
+
+  // Static PWA assets use cache-first; navigations stay network-first so the
+  // installed app always receives the current Blazor application.
+  const isPwaAsset = url.pathname === '/manifest.json' || url.pathname.startsWith('/pwa/');
+  if (isPwaAsset) {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/manifest.json'))
+    );
+  }
 });
