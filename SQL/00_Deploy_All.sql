@@ -119,6 +119,9 @@ Database/ is documentation/history only and is not executed by deployment.
 /* FINAL RUNTIME SCHEMA COMPATIBILITY GATE */
 :r "62_RuntimeSchemaCompatibility.sql"
 
+/* CALENDAR ATTENDANCE PERFORMANCE */
+:r "63_CalendarAttendancePerformance.sql"
+
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
 

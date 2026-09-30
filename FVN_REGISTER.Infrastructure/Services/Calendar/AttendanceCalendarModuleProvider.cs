@@ -27,6 +27,11 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         CalendarContext context,
         CancellationToken cancellationToken = default)
     {
+        // Do not join F03Employees using LTRIM/RTRIM on both sides here.
+        // The calendar context has already resolved the canonical EmployeeCode.
+        // Querying the calculated attendance table directly by EmployeeCode + WorkDate
+        // lets SQL Server use the dedicated composite index and avoids a scan over the
+        // potentially large attendance-calculation table.
         var rows = await _db.Database.SqlQuery<AttendanceCalendarRow>($"""
             SELECT
                 a.WorkDate,
@@ -56,9 +61,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                 a.HrmBCLyDoNghi,
                 a.HrmBCGhiChu
             FROM dbo.F03HrmAttendanceCalculated AS a
-            INNER JOIN dbo.F03Employees AS e
-                ON LTRIM(RTRIM(e.EmployeeCode)) = LTRIM(RTRIM(a.EmployeeCode))
-            WHERE e.Id = {context.EmployeeId}
+            WHERE a.EmployeeCode = {context.EmployeeCode}
               AND a.WorkDate >= {context.From}
               AND a.WorkDate <= {context.To}
             ORDER BY a.WorkDate
