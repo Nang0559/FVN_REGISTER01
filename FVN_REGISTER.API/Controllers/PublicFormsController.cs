@@ -40,7 +40,7 @@ public sealed class PublicFormsController : BaseApiController
 
     [HttpGet("manage")]
     public async Task<IActionResult> Manage(CancellationToken ct){if(!await CanManageAsync(ct))return Forbid();
-        var all = await _service.GetManageListAsync(ct);
+        var allResult=await _service.GetManageListAsync(ct); if(!allResult.IsSuccess)return HandleResult(allResult); var all=allResult.Data??new List<Contract.Dtos.PublicForms.PublicFormDto>();
         if (UserInfo == null) return Unauthorized();
         var visible = new List<Contract.Dtos.PublicForms.PublicFormDto>();
         foreach (var form in all)
@@ -52,23 +52,21 @@ public sealed class PublicFormsController : BaseApiController
     public async Task<IActionResult> Available(CancellationToken ct)
     {
         if(UserInfo==null)return Unauthorized();
-        return HandleResult(ServiceResult<List<Contract.Dtos.PublicForms.PublicFormDto>>.Ok(await _service.GetAvailableAsync(UserInfo.EmployeeCode??string.Empty,UserInfo.DeptCode,UserInfo.PositionCode,ct)));
+        return HandleResult(await _service.GetAvailableAsync(UserInfo.EmployeeCode??string.Empty,UserInfo.DeptCode,UserInfo.PositionCode,ct));
     }
 
     [HttpGet("audience/departments")]
     public async Task<IActionResult> AudienceDepartments(CancellationToken ct)
     {
         if (!await CanManageAsync(ct)) return Forbid();
-        return HandleResult(ServiceResult<List<Contract.Dtos.PublicForms.PublicFormAudienceLookupDto>>.Ok(
-            await _service.GetAudienceDepartmentsAsync(ct)));
+        return HandleResult(await _service.GetAudienceDepartmentsAsync(ct));
     }
 
     [HttpGet("audience/positions")]
     public async Task<IActionResult> AudiencePositions(CancellationToken ct)
     {
         if (!await CanManageAsync(ct)) return Forbid();
-        return HandleResult(ServiceResult<List<Contract.Dtos.PublicForms.PublicFormAudienceLookupDto>>.Ok(
-            await _service.GetAudiencePositionsAsync(ct)));
+        return HandleResult(await _service.GetAudiencePositionsAsync(ct));
     }
 
     [HttpGet("audience/employees")]
@@ -80,8 +78,7 @@ public sealed class PublicFormsController : BaseApiController
     {
         if (!await CanManageAsync(ct)) return Forbid();
 
-        return HandleResult(ServiceResult<Contract.Dtos.PublicForms.PublicFormAudienceEmployeePageDto>.Ok(
-            await _service.SearchAudienceEmployeesAsync(search, page, pageSize, ct)));
+        return HandleResult(await _service.SearchAudienceEmployeesAsync(search,page,pageSize,ct));
     }
 
     [HttpGet("{id:int}")]
@@ -89,21 +86,17 @@ public sealed class PublicFormsController : BaseApiController
     {
         if (UserInfo == null) return Unauthorized();
         var canManage = await CanOperateAsync(id, SecurityFunctionCodes.PublicFormManage, ct);
-        var x = await _service.GetAsync(id, ct);
-        if (x == null) return NotFound(ApiResponse<object>.Fail("Không tìm thấy biểu mẫu."));
+        var x=await _service.GetAsync(id,ct); if(!x.IsSuccess)return NotFound(ApiResponse<object>.FromResult(x));
 
         if (!canManage)
         {
-            var available = await _service.GetAvailableAsync(
-                UserInfo.EmployeeCode ?? string.Empty,
-                UserInfo.DeptCode,
-                UserInfo.PositionCode,
-                ct);
-            if (!available.Any(a => a.Id == id))
+            var availableResult=await _service.GetAvailableAsync(UserInfo.EmployeeCode??string.Empty,UserInfo.DeptCode,UserInfo.PositionCode,ct);
+            if(!availableResult.IsSuccess)return HandleResult(availableResult);
+            if(!(availableResult.Data??new List<Contract.Dtos.PublicForms.PublicFormDto>()).Any(a=>a.Id==id))
                 return Forbid();
         }
 
-        return Ok(ApiResponse<Contract.Dtos.PublicForms.PublicFormDto>.Ok(x));
+        return Ok(ApiResponse<Contract.Dtos.PublicForms.PublicFormDto>.FromResult(x));
     }
 
     [HttpPost]
@@ -138,7 +131,7 @@ public sealed class PublicFormsController : BaseApiController
         if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.PublicFormSubmissionView, ct))
             return Forbid();
 
-        var forms = await _service.GetSubmissionFormsAsync(ct);
+        var formsResult=await _service.GetSubmissionFormsAsync(ct); if(!formsResult.IsSuccess)return HandleResult(formsResult); var forms=formsResult.Data??new List<Contract.Dtos.PublicForms.PublicFormDto>();
         var visible = new List<Contract.Dtos.PublicForms.PublicFormDto>();
         foreach (var form in forms)
             if (await _operators.CanOperateAsync(UserInfo.UserId, UserInfo.EmployeeCode, SecurityFunctionCodes.PublicFormSubmissionView, "PUBLIC_FORM", form.Id, ct))
