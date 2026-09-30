@@ -169,18 +169,18 @@ public sealed class PublicFormService : IPublicFormService
     {
         await ValidateAsync(request, ct);
         var exists = await _uow.Repository<F03PublicForm>().Query().AnyAsync(x => x.FormCode == request.FormCode.Trim(), ct);
-        if (exists) return ServiceResult<PublicFormDto>.Fail("Mã biểu mẫu đã tồn tại.");
+        if (exists) throw new InvalidOperationException("Mã biểu mẫu đã tồn tại.");
         var entity = BuildEntity(request, actorUserId);
         await _uow.Repository<F03PublicForm>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
-        return ServiceResult<PublicFormDto>.Ok(Map(entity));
+        return Map(entity);
     }
 
     private async Task<PublicFormDto> UpdateAsyncCoreAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         await ValidateAsync(request, ct);
         var entity = await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).ThenInclude(x=>x.Options).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
-        if (entity == null) return ServiceResult<PublicFormDto>.Fail("Không tìm thấy biểu mẫu.");
+        if (entity == null) throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
         if (entity.Status == "Published") return ServiceResult<PublicFormDto>.Fail("Không sửa trực tiếp biểu mẫu đã Publish.");
         entity.FormCode=request.FormCode.Trim(); entity.Title=request.Title.Trim(); entity.Description=request.Description?.Trim(); entity.CategoryCode=request.CategoryCode?.Trim();
         entity.StartAt=request.StartAt; entity.EndAt=request.EndAt; entity.AllowMultipleSubmit=request.AllowMultipleSubmit; entity.RequireApproval=request.RequireApproval; entity.MaxSubmissions=request.MaxSubmissions;
@@ -188,7 +188,7 @@ public sealed class PublicFormService : IPublicFormService
         entity.Questions.Clear(); entity.Audiences.Clear();
         AddChildren(entity,request);
         await _uow.SaveChangesAsync(ct);
-        return ServiceResult<PublicFormDto>.Ok(Map(entity));
+        return Map(entity);
     }
 
     private async Task PublishAsyncCoreAsync(int id,int actorUserId,CancellationToken ct=default)
