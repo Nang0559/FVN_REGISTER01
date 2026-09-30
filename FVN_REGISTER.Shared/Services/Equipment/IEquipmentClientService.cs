@@ -36,6 +36,7 @@ public interface IEquipmentClientService
     Task<ApiResponse<EquipmentSchemaDto>> SaveSchemaAsync(EquipmentSchemaUpsertRequest request, CancellationToken ct = default);
     Task<ApiResponse<EquipmentSchemaDto>> CloneSchemaAsync(int schemaId, EquipmentSchemaCloneRequest request, CancellationToken ct = default);
     Task<ApiResponse<EquipmentSchemaDto>> CreateSchemaVersionAsync(int schemaId, CancellationToken ct = default);
+    Task<ApiResponse<bool>> DeleteSchemaAsync(int schemaId, CancellationToken ct = default);
     Task<ApiResponse<EquipmentExcelWorkbookDto>> InspectExcelAsync(string deptCode, IBrowserFile file, CancellationToken ct = default);
     Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(string deptCode, IBrowserFile file, int sheetIndex = 0, CancellationToken ct = default);
     Task<ApiResponse<EquipmentSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(string deptCode, IBrowserFile file, CancellationToken ct);
