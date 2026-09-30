@@ -142,8 +142,10 @@ public sealed class TripService : ITripService
         }
     }
 
-    public async Task<TripRequestDto?> GetAsync(int requestId, CancellationToken ct = default)
+    public async Task<ServiceResult<TripRequestDto>> GetAsync(int requestId, CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
 
@@ -235,8 +237,10 @@ public sealed class TripService : ITripService
     };
 
 
-    public async Task<TripRequestDto> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default)
+    public async Task<ServiceResult<TripRequestDto>> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
         var entity = await _uow.Repository<F03TripRequest>().Query()

@@ -11,7 +11,7 @@ public interface ITripClientService
 
     Task<ApiResponse<TripRequestDto>> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default);
 
-    Task<ApiResponse> CancelAsync(int requestId, string reason, CancellationToken ct = default);
+    Task<ApiResponse<object>> CancelAsync(int requestId, string reason, CancellationToken ct = default);
 
     Task<ApiResponse<TripRequestDto>> SubmitAsync(
         int requestId,

@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Calendar;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.HR;
@@ -29,7 +30,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         _currentUser = currentUser;
     }
 
-    public async Task<WorkCalendarDto> GetAsync(
+    private async Task<WorkCalendarDto> GetCoreAsync(
         string employeeCode,
         string? deptCode,
         string? positionCode,
@@ -282,6 +283,25 @@ public sealed class WorkCalendarService : IWorkCalendarService
         return result;
     }
 
+    public async Task<ServiceResult<WorkCalendarDto>> GetAsync(
+        string employeeCode,
+        string? deptCode,
+        string? positionCode,
+        DateTime from,
+        DateTime to,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            return ServiceResult<WorkCalendarDto>.Ok(
+                await GetCoreAsync(employeeCode, deptCode, positionCode, from, to, ct));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or ArgumentException or KeyNotFoundException or InvalidOperationException)
+        {
+            return ServiceResult<WorkCalendarDto>.Fail(ex.Message);
+        }
+    }
+
     private async Task ApplyApprovalInfoAsync(
         List<WorkCalendarEventDto> events,
         CancellationToken ct)
@@ -383,13 +403,15 @@ public sealed class WorkCalendarService : IWorkCalendarService
         }
     }
 
-    public async Task<IReadOnlyList<CalendarRegistrationOpportunityDto>> GetRegistrationOpportunitiesAsync(
+    public async Task<ServiceResult<IReadOnlyList<CalendarRegistrationOpportunityDto>>> GetRegistrationOpportunitiesAsync(
         string employeeCode,
         DateTime from,
         DateTime to,
         CancellationToken ct = default)
     {
-        var calendar = await GetAsync(employeeCode, null, null, from.Date, to.Date, ct);
+        var calendarResult = await GetAsync(employeeCode, null, null, from.Date, to.Date, ct);
+        if (!calendarResult.IsSuccess) return ServiceResult<IReadOnlyList<CalendarRegistrationOpportunityDto>>.Fail(calendarResult.Message ?? "Không thể tải lịch.");
+        var calendar = calendarResult.Data!;
         var result = new List<CalendarRegistrationOpportunityDto>();
 
         foreach (var day in calendar.Days)
@@ -439,16 +461,18 @@ public sealed class WorkCalendarService : IWorkCalendarService
             }
         }
 
-        return result;
+        return ServiceResult<IReadOnlyList<CalendarRegistrationOpportunityDto>>.Ok(result);
     }
 
-    public async Task<CalendarAvailabilityDto> GetAvailabilityAsync(
+    public async Task<ServiceResult<CalendarAvailabilityDto>> GetAvailabilityAsync(
         string employeeCode,
         DateTime date,
         CancellationToken ct = default)
     {
         var day = date.Date;
-        var calendar = await GetAsync(employeeCode, null, null, day, day, ct);
+        var calendarResult = await GetAsync(employeeCode, null, null, day, day, ct);
+        if (!calendarResult.IsSuccess) return ServiceResult<CalendarAvailabilityDto>.Fail(calendarResult.Message ?? "Không thể tải lịch.");
+        var calendar = calendarResult.Data!;
         var item = calendar.Days.First();
 
         var warnings = new List<string>();
@@ -463,13 +487,13 @@ public sealed class WorkCalendarService : IWorkCalendarService
         if (calendar.Events.Any(x => x.ModuleCode == "TRIP" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký công tác trong ngày.");
 
-        return new CalendarAvailabilityDto
+        return ServiceResult<CalendarAvailabilityDto>.Ok(new CalendarAvailabilityDto
         {
             Date = day,
             CanRegisterLeave = item.CanRegisterLeave,
             CanRegisterOT = item.CanRegisterOT,
             CanRegisterTrip = item.CanRegisterTrip,
             Warnings = warnings
-        };
+        });
     }
 }

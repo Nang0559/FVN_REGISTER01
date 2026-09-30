@@ -45,11 +45,11 @@ public sealed class TripClientService : ITripClientService
         catch (Exception ex) { _logger.LogError(ex, "[TRIP_CLIENT] Update error. RequestId={RequestId}", requestId); return ApiResponse<TripRequestDto>.Fail("Không thể cập nhật đăng ký công tác."); }
     }
 
-    public async Task<ApiResponse> CancelAsync(int requestId, string reason, CancellationToken ct = default)
+    public async Task<ApiResponse<object>> CancelAsync(int requestId, string reason, CancellationToken ct = default)
     {
         try { return await _http.PostAsync<object>($"api/trips/{requestId}/cancel", new { Reason = reason }, ct); }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { _logger.LogError(ex, "[TRIP_CLIENT] Cancel error. RequestId={RequestId}", requestId); return ApiResponse.Fail("Không thể hủy đăng ký công tác."); }
+        catch (Exception ex) { _logger.LogError(ex, "[TRIP_CLIENT] Cancel error. RequestId={RequestId}", requestId); return ApiResponse<object>.Fail("Không thể hủy đăng ký công tác."); }
     }
 
     public async Task<ApiResponse<TripRequestDto>> SubmitAsync(

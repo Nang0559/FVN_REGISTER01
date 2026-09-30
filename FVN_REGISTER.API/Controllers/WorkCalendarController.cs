@@ -60,7 +60,7 @@ public sealed class WorkCalendarController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Lịch chỉ cho phép tối đa 94 ngày mỗi lần tải."));
 
         var result = await _calendar.GetMonthAsync(employeeCode, userId, first, last, modules, ct);
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(result);
     }
 
     [HttpGet("employee/{employeeCode}")]
@@ -104,7 +104,7 @@ public sealed class WorkCalendarController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ hoặc vượt quá 94 ngày."));
 
         var result = await _calendar.GetMonthAsync(employeeCode, userId, first, last, modules, ct);
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(result);
     }
 
     [HttpGet("me/alerts")]
@@ -129,7 +129,7 @@ public sealed class WorkCalendarController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
 
         var result = await _calendar.GetAlertsAsync(employeeCode, userId, first, last, modules, ct);
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(result);
     }
 
     [HttpGet("employee/{employeeCode}/alerts")]
@@ -173,7 +173,7 @@ public sealed class WorkCalendarController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
 
         var result = await _calendar.GetAlertsAsync(employeeCode, userId, first, last, modules, ct);
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(result);
     }
 
     [HttpGet("me/registration-opportunities")]
@@ -201,8 +201,7 @@ public sealed class WorkCalendarController : BaseApiController
             first.ToDateTime(TimeOnly.MinValue),
             last.ToDateTime(TimeOnly.MinValue),
             ct);
-
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(result);
     }
 
     [HttpGet("me/availability")]
@@ -218,8 +217,7 @@ public sealed class WorkCalendarController : BaseApiController
             employeeCode,
             date.ToDateTime(TimeOnly.MinValue),
             ct);
-
-        return Ok(ApiResponse<object>.Ok(result));
+        return HandleResult(result);
     }
 
     private async Task<bool> CanViewOwnCalendarAsync(

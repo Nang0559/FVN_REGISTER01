@@ -83,7 +83,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             return employees.Select(OTMapper.ToEmployeeDto).ToList();
         }
 
-        public override async Task<List<WidgetCounterDto>> GetMyWidgetsAsync(
+        protected override async Task<List<WidgetCounterDto>> GetMyWidgetsCoreAsync(
             string employeeCode, CancellationToken ct = default)
         {
             var pendingCount = await Uow.Repository<VF03OTRequest>().Query()
@@ -108,7 +108,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             };
         }
 
-        public override async Task<List<OTSummaryDto>> GetRecentSummaryAsync(
+        protected override async Task<List<OTSummaryDto>> GetRecentSummaryCoreAsync(
             string employeeCode, int limit = 5, CancellationToken ct = default)
         {
             var data = await Uow.Repository<VF03OTRequest>().Query()
@@ -121,11 +121,11 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             return data.Select(MapToSummary).ToList();
         }
 
-        public override async Task<OTBalanceDto> GetSimpleBalanceAsync(
+        protected override async Task<OTBalanceDto> GetSimpleBalanceCoreAsync(
             string employeeCode, int year, CancellationToken ct = default)
             => await GetBalanceAsync(employeeCode, year, DateTime.Now.Month, ct);
 
-        public override async Task<PaginationResult<OTSummaryDto>> GetPagedAsync(
+        protected override async Task<PaginationResult<OTSummaryDto>> GetPagedCoreAsync(
             string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
             int page, int pageSize, CancellationToken ct = default)
         {
@@ -179,7 +179,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 items.Select(MapToSummary).ToList(), totalCount, page, pageSize);
         }
 
-        public override async Task<List<OTRequestDto>> GetDeptByDateAsync(
+        protected override async Task<List<OTRequestDto>> GetDeptByDateCoreAsync(
             string deptCode, DateTime date, CancellationToken ct = default)
         {
             var user = _currentUser.GetCurrentUser();
@@ -222,7 +222,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         {
             var deptEmployees = await GetDeptEmployeesAsync(deptCode, ct);
             var balance = await GetBalanceAsync(employeeCode, year, month, ct);
-            var recent = await GetRecentSummaryAsync(employeeCode, 5, ct);
+            var recentResult = await GetRecentSummaryAsync(employeeCode, 5, ct);
+            var recent = recentResult.Data ?? new List<OTSummaryDto>();
 
             var limits = await Uow.Repository<F03OTLimitRule>().Query()
                 .AsNoTracking()

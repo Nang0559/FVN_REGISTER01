@@ -140,8 +140,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo?.EmployeeCode == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
-            return Ok(ApiResponse<LeaveBalanceDto>.Ok(
-                await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode, year, ct)));
+            return HandleResult(await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode, year, ct));
         }
 
         [HttpGet("details/{id:int}")]
@@ -169,7 +168,7 @@ namespace FVN_REGISTER.API.Controllers
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
             var selectedYear = year ?? DateTime.Now.Year;
             var result = await _queryService.GetPagedAsync(UserInfo.DeptCode, parsedStatus, new DateTime(selectedYear, 1, 1), new DateTime(selectedYear, 12, 31), page, pageSize, ct);
-            return HandleResult(ServiceResult<PaginationResult<LeaveSummaryDto>>.Ok(result));
+            return HandleResult(result);
         }
 
         [HttpGet("recent")]
@@ -179,7 +178,7 @@ namespace FVN_REGISTER.API.Controllers
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo?.EmployeeCode == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            return Ok(ApiResponse<List<LeaveSummaryDto>>.Ok(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct)));
+            return HandleResult(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct));
         }
     }
 }

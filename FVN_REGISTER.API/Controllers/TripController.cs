@@ -69,7 +69,7 @@ public sealed class TripController : ControllerBase
     {
         if (!await CanAsync(SecurityFunctionCodes.TripView, ct)) return Forbid();
         var result = await _service.GetAsync(id, ct);
-        return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : NotFound(ApiResponse<TripRequestDto>.FromResult(result));
+        return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
     [HttpGet("mine")]
