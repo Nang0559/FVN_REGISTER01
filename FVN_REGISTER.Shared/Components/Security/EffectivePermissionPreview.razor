@@ -14,10 +14,10 @@ else if (_preview == null)
 else
 {
     <MudGrid>
-        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">Role</MudText><MudText>@string.Join(", ", _preview.RoleNames)</MudText></MudItem>
+        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">@Language.T("security.role")</MudText><MudText>@string.Join(", ", _preview.RoleNames)</MudText></MudItem>
         <MudItem xs="12" md="3"><MudText Typo="Typo.caption">Menu</MudText><MudText>@string.Join(", ", _preview.VisibleMenus)</MudText></MudItem>
         <MudItem xs="12" md="3"><MudText Typo="Typo.caption">ManagedScope</MudText><MudText>@_preview.ManagedScopes.Count node</MudText></MudItem>
-        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">Approval Policy</MudText><MudText>@_preview.ApprovalPolicies.Count match</MudText></MudItem>
+        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">@Language.T("security.policies")</MudText><MudText>@_preview.ApprovalPolicies.Count match</MudText></MudItem>
     </MudGrid>
 
     <MudDivider Class="my-3" />
@@ -33,7 +33,7 @@ else
         </MudPaper>
     }
 
-    <MudText Typo="Typo.subtitle2" Class="mt-3">Approval Policy</MudText>
+    <MudText Typo="Typo.subtitle2" Class="mt-3">@Language.T("security.policies")</MudText>
     @if (_preview.ApprovalPolicies.Count == 0)
     {
         <MudAlert Class="mt-2" Severity="Severity.Warning" Variant="Variant.Outlined">

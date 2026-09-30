@@ -36,7 +36,7 @@
                     <MudItem xs="12" md="4">
                         <MudSelect T="RequestModule" Value="_module" ValueChanged="OnModuleChanged" Label='@Language.T("approval.module")' Variant="Variant.Outlined">
                             <MudSelectItem Value="RequestModule.Leave">Nghỉ phép</MudSelectItem>
-                            <MudSelectItem Value="RequestModule.Overtime">OT</MudSelectItem>
+                            <MudSelectItem Value="RequestModule.Overtime">@Language.T("nav.reportOt")</MudSelectItem>
                             <MudSelectItem Value="RequestModule.Trip">Công tác</MudSelectItem>
                             <MudSelectItem Value="RequestModule.Equipment">Thiết bị</MudSelectItem>
                         </MudSelect>
@@ -75,7 +75,7 @@
                                     <MudTable Items="_equipmentCandidates" Dense="true" Hover="true">
                                         <HeaderContent>
                                             <MudTh>Chọn</MudTh><MudTh>Mã</MudTh><MudTh>Thiết bị</MudTh><MudTh>Bộ phận</MudTh>
-                                            <MudTh>Phụ trách</MudTh><MudTh>Approver</MudTh><MudTh>Vị trí</MudTh>
+                                            <MudTh>Phụ trách</MudTh><MudTh>@Language.T("nav.approvers")</MudTh><MudTh>Vị trí</MudTh>
                                         </HeaderContent>
                                         <RowTemplate>
                                             <MudTd><MudCheckBox T="bool" Value="@_selectedAssetIds.Contains(context.AssetId)" ValueChanged="@(v => ToggleAsset(context.AssetId, v))" /></MudTd>

@@ -8,10 +8,10 @@
 @inject ISecurityClientService Security
 @inject ISnackbar Snackbar
 
-<PageTitle>Endpoint Governance</PageTitle>
+<PageTitle>@Language.T("endpoint.title")</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
 <MudStack Spacing="3">
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween"><div><MudText Typo="Typo.h5">Endpoint Governance</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Software/Service Catalog chuẩn, version, Excel, Common Approval và Compliance.</MudText></div><MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ReloadAsync">Làm mới</MudButton></MudStack>
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween"><div><MudText Typo="Typo.h5">@Language.T("endpoint.title")</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Software/Service Catalog chuẩn, version, Excel, Common Approval và Compliance.</MudText></div><MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ReloadAsync">Làm mới</MudButton></MudStack>
 @if (_loading){<MudProgressLinear Indeterminate="true"/>}else{
 <MudTabs Rounded="true" Elevation="1">
 <MudTabPanel Text="Catalog" Icon="@Icons.Material.Filled.LibraryBooks"><MudStack Spacing="3" Class="pa-3">

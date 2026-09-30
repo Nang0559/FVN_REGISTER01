@@ -25,7 +25,7 @@
         <MudGrid Class="mt-4" Spacing="2">
             <MudItem xs="12" sm="4">
                 <MudSelect T="string" Label="Module" @bind-Value="_module" Clearable="true">
-                        <MudSelectItem Value="@("OT")">OT</MudSelectItem>
+                        <MudSelectItem Value="@("OT")">@Language.T("nav.reportOt")</MudSelectItem>
                     <MudSelectItem Value="@("LEAVE")">Leave</MudSelectItem>
                     <MudSelectItem Value="@("TRIP")">Trip</MudSelectItem>
                 </MudSelect>

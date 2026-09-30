@@ -53,7 +53,7 @@
         </MudSelect></MudItem>
         <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="Loại đơn" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">OT</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">@Language.T("nav.reportOt")</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">Công tác</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Equipment)">Thiết bị / Requirement</MudSelectItem>
         </MudSelect></MudItem>
@@ -68,7 +68,7 @@
 else
 {
     <MudTable Items="FilteredItems" Dense="true" Hover="true" Striped="true">
-        <HeaderContent><MudTh>Bộ phận</MudTh><MudTh>Loại đơn</MudTh><MudTh>Cấp</MudTh><MudTh>Approver</MudTh><MudTh>Email</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh></HeaderContent>
+        <HeaderContent><MudTh>Bộ phận</MudTh><MudTh>Loại đơn</MudTh><MudTh>Cấp</MudTh><MudTh>@Language.T("nav.approvers")</MudTh><MudTh>Email</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh></HeaderContent>
         <RowTemplate>
             <MudTd>@context.ApproveForDeptName (@context.ApproveForDeptCode)</MudTd>
             <MudTd>@context.RequestType</MudTd>

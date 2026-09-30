@@ -115,7 +115,7 @@
                 </MudGrid>
                 <MudDivider Class="my-4" />
                 <MudTable T="SecurityRoleDto" Items="_roles" Dense="true" Hover="true">
-                    <HeaderContent><MudTh>Code</MudTh><MudTh>Role</MudTh><MudTh>Detail</MudTh><MudTh>System</MudTh><MudTh /></HeaderContent>
+                    <HeaderContent><MudTh>Code</MudTh><MudTh>@Language.T("security.role")</MudTh><MudTh>Detail</MudTh><MudTh>System</MudTh><MudTh /></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.RoleCode</MudTd><MudTd>@context.RoleName</MudTd><MudTd>@context.Detail</MudTd><MudTd>@(context.IsSystem ? "Yes" : "No")</MudTd>
                         <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteRoleAsync(context.Id))">Xóa/Ngừng</MudButton></MudTd>

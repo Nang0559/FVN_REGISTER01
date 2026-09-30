@@ -32,7 +32,7 @@
                       Immediate="true" Style="min-width:220px" />
         <MudSelect T="RequestModule?" @bind-Value="_kindFilter" Label="Loại đơn" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">OT</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">@Language.T("nav.reportOt")</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">Công tác</MudSelectItem>
         </MudSelect>
         <MudSwitch @bind-Value="_onlyCanApprove" Color="Color.Primary" Label="Chờ tôi duyệt" Size="Size.Small" />

@@ -133,7 +133,7 @@
             <MudSelectItem Value="@PolicyGroupMode.Department">Phòng ban</MudSelectItem>
             <MudSelectItem Value="@PolicyGroupMode.Position">Position người yêu cầu</MudSelectItem>
             <MudSelectItem Value="@PolicyGroupMode.RequestType">Loại yêu cầu</MudSelectItem>
-            <MudSelectItem Value="@PolicyGroupMode.Role">Role</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Role">@Language.T("security.role")</MudSelectItem>
         </MudSelect>
         <MudSpacer />
         <MudTextField @bind-Value="_searchText"

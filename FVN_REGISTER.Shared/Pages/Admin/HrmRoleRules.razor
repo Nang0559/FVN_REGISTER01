@@ -47,7 +47,7 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="int" @bind-Value="_form.PermissionCode" Label="Role" Variant="Variant.Outlined">
+            <MudSelect T="int" @bind-Value="_form.PermissionCode" Label='@Language.T("security.role")' Variant="Variant.Outlined">
                 @foreach (var role in _roles)
                 {
                     <MudSelectItem Value="@role.Code">@role.Code - @role.Name</MudSelectItem>
@@ -82,7 +82,7 @@
         <MudTh>Priority</MudTh>
         <MudTh>Phòng ban</MudTh>
         <MudTh>Chức vụ</MudTh>
-        <MudTh>Role</MudTh>
+        <MudTh>@Language.T("security.role")</MudTh>
         <MudTh>Active</MudTh>
         <MudTh>Ghi chú</MudTh>
         <MudTh />

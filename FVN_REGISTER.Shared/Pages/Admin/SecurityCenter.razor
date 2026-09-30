@@ -19,7 +19,7 @@
 <MudStack Spacing="3">
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Security Center</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("security.title")</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
                 Quản lý tài khoản, Role và ma trận Function/Action theo RBAC của FVN_REGISTER.
             </MudText>
@@ -77,7 +77,7 @@
                             <MudText Typo="Typo.caption">@_selected.EmployeeCode · @_selected.DeptCode</MudText>
                             <MudDivider Class="my-3" />
 
-                            <MudText Typo="Typo.subtitle2" Class="mb-2">Role</MudText>
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("security.role")</MudText>
                             <MudSelect T="int" MultiSelection="true" SelectedValues="_selectedRoles"
                                        SelectedValuesChanged="RolesChanged" Variant="Variant.Outlined">
                                 @foreach (var role in _roles)
@@ -432,7 +432,7 @@
             <MudStack Spacing="2">
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.h6">Approval Policy</MudText>
+                        <MudText Typo="Typo.h6">@Language.T("security.policies")</MudText>
                         <MudSpacer />
                         <MudButton Variant="Variant.Outlined" Href="/admin/approval-policies">
                             Mở cấu hình Approval Policy
