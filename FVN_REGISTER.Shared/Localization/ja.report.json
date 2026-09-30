@@ -1,0 +1,13 @@
+{
+  "report.attendance": "勤怠レポート",
+  "report.center": "レポートセンター",
+  "report.department": "部署",
+  "report.equipment": "設備レポート",
+  "report.export": "レポート出力",
+  "report.fromDate": "開始日",
+  "report.leave": "休暇レポート",
+  "report.ot": "残業レポート",
+  "report.title": "レポート・統計",
+  "report.toDate": "終了日",
+  "report.trip": "出張レポート"
+}

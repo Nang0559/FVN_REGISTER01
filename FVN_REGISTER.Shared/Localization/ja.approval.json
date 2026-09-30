@@ -1,0 +1,22 @@
+{
+  "approval.approve": "承認",
+  "approval.approved": "承認済み",
+  "approval.approver": "承認者",
+  "approval.comment": "コメント",
+  "approval.decision": "決定",
+  "approval.level": "承認レベル",
+  "approval.levelN": "第{0}承認",
+  "approval.module": "業務",
+  "approval.noApprover": "この承認レベルに該当する承認者がいません。",
+  "approval.noRoute": "現在の役職に承認ルートが設定されていないため、申請できません。",
+  "approval.pending": "承認待ち一覧",
+  "approval.reasonRequired": "理由を入力してください。",
+  "approval.reject": "却下",
+  "approval.rejected": "却下済み",
+  "approval.request": "申請",
+  "approval.requester": "申請者",
+  "approval.return": "差し戻し",
+  "approval.selectApprover": "承認者を選択 *",
+  "approval.title": "承認",
+  "approval.waiting": "承認待ち"
+}

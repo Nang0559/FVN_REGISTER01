@@ -1,0 +1,9 @@
+{
+  "workspace.list": "一覧",
+  "workspace.myTasks": "自分の処理待ち",
+  "workspace.openCalendar": "カレンダーを開く",
+  "workspace.overview": "ワークスペース概要",
+  "workspace.quickActions": "クイック操作",
+  "workspace.register": "申請",
+  "workspace.summary": "概要では状態のみを集約し、業務フローは申請・一覧・承認で処理します。"
+}

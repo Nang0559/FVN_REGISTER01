@@ -1,0 +1,20 @@
+{
+  "payroll.calculate": "Tính toán",
+  "payroll.employee": "Nhân viên",
+  "payroll.export": "Xuất bảng công",
+  "payroll.fromDate": "Từ ngày",
+  "payroll.lock": "Khóa kỳ",
+  "payroll.locked": "Đã khóa",
+  "payroll.otHours": "Giờ OT",
+  "payroll.period": "Kỳ tính lương",
+  "payroll.prepare": "Chuẩn bị",
+  "payroll.print": "In bảng công",
+  "payroll.printGate": "Chưa thể in bảng công tính lương vì vẫn còn dữ liệu cần xác nhận.",
+  "payroll.status": "Trạng thái",
+  "payroll.table": "Bảng công tính lương",
+  "payroll.title": "Tính lương",
+  "payroll.toDate": "Đến ngày",
+  "payroll.unlocked": "Chưa khóa",
+  "payroll.workDays": "Ngày công",
+  "payroll.workHours": "Giờ công"
+}

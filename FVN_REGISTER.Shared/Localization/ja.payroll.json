@@ -1,0 +1,20 @@
+{
+  "payroll.calculate": "計算",
+  "payroll.employee": "社員",
+  "payroll.export": "勤務表出力",
+  "payroll.fromDate": "開始日",
+  "payroll.lock": "期間ロック",
+  "payroll.locked": "ロック済み",
+  "payroll.otHours": "残業時間",
+  "payroll.period": "給与計算期間",
+  "payroll.prepare": "準備",
+  "payroll.print": "勤務表印刷",
+  "payroll.printGate": "未確認のデータが残っているため、給与計算用の勤務表を印刷できません。",
+  "payroll.status": "ステータス",
+  "payroll.table": "給与計算用勤務表",
+  "payroll.title": "給与計算",
+  "payroll.toDate": "終了日",
+  "payroll.unlocked": "未ロック",
+  "payroll.workDays": "勤務日数",
+  "payroll.workHours": "勤務時間"
+}

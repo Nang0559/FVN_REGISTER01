@@ -1,0 +1,16 @@
+{
+  "hrm.attendance": "勤怠",
+  "hrm.calculate": "HRM勤怠計算",
+  "hrm.calculateNow": "今すぐ計算",
+  "hrm.conflict": "HRM競合",
+  "hrm.department": "部署",
+  "hrm.employee": "社員",
+  "hrm.error": "同期エラー",
+  "hrm.lastRun": "最終実行",
+  "hrm.position": "役職",
+  "hrm.result": "結果",
+  "hrm.roleRules": "HRMロール → ユーザー",
+  "hrm.sync": "HRM同期",
+  "hrm.syncNow": "今すぐ同期",
+  "hrm.title": "HRM"
+}

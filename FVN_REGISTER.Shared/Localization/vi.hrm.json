@@ -1,0 +1,16 @@
+{
+  "hrm.attendance": "Chấm công",
+  "hrm.calculate": "Tính giờ theo HRM",
+  "hrm.calculateNow": "Tính giờ ngay",
+  "hrm.conflict": "Conflict HRM",
+  "hrm.department": "Phòng ban",
+  "hrm.employee": "Nhân viên",
+  "hrm.error": "Lỗi đồng bộ",
+  "hrm.lastRun": "Lần chạy gần nhất",
+  "hrm.position": "Chức vụ",
+  "hrm.result": "Kết quả",
+  "hrm.roleRules": "Role HRM → User",
+  "hrm.sync": "Đồng bộ HRM",
+  "hrm.syncNow": "Đồng bộ ngay",
+  "hrm.title": "HRM"
+}

@@ -1,0 +1,18 @@
+{
+  "endpoint.catalog": "Danh mục phần mềm / dịch vụ",
+  "endpoint.compliance": "Compliance",
+  "endpoint.credentials": "Thông tin xác thực Agent",
+  "endpoint.device": "Thiết bị Endpoint",
+  "endpoint.findings": "Finding",
+  "endpoint.hardwareUuid": "Hardware UUID",
+  "endpoint.inventory": "Danh mục Endpoint",
+  "endpoint.linkEquipment": "Liên kết Equipment",
+  "endpoint.policy": "Policy",
+  "endpoint.provision": "Provision Agent",
+  "endpoint.revoke": "Revoke key",
+  "endpoint.rotate": "Rotate key",
+  "endpoint.serial": "Serial",
+  "endpoint.service": "Dịch vụ",
+  "endpoint.software": "Phần mềm",
+  "endpoint.title": "Endpoint Governance"
+}

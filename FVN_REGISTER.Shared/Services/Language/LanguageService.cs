@@ -46,21 +46,7 @@ public sealed class LanguageService : ILanguageService
 
     public string T(string key, params object?[] args)
     {
-        var value = LanguageCatalog.Get(_current, key);
-        if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogAdditional.TryGet(_current, key, out var additional) ? additional : key;
-        if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogModules.TryGet(_current, key, out var moduleValue) ? moduleValue : key;
-        if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogRemaining.TryGet(_current, key, out var remainingValue) ? remainingValue : key;
-        if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogUiCommon.TryGet(_current, key, out var commonValue) ? commonValue : key;
-        if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogLayout.TryGet(_current, key, out var layoutValue) ? layoutValue : key;
-        if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogSharedUi.TryGet(_current, key, out var sharedValue) ? sharedValue : key;
-        if (string.Equals(value, key, StringComparison.Ordinal))
-            value = LanguageCatalogCalendar.TryGet(_current, key, out var calendarValue) ? calendarValue : key;
+        var value = LocalizationStore.Get(_current, key);
 
         if (args.Length == 0)
             return value;

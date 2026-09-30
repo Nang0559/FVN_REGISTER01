@@ -1,0 +1,19 @@
+{
+  "leave.create": "休暇申請",
+  "leave.history": "休暇履歴",
+  "leave.list": "休暇申請一覧 ({0})",
+  "leave.loadFailed": "データを読み込めませんでした。もう一度お試しください。",
+  "leave.noItems": "休暇申請はありません。",
+  "leave.openCalendar": "共通カレンダーを開く",
+  "leave.register": "休暇を申請",
+  "leave.sharedCalendar": "共通勤務カレンダー",
+  "leave.sharedCalendarDescription": "勤怠、休暇、残業、出張を一つのカレンダーで集中管理します。",
+  "leave.statusApproved": "承認済み",
+  "leave.statusCancelled": "キャンセル済み",
+  "leave.statusDraft": "下書き",
+  "leave.statusInProgress": "処理中",
+  "leave.statusNeedsRevision": "差し戻し",
+  "leave.statusPending": "承認待ち",
+  "leave.statusRejected": "却下",
+  "leave.title": "休暇申請"
+}

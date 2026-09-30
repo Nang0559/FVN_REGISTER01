@@ -1,0 +1,19 @@
+{
+  "security.actions": "Thao tác",
+  "security.effective": "Quyền hiệu lực",
+  "security.functions": "Chức năng",
+  "security.grant": "Cấp quyền",
+  "security.permission": "Quyền",
+  "security.policies": "Approval Policy",
+  "security.qr": "Mã QR Authenticator",
+  "security.revoke": "Thu hồi quyền",
+  "security.role": "Role",
+  "security.roles": "Role → Function / Action",
+  "security.scope": "Phạm vi",
+  "security.secret": "Khóa bí mật",
+  "security.sessions": "Thiết bị & phiên đăng nhập",
+  "security.title": "Security Center",
+  "security.twoFactor": "2FA theo tài khoản",
+  "security.twoFactorRequired": "Bắt buộc 2FA",
+  "security.users": "Tài khoản & quyền hiệu lực"
+}

@@ -1,0 +1,22 @@
+{
+  "approval.approve": "Duyệt",
+  "approval.approved": "Đã duyệt",
+  "approval.approver": "Người phê duyệt",
+  "approval.comment": "Ý kiến",
+  "approval.decision": "Quyết định",
+  "approval.level": "Cấp duyệt",
+  "approval.levelN": "Cấp {0}",
+  "approval.module": "Nghiệp vụ",
+  "approval.noApprover": "Chưa có người phê duyệt phù hợp cho cấp này.",
+  "approval.noRoute": "Chưa cấu hình cấp phê duyệt cho chức vụ hiện tại. Không thể gửi đơn.",
+  "approval.pending": "Danh sách chờ duyệt",
+  "approval.reasonRequired": "Vui lòng nhập lý do.",
+  "approval.reject": "Từ chối",
+  "approval.rejected": "Đã từ chối",
+  "approval.request": "Yêu cầu",
+  "approval.requester": "Người yêu cầu",
+  "approval.return": "Trả lại",
+  "approval.selectApprover": "Chọn người phê duyệt *",
+  "approval.title": "Phê duyệt",
+  "approval.waiting": "Đang chờ duyệt"
+}

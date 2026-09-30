@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- UI texts: Localization/{lang}.{module}.json, embedded so they work in Server, WASM and MAUI hosts. -->
+    <EmbeddedResource Include="Localization\*.json" LogicalName="Localization.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <SupportedPlatform Include="browser" />
   </ItemGroup>
 

@@ -1,0 +1,7 @@
+{
+  "execution.confirmRequired": "確認が必要な勤務実績があります。",
+  "execution.evidence": "勤務証拠",
+  "execution.hrReview": "人事による勤務実績確認",
+  "execution.ng": "人事確認済み（不正確）",
+  "execution.ok": "人事確認済み（正しい）"
+}

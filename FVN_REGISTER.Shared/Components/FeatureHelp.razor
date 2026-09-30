@@ -108,12 +108,12 @@
 
             return new HelpContent(
                 feature,
-                LanguageCatalogHelp.Get(language, $"help.{feature}.title"),
-                LanguageCatalogHelp.Get(language, $"help.{feature}.summary"),
-                LanguageCatalogHelp.Get(language, $"help.{feature}.flow"),
-                LanguageCatalogHelp.Steps(language, feature),
-                LanguageCatalogHelp.Get(language, $"help.{feature}.example"),
-                LanguageCatalogHelp.Get(language, $"help.{feature}.security"));
+                LocalizationStore.Get(language, $"help.{feature}.title"),
+                LocalizationStore.Get(language, $"help.{feature}.summary"),
+                LocalizationStore.Get(language, $"help.{feature}.flow"),
+                LocalizationStore.Steps(language, feature),
+                LocalizationStore.Get(language, $"help.{feature}.example"),
+                LocalizationStore.Get(language, $"help.{feature}.security"));
         }
 
         private static string[] NormalizeSegments(string route)

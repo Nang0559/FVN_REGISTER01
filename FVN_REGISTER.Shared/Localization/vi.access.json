@@ -1,0 +1,14 @@
+{
+  "access.create": "Lập phiếu",
+  "access.execute": "Thiết lập",
+  "access.functions": "Quyền sẽ chuyển",
+  "access.itQueue": "IT xử lý",
+  "access.mine": "Phiếu của tôi",
+  "access.newEmployee": "Người nhận",
+  "access.oldEmployee": "Nhân sự cũ",
+  "access.pending": "Chờ tôi duyệt",
+  "access.preChange": "Thông tin trước bàn giao",
+  "access.title": "Thay đổi quyền / bàn giao",
+  "access.transferApprover": "Bàn giao vai trò approver thiết bị",
+  "access.transferResponsible": "Bàn giao thiết bị người cũ đang phụ trách"
+}

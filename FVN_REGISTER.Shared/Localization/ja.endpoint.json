@@ -1,0 +1,18 @@
+{
+  "endpoint.catalog": "ソフトウェア / サービスカタログ",
+  "endpoint.compliance": "コンプライアンス",
+  "endpoint.credentials": "Agent 認証情報",
+  "endpoint.device": "Endpoint デバイス",
+  "endpoint.findings": "検出結果",
+  "endpoint.hardwareUuid": "Hardware UUID",
+  "endpoint.inventory": "Endpoint インベントリ",
+  "endpoint.linkEquipment": "Equipment連携",
+  "endpoint.policy": "ポリシー",
+  "endpoint.provision": "Agentプロビジョニング",
+  "endpoint.revoke": "キー取消",
+  "endpoint.rotate": "キー更新",
+  "endpoint.serial": "シリアル",
+  "endpoint.service": "サービス",
+  "endpoint.software": "ソフトウェア",
+  "endpoint.title": "Endpoint Governance"
+}

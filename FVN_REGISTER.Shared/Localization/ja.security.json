@@ -1,0 +1,19 @@
+{
+  "security.actions": "操作",
+  "security.effective": "有効権限",
+  "security.functions": "機能",
+  "security.grant": "権限付与",
+  "security.permission": "権限",
+  "security.policies": "承認ポリシー",
+  "security.qr": "Authenticator QRコード",
+  "security.revoke": "権限取消",
+  "security.role": "Role",
+  "security.roles": "Role → Function / Action",
+  "security.scope": "範囲",
+  "security.secret": "秘密鍵",
+  "security.sessions": "デバイスとログインセッション",
+  "security.title": "セキュリティセンター",
+  "security.twoFactor": "アカウント別2FA",
+  "security.twoFactorRequired": "2FA必須",
+  "security.users": "アカウントと有効権限"
+}

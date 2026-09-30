@@ -1,0 +1,14 @@
+{
+  "access.create": "申請作成",
+  "access.execute": "設定",
+  "access.functions": "引継ぐ権限",
+  "access.itQueue": "IT処理",
+  "access.mine": "自分の申請",
+  "access.newEmployee": "引継ぎ先",
+  "access.oldEmployee": "旧担当者",
+  "access.pending": "承認待ち",
+  "access.preChange": "変更前情報",
+  "access.title": "権限変更・引継ぎ",
+  "access.transferApprover": "設備承認者ロールを引継ぐ",
+  "access.transferResponsible": "旧担当者が管理する設備を引継ぐ"
+}

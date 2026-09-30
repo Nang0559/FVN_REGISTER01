@@ -1,0 +1,15 @@
+{
+  "trip.actual": "実績出張",
+  "trip.create": "出張申請",
+  "trip.destination": "出張先",
+  "trip.employee": "社員",
+  "trip.fromDate": "開始日",
+  "trip.history": "出張履歴",
+  "trip.list": "出張申請一覧",
+  "trip.purpose": "目的",
+  "trip.registered": "申請済み",
+  "trip.reRegister": "再申請",
+  "trip.status": "ステータス",
+  "trip.title": "出張",
+  "trip.toDate": "終了日"
+}

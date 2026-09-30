@@ -1,0 +1,19 @@
+{
+  "leave.create": "Đăng ký nghỉ phép",
+  "leave.history": "Lịch sử nghỉ phép",
+  "leave.list": "Danh sách đơn nghỉ ({0})",
+  "leave.loadFailed": "Không thể tải dữ liệu. Vui lòng thử lại.",
+  "leave.noItems": "Chưa có đơn nghỉ nào.",
+  "leave.openCalendar": "Mở lịch chung",
+  "leave.register": "Đăng ký nghỉ",
+  "leave.sharedCalendar": "Lịch làm việc chung",
+  "leave.sharedCalendarDescription": "Lịch tổng hợp chấm công, nghỉ phép, OT và công tác được quản lý tập trung tại một nơi.",
+  "leave.statusApproved": "Đã duyệt",
+  "leave.statusCancelled": "Đã hủy",
+  "leave.statusDraft": "Nháp",
+  "leave.statusInProgress": "Đang xử lý",
+  "leave.statusNeedsRevision": "Trả lại",
+  "leave.statusPending": "Chờ duyệt",
+  "leave.statusRejected": "Từ chối",
+  "leave.title": "Đăng ký nghỉ phép"
+}
