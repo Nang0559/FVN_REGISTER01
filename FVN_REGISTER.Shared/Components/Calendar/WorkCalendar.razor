@@ -62,8 +62,16 @@
             await CurrentUser.InitializeAsync();
 
         _moduleFilter = "ALL";
-        _rangeFrom = DateTime.Today.AddMonths(-1).Date;
-        _rangeTo = DateTime.Today.AddMonths(2).Date.AddDays(-1);
+
+        // The calendar is a month-view UI. Do not pre-load a three-month window
+        // (previous month + current month + two future months) just to render
+        // the first screen. FullCalendar will notify OnCalendarRangeChanged
+        // with its actual visible range after initialization.
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+        _rangeFrom = monthStart;
+        _rangeTo = monthEnd;
 
         await LoadAsync(_rangeFrom, _rangeTo);
         _ref = DotNetObjectReference.Create(this);
@@ -262,8 +270,12 @@
 
     public async Task RefreshAsync()
     {
-        var from = _rangeFrom == default ? DateTime.Today.AddMonths(-1).Date : _rangeFrom;
-        var to = _rangeTo == default ? DateTime.Today.AddMonths(2).Date.AddDays(-1) : _rangeTo;
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        var from = _rangeFrom == default ? monthStart : _rangeFrom;
+        var to = _rangeTo == default ? monthEnd : _rangeTo;
 
         await LoadAsync(from, to);
 
