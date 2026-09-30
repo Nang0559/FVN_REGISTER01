@@ -4,48 +4,48 @@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="2">
-            <MudText Typo="Typo.h6">Ngày @Day.Date.ToString("dd/MM/yyyy")</MudText>
+            <MudText Typo="Typo.h6">@Language.T("calendar.day", Day.Date.ToString("dd/MM/yyyy"))</MudText>
 
             @if (Day.Holiday is not null)
             {
                 <MudAlert Severity="Severity.Info" Dense="true">
                     <b>@Day.Holiday.Name</b>
-                    <div>Ngày nghỉ công ty — chỉ đăng ký OT.</div>
+                    <div>@Language.T("calendar.companyHolidayOtOnly")</div>
                 </MudAlert>
             }
 
             <MudPaper Outlined="true" Class="pa-3">
-                <MudText Typo="Typo.subtitle2">Kế hoạch & chấm công</MudText>
+                <MudText Typo="Typo.subtitle2">@Language.T("calendar.planAttendance")</MudText>
 
                 @if (Day.Shift is not null && !string.IsNullOrWhiteSpace(Day.Shift.ShiftAbbr))
                 {
                     <MudText Typo="Typo.body2">
-                        <b>Ca:</b> @Day.Shift.ShiftAbbr
+                        <b>@Language.T("calendar.shiftLabel"):</b> @Day.Shift.ShiftAbbr
                     </MudText>
                 }
 
                 @if (Day.Attendance is not null)
                 {
                     <MudText Typo="Typo.body2">
-                        <b>IN:</b> @(Day.Attendance.CheckIn?.ToString("HH:mm") ?? "-")
-                        &nbsp; <b>OUT:</b> @(Day.Attendance.CheckOut?.ToString("HH:mm") ?? "-")
+                        <b>@Language.T("calendar.in"):</b> @(Day.Attendance.CheckIn?.ToString("HH:mm") ?? "-")
+                        &nbsp; <b>@Language.T("calendar.out"):</b> @(Day.Attendance.CheckOut?.ToString("HH:mm") ?? "-")
                     </MudText>
                     <MudText Typo="Typo.body2">
-                        <b>Giờ công:</b>
+                        <b>@Language.T("calendar.workHours"):</b>
                         @(Day.Attendance.ActualHours?.ToString("0.##") ?? "-")
-                        / @(Day.Attendance.RequiredHours?.ToString("0.##") ?? "-") giờ
+                        / @(Day.Attendance.RequiredHours?.ToString("0.##") ?? "-") @Language.T("calendar.hours")
                     </MudText>
                 }
                 else
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Chưa có dữ liệu chấm công.</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("calendar.noAttendance")</MudText>
                 }
             </MudPaper>
 
             @if (Day.Registrations.Count > 0)
             {
                 <MudPaper Outlined="true" Class="pa-3">
-                    <MudText Typo="Typo.subtitle2">Đăng ký</MudText>
+                    <MudText Typo="Typo.subtitle2">@Language.T("calendar.registrations")</MudText>
                     <MudStack Spacing="1" Class="mt-2">
                         @foreach (var registration in Day.Registrations)
                         {
@@ -53,7 +53,7 @@
                                 <b>@registration.ModuleCode</b>&nbsp; @registration.Title
                                 @if (registration.IsHalfDay)
                                 {
-                                    <span>&nbsp;• nửa ngày</span>
+                                    <span>&nbsp;• @Language.T("calendar.halfDay")</span>
                                 }
                             </MudChip>
                         }
@@ -64,7 +64,7 @@
             @if (Day.Issues.Count > 0)
             {
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2">Cần chú ý</MudText>
+                    <MudText Typo="Typo.subtitle2">@Language.T("calendar.attention")</MudText>
 
                     @foreach (var issue in Day.Issues)
                     {
@@ -109,7 +109,7 @@
             @if (Day.IsFuture)
             {
                 <MudPaper Outlined="true" Class="pa-3">
-                    <MudText Typo="Typo.subtitle2">Đăng ký mới</MudText>
+                    <MudText Typo="Typo.subtitle2">@Language.T("calendar.newRegistration")</MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                         @Day.AvailabilityNote
                     </MudText>
@@ -121,7 +121,7 @@
                                        Variant="Variant.Filled"
                                        StartIcon="@Icons.Material.Filled.EventAvailable"
                                        OnClick="@(() => Register("LEAVE"))">
-                                Nghỉ phép
+                                @Language.T("calendar.filter.leave")
                             </MudButton>
                         }
 
@@ -132,7 +132,7 @@
                                        Color="Color.Warning"
                                        StartIcon="@Icons.Material.Filled.MoreTime"
                                        OnClick="@(() => Register("OT"))">
-                                OT
+                                @Language.T("calendar.filter.ot")
                             </MudButton>
                         }
 
@@ -143,7 +143,7 @@
                                        Color="Color.Info"
                                        StartIcon="@Icons.Material.Filled.FlightTakeoff"
                                        OnClick="@(() => Register("TRIP"))">
-                                Công tác
+                                @Language.T("calendar.filter.trip")
                             </MudButton>
                         }
                     </MudStack>
@@ -155,11 +155,11 @@
                 <MudPaper Outlined="true" Class="pa-3 mt-3">
                     <MudText Typo="Typo.subtitle2">@Language.T("ot.cancel")</MudText>
                     <MudTextField @bind-Value="_cancelReason"
-                                  Label="Lý do hủy"
+                                  Label='@Language.T("calendar.cancelReason")'
                                   Variant="Variant.Outlined"
                                   Required="true"
                                   Lines="3"
-                                  Placeholder="Ví dụ: Tôi bị ốm, xin hủy OT ngày này." />
+                                  Placeholder='@Language.T("calendar.cancelPlaceholder")' />
 
                     <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-2">
                         <MudButton OnClick="@(() => _cancelAction = null)">@Language.T("common.no")</MudButton>
@@ -167,7 +167,7 @@
                                    Variant="Variant.Filled"
                                    Disabled="@string.IsNullOrWhiteSpace(_cancelReason)"
                                    OnClick="ConfirmCancelOt">
-                            Xác nhận hủy
+                            @Language.T("calendar.confirmCancel")
                         </MudButton>
                     </MudStack>
                 </MudPaper>
