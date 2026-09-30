@@ -6,6 +6,7 @@
 @inject ISecurityClientService SecurityService
 @using MudBlazor
 @inject ICurrentUserClientService CurrentUser
+@implements IDisposable
 
 <MudNavMenu>
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">@Language.T("nav.dashboard")</MudText>
