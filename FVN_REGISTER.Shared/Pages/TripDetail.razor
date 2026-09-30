@@ -10,7 +10,7 @@
 @inject NavigationManager Navigation
 @inherits AppComponentBase
 
-<PageTitle>Chi tiết công tác</PageTitle>
+<PageTitle>@Language.T("trip.chiTietCongTac")</PageTitle>
 
 @if (_loading)
 {
@@ -18,7 +18,7 @@
 }
 else if (_item == null)
 {
-    <MudAlert Severity="Severity.Warning" Class="mt-4">Không tìm thấy đăng ký công tác.</MudAlert>
+    <MudAlert Severity="Severity.Warning" Class="mt-4">@Language.T("trip.khongTimThayDangKy")</MudAlert>
 }
 else
 {
@@ -30,7 +30,7 @@ else
                         <MudIcon Icon="@Icons.Material.Filled.FlightTakeoff" Class="mr-2" />
                         @_item.TripCode
                     </MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Chi tiết đăng ký công tác</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("trip.chiTietDangKyCong")</MudText>
                 </div>
                 <MudChip T="string" Color="@GetStatusColor(_item.RequestStatus)" Label="true">
                     @GetStatusText(_item.RequestStatus)
@@ -44,13 +44,13 @@ else
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("nav.departments")</MudText><MudText>@(_item.DeptCode ?? "—")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.startDate")</MudText><MudText>@_item.StartDate.ToString("dd/MM/yyyy")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.endDate")</MudText><MudText>@_item.EndDate.ToString("dd/MM/yyyy")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Địa điểm</MudText><MudText>@_item.Destination</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Khách hàng / đối tác</MudText><MudText>@(_item.CustomerOrPartner ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.diaDiem")</MudText><MudText>@_item.Destination</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.khachHangDoiTac")</MudText><MudText>@(_item.CustomerOrPartner ?? "—")</MudText></MudItem>
                 <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("trip.purpose")</MudText><MudText Style="white-space:pre-wrap">@_item.Purpose</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Phương tiện</MudText><MudText>@(_item.TransportMethod ?? "—")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Chi phí dự kiến</MudText><MudText>@(_item.EstimatedCost.HasValue ? _item.EstimatedCost.Value.ToString("N0") + " ₫" : "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Nhân viên đi cùng</MudText><MudText>@(_item.CompanionEmployeeCodes ?? "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Lưu trú</MudText><MudText>@(_item.Accommodation ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.phuongTien")</MudText><MudText>@(_item.TransportMethod ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.chiPhiDuKien")</MudText><MudText>@(_item.EstimatedCost.HasValue ? _item.EstimatedCost.Value.ToString("N0") + " ₫" : "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("trip.nhanVienDiCung")</MudText><MudText>@(_item.CompanionEmployeeCodes ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("trip.luuTru")</MudText><MudText>@(_item.Accommodation ?? "—")</MudText></MudItem>
                 <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("common.note")</MudText><MudText Style="white-space:pre-wrap">@(_item.Note ?? "—")</MudText></MudItem>
             </MudGrid>
 
@@ -83,7 +83,7 @@ else
             var result = await TripService.GetAsync(Id);
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể tải đăng ký.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("trip.khongTheTaiDangKy"), Severity.Error);
                 return;
             }
 
@@ -105,12 +105,12 @@ else
             var result = await TripService.SubmitAsync(_item.Id);
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể gửi đăng ký.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("trip.khongTheGuiDangKy2"), Severity.Error);
                 return;
             }
 
             _item = result.Data ?? _item;
-            Snackbar.Add("Đã gửi đăng ký công tác vào quy trình phê duyệt.", Severity.Success);
+            Snackbar.Add(Language.T("trip.daGuiDangKyCong"), Severity.Success);
         }
         finally
         {

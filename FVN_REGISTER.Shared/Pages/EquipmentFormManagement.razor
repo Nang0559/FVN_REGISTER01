@@ -18,8 +18,8 @@
     <MudStack Spacing="3">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
             <div>
-                <MudText Typo="Typo.h5">Biểu mẫu áp dụng theo loại thiết bị</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Biểu mẫu được tạo bằng chức năng Biểu mẫu chung. Chỉ người được Security Center chỉ định cho từng loại thiết bị mới được cấu hình biểu mẫu áp dụng.</MudText>
+                <MudText Typo="Typo.h5">@Language.T("equipment.bieuMauApDungTheo")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.bieuMauDuocTaoBang")</MudText>
             </div>
             <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">@Language.T("common.back")</MudButton>
         </MudStack>
@@ -31,7 +31,7 @@
         else if (_schemas.Count == 0)
         {
             <MudAlert Severity="Severity.Warning">
-                Bạn chưa được chỉ định quyền quản lý biểu mẫu cho bất kỳ loại thiết bị nào. SuperAdmin có thể cấu hình người phụ trách theo từng loại thiết bị.
+                @Language.T("equipment.banChuaDuocChiDinh")
             </MudAlert>
         }
         else
@@ -39,7 +39,7 @@
             <MudGrid>
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-3">
-                        <MudText Typo="Typo.subtitle1">Loại / schema thiết bị được phụ trách</MudText>
+                        <MudText Typo="Typo.subtitle1">@Language.T("equipment.loaiSchemaThietBiDuoc")</MudText>
                         @foreach (var schema in _schemas.OrderBy(x => x.DeptCode).ThenBy(x => x.SchemaName))
                         {
                             <MudButton FullWidth="true" Variant="@(schema.Id == _selectedSchemaId ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectSchemaAsync(schema))">
@@ -53,12 +53,12 @@
                     @if (_selectedSchemaId.HasValue)
                     {
                         <MudPaper Class="pa-4">
-                            <MudText Typo="Typo.h6">Biểu mẫu đang áp dụng</MudText>
+                            <MudText Typo="Typo.h6">@Language.T("equipment.bieuMauDangApDung")</MudText>
                             <MudText Typo="Typo.caption">Schema: @_selectedSchemaName</MudText>
                             <MudDivider Class="my-3" />
                             @if (_assignments.Count == 0)
                             {
-                                <MudAlert Severity="Severity.Info">Chưa có biểu mẫu nào được gán cho loại thiết bị này.</MudAlert>
+                                <MudAlert Severity="Severity.Info">@Language.T("equipment.chuaCoBieuMauNao")</MudAlert>
                             }
                             else
                             {
@@ -71,23 +71,23 @@
                                 }
                             }
                             <MudDivider Class="my-3" />
-                            <MudText Typo="Typo.subtitle2">Thêm biểu mẫu</MudText>
-                            <MudSelect T="int" @bind-Value="_selectedFormId" Label="Biểu mẫu đã phát hành" Variant="Variant.Outlined" Class="mt-2">
+                            <MudText Typo="Typo.subtitle2">@Language.T("equipment.themBieuMau")</MudText>
+                            <MudSelect T="int" @bind-Value="_selectedFormId" Label="@Language.T("equipment.bieuMauDaPhatHanh")" Variant="Variant.Outlined" Class="mt-2">
                                 @foreach (var form in _catalog.Where(x => x.IsActive == true && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)))
                                 {
                                     <MudSelectItem Value="@form.Id">@form.FormCode — @form.Title</MudSelectItem>
                                 }
                             </MudSelect>
-                            <MudNumericField T="int" @bind-Value="_displayOrder" Label="Thứ tự hiển thị" Min="0" Class="mt-2" />
+                            <MudNumericField T="int" @bind-Value="_displayOrder" Label="@Language.T("equipment.thuTuHienThi")" Min="0" Class="mt-2" />
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="@(_selectedFormId <= 0)" OnClick="AssignAsync">Áp dụng cho loại thiết bị</MudButton>
                         </MudPaper>
 
                         @if (_isSuperAdmin)
                         {
                             <MudPaper Class="pa-4 mt-3" Outlined="true">
-                                <MudText Typo="Typo.h6">Người phụ trách loại thiết bị</MudText>
+                                <MudText Typo="Typo.h6">@Language.T("equipment.nguoiPhuTrachLoaiThiet")</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    Chỉ SuperAdmin được chỉ định người có quyền cấu hình biểu mẫu cho schema này. Quyền vẫn phải có capability <b>EquipmentFormManage (2320)</b>.
+                                    Chỉ SuperAdmin được chỉ định người có quyền cấu hình biểu mẫu cho schema này. Quyền vẫn phải có capability <b>@Language.T("equipment.equipmentformmanage2320")</b>.
                                 </MudText>
                                 <MudStack Row="true" Spacing="2" Class="mt-3">
                                     <MudSelect T="string" Label='@Language.T("common.employee")' Variant="Variant.Outlined" @bind-Value="_operatorEmployeeCode" Style="min-width:360px">
@@ -99,7 +99,7 @@
                                         }
                                     </MudSelect>
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_savingOperator || string.IsNullOrWhiteSpace(_operatorEmployeeCode))" OnClick="AddOperatorAsync">
-                                        Chỉ định
+                                        @Language.T("common.chiDinh")
                                     </MudButton>
                                 </MudStack>
                                 <MudTable T="FeatureOperatorAssignmentDto" Items="_operatorAssignments" Dense="true" Hover="true" Class="mt-3">
@@ -117,7 +117,7 @@
                                             <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveOperatorAsync(context))">Bỏ chỉ định</MudButton>
                                         </MudTd>
                                     </RowTemplate>
-                                    <NoRecordsContent><MudText Class="pa-2">Chưa có người phụ trách.</MudText></NoRecordsContent>
+                                    <NoRecordsContent><MudText Class="pa-2">@Language.T("equipment.chuaCoNguoiPhuTrach")</MudText></NoRecordsContent>
                                 </MudTable>
                             </MudPaper>
                         }
@@ -152,7 +152,7 @@
         var forms = await EquipmentClient.GetEquipmentFormCatalogAsync();
         if (!schemas.IsSuccess || !forms.IsSuccess)
         {
-            Snackbar.Add(schemas.Message ?? forms.Message ?? "Không thể tải dữ liệu biểu mẫu thiết bị.", Severity.Error);
+            Snackbar.Add(schemas.Message ?? forms.Message ?? Language.T("equipment.khongTheTaiDuLieu"), Severity.Error);
             _loading = false;
             return;
         }
@@ -183,7 +183,7 @@
         var result = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaKey);
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Bạn không có quyền quản lý loại thiết bị này.", Severity.Warning);
+            Snackbar.Add(result.Message ?? Language.T("equipment.banKhongCoQuyenQuan"), Severity.Warning);
             return;
         }
         _selectedSchemaId = schema.Id;
@@ -220,12 +220,12 @@
             });
             if (result.IsSuccess)
             {
-                Snackbar.Add("Đã chỉ định người phụ trách loại thiết bị.", Severity.Success);
+                Snackbar.Add(Language.T("equipment.daChiDinhNguoiPhu"), Severity.Success);
                 _operatorEmployeeCode = string.Empty;
                 var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId.Value);
                 if (schema != null) await LoadOperatorsAsync(schema);
             }
-            else Snackbar.Add(result.Message ?? "Không thể chỉ định người phụ trách.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheChiDinhNguoi"), Severity.Error);
         }
         finally { _savingOperator = false; }
     }
@@ -236,10 +236,10 @@
         var result = await SecurityClient.RemoveFeatureOperatorAsync(assignment.Id);
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không thể bỏ chỉ định.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("common.khongTheBoChiDinh"), Severity.Error);
             return;
         }
-        Snackbar.Add("Đã bỏ chỉ định người phụ trách.", Severity.Success);
+        Snackbar.Add(Language.T("equipment.daBoChiDinhNguoi"), Severity.Success);
         var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId);
         if (schema != null) await LoadOperatorsAsync(schema);
     }
@@ -252,10 +252,10 @@
         var result = await EquipmentClient.AssignEquipmentFormAsync(new EquipmentFormAssignmentRequest { EquipmentSchemaKey = schema.SchemaKey, FormId = _selectedFormId, DisplayOrder = _displayOrder });
         if (result.IsSuccess)
         {
-            Snackbar.Add("Đã áp dụng biểu mẫu cho loại thiết bị.", Severity.Success);
+            Snackbar.Add(Language.T("equipment.daApDungBieuMau"), Severity.Success);
             await SelectSchemaAsync(schema);
         }
-        else Snackbar.Add(result.Message ?? "Không thể áp dụng biểu mẫu.", Severity.Error);
+        else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheApDungBieu"), Severity.Error);
     }
 
     private async Task RemoveAsync(int assignmentId)
@@ -263,13 +263,13 @@
         var result = await EquipmentClient.RemoveEquipmentFormAssignmentAsync(assignmentId);
         if (result.IsSuccess)
         {
-            Snackbar.Add("Đã ngừng áp dụng biểu mẫu.", Severity.Success);
+            Snackbar.Add(Language.T("equipment.daNgungApDungBieu"), Severity.Success);
             if (_selectedSchemaId.HasValue)
             {
                 var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId.Value);
                 if (schema != null) await SelectSchemaAsync(schema);
             }
         }
-        else Snackbar.Add(result.Message ?? "Không thể ngừng áp dụng biểu mẫu.", Severity.Error);
+        else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheNgungApDung"), Severity.Error);
     }
 }

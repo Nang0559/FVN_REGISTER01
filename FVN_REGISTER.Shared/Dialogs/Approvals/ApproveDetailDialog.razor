@@ -12,20 +12,20 @@
         <MudSimpleTable Dense="true" Class="mb-3">
             <tbody>
                 <tr><td><b>@Language.T("common.employeeCode")</b></td><td>@Item.EmployeeCode</td></tr>
-                <tr><td><b>Loại đơn</b></td><td>@GetKindDisplay(Item.Kind)</td></tr>
-                <tr><td><b>Thời gian</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
-                <tr><td><b>Số lượng</b></td><td>@Item.TotalUnits.ToString("N1") @GetUnitLabel(Item.Kind)</td></tr>
+                <tr><td><b>@Language.T("approval.loaiDon")</b></td><td>@GetKindDisplay(Item.Kind)</td></tr>
+                <tr><td><b>@Language.T("common.thoiGian")</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
+                <tr><td><b>@Language.T("common.soLuong")</b></td><td>@Item.TotalUnits.ToString("N1") @GetUnitLabel(Item.Kind)</td></tr>
                 <tr><td><b>@Language.T("ot.department")</b></td><td>@Item.DeptName</td></tr>
-                <tr><td><b>Cấp đang chờ</b></td><td>@CurrentApprovalLevel</td></tr>
-                <tr><td><b>Người duyệt</b></td><td>@(CurrentApproverName ?? "—")</td></tr>
+                <tr><td><b>@Language.T("approval.capDangCho")</b></td><td>@CurrentApprovalLevel</td></tr>
+                <tr><td><b>@Language.T("approval.nguoiDuyet")</b></td><td>@(CurrentApproverName ?? "—")</td></tr>
             </tbody>
         </MudSimpleTable>
 
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Tiến trình phê duyệt</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("common.tienTrinhPheDuyet")</MudText>
         <OTApprovalProgressBar Steps="@Item.ApprovalSteps" />
 
         <MudTextField @bind-Value="_comment"
-                      Label="Ý kiến / Lý do từ chối"
+                      Label="@Language.T("approval.yKienLyDoTu")"
                       Lines="2"
                       Variant="Variant.Outlined"
                       Margin="Margin.Dense"
@@ -40,7 +40,7 @@
                    Variant="Variant.Outlined"
                    Disabled="@(string.IsNullOrWhiteSpace(_comment) || _isBusy)"
                    OnClick="Reject">
-            Từ chối
+            @Language.T("common.reject")
         </MudButton>
 
         <MudButton Color="Color.Success"
@@ -111,7 +111,7 @@
 
         if (level <= 0)
         {
-            Snackbar.Add("Không xác định được cấp phê duyệt hiện tại.", Severity.Warning);
+            Snackbar.Add(Language.T("approval.khongXacDinhDuocCap"), Severity.Warning);
             return;
         }
 
@@ -145,7 +145,7 @@
             }
             else
             {
-                Snackbar.Add(result.Message ?? "Lỗi xử lý.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("approval.loiXuLy"), Severity.Error);
             }
         }
         finally

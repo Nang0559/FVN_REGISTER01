@@ -1,9 +1,17 @@
 {
+  "workspace.approvalInbox": "Approval Inbox",
+  "workspace.choPheDuyet": "CHỜ PHÊ DUYỆT",
+  "workspace.daLocTheoCapabilityVa": "Đã lọc theo capability và data scope.",
+  "workspace.khongCoThongBao": "Không có thông báo.",
+  "workspace.khongCoViecPheDuyet": "Không có việc phê duyệt trong phạm vi của bạn.",
   "workspace.list": "Danh sách",
   "workspace.myTasks": "Việc cần tôi xử lý",
   "workspace.openCalendar": "Mở lịch",
   "workspace.overview": "TỔNG QUAN WORKSPACE",
   "workspace.quickActions": "Thao tác nhanh",
   "workspace.register": "Đăng ký",
-  "workspace.summary": "Tổng quan chỉ tổng hợp trạng thái; quy trình nghiệp vụ vẫn được xử lý tại Đăng ký/Danh sách/Phê duyệt."
+  "workspace.summary": "Tổng quan chỉ tổng hợp trạng thái; quy trình nghiệp vụ vẫn được xử lý tại Đăng ký/Danh sách/Phê duyệt.",
+  "workspace.thongBaoCaNhanVa": "Thông báo cá nhân và nghiệp vụ.",
+  "workspace.thongBaoChuaDoc": "THÔNG BÁO CHƯA ĐỌC",
+  "workspace.thongBaoVaPheDuyet": "Thông báo và phê duyệt được gom về một nơi."
 }

@@ -29,10 +29,10 @@
         <MudList T="NotificationDto" Dense="true">
             <MudListItem>
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.subtitle2">Thông báo</MudText>
+                    <MudText Typo="Typo.subtitle2">@Language.T("common.thongBao")</MudText>
                     @if (NotificationService.UnreadCount > 0)
                     {
-                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="MarkAllRead">Đọc tất cả</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="MarkAllRead">@Language.T("common.docTatCa")</MudButton>
                     }
                 </MudStack>
             </MudListItem>
@@ -50,7 +50,7 @@
             else if (!NotificationService.Notifications.Any())
             {
                 <MudListItem>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Không có thông báo mới</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("common.khongCoThongBaoMoi")</MudText>
                 </MudListItem>
             }
             else
@@ -184,7 +184,7 @@
 
                 if (push.Latest != null)
                 {
-                    Snackbar.Add(push.Latest.Title ?? "Có thông báo mới", Severity.Info,
+                    Snackbar.Add(push.Latest.Title ?? Language.T("common.coThongBaoMoi"), Severity.Info,
                         config => config.VisibleStateDuration = 4000);
                 }
             });
@@ -192,7 +192,7 @@
             _hub.On<string>("ForceLogout", message =>
             {
                 if (_disposed) return;
-                Snackbar.Add(message ?? "Phiên đăng nhập đã kết thúc.", Severity.Warning);
+                Snackbar.Add(message ?? Language.T("common.phienDangNhapDaKet"), Severity.Warning);
                 _ = InvokeAsync(() => Nav.NavigateTo("/login", forceLoad: true));
             });
 

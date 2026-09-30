@@ -15,7 +15,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialog
 
-<PageTitle>Lịch sử yêu cầu</PageTitle>
+<PageTitle>@Language.T("history.lichSuYeuCau")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <MudText Typo="Typo.h5"><MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />@Title</MudText>
@@ -26,16 +26,16 @@
     <MudGrid Class="mb-4">
         @if (Kind == RequestModule.Leave)
         {
-            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">TỔNG PHÉP</MudText><MudText Typo="Typo.h6">@((_balance.Entitled ?? 0m).ToString("N1"))</MudText></MudPaper></MudItem>
-            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">ĐÃ DÙNG</MudText><MudText Typo="Typo.h6">@((_balance.Used ?? 0m).ToString("N1"))</MudText></MudPaper></MudItem>
-            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">CÒN LẠI</MudText><MudText Typo="Typo.h6">@((_balance.Remaining ?? 0m).ToString("N1"))</MudText></MudPaper></MudItem>
-            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">CHỜ DUYỆT</MudText><MudText Typo="Typo.h6">@_balance.PendingCount</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("history.tongPhep")</MudText><MudText Typo="Typo.h6">@((_balance.Entitled ?? 0m).ToString("N1"))</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("history.daDung")</MudText><MudText Typo="Typo.h6">@((_balance.Used ?? 0m).ToString("N1"))</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("history.conLai")</MudText><MudText Typo="Typo.h6">@((_balance.Remaining ?? 0m).ToString("N1"))</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("history.choDuyet")</MudText><MudText Typo="Typo.h6">@_balance.PendingCount</MudText></MudPaper></MudItem>
         }
         else
         {
-            <MudItem xs="6" sm="4"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">TỔNG GIỜ OT</MudText><MudText Typo="Typo.h6">@_balance.TotalOTHours?.ToString("N1") h</MudText></MudPaper></MudItem>
-            <MudItem xs="6" sm="4"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">ĐÃ DUYỆT</MudText><MudText Typo="Typo.h6">@_balance.ApprovedOTHours?.ToString("N1") h</MudText></MudPaper></MudItem>
-            <MudItem xs="6" sm="4"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">CHỜ DUYỆT</MudText><MudText Typo="Typo.h6">@_balance.PendingCount</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="4"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("history.tongGioOt")</MudText><MudText Typo="Typo.h6">@_balance.TotalOTHours?.ToString("N1") h</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="4"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("history.daDuyet")</MudText><MudText Typo="Typo.h6">@_balance.ApprovedOTHours?.ToString("N1") h</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="4"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("history.choDuyet")</MudText><MudText Typo="Typo.h6">@_balance.PendingCount</MudText></MudPaper></MudItem>
         }
     </MudGrid>
 }
@@ -63,7 +63,7 @@
 
 <MudTable T="HistoryItemDto" ServerData="ServerReload" @ref="_table" Dense="true" Hover="true" Loading="_loading">
     <HeaderContent>
-        <MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>Thời gian</MudTh><MudTh>Số lượng</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>Tiến trình</MudTh><MudTh></MudTh>
+        <MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("common.thoiGian")</MudTh><MudTh>@Language.T("common.soLuong")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("common.tienTrinh")</MudTh><MudTh></MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.SubmittedAt.ToString("dd/MM/yyyy")</MudTd>
@@ -82,7 +82,7 @@
             @if (context.CanCancel) { <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="@(() => Cancel(context))" /> }
         </MudTd>
     </RowTemplate>
-    <NoRecordsContent><MudText Class="pa-4" Color="Color.Secondary">Không có dữ liệu.</MudText></NoRecordsContent>
+    <NoRecordsContent><MudText Class="pa-4" Color="Color.Secondary">@Language.T("common.khongCoDuLieu")</MudText></NoRecordsContent>
     <PagerContent><MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" /></PagerContent>
 </MudTable>
 
@@ -120,7 +120,7 @@
             var result = await HistoryService.GetHistoryAsync(filter, ct);
             if (result.IsSuccess && result.Data != null)
                 return new TableData<HistoryItemDto> { Items = result.Data.Data, TotalItems = result.Data.TotalCount };
-            Snackbar.Add(result.Message ?? "Lỗi tải lịch sử.", Severity.Warning);
+            Snackbar.Add(result.Message ?? Language.T("history.loiTaiLichSu"), Severity.Warning);
         }
         finally { _loading = false; }
         return new TableData<HistoryItemDto> { Items = Array.Empty<HistoryItemDto>(), TotalItems = 0 };
@@ -136,7 +136,7 @@
     private async Task OpenDetail(HistoryItemDto item)
     {
         var result = await HistoryService.GetDetailAsync(Kind, item.Id, _cts.Token);
-        if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? "Lỗi tải chi tiết.", Severity.Error); return; }
+        if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? Language.T("common.loiTaiChiTiet"), Severity.Error); return; }
         var parameters = new DialogParameters<RequestDetailDialog> { { x => x.Detail, result.Data } };
         await Dialog.ShowAsync<RequestDetailDialog>("Chi tiết yêu cầu", parameters, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
     }
@@ -146,7 +146,7 @@
         var confirmed = await Dialog.ShowMessageBoxAsync("Xác nhận hủy", $"Hủy đơn #{item.Id}?", yesText: "Hủy đơn", cancelText: "Không");
         if (confirmed != true) return;
         var result = await HistoryService.CancelAsync(Kind, item.Id, "Người dùng hủy", _cts.Token);
-        Snackbar.Add(result.IsSuccess ? "Đã hủy thành công." : result.Message ?? "Lỗi hủy.", result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(result.IsSuccess ? Language.T("history.daHuyThanhCong") : result.Message ?? Language.T("history.loiHuy"), result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess && _table != null) await _table.ReloadServerData();
     }
 

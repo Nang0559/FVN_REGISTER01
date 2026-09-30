@@ -13,7 +13,7 @@
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <div>
             <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("security.sessions")</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Xem và đăng xuất các thiết bị đang sử dụng tài khoản này.</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("security.xemVaDangXuatCac")</MudText>
         </div>
         <MudSpacer />
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton>
@@ -23,13 +23,13 @@
 
     <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
         @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
-        else if (_sessions.Count == 0) { <MudAlert Severity="Severity.Info">Không có phiên đăng nhập đang hoạt động.</MudAlert> }
+        else if (_sessions.Count == 0) { <MudAlert Severity="Severity.Info">@Language.T("security.khongCoPhienDangNhap")</MudAlert> }
         else
         {
             <MudTable Items="_sessions" Hover="true" Dense="true" Striped="true">
                 <HeaderContent>
                     <MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("common.login")</MudTh>
-                    <MudTh>Hoạt động cuối</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh>
+                    <MudTh>@Language.T("security.hoatDongCuoi")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.DeviceName</b></MudTd>
@@ -37,7 +37,7 @@
                     <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
                     <MudTd>@(context.LastSeenAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>
                     <MudTd>
-                        @if (context.IsCurrent) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Thiết bị hiện tại</MudChip> }
+                        @if (context.IsCurrent) { <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("security.thietBiHienTai")</MudChip> }
                         else { <MudChip T="string" Size="Size.Small">@Language.T("common.enabled")</MudChip> }
                     </MudTd>
                     <MudTd>
@@ -79,7 +79,7 @@
         try
         {
             var result = await AuthService.RevokeSessionAsync(session.Id);
-            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể đăng xuất thiết bị.", Severity.Error); return; }
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("security.khongTheDangXuatThiet"), Severity.Error); return; }
             _sessions.RemoveAll(x => x.Id == session.Id);
             Snackbar.Add($"Đã đăng xuất thiết bị {session.DeviceName}.", Severity.Success);
         }

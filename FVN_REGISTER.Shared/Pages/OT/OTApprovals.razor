@@ -16,10 +16,10 @@
 
 <MudText Typo="Typo.h5" Class="mb-1">
     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
-    Phê duyệt đơn OT
+    @Language.T("approval.pheDuyetDonOt")
 </MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-    Danh sách đơn OT đang chờ phê duyệt
+    @Language.T("approval.danhSachDonOtDang")
 </MudText>
 
 <MudTabs Elevation="2" Rounded="true" Class="mb-4" @bind-ActivePanelIndex="_activeLevel">
@@ -69,7 +69,7 @@
             }
             else
             {
-                Snackbar.Add(result.Message ?? "Không tải được danh sách.", Severity.Warning);
+                Snackbar.Add(result.Message ?? Language.T("approval.khongTaiDuocDanhSach2"), Severity.Warning);
             }
         }
         catch (OperationCanceledException) when (_cts.IsCancellationRequested)
@@ -78,7 +78,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "[OT_APPROVAL] Load error");
-            Snackbar.Add("Lỗi tải danh sách chờ duyệt.", Severity.Error);
+            Snackbar.Add(Language.T("approval.loiTaiDanhSachCho"), Severity.Error);
         }
         finally { _isLoading = false; }
     }

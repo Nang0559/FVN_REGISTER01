@@ -3,12 +3,19 @@
   "login.authenticating": "Đang xác thực...",
   "login.code": "Mã 6 số",
   "login.connectFailed": "Không thể kết nối đến máy chủ FCC.",
+  "login.doiMatKhauThanhCong": "Đổi mật khẩu thành công. Vui lòng đăng nhập lại!",
+  "login.eApprovalSystem": "e-Approval System",
   "login.employeeCode": "Mã nhân viên",
   "login.forgot": "Quên mật khẩu?",
   "login.forgotDescription": "Nhập mã nhân viên. Hệ thống sẽ gửi yêu cầu đến IT để xác minh và cấp lại mật khẩu tạm.",
   "login.forgotTitle": "Gửi yêu cầu quên mật khẩu cho IT",
   "login.invalidCredentials": "Mã nhân viên hoặc mật khẩu không đúng.",
+  "login.khongTheDoiMatKhau": "Không thể đổi mật khẩu.",
+  "login.loiHeThongKhiDoi": "Lỗi hệ thống khi đổi mật khẩu.",
   "login.manualUri": "Xem URI cấu hình thủ công",
+  "login.matKhauHienTai": "Mật khẩu hiện tại",
+  "login.matKhauMoi": "Mật khẩu mới",
+  "login.matKhauMoiVaXac": "Mật khẩu mới và xác nhận không khớp!",
   "login.optionalNote": "Ghi chú (không bắt buộc)",
   "login.password": "Mật khẩu",
   "login.publicInfo": "Thông báo & quy định công khai",
@@ -26,5 +33,6 @@
   "login.twoFactorRequired": "Tài khoản này được yêu cầu xác thực 2 lớp. Hãy mở ứng dụng Authenticator và quét mã QR.",
   "login.twoFactorSuccess": "Xác thực thành công!",
   "login.username": "Mã nhân viên / UserName",
-  "login.verify": "XÁC THỰC & ĐĂNG NHẬP"
+  "login.verify": "XÁC THỰC & ĐĂNG NHẬP",
+  "login.xacNhanMatKhauMoi": "Xác nhận mật khẩu mới"
 }

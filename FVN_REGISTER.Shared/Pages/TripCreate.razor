@@ -21,12 +21,12 @@
 <MudPaper Class="pa-2 mb-4" Elevation="1">
     <MudText Typo="Typo.subtitle1">@Language.T("leave.sharedCalendar")</MudText>
     <MudText Typo="Typo.caption" Color="Color.Secondary">
-        Lịch tổng hợp chấm công, nghỉ phép, OT và công tác được quản lý tập trung tại một nơi.
+        @Language.T("leave.sharedCalendarDescription")
     </MudText>
     <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.CalendarMonth"
                OnClick="@(() => Navigation.NavigateTo("/calendar"))">
-        Mở lịch chung
+        @Language.T("leave.openCalendar")
     </MudButton>
 </MudPaper>
 
@@ -36,73 +36,73 @@
             <div>
                 <MudText Typo="Typo.h6">
                     <MudIcon Icon="@Icons.Material.Filled.FlightTakeoff" Class="mr-2" />
-                    Đăng ký công tác
+                    @Language.T("trip.create")
                 </MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Tạo nháp trước, sau đó gửi vào quy trình phê duyệt.
+                    @Language.T("trip.taoNhapTruocSauDo")
                 </MudText>
             </div>
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.History" Href="/trip/history">
-                Lịch sử
+                @Language.T("nav.history")
             </MudButton>
         </MudStack>
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="1">
         <MudForm @ref="_form">
-            <MudText Typo="Typo.subtitle1" Class="mb-2">Thông tin chuyến công tác</MudText>
+            <MudText Typo="Typo.subtitle1" Class="mb-2">@Language.T("trip.thongTinChuyenCongTac")</MudText>
 
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
                     <MudDatePicker @bind-Date="_startDate"
-                                   Label="Ngày bắt đầu *"
+                                   Label="@Language.T("trip.ngayBatDau")"
                                    Variant="Variant.Outlined"
                                    Margin="Margin.Dense"
                                    Required="true"
-                                   RequiredError="Vui lòng chọn ngày bắt đầu" />
+                                   RequiredError="@Language.T("trip.vuiLongChonNgayBat")" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudDatePicker @bind-Date="_endDate"
-                                   Label="Ngày kết thúc *"
+                                   Label="@Language.T("trip.ngayKetThuc")"
                                    Variant="Variant.Outlined"
                                    Margin="Margin.Dense"
                                    Required="true"
-                                   RequiredError="Vui lòng chọn ngày kết thúc" />
+                                   RequiredError="@Language.T("trip.vuiLongChonNgayKet")" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="_destination"
-                                  Label="Địa điểm công tác *"
+                                  Label="@Language.T("trip.diaDiemCongTac")"
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense"
                                   Required="true"
-                                  RequiredError="Vui lòng nhập địa điểm" />
+                                  RequiredError="@Language.T("trip.vuiLongNhapDiaDiem")" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="_customerOrPartner"
-                                  Label="Khách hàng / đối tác"
+                                  Label="@Language.T("trip.khachHangDoiTac")"
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_purpose"
-                                  Label="Mục đích công tác *"
+                                  Label="@Language.T("trip.mucDichCongTac")"
                                   Lines="3"
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense"
                                   Required="true"
-                                  RequiredError="Vui lòng nhập mục đích" />
+                                  RequiredError="@Language.T("trip.vuiLongNhapMucDich")" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="_transportMethod"
-                                  Label="Phương tiện"
-                                  Placeholder="Ô tô, máy bay, tàu..."
+                                  Label="@Language.T("trip.phuongTien")"
+                                  Placeholder="@Language.T("trip.oToMayBayTau")"
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudNumericField T="decimal?"
                                      @bind-Value="_estimatedCost"
-                                     Label="Chi phí dự kiến (VNĐ)"
+                                     Label="@Language.T("trip.chiPhiDuKienVnd")"
                                      Variant="Variant.Outlined"
                                      Margin="Margin.Dense"
                                      Min="0"
@@ -110,15 +110,15 @@
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_companionEmployeeCodes"
-                                  Label="Nhân viên đi cùng"
-                                  HelperText="Nhập mã nhân viên, phân cách bằng dấu phẩy"
+                                  Label="@Language.T("trip.nhanVienDiCung")"
+                                  HelperText="@Language.T("trip.nhapMaNhanVienPhan")"
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_accommodation"
-                                  Label="Lưu trú"
-                                  Placeholder="Khách sạn / nơi ở dự kiến"
+                                  Label="@Language.T("trip.luuTru")"
+                                  Placeholder="@Language.T("trip.khachSanNoiODu")"
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense" />
                 </MudItem>
@@ -144,20 +144,20 @@
             }
 
             <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-4">
-                <MudButton Variant="Variant.Text" OnClick="Reset" Disabled="@_saving">Xóa nhập liệu</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="Reset" Disabled="@_saving">@Language.T("trip.xoaNhapLieu")</MudButton>
                 <MudButton Color="Color.Primary"
                             Variant="Variant.Outlined"
                             OnClick="SaveDraft"
                             Disabled="@_saving"
                             StartIcon="@Icons.Material.Filled.Save">
-                    Lưu nháp
+                    @Language.T("common.luuNhap")
                 </MudButton>
                 <MudButton Color="Color.Primary"
                             Variant="Variant.Filled"
                             OnClick="SaveAndSubmit"
                             Disabled="@_saving"
                             StartIcon="@Icons.Material.Filled.Send">
-                    Gửi duyệt
+                    @Language.T("common.guiDuyet")
                 </MudButton>
             </MudStack>
         </MudForm>
@@ -242,7 +242,7 @@
             var result = await TripService.CreateDraftAsync(BuildRequest());
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Lưu nháp thất bại.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("trip.luuNhapThatBai"), Severity.Error);
                 return;
             }
 
@@ -266,18 +266,18 @@
             var draft = await TripService.CreateDraftAsync(BuildRequest());
             if (!draft.IsSuccess || draft.Data == null)
             {
-                Snackbar.Add(draft.Message ?? "Không thể tạo đăng ký công tác.", Severity.Error);
+                Snackbar.Add(draft.Message ?? Language.T("trip.khongTheTaoDangKy"), Severity.Error);
                 return;
             }
 
             var submitted = await TripService.SubmitAsync(draft.Data!.Id, selections);
             if (!submitted.IsSuccess)
             {
-                Snackbar.Add(submitted.Message ?? "Không thể gửi đăng ký công tác.", Severity.Error);
+                Snackbar.Add(submitted.Message ?? Language.T("trip.khongTheGuiDangKy"), Severity.Error);
                 return;
             }
 
-            Snackbar.Add("Đã gửi đăng ký công tác vào quy trình phê duyệt.", Severity.Success);
+            Snackbar.Add(Language.T("trip.daGuiDangKyCong"), Severity.Success);
             Navigation.NavigateTo("/trip/history");
         }
         finally
@@ -306,7 +306,7 @@
         if (result.IsSuccess)
             _approvalRoute = result.Data;
         else
-            Snackbar.Add(result.Message ?? "Không tải được luồng phê duyệt.", Severity.Warning);
+            Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocLuongPhe"), Severity.Warning);
 
         await InvokeAsync(StateHasChanged);
     }

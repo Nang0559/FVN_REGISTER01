@@ -11,20 +11,20 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageTitle>Đồng bộ dữ liệu HRM - FCC</PageTitle>
+<PageTitle>@Language.T("hrm.dongBoDuLieuHrm")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.Sync" Color="Color.Primary" Size="Size.Large" />
     <div>
-        <MudText Typo="Typo.h5" Style="font-weight:700">Đồng bộ dữ liệu HRM</MudText>
+        <MudText Typo="Typo.h5" Style="font-weight:700">@Language.T("hrm.dongBoDuLieuHrm2")</MudText>
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Pipeline A: Loại nghỉ, Bộ phận, Chức vụ và Nhân viên
+            @Language.T("hrm.pipelineALoaiNghiBo")
         </MudText>
     </div>
     <MudSpacer />
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Rule"
                OnClick="@(() => Navigation.NavigateTo("/admin/approval-policies"))">
-        Approval Policy
+        @Language.T("security.policies")
     </MudButton>
 
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.WarningAmber"
@@ -33,24 +33,24 @@
     </MudButton>
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
                OnClick="LoadAsync" Disabled="@_loading">
-        Làm mới
+        @Language.T("common.refresh")
     </MudButton>
     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Sync"
                OnClick="RunAllAsync" Disabled="@(_loading || _status?.IsRunning == true)">
-        Đồng bộ tất cả
+        @Language.T("hrm.dongBoTatCa")
     </MudButton>
     <MudButton Variant="Variant.Filled" Color="Color.Secondary"
                StartIcon="@Icons.Material.Filled.Security"
                OnClick="ReconcileSecurityAsync" Disabled="@(_loading || _status?.IsRunning == true)">
-        Đồng bộ HRM + User + Approver
+        @Language.T("hrm.dongBoHrmUserApprover")
     </MudButton>
 </MudStack>
 
 @if (_status?.IsRunning == true)
 {
     <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">
-        <MudText Typo="Typo.body2"><b>Đang đồng bộ HRM...</b></MudText>
+        <MudText Typo="Typo.body2"><b>@Language.T("hrm.dangDongBoHrm")</b></MudText>
         @if (_status.StartedAt.HasValue)
         {
             <MudText Typo="Typo.caption">
@@ -70,7 +70,7 @@ else if (_status?.LastRun != null)
 else
 {
     <MudAlert Severity="Severity.Info" Class="mb-4">
-        Chưa có phiên đồng bộ nào được ghi nhận trong tiến trình API hiện tại.
+        @Language.T("hrm.chuaCoPhienDongBo")
     </MudAlert>
 }
 
@@ -88,7 +88,7 @@ else
 
                     @if (job == null)
                     {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Chưa chạy</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@Language.T("hrm.chuaChay")</MudChip>
                     }
                     else
                     {
@@ -108,7 +108,7 @@ else
                     <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
                                Disabled="@(_loading || _status?.IsRunning == true)"
                                OnClick="@(() => RunEntityAsync(master.EntityType))">
-                        Đồng bộ riêng
+                        @Language.T("hrm.dongBoRieng")
                     </MudButton>
                 </MudStack>
             </MudPaper>
@@ -120,7 +120,7 @@ else
 {
     <MudPaper Elevation="1" Class="mb-4" Style="border-radius:12px; overflow:hidden">
         <MudStack Class="pa-4" Spacing="1">
-            <MudText Typo="Typo.h6">Kết quả phiên gần nhất</MudText>
+            <MudText Typo="Typo.h6">@Language.T("hrm.ketQuaPhienGanNhat")</MudText>
             <MudText Typo="Typo.caption" Color="Color.Secondary">
                 @_status.LastRun.StartedAt.ToString("dd/MM/yyyy HH:mm:ss")
                 @if (_status.LastRun.FinishedAt.HasValue)
@@ -133,13 +133,13 @@ else
 
         <MudTable Items="@_status.LastRun.Jobs" Dense="true" Hover="true" Striped="true">
             <HeaderContent>
-                <MudTh>Master</MudTh>
+                <MudTh>@Language.T("hrm.master")</MudTh>
                 <MudTh>@Language.T("common.status")</MudTh>
-                <MudTh Style="text-align:right">Nguồn</MudTh>
+                <MudTh Style="text-align:right">@Language.T("common.nguon")</MudTh>
                 <MudTh Style="text-align:right">@Language.T("common.add")</MudTh>
-                <MudTh Style="text-align:right">Cập nhật</MudTh>
-                <MudTh Style="text-align:right">Vô hiệu</MudTh>
-                <MudTh Style="text-align:right">Không đổi</MudTh>
+                <MudTh Style="text-align:right">@Language.T("hrm.capNhat")</MudTh>
+                <MudTh Style="text-align:right">@Language.T("hrm.voHieu")</MudTh>
+                <MudTh Style="text-align:right">@Language.T("hrm.khongDoi")</MudTh>
                 <MudTh>@Language.T("common.detail")</MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -192,7 +192,7 @@ else
             if (status.IsSuccess)
                 _status = status.Data;
             else
-                Snackbar.Add(status.Message ?? "Không tải được trạng thái đồng bộ HRM.", Severity.Error);
+                Snackbar.Add(status.Message ?? Language.T("hrm.khongTaiDuocTrangThai"), Severity.Error);
 
             var conflicts = await ReviewService.CountAsync();
             if (conflicts.IsSuccess)
@@ -212,12 +212,12 @@ else
             var result = await SyncService.RunAllAsync();
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Không thể chạy đồng bộ HRM.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("hrm.khongTheChayDongBo"), Severity.Error);
                 return;
             }
 
             _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
-            Snackbar.Add(result.Data.Success ? "Đồng bộ HRM hoàn tất." : "Đồng bộ HRM hoàn tất nhưng có lỗi.", result.Data.Success ? Severity.Success : Severity.Warning);
+            Snackbar.Add(result.Data.Success ? Language.T("hrm.dongBoHrmHoanTat") : Language.T("hrm.dongBoHrmHoanTat2"), result.Data.Success ? Severity.Success : Severity.Warning);
             await RefreshConflictCountAsync();
         }
         finally
@@ -238,7 +238,7 @@ else
             var sync = await SyncService.RunAllAsync();
             if (!sync.IsSuccess || sync.Data == null)
             {
-                Snackbar.Add(sync.Message ?? "Không thể lấy dữ liệu HRM.", Severity.Error);
+                Snackbar.Add(sync.Message ?? Language.T("hrm.khongTheLayDuLieu"), Severity.Error);
                 return;
             }
 

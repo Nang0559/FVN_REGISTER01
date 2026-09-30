@@ -7,7 +7,7 @@
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8">
     <MudPaper Outlined="true" Class="pa-6">
-        <MudText Typo="Typo.h5">Bàn giao thiết bị đã chuyển sang quy trình phê duyệt</MudText>
+        <MudText Typo="Typo.h5">@Language.T("equipment.banGiaoThietBiDa")</MudText>
         <MudText Class="mt-3">
             Thay đổi người phụ trách hoặc approver thiết bị không còn được thực hiện trực tiếp.
             Người tiếp nhận phải lập Phiếu thay đổi quyền; phiếu sẽ đi qua các cấp phê duyệt của nghiệp vụ
@@ -15,7 +15,7 @@
         </MudText>
         <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Primary"
                    OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">
-            Mở Phiếu thay đổi quyền / bàn giao
+            @Language.T("equipment.moPhieuThayDoiQuyen")
         </MudButton>
     </MudPaper>
 </MudContainer>

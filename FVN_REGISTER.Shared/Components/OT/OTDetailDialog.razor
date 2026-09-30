@@ -11,7 +11,7 @@
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.Timelapse" />
-            <MudText Typo="Typo.h6">Chi tiết đơn OT</MudText>
+            <MudText Typo="Typo.h6">@Language.T("ot.chiTietDonOt")</MudText>
             @if (_detail != null)
             {
                 var (color, text) = GetStatusChip(_detail.RequestStatus);
@@ -33,11 +33,11 @@
         {
             <MudGrid Spacing="3">
                 <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">Thông tin chung</MudText>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">@Language.T("ot.thongTinChung")</MudText>
                     <MudDivider Class="mb-2" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Mã đơn</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.maDon")</MudText>
                     <MudText Typo="Typo.body1"><strong>#@_detail.Id</strong></MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
@@ -45,7 +45,7 @@
                     <MudText Typo="Typo.body1">@_detail.StatusText</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Người lập đơn</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("ot.nguoiLapDon")</MudText>
                     <MudText Typo="Typo.body1">@_detail.RequesterName (@_detail.RequesterCode)</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
@@ -53,19 +53,19 @@
                     <MudText Typo="Typo.body1">@_detail.DeptName (@_detail.DeptCode)</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Ngày đăng ký</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.ngayDangKy")</MudText>
                     <MudText Typo="Typo.body1">@_detail.RegisterDate.ToString("dd/MM/yyyy HH:mm")</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Ngày tăng ca</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("ot.ngayTangCa")</MudText>
                     <MudText Typo="Typo.body1">@_detail.OTDate.ToString("dd/MM/yyyy")</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Loại OT</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("ot.loaiOt")</MudText>
                     <MudText Typo="Typo.body1">@_detail.OTTypeCode</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tổng giờ OT</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("ot.tongGioOt")</MudText>
                     <MudText Typo="Typo.body1">@_detail.TotalOtHours.ToString("N1") giờ</MudText>
                 </MudItem>
                 @if (!string.IsNullOrWhiteSpace(_detail.OtPurpose))
@@ -87,12 +87,12 @@
                 {
                     <MudItem xs="12">
                         <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-1">
-                            Nhân viên tham gia
+                            @Language.T("ot.nhanVienThamGia")
                             <MudChip T="string" Size="Size.Small" Color="Color.Primary" Label="true" Class="ml-1">@_detail.Details.Count</MudChip>
                         </MudText>
                         <MudDivider Class="mb-2" />
                         <MudSimpleTable Dense="true" Hover="true" Striped="true">
-                            <thead><tr><th>@Language.T("common.employeeCode")</th><th>@Language.T("common.employeeName")</th><th>Khung giờ</th><th>@Language.T("payroll.otHours")</th><th>Hạng mục</th><th>Validation</th></tr></thead>
+                            <thead><tr><th>@Language.T("common.employeeCode")</th><th>@Language.T("common.employeeName")</th><th>@Language.T("ot.khungGio")</th><th>@Language.T("payroll.otHours")</th><th>@Language.T("common.hangMuc")</th><th>@Language.T("ot.validation")</th></tr></thead>
                             <tbody>
                                 @foreach (var emp in _detail.Details)
                                 {
@@ -120,7 +120,7 @@
                 @if (_detail.ApprovalSteps.Any())
                 {
                     <MudItem xs="12">
-                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-1">Luồng phê duyệt</MudText>
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-1">@Language.T("ot.luongPheDuyet")</MudText>
                         <MudDivider Class="mb-2" />
                         <MudTimeline TimelineAlign="TimelineAlign.Start" TimelinePosition="TimelinePosition.Start">
                             @foreach (var step in _detail.ApprovalSteps.OrderBy(x => x.Level))
@@ -143,7 +143,7 @@
         }
         else
         {
-            <MudAlert Severity="Severity.Warning" Dense="true">Không tìm thấy dữ liệu chi tiết của đơn OT này.</MudAlert>
+            <MudAlert Severity="Severity.Warning" Dense="true">@Language.T("ot.khongTimThayDuLieu")</MudAlert>
         }
     </DialogContent>
 
@@ -176,12 +176,12 @@
             if (result.IsSuccess && result.Data != null)
                 _detail = result.Data;
             else
-                Snackbar.Add(result.Message ?? "Không tải được chi tiết.", Severity.Warning);
+                Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocChiTiet"), Severity.Warning);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "[OT_DETAIL_DIALOG] OpenDetail id={Id}", OTRequestId);
-            Snackbar.Add("Lỗi tải chi tiết đơn OT.", Severity.Error);
+            Snackbar.Add(Language.T("ot.loiTaiChiTietDon"), Severity.Error);
         }
         finally
         {

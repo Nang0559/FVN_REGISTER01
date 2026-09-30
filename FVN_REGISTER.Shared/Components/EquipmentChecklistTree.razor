@@ -4,12 +4,12 @@
 <MudPaper Outlined="true" Class="pa-3">
     <MudText Typo="Typo.h6" Class="mb-3">
         <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
-        Cây thiết bị
+        @Language.T("equipment.cayThietBi")
     </MudText>
 
     @if (Assets.Count == 0)
     {
-        <MudAlert Severity="Severity.Info">Không có thiết bị trong phạm vi báo cáo.</MudAlert>
+        <MudAlert Severity="Severity.Info">@Language.T("equipment.khongCoThietBiTrong")</MudAlert>
     }
     else
     {
@@ -39,7 +39,7 @@
                                     @if (checks.Count == 0)
                                     {
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                            └── Không có checklist được phân công
+                                            @Language.T("equipment.khongCoChecklistDuocPhan")
                                         </MudText>
                                     }
                                     else
@@ -75,7 +75,7 @@
                                                     </MudText>
                                                     <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.OpenInNew"
                                                                OnClick="@(() => Navigation.NavigateTo($"/equipment/inspection/{check.TaskId}"))">
-                                                        Mở checklist
+                                                        @Language.T("equipment.moChecklist")
                                                     </MudButton>
                                                 </MudStack>
                                             </MudPaper>

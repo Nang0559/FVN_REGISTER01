@@ -12,15 +12,15 @@
 
 <MudText Typo="Typo.h5" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.AccessTime" Class="mr-2" />
-    Báo cáo tăng ca (OT)
+    @Language.T("report.baoCaoTangCaOt")
 </MudText>
 
 <MudTabs ActivePanelIndex="_activeTab" ActivePanelIndexChanged="OnTabChanged" Color="Color.Primary" Rounded="true" Class="mb-4">
-    <MudTabPanel Text="Theo phòng ban" />
-    <MudTabPanel Text="Theo nhân viên" />
-    <MudTabPanel Text="Chi tiết phiếu" />
-    <MudTabPanel Text="Trạng thái duyệt" />
-    <MudTabPanel Text="Tích lũy giờ OT" />
+    <MudTabPanel Text="@Language.T("common.theoPhongBan")" />
+    <MudTabPanel Text="@Language.T("common.theoNhanVien")" />
+    <MudTabPanel Text="@Language.T("report.chiTietPhieu")" />
+    <MudTabPanel Text="@Language.T("common.trangThaiDuyet")" />
+    <MudTabPanel Text="@Language.T("report.tichLuyGioOt")" />
 </MudTabs>
 
 <ReportBase @ref="_baseRef" ReportType="_currentType" Query="_query">
@@ -29,7 +29,7 @@
         {
             <MudItem xs="12" sm="3">
                 <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                    <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
+                    <MudSelectItem T="string" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
                     @foreach (var dept in _departments ?? new())
                     {
                         <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem>
@@ -62,7 +62,7 @@
             </MudItem>
             <MudItem xs="12" sm="3">
                 <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                    <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
+                    <MudSelectItem T="string" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
                     @foreach (var dept in _departments ?? new())
                     {
                         <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem>

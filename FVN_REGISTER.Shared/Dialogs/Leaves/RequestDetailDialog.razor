@@ -9,22 +9,22 @@
         @if (Detail != null)
         {
             <MudGrid>
-                <MudItem xs="6"><MudText Typo="Typo.caption">TRẠNG THÁI</MudText><MudText>@Detail.StatusDisplay</MudText></MudItem>
-                <MudItem xs="6"><MudText Typo="Typo.caption">NGÀY GỬI</MudText><MudText>@Detail.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</MudText></MudItem>
+                <MudItem xs="6"><MudText Typo="Typo.caption">@Language.T("common.trangThai")</MudText><MudText>@Detail.StatusDisplay</MudText></MudItem>
+                <MudItem xs="6"><MudText Typo="Typo.caption">@Language.T("leave.ngayGui")</MudText><MudText>@Detail.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</MudText></MudItem>
             </MudGrid>
 
             <MudDivider Class="my-3" />
 
             @if (Detail.Leave != null || Detail.OT != null)
             {
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Chi tiết yêu cầu</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("leave.chiTietYeuCau")</MudText>
                 <MudPaper Elevation="0" Class="pa-3" Style="background:var(--mud-palette-background-grey);">
                     <pre style="white-space:pre-wrap;word-break:break-word;margin:0;">@FormatPayload(Detail.Leave ?? (object?)Detail.OT)</pre>
                 </MudPaper>
             }
 
             <MudDivider Class="my-3" />
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Tiến trình phê duyệt</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("common.tienTrinhPheDuyet")</MudText>
             <MudTimeline TimelineAlign="TimelineAlign.Start">
                 @foreach (var step in Detail.ApprovalSteps.OrderBy(x => x.Level))
                 {

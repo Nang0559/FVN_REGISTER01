@@ -11,11 +11,11 @@
 
     <DialogContent>
         <MudForm @ref="_form" Model="@Model">
-            <MudTextField T="string" Label="Mã bộ phận" @bind-Value="Model.DeptCode" For="@(() => Model.DeptCode)"
+            <MudTextField T="string" Label="@Language.T("department.maBoPhan")" @bind-Value="Model.DeptCode" For="@(() => Model.DeptCode)"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="IsEdit" Class="mb-4" />
-            <MudTextField T="string" Label="Tên bộ phận" @bind-Value="Model.DeptName" For="@(() => Model.DeptName)"
+            <MudTextField T="string" Label="@Language.T("department.tenBoPhan")" @bind-Value="Model.DeptName" For="@(() => Model.DeptName)"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-            <MudSwitch T="bool" @bind-Value="Model.IsActive" Color="Color.Success" Label="Kích hoạt bộ phận" />
+            <MudSwitch T="bool" @bind-Value="Model.IsActive" Color="Color.Success" Label="@Language.T("department.kichHoatBoPhan")" />
         </MudForm>
 
         @if (!string.IsNullOrEmpty(_errorMessage))

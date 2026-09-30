@@ -9,12 +9,12 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageTitle>HRM Sync Review</PageTitle>
+<PageTitle>@Language.T("hrm.hrmSyncReview")</PageTitle>
 
 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
     <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">HRM Sync — Xử lý xung đột</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Danh sách flag chưa xử lý từ quá trình đồng bộ HRM. Resolve chỉ đóng flag, không tự ghi đè dữ liệu nguồn.</MudText>
+        <MudText Typo="Typo.h5">@Language.T("hrm.hrmSyncXuLyXung")</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("hrm.danhSachFlagChuaXu")</MudText>
     </MudStack>
     <MudStack Row="true" Spacing="2">
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync"))">Quản lý đồng bộ</MudButton>
@@ -22,7 +22,7 @@
     </MudStack>
 </MudStack>
 
-<MudAlert Severity="Severity.Info" Class="mb-4">Còn <b>@_count</b> conflict chưa resolve.</MudAlert>
+<MudAlert Severity="Severity.Info" Class="mb-4">@Language.T("hrm.con") <b>@_count</b> @Language.T("hrm.conflictChuaResolve")</MudAlert>
 
 @if (_loading)
 {
@@ -30,17 +30,17 @@
 }
 else if (!_items.Any())
 {
-    <MudAlert Severity="Severity.Success">Không có conflict HRM đang chờ xử lý.</MudAlert>
+    <MudAlert Severity="Severity.Success">@Language.T("hrm.khongCoConflictHrmDang")</MudAlert>
 }
 else
 {
     <MudTable Items="_items" Dense="true" Hover="true" Striped="true">
         <HeaderContent>
-            <MudTh>Entity</MudTh>
-            <MudTh>Key</MudTh>
-            <MudTh>Loại flag</MudTh>
+            <MudTh>@Language.T("hrm.entity")</MudTh>
+            <MudTh>@Language.T("common.key")</MudTh>
+            <MudTh>@Language.T("hrm.loaiFlag")</MudTh>
             <MudTh>@Language.T("public.content")</MudTh>
-            <MudTh>Phát hiện</MudTh>
+            <MudTh>@Language.T("hrm.phatHien")</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
@@ -71,7 +71,7 @@ else
             var result = await ReviewService.GetUnresolvedAsync(ct: CancellationToken.None);
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Không tải được danh sách conflict HRM.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("hrm.khongTaiDuocDanhSach"), Severity.Error);
                 return;
             }
             _items = result.Data;
@@ -87,12 +87,12 @@ else
         var result = await ReviewService.ResolveAsync(item.Id);
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không thể resolve flag.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("hrm.khongTheResolveFlag"), Severity.Error);
             return;
         }
 
         _items.Remove(item);
         _count = Math.Max(0, _count - 1);
-        Snackbar.Add("Đã đánh dấu conflict là đã xử lý.", Severity.Success);
+        Snackbar.Add(Language.T("hrm.daDanhDauConflictLa"), Severity.Success);
     }
 }

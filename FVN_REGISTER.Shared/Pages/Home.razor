@@ -33,7 +33,7 @@ else if (_model != null)
         <MudPaper Elevation="0" Class="pa-6 mb-5" Style="border-radius:24px; background:linear-gradient(135deg, rgba(25,118,210,.12), rgba(0,150,136,.08)); border:1px solid rgba(25,118,210,.10)">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="4" Wrap="Wrap.Wrap">
                 <div>
-                    <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • WORKSPACE</MudText>
+                    <MudText Typo="Typo.overline" Color="Color.Primary">@Language.T("common.fvnRegisterWorkspace")</MudText>
                     <MudText Typo="Typo.h4" Style="font-weight:850">@Language.T("home.greeting"), @(CurrentUserService.User?.FullName ?? Language.T("common.user"))</MudText>
                     <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">@Language.T("home.workspaceDescription")</MudText>
                 </div>

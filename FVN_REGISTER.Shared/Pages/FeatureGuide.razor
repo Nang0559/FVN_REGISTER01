@@ -4,13 +4,13 @@
 @inherits AppComponentBase
 @inject NavigationManager Navigation
 
-<PageTitle>Hướng dẫn chức năng</PageTitle>
+<PageTitle>@Language.T("common.huongDanChucNang")</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Hướng dẫn chức năng</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Tài liệu thao tác theo đúng ngữ cảnh tính năng đang mở.</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("common.huongDanChucNang")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("common.taiLieuThaoTacTheo")</MudText>
         </div>
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back">@Language.T("common.back")</MudButton>
     </MudStack>
@@ -20,10 +20,10 @@
         <MudText Typo="Typo.h5" Class="mb-3">@Title</MudText>
         <MudText Typo="Typo.body1" Class="mb-5">@Summary</MudText>
 
-        <MudText Typo="Typo.h6" Class="mb-2">Sơ đồ chuẩn</MudText>
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.soDoChuan")</MudText>
         <MudPaper Class="pa-4 mb-5" Outlined="true" Style="font-family:monospace;white-space:pre-line">@Flow</MudPaper>
 
-        <MudText Typo="Typo.h6" Class="mb-2">Quy trình thao tác</MudText>
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.quyTrinhThaoTac")</MudText>
         <MudList T="string" Class="mb-5">
             @foreach (var step in Steps)
             {
@@ -31,10 +31,10 @@
             }
         </MudList>
 
-        <MudText Typo="Typo.h6" Class="mb-2">Ví dụ minh họa</MudText>
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.viDuMinhHoa")</MudText>
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-5">@Example</MudAlert>
 
-        <MudText Typo="Typo.h6" Class="mb-2">Quyền và phạm vi</MudText>
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.quyenVaPhamVi")</MudText>
         <MudText Typo="Typo.body1">@Security</MudText>
     </MudPaper>
 </MudContainer>

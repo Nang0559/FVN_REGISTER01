@@ -20,17 +20,17 @@
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
     <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">Danh sách chờ phê duyệt</MudText>
+        <MudText Typo="Typo.h5">@Language.T("approval.danhSachChoPheDuyet")</MudText>
         <MudText Typo="Typo.caption" Class="mud-text-secondary">
             Tổng @_allItems.Count() đơn — Nghỉ phép @_allItems.Count(x => x.Kind == RequestModule.Leave) — OT @_allItems.Count(x => x.Kind == RequestModule.Overtime) — Công tác @_allItems.Count(x => x.Kind == RequestModule.Trip)
             @if (_loadedAt.HasValue) { <span> — @_loadedAt.Value.ToString("HH:mm:ss")</span> }
         </MudText>
     </MudStack>
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <MudTextField @bind-Value="_search" Placeholder="Tìm tên / mã NV..." Adornment="Adornment.Start"
+        <MudTextField @bind-Value="_search" Placeholder="@Language.T("common.timTenMaNv")" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Immediate="true" Style="min-width:220px" />
-        <MudSelect T="RequestModule?" @bind-Value="_kindFilter" Label="Loại đơn" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+        <MudSelect T="RequestModule?" @bind-Value="_kindFilter" Label="@Language.T("approval.loaiDon")" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">@Language.T("nav.reportLeave")</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">@Language.T("nav.reportOt")</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">@Language.T("trip.title")</MudSelectItem>
@@ -44,7 +44,7 @@
 {
     <MudPaper Elevation="3" Class="pa-3 mb-3">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudText>Đã chọn <b>@_selectedItems.Count</b> đơn</MudText>
+            <MudText>@Language.T("approval.daChon") <b>@_selectedItems.Count</b> @Language.T("approval.don")</MudText>
             <MudSpacer />
             <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="OnBatchApprove" Disabled="_processing">@Language.T("common.approve")</MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="OpenBatchRejectDialog" Disabled="_processing">@Language.T("common.reject")</MudButton>
@@ -62,8 +62,8 @@
     <MudTable Items="FilteredItems" @bind-SelectedItems="_selectedItems" MultiSelection="true" Hover="true" Dense="true"
               Breakpoint="Breakpoint.Sm" T="PendingApprovalItemDto" Loading="_loading">
         <HeaderContent>
-            <MudTh>@Language.T("ot.employee")</MudTh><MudTh>Loại đơn</MudTh><MudTh>Thời gian</MudTh><MudTh>Số lượng</MudTh>
-            <MudTh>Tiến trình</MudTh><MudTh>Cấp chờ</MudTh><MudTh>@Language.T("security.actions")</MudTh>
+            <MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("approval.loaiDon")</MudTh><MudTh>@Language.T("common.thoiGian")</MudTh><MudTh>@Language.T("common.soLuong")</MudTh>
+            <MudTh>@Language.T("common.tienTrinh")</MudTh><MudTh>@Language.T("approval.capCho")</MudTh><MudTh>@Language.T("security.actions")</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Nhân viên">
@@ -99,7 +99,7 @@
                 else { <MudIcon Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Small" /> }
             </MudTd>
         </RowTemplate>
-        <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">Không có đơn nào chờ phê duyệt.</MudText></NoRecordsContent>
+        <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">@Language.T("approval.khongCoDonNaoCho")</MudText></NoRecordsContent>
         <PagerContent><MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" /></PagerContent>
     </MudTable>
 </MudPaper>
@@ -139,9 +139,9 @@
                 _groups = result.Data;
                 _loadedAt = DateTime.Now;
             }
-            else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("common.loiTaiDuLieu2"), Severity.Error);
         }
-        catch (Exception ex) { Logger.LogError(ex, "[APPROVAL] Load error"); Snackbar.Add("Lỗi tải dữ liệu", Severity.Error); }
+        catch (Exception ex) { Logger.LogError(ex, "[APPROVAL] Load error"); Snackbar.Add(Language.T("common.loiTaiDuLieu2"), Severity.Error); }
         finally { _loading = false; }
     }
 
@@ -150,7 +150,7 @@
     private async Task OnBatchApprove()
     {
         var items = _selectedItems.Where(x => x.CanApprove).ToList();
-        if (items.Count == 0) { Snackbar.Add("Không có đơn có quyền phê duyệt.", Severity.Warning); return; }
+        if (items.Count == 0) { Snackbar.Add(Language.T("approval.khongCoDonCoQuyen"), Severity.Warning); return; }
         await ApproveItems(items);
     }
 
@@ -162,7 +162,7 @@
             foreach (var group in items.GroupBy(x => new { x.Kind, Level = GetCurrentApprovalLevel(x) }))
             {
                 var r = await ApprovalService.ApproveAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.Level, null, _cts.Token);
-                if (!r.IsSuccess) Snackbar.Add(r.Message ?? "Lỗi phê duyệt", Severity.Error);
+                if (!r.IsSuccess) Snackbar.Add(r.Message ?? Language.T("approval.loiPheDuyet"), Severity.Error);
             }
             await LoadAsync();
         }
@@ -174,7 +174,7 @@
     private async Task OpenBatchRejectDialog()
     {
         var items = _selectedItems.Where(x => x.CanApprove).ToList();
-        if (items.Count == 0) { Snackbar.Add("Không có đơn có quyền từ chối.", Severity.Warning); return; }
+        if (items.Count == 0) { Snackbar.Add(Language.T("approval.khongCoDonCoQuyen2"), Severity.Warning); return; }
         await RejectItems(items, true);
     }
 
@@ -195,7 +195,7 @@
             foreach (var group in list.GroupBy(x => new { x.Kind, Level = GetCurrentApprovalLevel(x) }))
             {
                 var r = await ApprovalService.RejectAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.Level, comment, _cts.Token);
-                if (!r.IsSuccess) Snackbar.Add(r.Message ?? "Lỗi từ chối", Severity.Error);
+                if (!r.IsSuccess) Snackbar.Add(r.Message ?? Language.T("approval.loiTuChoi"), Severity.Error);
             }
             await LoadAsync();
         }

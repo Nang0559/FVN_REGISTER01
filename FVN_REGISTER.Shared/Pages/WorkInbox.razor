@@ -16,7 +16,7 @@
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
         <div>
             <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("nav.workInbox")</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Thông báo và phê duyệt được gom về một nơi.</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("workspace.thongBaoVaPheDuyet")</MudText>
         </div>
         <FeatureHelp />
     </MudStack>
@@ -35,28 +35,28 @@
             <MudItem xs="12" sm="6">
                 <MudCard Elevation="1" Style="border-radius:18px;cursor:pointer" @onclick="ScrollNotifications">
                     <MudCardContent Class="pa-5">
-                        <MudText Typo="Typo.overline">THÔNG BÁO CHƯA ĐỌC</MudText>
+                        <MudText Typo="Typo.overline">@Language.T("workspace.thongBaoChuaDoc")</MudText>
                         <MudText Typo="Typo.h3" Color="Color.Primary">@_model.UnreadNotificationCount</MudText>
-                        <MudText Typo="Typo.body2">Thông báo cá nhân và nghiệp vụ.</MudText>
+                        <MudText Typo="Typo.body2">@Language.T("workspace.thongBaoCaNhanVa")</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudCard Elevation="1" Style="border-radius:18px;cursor:pointer" @onclick="ScrollApprovals">
                     <MudCardContent Class="pa-5">
-                        <MudText Typo="Typo.overline">CHỜ PHÊ DUYỆT</MudText>
+                        <MudText Typo="Typo.overline">@Language.T("workspace.choPheDuyet")</MudText>
                         <MudText Typo="Typo.h3" Color="Color.Warning">@_model.PendingApprovalCount</MudText>
-                        <MudText Typo="Typo.body2">Đã lọc theo capability và data scope.</MudText>
+                        <MudText Typo="Typo.body2">@Language.T("workspace.daLocTheoCapabilityVa")</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
         </MudGrid>
 
         <MudPaper id="notifications" Outlined="true" Class="pa-5 mb-5">
-            <MudText Typo="Typo.h6" Class="mb-3">Thông báo</MudText>
+            <MudText Typo="Typo.h6" Class="mb-3">@Language.T("common.thongBao")</MudText>
             @if (_model.Notifications.Count == 0)
             {
-                <MudText Class="mud-text-secondary">Không có thông báo.</MudText>
+                <MudText Class="mud-text-secondary">@Language.T("workspace.khongCoThongBao")</MudText>
             }
             @foreach (var n in _model.Notifications)
             {
@@ -70,10 +70,10 @@
         </MudPaper>
 
         <MudPaper id="approvals" Outlined="true" Class="pa-5">
-            <MudText Typo="Typo.h6" Class="mb-3">Approval Inbox</MudText>
+            <MudText Typo="Typo.h6" Class="mb-3">@Language.T("workspace.approvalInbox")</MudText>
             @if (_model.ApprovalGroups.Count == 0)
             {
-                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined">Không có việc phê duyệt trong phạm vi của bạn.</MudAlert>
+                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined">@Language.T("workspace.khongCoViecPheDuyet")</MudAlert>
             }
             @foreach (var group in _model.ApprovalGroups)
             {

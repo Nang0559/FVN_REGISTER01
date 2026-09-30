@@ -17,7 +17,7 @@
             <MudStack AlignItems="AlignItems.Center" Class="pa-6">
                 <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
-                    Đang tải dữ liệu OT...
+                    @Language.T("employee.dangTaiDuLieuOt")
                 </MudText>
             </MudStack>
         }
@@ -40,7 +40,7 @@
                             @_summary.TotalDays
                         </MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Số ngày OT
+                            @Language.T("employee.soNgayOt")
                         </MudText>
                     </MudPaper>
                 </MudItem>
@@ -53,7 +53,7 @@
                       Style="border-radius:10px; overflow:hidden">
                 <HeaderContent>
                     <MudTh>@Language.T("ot.month")</MudTh>
-                    <MudTh Style="text-align:right">Số ngày</MudTh>
+                    <MudTh Style="text-align:right">@Language.T("common.soNgay")</MudTh>
                     <MudTh Style="text-align:right">@Language.T("ot.hours")</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -76,7 +76,7 @@
                     @if (_summary.Monthly.Any())
                     {
                         <MudTFootRow>
-                            <MudTd><MudText Style="font-weight:700">Tổng cộng</MudText></MudTd>
+                            <MudTd><MudText Style="font-weight:700">@Language.T("employee.tongCong")</MudText></MudTd>
                             <MudTd Style="text-align:right">
                                 <MudText Style="font-weight:700">@_summary.TotalDays</MudText>
                             </MudTd>
@@ -90,7 +90,7 @@
         }
         else
         {
-            <MudAlert Severity="Severity.Info">Không có dữ liệu OT cho nhân viên này.</MudAlert>
+            <MudAlert Severity="Severity.Info">@Language.T("employee.khongCoDuLieuOt")</MudAlert>
         }
     </DialogContent>
 
@@ -124,7 +124,7 @@
         if (result.IsSuccess)
             _summary = result.Data;
         else
-            Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu OT", Severity.Warning);
+            Snackbar.Add(result.Message ?? Language.T("employee.loiTaiDuLieuOt"), Severity.Warning);
 
         _isLoading = false;
     }

@@ -5,7 +5,7 @@
         @if (ShowComment)
         {
             <MudTextField @bind-Value="_comment"
-                          Label="Nội dung *" Lines="3"
+                          Label="@Language.T("approval.noiDung")" Lines="3"
                           Variant="Variant.Outlined"
                           Margin="Margin.Dense" />
         }
@@ -15,7 +15,7 @@
         <MudButton Color="@Color" Variant="Variant.Filled"
                    OnClick="Confirm"
                    Disabled="@(ShowComment && string.IsNullOrWhiteSpace(_comment))">
-            Xác nhận
+            @Language.T("common.confirm")
         </MudButton>
     </DialogActions>
 </MudDialog>

@@ -15,15 +15,15 @@
     }
     else if (_forms.Count == 0)
     {
-        <MudAlert Severity="Severity.Info">Thiết bị này hiện chưa có biểu mẫu yêu cầu được áp dụng.</MudAlert>
+        <MudAlert Severity="Severity.Info">@Language.T("equipment.thietBiNayHienChua")</MudAlert>
     }
     else
     {
         <MudStack Spacing="3">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <div>
-                    <MudText Typo="Typo.h5">Biểu mẫu yêu cầu của thiết bị</MudText>
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Các biểu mẫu dưới đây được cấu hình theo loại thiết bị và chỉ người đang được giao thiết bị mới có thể gửi.</MudText>
+                    <MudText Typo="Typo.h5">@Language.T("equipment.bieuMauYeuCauCua")</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.cacBieuMauDuoiDay")</MudText>
                 </div>
                 <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Quay lại Sổ thiết bị</MudButton>
             </MudStack>
@@ -31,7 +31,7 @@
             <MudGrid>
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-3">
-                        <MudText Typo="Typo.subtitle1">Biểu mẫu áp dụng</MudText>
+                        <MudText Typo="Typo.subtitle1">@Language.T("equipment.bieuMauApDung")</MudText>
                         @foreach (var form in _forms)
                         {
                             <MudButton FullWidth="true" Variant="@(ReferenceEquals(form, _selectedForm) ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectForm(form))">
@@ -85,7 +85,7 @@
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
                                 @(_selectedForm.RequireApproval ? "Sau khi gửi, yêu cầu sẽ đi vào quy trình phê duyệt Equipment hiện tại." : "Biểu mẫu này không yêu cầu phê duyệt.")
                             </MudAlert>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SubmitAsync">Gửi yêu cầu</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SubmitAsync">@Language.T("equipment.guiYeuCau")</MudButton>
                         </MudPaper>
                     }
                 </MudItem>
@@ -114,7 +114,7 @@
         }
         else
         {
-            Snackbar.Add(result.Message ?? "Không tải được biểu mẫu thiết bị.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("equipment.khongTaiDuocBieuMau"), Severity.Error);
         }
         _loading = false;
     }
@@ -168,10 +168,10 @@
             var result = await EquipmentClient.SubmitEquipmentFormAsync(new EquipmentFormSubmissionRequest { AssetId = AssetId, FormId = _selectedForm.FormId, Answers = answers });
             if (result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Đã gửi yêu cầu.", Severity.Success);
+                Snackbar.Add(result.Message ?? Language.T("equipment.daGuiYeuCau"), Severity.Success);
                 Navigation.NavigateTo("/equipment");
             }
-            else Snackbar.Add(result.Message ?? "Không thể gửi yêu cầu.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheGuiYeuCau"), Severity.Error);
         }
         finally { _busy = false; }
     }

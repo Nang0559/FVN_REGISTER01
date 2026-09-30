@@ -23,9 +23,9 @@
                 </MudCard>
             }
             <MudDivider Class="my-3" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">Tạo đơn OT mới</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">@Language.T("common.taoDonOtMoi")</MudButton>
         }
-        else { <MudAlert Severity="Severity.Info">Chưa có đơn OT nào của phòng ban trong ngày này.</MudAlert> }
+        else { <MudAlert Severity="Severity.Info">@Language.T("common.chuaCoDonOtNao")</MudAlert> }
     </DialogContent>
     <DialogActions><MudButton OnClick="@(() => MudDialog.Cancel())">@Language.T("common.close")</MudButton></DialogActions>
 </MudDialog>

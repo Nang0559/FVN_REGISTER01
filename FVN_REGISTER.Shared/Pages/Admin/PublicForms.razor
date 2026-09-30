@@ -21,20 +21,20 @@
 <MudText Typo="Typo.body2"
          Color="Color.Secondary"
          Class="mb-4">
-    HR tự tạo biểu mẫu, câu hỏi và chọn đúng đối tượng từ dữ liệu HRM. Không nhập mã phòng, vị trí hoặc nhân viên bằng tay.
+    @Language.T("public.hrTuTaoBieuMau")
 </MudText>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
     <MudGrid>
         <MudItem xs="12" sm="4">
             <MudTextField @bind-Value="_form.FormCode"
-                          Label="Mã biểu mẫu *"
+                          Label="@Language.T("public.maBieuMau")"
                           Variant="Variant.Outlined" />
         </MudItem>
 
         <MudItem xs="12" sm="8">
             <MudTextField @bind-Value="_form.Title"
-                          Label="Tiêu đề *"
+                          Label="@Language.T("public.tieuDe")"
                           Variant="Variant.Outlined" />
         </MudItem>
 
@@ -47,7 +47,7 @@
         <MudItem xs="12" sm="6">
             <MudDatePicker Date="@_form.StartAt"
                            DateChanged="SetStartDate"
-                           Label="Ngày bắt đầu"
+                           Label="@Language.T("public.ngayBatDau")"
                            Variant="Variant.Outlined"
                            Clearable="true"
                            DateFormat="dd/MM/yyyy" />
@@ -56,36 +56,36 @@
         <MudItem xs="12" sm="6">
             <MudDatePicker Date="@_form.EndAt"
                            DateChanged="SetEndDate"
-                           Label="Ngày kết thúc"
+                           Label="@Language.T("public.ngayKetThuc")"
                            Variant="Variant.Outlined"
                            Clearable="true"
                            MinDate="@(_form.StartAt?.Date)"
                            DateFormat="dd/MM/yyyy" />
             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                Ngày kết thúc được tính đến hết ngày đã chọn.
+                @Language.T("public.ngayKetThucDuocTinh")
             </MudText>
         </MudItem>
 
         <MudItem xs="12" sm="6">
             <MudSwitch T="bool"
                        @bind-Value="_form.AllowMultipleSubmit">
-                Cho phép đăng ký nhiều lần
+                @Language.T("public.choPhepDangKyNhieu")
             </MudSwitch>
         </MudItem>
 
         <MudItem xs="12" sm="6">
             <MudSwitch T="bool"
                        @bind-Value="_form.RequireApproval">
-                Yêu cầu Approval
+                @Language.T("public.yeuCauApproval")
             </MudSwitch>
         </MudItem>
     </MudGrid>
 </MudPaper>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
-    <MudText Typo="Typo.h6">Đối tượng đăng ký</MudText>
+    <MudText Typo="Typo.h6">@Language.T("public.doiTuongDangKy")</MudText>
     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-        Chọn từ dữ liệu gốc HRM. Nhân viên được tìm kiếm và phân trang phía server, không tải hàng nghìn bản ghi xuống trình duyệt.
+        @Language.T("public.chonTuDuLieuGoc")
     </MudText>
 
     <MudGrid>
@@ -93,7 +93,7 @@
             <MudSelect T="string"
                        Value="@_audienceType"
                        ValueChanged="OnAudienceTypeChanged"
-                       Label="Đối tượng đăng ký"
+                       Label="@Language.T("public.doiTuongDangKy")"
                        Variant="Variant.Outlined">
                 <MudSelectItem Value="@("AllCompany")">@Language.T("public.company")</MudSelectItem>
                 <MudSelectItem Value="@("Department")">@Language.T("ot.department")</MudSelectItem>
@@ -123,7 +123,7 @@
                         <MudGrid Class="mt-2">
                             <MudItem xs="12" sm="9">
                                 <MudTextField @bind-Value="_employeeSearch"
-                                              Label="Tìm mã NV / tên / phòng / vị trí"
+                                              Label="@Language.T("public.timMaNvTenPhong")"
                                               Variant="Variant.Outlined"
                                               Immediate="false"
                                               Adornment="Adornment.Start"
@@ -136,7 +136,7 @@
                                            Variant="Variant.Filled"
                                            Color="Color.Primary"
                                            OnClick="SearchEmployeesAsync">
-                                    Tìm kiếm
+                                    @Language.T("common.search")
                                 </MudButton>
                             </MudItem>
                         </MudGrid>
@@ -155,7 +155,7 @@
                                     <MudTh Style="width:56px"></MudTh>
                                     <MudTh>@Language.T("common.employeeCode")</MudTh>
                                     <MudTh>@Language.T("common.employeeName")</MudTh>
-                                    <MudTh>Phòng · Vị trí</MudTh>
+                                    <MudTh>@Language.T("public.phongViTri")</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd>
@@ -184,13 +184,13 @@
                                                Variant="Variant.Outlined"
                                                Disabled="@(_employeePage <= 1)"
                                                OnClick="PreviousEmployeePageAsync">
-                                        Trước
+                                        @Language.T("common.previous")
                                     </MudButton>
                                     <MudButton Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Disabled="@(_employeePage >= _employeeTotalPages)"
                                                OnClick="NextEmployeePageAsync">
-                                        Sau
+                                        @Language.T("common.next")
                                     </MudButton>
                                 </MudStack>
                             </MudStack>
@@ -206,7 +206,7 @@
                             else if (!_masterItems.Any())
                             {
                                 <MudAlert Severity="Severity.Info">
-                                    Không có dữ liệu master đang hoạt động.
+                                    @Language.T("public.khongCoDuLieuMaster")
                                 </MudAlert>
                             }
                             else
@@ -245,10 +245,10 @@
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
     <MudStack Row="true" AlignItems="AlignItems.Center">
-        <MudText Typo="Typo.h6">Câu hỏi</MudText>
+        <MudText Typo="Typo.h6">@Language.T("public.cauHoi")</MudText>
         <MudSpacer />
         <MudButton OnClick="AddQuestion" Variant="Variant.Outlined">
-            + Thêm câu hỏi
+            @Language.T("public.themCauHoi")
         </MudButton>
     </MudStack>
 
@@ -258,13 +258,13 @@
             <MudGrid>
                 <MudItem xs="12" sm="3">
                     <MudTextField @bind-Value="q.QuestionCode"
-                                  Label="Code"
+                                  Label="@Language.T("common.code2")"
                                   Variant="Variant.Outlined" />
                 </MudItem>
 
                 <MudItem xs="12" sm="5">
                     <MudTextField @bind-Value="q.QuestionText"
-                                  Label="Câu hỏi"
+                                  Label="@Language.T("public.cauHoi")"
                                   Variant="Variant.Outlined" />
                 </MudItem>
 
@@ -282,7 +282,7 @@
 
                 <MudItem xs="12" sm="1">
                     <MudSwitch T="bool" @bind-Value="q.IsRequired">
-                        Bắt buộc
+                        @Language.T("common.required")
                     </MudSwitch>
                 </MudItem>
             </MudGrid>
@@ -303,7 +303,7 @@
                                OptionCode = $"OPT{q.Options.Count + 1}",
                                Sequence = q.Options.Count + 1
                            }))">
-                    + Option
+                    @Language.T("public.option")
                 </MudButton>
             }
         </MudPaper>
@@ -313,7 +313,7 @@
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
                    OnClick="SaveAsync">
-            Lưu nháp
+            @Language.T("common.luuNhap")
         </MudButton>
     </MudStack>
 </MudPaper>
@@ -321,10 +321,10 @@
 <MudTable Items="_items" Dense="true" Hover="true">
     <HeaderContent>
         <MudTh>@Language.T("common.code")</MudTh>
-        <MudTh>Tiêu đề</MudTh>
-        <MudTh>Thời gian</MudTh>
+        <MudTh>@Language.T("common.tieuDe")</MudTh>
+        <MudTh>@Language.T("common.thoiGian")</MudTh>
         <MudTh>@Language.T("common.status")</MudTh>
-        <MudTh>Đối tượng</MudTh>
+        <MudTh>@Language.T("public.doiTuong")</MudTh>
         <MudTh />
     </HeaderContent>
 
@@ -351,14 +351,14 @@
             <MudButton Size="Size.Small"
                        OnClick="@(() => PublishAsync(context.Id))"
                        Disabled="@(context.Status != "Draft")">
-                Publish
+                @Language.T("common.publish")
             </MudButton>
 
             <MudButton Size="Size.Small"
                        Color="Color.Error"
                        OnClick="@(() => CloseAsync(context.Id))"
                        Disabled="@(context.Status == "Closed" || context.Status == "Archived")">
-                Close
+                @Language.T("public.close")
             </MudButton>
         </MudTd>
     </RowTemplate>
@@ -411,7 +411,7 @@
         }
         else
         {
-            Snackbar.Add(r.Message ?? "Không tải được form.", Severity.Error);
+            Snackbar.Add(r.Message ?? Language.T("public.khongTaiDuocForm"), Severity.Error);
         }
     }
 
@@ -460,7 +460,7 @@
             if (r.IsSuccess)
                 _masterItems = r.Data ?? new();
             else
-                Snackbar.Add(r.Message ?? "Không tải được dữ liệu master.", Severity.Error);
+                Snackbar.Add(r.Message ?? Language.T("public.khongTaiDuocDuLieu2"), Severity.Error);
         }
         finally
         {
@@ -486,7 +486,7 @@
             }
             else
             {
-                Snackbar.Add(r.Message ?? "Không tải được danh sách nhân viên.", Severity.Error);
+                Snackbar.Add(r.Message ?? Language.T("public.khongTaiDuocDanhSach2"), Severity.Error);
             }
         }
         finally
@@ -556,13 +556,13 @@
 
         if (audiences.Count == 0)
         {
-            Snackbar.Add("Bạn chưa chọn đối tượng đăng ký.", Severity.Warning);
+            Snackbar.Add(Language.T("public.banChuaChonDoiTuong"), Severity.Warning);
             return;
         }
 
         if (_form.EndAt.HasValue && _form.StartAt.HasValue && _form.EndAt.Value < _form.StartAt.Value)
         {
-            Snackbar.Add("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.", Severity.Warning);
+            Snackbar.Add(Language.T("public.ngayKetThucPhaiLon"), Severity.Warning);
             return;
         }
 
@@ -572,7 +572,7 @@
 
         if (r.IsSuccess)
         {
-            Snackbar.Add("Đã lưu biểu mẫu nháp.", Severity.Success);
+            Snackbar.Add(Language.T("public.daLuuBieuMauNhap"), Severity.Success);
             _form = NewForm();
             _audienceType = "AllCompany";
             _selectedAudienceValues.Clear();
@@ -583,7 +583,7 @@
         }
         else
         {
-            Snackbar.Add(r.Message ?? "Lưu thất bại.", Severity.Error);
+            Snackbar.Add(r.Message ?? Language.T("message.saveFailed"), Severity.Error);
         }
     }
 
@@ -603,12 +603,12 @@
 
         if (r.IsSuccess)
         {
-            Snackbar.Add("Đã Publish.", Severity.Success);
+            Snackbar.Add(Language.T("public.daPublish"), Severity.Success);
             await LoadAsync();
         }
         else
         {
-            Snackbar.Add(r.Message ?? "Publish thất bại.", Severity.Error);
+            Snackbar.Add(r.Message ?? Language.T("public.publishThatBai"), Severity.Error);
         }
     }
 
@@ -618,12 +618,12 @@
 
         if (r.IsSuccess)
         {
-            Snackbar.Add("Đã đóng.", Severity.Success);
+            Snackbar.Add(Language.T("public.daDong"), Severity.Success);
             await LoadAsync();
         }
         else
         {
-            Snackbar.Add(r.Message ?? "Close thất bại.", Severity.Error);
+            Snackbar.Add(r.Message ?? Language.T("public.closeThatBai"), Severity.Error);
         }
     }
 

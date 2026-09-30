@@ -20,8 +20,8 @@
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
     <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">Danh sách đơn tăng ca (OT)</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Danh sách sử dụng OTSummaryDto</MudText>
+        <MudText Typo="Typo.h5">@Language.T("ot.danhSachDonTangCa")</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("ot.danhSachSuDungOtsummarydto")</MudText>
     </MudStack>
     <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="LoadData" Disabled="_loading" />
 </MudStack>
@@ -48,7 +48,7 @@
                 <MudTextField @bind-Value="_search" Label='@Language.T("common.search")' Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilter" Disabled="_loading" StartIcon="@Icons.Material.Filled.Search">Lọc</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilter" Disabled="_loading" StartIcon="@Icons.Material.Filled.Search">@Language.T("common.loc")</MudButton>
             </MudItem>
         </MudGrid>
     </MudCardContent>
@@ -70,12 +70,12 @@
             }
         </ToolBarContent>
         <HeaderContent>
-            <MudTh>Mã đơn</MudTh>
-            <MudTh>Ngày OT</MudTh>
+            <MudTh>@Language.T("common.maDon")</MudTh>
+            <MudTh>@Language.T("ot.ngayOt")</MudTh>
             <MudTh>@Language.T("ot.employee")</MudTh>
-            <MudTh>Loại OT</MudTh>
+            <MudTh>@Language.T("ot.loaiOt")</MudTh>
             <MudTh>@Language.T("ot.hours")</MudTh>
-            <MudTh>SL NV</MudTh>
+            <MudTh>@Language.T("ot.slNv")</MudTh>
             <MudTh>@Language.T("common.status")</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
@@ -94,7 +94,7 @@
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText Class="pa-6" Color="Color.Secondary">Không có dữ liệu.</MudText>
+            <MudText Class="pa-6" Color="Color.Secondary">@Language.T("common.khongCoDuLieu")</MudText>
         </NoRecordsContent>
     </MudTable>
 
@@ -144,7 +144,7 @@
 
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Không tải được danh sách OT.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocDanhSach"), Severity.Error);
                 return;
             }
 
@@ -164,7 +164,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "[OT_LIST] LoadData lỗi");
-            Snackbar.Add("Lỗi hệ thống khi tải danh sách OT.", Severity.Error);
+            Snackbar.Add(Language.T("ot.loiHeThongKhiTai"), Severity.Error);
         }
         finally
         {

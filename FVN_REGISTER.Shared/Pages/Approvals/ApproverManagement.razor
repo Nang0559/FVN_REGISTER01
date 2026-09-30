@@ -12,13 +12,13 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<PageTitle>Quản lý Approver - FCC</PageTitle>
+<PageTitle>@Language.T("approval.quanLyApproverFcc")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Primary" Size="Size.Large" />
-    <div><MudText Typo="Typo.h5">Quản lý Người Phê Duyệt</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">Cấu hình approver theo bộ phận và cấp duyệt</MudText></div>
+    <div><MudText Typo="Typo.h5">@Language.T("approval.quanLyNguoiPheDuyet")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("approval.cauHinhApproverTheoBo")</MudText></div>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenCreateDialog">Thêm Approver</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenCreateDialog">@Language.T("approval.themApprover")</MudButton>
 </MudStack>
 
 @if (_proposals.Count > 0)
@@ -27,9 +27,9 @@
         Có @_proposals.Count thay đổi HRM đang chờ kiểm duyệt cấu hình Approver.
     </MudAlert>
     <MudPaper Elevation="1" Class="pa-3 mb-4">
-        <MudText Typo="Typo.h6" Class="mb-2">Đề xuất thay đổi từ HRM</MudText>
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("approval.deXuatThayDoiTu")</MudText>
         <MudTable Items="_proposals" Dense="true" Hover="true" Striped="true">
-            <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>HRM cũ → mới</MudTh><MudTh>Cấu hình hiện tại</MudTh><MudTh>HRM đề xuất</MudTh><MudTh></MudTh></HeaderContent>
+            <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("approval.hrmCuMoi")</MudTh><MudTh>@Language.T("approval.cauHinhHienTai")</MudTh><MudTh>@Language.T("approval.hrmDeXuat")</MudTh><MudTh></MudTh></HeaderContent>
             <RowTemplate>
                 <MudTd><b>@context.EmployeeCode</b><br/>@context.ChangeType</MudTd>
                 <MudTd>@context.OldDeptCode / @context.OldPositionCode<br/>→ @context.NewDeptCode / @context.NewPositionCode</MudTd>
@@ -51,11 +51,11 @@
         <MudItem xs="12" sm="3"><MudSelect T="int?" Label='@Language.T("approval.level")' @bind-Value="_filterLevel" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             @for (var level = 1; level <= 7; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">Cấp @l</MudSelectItem> }
         </MudSelect></MudItem>
-        <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="Loại đơn" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+        <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="@Language.T("approval.loaiDon")" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">@Language.T("nav.reportLeave")</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">@Language.T("nav.reportOt")</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">@Language.T("trip.title")</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Equipment)">Thiết bị / Requirement</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Equipment)">@Language.T("approval.thietBiRequirement")</MudSelectItem>
         </MudSelect></MudItem>
         <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Outlined" OnClick="ResetFilter">@Language.T("common.all")</MudButton></MudItem>
     </MudGrid>
@@ -68,7 +68,7 @@
 else
 {
     <MudTable Items="FilteredItems" Dense="true" Hover="true" Striped="true">
-        <HeaderContent><MudTh>Bộ phận</MudTh><MudTh>Loại đơn</MudTh><MudTh>Cấp</MudTh><MudTh>@Language.T("nav.approvers")</MudTh><MudTh>Email</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh></HeaderContent>
+        <HeaderContent><MudTh>@Language.T("nav.departments")</MudTh><MudTh>@Language.T("approval.loaiDon")</MudTh><MudTh>@Language.T("approval.cap")</MudTh><MudTh>@Language.T("nav.approvers")</MudTh><MudTh>@Language.T("common.email")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh></HeaderContent>
         <RowTemplate>
             <MudTd>@context.ApproveForDeptName (@context.ApproveForDeptCode)</MudTd>
             <MudTd>@context.RequestType</MudTd>
@@ -78,7 +78,7 @@ else
             <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Hoạt động" : "Tắt")</MudChip></MudTd>
             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(context))" /><MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" Size="Size.Small" OnClick="@(() => ToggleApprover(context))" /><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmDelete(context))" /></MudTd>
         </RowTemplate>
-        <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">Không có approver phù hợp.</MudText></NoRecordsContent>
+        <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">@Language.T("approval.khongCoApproverPhuHop")</MudText></NoRecordsContent>
     </MudTable>
 }
 
@@ -109,14 +109,14 @@ else
     private async Task AcceptProposal(ApproverSyncProposalDto item)
     {
         var result=await ApproverService.AcceptSyncProposalAsync(item.Id);
-        Snackbar.Add(result.IsSuccess?result.Message??"Đã áp dụng.":result.Message??"Không thể áp dụng.",result.IsSuccess?Severity.Success:Severity.Error);
+        Snackbar.Add(result.IsSuccess?result.Message??Language.T("approval.daApDung"):result.Message??Language.T("approval.khongTheApDung"),result.IsSuccess?Severity.Success:Severity.Error);
         if(result.IsSuccess){await LoadProposalsAsync();await LoadAsync();}
     }
 
     private async Task KeepProposal(ApproverSyncProposalDto item)
     {
         var result=await ApproverService.KeepSyncProposalAsync(item.Id);
-        Snackbar.Add(result.IsSuccess?result.Message??"Đã giữ cấu hình.":result.Message??"Lỗi.",result.IsSuccess?Severity.Success:Severity.Error);
+        Snackbar.Add(result.IsSuccess?result.Message??Language.T("approval.daGiuCauHinh"):result.Message??Language.T("common.loi"),result.IsSuccess?Severity.Success:Severity.Error);
         if(result.IsSuccess) await LoadProposalsAsync();
     }
 
@@ -133,7 +133,7 @@ else
         {
             var result = await ApproverService.GetListAsync(_filterDept, _filterLevel, _filterType?.ToString());
             if (result.IsSuccess && result.Data != null) _items = result.Data;
-            else Snackbar.Add(result.Message ?? "Lỗi tải approver.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("approval.loiTaiApprover"), Severity.Error);
         }
         finally { _loading = false; }
     }
@@ -165,7 +165,7 @@ else
     private async Task ToggleApprover(ApproverDto item)
     {
         var result = await ApproverService.ToggleAsync(item.Id);
-        Snackbar.Add(result.IsSuccess ? result.Message ?? "Đã cập nhật." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(result.IsSuccess ? result.Message ?? Language.T("common.daCapNhat") : result.Message ?? Language.T("common.loi"), result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) await LoadAsync();
     }
 
@@ -174,7 +174,7 @@ else
         var confirm = await DialogService.ShowMessageBoxAsync("Xác nhận xóa", $"Xóa approver {item.ApproverName}?", yesText: "Xóa", cancelText: "Hủy");
         if (confirm != true) return;
         var result = await ApproverService.DeleteAsync(item.Id);
-        Snackbar.Add(result.IsSuccess ? "Đã xóa approver." : result.Message ?? "Lỗi xóa.", result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(result.IsSuccess ? Language.T("approval.daXoaApprover") : result.Message ?? Language.T("common.loiXoa"), result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) await LoadAsync();
     }
 

@@ -6,7 +6,7 @@
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Class="mr-2" />
-            Tạo tài khoản mới
+            @Language.T("user.taoTaiKhoanMoi")
         </MudText>
     </TitleContent>
 
@@ -14,14 +14,14 @@
         <MudGrid>
             <MudItem xs="12">
                 <MudTextField @bind-Value="Request.EmployeeCode"
-                              Label="Mã nhân viên / tên đăng nhập (*)"
+                              Label="@Language.T("user.maNhanVienTenDang")"
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense"
                               Required="true" />
             </MudItem>
             <MudItem xs="12">
                 <MudTextField @bind-Value="Request.Password"
-                              Label="Mật khẩu (*)"
+                              Label="@Language.T("user.matKhau")"
                               InputType="InputType.Password"
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense"
@@ -35,17 +35,17 @@
             </MudItem>
             <MudItem xs="12">
                 <MudStack Spacing="1" Class="mt-2">
-                <MudText Typo="Typo.subtitle2">Quyền module thiết bị</MudText>
+                <MudText Typo="Typo.subtitle2">@Language.T("user.quyenModuleThietBi")</MudText>
                 <MudCheckBox @bind-Value="_equipmentAccess">@Language.T("equipment.register")</MudCheckBox>
                 <MudCheckBox @bind-Value="_equipmentImportAccess">@Language.T("equipment.import")</MudCheckBox>
             </MudStack>
             <MudSelect T="int" @bind-Value="Request.PermissionCode"
-                           Label="Quyền (*)"
+                           Label="@Language.T("user.quyen")"
                            Variant="Variant.Outlined"
                            Margin="Margin.Dense">
-                    <MudSelectItem Value="2">Administrator</MudSelectItem>
+                    <MudSelectItem Value="2">@Language.T("user.administrator")</MudSelectItem>
                     <MudSelectItem Value="4">@Language.T("nav.approvers")</MudSelectItem>
-                    <MudSelectItem Value="5">User</MudSelectItem>
+                    <MudSelectItem Value="5">@Language.T("common.user2")</MudSelectItem>
                 </MudSelect>
             </MudItem>
         </MudGrid>
@@ -57,7 +57,7 @@
                    Variant="Variant.Filled"
                    Color="Color.Primary"
                    Disabled="@(!IsValid)">
-            Tạo tài khoản
+            @Language.T("user.taoTaiKhoan")
         </MudButton>
     </DialogActions>
 </MudDialog>

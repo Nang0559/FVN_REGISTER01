@@ -7,14 +7,14 @@
         <MudSimpleTable Dense="true">
             <tbody>
                 <tr><td><b>@Language.T("common.employeeCode")</b></td><td>@Item.EmployeeCode</td></tr>
-                <tr><td><b>Loại đơn</b></td><td>@GetKindLabel(Item.Kind)</td></tr>
-                <tr><td><b>Thời gian</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
-                <tr><td><b>Số lượng</b></td><td>@FormatUnits(Item)</td></tr>
+                <tr><td><b>@Language.T("approval.loaiDon")</b></td><td>@GetKindLabel(Item.Kind)</td></tr>
+                <tr><td><b>@Language.T("common.thoiGian")</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
+                <tr><td><b>@Language.T("common.soLuong")</b></td><td>@FormatUnits(Item)</td></tr>
                 <tr><td><b>@Language.T("common.department")</b></td><td>@Item.DeptName</td></tr>
                 <tr><td><b>@Language.T("approval.level")</b></td><td>@GetCurrentApprovalLevel(Item)</td></tr>
             </tbody>
         </MudSimpleTable>
-        <MudTextField @bind-Value="_comment" Label="Ý kiến / Lý do từ chối" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+        <MudTextField @bind-Value="_comment" Label="@Language.T("approval.yKienLyDoTu")" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="@(() => MudDialog.Cancel())">@Language.T("common.close")</MudButton>
@@ -56,14 +56,14 @@
     private async Task Approve()
     {
         _busy = true;
-        try { var result = await ApprovalService.ApproveAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : GetCurrentApprovalLevel(Item), _comment); Snackbar.Add(result.IsSuccess ? "Đã phê duyệt!" : result.Message ?? "Lỗi", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
+        try { var result = await ApprovalService.ApproveAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : GetCurrentApprovalLevel(Item), _comment); Snackbar.Add(result.IsSuccess ? Language.T("approval.daPheDuyet") : result.Message ?? Language.T("common.error"), result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
         finally { _busy = false; }
     }
 
     private async Task Reject()
     {
         _busy = true;
-        try { var result = await ApprovalService.RejectAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : GetCurrentApprovalLevel(Item), _comment); Snackbar.Add(result.IsSuccess ? "Đã từ chối!" : result.Message ?? "Lỗi", result.IsSuccess ? Severity.Info : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
+        try { var result = await ApprovalService.RejectAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : GetCurrentApprovalLevel(Item), _comment); Snackbar.Add(result.IsSuccess ? Language.T("approval.daTuChoi") : result.Message ?? Language.T("common.error"), result.IsSuccess ? Severity.Info : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
         finally { _busy = false; }
     }
 }

@@ -25,24 +25,24 @@
             <div>
                 <MudText Typo="Typo.h5">@Language.T("payroll.table")</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">
-                    Kỳ lương theo chu kỳ 21 → 20. Chỉ được in khi toàn bộ Execution đã được giải quyết.
+                    @Language.T("payroll.kyLuongTheoChuKy")
                 </MudText>
             </div>
             <MudStack Row="true" Spacing="2">
                 <MudButton Variant="Variant.Outlined" Disabled="_busy" OnClick="LoadCurrentAsync">
-                    Làm mới
+                    @Language.T("common.refresh")
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                            Disabled="@(!CanPrepare || _busy)" OnClick="PrepareAsync">
-                    Chuẩn bị bảng công
+                    @Language.T("payroll.chuanBiBangCong")
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Warning"
                            Disabled="@(!CanLock || _busy)" OnClick="LockAsync">
-                    Khóa kỳ
+                    @Language.T("payroll.lock")
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Success"
                            Disabled="@(!CanPrint || _busy)" OnClick="PrintAsync">
-                    In bảng công
+                    @Language.T("payroll.print")
                 </MudButton>
             </MudStack>
         </MudStack>
@@ -61,14 +61,14 @@
         <MudGrid Class="mt-4 payroll-no-print" Spacing="2">
             <MudItem xs="12" sm="6" md="3">
                 <MudPaper Outlined="true" Class="pa-4">
-                    <MudText Typo="Typo.overline">KỲ LƯƠNG</MudText>
+                    <MudText Typo="Typo.overline">@Language.T("payroll.kyLuong")</MudText>
                     <MudText Typo="Typo.h6">@_period.PeriodCode</MudText>
                     <MudText Typo="Typo.body2">@_period.FromDate:dd/MM/yyyy → @_period.ToDate:dd/MM/yyyy</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" sm="6" md="2">
                 <MudPaper Outlined="true" Class="pa-4">
-                    <MudText Typo="Typo.overline">TRẠNG THÁI</MudText>
+                    <MudText Typo="Typo.overline">@Language.T("common.trangThai")</MudText>
                     <MudChip T="string" Color="@StatusColor" Size="Size.Small">@_period.Status</MudChip>
                 </MudPaper>
             </MudItem>
@@ -90,7 +90,7 @@
         <MudPaper Outlined="true" Class="pa-4 mt-4">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
                 <div>
-                    <MudText Typo="Typo.h6">Chi tiết bảng công</MudText>
+                    <MudText Typo="Typo.h6">@Language.T("payroll.chiTietBangCong")</MudText>
                     <MudText Typo="Typo.caption">@_inputs.Count dòng snapshot Payroll Input</MudText>
                 </div>
             </MudStack>
@@ -98,7 +98,7 @@
             @if (_inputs.Count == 0)
             {
                 <MudAlert Severity="Severity.Info">
-                    Chưa có Payroll Input. Hãy Prepare kỳ lương sau khi dữ liệu HRM đã được tính.
+                    @Language.T("payroll.chuaCoPayrollInputHay")
                 </MudAlert>
             }
             else
@@ -107,9 +107,9 @@
                     <HeaderContent>
                         <MudTh>@Language.T("ot.employee")</MudTh>
                         <MudTh>@Language.T("ot.date")</MudTh>
-                        <MudTh Style="text-align:right">Giờ công (phút)</MudTh>
-                        <MudTh Style="text-align:right">Nghỉ</MudTh>
-                        <MudTh Style="text-align:right">OT (phút)</MudTh>
+                        <MudTh Style="text-align:right">@Language.T("payroll.gioCongPhut")</MudTh>
+                        <MudTh Style="text-align:right">@Language.T("calendar.holiday")</MudTh>
+                        <MudTh Style="text-align:right">@Language.T("payroll.otPhut")</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Nhân viên">
@@ -204,7 +204,7 @@
 
             if (!r.IsSuccess)
             {
-                Snackbar.Add(r.Message ?? "Prepare bảng công thất bại.", Severity.Error);
+                Snackbar.Add(r.Message ?? Language.T("payroll.prepareBangCongThatBai"), Severity.Error);
                 return;
             }
 
@@ -225,11 +225,11 @@
 
             if (!r.IsSuccess)
             {
-                Snackbar.Add(r.Message ?? "Khóa kỳ lương thất bại.", Severity.Error);
+                Snackbar.Add(r.Message ?? Language.T("payroll.khoaKyLuongThatBai"), Severity.Error);
                 return;
             }
 
-            Snackbar.Add("Đã khóa kỳ lương.", Severity.Success);
+            Snackbar.Add(Language.T("payroll.daKhoaKyLuong"), Severity.Success);
             await LoadCurrentAsync();
         }
         finally { _busy = false; }

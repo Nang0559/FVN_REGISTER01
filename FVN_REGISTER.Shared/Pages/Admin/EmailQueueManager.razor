@@ -12,25 +12,25 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<PageTitle>Quản lý Email Queue</PageTitle>
+<PageTitle>@Language.T("email.quanLyEmailQueue")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
-    <MudText Typo="Typo.h5"><MudIcon Icon="@Icons.Material.Filled.MarkEmailUnread" Class="mr-2" />Quản lý Email Queue</MudText>
+    <MudText Typo="Typo.h5"><MudIcon Icon="@Icons.Material.Filled.MarkEmailUnread" Class="mr-2" />@Language.T("email.quanLyEmailQueue")</MudText>
     <MudStack Row="true" Spacing="2"><MudButton Variant="Variant.Outlined" OnClick="LoadData" Disabled="_loading">@Language.T("common.refresh")</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="TriggerQueue" Disabled="_processing">@(_processing ? "Đang xử lý..." : "Xử lý ngay")</MudButton></MudStack>
 </MudStack>
 
 <MudPaper Class="pa-3 mb-3">
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
         <MudSelect T="string" @bind-Value="_status" Label='@Language.T("common.status")' Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-            <MudSelectItem Value="@("Pending")">Chờ gửi</MudSelectItem><MudSelectItem Value="@("Retry")">Retry</MudSelectItem><MudSelectItem Value="@("Failed")">Thất bại</MudSelectItem><MudSelectItem Value="@("Sent")">Đã gửi</MudSelectItem><MudSelectItem Value="@("Cancelled")">@Language.T("leave.statusCancelled")</MudSelectItem>
+            <MudSelectItem Value="@("Pending")">@Language.T("email.choGui")</MudSelectItem><MudSelectItem Value="@("Retry")">@Language.T("email.retry")</MudSelectItem><MudSelectItem Value="@("Failed")">@Language.T("email.thatBai")</MudSelectItem><MudSelectItem Value="@("Sent")">@Language.T("email.daGui")</MudSelectItem><MudSelectItem Value="@("Cancelled")">@Language.T("leave.statusCancelled")</MudSelectItem>
         </MudSelect>
-        <MudTextField @bind-Value="_search" Placeholder="Tìm email/template..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+        <MudTextField @bind-Value="_search" Placeholder="@Language.T("email.timEmailTemplate")" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
         @if (_selected.Any()) { <MudButton Color="Color.Success" OnClick="RetrySelected">Retry (@_selected.Count)</MudButton><MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="CancelSelected">Hủy (@_selected.Count)</MudButton> }
     </MudStack>
 </MudPaper>
 
 <MudTable T="EmailQueueDto" Items="FilteredItems" Dense="true" Hover="true" MultiSelection="true" @bind-SelectedItems="_selected">
-    <HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("access.newEmployee")</MudTh><MudTh>Template</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>Retry</MudTh><MudTh>Tạo lúc</MudTh><MudTh></MudTh></HeaderContent>
+    <HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("access.newEmployee")</MudTh><MudTh>@Language.T("email.template")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("email.retry")</MudTh><MudTh>@Language.T("email.taoLuc")</MudTh><MudTh></MudTh></HeaderContent>
     <RowTemplate>
         <MudTd>@context.Id</MudTd><MudTd>@context.ToEmail</MudTd><MudTd>@context.TemplateCode</MudTd>
         <MudTd><MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@StatusText(context.Status)</MudChip></MudTd>
@@ -41,7 +41,7 @@
             @if (context.Status is not "Sent" and not "Cancelled") { <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="@(() => CancelSingle(context))" /> }
         </MudTd>
     </RowTemplate>
-    <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">Không có email nào.</MudText></NoRecordsContent>
+    <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">@Language.T("email.khongCoEmailNao")</MudText></NoRecordsContent>
 </MudTable>
 
 @if (_view != null)
@@ -71,40 +71,40 @@
     private async Task LoadData()
     {
         _loading = true;
-        try { var result = await QueueService.GetAllAsync(_cts.Token); if (result.IsSuccess && result.Data != null) _items = result.Data; else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu.", Severity.Error); }
+        try { var result = await QueueService.GetAllAsync(_cts.Token); if (result.IsSuccess && result.Data != null) _items = result.Data; else Snackbar.Add(result.Message ?? Language.T("common.loiTaiDuLieu"), Severity.Error); }
         finally { _loading = false; }
     }
 
     private async Task TriggerQueue()
     {
         _processing = true;
-        try { var result = await QueueService.TriggerProcessAsync(_cts.Token); Snackbar.Add(result.IsSuccess ? "Đã xử lý queue." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData(); }
+        try { var result = await QueueService.TriggerProcessAsync(_cts.Token); Snackbar.Add(result.IsSuccess ? Language.T("email.daXuLyQueue") : result.Message ?? Language.T("common.loi"), result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData(); }
         finally { _processing = false; }
     }
 
     private async Task RetrySingle(EmailQueueDto item)
     {
-        var result = await QueueService.RetryAsync(item.Id, _cts.Token); Snackbar.Add(result.IsSuccess ? "Đã đặt lại để gửi." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData();
+        var result = await QueueService.RetryAsync(item.Id, _cts.Token); Snackbar.Add(result.IsSuccess ? Language.T("email.daDatLaiDeGui") : result.Message ?? Language.T("common.loi"), result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData();
     }
 
     private async Task CancelSingle(EmailQueueDto item)
     {
         var ok = await DialogService.ShowMessageBoxAsync("Xác nhận hủy", $"Hủy email #{item.Id} đến {item.ToEmail}?", yesText: "Hủy", cancelText: "Không");
         if (ok != true) return;
-        var result = await QueueService.CancelAsync(item.Id, _cts.Token); Snackbar.Add(result.IsSuccess ? "Đã hủy." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData();
+        var result = await QueueService.CancelAsync(item.Id, _cts.Token); Snackbar.Add(result.IsSuccess ? Language.T("email.daHuy") : result.Message ?? Language.T("common.loi"), result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData();
     }
 
     private async Task RetrySelected()
     {
         var ids = _selected.Select(x => x.Id).ToList(); if (!ids.Any()) return;
-        var result = await QueueService.RetryBatchAsync(ids, _cts.Token); Snackbar.Add(result.IsSuccess ? $"Đã retry {ids.Count} email." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); _selected.Clear(); if (result.IsSuccess) await LoadData();
+        var result = await QueueService.RetryBatchAsync(ids, _cts.Token); Snackbar.Add(result.IsSuccess ? $"Đã retry {ids.Count} email." : result.Message ?? Language.T("common.loi"), result.IsSuccess ? Severity.Success : Severity.Error); _selected.Clear(); if (result.IsSuccess) await LoadData();
     }
 
     private async Task CancelSelected()
     {
         var ids = _selected.Select(x => x.Id).ToList(); if (!ids.Any()) return;
         var ok = await DialogService.ShowMessageBoxAsync("Xác nhận hủy", $"Hủy {ids.Count} email?", yesText: "Hủy", cancelText: "Không"); if (ok != true) return;
-        var result = await QueueService.CancelBatchAsync(ids, _cts.Token); Snackbar.Add(result.IsSuccess ? $"Đã hủy {ids.Count} email." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); _selected.Clear(); if (result.IsSuccess) await LoadData();
+        var result = await QueueService.CancelBatchAsync(ids, _cts.Token); Snackbar.Add(result.IsSuccess ? $"Đã hủy {ids.Count} email." : result.Message ?? Language.T("common.loi"), result.IsSuccess ? Severity.Success : Severity.Error); _selected.Clear(); if (result.IsSuccess) await LoadData();
     }
 
     private void CloseDialog() => _view = null;

@@ -10,40 +10,40 @@
         <MudForm @ref="_form">
             <MudGrid>
                 <MudItem xs="12">
-                    <MudSelect T="string" Label="Bộ phận của approver (*)" Value="Model.DeptCode" ValueChanged="OnDeptChanged" Variant="Variant.Outlined" Disabled="LockDept" Required="true">
+                    <MudSelect T="string" Label="@Language.T("approval.boPhanCuaApprover")" Value="Model.DeptCode" ValueChanged="OnDeptChanged" Variant="Variant.Outlined" Disabled="LockDept" Required="true">
                         @foreach (var dept in Departments.Where(x => x.DeptCode != "ALL"))
                         { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
-                    <MudSelect T="string" @bind-Value="Model.ApproveForDeptCode" Label="Áp dụng phê duyệt cho bộ phận (*)" Variant="Variant.Outlined" Required="true">
+                    <MudSelect T="string" @bind-Value="Model.ApproveForDeptCode" Label="@Language.T("approval.apDungPheDuyetCho")" Variant="Variant.Outlined" Required="true">
                         @foreach (var dept in Departments)
                         { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudSelect T="int" @bind-Value="Model.Level" Label="Cấp duyệt (*)" Variant="Variant.Outlined" Required="true">
-                        <MudSelectItem Value="1">Cấp 1</MudSelectItem><MudSelectItem Value="2">Cấp 2</MudSelectItem><MudSelectItem Value="3">Cấp 3</MudSelectItem><MudSelectItem Value="4">Cấp 4</MudSelectItem><MudSelectItem Value="5">Cấp 5</MudSelectItem><MudSelectItem Value="6">Cấp 6</MudSelectItem><MudSelectItem Value="7">Cấp 7</MudSelectItem>
+                    <MudSelect T="int" @bind-Value="Model.Level" Label="@Language.T("approval.capDuyet")" Variant="Variant.Outlined" Required="true">
+                        <MudSelectItem Value="1">@Language.T("common.cap1")</MudSelectItem><MudSelectItem Value="2">@Language.T("common.cap2")</MudSelectItem><MudSelectItem Value="3">@Language.T("common.cap3")</MudSelectItem><MudSelectItem Value="4">@Language.T("common.cap4")</MudSelectItem><MudSelectItem Value="5">@Language.T("approval.cap5")</MudSelectItem><MudSelectItem Value="6">@Language.T("approval.cap6")</MudSelectItem><MudSelectItem Value="7">@Language.T("approval.cap7")</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6"><MudSwitch @bind-Value="Model.IsActive" Label="@(Model.IsActive ? "Đang hoạt động" : "Vô hiệu hóa")" Color="Color.Success" /></MudItem>
                 <MudItem xs="12">
-                    <MudSelect T="RequestModule" @bind-Value="Model.RequestType" Label="Loại đơn (*)" Variant="Variant.Outlined">
+                    <MudSelect T="RequestModule" @bind-Value="Model.RequestType" Label="@Language.T("approval.loaiDon2")" Variant="Variant.Outlined">
                         <MudSelectItem Value="@RequestModule.Leave">@Language.T("nav.reportLeave")</MudSelectItem>
                         <MudSelectItem Value="@RequestModule.Overtime">@Language.T("nav.reportOt")</MudSelectItem>
                         <MudSelectItem Value="@RequestModule.Trip">@Language.T("trip.title")</MudSelectItem>
-                        <MudSelectItem Value="@RequestModule.Equipment">Thiết bị / Requirement</MudSelectItem>
+                        <MudSelectItem Value="@RequestModule.Equipment">@Language.T("approval.thietBiRequirement")</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
-                    <MudSelect T="string" Label="Chọn nhân viên (*)" Value="Model.ApproverCode" ValueChanged="OnEmployeeSelected" Variant="Variant.Outlined" Disabled="@(_employees.Count == 0)" Required="true">
+                    <MudSelect T="string" Label="@Language.T("approval.chonNhanVien")" Value="Model.ApproverCode" ValueChanged="OnEmployeeSelected" Variant="Variant.Outlined" Disabled="@(_employees.Count == 0)" Required="true">
                         @foreach (var emp in _employees.Where(x => x.IsApprover))
                         { <MudSelectItem Value="@emp.EmployeeCode">@emp.EmployeeCode - @emp.EmployeeName — @emp.DeptCode — @emp.DeptName — @emp.PositionCode — @emp.PositionName</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverName" Label='@Language.T("common.employeeName")' Variant="Variant.Outlined" ReadOnly="true" /></MudItem>
                 <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverEmail" Label='@Language.T("common.email")' Variant="Variant.Outlined" InputType="InputType.Email" ReadOnly="true" /></MudItem>
-                <MudItem xs="12"><MudTextField @bind-Value="Model.RoleName" Label="Tên vai trò" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="Model.RoleName" Label="@Language.T("approval.tenVaiTro")" Variant="Variant.Outlined" /></MudItem>
             </MudGrid>
         </MudForm>
     </DialogContent>
@@ -101,7 +101,7 @@
         try
         {
             var result = Model.Id == 0 ? await ApproverService.CreateAsync(Model) : await ApproverService.UpdateAsync(Model.Id, Model);
-            Snackbar.Add(result.IsSuccess ? result.Message ?? "Thành công!" : result.Message ?? "Có lỗi xảy ra", result.IsSuccess ? Severity.Success : Severity.Error);
+            Snackbar.Add(result.IsSuccess ? result.Message ?? Language.T("common.thanhCong") : result.Message ?? Language.T("common.coLoiXayRa"), result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true));
         }
         finally { _saving = false; }

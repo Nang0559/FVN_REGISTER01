@@ -4,17 +4,17 @@
     <TitleContent>
         <MudText Typo="Typo.h6" Color="Color.Error">
             <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="mr-2" />
-            Xác nhận xóa
+            @Language.T("department.xacNhanXoa")
         </MudText>
     </TitleContent>
 
     <DialogContent>
         <MudText>
-            Bạn có chắc muốn xóa bộ phận
+            @Language.T("department.banCoChacMuonXoa")
             <strong>@Department?.DeptName</strong> (@Department?.DeptCode)?
         </MudText>
         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
-            Hành động này không thể hoàn tác.
+            @Language.T("department.hanhDongNayKhongThe")
         </MudText>
     </DialogContent>
 

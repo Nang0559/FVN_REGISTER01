@@ -12,7 +12,7 @@
 <MudPaper Elevation="1" Class="pa-4 mb-4">
     <MudGrid>
         <MudItem xs="12" sm="3">
-            <MudDateRangePicker Label="Khoảng thời gian"
+            <MudDateRangePicker Label="@Language.T("report.khoangThoiGian")"
                                 DateRange="_dateRange"
                                 DateRangeChanged="OnDateRangeChanged"
                                 Margin="Margin.Dense" Variant="Variant.Outlined" />
@@ -25,7 +25,7 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadReport" Disabled="_loading" StartIcon="@Icons.Material.Filled.Search">
                 @(_loading ? "Đang tải..." : "Xem báo cáo")
             </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="ExportExcel" StartIcon="@Icons.Material.Filled.Download">Excel</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="ExportExcel" StartIcon="@Icons.Material.Filled.Download">@Language.T("report.excel")</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
@@ -33,7 +33,7 @@
 @if (_result?.Chart != null && _result.Chart.Series.Any())
 {
     <MudPaper Elevation="1" Class="pa-4 mb-4">
-        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Biểu đồ thống kê</b></MudText>
+        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>@Language.T("report.bieuDoThongKe")</b></MudText>
         @if (_result.Chart.ChartType == "bar" || _result.Chart.ChartType == "line")
         {
             <MudChart T="double"
@@ -85,7 +85,7 @@
                 <MudTd Class="@col.CssClass">@FormatCellValue(context, col)</MudTd>
             }
         </RowTemplate>
-        <NoRecordsContent><MudText>Không có dữ liệu. Vui lòng chọn bộ lọc và bấm Xem báo cáo.</MudText></NoRecordsContent>
+        <NoRecordsContent><MudText>@Language.T("report.khongCoDuLieuVui")</MudText></NoRecordsContent>
     </MudTable>
     <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Secondary">Tổng: @_result.TotalRows dòng</MudText>
 }
@@ -128,7 +128,7 @@
 
             var result = await ReportService.GetReportAsync(Query);
             if (result.IsSuccess) _result = result.Data;
-            else Snackbar.Add(result.Message ?? "Lỗi tải báo cáo", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("report.loiTaiBaoCao"), Severity.Error);
         }
         finally { _loading = false; }
     }
@@ -150,7 +150,7 @@
         var result = await ReportService.ExportExcelAsync(Query);
         if (!result.IsSuccess || result.Data == null)
         {
-            Snackbar.Add(result.Message ?? "Lỗi xuất Excel", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("report.loiXuatExcel"), Severity.Error);
             return;
         }
 

@@ -44,24 +44,24 @@
         }
 
         <MudTextField @bind-Value="_comment"
-                      Label="Lý do từ chối (*)"
+                      Label="@Language.T("approval.lyDoTuChoi")"
                       Variant="Variant.Outlined"
                       Lines="4"
                       Required="true"
-                      RequiredError="Vui lòng nhập lý do từ chối"
-                      Placeholder="Nhập lý do từ chối chi tiết..."
+                      RequiredError="@Language.T("approval.vuiLongNhapLyDo")"
+                      Placeholder="@Language.T("approval.nhapLyDoTuChoi")"
                       Immediate="true"
                       Counter="500"
                       MaxLength="500" />
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy bỏ</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.huyBo")</MudButton>
         <MudButton Color="Color.Error" Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.Cancel"
                    OnClick="Confirm"
                    Disabled="@string.IsNullOrWhiteSpace(_comment)">
-            Xác nhận từ chối
+            @Language.T("approval.xacNhanTuChoi")
         </MudButton>
     </DialogActions>
 </MudDialog>

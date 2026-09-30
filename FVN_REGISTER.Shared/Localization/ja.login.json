@@ -3,12 +3,19 @@
   "login.authenticating": "認証中...",
   "login.code": "6桁コード",
   "login.connectFailed": "FCCサーバーに接続できません。",
+  "login.doiMatKhauThanhCong": "パスワードを変更しました。再度ログインしてください！",
+  "login.eApprovalSystem": "e-Approvalシステム",
   "login.employeeCode": "社員番号",
   "login.forgot": "パスワードを忘れた場合",
   "login.forgotDescription": "社員番号を入力してください。ITへ確認依頼を送信します。",
   "login.forgotTitle": "ITへパスワード再発行を依頼",
   "login.invalidCredentials": "社員番号またはパスワードが正しくありません。",
+  "login.khongTheDoiMatKhau": "パスワードを変更できません。",
+  "login.loiHeThongKhiDoi": "パスワード変更中にシステムエラーが発生しました。",
   "login.manualUri": "手動設定URIを表示",
+  "login.matKhauHienTai": "現在のパスワード",
+  "login.matKhauMoi": "新しいパスワード",
+  "login.matKhauMoiVaXac": "新しいパスワードと確認用パスワードが一致しません！",
   "login.optionalNote": "備考（任意）",
   "login.password": "パスワード",
   "login.publicInfo": "公開のお知らせ・規定",
@@ -26,5 +33,6 @@
   "login.twoFactorRequired": "このアカウントには二要素認証が必要です。認証アプリを開き、下のQRコードを読み取ってください。",
   "login.twoFactorSuccess": "認証に成功しました。",
   "login.username": "社員番号 / UserName",
-  "login.verify": "認証してログイン"
+  "login.verify": "認証してログイン",
+  "login.xacNhanMatKhauMoi": "新しいパスワード（確認）"
 }
