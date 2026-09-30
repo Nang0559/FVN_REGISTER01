@@ -38,7 +38,7 @@ public sealed class LanguageService : ILanguageService
         }
         catch
         {
-            // UI localization must continue even when browser storage is unavailable.
+            // UI localization continues even when browser storage is unavailable.
         }
 
         LanguageChanged?.Invoke(this, EventArgs.Empty);
@@ -47,6 +47,9 @@ public sealed class LanguageService : ILanguageService
     public string T(string key, params object?[] args)
     {
         var value = LanguageCatalog.Get(_current, key);
+        if (string.Equals(value, key, StringComparison.Ordinal))
+            value = LanguageCatalogAdditional.TryGet(_current, key, out var additional) ? additional : value;
+
         if (args.Length == 0)
             return value;
 
