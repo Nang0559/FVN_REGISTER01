@@ -39,13 +39,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         {
             var year = DateTime.Now.Year;
 
-            var widgets = new List<WidgetCounterDto>(
-                await _leaveQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct));
+            var widgetsResult = await _leaveQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct);
+            var widgets = new List<WidgetCounterDto>(widgetsResult.Data ?? new List<WidgetCounterDto>());
 
-            var personalBalance = await _leaveQuery.GetSimpleBalanceAsync(
-                user.EmployeeCode!, year, ct);
-            var recentSummary = await _leaveQuery.GetRecentSummaryAsync(
-                user.EmployeeCode!, 5, ct);
+            var personalBalanceResult = await _leaveQuery.GetSimpleBalanceAsync(user.EmployeeCode!, year, ct);
+            var personalBalance = personalBalanceResult.Data;
+            var recentSummaryResult = await _leaveQuery.GetRecentSummaryAsync(user.EmployeeCode!, 5, ct);
+            var recentSummary = recentSummaryResult.Data ?? new List<LeaveSummaryDto>();
 
             AbsenceWarningDto? deptWarning = null;
             var departmentStatistics = new List<LeaveStatisticsDto>();
