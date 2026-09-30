@@ -44,6 +44,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        var employeeCode = UserInfo.EmployeeCode.Trim();
         var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
         if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct))
             return Forbid();
@@ -58,7 +59,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (last.DayNumber - first.DayNumber > 93)
             return BadRequest(ApiResponse<object>.Fail("Lịch chỉ cho phép tối đa 94 ngày mỗi lần tải."));
 
-        var result = await _calendar.GetMonthAsync(UserInfo.EmployeeCode, userId, first, last, modules, ct);
+        var result = await _calendar.GetMonthAsync(employeeCode, userId, first, last, modules, ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
@@ -72,9 +73,13 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        employeeCode = employeeCode?.Trim() ?? string.Empty;
+        if (employeeCode.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("Mã nhân viên không được để trống."));
+
         var isOwnEmployee = string.Equals(
-            UserInfo.EmployeeCode?.Trim(),
-            employeeCode?.Trim(),
+            UserInfo.EmployeeCode.Trim(),
+            employeeCode,
             StringComparison.OrdinalIgnoreCase);
         var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: isOwnEmployee, ct);
 
@@ -111,6 +116,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        var employeeCode = UserInfo.EmployeeCode.Trim();
         var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
         if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct))
             return Forbid();
@@ -122,7 +128,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (last < first)
             return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
 
-        var result = await _calendar.GetAlertsAsync(UserInfo.EmployeeCode, userId, first, last, modules, ct);
+        var result = await _calendar.GetAlertsAsync(employeeCode, userId, first, last, modules, ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
@@ -136,9 +142,13 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        employeeCode = employeeCode?.Trim() ?? string.Empty;
+        if (employeeCode.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("Mã nhân viên không được để trống."));
+
         var isOwnEmployee = string.Equals(
-            UserInfo.EmployeeCode?.Trim(),
-            employeeCode?.Trim(),
+            UserInfo.EmployeeCode.Trim(),
+            employeeCode,
             StringComparison.OrdinalIgnoreCase);
         var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: isOwnEmployee, ct);
 
@@ -175,6 +185,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        var employeeCode = UserInfo.EmployeeCode.Trim();
         var today = DateOnly.FromDateTime(DateTime.Today);
         var first = from ?? today;
         var last = to ?? today.AddDays(31);
@@ -186,7 +197,7 @@ public sealed class WorkCalendarController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Lịch chỉ cho phép tối đa 94 ngày mỗi lần tải."));
 
         var result = await _workCalendar.GetRegistrationOpportunitiesAsync(
-            UserInfo.EmployeeCode,
+            employeeCode,
             first.ToDateTime(TimeOnly.MinValue),
             last.ToDateTime(TimeOnly.MinValue),
             ct);
@@ -202,8 +213,9 @@ public sealed class WorkCalendarController : BaseApiController
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        var employeeCode = UserInfo.EmployeeCode.Trim();
         var result = await _workCalendar.GetAvailabilityAsync(
-            UserInfo.EmployeeCode,
+            employeeCode,
             date.ToDateTime(TimeOnly.MinValue),
             ct);
 
@@ -219,9 +231,8 @@ public sealed class WorkCalendarController : BaseApiController
             return true;
 
         // Own calendar is self-service data: modules already contains the caller's own modules.
-        // Self-service calendar access can come from any module view
-        // capability. This never expands the caller's data scope to another
-        // employee; cross-employee access remains Calendar.View + ManagedScope.
+        // Self-service calendar access can come from any module view capability. This never expands
+        // the caller's data scope to another employee; cross-employee access remains Calendar.View + ManagedScope.
         return modules.Count > 0;
     }
 
@@ -233,10 +244,8 @@ public sealed class WorkCalendarController : BaseApiController
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Self-service: every authenticated employee can see their own OT / leave /
-        // trip / attendance on "Lịch của tôi". This does not depend on the
-        // department-scoped module View capabilities (e.g. Attendance.View is
-        // intentionally NOT granted to the normal User role) and never widens
-        // access to another employee's data.
+        // trip / attendance on "Lịch của tôi". This does not depend on department-scoped
+        // module View capabilities and never widens access to another employee's data.
         if (includeOwnData)
         {
             result.Add("OT");
