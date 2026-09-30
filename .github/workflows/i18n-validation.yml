@@ -3,10 +3,10 @@ name: i18n-validation
 on:
   push:
     branches:
-      - feature/i18n-vi-ja-cleanup
+      - feature/i18n-vi-ja
   pull_request:
     branches:
-      - feature/i18n-vi-ja-cleanup
+      - feature/i18n-vi-ja
 
 jobs:
   validate:
