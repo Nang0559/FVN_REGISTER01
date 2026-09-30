@@ -407,7 +407,7 @@ public sealed class PublicFormService : IPublicFormService
             TotalCount = total, Page = page, PageSize = pageSize,
             Questions = form.Questions.Where(x => x.IsActive == true).OrderBy(x => x.Sequence).Select(MapQuestion).ToList(),
             Items = rows.Select(x => MapSubmission(x, employees, form.Questions)).ToList()
-        });
+        };
     }
 
     private async Task<PublicFormSubmissionSummaryDto> GetSubmissionSummaryAsyncCoreAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default)
