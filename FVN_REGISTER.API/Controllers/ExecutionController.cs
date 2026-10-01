@@ -39,7 +39,7 @@ public sealed class ExecutionController : BaseApiController
         [FromQuery] DateOnly? to,
         CancellationToken ct)
     {
-        if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.AttendanceView, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceView, ct))
             return Forbid();
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
@@ -62,7 +62,7 @@ public sealed class ExecutionController : BaseApiController
         [FromQuery] DateOnly date,
         CancellationToken ct)
     {
-        if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
             return Forbid();
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
