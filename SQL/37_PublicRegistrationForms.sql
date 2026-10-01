@@ -119,6 +119,8 @@ CREATE TABLE dbo.F03PublicFormAudits(
  AfterJson nvarchar(max) NULL,
  CreatedBy int NOT NULL,
  CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03PublicFormAudits_CreatedAt DEFAULT GETDATE(),
+ ModifiedBy int NULL,
+ ModifiedAt datetime2 NULL,
  LastModifiedSource nvarchar(max) NULL,
  IsActive bit NULL CONSTRAINT DF_F03PublicFormAudits_IsActive DEFAULT 1,
  CONSTRAINT FK_F03PublicFormAudits_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE
