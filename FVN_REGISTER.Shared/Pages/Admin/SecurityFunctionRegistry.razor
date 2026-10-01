@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Security
 @using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Core.Constants
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject ISecurityClientService SecurityService
@@ -9,6 +10,12 @@
 
 <PageTitle>@Language.T("security.securityFunctionRegistry")</PageTitle>
 
+@if (!_authorized)
+{
+    <MudAlert Severity="Severity.Warning">@Language.T("security.noPermission")</MudAlert>
+}
+else
+{
 <MudStack Spacing="3">
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <div>
@@ -125,6 +132,7 @@
         </MudTabPanel>
     </MudTabs>
 </MudStack>
+}
 
 @code {
     private List<SecurityFunctionRegistryItemDto> _items = new();
@@ -132,6 +140,7 @@
     private List<SecurityRoleDto> _roles = new();
     private SecurityFunctionDiscoverySummaryDto? _summary;
     private bool _busy;
+    private bool _authorized;
     private string? _selectedKey;
     private readonly Dictionary<string, string> _replacementByFunction = new(StringComparer.OrdinalIgnoreCase);
     private int _functionCode;
@@ -149,7 +158,13 @@
     private IEnumerable<SecurityFunctionRegistryItemDto> PendingRetirement => _items.Where(x => x.LifecycleStatus == "PendingRetirement");
     private IEnumerable<SecurityFunctionRegistryItemDto> ActiveFunctions => _items.Where(x => x.Registered && x.LifecycleStatus == "Active");
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        _authorized = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.SecurityManageFunctions) == true;
+        if (_authorized)
+            await ReloadAsync();
+    }
 
     private async Task ReloadAsync()
     {
