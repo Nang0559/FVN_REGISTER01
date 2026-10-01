@@ -127,7 +127,7 @@
                                     @foreach (var f in group.OrderBy(x => x.DisplayOrder))
                                     {
                                         <MudChip T="string" Size="Size.Small" Class="ma-1" Color="Color.Success">
-                                            @f.ActionCode
+                                            @f.ActionCode · @(f.AccessMode ?? "-") · @(f.ScopeCode ?? "-")
                                         </MudChip>
                                     }
                                 }
