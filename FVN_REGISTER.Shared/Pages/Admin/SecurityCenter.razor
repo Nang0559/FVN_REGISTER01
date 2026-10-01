@@ -260,6 +260,18 @@
                                         @if (HasRoleFunction(role.RoleCode, context.FunctionCode))
                                         {
                                             <MudSelect T="string"
+                                                       Value="@GetRoleFunctionMode(role.RoleCode, context.FunctionCode)"
+                                                       ValueChanged="@(value => SetRoleFunctionMode(role.RoleCode, context.FunctionCode, value))"
+                                                       Dense="true"
+                                                       Margin="Margin.Dense"
+                                                       Variant="Variant.Outlined"
+                                                       Style="width:135px">
+                                                @foreach (var mode in AccessModeOptions)
+                                                {
+                                                    <MudSelectItem T="string" Value="@mode">@mode</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                            <MudSelect T="string"
                                                        Value="@GetRoleFunctionScope(role.RoleCode, context.FunctionCode)"
                                                        ValueChanged="@(value => SetRoleFunctionScope(role.RoleCode, context.FunctionCode, value))"
                                                        Dense="true"
@@ -534,6 +546,7 @@
     private List<SecurityRoleDto> _roles = new();
     private List<SecurityFunctionDto> _matrixFunctions = new();
     private Dictionary<int, Dictionary<int, string>> _matrix = new();
+    private Dictionary<int, Dictionary<int, string>> _matrixModes = new();
 
     private PermissionSnapshotDto? _snapshot;
     private UserAccountDto? _selected;
@@ -843,6 +856,7 @@
 
     private static readonly string[] ScopeOptions =
         { AuthorizationScopeCodes.Own, AuthorizationScopeCodes.Employee, AuthorizationScopeCodes.Department, AuthorizationScopeCodes.All };
+    private static readonly string[] AccessModeOptions = { "Personal", "Management" };
 
     private void BuildMatrix()
     {
@@ -851,6 +865,11 @@
             r => r.FunctionScopes.ToDictionary(
                 x => x.Key,
                 x => string.IsNullOrWhiteSpace(x.Value) ? AuthorizationScopeCodes.Own : x.Value));
+        _matrixModes = _roles.ToDictionary(
+            r => r.RoleCode,
+            r => r.FunctionAccessModes.ToDictionary(
+                x => x.Key,
+                x => string.IsNullOrWhiteSpace(x.Value) ? "Personal" : x.Value));
     }
 
     private bool HasRoleFunction(int roleCode, int functionCode)
@@ -866,6 +885,15 @@
             ?? AuthorizationScopeCodes.Own;
     }
 
+    private string GetRoleFunctionMode(int roleCode, int functionCode)
+    {
+        if (_matrixModes.TryGetValue(roleCode, out var modes)
+            && modes.TryGetValue(functionCode, out var mode)
+            && !string.IsNullOrWhiteSpace(mode))
+            return mode;
+        return "Personal";
+    }
+
     private void ToggleRoleFunction(int roleCode, int functionCode, bool enabled)
     {
         if (!_matrix.TryGetValue(roleCode, out var functions))
@@ -873,11 +901,26 @@
             functions = new Dictionary<int, string>();
             _matrix[roleCode] = functions;
         }
+        if (!_matrixModes.TryGetValue(roleCode, out var modes))
+            _matrixModes[roleCode] = modes = new Dictionary<int, string>();
 
         if (enabled)
+        {
             functions[functionCode] = GetRoleFunctionScope(roleCode, functionCode);
+            modes[functionCode] = GetRoleFunctionMode(roleCode, functionCode);
+        }
         else
+        {
             functions.Remove(functionCode);
+            modes.Remove(functionCode);
+        }
+    }
+
+    private void SetRoleFunctionMode(int roleCode, int functionCode, string mode)
+    {
+        if (!_matrixModes.TryGetValue(roleCode, out var modes))
+            _matrixModes[roleCode] = modes = new Dictionary<int, string>();
+        modes[functionCode] = string.IsNullOrWhiteSpace(mode) ? "Personal" : mode;
     }
 
     private void SetRoleFunctionScope(int roleCode, int functionCode, string scope)
@@ -956,6 +999,7 @@
                 var index = _roles.FindIndex(x => x.RoleCode == role.RoleCode);
                 if (index >= 0) _roles[index] = saved;
                 _matrix[role.RoleCode] = saved.FunctionScopes.ToDictionary(x => x.Key, x => x.Value);
+                _matrixModes[role.RoleCode] = saved.FunctionAccessModes.ToDictionary(x => x.Key, x => x.Value);
             }
 
             if (_selected != null)
