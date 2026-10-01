@@ -979,13 +979,19 @@
     private async Task SaveRoleFunctionsAsync(SecurityRoleDto role)
     {
         if (!_matrix.TryGetValue(role.RoleCode, out var functions))
-            functions = new HashSet<int>();
+            functions = new Dictionary<int, string>();
 
         _savingRoleCode = role.RoleCode;
         try
         {
+            var functionCodes = functions.Keys.OrderBy(x => x).ToList();
+            var scopeOverrides = functions.ToDictionary(x => x.Key, x => (string?)x.Value);
+            var accessModeOverrides = _matrixModes.TryGetValue(role.RoleCode, out var modes)
+                ? modes.ToDictionary(x => x.Key, x => (string?)x.Value)
+                : new Dictionary<int, string?>();
+
             var result = await SecurityService.SetRoleFunctionsAsync(
-                role.RoleCode, functions.OrderBy(x => x).ToList());
+                role.RoleCode, functionCodes, scopeOverrides, accessModeOverrides);
 
             if (!result.IsSuccess)
             {
