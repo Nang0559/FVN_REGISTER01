@@ -4,6 +4,7 @@ using FVN_REGISTER.Contract.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.Equipment;
 
+/// <summary>Equipment-specific adapter over the canonical Shared Excel Platform. No Equipment-owned Excel persistence is exposed here.</summary>
 public interface IEquipmentImportService
 {
     Task<List<EquipmentFieldDefinitionDto>> GetFieldDefinitionsAsync(string deptCode, CancellationToken ct = default);
