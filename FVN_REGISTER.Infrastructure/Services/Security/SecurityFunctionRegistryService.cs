@@ -214,7 +214,7 @@ public sealed class SecurityFunctionRegistryService
 
     private static string ToFunctionKey(string name)
     {
-        var modules = new[] { "SecurityAccessChange", "UserManagement", "PublicInformation", "PublicForm", "WorkCalendar", "DepartmentStatus", "ApprovalPolicy", "HrmUserRoleRule", "EmailQueue", "EmailTemplate", "Equipment", "HrmSync", "Attendance", "Dashboard", "LeaveType", "Department", "Employee", "Approver", "OTLimit", "Execution", "Payroll", "Security", "Leave", "Trip", "OT" };
+        var modules = new[] { "SecurityAccessChange", "UserManagement", "PublicInformation", "PublicForm", "WorkCalendar", "DepartmentStatus", "ApprovalPolicy", "HrmUserRoleRule", "EmailQueue", "EmailTemplate", "Equipment", "HrmSync", "Attendance", "Dashboard", "LeaveType", "Department", "Employee", "Approver", "OTLimit", "Execution", "Payroll", "Security", "Language", "Leave", "Trip", "OT" };
         var module = modules.OrderByDescending(x => x.Length).FirstOrDefault(name.StartsWith); if (module == null) return name;
         var suffix = name[module.Length..]; return string.IsNullOrWhiteSpace(suffix) ? module : $"{module}.{suffix}";
     }
