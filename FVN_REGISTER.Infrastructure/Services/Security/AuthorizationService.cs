@@ -547,7 +547,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         ).ToListAsync(ct);
 
         var functions = rawFunctions
-            .GroupBy(x => new { x.Function.FunctionCode, Scope = x.EffectiveScope ?? AuthorizationScopeCodes.None })
+            .GroupBy(x => new { x.Function.FunctionCode, Scope = x.EffectiveScope ?? AuthorizationScopeCodes.None, Mode = x.EffectiveAccessMode })
             .Select(g => g.OrderBy(x => x.Function.DisplayOrder).First())
             .OrderBy(x => x.Function.DisplayOrder)
             .ThenBy(x => x.Function.FunctionCode)
