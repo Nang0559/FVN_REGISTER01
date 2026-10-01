@@ -1,10 +1,37 @@
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Contract.Dtos.Security;
 using Xunit;
 
 namespace FVN_REGISTER.Infrastructure.Tests;
 
 public sealed class SecurityFunctionCapabilityMatrixTests
 {
+    [Fact]
+    public void ScopePolicy_DistinguishesPersonalAndManagement()
+    {
+        Assert.True(AuthorizationScopePolicy.IsPersonalScope(AuthorizationScopeCodes.Own));
+        Assert.False(AuthorizationScopePolicy.IsManagementScope(AuthorizationScopeCodes.Own));
+        Assert.True(AuthorizationScopePolicy.IsManagementScope(AuthorizationScopeCodes.Department));
+        Assert.True(AuthorizationScopePolicy.IsManagementScope(AuthorizationScopeCodes.All));
+    }
+
+    [Fact]
+    public void PermissionSnapshot_AllowsUserAndManagerScopesForSameFunction()
+    {
+        var snapshot = new PermissionSnapshotDto
+        {
+            Functions = new List<SecurityFunctionDto>
+            {
+                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Own },
+                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Department }
+            },
+            FunctionCodes = new HashSet<int> { SecurityFunctionCodes.LeaveView }
+        };
+
+        Assert.True(snapshot.HasPersonal(SecurityFunctionCodes.LeaveView));
+        Assert.True(snapshot.HasManagement(SecurityFunctionCodes.LeaveView));
+    }
+
     [Fact]
     public void AttendanceCalculate_IsSeparateFromAttendanceViewAndExport()
     {
