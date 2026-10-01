@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Application.Models.Calendar;
@@ -18,6 +19,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
     private readonly IWorkCalendarService _workCalendar;
     private readonly ICalendarDayRuleEngine _ruleEngine;
     private readonly IAuthorizationService _authorization;
+    private readonly IHrmAttendanceCalculationService _attendanceCalculation;
     private readonly ILogger<SharedWorkCalendarService> _logger;
 
     public SharedWorkCalendarService(
@@ -26,6 +28,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         IWorkCalendarService workCalendar,
         ICalendarDayRuleEngine ruleEngine,
         IAuthorizationService authorization,
+        IHrmAttendanceCalculationService attendanceCalculation,
         ILogger<SharedWorkCalendarService> logger)
     {
         _db = db;
@@ -33,6 +36,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         _workCalendar = workCalendar;
         _ruleEngine = ruleEngine;
         _authorization = authorization;
+        _attendanceCalculation = attendanceCalculation;
         _logger = logger;
     }
 
@@ -98,6 +102,50 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .AsNoTracking()
             .Where(x => x.IsActive != false && x.IsEnabled)
             .ToDictionaryAsync(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        // Attendance is a current-state projection, not the source of calendar availability.
+        // Before reading the attendance provider, ensure the requested employee/date range
+        // has calculation coverage. Historical months are therefore lazy-backfilled only
+        // when actually requested; no calendar request triggers a company-wide calculation.
+        if (allowedModules is null || allowedModules.Contains("ATTENDANCE"))
+        {
+            var coverage = await _attendanceCalculation.EnsureEmployeeRangeAsync(
+                resolvedEmployeeCode,
+                employee.DeptCode,
+                from,
+                to,
+                cancellationToken);
+
+            if (!coverage.IsSuccess)
+            {
+                _logger.LogWarning(
+                    "Attendance calendar backfill failed. EmployeeCode={EmployeeCode}, From={From}, To={To}, Message={Message}",
+                    resolvedEmployeeCode,
+                    from,
+                    to,
+                    coverage.Message);
+
+                return new CalendarMonthDto
+                {
+                    From = from,
+                    To = to,
+                    Items = Array.Empty<CalendarItemDto>(),
+                    Days = Array.Empty<CalendarDayDto>(),
+                    Alerts =
+                    [
+                        new CalendarAlertItemDto
+                        {
+                            WorkDate = from,
+                            ModuleCode = "ATTENDANCE",
+                            Severity = "Warning",
+                            Summary = coverage.Message ?? "Không thể chuẩn bị dữ liệu chấm công cho khoảng thời gian đã chọn.",
+                            RequiresAction = false
+                        }
+                    ],
+                    RegistrationOpportunities = Array.Empty<CalendarRegistrationOpportunityDto>()
+                };
+            }
+        }
 
         var context = new CalendarContext(
             EmployeeId: employee.Id,
