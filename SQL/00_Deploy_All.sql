@@ -35,6 +35,12 @@ Database/ is documentation/history only and is not executed by deployment.
 
 /* EQUIPMENT - CANONICAL OWNER */
 :r "16_EquipmentFlexibleImport.sql"
+
+/* SHARED EXCEL - SINGLE CANONICAL OWNER */
+:r "Excel/001_SharedExcelPlatform.sql"
+:r "Excel/002_SharedExcelPlatform_Normalize.sql"
+:r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
+
 :r "16A_EquipmentCapabilities.sql"
 
 /* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
