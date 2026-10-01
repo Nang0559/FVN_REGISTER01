@@ -64,7 +64,18 @@ public sealed class SecurityFunctionRegistryService
                 if (codeConflict) { item.LifecycleStatus = "Conflict"; item.ResolvedAt = null; }
                 else if (functionByKey.TryGetValue(d.FunctionKey, out var f))
                 {
-                    if (f.LifecycleStatus == "PendingRetirement") { f.LifecycleStatus = "Active"; f.IsActive = true; }
+                    if (SecurityFunctionCodes.IsSystemCritical(f.FunctionCode))
+                    {
+                        f.IsSystemCritical = true;
+                        f.LifecycleStatus = "Active";
+                        f.IsActive = true;
+                    }
+                    else if (f.LifecycleStatus == "PendingRetirement")
+                    {
+                        f.LifecycleStatus = "Active";
+                        f.IsActive = true;
+                    }
+
                     item.LifecycleStatus = f.LifecycleStatus; item.ResolvedAt ??= now; matched++;
                 }
                 else if (!item.IsIgnored && item.LifecycleStatus is not ("Retired" or "Replaced")) { item.LifecycleStatus = "PendingRegistration"; item.ResolvedAt = null; }
@@ -76,6 +87,16 @@ public sealed class SecurityFunctionRegistryService
         foreach (var f in functions)
         {
             if (string.IsNullOrWhiteSpace(f.FunctionKey) || discoveredKeys.Contains(f.FunctionKey) || f.LifecycleStatus is "Retired" or "Replaced") continue;
+
+            // Discovery must never retire a system-critical capability.
+            if (SecurityFunctionCodes.IsSystemCritical(f.FunctionCode))
+            {
+                f.IsSystemCritical = true;
+                f.LifecycleStatus = "Active";
+                f.IsActive = true;
+                continue;
+            }
+
             f.LifecycleStatus = "PendingRetirement"; f.IsActive = false; retirement++;
             if (registryByKey.TryGetValue(f.FunctionKey, out var item)) { item.LifecycleStatus = "PendingRetirement"; item.ResolvedAt = null; }
             else _db.SecurityFunctionRegistry.Add(new F03SecurityFunctionRegistryItem
@@ -103,6 +124,8 @@ public sealed class SecurityFunctionRegistryService
     public async Task RegisterAsync(string functionKey, RegisterDiscoveredFunctionRequest request, int actorUserId, CancellationToken ct = default)
     {
         var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}' trong danh mục chức năng.");
+        if (SecurityFunctionCodes.IsSystemCritical(item.FunctionCode))
+            throw new InvalidOperationException("System Critical Security Function phải được quản lý bằng invariant hệ thống.");
         if (item.LifecycleStatus == "Conflict") throw new InvalidOperationException($"Chức năng '{functionKey}' đang có xung đột mã chức năng và phải được xử lý trước.");
         if (await _db.Functions.AnyAsync(x => x.FunctionKey == functionKey, ct)) throw new InvalidOperationException($"Chức năng '{functionKey}' đã được đăng ký.");
         if (item.FunctionCode <= 0) throw new InvalidOperationException($"Chức năng '{functionKey}' chưa có mã chức năng hợp lệ.");
@@ -124,6 +147,9 @@ public sealed class SecurityFunctionRegistryService
     public async Task RetireAsync(string functionKey, int actorUserId, CancellationToken ct = default)
     {
         var f = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}'.");
+        if (SecurityFunctionCodes.IsSystemCritical(f.FunctionCode))
+            throw new InvalidOperationException("Không được retire System Critical Security Function.");
+
         f.LifecycleStatus = "Retired"; f.IsActive = false; f.ModifiedBy = actorUserId; f.ModifiedAt = DateTime.Now;
         var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct); if (item != null) { item.LifecycleStatus = "Retired"; item.ResolvedAt = DateTime.Now; }
         await _db.SaveChangesAsync(ct);
@@ -133,6 +159,9 @@ public sealed class SecurityFunctionRegistryService
     {
         if (string.Equals(functionKey, request.ReplacementFunctionKey, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Không thể thay thế chức năng bằng chính nó.");
         var old = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}'.");
+        if (SecurityFunctionCodes.IsSystemCritical(old.FunctionCode))
+            throw new InvalidOperationException("Không được replace System Critical Security Function.");
+
         var replacement = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == request.ReplacementFunctionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng thay thế '{request.ReplacementFunctionKey}'.");
         if (replacement.IsActive != true || replacement.LifecycleStatus != "Active") throw new InvalidOperationException("Chức năng thay thế phải đang hoạt động.");
         old.LifecycleStatus = "Replaced"; old.ReplacementFunctionKey = replacement.FunctionKey; old.IsActive = false; old.ModifiedBy = actorUserId; old.ModifiedAt = DateTime.Now;
@@ -154,17 +183,24 @@ public sealed class SecurityFunctionRegistryService
         var byCode = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionCode == request.FunctionCode, ct);
         if (byKey != null && byCode != null && byKey.Id != byCode.Id) throw new InvalidOperationException("Mã định danh và mã chức năng đang thuộc hai chức năng khác nhau.");
         var entity = byKey ?? byCode;
+        if (SecurityFunctionCodes.IsSystemCritical(request.FunctionCode) && entity == null)
+            throw new InvalidOperationException("System Critical Security Function phải được bootstrap từ SecurityFunctionCodes/SQL invariant.");
+
         if (entity == null) { entity = new F03Function { FunctionCode = request.FunctionCode, CreatedBy = actorUserId }; _db.Functions.Add(entity); }
         entity.FunctionCode = request.FunctionCode; entity.FunctionKey = key;
         entity.FunctionName = string.IsNullOrWhiteSpace(request.FunctionName) ? SecurityFunctionCatalog.GetDisplayName(key) : request.FunctionName.Trim();
         entity.Detail = string.IsNullOrWhiteSpace(request.Detail) ? SecurityFunctionCatalog.GetDescription(key) : request.Detail.Trim();
         entity.ModuleCode = request.ModuleCode?.Trim(); entity.ActionCode = request.ActionCode?.Trim(); entity.ScopeCode = NormalizeScope(request.ScopeCode); entity.DisplayOrder = request.DisplayOrder == 0 ? request.FunctionCode : request.DisplayOrder;
-        entity.LifecycleStatus = "Active"; entity.SourceType = "Manual"; entity.IsActive = true; entity.ModifiedBy = actorUserId; entity.ModifiedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
+        entity.LifecycleStatus = "Active"; entity.SourceType = "Manual"; entity.IsActive = true;
+        entity.IsSystemCritical = SecurityFunctionCodes.IsSystemCritical(entity.FunctionCode) || entity.IsSystemCritical; entity.ModifiedBy = actorUserId; entity.ModifiedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
     }
 
     public async Task DeleteFunctionAsync(int id, int actorUserId, CancellationToken ct = default)
     {
         var f = await _db.Functions.Include(x => x.RoleFunctions).Include(x => x.UserFunctions).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException("Không tìm thấy chức năng.");
+        if (f.IsSystemCritical || SecurityFunctionCodes.IsSystemCritical(f.FunctionCode))
+            throw new InvalidOperationException("Không được xóa System Critical Security Function.");
+
         if (f.RoleFunctions.Count > 0 || f.UserFunctions.Count > 0 || f.SourceType != "Manual") { f.LifecycleStatus = "Retired"; f.IsActive = false; f.ModifiedBy = actorUserId; f.ModifiedAt = DateTime.Now; } else _db.Functions.Remove(f);
         await _db.SaveChangesAsync(ct);
     }
