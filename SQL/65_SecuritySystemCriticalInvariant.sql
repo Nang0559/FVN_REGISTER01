@@ -24,6 +24,51 @@ BEGIN
 END;
 GO
 
+/* Ensure every critical definition exists even on an older database. */
+DECLARE @Critical TABLE
+(
+    FunctionCode int NOT NULL,
+    FunctionKey nvarchar(150) NOT NULL,
+    FunctionName nvarchar(100) NOT NULL,
+    Detail nvarchar(500) NOT NULL,
+    ActionCode nvarchar(50) NOT NULL
+);
+
+INSERT INTO @Critical VALUES
+(2601, N'Security.View', N'Security.View', N'Xem Security Center', N'View'),
+(2602, N'Security.ManageRoles', N'Security.ManageRoles', N'Quản lý role', N'ManageRoles'),
+(2603, N'Security.ManageFunctions', N'Security.ManageFunctions', N'Quản lý function/action', N'ManageFunctions'),
+(2604, N'Security.Audit', N'Security.Audit', N'Xem audit security', N'Audit');
+
+INSERT INTO dbo.F03Functions
+(
+    IsActive, CreatedBy, FunctionCode, FunctionKey, FunctionName, Detail,
+    ModuleCode, ActionCode, ScopeCode, LifecycleStatus, SourceType,
+    DisplayOrder, IsSystemCritical
+)
+SELECT
+    1, 0, c.FunctionCode, c.FunctionKey, c.FunctionName, c.Detail,
+    N'Security', c.ActionCode, N'All', N'Active', N'System',
+    c.FunctionCode, 1
+FROM @Critical AS c
+WHERE NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03Functions AS f
+    WHERE f.FunctionCode = c.FunctionCode
+);
+
+UPDATE f
+SET
+    f.FunctionKey = c.FunctionKey,
+    f.FunctionName = c.FunctionName,
+    f.Detail = c.Detail,
+    f.ModuleCode = N'Security',
+    f.ActionCode = c.ActionCode,
+    f.ScopeCode = N'All'
+FROM dbo.F03Functions AS f
+INNER JOIN @Critical AS c ON c.FunctionCode = f.FunctionCode;
+
 /* Normalize the current critical set. */
 UPDATE f
 SET
