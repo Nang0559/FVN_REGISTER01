@@ -99,11 +99,54 @@ API yêu cầu authentication, nhận department/date range, truyền EmployeeCo
 
 HrmAttendanceCalculationWorker dùng cùng IHrmAttendanceCalculationService. Manual và background phải đi qua cùng dbo.usp_CalculateHrmAttendance.
 
-## 11. Export
+Worker không mặc định tính lại toàn bộ kỳ 21→20 sau mỗi restart. Worker đọc các CalculationRun thành công có scope company-wide và chỉ catch-up phần còn thiếu tới ngày hôm qua; mỗi ngày tiếp tục tính ngày hôm qua.
+
+## 11. Calendar historical coverage
+
+Lịch cá nhân dùng coverage-aware lazy backfill. Khi người dùng chuyển sang một tháng, hệ thống kiểm tra coverage của đúng nhân viên và khoảng ngày yêu cầu. Nếu có gap, hệ thống chỉ tính employee + khoảng gap; không kích hoạt calculation toàn công ty.
+
+```text
+GET /api/calendar/me?from=YYYY-MM-01&to=YYYY-MM-dd
+        ↓
+EnsureEmployeeRangeAsync(employee, range)
+        ↓
+CalculationRun coverage?
+   ├── Có → đọc kết quả
+   └── Thiếu → tính đúng employee + đúng khoảng thiếu
+        ↓
+F03HrmAttendanceCalculated
+        ↓
+Calendar provider
+```
+
+Coverage không được xác định bằng COUNT(*) đơn thuần. Hệ thống ghép các CalculationRun thành công để tìm khoảng còn thiếu. Calendar chỉ backfill tới hôm nay, không tính ngày tương lai.
+
+## 12. History / payroll lock
+
+`F03HrmAttendanceCalculated` là current-state mutable store. Khi kỳ payroll đã `Locked` hoặc `Exported`, calendar không được recalculation/reopen kỳ đó.
+
+`F03HrmAttendanceHistory` là nguồn đọc cho dữ liệu đã archive. AttendanceCalendarModuleProvider đọc current result trước và fallback sang history khi current không có row cho ngày đó.
+
+```text
+Open/current period
+    → current attendance + lazy backfill nếu thiếu
+
+Locked/Exported/archived period
+    → F03HrmAttendanceHistory
+    → không recalculation
+```
+
+## 13. Concurrency
+
+`dbo.usp_CalculateHrmAttendance` dùng `sp_getapplock` theo ngày chấm công. Background calculation và calendar lazy backfill của cùng ngày không được phép cùng ghi current attendance; calendar có thể chờ ngắn khi background đang xử lý ngày đó.
+
+`F03HrmAttendanceCalculationRun.EmployeeCode` ghi nhận scope employee-specific để calendar phân biệt coverage chính xác.
+
+## 14. Export
 
 Excel đọc snapshot F03HrmAttendanceCalculated và projection F03HrmOTActual theo CalculationBatchId, không export trực tiếp từ HRM.dbo.tblBaoCao. Attendance export lấy từ F03HrmAttendanceCalculated; OT export lấy F03HrmOTActual và join về snapshot tương ứng để lấy metadata/display value.
 
-## 12. Kiểm thử đối chiếu
+## 15. Kiểm thử đối chiếu
 
 Baseline thực tế đã xác nhận:
 
@@ -128,11 +171,11 @@ BCTinhLamThem = 1
 
 FVN phải đối chiếu các trường tương ứng trong F03HrmAttendanceCalculated.
 
-## 13. Không quay lại kiến trúc cũ
+## 16. Không quay lại kiến trúc cũ
 
 Không tạo lại công thức Work/OT C# riêng, pipeline reconciliation thay thế calculation engine, attendance staging làm nguồn tính chính, trigger trên HRM result table, ghi ngược vào HRM hoặc phụ thuộc HRM UI.
 
-## 14. SQL deployment
+## 17. SQL deployment
 
 ```text
 22_00_HrmAttendanceTables.sql
@@ -143,7 +186,7 @@ Không tạo lại công thức Work/OT C# riêng, pipeline reconciliation thay 
 
 00_Deploy_All.sql là entry point deploy.
 
-## 15. Nguyên tắc cuối
+## 18. Nguyên tắc cuối
 
 > **HRM sở hữu luật và dữ liệu chấm công. FVN sở hữu lần chạy, snapshot kết quả và giao diện sử dụng.**
 
