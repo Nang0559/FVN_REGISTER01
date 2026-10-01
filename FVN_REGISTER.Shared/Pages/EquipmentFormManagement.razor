@@ -41,10 +41,10 @@
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-3">
                         <MudText Typo="Typo.subtitle1">@Language.T("equipment.loaiSchemaThietBiDuoc")</MudText>
-                        @foreach (var schema in _schemas.OrderBy(x => x.DeptCode).ThenBy(x => x.SchemaName))
+                        @foreach (var schema in _schemas.OrderBy(x => x.DepartmentCode).ThenBy(x => x.SchemaName))
                         {
                             <MudButton FullWidth="true" Variant="@(schema.Id == _selectedSchemaId ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectSchemaAsync(schema))">
-                                @schema.DeptCode — @schema.SchemaName — v@schema.Version
+                                @schema.DepartmentCode — @schema.SchemaName — v@schema.Version
                             </MudButton>
                         }
                     </MudPaper>
@@ -188,7 +188,7 @@
             return;
         }
         _selectedSchemaId = schema.Id;
-        _selectedSchemaName = $"{schema.DeptCode} — {schema.SchemaName} — v{schema.Version}";
+        _selectedSchemaName = $"{schema.DepartmentCode} — {schema.SchemaName} — v{schema.Version}";
         _assignments = result.Data ?? new();
         _selectedFormId = 0;
         _operatorEmployeeCode = string.Empty;
