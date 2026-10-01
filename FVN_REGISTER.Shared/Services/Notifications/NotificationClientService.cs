@@ -52,7 +52,7 @@ namespace FVN_REGISTER.Shared.Services.Notifications
         {
             try
             {
-                var result = await _http.GetAsync<List<NotificationDto>>("api/notification", ct);
+                var result = await _http.GetAsync<List<NotificationDto>>("api/notification", ct, showLoading: false);
                 if (result.IsSuccess && result.Data != null)
                 {
                     Notifications = result.Data;
