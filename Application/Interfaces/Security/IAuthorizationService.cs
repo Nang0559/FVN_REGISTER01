@@ -7,6 +7,9 @@ namespace FVN_REGISTER.Application.Interfaces.Security;
 public interface IAuthorizationService
 {
     Task<bool> HasAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default);
+    Task<bool> HasScopeAsync(UserIdentityDto user, int functionCode, string scope, CancellationToken ct = default);
+    Task<bool> HasPersonalAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default);
+    Task<bool> HasManagementAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default);
     Task<string> GetScopeAsync(int userId, int functionCode, CancellationToken ct = default);
     Task<bool> CanAccessAsync(UserIdentityDto user, int functionCode, string? employeeCode, string? deptCode, CancellationToken ct = default);
     Task<List<ManagedScopeDto>> GetManagedScopesAsync(int userId, CancellationToken ct = default);
@@ -18,5 +21,5 @@ public interface IAuthorizationService
     Task<List<SecurityFunctionDto>> GetFunctionsAsync(CancellationToken ct = default);
     Task<List<TwoFactorAdminUserDto>> GetTwoFactorUsersAsync(CancellationToken ct = default);
     Task<PermissionSnapshotDto> SetUserRolesAsync(int userId, IReadOnlyCollection<int> roleCodes, int actorUserId, CancellationToken ct = default);
-    Task<SecurityRoleDto> SetRoleFunctionsAsync(int roleCode, IReadOnlyCollection<int> functionCodes, int actorUserId, CancellationToken ct = default);
+    Task<SecurityRoleDto> SetRoleFunctionsAsync(int roleCode, IReadOnlyCollection<int> functionCodes, IReadOnlyDictionary<int, string?> scopeOverrides, int actorUserId, CancellationToken ct = default);
 }
