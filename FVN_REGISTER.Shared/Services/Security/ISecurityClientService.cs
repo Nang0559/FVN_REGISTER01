@@ -38,4 +38,10 @@ public interface ISecurityClientService
     Task<ApiResponse<object>> DeleteSecurityFunctionAsync(int id, CancellationToken ct = default);
     Task<ApiResponse<object>> UpsertSecurityRoleAsync(SecurityRoleUpsertRequest request, CancellationToken ct = default);
     Task<ApiResponse<object>> DeleteSecurityRoleAsync(int id, CancellationToken ct = default);
+    Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationCatalogDto>> GetLocalizationCatalogAsync(CancellationToken ct = default);
+    Task<ApiResponse<object>> UpsertLocalizationAsync(FVN_REGISTER.Contract.Dtos.Language.LocalizationUpsertRequest request, CancellationToken ct = default);
+    Task<ApiResponse<object>> DeleteLocalizationAsync(string key, CancellationToken ct = default);
+    Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationAuditResultDto>> AuditLocalizationAsync(CancellationToken ct = default);
+    Task<ApiResponse<byte[]>> ExportLocalizationAsync(CancellationToken ct = default);
+    Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationImportResultDto>> ImportLocalizationAsync(MultipartFormDataContent content, CancellationToken ct = default);
 }
