@@ -92,9 +92,9 @@
                                             <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("language.importFormat")</MudText>
                                         </div>
                                         <MudFileUpload T="IBrowserFile" FilesChanged="OnImportFileChanged" Accept=".xlsx,.xlsm" MaxFileSize="25000000">
-                                            <ButtonTemplate Context="upload">
+                                            <CustomContent Context="upload">
                                                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@upload.OpenFilePickerAsync">@Language.T("language.chooseExcel")</MudButton>
-                                            </ButtonTemplate>
+                                            </CustomContent>
                                         </MudFileUpload>
                                     </MudStack>
                                     @if (_importFile != null)
@@ -207,7 +207,7 @@
                                     <MudTd><MudText Typo="Typo.caption">@context.ExistingKey</MudText></MudTd>
                                     <MudTd><MudText Typo="Typo.body2">@context.DetectedText</MudText></MudTd>
                                     <MudTd>
-                                        @if (_canManage && (context.Type == "HardCodedUi" || context.Type == "MissingKey"))
+                                        @if (_canManage && (context.Type is "HardCodedUi" or "MissingKey" or "MissingVi" or "MissingJa" or "SameValue" or "PlaceholderMismatch"))
                                         {
                                             <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => DefineFromFinding(context))">@Language.T("language.define")</MudButton>
                                         }
