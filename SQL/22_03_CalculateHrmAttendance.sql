@@ -45,8 +45,9 @@ BEGIN
 
   -- Remove the previous current-state rows for this date/scope first.
   DECLARE @AppLockResult int;
+  DECLARE @AppLockResource nvarchar(255) = N'FVN_REGISTER:ATTENDANCE:DATE:' + CONVERT(nvarchar(10),@D,112);
   EXEC @AppLockResult=sp_getapplock
-      @Resource=N'FVN_REGISTER:ATTENDANCE:DATE:'+CONVERT(nvarchar(10),@D,112),
+      @Resource=@AppLockResource,
       @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=30000;
   IF @AppLockResult<0 THROW 51322,N'Ngày chấm công đang được một calculation khác xử lý.',1;
 
@@ -144,7 +145,7 @@ BEGIN
     AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
 
   COMMIT TRANSACTION;
-  EXEC sp_releaseapplock @Resource=N'FVN_REGISTER:ATTENDANCE:DATE:'+CONVERT(nvarchar(10),@D,112),@LockOwner=N'Session';
+  EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
 
   SET @D=DATEADD(day,1,@D);
  END
