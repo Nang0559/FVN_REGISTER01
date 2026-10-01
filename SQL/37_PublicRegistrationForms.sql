@@ -190,8 +190,7 @@ BEGIN
 END;
 GO
 
-/* Granular Public Form capabilities. Management is department-scoped for department 13;
-   system administration may use All scope. Recipient capabilities are Personal/Own. */
+/* Granular Public Form capabilities. Management capabilities use All data scope; access is restricted to Administration department 13 by the API. Recipient capabilities are Personal/Own. */
 IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
 BEGIN
     INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
@@ -217,12 +216,12 @@ BEGIN
         (2810,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2810),
         (2811,N'PublicForm.Submit',N'Trả lời và gửi biểu mẫu được chỉ định',N'Submit',N'Own',2811),
         (2812,N'PublicForm.Feedback',N'Gửi phản hồi về biểu mẫu',N'Feedback',N'Own',2812),
-        (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'Department',2813),
-        (2814,N'PublicForm.Edit',N'Sửa, publish và đóng biểu mẫu',N'Edit',N'Department',2814),
-        (2815,N'PublicForm.AssignAudience',N'Chỉ định nhân viên hoặc bộ phận nhận biểu mẫu',N'AssignAudience',N'Department',2815),
-        (2816,N'PublicForm.ResultView',N'Xem kết quả và phản hồi đã gửi',N'ResultView',N'Department',2816),
-        (2817,N'PublicForm.ResultExport',N'Xuất kết quả biểu mẫu',N'Export',N'Department',2817),
-        (2818,N'PublicForm.AuditView',N'Xem lịch sử tạo, sửa và thay đổi trạng thái biểu mẫu',N'AuditView',N'Department',2818)
+        (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'All',2813),
+        (2814,N'PublicForm.Edit',N'Sửa, publish và đóng biểu mẫu',N'Edit',N'All',2814),
+        (2815,N'PublicForm.AssignAudience',N'Chỉ định nhân viên hoặc bộ phận nhận biểu mẫu',N'AssignAudience',N'All',2815),
+        (2816,N'PublicForm.ResultView',N'Xem kết quả và phản hồi đã gửi',N'ResultView',N'All',2816),
+        (2817,N'PublicForm.ResultExport',N'Xuất kết quả biểu mẫu',N'Export',N'All',2817),
+        (2818,N'PublicForm.AuditView',N'Xem lịch sử tạo, sửa và thay đổi trạng thái biểu mẫu',N'AuditView',N'All',2818)
     ) v(FunctionCode,FunctionName,Detail,ActionCode,ScopeCode,DisplayOrder)
       ON f.FunctionCode=v.FunctionCode;
 END;
@@ -237,8 +236,7 @@ BEGIN
     WHERE r.RoleCode IN (3,4,5) AND f.FunctionCode IN (2810,2811,2812)
       AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 
-    /* Every authenticated business role can hold the management capability, but the API
-       restricts Department scope to Administration department 13. */
+    /* Business roles may hold the management capability; the API restricts module ownership to Administration department 13. */
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
     SELECT r.Id,f.Id,
            N'All',
