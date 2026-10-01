@@ -67,6 +67,20 @@ public static class SecurityFunctionCodes
     public const int SecurityManageFunctions = 2603;
     public const int SecurityAudit = 2604;
 
+    // These capabilities protect the Security Center itself. Their function
+    // definitions must never be disabled or retired at runtime.
+    public static readonly IReadOnlySet<int> SystemCriticalCodes =
+        new HashSet<int>
+        {
+            SecurityView,
+            SecurityManageRoles,
+            SecurityManageFunctions,
+            SecurityAudit
+        };
+
+    public static bool IsSystemCritical(int functionCode)
+        => SystemCriticalCodes.Contains(functionCode);
+
     public const int PublicInformationManage = 2801;
     public const int PublicFormManage = 2807;
     public const int PublicFormSubmissionView = 2808;
