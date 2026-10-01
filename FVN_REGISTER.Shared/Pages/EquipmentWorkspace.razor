@@ -67,7 +67,7 @@
         {
             <MudPaper Outlined="true" Class="pa-5 mb-4">
                 <MudText Typo="Typo.h6">@Language.T("equipment.t2CauTrucDuocDung")</MudText>
-                <MudTable Items="_schema.Fields.Where(x => x.IsRequired || !x.IsRequired).OrderBy(x => x.DisplayOrder)" Dense="true" Class="mt-3">
+                <MudTable Items="_schema.Fields.OrderBy(x => x.DisplayOrder)" Dense="true" Class="mt-3">
                     <HeaderContent>
                         <MudTh>@Language.T("equipment.truongDuLieu")</MudTh><MudTh>@Language.T("equipment.kieuDuLieu")</MudTh><MudTh>@Language.T("common.required")</MudTh><MudTh>@Language.T("equipment.doDai")</MudTh><MudTh>@Language.T("equipment.giaTriMacDinh")</MudTh>
                     </HeaderContent>
