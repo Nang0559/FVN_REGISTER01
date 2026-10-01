@@ -71,3 +71,16 @@ public sealed class PublicFormChoiceSummaryDto
     public string OptionText { get; set; } = string.Empty;
     public int Count { get; set; }
 }
+
+
+public sealed class PublicFormAuditDto
+{
+    public int Id { get; set; }
+    public int FormId { get; set; }
+    public string ActionCode { get; set; } = string.Empty;
+    public int ActorUserId { get; set; }
+    public string? ActorEmployeeCode { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? BeforeJson { get; set; }
+    public string? AfterJson { get; set; }
+}
