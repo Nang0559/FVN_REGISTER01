@@ -66,14 +66,34 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         ).AnyAsync(ct);
     }
 
-    public Task<bool> HasPersonalAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default) =>
-        HasScopeAsync(user, functionCode, AuthorizationScopeCodes.Own, ct);
+    public async Task<bool> HasPersonalAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default)
+    {
+        if (user.UserId <= 0) return false;
+        return await (
+            from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking() on ur.IdRole equals r.Id
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId && r.IsActive == true && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+                && (rf.AccessMode == "Personal" || (rf.AccessMode == null && (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own))
+            select f.Id
+        ).AnyAsync(ct);
+    }
 
     public async Task<bool> HasManagementAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default)
     {
-        if (await HasScopeAsync(user, functionCode, AuthorizationScopeCodes.Department, ct))
-            return true;
-        return await HasScopeAsync(user, functionCode, AuthorizationScopeCodes.All, ct);
+        if (user.UserId <= 0) return false;
+        return await (
+            from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking() on ur.IdRole equals r.Id
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId && r.IsActive == true && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+                && (rf.AccessMode == "Management" || (rf.AccessMode == null && AuthorizationScopePolicy.IsManagementScope(rf.ScopeCode ?? f.ScopeCode)))
+            select f.Id
+        ).AnyAsync(ct);
     }
 
     public async Task<string> GetScopeAsync(int userId, int functionCode, CancellationToken ct = default)
@@ -523,7 +543,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
             where ur.IdUser == userId && r.IsActive == true && (f.IsActive ?? true)
-            select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode }
+            select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode, EffectiveAccessMode = rf.AccessMode ?? (string.Equals(rf.ScopeCode ?? f.ScopeCode, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase) || string.Equals(rf.ScopeCode ?? f.ScopeCode, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase) ? "Personal" : "Management") }
         ).ToListAsync(ct);
 
         var functions = rawFunctions
@@ -540,6 +560,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 ModuleCode = x.Function.ModuleCode,
                 ActionCode = x.Function.ActionCode,
                 ScopeCode = x.EffectiveScope,
+                AccessMode = x.EffectiveAccessMode,
                 DisplayOrder = x.Function.DisplayOrder
             })
             .ToList();
@@ -715,6 +736,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         int roleCode,
         IReadOnlyCollection<int> functionCodes,
         IReadOnlyDictionary<int, string?> scopeOverrides,
+        IReadOnlyDictionary<int, string?> accessModeOverrides,
         int actorUserId,
         CancellationToken ct = default)
     {
@@ -729,6 +751,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
         var codes = functionCodes.Distinct().ToList();
         var normalizedScopeOverrides = scopeOverrides ?? new Dictionary<int, string?>();
+        var normalizedAccessModeOverrides = accessModeOverrides ?? new Dictionary<int, string?>();
         var allowedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             AuthorizationScopeCodes.Own,
@@ -745,6 +768,19 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             if (!string.IsNullOrWhiteSpace(overridePair.Value)
                 && !allowedScopes.Contains(overridePair.Value.Trim()))
                 throw new InvalidOperationException($"ScopeCode không hợp lệ: {overridePair.Value}.");
+        }
+
+        var allowedAccessModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Personal",
+            "Management"
+        };
+        foreach (var modePair in normalizedAccessModeOverrides)
+        {
+            if (!codes.Contains(modePair.Key))
+                throw new InvalidOperationException($"AccessMode override không thuộc FunctionCodes: {modePair.Key}.");
+            if (!string.IsNullOrWhiteSpace(modePair.Value) && !allowedAccessModes.Contains(modePair.Value.Trim()))
+                throw new InvalidOperationException($"AccessMode không hợp lệ: {modePair.Value}.");
         }
 
         var functions = await _uow.Repository<F03Function>().Query()
@@ -779,6 +815,9 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 IdFunction = function.Id,
                 ScopeCode = normalizedScopeOverrides.TryGetValue(function.FunctionCode, out var scope) && !string.IsNullOrWhiteSpace(scope)
                     ? scope.Trim()
+                    : null,
+                AccessMode = normalizedAccessModeOverrides.TryGetValue(function.FunctionCode, out var mode) && !string.IsNullOrWhiteSpace(mode)
+                    ? mode.Trim()
                     : null,
                 CreatedBy = actorUserId,
                 CreatedAt = DateTime.Now
