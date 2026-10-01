@@ -40,10 +40,10 @@
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-3">
                         <MudText Typo="Typo.subtitle1">@Language.T("equipment.loaiSchemaThietBiDuoc")</MudText>
-                        @foreach (var schema in _schemas.OrderBy(x => x.DeptCode).ThenBy(x => x.SchemaName))
+                        @foreach (var schema in _schemas.OrderBy(x => x.DepartmentCode).ThenBy(x => x.SchemaName))
                         {
                             <MudButton FullWidth="true" Variant="@(schema.Id == _selectedSchemaId ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectSchemaAsync(schema))">
-                                @schema.DeptCode — @schema.SchemaName — v@schema.Version
+                                @schema.DepartmentCode — @schema.SchemaName — v@schema.Version
                             </MudButton>
                         }
                     </MudPaper>
@@ -94,7 +94,7 @@
                                         @foreach (var employee in _operatorEmployees)
                                         {
                                             <MudSelectItem T="string" Value="@employee.EmployeeCode">
-                                                @employee.EmployeeCode — @employee.EmployeeName — @employee.DeptCode — @employee.DeptName — @employee.PositionCode — @employee.PositionName
+                                                @employee.EmployeeCode — @employee.EmployeeName — @employee.DepartmentCode — @employee.DeptName — @employee.PositionCode — @employee.PositionName
                                             </MudSelectItem>
                                         }
                                     </MudSelect>
@@ -111,7 +111,7 @@
                                     </HeaderContent>
                                     <RowTemplate>
                                         <MudTd><b>@context.EmployeeCode</b> — @context.EmployeeName</MudTd>
-                                        <MudTd>@context.DeptCode — @context.DeptName</MudTd>
+                                        <MudTd>@context.DepartmentCode — @context.DeptName</MudTd>
                                         <MudTd>@context.PositionCode — @context.PositionName</MudTd>
                                         <MudTd Style="text-align:center">
                                             <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveOperatorAsync(context))">@Language.T("security.boChiDinh")</MudButton>
@@ -130,7 +130,7 @@
 
 @code {
     private bool _loading = true;
-    private List<EquipmentSchemaSummaryDto> _schemas = new();
+    private List<ExcelSchemaSummaryDto> _schemas = new();
     private List<EquipmentFormAssignmentDto> _assignments = new();
     private List<PublicFormDto> _catalog = new();
     private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
@@ -159,7 +159,7 @@
 
         _catalog = forms.Data ?? new();
         var candidates = schemas.Data?.Where(x => x.IsActive).ToList() ?? new();
-        var manageable = new List<EquipmentSchemaSummaryDto>();
+        var manageable = new List<ExcelSchemaSummaryDto>();
         foreach (var schema in candidates)
         {
             var access = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaKey);
@@ -178,7 +178,7 @@
         _loading = false;
     }
 
-    private async Task SelectSchemaAsync(EquipmentSchemaSummaryDto schema)
+    private async Task SelectSchemaAsync(ExcelSchemaSummaryDto schema)
     {
         var result = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaKey);
         if (!result.IsSuccess)
@@ -187,14 +187,14 @@
             return;
         }
         _selectedSchemaId = schema.Id;
-        _selectedSchemaName = $"{schema.DeptCode} — {schema.SchemaName} — v{schema.Version}";
+        _selectedSchemaName = $"{schema.DepartmentCode} — {schema.SchemaName} — v{schema.Version}";
         _assignments = result.Data ?? new();
         _selectedFormId = 0;
         _operatorEmployeeCode = string.Empty;
         await LoadOperatorsAsync(schema);
     }
 
-    private async Task LoadOperatorsAsync(EquipmentSchemaSummaryDto schema)
+    private async Task LoadOperatorsAsync(ExcelSchemaSummaryDto schema)
     {
         if (!_isSuperAdmin)
         {

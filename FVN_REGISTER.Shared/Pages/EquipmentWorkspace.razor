@@ -37,7 +37,7 @@
             <MudSelect T="string" Label='@Language.T("common.department")' @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
                 @foreach (var dept in _departments)
                 {
-                    <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode – @dept.DeptName</MudSelectItem>
+                    <MudSelectItem Value="@dept.DepartmentCode">@dept.DepartmentCode – @dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@string.IsNullOrWhiteSpace(_deptCode)">@Language.T("equipment.taiMauDuLieu")</MudButton>
@@ -47,13 +47,13 @@
                 <MudSelect T="int?" Label="@Language.T("equipment.mauDuLieuPhienBan")" @bind-Value="_schemaId" Variant="Variant.Outlined" Dense="true" Class="mt-3">
                     @foreach (var item in _schemas.Where(x => x.Status == "Active"))
                     {
-                        <MudSelectItem T="int?" Value="@((int?)item.Id)">@item.SchemaName — v@item.Version — @item.OwnerName</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)item.Id)">@item.SchemaName — v@item.Version — @item.CreatedByUserName</MudSelectItem>
                     }
                 </MudSelect>
                 @if (_schema != null)
                 {
                     <MudAlert Severity="Severity.Success" Class="mt-3">
-                        @Language.T("equipment.dangSuDung") <b>@_schema.SchemaName — v@_schema.Version</b>@Language.T("equipment.nguoiTaoSoTruong", _schema.OwnerName, _schema.Fields.Count)
+                        @Language.T("equipment.dangSuDung") <b>@_schema.SchemaName — v@_schema.Version</b>@Language.T("equipment.nguoiTaoSoTruong", _schema.CreatedByUserName, _schema.Fields.Count)
                     </MudAlert>
                 }
             }
@@ -123,9 +123,9 @@
     private string _deptCode = string.Empty;
     private int? _schemaId;
     private List<DepartmentDto> _departments = new();
-    private List<EquipmentSchemaSummaryDto> _schemas = new();
-    private EquipmentSchemaDto? _schema;
-    private EquipmentImportBatchDto? _batch;
+    private List<ExcelSchemaSummaryDto> _schemas = new();
+    private ExcelSchemaDto? _schema;
+    private ExcelImportBatchDto? _batch;
     private IBrowserFile? _file;
 
     protected override async Task OnInitializedAsync()
@@ -136,7 +136,7 @@
         {
             var departments = await EquipmentClient.GetEquipmentDepartmentsAsync();
             if (departments.IsSuccess) _departments = departments.Data ?? new();
-            if (_departments.Count > 0) _deptCode = _departments[0].DeptCode;
+            if (_departments.Count > 0) _deptCode = _departments[0].DepartmentCode;
             await LoadSchemasAsync();
         }
         _ready = true;
