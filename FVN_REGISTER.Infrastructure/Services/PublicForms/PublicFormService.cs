@@ -4,6 +4,7 @@ using FVN_REGISTER.Contract.Dtos.PublicForms;
 using FVN_REGISTER.Contract.Requests.PublicForms;
 using FVN_REGISTER.Core.Entities.PublicForms;
 using FVN_REGISTER.Core.Entities.HR;
+using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
