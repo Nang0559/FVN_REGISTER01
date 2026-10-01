@@ -728,6 +728,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("Role không tồn tại hoặc đã ngừng hoạt động.");
 
         var codes = functionCodes.Distinct().ToList();
+        var normalizedScopeOverrides = scopeOverrides ?? new Dictionary<int, string?>();
         var allowedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             AuthorizationScopeCodes.Own,
@@ -736,7 +737,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             AuthorizationScopeCodes.All
         };
 
-        foreach (var overridePair in scopeOverrides ?? new Dictionary<int, string?>())
+        foreach (var overridePair in normalizedScopeOverrides
         {
             if (!codes.Contains(overridePair.Key))
                 throw new InvalidOperationException($"Scope override không thuộc FunctionCodes: {overridePair.Key}.");
@@ -776,7 +777,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             {
                 IdRole = role.Id,
                 IdFunction = function.Id,
-                ScopeCode = scopeOverrides.TryGetValue(function.FunctionCode, out var scope) && !string.IsNullOrWhiteSpace(scope)
+                ScopeCode = normalizedScopeOverrides.TryGetValue(function.FunctionCode, out var scope) && !string.IsNullOrWhiteSpace(scope)
                     ? scope.Trim()
                     : null,
                 CreatedBy = actorUserId,
