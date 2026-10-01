@@ -17,6 +17,9 @@ public sealed class TripDashboardProvider : IModuleDashboardProvider
 
     public async Task<ModuleDashboardContribution> GetContributionAsync(UserIdentityDto user, CancellationToken ct = default)
     {
+        if (!await _service.GetAuthorizationForPersonalDashboardAsync(user, ct))
+            return new ModuleDashboardContribution { Module = Module, Widgets = new List<WidgetCounterDto>(), Detail = new List<FVN_REGISTER.Contract.Dtos.Trips.TripRequestDto>() };
+
         var result = await _service.GetMineAsync(ct);
         var rows = result.Data ?? new List<FVN_REGISTER.Contract.Dtos.Trips.TripRequestDto>();
         var pending = rows.Count(x => x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress);
