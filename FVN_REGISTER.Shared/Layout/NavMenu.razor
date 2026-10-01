@@ -11,7 +11,7 @@
 <MudNavMenu>
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">@Language.T("nav.dashboard")</MudText>
     <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@Language.T("nav.home")</MudNavLink>
-    @if (CanAny(SecurityFunctionCodes.CalendarView, SecurityFunctionCodes.WorkCalendarView))
+    @if (CanPersonal(SecurityFunctionCodes.CalendarView) || CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.AttendanceView))
     {
         <MudNavLink href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendar")</MudNavLink>
     }
