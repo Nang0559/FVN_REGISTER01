@@ -63,19 +63,6 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             select f.ScopeCode
         ).ToListAsync(ct);
 
-        // Legacy direct grants have no reliable scope metadata in old databases.
-        // During migration, treat an unscoped legacy grant as Own rather than
-        // silently expanding it to Department/All.
-        scopes.AddRange(await (
-            from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
-            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.Id
-            where uf.IdUser == userId
-                && (f.IsActive ?? true)
-                && f.FunctionCode == functionCode
-            select f.ScopeCode
-        ).ToListAsync(ct));
-
         return AuthorizationScopePolicy.ResolveEffectiveScope(scopes);
     }
 
@@ -490,17 +477,11 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             select r.RoleCode
         ).Distinct().ToListAsync(ct);
 
-        // Compatibility: primary PermissionCode is still an effective role while
-        // deployments are migrating from the legacy single-role model.
-        var legacyRole = await _uow.Repository<F03User>().Query()
-            .Where(u => u.Id == userId)
-            .Select(u => (int?)u.PermissionCode)
-            .FirstOrDefaultAsync(ct);
-
-        if (legacyRole.HasValue && !roleCodes.Contains(legacyRole.Value))
-            roleCodes.Add(legacyRole.Value);
-
-        var functionCodes = await (
+        // Canonical RBAC: User -> Role -> Function/Action.
+        // PermissionCode and legacy F03UserFunction are not effective grants.
+        // This is important when an administrator removes a module from a role:
+        // stale legacy rows must not make that module reappear in the UI/API.
+        var functions = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
                 on ur.IdRole equals rf.IdRole
@@ -510,20 +491,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 on ur.IdRole equals r.Id
             where ur.IdUser == userId && r.IsActive == true && (f.IsActive ?? true)
             select f
-        ).Distinct().ToListAsync(ct);
-
-        // Legacy direct grants remain effective during migration.
-        var legacyFunctions = await (
-            from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
-            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.Id
-            where uf.IdUser == userId && (f.IsActive ?? true)
-            select f
-        ).ToListAsync(ct);
-
-        var functions = functionCodes
-            .Concat(legacyFunctions)
-            .GroupBy(x => x.FunctionCode)
+        ).Distinct()
             .Select(g => g.OrderBy(x => x.DisplayOrder).First())
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.FunctionCode)
