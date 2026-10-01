@@ -241,7 +241,7 @@ BEGIN
        restricts Department scope to Administration department 13. */
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
     SELECT r.Id,f.Id,
-           CASE WHEN r.RoleCode IN (1,2) THEN N'All' ELSE N'Department' END,
+           N'All',
            N'Management'
     FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
     WHERE r.RoleCode IN (1,2,3,4,5)
@@ -249,8 +249,7 @@ BEGIN
       AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 
     UPDATE rf
-    SET ScopeCode=CASE WHEN r.RoleCode IN (1,2) THEN N'All' ELSE N'Department' END,
-        AccessMode=N'Management'
+    SET ScopeCode=N'All', AccessMode=N'Management'
     FROM dbo.F03RoleFunctions rf
     JOIN dbo.F03Roles r ON r.Id=rf.IdRole
     JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
