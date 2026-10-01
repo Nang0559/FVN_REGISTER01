@@ -107,6 +107,50 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormAudiences_
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormSubmissions_FormEmployee' AND object_id=OBJECT_ID(N'dbo.F03PublicFormSubmissions')) CREATE INDEX IX_F03PublicFormSubmissions_FormEmployee ON dbo.F03PublicFormSubmissions(FormId,EmployeeCode,Status);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormAnswers_Submission' AND object_id=OBJECT_ID(N'dbo.F03PublicFormAnswers')) CREATE INDEX IX_F03PublicFormAnswers_Submission ON dbo.F03PublicFormAnswers(SubmissionId);
 
+/* Immutable administration history: records who created/edited/published/closed each form. */
+IF OBJECT_ID(N'dbo.F03PublicFormAudits',N'U') IS NULL
+BEGIN
+CREATE TABLE dbo.F03PublicFormAudits(
+ Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03PublicFormAudits PRIMARY KEY,
+ FormId int NOT NULL,
+ ActionCode nvarchar(40) NOT NULL,
+ ActorEmployeeCode nvarchar(50) NULL,
+ BeforeJson nvarchar(max) NULL,
+ AfterJson nvarchar(max) NULL,
+ CreatedBy int NOT NULL,
+ CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03PublicFormAudits_CreatedAt DEFAULT GETDATE(),
+ LastModifiedSource nvarchar(max) NULL,
+ IsActive bit NULL CONSTRAINT DF_F03PublicFormAudits_IsActive DEFAULT 1,
+ CONSTRAINT FK_F03PublicFormAudits_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE
+);
+END;
+
+/* Recipient feedback is separate from answers so it is not mixed into form data. */
+IF OBJECT_ID(N'dbo.F03PublicFormFeedbacks',N'U') IS NULL
+BEGIN
+CREATE TABLE dbo.F03PublicFormFeedbacks(
+ Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03PublicFormFeedbacks PRIMARY KEY,
+ FormId int NOT NULL,
+ SubmissionId int NULL,
+ EmployeeCode nvarchar(50) NOT NULL,
+ Content nvarchar(max) NOT NULL,
+ CreatedBy int NOT NULL,
+ CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03PublicFormFeedbacks_CreatedAt DEFAULT GETDATE(),
+ ModifiedBy int NULL,
+ ModifiedAt datetime2 NULL,
+ LastModifiedSource nvarchar(max) NULL,
+ IsActive bit NULL CONSTRAINT DF_F03PublicFormFeedbacks_IsActive DEFAULT 1,
+ CONSTRAINT FK_F03PublicFormFeedbacks_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE,
+ CONSTRAINT FK_F03PublicFormFeedbacks_Submission FOREIGN KEY(SubmissionId) REFERENCES dbo.F03PublicFormSubmissions(Id) ON DELETE SET NULL
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormAudits_FormCreated' AND object_id=OBJECT_ID(N'dbo.F03PublicFormAudits'))
+    CREATE INDEX IX_F03PublicFormAudits_FormCreated ON dbo.F03PublicFormAudits(FormId,CreatedAt DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormFeedbacks_FormEmployee' AND object_id=OBJECT_ID(N'dbo.F03PublicFormFeedbacks'))
+    CREATE INDEX IX_F03PublicFormFeedbacks_FormEmployee ON dbo.F03PublicFormFeedbacks(FormId,EmployeeCode,CreatedAt DESC);
+
+
 IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2807)
@@ -141,6 +185,75 @@ BEGIN
         (2809,N'PublicForm.Export',N'Xuất Excel dữ liệu đăng ký biểu mẫu',N'Export',2809)
     ) v(FunctionCode,FunctionName,Detail,ActionCode,DisplayOrder)
       ON f.FunctionCode=v.FunctionCode;
+END;
+GO
+
+/* Granular Public Form capabilities. Management is department-scoped for department 13;
+   system administration may use All scope. Recipient capabilities are Personal/Own. */
+IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
+BEGIN
+    INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+    SELECT 1,0,v.FunctionCode,v.FunctionName,v.Detail,N'PublicForm',v.ActionCode,v.ScopeCode,v.DisplayOrder
+    FROM (VALUES
+        (2810,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2810),
+        (2811,N'PublicForm.Submit',N'Trả lời và gửi biểu mẫu được chỉ định',N'Submit',N'Own',2811),
+        (2812,N'PublicForm.Feedback',N'Gửi phản hồi về biểu mẫu',N'Feedback',N'Own',2812),
+        (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'Department',2813),
+        (2814,N'PublicForm.Edit',N'Sửa, publish và đóng biểu mẫu',N'Edit',N'Department',2814),
+        (2815,N'PublicForm.AssignAudience',N'Chỉ định nhân viên hoặc bộ phận nhận biểu mẫu',N'AssignAudience',N'Department',2815),
+        (2816,N'PublicForm.ResultView',N'Xem kết quả và phản hồi đã gửi',N'ResultView',N'Department',2816),
+        (2817,N'PublicForm.ResultExport',N'Xuất kết quả biểu mẫu',N'Export',N'Department',2817),
+        (2818,N'PublicForm.AuditView',N'Xem lịch sử tạo, sửa và thay đổi trạng thái biểu mẫu',N'AuditView',N'Department',2818)
+    ) v(FunctionCode,FunctionName,Detail,ActionCode,ScopeCode,DisplayOrder)
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+
+    UPDATE f
+    SET FunctionName=v.FunctionName, Detail=v.Detail, ModuleCode=N'PublicForm',
+        ActionCode=v.ActionCode, ScopeCode=v.ScopeCode, DisplayOrder=v.DisplayOrder, IsActive=1
+    FROM dbo.F03Functions f
+    JOIN (VALUES
+        (2810,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2810),
+        (2811,N'PublicForm.Submit',N'Trả lời và gửi biểu mẫu được chỉ định',N'Submit',N'Own',2811),
+        (2812,N'PublicForm.Feedback',N'Gửi phản hồi về biểu mẫu',N'Feedback',N'Own',2812),
+        (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'Department',2813),
+        (2814,N'PublicForm.Edit',N'Sửa, publish và đóng biểu mẫu',N'Edit',N'Department',2814),
+        (2815,N'PublicForm.AssignAudience',N'Chỉ định nhân viên hoặc bộ phận nhận biểu mẫu',N'AssignAudience',N'Department',2815),
+        (2816,N'PublicForm.ResultView',N'Xem kết quả và phản hồi đã gửi',N'ResultView',N'Department',2816),
+        (2817,N'PublicForm.ResultExport',N'Xuất kết quả biểu mẫu',N'Export',N'Department',2817),
+        (2818,N'PublicForm.AuditView',N'Xem lịch sử tạo, sửa và thay đổi trạng thái biểu mẫu',N'AuditView',N'Department',2818)
+    ) v(FunctionCode,FunctionName,Detail,ActionCode,ScopeCode,DisplayOrder)
+      ON f.FunctionCode=v.FunctionCode;
+END;
+GO
+
+/* Recipients: standard User role receives only Personal/Own capabilities. */
+IF OBJECT_ID(N'dbo.F03RoleFunctions',N'U') IS NOT NULL
+BEGIN
+    INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+    SELECT r.Id,f.Id,N'Own',N'Personal'
+    FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+    WHERE r.RoleCode=5 AND f.FunctionCode IN (2810,2811,2812)
+      AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+    /* Every authenticated business role can hold the management capability, but the API
+       restricts Department scope to Administration department 13. */
+    INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+    SELECT r.Id,f.Id,
+           CASE WHEN r.RoleCode IN (1,2) THEN N'All' ELSE N'Department' END,
+           N'Management'
+    FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+    WHERE r.RoleCode IN (1,2,3,4,5)
+      AND f.FunctionCode IN (2813,2814,2815,2816,2817,2818)
+      AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+    UPDATE rf
+    SET ScopeCode=CASE WHEN r.RoleCode IN (1,2) THEN N'All' ELSE N'Department' END,
+        AccessMode=N'Management'
+    FROM dbo.F03RoleFunctions rf
+    JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+    JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+    WHERE f.FunctionCode IN (2813,2814,2815,2816,2817,2818)
+      AND r.RoleCode IN (1,2,3,4,5);
 END;
 GO
 
