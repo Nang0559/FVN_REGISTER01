@@ -200,12 +200,12 @@ BEGIN
         (2810,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2810),
         (2811,N'PublicForm.Submit',N'Trả lời và gửi biểu mẫu được chỉ định',N'Submit',N'Own',2811),
         (2812,N'PublicForm.Feedback',N'Gửi phản hồi về biểu mẫu',N'Feedback',N'Own',2812),
-        (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'Department',2813),
-        (2814,N'PublicForm.Edit',N'Sửa, publish và đóng biểu mẫu',N'Edit',N'Department',2814),
-        (2815,N'PublicForm.AssignAudience',N'Chỉ định nhân viên hoặc bộ phận nhận biểu mẫu',N'AssignAudience',N'Department',2815),
-        (2816,N'PublicForm.ResultView',N'Xem kết quả và phản hồi đã gửi',N'ResultView',N'Department',2816),
-        (2817,N'PublicForm.ResultExport',N'Xuất kết quả biểu mẫu',N'Export',N'Department',2817),
-        (2818,N'PublicForm.AuditView',N'Xem lịch sử tạo, sửa và thay đổi trạng thái biểu mẫu',N'AuditView',N'Department',2818)
+        (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'All',2813),
+        (2814,N'PublicForm.Edit',N'Sửa, publish và đóng biểu mẫu',N'Edit',N'All',2814),
+        (2815,N'PublicForm.AssignAudience',N'Chỉ định nhân viên hoặc bộ phận nhận biểu mẫu',N'AssignAudience',N'All',2815),
+        (2816,N'PublicForm.ResultView',N'Xem kết quả và phản hồi đã gửi',N'ResultView',N'All',2816),
+        (2817,N'PublicForm.ResultExport',N'Xuất kết quả biểu mẫu',N'Export',N'All',2817),
+        (2818,N'PublicForm.AuditView',N'Xem lịch sử tạo, sửa và thay đổi trạng thái biểu mẫu',N'AuditView',N'All',2818)
     ) v(FunctionCode,FunctionName,Detail,ActionCode,ScopeCode,DisplayOrder)
     WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
 
