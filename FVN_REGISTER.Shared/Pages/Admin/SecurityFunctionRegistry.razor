@@ -33,18 +33,18 @@
     <MudTabs Rounded="true" Elevation="0">
         <MudTabPanel Text="@Language.T("security.choDangKy")" Icon="@Icons.Material.Filled.NewReleases">
             <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
-                Function đã có mã sẽ đăng ký trực tiếp. Candidate API/UI chưa có mã sẽ mở form để quản trị viên gán FunctionCode trước; không được tự cấp quyền.
+                @Language.T("security.functionDaCoMaSe")
             </MudText>
             <MudTable T="SecurityFunctionRegistryItemDto" Items="PendingRegistration" Dense="true" Hover="true" Bordered="true" Loading="_busy">
                 <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("common.module")</MudTh><MudTh>@Language.T("common.action2")</MudTh><MudTh>@Language.T("security.source")</MudTh><MudTh>@Language.T("security.actions")</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.FunctionKey</b><br /><MudText Typo="Typo.caption">@context.DefinitionName</MudText></MudTd>
-                    <MudTd>@(context.FunctionCode > 0 ? context.FunctionCode.ToString() : "Chưa gán")</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.SourceType</MudTd>
+                    <MudTd>@(context.FunctionCode > 0 ? context.FunctionCode.ToString() : Language.T("security.chuaGan"))</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.SourceType</MudTd>
                     <MudTd>
                         <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => RegisterOrPrepareAsync(context))">
-                            @(context.FunctionCode > 0 ? "Đăng ký" : "Gán mã")
+                            @(context.FunctionCode > 0 ? Language.T("workspace.register") : Language.T("security.ganMa"))
                         </MudButton>
-                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => IgnoreAsync(context))">Bỏ qua</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => IgnoreAsync(context))">@Language.T("security.boQua")</MudButton>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -66,8 +66,8 @@
                         </MudSelect>
                     </MudTd>
                     <MudTd>
-                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="@(() => RetireAsync(context))">Ngừng</MudButton>
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ReplaceAsync(context))" Disabled="@(!HasReplacement(context.FunctionKey))">Thay thế</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="@(() => RetireAsync(context))">@Language.T("security.ngung")</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ReplaceAsync(context))" Disabled="@(!HasReplacement(context.FunctionKey))">@Language.T("security.thayThe")</MudButton>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -99,7 +99,7 @@
                     <HeaderContent><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("common.module")</MudTh><MudTh>@Language.T("common.action2")</MudTh><MudTh>@Language.T("security.detail")</MudTh><MudTh /></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.FunctionCode</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.Detail</MudTd>
-                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteFunctionAsync(context.IdFunction))">Xóa/Ngừng</MudButton></MudTd>
+                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteFunctionAsync(context.IdFunction))">@Language.T("security.xoaNgung")</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
@@ -118,7 +118,7 @@
                     <HeaderContent><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("security.role")</MudTh><MudTh>@Language.T("security.detail")</MudTh><MudTh>@Language.T("security.system")</MudTh><MudTh /></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.RoleCode</MudTd><MudTd>@context.RoleName</MudTd><MudTd>@context.Detail</MudTd><MudTd>@(context.IsSystem ? "Yes" : "No")</MudTd>
-                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteRoleAsync(context.Id))">Xóa/Ngừng</MudButton></MudTd>
+                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteRoleAsync(context.Id))">@Language.T("security.xoaNgung")</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
@@ -183,7 +183,7 @@
         if (item.FunctionCode <= 0)
         {
             SelectForRegistration(item);
-            Snackbar.Add($"{item.FunctionKey} là Candidate chưa có FunctionCode. Hãy gán mã trong form rồi bấm Lưu Function.", Severity.Info);
+            Snackbar.Add(Language.T("security.laCandidateChuaCoFunctioncode", item.FunctionKey), Severity.Info);
             return;
         }
 
@@ -200,11 +200,11 @@
             var result = await SecurityService.RegisterSecurityFunctionAsync(item.FunctionKey, request);
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? $"Không thể đăng ký {item.FunctionKey}.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheDangKy", item.FunctionKey), Severity.Error);
                 return;
             }
 
-            Snackbar.Add($"Đã đăng ký Function {item.FunctionKey}.", Severity.Success);
+            Snackbar.Add(Language.T("security.daDangKyFunction", item.FunctionKey), Severity.Success);
             await ReloadAsync();
         }
         finally
@@ -259,7 +259,7 @@
     {
         var result = await SecurityService.IgnoreSecurityFunctionAsync(item.FunctionKey);
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("security.khongTheBoQua"), Severity.Error); return; }
-        Snackbar.Add($"Đã bỏ qua {item.FunctionKey}.", Severity.Info); await ReloadAsync();
+        Snackbar.Add(Language.T("security.daBoQua", item.FunctionKey), Severity.Info); await ReloadAsync();
     }
 
     private void SetReplacement(string key, string value) => _replacementByFunction[key] = value;
@@ -269,7 +269,7 @@
     {
         var result = await SecurityService.RetireSecurityFunctionAsync(item.FunctionKey);
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("security.khongTheNgungFunction"), Severity.Error); return; }
-        Snackbar.Add($"Đã ngừng {item.FunctionKey}.", Severity.Success); await ReloadAsync();
+        Snackbar.Add(Language.T("security.daNgung", item.FunctionKey), Severity.Success); await ReloadAsync();
     }
 
     private async Task ReplaceAsync(SecurityFunctionRegistryItemDto item)
@@ -277,6 +277,6 @@
         if (!HasReplacement(item.FunctionKey)) return;
         var result = await SecurityService.ReplaceSecurityFunctionAsync(item.FunctionKey, new ReplaceFunctionRequest(_replacementByFunction[item.FunctionKey]));
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("security.khongTheThayTheFunction"), Severity.Error); return; }
-        Snackbar.Add($"Đã đánh dấu {item.FunctionKey} được thay thế.", Severity.Success); await ReloadAsync();
+        Snackbar.Add(Language.T("security.daDanhDauDuocThay", item.FunctionKey), Severity.Success); await ReloadAsync();
     }
 }

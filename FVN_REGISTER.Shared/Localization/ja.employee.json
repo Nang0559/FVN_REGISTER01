@@ -1,5 +1,6 @@
 {
   "employee.boPhan": "部署 (*)",
+  "employee.chinhSuaNhanVien": "社員を編集",
   "employee.chonBoPhan": "部署を選択",
   "employee.chonChucVu": "役職を選択",
   "employee.chonNhanVienOt": "残業対象社員を選択",
@@ -18,9 +19,12 @@
   "employee.loiTaiDuLieuOt": "残業データの読み込みエラー",
   "employee.maNhanVien": "社員コード (*)",
   "employee.nam": "男性",
+  "employee.namKinhNghiem": "経験{0}年",
   "employee.ngayNghiViec": "退職日",
   "employee.ngaySinh": "生年月日",
   "employee.ngayVaoLam": "入社日",
+  "employee.nguoi": "{0}名",
+  "employee.nhanVien": "{0} • {1}名",
   "employee.nhapEmail": "メールを入力",
   "employee.nhapHoTen": "氏名を入力",
   "employee.nhapMaNhanVien": "社員コードを入力",
@@ -30,10 +34,14 @@
   "employee.quanLyNhanVienFcc": "社員管理 - FCC",
   "employee.soDienThoai": "電話番号",
   "employee.soNgayOt": "残業日数",
+  "employee.them": "{0}名を追加",
   "employee.themNhanVien": "社員を追加",
+  "employee.themNhanVienMoi": "新しい社員を追加",
   "employee.timTenHoacMaNhan": "氏名または社員コードで検索",
   "employee.timTheoTenMaNv": "氏名／社員コードで検索",
   "employee.tongCong": "合計",
   "employee.tongPhepNamNgay": "年次有給休暇総日数（日）",
-  "employee.xemThongTinPhepTon": "部署ごとに情報、繰越休暇、残業時間を確認"
+  "employee.xemOtChiTiet": "残業の詳細を見る",
+  "employee.xemThongTinPhepTon": "部署ごとに情報、繰越休暇、残業時間を確認",
+  "employee.xoaNhanVien": "社員'{0}'({1})を削除しますか？"
 }

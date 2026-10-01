@@ -23,7 +23,7 @@
         }
         <MudItem xs="12" sm="3" Class="d-flex align-end gap-2 pb-1">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadReport" Disabled="_loading" StartIcon="@Icons.Material.Filled.Search">
-                @(_loading ? "Đang tải..." : "Xem báo cáo")
+                @(_loading ? Language.T("common.loading") : Language.T("equipment.xemBaoCao"))
             </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="ExportExcel" StartIcon="@Icons.Material.Filled.Download">@Language.T("report.excel")</MudButton>
         </MudItem>
@@ -87,7 +87,7 @@
         </RowTemplate>
         <NoRecordsContent><MudText>@Language.T("report.khongCoDuLieuVui")</MudText></NoRecordsContent>
     </MudTable>
-    <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Secondary">Tổng: @_result.TotalRows dòng</MudText>
+    <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Secondary">@Language.T("report.tongDong", _result.TotalRows)</MudText>
 }
 
 @code {
@@ -166,16 +166,16 @@
         => backendSeries.Select(s => new ChartSeries<double> { Name = s.Name, Data = s.Data.Select(Convert.ToDouble).ToArray() }).ToList();
 
 
-    private static string GetSummaryLabel(string key) => key switch
+    private string GetSummaryLabel(string key) => key switch
     {
-        "TotalEmployees" => "Nhân viên",
-        "TotalEntitled" => "Tổng phép (ngày)",
-        "TotalUsed" => "Đã dùng (ngày)",
-        "TotalRemaining" => "Còn lại (ngày)",
-        "TotalDepts" => "Phòng ban",
-        "TotalRequests" => "Số đơn",
-        "TotalDays" => "Tổng ngày",
-        "ApprovedDays" => "Đã duyệt (ngày)",
+        "TotalEmployees" => Language.T("common.employee"),
+        "TotalEntitled" => Language.T("report.tongPhepNgay"),
+        "TotalUsed" => Language.T("report.daDungNgay"),
+        "TotalRemaining" => Language.T("report.conLaiNgay"),
+        "TotalDepts" => Language.T("common.department"),
+        "TotalRequests" => Language.T("report.soDon"),
+        "TotalDays" => Language.T("report.tongNgay"),
+        "ApprovedDays" => Language.T("report.daDuyetNgay"),
         _ => key
     };
 

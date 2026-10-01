@@ -1,7 +1,7 @@
 @using FVN_REGISTER.Contract.Dtos.OT
 
 <MudDialog>
-    <TitleContent><MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />@Language.T("employee.chonNhanVienOt") <MudChip T="string" Size="Size.Small">@Employees.Count người</MudChip></MudText></TitleContent>
+    <TitleContent><MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />@Language.T("employee.chonNhanVienOt") <MudChip T="string" Size="Size.Small">@Language.T("employee.nguoi", Employees.Count)</MudChip></MudText></TitleContent>
     <DialogContent>
         <MudTextField @bind-Value="_searchText" Label="@Language.T("employee.timTenHoacMaNhan")" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-3" />
         <MudCheckBox T="bool" Value="@IsAllSelected" ValueChanged="ToggleAll" Label='@Language.T("common.selectAll")' />
@@ -21,7 +21,7 @@
             }
         </div>
     </DialogContent>
-    <DialogActions><MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Confirm" Disabled="@(!_selected.Any())">Thêm @_selected.Count</MudButton></DialogActions>
+    <DialogActions><MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Confirm" Disabled="@(!_selected.Any())">@Language.T("employee.them", _selected.Count)</MudButton></DialogActions>
 </MudDialog>
 
 @code {

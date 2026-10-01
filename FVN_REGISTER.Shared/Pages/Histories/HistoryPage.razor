@@ -74,7 +74,7 @@
             else
             { <span>@context.OTDate?.ToString("dd/MM/yyyy")</span> }
         </MudTd>
-        <MudTd>@(context.Kind == RequestModule.Leave ? context.TotalDay?.ToString("N1") + " ngày" : context.TotalOTHours?.ToString("N1") + " h")</MudTd>
+        <MudTd>@(context.Kind == RequestModule.Leave ? Language.T("common.ngay", context.TotalDay?.ToString("N1")) : context.TotalOTHours?.ToString("N1") + " h")</MudTd>
         <MudTd><MudChip T="string" Size="Size.Small" Style="@($"background:{context.StatusColor};color:white")">@context.StatusDisplay</MudChip></MudTd>
         <MudTd><OTApprovalProgressBar Steps="@context.ApprovalSteps" /></MudTd>
         <MudTd>
@@ -138,14 +138,14 @@
         var result = await HistoryService.GetDetailAsync(Kind, item.Id, _cts.Token);
         if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? Language.T("common.loiTaiChiTiet"), Severity.Error); return; }
         var parameters = new DialogParameters<RequestDetailDialog> { { x => x.Detail, result.Data } };
-        await Dialog.ShowAsync<RequestDetailDialog>("Chi tiết yêu cầu", parameters, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+        await Dialog.ShowAsync<RequestDetailDialog>(Language.T("leave.chiTietYeuCau"), parameters, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
     }
 
     private async Task Cancel(HistoryItemDto item)
     {
-        var confirmed = await Dialog.ShowMessageBoxAsync("Xác nhận hủy", $"Hủy đơn #{item.Id}?", yesText: "Hủy đơn", cancelText: "Không");
+        var confirmed = await Dialog.ShowMessageBoxAsync(Language.T("calendar.confirmCancel"), Language.T("history.huyDon2", item.Id), yesText: Language.T("history.huyDon"), cancelText: Language.T("common.no"));
         if (confirmed != true) return;
-        var result = await HistoryService.CancelAsync(Kind, item.Id, "Người dùng hủy", _cts.Token);
+        var result = await HistoryService.CancelAsync(Kind, item.Id, Language.T("history.nguoiDungHuy"), _cts.Token);
         Snackbar.Add(result.IsSuccess ? Language.T("history.daHuyThanhCong") : result.Message ?? Language.T("history.loiHuy"), result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess && _table != null) await _table.ReloadServerData();
     }

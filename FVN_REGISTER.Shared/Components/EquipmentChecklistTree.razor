@@ -28,13 +28,13 @@
                                     <MudText><b>@asset.EquipmentCode</b> — @asset.EquipmentName</MudText>
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@asset.DeptCode</MudChip>
                                     <MudChip T="string" Size="Size.Small" Color="@(asset.IsQrActive ? Color.Success : Color.Default)">
-                                        @(asset.IsQrActive ? "QR hoạt động" : "QR chưa hoạt động")
+                                        @(asset.IsQrActive ? Language.T("equipment.qrHoatDong") : Language.T("equipment.qrChuaHoatDong"))
                                     </MudChip>
                                 </MudStack>
                             </TitleContent>
                             <ChildContent>
                                 <MudStack Spacing="1" Class="ml-8">
-                                    <MudText Typo="Typo.body2">Tài sản: @asset.AssetCode • Serial: @asset.SerialNumber • Vị trí: @asset.Location</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.taiSanSerialViTri", asset.AssetCode, asset.SerialNumber, asset.Location)</MudText>
 
                                     @if (checks.Count == 0)
                                     {
@@ -53,7 +53,7 @@
                                                         <div>
                                                             <MudText Typo="Typo.subtitle2">@check.TemplateName</MudText>
                                                             <MudText Typo="Typo.caption">
-                                                                └── @check.ScheduledDate.ToString("dd/MM/yyyy") • Người check: @check.InspectorEmployeeCode
+                                                                @Language.T("equipment.nguoiCheck2", check.ScheduledDate.ToString("dd/MM/yyyy"), check.InspectorEmployeeCode)
                                                             </MudText>
                                                         </div>
                                                     </MudStack>
@@ -67,10 +67,10 @@
                                                 </MudStack>
                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="ml-7">
                                                     <MudText Typo="Typo.caption">
-                                                        Hạn: @check.DueAt.ToString("dd/MM/yyyy HH:mm")
+                                                        @Language.T("equipment.han2", check.DueAt.ToString("dd/MM/yyyy HH:mm"))
                                                         @if (check.ApprovedAt.HasValue)
                                                         {
-                                                            <span> • Duyệt: @check.ApprovedAt.Value.ToString("dd/MM/yyyy HH:mm")</span>
+                                                            <span> @Language.T("equipment.duyet", check.ApprovedAt.Value.ToString("dd/MM/yyyy HH:mm"))</span>
                                                         }
                                                     </MudText>
                                                     <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.OpenInNew"
@@ -105,15 +105,15 @@
         _ => Color.Default
     };
 
-    private static string StatusText(string status) => status switch
+    private string StatusText(string status) => status switch
     {
-        "Scheduled" => "Đã lập lịch",
-        "InProgress" => "Đang kiểm tra",
-        "WaitingApproval" => "Chờ duyệt",
-        "Approved" => "Đã duyệt",
-        "Rejected" => "Cần kiểm tra lại",
-        "Overdue" => "Quá hạn",
-        "Cancelled" => "Đã hủy",
+        "Scheduled" => Language.T("equipment.daLapLich"),
+        "InProgress" => Language.T("equipment.dangKiemTra"),
+        "WaitingApproval" => Language.T("leave.statusPending"),
+        "Approved" => Language.T("leave.statusApproved"),
+        "Rejected" => Language.T("equipment.canKiemTraLai"),
+        "Overdue" => Language.T("equipment.quaHan"),
+        "Cancelled" => Language.T("leave.statusCancelled"),
         _ => status
     };
 }

@@ -42,7 +42,7 @@
 @if (_editing)
 {
     <MudPaper Class="pa-4 mb-4" Elevation="2">
-        <MudText Typo="Typo.h6" Class="mb-3">@(_edit.Id == 0 ? "Thêm loại nghỉ" : "Chỉnh sửa loại nghỉ")</MudText>
+        <MudText Typo="Typo.h6" Class="mb-3">@(_edit.Id == 0 ? Language.T("leave.themLoaiNghi") : Language.T("leave.chinhSuaLoaiNghi"))</MudText>
         <MudForm @ref="_form">
             <MudGrid>
                 <MudItem xs="12" sm="3"><MudTextField @bind-Value="_edit.LeaveTypeCode" Label="@Language.T("leave.maLoaiNghi")" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
@@ -55,7 +55,7 @@
         </MudForm>
         <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
             <MudButton Variant="Variant.Text" OnClick="CancelEdit">@Language.T("common.cancel")</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_saving ? "Đang lưu..." : "Lưu")</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_saving ? Language.T("common.dangLuu") : Language.T("common.save"))</MudButton>
         </MudStack>
     </MudPaper>
 }
@@ -71,13 +71,13 @@ else
             <MudTh>@Language.T("common.code")</MudTh><MudTh>@Language.T("common.name")</MudTh><MudTh>@Language.T("leave.tenPhu")</MudTh><MudTh>@Language.T("hrm.title")</MudTh><MudTh>@Language.T("common.tinhPhep")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("common.action")</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Mã">@context.LeaveTypeCode</MudTd>
-            <MudTd DataLabel="Tên">@context.LeaveTypeName</MudTd>
-            <MudTd DataLabel="Tên phụ">@(context.LeaveTypeName2 ?? "-")</MudTd>
+            <MudTd DataLabel='@Language.T("common.code")'>@context.LeaveTypeCode</MudTd>
+            <MudTd DataLabel='@Language.T("common.name")'>@context.LeaveTypeName</MudTd>
+            <MudTd DataLabel='@Language.T("leave.tenPhu")'>@(context.LeaveTypeName2 ?? "-")</MudTd>
             <MudTd DataLabel="HRM">@(context.HRMCode ?? "-")</MudTd>
-            <MudTd DataLabel="Tính phép"><MudChip T="string" Size="Size.Small" Color="@(context.IsCountedAsLeave ? Color.Warning : Color.Default)">@(context.IsCountedAsLeave ? "Có" : "Không")</MudChip></MudTd>
-            <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Đang dùng" : "Tạm dừng")</MudChip></MudTd>
-            <MudTd DataLabel="Thao tác">
+            <MudTd DataLabel='@Language.T("common.tinhPhep")'><MudChip T="string" Size="Size.Small" Color="@(context.IsCountedAsLeave ? Color.Warning : Color.Default)">@(context.IsCountedAsLeave ? Language.T("common.yes") : Language.T("common.no"))</MudChip></MudTd>
+            <MudTd DataLabel='@Language.T("common.status")'><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? Language.T("leave.dangDung") : Language.T("leave.tamDung"))</MudChip></MudTd>
+            <MudTd DataLabel='@Language.T("common.action")'>
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => StartEdit(context))" />
                 <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)" Size="Size.Small" OnClick="@(() => Toggle(context))" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => Delete(context))" />

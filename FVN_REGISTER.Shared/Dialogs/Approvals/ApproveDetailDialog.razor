@@ -5,7 +5,7 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">Chi tiết đơn — @Item.EmployeeName</MudText>
+        <MudText Typo="Typo.h6">@Language.T("approval.chiTietDon", Item.EmployeeName)</MudText>
     </TitleContent>
 
     <DialogContent>
@@ -47,7 +47,7 @@
                    Variant="Variant.Filled"
                    Disabled="_isBusy"
                    OnClick="Approve">
-            @(_isBusy ? "Đang xử lý..." : "Phê duyệt")
+            @(_isBusy ? Language.T("common.dangXuLy") : Language.T("common.approve"))
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -76,19 +76,19 @@
             .FirstOrDefault(x => x.Level == CurrentApprovalLevel)
             ?.ApproverName;
 
-    private static string GetKindDisplay(RequestModule kind) => kind switch
+    private string GetKindDisplay(RequestModule kind) => kind switch
     {
         RequestModule.Overtime => "OT",
-        RequestModule.Trip => "Công tác",
-        RequestModule.Leave => "Nghỉ phép",
+        RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.Leave => Language.T("dashboard.leaveType"),
         _ => kind.ToString()
     };
 
-    private static string GetUnitLabel(RequestModule kind) => kind switch
+    private string GetUnitLabel(RequestModule kind) => kind switch
     {
-        RequestModule.Overtime => "giờ",
-        RequestModule.Trip => "ngày",
-        _ => "ngày"
+        RequestModule.Overtime => Language.T("calendar.hours"),
+        RequestModule.Trip => Language.T("dashboard.days"),
+        _ => Language.T("dashboard.days")
     };
 
     private async Task Approve()
@@ -133,7 +133,7 @@
             if (result.IsSuccess)
             {
                 Snackbar.Add(
-                    isReject ? "Đã từ chối!" : "Đã phê duyệt!",
+                    isReject ? Language.T("approval.daTuChoi") : Language.T("approval.daPheDuyet"),
                     isReject ? Severity.Info : Severity.Success);
 
                 if (isReject)

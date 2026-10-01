@@ -96,7 +96,7 @@
                                 <MudDivider Class="my-4" />
                                 <MudText Typo="Typo.subtitle2">@Language.T("security.hoTroIt")</MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                Reset mật khẩu về mật khẩu tạm FVN@123. Không xóa tài khoản, role hoặc dữ liệu người dùng.
+                                @Language.T("security.resetMatKhauVeMat")
                             </MudText>
                             <MudTextField T="string"
                                           Label="@Language.T("security.maNhanVienCanReset")"
@@ -113,7 +113,7 @@
                                            StartIcon="@Icons.Material.Filled.LockReset"
                                            OnClick="ResetPasswordToDefaultAsync"
                                            Disabled="_resettingPassword || string.IsNullOrWhiteSpace(_resetEmployeeCode)">
-                                    @(_resettingPassword ? "Đang reset..." : "Reset về FVN@123")
+                                    @(_resettingPassword ? Language.T("security.dangReset") : Language.T("security.resetVeFvn123"))
                                 </MudButton>
                             }
 
@@ -150,12 +150,12 @@
                     <div>
                         <MudText Typo="Typo.h6">@Language.T("security.yeuCauQuenMatKhau")</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            User gửi yêu cầu từ màn hình Login. IT xác minh và cấp mật khẩu tạm FVN@123.
+                            @Language.T("security.userGuiYeuCauTu")
                         </MudText>
                     </div>
                     <MudSpacer />
                     <MudChip T="string" Color="@( _resetRequests.Count > 0 ? Color.Warning : Color.Default )">
-                        @_resetRequests.Count chờ xử lý
+                        @Language.T("security.choXuLy", _resetRequests.Count)
                     </MudChip>
                     <MudButton Variant="Variant.Outlined"
                                StartIcon="@Icons.Material.Filled.Refresh"
@@ -200,7 +200,7 @@
                                            StartIcon="@Icons.Material.Filled.LockReset"
                                            OnClick="@(() => ProcessPasswordResetRequestAsync(context, true))"
                                            Disabled="_processingResetRequestId == context.Id">
-                                    @(_processingResetRequestId == context.Id ? "Đang xử lý..." : "Reset FVN@123")
+                                    @(_processingResetRequestId == context.Id ? Language.T("common.dangXuLy") : "Reset FVN@123")
                                 </MudButton>
                                 <MudButton Class="ms-2"
                                            Variant="Variant.Text"
@@ -272,11 +272,11 @@
                                     <MudText Typo="Typo.caption">@role.Detail</MudText>
                                 </div>
                                 <MudSpacer />
-                                <MudText Typo="Typo.caption">@GetMatrixCount(role.RoleCode) quyền</MudText>
+                                <MudText Typo="Typo.caption">@Language.T("security.quyen", GetMatrixCount(role.RoleCode))</MudText>
                                 <MudButton Variant="Variant.Filled" Size="Size.Small"
                                            Color="Color.Primary" Disabled="_savingRoleCode == role.RoleCode"
                                            OnClick="@(() => SaveRoleFunctionsAsync(role))">
-                                    Lưu @role.RoleName
+                                    @Language.T("security.luu", role.RoleName)
                                 </MudButton>
                             </MudStack>
                         </MudPaper>
@@ -302,8 +302,7 @@
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
                     <MudText Typo="Typo.h6">@Language.T("security.chiDinhNguoiThaoTac")</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-                        Capability vẫn do RBAC quyết định. Tab này chỉ xác định nhân viên cụ thể được thao tác
-                        trên Public Information, Public Form hoặc xử lý phản hồi HR.
+                        @Language.T("security.capabilityVanDoRbacQuyet")
                     </MudText>
 
                     <MudGrid>
@@ -452,8 +451,7 @@
             {
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
                     <MudAlert Severity="Severity.Info" Class="mb-3">
-                        Chỉ SuperAdmin có quyền cấu hình. 2FA được áp dụng theo từng tài khoản; hệ thống không tự suy luận từ quyền dữ liệu.
-                        Khi bật, người dùng sẽ đăng ký Microsoft Authenticator/Google Authenticator ở lần đăng nhập kế tiếp.
+                        @Language.T("security.chiSuperadminCoQuyenCau")
                     </MudAlert>
                     <MudTextField @bind-Value="_twoFactorSearch" Placeholder="@Language.T("security.timMaNhanVienHo")" Immediate="true"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -474,12 +472,12 @@
                             </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="@(context.Required ? Color.Warning : Color.Default)">
-                                    @(context.Required ? "BẮT BUỘC" : "Không")
+                                    @(context.Required ? Language.T("security.batBuoc") : Language.T("common.no"))
                                 </MudChip>
                             </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="@(context.Enabled ? Color.Success : Color.Default)">
-                                    @(context.Enabled ? "Đã đăng ký" : "Chưa đăng ký")
+                                    @(context.Enabled ? Language.T("trip.registered") : Language.T("endpoint.chuaDangKy"))
                                 </MudChip>
                             </MudTd>
                             <MudTd>
@@ -487,7 +485,7 @@
                                            Color="@(context.Required ? Color.Warning : Color.Primary)"
                                            OnClick="@(() => SetTwoFactorRequiredAsync(context))"
                                            Disabled="_savingTwoFactor">
-                                    @(context.Required ? "Tắt bắt buộc" : "Bật 2FA")
+                                    @(context.Required ? Language.T("security.tatBatBuoc") : Language.T("security.bat2fa"))
                                 </MudButton>
                                 @if (context.Enabled)
                                 {
@@ -658,8 +656,8 @@
 
             Snackbar.Add(
                 user.Required
-                    ? $"Đã tắt bắt buộc 2FA cho {user.EmployeeCode}."
-                    : $"Đã bật bắt buộc 2FA cho {user.EmployeeCode}.",
+                    ? Language.T("security.daTatBatBuoc2fa", user.EmployeeCode)
+                    : Language.T("security.daBatBatBuoc2fa", user.EmployeeCode),
                 Severity.Success);
             await LoadTwoFactorUsersAsync();
         }
@@ -681,7 +679,7 @@
                 return;
             }
 
-            Snackbar.Add($"Đã reset factor 2FA cho {user.EmployeeCode}.", Severity.Success);
+            Snackbar.Add(Language.T("security.daResetFactor2faCho", user.EmployeeCode), Severity.Success);
             await LoadTwoFactorUsersAsync();
         }
         finally
@@ -725,8 +723,8 @@
                 {
                     Approve = approve,
                     ResultNote = approve
-                        ? "IT đã xác minh và cấp mật khẩu tạm."
-                        : "IT từ chối yêu cầu."
+                        ? Language.T("security.itDaXacMinhVa")
+                        : Language.T("security.itTuChoiYeuCau")
                 });
 
             if (!result.IsSuccess)
@@ -737,8 +735,8 @@
 
             Snackbar.Add(
                 approve
-                    ? $"Đã reset mật khẩu cho {request.EmployeeCode} về FVN@123."
-                    : $"Đã từ chối yêu cầu của {request.EmployeeCode}.",
+                    ? Language.T("security.daResetMatKhauCho2", request.EmployeeCode)
+                    : Language.T("security.daTuChoiYeuCau", request.EmployeeCode),
                 approve ? Severity.Success : Severity.Info);
 
             await LoadPasswordResetRequestsAsync();
@@ -863,13 +861,13 @@
 
         if (target == null)
         {
-            Snackbar.Add($"Không tìm thấy tài khoản của mã nhân viên {employeeCode}.", Severity.Error);
+            Snackbar.Add(Language.T("security.khongTimThayTaiKhoan", employeeCode), Severity.Error);
             return;
         }
 
         if (!target.IsActive)
         {
-            Snackbar.Add($"Tài khoản {employeeCode} đang không hoạt động.", Severity.Warning);
+            Snackbar.Add(Language.T("security.taiKhoanDangKhongHoat", employeeCode), Severity.Warning);
             return;
         }
 
@@ -885,7 +883,7 @@
             }
 
             Snackbar.Add(
-                $"Đã reset mật khẩu cho {target.FullName} ({target.EmployeeCode}) về mật khẩu tạm.",
+                Language.T("security.daResetMatKhauCho", target.FullName, target.EmployeeCode),
                 Severity.Success);
         }
         finally
@@ -922,7 +920,7 @@
             if (_selected != null)
                 await SelectUserAsync(_selected);
 
-            Snackbar.Add($"Đã lưu ma trận cho role {role.RoleName}.", Severity.Success);
+            Snackbar.Add(Language.T("security.daLuuMaTranCho", role.RoleName), Severity.Success);
         }
         finally
         {

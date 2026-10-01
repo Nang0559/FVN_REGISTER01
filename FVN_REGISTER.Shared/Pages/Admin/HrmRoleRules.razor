@@ -26,7 +26,7 @@
 </MudStack>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
-    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa rule" : "Thêm rule")</MudText>
+    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? Language.T("hrm.suaRule") : Language.T("hrm.themRule"))</MudText>
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
             <MudSelect T="string" @bind-Value="_form.DeptCode" Label='@Language.T("ot.department")' Variant="Variant.Outlined" Clearable="true">
@@ -72,7 +72,7 @@
         }
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    OnClick="SaveAsync" Disabled="@_loading">
-            @(_editingId.HasValue ? "Cập nhật" : "Thêm rule")
+            @(_editingId.HasValue ? Language.T("hrm.capNhat") : Language.T("hrm.themRule"))
         </MudButton>
     </MudStack>
 </MudPaper>
@@ -92,7 +92,7 @@
         <MudTd>@context.DeptCode — @context.DeptName</MudTd>
         <MudTd>@context.PositionCode — @context.PositionName</MudTd>
         <MudTd><MudChip T="string" Size="Size.Small">@context.PermissionCode - @context.PermissionName</MudChip></MudTd>
-        <MudTd>@(context.IsActive ? "Có" : "Không")</MudTd>
+        <MudTd>@(context.IsActive ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
         <MudTd>@context.Note</MudTd>
         <MudTd>
             <MudStack Row="true" Spacing="1">

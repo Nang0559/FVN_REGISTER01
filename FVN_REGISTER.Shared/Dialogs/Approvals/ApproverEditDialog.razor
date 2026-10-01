@@ -5,7 +5,7 @@
 @using FVN_REGISTER.Shared.Services.Approvals
 
 <MudDialog>
-    <TitleContent><MudText Typo="Typo.h6">@(Model.Id == 0 ? "Thêm Approver mới" : "Chỉnh sửa Approver")</MudText></TitleContent>
+    <TitleContent><MudText Typo="Typo.h6">@(Model.Id == 0 ? Language.T("approval.themApproverMoi") : Language.T("approval.chinhSuaApprover"))</MudText></TitleContent>
     <DialogContent>
         <MudForm @ref="_form">
             <MudGrid>
@@ -26,7 +26,7 @@
                         <MudSelectItem Value="1">@Language.T("common.cap1")</MudSelectItem><MudSelectItem Value="2">@Language.T("common.cap2")</MudSelectItem><MudSelectItem Value="3">@Language.T("common.cap3")</MudSelectItem><MudSelectItem Value="4">@Language.T("common.cap4")</MudSelectItem><MudSelectItem Value="5">@Language.T("approval.cap5")</MudSelectItem><MudSelectItem Value="6">@Language.T("approval.cap6")</MudSelectItem><MudSelectItem Value="7">@Language.T("approval.cap7")</MudSelectItem>
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" sm="6"><MudSwitch @bind-Value="Model.IsActive" Label="@(Model.IsActive ? "Đang hoạt động" : "Vô hiệu hóa")" Color="Color.Success" /></MudItem>
+                <MudItem xs="12" sm="6"><MudSwitch @bind-Value="Model.IsActive" Label="@(Model.IsActive ? Language.T("common.enabled") : Language.T("email.voHieuHoa"))" Color="Color.Success" /></MudItem>
                 <MudItem xs="12">
                     <MudSelect T="RequestModule" @bind-Value="Model.RequestType" Label="@Language.T("approval.loaiDon2")" Variant="Variant.Outlined">
                         <MudSelectItem Value="@RequestModule.Leave">@Language.T("nav.reportLeave")</MudSelectItem>
@@ -49,7 +49,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_saving">@(_saving ? "Đang lưu..." : "Lưu")</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_saving">@(_saving ? Language.T("common.dangLuu") : Language.T("common.save"))</MudButton>
     </DialogActions>
 </MudDialog>
 

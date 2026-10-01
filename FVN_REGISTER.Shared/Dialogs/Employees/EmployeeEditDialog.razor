@@ -10,7 +10,7 @@
             <MudIcon Icon="@(Model.Id == 0 ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)"
                      Color="Color.Primary" />
             <MudText Typo="Typo.h6">
-                @(Model.Id == 0 ? "Thêm nhân viên mới" : "Chỉnh sửa nhân viên")
+                @(Model.Id == 0 ? Language.T("employee.themNhanVienMoi") : Language.T("employee.chinhSuaNhanVien"))
             </MudText>
         </MudStack>
     </TitleContent>
@@ -137,7 +137,7 @@
                 <MudItem xs="12" sm="6">
                     <MudSwitch T="bool"
                                @bind-Value="Model.IsActive"
-                               Label="@(Model.IsActive ? "Đang làm việc" : "Đã nghỉ")"
+                               Label="@(Model.IsActive ? Language.T("employee.dangLamViec") : Language.T("dashboard.used"))"
                                Color="Color.Success"
                                Class="mt-3" />
                 </MudItem>
@@ -151,7 +151,7 @@
                    Variant="Variant.Filled"
                    OnClick="Submit"
                    Disabled="_isSaving">
-            @(_isSaving ? "Đang lưu..." : (Model.Id == 0 ? "Thêm mới" : "Lưu thay đổi"))
+            @(_isSaving ? Language.T("common.dangLuu") : (Model.Id == 0 ? Language.T("leave.themMoi") : Language.T("user.luuThayDoi")))
         </MudButton>
     </DialogActions>
 </MudDialog>

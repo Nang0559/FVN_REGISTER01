@@ -67,7 +67,7 @@
         try
         {
             var result = await AuthService.GetSessionsAsync();
-            if (!result.IsSuccess) { _error = result.Message ?? "Không tải được danh sách phiên đăng nhập."; return; }
+            if (!result.IsSuccess) { _error = result.Message ?? Language.T("security.khongTaiDuocDanhSach3"); return; }
             _sessions = result.Data ?? new();
         }
         finally { _loading = false; }
@@ -81,7 +81,7 @@
             var result = await AuthService.RevokeSessionAsync(session.Id);
             if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("security.khongTheDangXuatThiet"), Severity.Error); return; }
             _sessions.RemoveAll(x => x.Id == session.Id);
-            Snackbar.Add($"Đã đăng xuất thiết bị {session.DeviceName}.", Severity.Success);
+            Snackbar.Add(Language.T("security.daDangXuatThietBi", session.DeviceName), Severity.Success);
         }
         finally { _revokingId = null; }
     }

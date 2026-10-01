@@ -192,13 +192,13 @@
         _ => "info"
     };
 
-    private static string GetTimeAgo(DateTime createdAt)
+    private string GetTimeAgo(DateTime createdAt)
     {
         var elapsed = DateTime.Now - createdAt;
-        if (elapsed.TotalMinutes < 1) return "Vừa xong";
-        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes} phút trước";
-        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours} giờ trước";
-        if (elapsed.TotalDays < 30) return $"{(int)elapsed.TotalDays} ngày trước";
+        if (elapsed.TotalMinutes < 1) return Language.T("notification.vuaXong");
+        if (elapsed.TotalHours < 1) return Language.T("notification.phutTruoc", (int)elapsed.TotalMinutes);
+        if (elapsed.TotalDays < 1) return Language.T("notification.gioTruoc", (int)elapsed.TotalHours);
+        if (elapsed.TotalDays < 30) return Language.T("notification.ngayTruoc", (int)elapsed.TotalDays);
         return createdAt.ToString("dd/MM/yyyy HH:mm");
     }
 

@@ -88,5 +88,5 @@ else
     }
     private async Task PublishAsync(int id){var r=await Http.PostAsync<object>($"api/public-information/{id}/publish",new { });if(r.IsSuccess){Snackbar.Add(Language.T("public.daPublish"),Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??Language.T("public.publishThatBai"),Severity.Error);}
     private async Task ArchiveAsync(int id){var r=await Http.PostAsync<object>($"api/public-information/{id}/archive",new { });if(r.IsSuccess){Snackbar.Add(Language.T("public.daArchive"),Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??Language.T("public.archiveThatBai"),Severity.Error);}
-    private static string TypeName(string type)=>type switch{"Announcement"=>"Thông báo","News"=>"Tin tức","HRContent"=>"Nội dung HR","CompanyInfo"=>"Thông tin công ty","PublicContent"=>"Nội dung được công khai",_=>type};
+    private string TypeName(string type)=>type switch{"Announcement"=>Language.T("common.thongBao"),"News"=>Language.T("public.tinTuc"),"HRContent"=>Language.T("public.noiDungHr"),"CompanyInfo"=>Language.T("public.thongTinCongTy"),"PublicContent"=>Language.T("public.noiDungDuocCongKhai"),_=>type};
 }

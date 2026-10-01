@@ -1,5 +1,6 @@
 {
   "employee.boPhan": "Bộ phận (*)",
+  "employee.chinhSuaNhanVien": "Chỉnh sửa nhân viên",
   "employee.chonBoPhan": "Chọn bộ phận",
   "employee.chonChucVu": "Chọn chức vụ",
   "employee.chonNhanVienOt": "Chọn nhân viên OT",
@@ -18,9 +19,12 @@
   "employee.loiTaiDuLieuOt": "Lỗi tải dữ liệu OT",
   "employee.maNhanVien": "Mã nhân viên (*)",
   "employee.nam": "Nam",
+  "employee.namKinhNghiem": "{0} năm kinh nghiệm",
   "employee.ngayNghiViec": "Ngày nghỉ việc",
   "employee.ngaySinh": "Ngày sinh",
   "employee.ngayVaoLam": "Ngày vào làm",
+  "employee.nguoi": "{0} người",
+  "employee.nhanVien": "{0} • {1} nhân viên",
   "employee.nhapEmail": "Nhập email",
   "employee.nhapHoTen": "Nhập họ tên",
   "employee.nhapMaNhanVien": "Nhập mã nhân viên",
@@ -30,10 +34,14 @@
   "employee.quanLyNhanVienFcc": "Quản lý nhân viên - FCC",
   "employee.soDienThoai": "Số điện thoại",
   "employee.soNgayOt": "Số ngày OT",
+  "employee.them": "Thêm {0}",
   "employee.themNhanVien": "Thêm nhân viên",
+  "employee.themNhanVienMoi": "Thêm nhân viên mới",
   "employee.timTenHoacMaNhan": "Tìm tên hoặc mã nhân viên",
   "employee.timTheoTenMaNv": "Tìm theo tên / mã NV",
   "employee.tongCong": "Tổng cộng",
   "employee.tongPhepNamNgay": "Tổng phép năm (ngày)",
-  "employee.xemThongTinPhepTon": "Xem thông tin, phép tồn và giờ OT theo từng bộ phận"
+  "employee.xemOtChiTiet": "Xem OT chi tiết",
+  "employee.xemThongTinPhepTon": "Xem thông tin, phép tồn và giờ OT theo từng bộ phận",
+  "employee.xoaNhanVien": "Xóa nhân viên '{0}' ({1})?"
 }

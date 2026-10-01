@@ -59,7 +59,7 @@ else
                 @if (_item.RequestStatus == ApprovalStatus.Draft || _item.RequestStatus == ApprovalStatus.NeedsRevision)
                 {
                     <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@_submitting" StartIcon="@Icons.Material.Filled.Send">
-                        @(_submitting ? "Đang gửi..." : "Gửi duyệt")
+                        @(_submitting ? Language.T("calendar.feedback.sending") : Language.T("common.guiDuyet"))
                     </MudButton>
                 }
                 <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/trip/history"))">@Language.T("common.back")</MudButton>
@@ -129,14 +129,14 @@ else
         _ => Color.Warning
     };
 
-    private static string GetStatusText(ApprovalStatus status) => status switch
+    private string GetStatusText(ApprovalStatus status) => status switch
     {
-        ApprovalStatus.Approved => "Đã duyệt",
-        ApprovalStatus.Rejected => "Từ chối",
-        ApprovalStatus.Cancelled => "Đã hủy",
-        ApprovalStatus.InProgress => "Đang xử lý",
-        ApprovalStatus.NeedsRevision => "Cần chỉnh sửa",
-        ApprovalStatus.Draft => "Nháp",
-        _ => "Chờ duyệt"
+        ApprovalStatus.Approved => Language.T("leave.statusApproved"),
+        ApprovalStatus.Rejected => Language.T("common.reject"),
+        ApprovalStatus.Cancelled => Language.T("leave.statusCancelled"),
+        ApprovalStatus.InProgress => Language.T("leave.statusInProgress"),
+        ApprovalStatus.NeedsRevision => Language.T("trip.canChinhSua"),
+        ApprovalStatus.Draft => Language.T("leave.statusDraft"),
+        _ => Language.T("leave.statusPending")
     };
 }

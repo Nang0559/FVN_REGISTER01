@@ -92,18 +92,18 @@
             }
         </MudTd>
         <MudTd Style="text-align:center">
-            <MudText Typo="Typo.caption">@(context.LastLogin?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa đăng nhập")</MudText>
+            <MudText Typo="Typo.caption">@(context.LastLogin?.ToString("dd/MM/yyyy HH:mm") ?? Language.T("user.chuaDangNhap"))</MudText>
         </MudTd>
         <MudTd Style="text-align:center">
             <MudMenu Icon="@Icons.Material.Filled.MoreVert"
                      Size="Size.Small" Dense="true"
                      AnchorOrigin="Origin.BottomRight"
                      TransformOrigin="Origin.TopRight">
-                <MudMenuItem OnClick="@(() => OpenEditDialog(context))">Sửa quyền</MudMenuItem>
+                <MudMenuItem OnClick="@(() => OpenEditDialog(context))">@Language.T("user.suaQuyen")</MudMenuItem>
                 <MudMenuItem OnClick="@(() => ToggleLock(context))">
-                    @(context.IsCurrentlyLocked ? "Mở khóa" : "Khóa tài khoản")
+                    @(context.IsCurrentlyLocked ? Language.T("user.moKhoa") : Language.T("user.khoaTaiKhoan"))
                 </MudMenuItem>
-                <MudMenuItem OnClick="@(() => OpenResetPasswordDialog(context))">Reset mật khẩu</MudMenuItem>
+                <MudMenuItem OnClick="@(() => OpenResetPasswordDialog(context))">@Language.T("user.resetMatKhau")</MudMenuItem>
                 <MudDivider />
                 <MudMenuItem OnClick="@(() => DeleteUser(context))"
                              Disabled="@(context.PermissionCode == 1 || context.IdUser == CurrentUser.User?.UserId)">
@@ -162,7 +162,7 @@
             { x => x.Request, request }
         };
         var dialog = await DialogService.ShowAsync<CreateUserDialog>(
-            "Tạo tài khoản", parameters,
+            Language.T("user.taoTaiKhoan"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
@@ -190,7 +190,7 @@
             { x => x.Request, request }
         };
         var dialog = await DialogService.ShowAsync<EditUserDialog>(
-            "Sửa quyền tài khoản", parameters,
+            Language.T("user.suaQuyenTaiKhoan"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
@@ -210,7 +210,7 @@
             { x => x.UserName, user.EmployeeCode }
         };
         var dialog = await DialogService.ShowAsync<ResetPasswordDialog>(
-            "Reset mật khẩu", parameters,
+            Language.T("user.resetMatKhau"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
@@ -226,9 +226,9 @@
     {
         var locked = user.IsCurrentlyLocked;
         var confirm = await DialogService.ShowMessageBoxAsync(
-            locked ? "Mở khóa tài khoản" : "Khóa tài khoản",
-            locked ? $"Mở khóa tài khoản {user.EmployeeCode}?" : $"Khóa tài khoản {user.EmployeeCode}?",
-            yesText: locked ? "Mở khóa" : "Khóa", cancelText: "Hủy");
+            locked ? Language.T("user.moKhoaTaiKhoan") : Language.T("user.khoaTaiKhoan"),
+            locked ? Language.T("user.moKhoaTaiKhoan2", user.EmployeeCode) : Language.T("user.khoaTaiKhoan2", user.EmployeeCode),
+            yesText: locked ? Language.T("user.moKhoa") : Language.T("equipment.khoa"), cancelText: Language.T("common.cancel"));
         if (confirm != true) return;
 
         var response = await UserMgtService.ToggleLockAsync(user.IdUser, _cts.Token);
@@ -240,9 +240,9 @@
     private async Task DeleteUser(UserAccountDto user)
     {
         var confirm = await DialogService.ShowMessageBoxAsync(
-            "Xác nhận xóa",
-            $"Xóa tài khoản {user.EmployeeCode}? Hành động này không thể hoàn tác.",
-            yesText: "Xóa", cancelText: "Hủy");
+            Language.T("department.xacNhanXoa"),
+            Language.T("user.xoaTaiKhoanHanhDong", user.EmployeeCode),
+            yesText: Language.T("common.delete"), cancelText: Language.T("common.cancel"));
         if (confirm != true) return;
 
         var response = await UserMgtService.DeleteAsync(user.IdUser, _cts.Token);

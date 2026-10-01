@@ -97,7 +97,7 @@
             var result = await Http.GetAsync<JsonElement>("api/public-information");
             if (!result.IsSuccess || result.Data.ValueKind != JsonValueKind.Array)
             {
-                _error = result.Message ?? "Không thể tải thông tin công khai.";
+                _error = result.Message ?? Language.T("public.khongTheTaiThongTin");
                 return;
             }
 
@@ -107,7 +107,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "[PUBLIC-INFO] Load error");
-            _error = "Không thể kết nối đến máy chủ.";
+            _error = Language.T("public.khongTheKetNoiDen");
         }
         finally { _loading = false; }
     }
@@ -122,12 +122,12 @@
 
     private void GoLogin() => Navigation.NavigateTo("/login");
 
-    private static string GetTypeName(string? type) => type?.ToLowerInvariant() switch
+    private string GetTypeName(string? type) => type?.ToLowerInvariant() switch
     {
-        "regulation" => "Quy định",
-        "guide" => "Hướng dẫn",
-        "policy" => "Chính sách",
-        _ => "Thông báo"
+        "regulation" => Language.T("public.quyDinh"),
+        "guide" => Language.T("public.huongDan"),
+        "policy" => Language.T("public.chinhSach"),
+        _ => Language.T("common.thongBao")
     };
 
     private sealed class PublicItem

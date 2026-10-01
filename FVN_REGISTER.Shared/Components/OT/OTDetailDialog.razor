@@ -66,7 +66,7 @@
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("ot.tongGioOt")</MudText>
-                    <MudText Typo="Typo.body1">@_detail.TotalOtHours.ToString("N1") giờ</MudText>
+                    <MudText Typo="Typo.body1">@Language.T("ot.gio2", _detail.TotalOtHours.ToString("N1"))</MudText>
                 </MudItem>
                 @if (!string.IsNullOrWhiteSpace(_detail.OtPurpose))
                 {
@@ -127,7 +127,7 @@
                             {
                                 <MudTimelineItem Color="@ApproveColor(step.Decision)" Icon="@ApproveIcon(step.Decision)" Size="Size.Small">
                                     <ItemContent>
-                                        <MudText Typo="Typo.body2"><strong>Cấp @step.Level — @step.RoleName</strong>@if (!string.IsNullOrEmpty(step.ApproverCode)) { <span> — @step.ApproverCode</span> }</MudText>
+                                        <MudText Typo="Typo.body2"><strong>@Language.T("ot.cap2", step.Level, step.RoleName)</strong>@if (!string.IsNullOrEmpty(step.ApproverCode)) { <span> — @step.ApproverCode</span> }</MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                                             @step.StatusText
                                             @if (step.ApproveTime.HasValue) { <span> — @step.ApproveTime.Value.ToString("dd/MM/yyyy HH:mm")</span> }
@@ -191,13 +191,13 @@
 
     private void Close() => MudDialog.Close(DialogResult.Ok(true));
 
-    private static (Color color, string text) GetStatusChip(ApprovalStatus status) => status switch
+    private (Color color, string text) GetStatusChip(ApprovalStatus status) => status switch
     {
-        ApprovalStatus.Approved => (Color.Success, "Hoàn tất"),
-        ApprovalStatus.Rejected => (Color.Error, "Từ chối"),
-        ApprovalStatus.Cancelled => (Color.Default, "Đã hủy"),
-        ApprovalStatus.InProgress => (Color.Info, "Đang xử lý"),
-        _ => (Color.Warning, "Chờ duyệt")
+        ApprovalStatus.Approved => (Color.Success, Language.T("ot.hoanTat")),
+        ApprovalStatus.Rejected => (Color.Error, Language.T("common.reject")),
+        ApprovalStatus.Cancelled => (Color.Default, Language.T("leave.statusCancelled")),
+        ApprovalStatus.InProgress => (Color.Info, Language.T("leave.statusInProgress")),
+        _ => (Color.Warning, Language.T("leave.statusPending"))
     };
 
     private static Color ApproveColor(DecisionType status) => status switch

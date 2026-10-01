@@ -62,7 +62,7 @@ else
                 <MudTd>@context.CreatedAt.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>
                     <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
-                        @(context.IsActive ? "Đang hoạt động" : "Đã ngừng")
+                        @(context.IsActive ? Language.T("common.enabled") : Language.T("department.daNgung"))
                     </MudChip>
                 </MudTd>
                 <MudTd Style="text-align:center">

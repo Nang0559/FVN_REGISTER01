@@ -29,13 +29,12 @@
                     <InputFile OnChange="ImportChecklistAsync" accept=".xls,.xlsx,.xlsm" />
                 </MudStack>
                 <MudAlert Severity="Severity.Info" Class="mt-3">
-                    Cột bắt buộc: TemplateCode, TemplateName, DeptCode, Frequency, ItemCode, ItemLabel, InputType, DisplayOrder.
-                    Cột tùy chọn: Description, IsRequired, RequireImage, MinImages, MaxImages, MinValue, MaxValue, Unit, OptionsJson.
+                    @Language.T("equipment.cotBatBuocTemplatecode")
                 </MudAlert>
                 @if (_importResult != null)
                 {
                     <MudAlert Severity="@(_importResult.Errors.Count == 0 ? Severity.Success : Severity.Error)" Class="mt-3">
-                        @(_importResult.Errors.Count == 0 ? $"Đã import {_importResult.ItemCount} hạng mục vào template {_importResult.TemplateCode} ở Draft." : string.Join(" ", _importResult.Errors))
+                        @(_importResult.Errors.Count == 0 ? Language.T("equipment.daImportHangMucVao", _importResult.ItemCount, _importResult.TemplateCode) : string.Join(" ", _importResult.Errors))
                     </MudAlert>
                 }
             </MudPaper>
@@ -114,9 +113,9 @@
                                     }
                                     @if (item.InputType == "Select")
                                     {
-                                        <MudItem xs="12"><MudTextField @bind-Value="item.OptionsJson" Label="@Language.T("equipment.optionsJson")" HelperText='Ví dụ: ["OK","NG","N/A"]' /></MudItem>
+                                        <MudItem xs="12"><MudTextField @bind-Value="item.OptionsJson" Label="@Language.T("equipment.optionsJson")" HelperText='@Language.T("equipment.viDuOkNgN")' /></MudItem>
                                     }
-                                    <MudItem xs="12"><MudButton Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveItem(item))">Xóa hạng mục</MudButton></MudItem>
+                                    <MudItem xs="12"><MudButton Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveItem(item))">@Language.T("equipment.xoaHangMuc")</MudButton></MudItem>
                                 </MudGrid>
                             </MudPaper>
                         }
@@ -130,7 +129,7 @@
                     <HeaderContent><MudTh>@Language.T("common.department2")</MudTh><MudTh>@Language.T("common.name")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("equipment.chuKy")</MudTh><MudTh>@Language.T("common.status2")</MudTh><MudTh></MudTh></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.DeptCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>v@context.Version</MudTd><MudTd>@context.Frequency</MudTd><MudTd>@context.Status</MudTd>
-                        <MudTd><MudButton Size="Size.Small" OnClick="@(() => EditTemplate(context))">Mở</MudButton><MudButton Size="Size.Small" OnClick="@(() => CloneExistingAsync(context))">Nhân bản</MudButton></MudTd>
+                        <MudTd><MudButton Size="Size.Small" OnClick="@(() => EditTemplate(context))">@Language.T("common.mo")</MudButton><MudButton Size="Size.Small" OnClick="@(() => CloneExistingAsync(context))">@Language.T("email.nhanBan")</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
@@ -160,7 +159,7 @@
                     }
                     @if (_assignment.Frequency == "Quarterly" || _assignment.Frequency == "Yearly")
                     {
-                        <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleMonth" Label="@(_assignment.Frequency == "Quarterly" ? "Tháng neo trong quý (1-3)" : "Tháng (1-12)")" Min="1" Max="12" /></MudItem>
+                        <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleMonth" Label="@(_assignment.Frequency == "Quarterly" ? Language.T("equipment.thangNeoTrongQuy1") : Language.T("equipment.thang112"))" Min="1" Max="12" /></MudItem>
                     }
                     <MudItem xs="12" md="6">
                         <MudSelect T="string" @bind-Value="_assignment.InspectorEmployeeCode" Label="@Language.T("equipment.nguoiCheck")" Variant="Variant.Outlined">

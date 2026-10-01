@@ -66,7 +66,7 @@
             <MudSpacer />
             @if (_paged != null)
             {
-                <MudText Typo="Typo.caption">@_paged.TotalCount bản ghi · trang @_page/@_paged.TotalPages</MudText>
+                <MudText Typo="Typo.caption">@Language.T("ot.banGhiTrang", _paged.TotalCount, _page, _paged.TotalPages)</MudText>
             }
         </ToolBarContent>
         <HeaderContent>
@@ -80,13 +80,13 @@
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Mã đơn">@context.RequestCode</MudTd>
-            <MudTd DataLabel="Ngày OT">@context.OTDate.ToString("dd/MM/yyyy")</MudTd>
-            <MudTd DataLabel="Nhân viên">@context.EmployeeName</MudTd>
-            <MudTd DataLabel="Loại OT">@context.TypeName</MudTd>
-            <MudTd DataLabel="Số giờ">@context.TotalHours.ToString("N1")</MudTd>
+            <MudTd DataLabel='@Language.T("common.maDon")'>@context.RequestCode</MudTd>
+            <MudTd DataLabel='@Language.T("ot.ngayOt")'>@context.OTDate.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd DataLabel='@Language.T("common.employee")'>@context.EmployeeName</MudTd>
+            <MudTd DataLabel='@Language.T("ot.loaiOt")'>@context.TypeName</MudTd>
+            <MudTd DataLabel='@Language.T("ot.hours")'>@context.TotalHours.ToString("N1")</MudTd>
             <MudTd DataLabel="SL NV">@context.EmployeeCount</MudTd>
-            <MudTd DataLabel="Trạng thái">
+            <MudTd DataLabel='@Language.T("common.status")'>
                 <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">@context.Status</MudChip>
             </MudTd>
             <MudTd>

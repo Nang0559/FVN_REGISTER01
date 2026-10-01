@@ -18,7 +18,7 @@
 <PageTitle>@Language.T("department.trangThaiHienDienPhong")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
-    <div><MudText Typo="Typo.h5">@Language.T("department.trangThaiHienDien")</MudText><MudText Typo="Typo.caption">Ngày: @_selectedDate.ToString("dd/MM/yyyy") — Cập nhật: @_loadedAt?.ToString("HH:mm:ss")</MudText></div>
+    <div><MudText Typo="Typo.h5">@Language.T("department.trangThaiHienDien")</MudText><MudText Typo="Typo.caption">@Language.T("department.ngayCapNhat", _selectedDate.ToString("dd/MM/yyyy"), _loadedAt?.ToString("HH:mm:ss"))</MudText></div>
     <MudStack Row="true" Spacing="2"><MudDatePicker @bind-Date="_datePicker" Label="@Language.T("department.chonNgay")" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" MaxDate="DateTime.Today" /><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton></MudStack>
 </MudStack>
 
@@ -41,7 +41,7 @@
 
 @if (_deptDetail != null)
 {
-    <MudDivider Class="my-4" /><MudText Typo="Typo.h6" Class="mb-3">Chi tiết: @_deptDetail.DeptName (@_deptDetail.DeptCode)</MudText>
+    <MudDivider Class="my-4" /><MudText Typo="Typo.h6" Class="mb-3">@Language.T("department.chiTiet", _deptDetail.DeptName, _deptDetail.DeptCode)</MudText>
     <MudStack Row="true" Spacing="2" Class="mb-3"><MudTextField @bind-Value="_searchText" Placeholder="@Language.T("common.timTenMaNv")" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" /><MudSelect T="string" @bind-Value="_filterStatus" Label='@Language.T("common.status")' Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"><MudSelectItem Value="@("PRESENT")">@Language.T("department.coMat")</MudSelectItem><MudSelectItem Value="@("ON_LEAVE")">@Language.T("nav.leave")</MudSelectItem><MudSelectItem Value="@("ABSENT")">@Language.T("department.vangKlr")</MudSelectItem></MudSelect></MudStack>
     <MudTable Items="FilteredRows" T="EmployeeStatusRow" Dense="true" Hover="true">
         <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("department.gioVao")</MudTh><MudTh>@Language.T("common.loaiNghi")</MudTh><MudTh>@Language.T("common.reason")</MudTh></HeaderContent>

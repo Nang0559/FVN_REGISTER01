@@ -19,7 +19,7 @@
             <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("equipment.nhapDuLieuTuExcel")</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.phongBanChonMauDu")</MudText>
         </div>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">Quản lý mẫu dữ liệu</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">@Language.T("equipment.quanLyMauDuLieu2")</MudButton>
     </MudStack>
 
     @if (!_ready)
@@ -53,7 +53,7 @@
                 @if (_schema != null)
                 {
                     <MudAlert Severity="Severity.Success" Class="mt-3">
-                        Đang sử dụng: <b>@_schema.SchemaName — v@_schema.Version</b>. Người tạo: @_schema.OwnerName. Số trường: @_schema.Fields.Count.
+                        @Language.T("equipment.dangSuDung") <b>@_schema.SchemaName — v@_schema.Version</b>@Language.T("equipment.nguoiTaoSoTruong", _schema.OwnerName, _schema.Fields.Count)
                     </MudAlert>
                 }
             }
@@ -74,7 +74,7 @@
                     <RowTemplate>
                         <MudTd>@context.FieldLabel <span class="mud-text-secondary">(@context.FieldKey)</span></MudTd>
                         <MudTd>@DataTypeText(context.DataType)</MudTd>
-                        <MudTd>@(context.IsRequired ? "Có" : "Không")</MudTd>
+                        <MudTd>@(context.IsRequired ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
                         <MudTd>@context.MaxLength</MudTd>
                         <MudTd>@context.DefaultValue</MudTd>
                     </RowTemplate>
@@ -89,26 +89,26 @@
                 <InputFile OnChange="OnFileSelected" accept=".xls,.xlsx,.xlsm" />
                 @if (_file != null)
                 {
-                    <MudAlert Severity="Severity.Info" Class="my-3">Đã chọn: @_file.Name (@_file.Size bytes)</MudAlert>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StageAsync" Disabled="_uploading">@(_uploading ? "Đang kiểm tra..." : "Kiểm tra và xem trước")</MudButton>
+                    <MudAlert Severity="Severity.Info" Class="my-3">@Language.T("equipment.daChonBytes", _file.Name, _file.Size)</MudAlert>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StageAsync" Disabled="_uploading">@(_uploading ? Language.T("equipment.dangKiemTra2") : Language.T("equipment.kiemTraVaXemTruoc"))</MudButton>
                 }
 
                 @if (_batch != null)
                 {
                     <MudDivider Class="my-4" />
-                    <MudText Typo="Typo.subtitle1">Lô nhập #@_batch.Id</MudText>
-                    <MudText>Trạng thái: @BatchStatusText(_batch.Status)</MudText>
-                    <MudText>Tổng: @_batch.TotalRows · Hợp lệ: @_batch.ValidRows · Lỗi: @_batch.InvalidRows</MudText>
+                    <MudText Typo="Typo.subtitle1">@Language.T("equipment.loNhap", _batch.Id)</MudText>
+                    <MudText>@Language.T("common.trangThai2", BatchStatusText(_batch.Status))</MudText>
+                    <MudText>@Language.T("equipment.tongHopLeLoi", _batch.TotalRows, _batch.ValidRows, _batch.InvalidRows)</MudText>
                     @if (_batch.Rows.Any(x => !string.IsNullOrWhiteSpace(x.ErrorMessage)))
                     {
                         <MudAlert Severity="Severity.Error" Class="my-3">
                             @foreach (var row in _batch.Rows.Where(x => !string.IsNullOrWhiteSpace(x.ErrorMessage)).Take(20))
                             {
-                                <div>Dòng @row.RowNumber: @row.ErrorMessage</div>
+                                <div>@Language.T("equipment.dong", row.RowNumber, row.ErrorMessage)</div>
                             }
                         </MudAlert>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0 || _batch.Status != "Ready")" OnClick="CommitAsync">Nhập dữ liệu vào hệ thống</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0 || _batch.Status != "Ready")" OnClick="CommitAsync">@Language.T("equipment.nhapDuLieuVaoHe")</MudButton>
                 }
             </MudPaper>
         }
@@ -197,24 +197,24 @@
         if (result.IsSuccess) await LoadSelectedSchemaAsync();
     }
 
-    private static string DataTypeText(string? type) => type?.ToLowerInvariant() switch
+    private string DataTypeText(string? type) => type?.ToLowerInvariant() switch
     {
-        "integer" => "Số nguyên",
-        "number" or "decimal" => "Số thập phân",
-        "currency" => "Tiền tệ",
-        "date" => "Ngày",
-        "datetime" => "Ngày giờ",
-        "boolean" => "Đúng / Sai",
+        "integer" => Language.T("equipment.soNguyen"),
+        "number" or "decimal" => Language.T("equipment.soThapPhan"),
+        "currency" => Language.T("equipment.tienTe"),
+        "date" => Language.T("ot.date"),
+        "datetime" => Language.T("equipment.ngayGio"),
+        "boolean" => Language.T("equipment.dungSai"),
         "email" => "Email",
-        "choice" => "Danh sách lựa chọn",
-        _ => "Văn bản"
+        "choice" => Language.T("equipment.danhSachLuaChon"),
+        _ => Language.T("equipment.vanBan")
     };
 
-    private static string BatchStatusText(string? status) => status?.ToLowerInvariant() switch
+    private string BatchStatusText(string? status) => status?.ToLowerInvariant() switch
     {
-        "ready" => "Sẵn sàng nhập",
-        "needsreview" => "Cần xử lý lỗi",
-        "imported" => "Đã nhập",
-        _ => "Đang kiểm tra"
+        "ready" => Language.T("equipment.sanSangNhap"),
+        "needsreview" => Language.T("equipment.canXuLyLoi"),
+        "imported" => Language.T("equipment.daNhap"),
+        _ => Language.T("equipment.dangKiemTra")
     };
 }

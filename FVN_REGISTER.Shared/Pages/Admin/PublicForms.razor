@@ -114,7 +114,7 @@
                         <MudSpacer />
 
                         <MudChip T="string" Color="Color.Primary" Size="Size.Small">
-                            Đã chọn: @_selectedAudienceValues.Count
+                            @Language.T("common.daChon", _selectedAudienceValues.Count)
                         </MudChip>
                     </MudStack>
 
@@ -175,8 +175,7 @@
                                       AlignItems="AlignItems.Center"
                                       Class="mt-2">
                                 <MudText Typo="Typo.caption">
-                                    Trang @_employeePage / @Math.Max(1, _employeeTotalPages)
-                                    · Tổng @_employeeTotalCount nhân viên
+                                    @Language.T("public.trangTongNhanVien", _employeePage, Math.Max(1, _employeeTotalPages), _employeeTotalCount)
                                 </MudText>
 
                                 <MudStack Row="true" Spacing="1">
@@ -226,7 +225,7 @@
                     @if (_selectedAudienceValues.Count > 0)
                     {
                         <MudText Typo="Typo.caption" Class="mt-2">
-                            Đã chọn: @string.Join(", ", _selectedAudienceLabels.Values.OrderBy(x => x))
+                            @Language.T("common.daChon", string.Join(", ", _selectedAudienceLabels.Values.OrderBy(x => x)))
                         </MudText>
                     }
                 </MudPaper>
@@ -236,7 +235,7 @@
         {
             <MudItem xs="12" sm="8">
                 <MudAlert Severity="Severity.Info">
-                    <b>@Language.T("public.company")</b>: áp dụng cho tất cả nhân viên. Không có ô nhập mã đối tượng.
+                    <b>@Language.T("public.company")</b>@Language.T("public.apDungChoTatCa")
                 </MudAlert>
             </MudItem>
         }
@@ -332,9 +331,9 @@
         <MudTd>@context.FormCode</MudTd>
         <MudTd><b>@context.Title</b></MudTd>
         <MudTd>
-            @(context.StartAt?.ToString("dd/MM/yyyy") ?? "Chưa đặt")
+            @(context.StartAt?.ToString("dd/MM/yyyy") ?? Language.T("public.chuaDat"))
             -
-            @(context.EndAt?.ToString("dd/MM/yyyy") ?? "Không giới hạn")
+            @(context.EndAt?.ToString("dd/MM/yyyy") ?? Language.T("public.khongGioiHan"))
         </MudTd>
         <MudTd>@context.Status</MudTd>
         <MudTd>
@@ -390,10 +389,10 @@
 
     private string AudienceLabel => _audienceType switch
     {
-        "Department" => "Chọn phòng ban",
-        "Position" => "Chọn vị trí",
-        "Employee" => "Chọn nhân viên",
-        _ => "Đối tượng"
+        "Department" => Language.T("public.chonPhongBan"),
+        "Position" => Language.T("public.chonViTri"),
+        "Employee" => Language.T("public.chonNhanVien"),
+        _ => Language.T("public.doiTuong")
     };
 
     protected override async Task OnInitializedAsync()

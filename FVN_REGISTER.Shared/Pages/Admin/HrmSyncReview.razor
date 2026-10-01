@@ -17,7 +17,7 @@
         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("hrm.danhSachFlagChuaXu")</MudText>
     </MudStack>
     <MudStack Row="true" Spacing="2">
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync"))">Quản lý đồng bộ</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync"))">@Language.T("hrm.quanLyDongBo")</MudButton>
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 </MudStack>
@@ -50,7 +50,7 @@ else
             <MudTd>@context.Message</MudTd>
             <MudTd>@context.DetectedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
             <MudTd>
-                <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" OnClick="@(() => ResolveAsync(context))">Đã xử lý</MudButton>
+                <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" OnClick="@(() => ResolveAsync(context))">@Language.T("hrm.daXuLy")</MudButton>
             </MudTd>
         </RowTemplate>
     </MudTable>

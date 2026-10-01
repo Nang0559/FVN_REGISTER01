@@ -5,7 +5,7 @@
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.AddBusiness)" Class="mr-2" />
-            @(IsEdit ? "Chỉnh sửa Bộ phận" : "Thêm Bộ phận mới")
+            @(IsEdit ? Language.T("department.chinhSuaBoPhan") : Language.T("department.themBoPhanMoi"))
         </MudText>
     </TitleContent>
 
@@ -27,7 +27,7 @@
     <DialogActions>
         <MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_isSaving">
-            @(_isSaving ? "Đang lưu..." : "Lưu")
+            @(_isSaving ? Language.T("common.dangLuu") : Language.T("common.save"))
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -58,7 +58,7 @@
             if (result.IsSuccess)
                 MudDialog.Close(DialogResult.Ok(true));
             else
-                _errorMessage = result.Message ?? "Có lỗi xảy ra, vui lòng thử lại.";
+                _errorMessage = result.Message ?? Language.T("department.coLoiXayRaVui");
         }
         finally { _isSaving = false; }
     }

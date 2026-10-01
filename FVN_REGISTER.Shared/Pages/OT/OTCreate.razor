@@ -74,7 +74,7 @@ else if (_form != null)
 
             <MudCard Elevation="2" Class="mt-4 pa-4">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
-                    <MudText Typo="Typo.subtitle1">Nhân viên tham gia (@_employees.Count)</MudText>
+                    <MudText Typo="Typo.subtitle1">@Language.T("ot.nhanVienThamGia2", _employees.Count)</MudText>
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">@Language.T("ot.themNhanVienPhongBan")</MudButton>
                 </MudStack>
 
@@ -131,21 +131,17 @@ else if (_form != null)
                     @if (_limitPreview.Department != null)
                     {
                         <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle2">Phòng: @_limitPreview.Department.ScopeName</MudText>
+                        <MudText Typo="Typo.subtitle2">@Language.T("ot.phong", _limitPreview.Department.ScopeName)</MudText>
                         <MudText Typo="Typo.body2">
-                            Tuần: @LimitText(_limitPreview.Department.UsedHoursThisWeek, _limitPreview.Department.WeeklyLimit, _limitPreview.Department.ProjectedHoursThisWeek)
-                            · Tháng: @LimitText(_limitPreview.Department.UsedHoursThisMonth, _limitPreview.Department.MonthlyLimit, _limitPreview.Department.ProjectedHoursThisMonth)
-                            · Năm: @LimitText(_limitPreview.Department.UsedHoursThisYear, _limitPreview.Department.YearlyLimit, _limitPreview.Department.ProjectedHoursThisYear)
+                            @Language.T("ot.tuanThangNam", LimitText(_limitPreview.Department.UsedHoursThisWeek, _limitPreview.Department.WeeklyLimit, _limitPreview.Department.ProjectedHoursThisWeek), LimitText(_limitPreview.Department.UsedHoursThisMonth, _limitPreview.Department.MonthlyLimit, _limitPreview.Department.ProjectedHoursThisMonth), LimitText(_limitPreview.Department.UsedHoursThisYear, _limitPreview.Department.YearlyLimit, _limitPreview.Department.ProjectedHoursThisYear))
                         </MudText>
                     }
 
                     @if (_limitPreview.Block != null && (!_limitPreview.Block.IsExceeded || _limitPreview.Block.WeeklyLimit.HasValue || _limitPreview.Block.MonthlyLimit.HasValue || _limitPreview.Block.YearlyLimit.HasValue))
                     {
-                        <MudText Typo="Typo.subtitle2" Class="mt-2">Khối: @_limitPreview.Block.ScopeName</MudText>
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">@Language.T("ot.khoi2", _limitPreview.Block.ScopeName)</MudText>
                         <MudText Typo="Typo.body2">
-                            Tuần: @LimitText(_limitPreview.Block.UsedHoursThisWeek, _limitPreview.Block.WeeklyLimit, _limitPreview.Block.ProjectedHoursThisWeek)
-                            · Tháng: @LimitText(_limitPreview.Block.UsedHoursThisMonth, _limitPreview.Block.MonthlyLimit, _limitPreview.Block.ProjectedHoursThisMonth)
-                            · Năm: @LimitText(_limitPreview.Block.UsedHoursThisYear, _limitPreview.Block.YearlyLimit, _limitPreview.Block.ProjectedHoursThisYear)
+                            @Language.T("ot.tuanThangNam", LimitText(_limitPreview.Block.UsedHoursThisWeek, _limitPreview.Block.WeeklyLimit, _limitPreview.Block.ProjectedHoursThisWeek), LimitText(_limitPreview.Block.UsedHoursThisMonth, _limitPreview.Block.MonthlyLimit, _limitPreview.Block.ProjectedHoursThisMonth), LimitText(_limitPreview.Block.UsedHoursThisYear, _limitPreview.Block.YearlyLimit, _limitPreview.Block.ProjectedHoursThisYear))
                         </MudText>
                     }
                 </MudCard>
@@ -157,7 +153,7 @@ else if (_form != null)
             }
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@_submitting">
-                @(_submitting ? "Đang gửi..." : "GỬI ĐƠN OT")
+                @(_submitting ? Language.T("calendar.feedback.sending") : Language.T("ot.guiDonOt"))
             </MudButton>
         </MudItem>
 
@@ -165,11 +161,11 @@ else if (_form != null)
             @if (_balance != null)
             {
                 <MudCard Elevation="2" Class="mb-4 pa-4">
-                    <MudText Typo="Typo.subtitle1">Số dư giờ OT @DateTime.Now.Year</MudText>
-                    <MudText Typo="Typo.body2">Năm: @_balance.UsedHoursThisYear / @_balance.YearlyLimit h</MudText>
+                    <MudText Typo="Typo.subtitle1">@Language.T("ot.soDuGioOt", DateTime.Now.Year)</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.namH", _balance.UsedHoursThisYear, _balance.YearlyLimit)</MudText>
                     <MudProgressLinear Value="@_balance.YearlyUsedPercent" Color="@(_balance.IsNearYearlyLimit ? Color.Warning : Color.Primary)" Class="my-2" />
-                    <MudText Typo="Typo.body2">Tháng: @_balance.UsedHoursThisMonth / @_balance.MonthlyLimit h</MudText>
-                    <MudText Typo="Typo.body2">Còn lại năm: @_balance.RemainingYearly h</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.thangH", _balance.UsedHoursThisMonth, _balance.MonthlyLimit)</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.conLaiNamH", _balance.RemainingYearly)</MudText>
                 </MudCard>
             }
 
@@ -325,7 +321,7 @@ else if (_form != null)
             var message = validation.Data?.Errors.FirstOrDefault()
                 ?? validation.Data?.Message
                 ?? validation.Message
-                ?? "Đơn OT không hợp lệ.";
+                ?? Language.T("ot.donOtKhongHopLe");
             Snackbar.Add(message, Severity.Warning);
             return;
         }
@@ -383,10 +379,10 @@ else if (_form != null)
         await RefreshLimitPreviewAsync();
     }
 
-    private static string LimitText(decimal used, decimal? limit, decimal? projected)
+    private string LimitText(decimal used, decimal? limit, decimal? projected)
     {
         if (!limit.HasValue)
-            return $"{used:N1}h / không áp dụng";
+            return Language.T("ot.hKhongApDung", used);
         return $"{used:N1}h → {projected:N1}h / {limit:N1}h";
     }
 

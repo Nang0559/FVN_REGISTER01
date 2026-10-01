@@ -24,7 +24,7 @@
 
 <MudTabs Elevation="2" Rounded="true" Class="mb-4" @bind-ActivePanelIndex="_activeLevel">
     <MudTabPanel Icon="@Icons.Material.Filled.AllInclusive">
-        <TabContent><MudText>Tất cả (@_allPending.Count)</MudText></TabContent>
+        <TabContent><MudText>@Language.T("ot.tatCa", _allPending.Count)</MudText></TabContent>
         <ChildContent>
             <OTApprovalList Items="_allPending" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
         </ChildContent>
@@ -32,7 +32,7 @@
     @foreach (var level in ApprovalLevels)
     {
         <MudTabPanel Icon="@Icons.Material.Filled.SupervisorAccount">
-            <TabContent><MudText>Cấp @level (@PendingAtLevel(level).Count)</MudText></TabContent>
+            <TabContent><MudText>@Language.T("ot.cap", level, PendingAtLevel(level).Count)</MudText></TabContent>
             <ChildContent>
                 <OTApprovalList Items="@PendingAtLevel(level)" Level="@level" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
             </ChildContent>

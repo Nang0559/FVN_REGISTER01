@@ -14,7 +14,7 @@
     <MudPaper Outlined="true" Class="pa-4 mb-4">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <MudText Typo="Typo.h6">
-                Chi tiết @_detail.Reconciliation.ModuleCode / @_detail.Reconciliation.SourceId
+                @Language.T("execution.chiTiet", _detail.Reconciliation.ModuleCode, _detail.Reconciliation.SourceId)
             </MudText>
             <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="CloseDetail">@Language.T("common.close")</MudButton>
         </MudStack>
@@ -22,7 +22,7 @@
         <MudGrid Class="mt-2">
             <MudItem xs="12" md="4">
                 <MudText Typo="Typo.body2">
-                    Trạng thái: <b>@_detail.Reconciliation.ReconciliationStatus</b>
+                    @Language.T("execution.trangThai") <b>@_detail.Reconciliation.ReconciliationStatus</b>
                 </MudText>
             </MudItem>
             <MudItem xs="12" md="4">
@@ -52,7 +52,7 @@
             @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.ReviewNote))
             {
                 <MudAlert Severity="Severity.Warning" Class="mt-2">
-                    Ghi chú review: @_detail.Confirmation.ReviewNote
+                    @Language.T("execution.ghiChuReview", _detail.Confirmation.ReviewNote)
                 </MudAlert>
             }
         }
@@ -122,13 +122,13 @@
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel='@Language.T("ot.date")'>@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd DataLabel="Module">@context.ModuleCode</MudTd>
-                <MudTd DataLabel="Nguồn">@context.SourceType / @context.SourceId</MudTd>
+                <MudTd DataLabel='@Language.T("common.nguon")'>@context.SourceType / @context.SourceId</MudTd>
                 <MudTd DataLabel="Participant">@(context.ParticipantId ?? "-")</MudTd>
-                <MudTd DataLabel="Dự kiến">@(context.PlannedState ?? "-")</MudTd>
-                <MudTd DataLabel="Thực tế">@(context.ActualState ?? "-")</MudTd>
-                <MudTd DataLabel="Trạng thái">@context.ReconciliationStatus</MudTd>
+                <MudTd DataLabel='@Language.T("execution.duKien")'>@(context.PlannedState ?? "-")</MudTd>
+                <MudTd DataLabel='@Language.T("execution.thucTe")'>@(context.ActualState ?? "-")</MudTd>
+                <MudTd DataLabel='@Language.T("common.status")'>@context.ReconciliationStatus</MudTd>
                 <MudTd>
                     <MudButton Size="Size.Small" Variant="Variant.Text"
                                OnClick="@(() => OpenDetailAsync(context.Id))">
@@ -163,7 +163,7 @@
     @if (_confirmationOpen && _selected is not null)
     {
         <MudPaper Outlined="true" Class="pa-4 mt-4">
-            <MudText Typo="Typo.h6">Xác nhận @_selected.ModuleCode / @_selected.SourceId</MudText>
+            <MudText Typo="Typo.h6">@Language.T("execution.xacNhan", _selected.ModuleCode, _selected.SourceId)</MudText>
             <MudSelect T="string" @bind-Value="_decision" Label="@Language.T("execution.ketLuan")" Variant="Variant.Outlined" Class="mt-3">
                 <MudSelectItem Value="@("CONFIRMED")">@Language.T("execution.xacNhanDung")</MudSelectItem>
                 <MudSelectItem Value="@("REJECTED")">@Language.T("execution.tuChoiCanXuLy")</MudSelectItem>
@@ -182,7 +182,7 @@
         <MudPaper Outlined="true" Class="pa-4 mt-4">
             <MudText Typo="Typo.h6">@Language.T("execution.boSungEvidence")</MudText>
             <MudText Typo="Typo.body2" Class="mb-2">
-                @_selected.ModuleCode / @_selected.SourceId — có thể dùng mã tham chiếu hoặc URL chứng từ.
+                @Language.T("execution.coTheDungMaTham", _selected.ModuleCode, _selected.SourceId)
             </MudText>
             <MudTextField @bind-Value="_evidenceType" Label="@Language.T("execution.loaiEvidence")" Variant="Variant.Outlined" Required="true" />
             <MudTextField @bind-Value="_referenceNo" Label="@Language.T("execution.soThamChieu")" Variant="Variant.Outlined" Class="mt-2" />

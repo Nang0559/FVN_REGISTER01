@@ -27,7 +27,7 @@
     }
     else if (_model == null)
     {
-        <MudAlert Severity="Severity.Warning">@_error</MudAlert>
+        <MudAlert Severity="Severity.Warning">@(string.IsNullOrEmpty(_error) ? Language.T("notification.khongTheTaiTrungTam") : _error)</MudAlert>
     }
     else
     {
@@ -77,7 +77,7 @@
             }
             @foreach (var group in _model.ApprovalGroups)
             {
-                <MudExpansionPanel Text="@($"{group.RequestType} • Cấp {group.ApproverLevel} • {group.Count} việc")">
+                <MudExpansionPanel Text="@(Language.T("notification.capViec", group.RequestType, group.ApproverLevel, group.Count))">
                     @foreach (var item in group.Requests)
                     {
                         <MudPaper Outlined="true" Class="pa-3 mb-2">
@@ -86,7 +86,7 @@
                                     <MudText Typo="Typo.subtitle2">@item.EmployeeName (@item.EmployeeCode)</MudText>
                                     <MudText Typo="Typo.body2">@item.DeptName • @item.FromDate?.ToString("dd/MM/yyyy") - @item.ToDate?.ToString("dd/MM/yyyy")</MudText>
                                 </div>
-                                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(item.Kind.ToString().ToLowerInvariant()))">Mở</MudButton>
+                                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(item.Kind.ToString().ToLowerInvariant()))">@Language.T("common.mo")</MudButton>
                             </MudStack>
                         </MudPaper>
                     }
@@ -99,7 +99,7 @@
 @code {
     private ActionCenterDto? _model;
     private bool _loading = true;
-    private string _error = "Không thể tải trung tâm công việc.";
+    private string _error = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,7 +116,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "[ACTION-CENTER] Load failed");
-            _error = "Không thể kết nối máy chủ.";
+            _error = Language.T("notification.khongTheKetNoiMay");
         }
         finally { _loading = false; }
     }

@@ -25,7 +25,7 @@
     {
         <MudTable Items="_tasks" Hover="true" Dense="true" Class="mt-4">
             <HeaderContent><MudTh>@Language.T("equipment.han")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("common.checklist")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("hrm.result")</MudTh><MudTh></MudTh></HeaderContent>
-            <RowTemplate><MudTd>@context.DueAt.ToString("dd/MM/yyyy HH:mm")</MudTd><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName v@context.TemplateVersion</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.Result</MudTd><MudTd><MudButton Size="Size.Small" OnClick="@(() => OpenTaskAsync(context.Id))">Mở</MudButton></MudTd></RowTemplate>
+            <RowTemplate><MudTd>@context.DueAt.ToString("dd/MM/yyyy HH:mm")</MudTd><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName v@context.TemplateVersion</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.Result</MudTd><MudTd><MudButton Size="Size.Small" OnClick="@(() => OpenTaskAsync(context.Id))">@Language.T("common.mo")</MudButton></MudTd></RowTemplate>
         </MudTable>
     }
 
@@ -33,7 +33,7 @@
     {
         <MudPaper Class="pa-5 mt-5" Outlined="true">
             <MudText Typo="Typo.h5">@_task.EquipmentCode – @_task.EquipmentName</MudText>
-            <MudText Typo="Typo.body2">Checklist: @_task.TemplateName v@_task.TemplateVersion • Hạn: @_task.DueAt.ToString("dd/MM/yyyy HH:mm")</MudText>
+            <MudText Typo="Typo.body2">@Language.T("equipment.checklistVHan", _task.TemplateName, _task.TemplateVersion, _task.DueAt.ToString("dd/MM/yyyy HH:mm"))</MudText>
             <MudDivider Class="my-4" />
             @foreach (var item in _task.Items)
             {
@@ -58,7 +58,7 @@
                     <MudTextField @bind-Value="item.Note" Label='@Language.T("common.note")' Variant="Variant.Outlined" Class="mt-2" />
                     @if (item.RequireImage)
                     {
-                        <MudAlert Severity="Severity.Info" Class="mt-2">Hạng mục yêu cầu tối thiểu @item.MinImages ảnh.</MudAlert>
+                        <MudAlert Severity="Severity.Info" Class="mt-2">@Language.T("equipment.hangMucYeuCauToi", item.MinImages)</MudAlert>
                         <InputFile OnChange="@(e => UploadEvidenceAsync(item, e))" accept="image/*" capture="environment" />
                         @foreach (var image in item.Evidence)
                         {
@@ -145,7 +145,7 @@
     private async Task RejectAsync()
     {
         if (_task == null) return;
-        var reason = "Yêu cầu kiểm tra lại.";
+        var reason = Language.T("equipment.yeuCauKiemTraLai");
         var r = await EquipmentClient.RejectInspectionAsync(_task.Id, reason);
         Snackbar.Add(r.IsSuccess ? Language.T("equipment.daTuChoiChecklist") : (r.Message ?? Language.T("equipment.khongTheTuChoi")), r.IsSuccess ? Severity.Success : Severity.Error);
         if (r.IsSuccess) { _task = r.Data; await LoadAsync(); }

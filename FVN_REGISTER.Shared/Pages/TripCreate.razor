@@ -217,17 +217,17 @@
         _validationMessage = null;
 
         if (!_startDate.HasValue || !_endDate.HasValue)
-            _validationMessage = "Vui lòng chọn đầy đủ ngày công tác.";
+            _validationMessage = Language.T("trip.vuiLongChonDayDu");
         else if (_endDate.Value.Date < _startDate.Value.Date)
-            _validationMessage = "Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.";
+            _validationMessage = Language.T("public.ngayKetThucPhaiLon");
         else if (string.IsNullOrWhiteSpace(_destination))
-            _validationMessage = "Địa điểm công tác là bắt buộc.";
+            _validationMessage = Language.T("trip.diaDiemCongTacLa");
         else if (string.IsNullOrWhiteSpace(_purpose))
-            _validationMessage = "Mục đích công tác là bắt buộc.";
+            _validationMessage = Language.T("trip.mucDichCongTacLa");
         else if (_estimatedCost < 0)
-            _validationMessage = "Chi phí dự kiến không được âm.";
+            _validationMessage = Language.T("trip.chiPhiDuKienKhong");
         else if ((_approvalSelector?.GetSelections() ?? new()).Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
-            _validationMessage = "Vui lòng chọn người phê duyệt cho từng cấp.";
+            _validationMessage = Language.T("common.vuiLongChonNguoiPhe");
 
         return _validationMessage == null;
     }
@@ -246,7 +246,7 @@
                 return;
             }
 
-            Snackbar.Add($"Đã lưu nháp {result.Data?.TripCode ?? ""}.", Severity.Success);
+            Snackbar.Add(Language.T("trip.daLuuNhap", result.Data?.TripCode ?? ""), Severity.Success);
             Navigation.NavigateTo($"/trip/history");
         }
         finally

@@ -7,7 +7,7 @@
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@(IsNew ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">@(IsNew ? "Thêm hình thức nghỉ" : "Chỉnh sửa hình thức nghỉ")</MudText>
+            <MudText Typo="Typo.h6">@(IsNew ? Language.T("leave.themHinhThucNghi") : Language.T("leave.chinhSuaHinhThucNghi"))</MudText>
         </MudStack>
     </TitleContent>
 
@@ -40,13 +40,13 @@
                 <MudTooltip Text="@Language.T("leave.loaiNghiNayCoBi")">
                     <MudSwitch T="bool" @bind-Value="Model.IsCountedAsLeave"
                                Color="Color.Primary"
-                               Label="@(Model.IsCountedAsLeave ? "Tính vào phép năm" : "Không tính phép")" />
+                               Label="@(Model.IsCountedAsLeave ? Language.T("leave.tinhVaoPhepNam") : Language.T("leave.khongTinhPhep"))" />
                 </MudTooltip>
 
                 <MudTooltip Text="@Language.T("leave.hinhThucNghiDangDuoc")">
                     <MudSwitch T="bool" @bind-Value="Model.IsActive"
                                Color="Color.Success"
-                               Label="@(Model.IsActive ? "Đang kích hoạt" : "Tạm dừng")" />
+                               Label="@(Model.IsActive ? Language.T("leave.dangKichHoat") : Language.T("leave.tamDung"))" />
                 </MudTooltip>
             </MudStack>
 
@@ -54,10 +54,10 @@
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">@Language.T("leave.xemTruoc")</MudText>
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
                     <MudChip T="string" Color="@(Model.IsCountedAsLeave ? Color.Warning : Color.Default)" Size="Size.Small">
-                        @(Model.IsCountedAsLeave ? "Tính phép" : "Không tính")
+                        @(Model.IsCountedAsLeave ? Language.T("common.tinhPhep") : Language.T("leave.khongTinh"))
                     </MudChip>
                     <MudChip T="string" Color="@(Model.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
-                        @(Model.IsActive ? "Đang dùng" : "Tạm dừng")
+                        @(Model.IsActive ? Language.T("leave.dangDung") : Language.T("leave.tamDung"))
                     </MudChip>
                     @if (!string.IsNullOrWhiteSpace(Model.LeaveTypeCode))
                     {
@@ -76,7 +76,7 @@
         <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isSaving">@Language.T("common.cancel")</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="Submit" Disabled="@_isSaving">
-            @(_isSaving ? "Đang lưu..." : (IsNew ? "Thêm mới" : "Lưu thay đổi"))
+            @(_isSaving ? Language.T("common.dangLuu") : (IsNew ? Language.T("leave.themMoi") : Language.T("user.luuThayDoi")))
         </MudButton>
     </DialogActions>
 </MudDialog>

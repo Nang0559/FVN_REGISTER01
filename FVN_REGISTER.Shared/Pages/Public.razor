@@ -27,5 +27,5 @@ else
 @code{
  private List<PublicInformationDto> _items=new(); private bool _loading=true;
  protected override async Task OnInitializedAsync(){var r=await Http.GetAsync<List<PublicInformationDto>>("api/public-information");if(r.IsSuccess)_items=r.Data??new();_loading=false;}
- private static string TypeName(string type)=>type switch{"Announcement"=>"Thông báo","News"=>"Tin tức","HRContent"=>"Nội dung HR","CompanyInfo"=>"Thông tin công ty","PublicContent"=>"Nội dung được công khai",_=>type};
+ private string TypeName(string type)=>type switch{"Announcement"=>Language.T("common.thongBao"),"News"=>Language.T("public.tinTuc"),"HRContent"=>Language.T("public.noiDungHr"),"CompanyInfo"=>Language.T("public.thongTinCongTy"),"PublicContent"=>Language.T("public.noiDungDuocCongKhai"),_=>type};
 }

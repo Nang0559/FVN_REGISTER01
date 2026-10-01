@@ -32,7 +32,7 @@ else
                 <MudStack Row="true" Class="mt-3" Spacing="1">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Add">@Language.T("common.add")</MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="Save" Disabled="_saving || !_dirty">
-                        @(_saving ? "Đang lưu..." : "Lưu ManagedScope")
+                        @(_saving ? Language.T("common.dangLuu") : Language.T("security.luuManagedscope"))
                     </MudButton>
                 </MudStack>
             </MudPaper>
@@ -59,7 +59,7 @@ else
                                 <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode ?? "-") · Sub=@(scope.SubDepartmentCode ?? "-")</MudText>
                             </div>
                             <MudSpacer />
-                            <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? "Bao phủ node con" : "Chỉ node")</MudChip>
+                            <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? Language.T("security.baoPhuNodeCon") : Language.T("security.chiNode"))</MudChip>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => Remove(scope))" />
                         </MudStack>
                     </MudPaper>
@@ -132,10 +132,10 @@ else
             Snackbar.Add(
                 nodeType switch
                 {
-                    "Factory" => "Factory cần FactoryCode hoặc NodeCode.",
-                    "Department" => "Department cần DeptCode hoặc NodeCode.",
-                    "SubDepartment" => "SubDepartment cần SubDepartmentCode hoặc NodeCode.",
-                    _ => "NodeType ManagedScope không hợp lệ."
+                    "Factory" => Language.T("security.factoryCanFactorycodeHoac"),
+                    "Department" => Language.T("security.departmentCanDeptcodeHoac"),
+                    "SubDepartment" => Language.T("security.subdepartmentCan"),
+                    _ => Language.T("security.nodetypeManagedscopeKhongHopLe")
                 },
                 Severity.Warning);
             return;

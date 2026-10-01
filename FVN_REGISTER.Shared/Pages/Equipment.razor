@@ -32,13 +32,13 @@ else
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.dangKyPheDuyetQr")</MudText>
             </div>
             <MudStack Row="true" Spacing="2">
-                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.HelpOutline" OnClick="@(() => Navigation.NavigateTo("/equipment/help"))">Trợ giúp</MudButton>
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.HelpOutline" OnClick="@(() => Navigation.NavigateTo("/equipment/help"))">@Language.T("equipment.troGiup")</MudButton>
                 @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Checklist" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection"))">Checklist của tôi</MudButton> }
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Checklist" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection"))">@Language.T("equipment.checklistCuaToi")</MudButton> }
                 @if (_actions?.Transfer == true)
                 { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">@Language.T("equipment.handover")</MudButton> }
                 @if (_actions?.InspectionManage == true || _actions?.InspectionReport == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection-management"))">Quản lý kiểm tra</MudButton> }
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection-management"))">@Language.T("equipment.quanLyKiemTra")</MudButton> }
                 @if (_actions?.Export == true)
                 { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assessment" OnClick="@(() => Navigation.NavigateTo("/equipment/reports"))">@Language.T("report.equipment")</MudButton> }
                 @if (_actions?.Import == true)
@@ -66,7 +66,7 @@ else
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.DeptCode" Label='@Language.T("nav.departments")' Required="true" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
                         <MudItem xs="12"><ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" /></MudItem>
                         <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label='@Language.T("common.note")' Lines="3" /></MudItem>
-                        <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy">Tạo đăng ký & sinh QR</MudButton></MudItem>
+                        <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy">@Language.T("equipment.taoDangKySinhQr")</MudButton></MudItem>
                     </MudGrid>
                     @if (_created != null)
                     {
@@ -98,12 +98,12 @@ else
                                 <MudCard Outlined="true" Class="pa-4">
                                     <MudText Typo="Typo.h6">@_scannedAsset.EquipmentName</MudText>
                                     <MudText Typo="Typo.body2">@Language.T("equipment.maThietBi") <b>@_scannedAsset.EquipmentCode</b></MudText>
-                                    <MudText Typo="Typo.body2">Mã tài sản: @_scannedAsset.AssetCode</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.maTaiSan3", _scannedAsset.AssetCode)</MudText>
                                     <MudText Typo="Typo.body2">Serial: @_scannedAsset.SerialNumber</MudText>
-                                    <MudText Typo="Typo.body2">Bộ phận: @_scannedAsset.DeptCode</MudText>
-                                    <MudText Typo="Typo.body2">Vị trí: @_scannedAsset.Location</MudText>
-                                    <MudText Typo="Typo.body2">Giá mua: @_scannedAsset.PurchasePrice.ToString("N0")</MudText>
-                                    <MudText Typo="Typo.body2">Ngày mua: @_scannedAsset.PurchaseDate.ToString("dd/MM/yyyy")</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.boPhan2", _scannedAsset.DeptCode)</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.viTri2", _scannedAsset.Location)</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.giaMua2", _scannedAsset.PurchasePrice.ToString("N0"))</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.ngayMua3", _scannedAsset.PurchaseDate.ToString("dd/MM/yyyy"))</MudText>
                                     <MudDivider Class="my-3" />
                                     <MudText Typo="Typo.subtitle2">@Language.T("equipment.lichSuSuaChuaDa")</MudText>
                                     <MudTable Items="_scannedAsset.RepairHistory" Dense="true" Hover="true">
@@ -116,10 +116,10 @@ else
                                     }
                                     @if (string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/request-forms/{_scannedAsset.Id}"))">Biểu mẫu yêu cầu</MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/request-forms/{_scannedAsset.Id}"))">@Language.T("equipment.bieuMauYeuCau")</MudButton>
                                     }
                                     @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
-                                    { <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/inspection?equipmentId={_scannedAsset.Id}"))">Checklist thiết bị</MudButton> }
+                                    { <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/inspection?equipmentId={_scannedAsset.Id}"))">@Language.T("help.EQUIPMENT_CHECKLIST.title")</MudButton> }
                                 </MudCard>
                             }
                             else
@@ -191,7 +191,7 @@ else
         var requiredLevels = _approvalRoute.Levels.Where(x => x.Required).Select(x => x.Level).ToHashSet();
         var selectedLevels = _form.ApprovalSelections.Where(x => !string.IsNullOrWhiteSpace(x.ApproverCode)).Select(x => x.Level).ToHashSet();
         var missingLevels = requiredLevels.Where(level => !selectedLevels.Contains(level)).OrderBy(level => level).ToList();
-        if (missingLevels.Count > 0) { Snackbar.Add($"Vui lòng chọn người phê duyệt cho cấp: {string.Join(", ", missingLevels)}.", Severity.Warning); return; }
+        if (missingLevels.Count > 0) { Snackbar.Add(Language.T("equipment.vuiLongChonNguoiPhe2", string.Join(", ", missingLevels)), Severity.Warning); return; }
         _form.DeptCode = _form.DeptCode.Trim().ToUpperInvariant();
         _form.PurchaseDate = _purchase ?? DateTime.Today;
         _form.ExpectedDepreciationDate = _depreciation ?? _form.PurchaseDate.AddYears(3);

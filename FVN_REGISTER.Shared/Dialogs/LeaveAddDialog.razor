@@ -120,7 +120,7 @@
 
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.close")</MudButton>
-        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">@(_saving ? "Đang gửi..." : "Gửi đơn")</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">@(_saving ? Language.T("calendar.feedback.sending") : Language.T("leave.guiDon"))</MudButton>
     </DialogActions>
 </MudDialog>
 

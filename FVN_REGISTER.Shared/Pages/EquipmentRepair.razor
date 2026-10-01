@@ -23,12 +23,12 @@
         </MudPaper>
         @if (_request.RepairCompletedAt.HasValue)
         {
-            <MudAlert Severity="Severity.Success">Đã hoàn thành lúc @(_request.RepairCompletedAt.Value.ToString("dd/MM/yyyy HH:mm")). Kết quả: @(_request.RepairFeedback)</MudAlert>
+            <MudAlert Severity="Severity.Success">@Language.T("equipment.daHoanThanhLucKet", _request.RepairCompletedAt.Value.ToString("dd/MM/yyyy HH:mm"), _request.RepairFeedback)</MudAlert>
         }
         else
         {
             <MudTextField @bind-Value="_feedback" Label="@Language.T("equipment.ketQuaHienTrangSau")" Lines="5" Required="true" Variant="Variant.Outlined" />
-            <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Success" OnClick="CompleteAsync" Disabled="_busy">Hoàn thành sửa chữa & phản hồi</MudButton>
+            <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Success" OnClick="CompleteAsync" Disabled="_busy">@Language.T("equipment.hoanThanhSuaChuaPhan")</MudButton>
         }
     }
 </MudContainer>

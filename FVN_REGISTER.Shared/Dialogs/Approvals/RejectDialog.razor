@@ -9,8 +9,8 @@
             <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" />
             <MudText Typo="Typo.h6">
                 @(IsBatchMode
-                                ? $"Từ chối {Items.Count} đơn"
-                                : "Từ chối đơn")
+                                ? Language.T("approval.tuChoiDon", Items.Count)
+                                : Language.T("common.tuChoiDon"))
             </MudText>
         </MudStack>
     </TitleContent>
@@ -19,7 +19,7 @@
         @if (IsBatchMode)
         {
             <MudAlert Severity="Severity.Warning" Class="mb-3">
-                Bạn đang từ chối <b>@Items.Count</b> đơn cùng một lý do.
+                @Language.T("approval.banDangTuChoi") <b>@Items.Count</b> @Language.T("approval.donCungMotLyDo")
             </MudAlert>
         }
         else if (Items.Count == 1)
@@ -74,15 +74,15 @@
 
     private string _comment = string.Empty;
 
-    private static string GetKindDisplay(RequestModule kind) => kind switch
+    private string GetKindDisplay(RequestModule kind) => kind switch
     {
         RequestModule.Overtime => "OT",
-        RequestModule.Trip => "Công tác",
-        RequestModule.Leave => "Nghỉ phép",
+        RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.Leave => Language.T("dashboard.leaveType"),
         _ => kind.ToString()
     };
 
-    private static string GetUnitLabel(RequestModule kind) => kind == RequestModule.Overtime ? "giờ" : "ngày";
+    private string GetUnitLabel(RequestModule kind) => kind == RequestModule.Overtime ? Language.T("calendar.hours") : Language.T("dashboard.days");
 
     private void Cancel() => MudDialog.Cancel();
 

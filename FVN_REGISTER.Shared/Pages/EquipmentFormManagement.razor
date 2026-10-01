@@ -66,7 +66,7 @@
                                 {
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
                                         <MudText>@assignment.FormCode — @assignment.FormTitle</MudText>
-                                        <MudButton Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveAsync(assignment.Id))">Ngừng áp dụng</MudButton>
+                                        <MudButton Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveAsync(assignment.Id))">@Language.T("equipment.ngungApDung")</MudButton>
                                     </MudStack>
                                 }
                             }
@@ -79,7 +79,7 @@
                                 }
                             </MudSelect>
                             <MudNumericField T="int" @bind-Value="_displayOrder" Label="@Language.T("equipment.thuTuHienThi")" Min="0" Class="mt-2" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="@(_selectedFormId <= 0)" OnClick="AssignAsync">Áp dụng cho loại thiết bị</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="@(_selectedFormId <= 0)" OnClick="AssignAsync">@Language.T("equipment.apDungChoLoaiThiet")</MudButton>
                         </MudPaper>
 
                         @if (_isSuperAdmin)
@@ -87,7 +87,7 @@
                             <MudPaper Class="pa-4 mt-3" Outlined="true">
                                 <MudText Typo="Typo.h6">@Language.T("equipment.nguoiPhuTrachLoaiThiet")</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    Chỉ SuperAdmin được chỉ định người có quyền cấu hình biểu mẫu cho schema này. Quyền vẫn phải có capability <b>@Language.T("equipment.equipmentformmanage2320")</b>.
+                                    @Language.T("equipment.chiSuperadminDuocChiDinh") <b>@Language.T("equipment.equipmentformmanage2320")</b>.
                                 </MudText>
                                 <MudStack Row="true" Spacing="2" Class="mt-3">
                                     <MudSelect T="string" Label='@Language.T("common.employee")' Variant="Variant.Outlined" @bind-Value="_operatorEmployeeCode" Style="min-width:360px">
@@ -114,7 +114,7 @@
                                         <MudTd>@context.DeptCode — @context.DeptName</MudTd>
                                         <MudTd>@context.PositionCode — @context.PositionName</MudTd>
                                         <MudTd Style="text-align:center">
-                                            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveOperatorAsync(context))">Bỏ chỉ định</MudButton>
+                                            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveOperatorAsync(context))">@Language.T("security.boChiDinh")</MudButton>
                                         </MudTd>
                                     </RowTemplate>
                                     <NoRecordsContent><MudText Class="pa-2">@Language.T("equipment.chuaCoNguoiPhuTrach")</MudText></NoRecordsContent>

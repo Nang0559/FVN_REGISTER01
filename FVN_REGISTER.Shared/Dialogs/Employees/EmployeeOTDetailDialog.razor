@@ -6,7 +6,7 @@
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.AccessTime" Color="Color.Warning" />
             <MudText Typo="Typo.h6">
-                OT chi tiết — @Employee?.EmployeeName (@Employee?.EmployeeCode)
+                @Language.T("ot.otChiTiet", Employee?.EmployeeName, Employee?.EmployeeCode)
             </MudText>
         </MudStack>
     </TitleContent>
@@ -30,7 +30,7 @@
                             @_summary.TotalHours.ToString("N1")
                         </MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Tổng giờ OT @_summary.Year
+                            @Language.T("ot.tongGioOt2", _summary.Year)
                         </MudText>
                     </MudPaper>
                 </MudItem>
@@ -57,7 +57,7 @@
                     <MudTh Style="text-align:right">@Language.T("ot.hours")</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>Tháng @context.Month</MudTd>
+                    <MudTd>@Language.T("ot.thang", context.Month)</MudTd>
                     <MudTd Style="text-align:right">@context.Days</MudTd>
                     <MudTd Style="text-align:right">
                         <MudText Style="font-weight:600">@context.Hours.ToString("N1") h</MudText>
@@ -68,7 +68,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.EventBusy"
                                  Size="Size.Large" Color="Color.Secondary" />
                         <MudText Color="Color.Secondary">
-                            Chưa có dữ liệu OT năm @_summary.Year
+                            @Language.T("ot.chuaCoDuLieuOt", _summary.Year)
                         </MudText>
                     </MudStack>
                 </NoRecordsContent>

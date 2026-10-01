@@ -26,12 +26,12 @@
 </MudStack>
 
 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
-    <b>@Language.T("approval.phongBanLaBatBuoc")</b> Position của người yêu cầu có thể bỏ trống để áp dụng cho toàn bộ Position trong phòng ban.
-    <b>@Language.T("approval.chucVuPheDuyet")</b> luôn chọn từ F03Positions active; hệ thống lấy DefaultApproveLevel và RoleName từ danh sách chức vụ.
+    <b>@Language.T("approval.phongBanLaBatBuoc")</b> @Language.T("approval.positionCuaNguoiYeuCau")
+    <b>@Language.T("approval.chucVuPheDuyet")</b> @Language.T("approval.luonChonTuF03positionsActive")
 </MudAlert>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
-    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa Approval Policy" : "Thêm Approval Policy")</MudText>
+    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? Language.T("approval.suaApprovalPolicy") : Language.T("approval.themApprovalPolicy"))</MudText>
 
     <MudGrid>
         <MudItem xs="12" sm="6" md="2">
@@ -120,7 +120,7 @@
         }
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    OnClick="SaveAsync" Disabled="@_loading">
-            @(_editingId.HasValue ? "Cập nhật" : "Thêm policy")
+            @(_editingId.HasValue ? Language.T("hrm.capNhat") : Language.T("approval.themPolicy"))
         </MudButton>
     </MudStack>
 </MudPaper>
@@ -190,7 +190,7 @@ else
                             <MudTd>@context.DeptCode — @context.DeptName</MudTd>
                             <MudTd>
                                 @(string.IsNullOrWhiteSpace(context.PositionCode)
-                                    ? "Tất cả Position"
+                                    ? Language.T("approval.tatCaPosition")
                                     : $"{context.PositionCode} — {context.PositionName}")
                             </MudTd>
                             <MudTd>
@@ -205,7 +205,7 @@ else
                                 </MudChip>
                             </MudTd>
                             <MudTd>@context.Sequence</MudTd>
-                            <MudTd>@(context.Required ? "Có" : "Không")</MudTd>
+                            <MudTd>@(context.Required ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small"
                                          Color="@(context.IsActive ? Color.Success : Color.Default)"
@@ -258,7 +258,7 @@ else
         {
             PolicyGroupMode.Position => FilteredPolicies
                 .GroupBy(x => string.IsNullOrWhiteSpace(x.PositionCode)
-                    ? $"{x.DeptCode} — {x.DeptName} / Tất cả Position"
+                    ? Language.T("approval.tatCaPosition2", x.DeptCode, x.DeptName)
                     : $"{x.DeptCode} — {x.DeptName} / {x.PositionCode} — {x.PositionName}")
                 .OrderBy(x => x.Key)
                 .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.Sequence).ThenBy(p => p.Level).ToList())),
@@ -267,7 +267,7 @@ else
                 .OrderBy(x => x.Key)
                 .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Sequence).ToList())),
             PolicyGroupMode.Role => FilteredPolicies
-                .GroupBy(x => string.IsNullOrWhiteSpace(x.RoleName) ? "(Chưa cấu hình Role)" : x.RoleName)
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.RoleName) ? Language.T("approval.chuaCauHinhRole") : x.RoleName)
                 .OrderBy(x => x.Key)
                 .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Level).ToList())),
             _ => FilteredPolicies
@@ -359,8 +359,8 @@ else
             }
 
             Snackbar.Add(_editingId.HasValue
-                ? "Đã cập nhật Approval Policy."
-                : "Đã thêm Approval Policy.", Severity.Success);
+                ? Language.T("approval.daCapNhatApprovalPolicy")
+                : Language.T("approval.daThemApprovalPolicy"), Severity.Success);
 
             ResetForm();
             await LoadAsync();
@@ -418,12 +418,12 @@ else
         IsActive = true
     };
 
-    private static string RequestTypeName(RequestModule type) => type switch
+    private string RequestTypeName(RequestModule type) => type switch
     {
-        RequestModule.Leave => "Nghỉ phép",
-        RequestModule.Overtime => "Tăng ca",
-        RequestModule.Trip => "Công tác",
-        RequestModule.Equipment => "Thiết bị",
+        RequestModule.Leave => Language.T("dashboard.leaveType"),
+        RequestModule.Overtime => Language.T("approval.tangCa"),
+        RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.Equipment => Language.T("help.EQUIPMENT_WORKSPACE.title"),
         _ => type.ToString()
     };
 }

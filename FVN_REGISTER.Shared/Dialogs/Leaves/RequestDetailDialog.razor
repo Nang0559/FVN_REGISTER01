@@ -3,7 +3,7 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">Chi tiết #@Detail?.Id — @Detail?.Kind</MudText>
+        <MudText Typo="Typo.h6">@Language.T("leave.chiTiet", Detail?.Id, Detail?.Kind)</MudText>
     </TitleContent>
     <DialogContent>
         @if (Detail != null)
@@ -30,10 +30,10 @@
                 {
                     <MudTimelineItem Color="@GetStepColor(step.IsApproved)" Size="Size.Small">
                         <ItemContent>
-                            <MudText Typo="Typo.body2"><strong>Cấp @step.Level</strong> — @step.ApproverName</MudText>
+                            <MudText Typo="Typo.body2"><strong>@Language.T("approval.levelN", step.Level)</strong> — @step.ApproverName</MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                @(step.IsApproved == true ? "Đã duyệt" : step.IsApproved == false ? "Từ chối" : "Chờ xử lý")
-                                @if (step.ApproveTime.HasValue) { @($" lúc {step.ApproveTime:HH:mm dd/MM/yyyy}") }
+                                @(step.IsApproved == true ? Language.T("leave.statusApproved") : step.IsApproved == false ? Language.T("common.reject") : Language.T("status.pending"))
+                                @if (step.ApproveTime.HasValue) { @(Language.T("leave.luc", step.ApproveTime)) }
                             </MudText>
                             @if (!string.IsNullOrWhiteSpace(step.Comment)) { <MudText Typo="Typo.caption">@step.Comment</MudText> }
                         </ItemContent>

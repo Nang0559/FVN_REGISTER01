@@ -27,7 +27,7 @@ else
                     }
                     else
                     {
-                        <MudImage Src="@_avatarUrl" Alt="Ảnh đại diện" />
+                        <MudImage Src="@_avatarUrl" Alt='@Language.T("user.anhDaiDien")' />
                     }
                 </MudAvatar>
                 <MudText Typo="Typo.h6">@_model.FullName</MudText>
@@ -46,7 +46,7 @@ else
                 </MudCardContent>
                 <MudCardActions>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSave" Disabled="@_isSaving" StartIcon="@Icons.Material.Filled.Save">
-                        @(_isSaving ? "Đang lưu..." : "Lưu thay đổi")
+                        @(_isSaving ? Language.T("common.dangLuu") : Language.T("user.luuThayDoi"))
                     </MudButton>
                 </MudCardActions>
             </MudCard>

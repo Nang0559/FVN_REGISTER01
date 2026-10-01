@@ -22,7 +22,7 @@
     <MudStack Spacing="0">
         <MudText Typo="Typo.h5">@Language.T("approval.danhSachChoPheDuyet")</MudText>
         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-            Tổng @_allItems.Count() đơn — Nghỉ phép @_allItems.Count(x => x.Kind == RequestModule.Leave) — OT @_allItems.Count(x => x.Kind == RequestModule.Overtime) — Công tác @_allItems.Count(x => x.Kind == RequestModule.Trip)
+            @Language.T("approval.tongDonNghiPhepOt", _allItems.Count(), _allItems.Count(x => x.Kind == RequestModule.Leave), _allItems.Count(x => x.Kind == RequestModule.Overtime), _allItems.Count(x => x.Kind == RequestModule.Trip))
             @if (_loadedAt.HasValue) { <span> — @_loadedAt.Value.ToString("HH:mm:ss")</span> }
         </MudText>
     </MudStack>
@@ -48,7 +48,7 @@
             <MudSpacer />
             <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="OnBatchApprove" Disabled="_processing">@Language.T("common.approve")</MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="OpenBatchRejectDialog" Disabled="_processing">@Language.T("common.reject")</MudButton>
-            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => _selectedItems.Clear())">Bỏ chọn</MudButton>
+            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => _selectedItems.Clear())">@Language.T("approval.boChon")</MudButton>
         </MudStack>
     </MudPaper>
 }
@@ -66,29 +66,29 @@
             <MudTh>@Language.T("common.tienTrinh")</MudTh><MudTh>@Language.T("approval.capCho")</MudTh><MudTh>@Language.T("security.actions")</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Nhân viên">
+            <MudTd DataLabel='@Language.T("common.employee")'>
                 <MudStack Spacing="0"><MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText><MudText Typo="Typo.caption">@context.EmployeeCode — @context.DeptName</MudText></MudStack>
             </MudTd>
-            <MudTd DataLabel="Loại">
+            <MudTd DataLabel='@Language.T("common.type")'>
                 <MudChip T="string" Size="Size.Small" Color="@GetKindColor(context.Kind)">@GetKindDisplay(context.Kind)</MudChip>
             </MudTd>
-            <MudTd DataLabel="Thời gian">
+            <MudTd DataLabel='@Language.T("common.thoiGian")'>
                 @if (context.FromDate.HasValue)
                 {
                     <MudText Typo="Typo.body2">@context.FromDate.Value.ToString("dd/MM/yyyy")</MudText>
                     @if (context.ToDate.HasValue && context.ToDate.Value.Date != context.FromDate.Value.Date)
                     { <MudText Typo="Typo.caption">→ @context.ToDate.Value.ToString("dd/MM/yyyy")</MudText> }
                 }
-                <MudText Typo="Typo.caption">Gửi: @(context.SubmittedAt?.ToString("dd/MM HH:mm") ?? "—")</MudText>
+                <MudText Typo="Typo.caption">@Language.T("approval.gui", context.SubmittedAt?.ToString("dd/MM HH:mm") ?? "—")</MudText>
             </MudTd>
-            <MudTd DataLabel="Số lượng"><b>@context.TotalUnits.ToString("N1")</b> @GetUnitLabel(context.Kind)</MudTd>
-            <MudTd DataLabel="Tiến trình"><OTApprovalProgressBar Steps="@context.ApprovalSteps" /></MudTd>
-            <MudTd DataLabel="Cấp chờ">
+            <MudTd DataLabel='@Language.T("common.soLuong")'><b>@context.TotalUnits.ToString("N1")</b> @GetUnitLabel(context.Kind)</MudTd>
+            <MudTd DataLabel='@Language.T("common.tienTrinh")'><OTApprovalProgressBar Steps="@context.ApprovalSteps" /></MudTd>
+            <MudTd DataLabel='@Language.T("approval.capCho")'>
                 @if (GetCurrentApprovalLevel(context) > 0)
-                { <span>Cấp @GetCurrentApprovalLevel(context)@if (!string.IsNullOrWhiteSpace(GetCurrentApproverName(context))){ <span> — @GetCurrentApproverName(context)</span> }</span> }
+                { <span>@Language.T("approval.levelN", GetCurrentApprovalLevel(context))@if (!string.IsNullOrWhiteSpace(GetCurrentApproverName(context))){ <span> — @GetCurrentApproverName(context)</span> }</span> }
                 else { <span>—</span> }
             </MudTd>
-            <MudTd DataLabel="Thao tác">
+            <MudTd DataLabel='@Language.T("common.action")'>
                 @if (context.CanApprove)
                 {
                     <MudStack Row="true" Spacing="0">
@@ -182,7 +182,7 @@
     {
         var list = items.ToList();
         var parameters = new DialogParameters { [nameof(RejectDialog.Items)] = list, [nameof(RejectDialog.IsBatchMode)] = batch };
-        var dialog = await DialogService.ShowAsync<RejectDialog>(batch ? $"Từ chối {list.Count} đơn" : "Từ chối đơn", parameters,
+        var dialog = await DialogService.ShowAsync<RejectDialog>(batch ? Language.T("approval.tuChoiDon", list.Count) : Language.T("common.tuChoiDon"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         var result = await dialog.Result;
         if (result?.Canceled == true) return;
@@ -215,11 +215,11 @@
             : item.ApprovalSteps.FirstOrDefault(x => x.Level == level)?.ApproverName;
     }
 
-    private static string GetUnitLabel(RequestModule kind) => kind switch
+    private string GetUnitLabel(RequestModule kind) => kind switch
     {
-        RequestModule.Overtime => "giờ",
-        RequestModule.Trip => "ngày",
-        _ => "ngày"
+        RequestModule.Overtime => Language.T("calendar.hours"),
+        RequestModule.Trip => Language.T("dashboard.days"),
+        _ => Language.T("dashboard.days")
     };
 
     private static Color GetKindColor(RequestModule kind) => kind switch
@@ -229,11 +229,11 @@
         _ => Color.Info
     };
 
-    private static string GetKindDisplay(RequestModule kind) => kind switch
+    private string GetKindDisplay(RequestModule kind) => kind switch
     {
         RequestModule.Overtime => "OT",
-        RequestModule.Trip => "Công tác",
-        RequestModule.Leave => "Nghỉ phép",
+        RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.Leave => Language.T("dashboard.leaveType"),
         _ => kind.ToString()
     };
 

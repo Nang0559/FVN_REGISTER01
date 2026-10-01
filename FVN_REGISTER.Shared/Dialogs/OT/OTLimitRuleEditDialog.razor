@@ -20,7 +20,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudNumericField T="decimal" @bind-Value="Model.LimitHours" Label="@Language.T("ot.soGioGioiHan")" Required="true" Min="0.1m" Max="999m" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentText="giờ" />
+                    <MudNumericField T="decimal" @bind-Value="Model.LimitHours" Label="@Language.T("ot.soGioGioiHan")" Required="true" Min="0.1m" Max="999m" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentText='@Language.T("calendar.hours")' />
                 </MudItem>
 
                 <MudItem xs="12">
@@ -66,7 +66,7 @@
     <DialogActions>
         <MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_saving" OnClick="Save">
-            @(_saving ? "Đang lưu..." : "Lưu")
+            @(_saving ? Language.T("common.dangLuu") : Language.T("common.save"))
         </MudButton>
     </DialogActions>
 </MudDialog>

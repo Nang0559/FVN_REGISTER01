@@ -41,7 +41,7 @@
                 <MudItem xs="6">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("leave.tinhPhepNam")</MudText>
                     <MudChip T="string" Color="@(Item.IsCountedAsLeave ? Color.Warning : Color.Default)" Size="Size.Small" Class="mt-1">
-                        @(Item.IsCountedAsLeave ? "Có" : "Không")
+                        @(Item.IsCountedAsLeave ? Language.T("common.yes") : Language.T("common.no"))
                     </MudChip>
                 </MudItem>
 
@@ -50,7 +50,7 @@
                 <MudItem xs="6">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.status")</MudText>
                     <MudChip T="string" Color="@(Item.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Class="mt-1">
-                        @(Item.IsActive ? "Đang dùng" : "Tạm dừng")
+                        @(Item.IsActive ? Language.T("leave.dangDung") : Language.T("leave.tamDung"))
                     </MudChip>
                 </MudItem>
             </MudGrid>

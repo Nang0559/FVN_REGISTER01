@@ -56,20 +56,20 @@
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Mã đơn">
+                    <MudTd DataLabel='@Language.T("common.maDon")'>
                         <MudText Typo="Typo.body2">@context.TripCode</MudText>
                     </MudTd>
-                    <MudTd DataLabel="Thời gian">
+                    <MudTd DataLabel='@Language.T("common.thoiGian")'>
                         @context.StartDate.ToString("dd/MM/yyyy")
                         <span>→</span>
                         @context.EndDate.ToString("dd/MM/yyyy")
                     </MudTd>
-                    <MudTd DataLabel="Địa điểm">@context.Destination</MudTd>
-                    <MudTd DataLabel="Khách hàng / đối tác">@(context.CustomerOrPartner ?? "—")</MudTd>
-                    <MudTd DataLabel="Chi phí">
+                    <MudTd DataLabel='@Language.T("trip.diaDiem")'>@context.Destination</MudTd>
+                    <MudTd DataLabel='@Language.T("trip.khachHangDoiTac")'>@(context.CustomerOrPartner ?? "—")</MudTd>
+                    <MudTd DataLabel='@Language.T("common.chiPhi")'>
                         @(context.EstimatedCost.HasValue ? context.EstimatedCost.Value.ToString("N0") + " ₫" : "—")
                     </MudTd>
-                    <MudTd DataLabel="Trạng thái">
+                    <MudTd DataLabel='@Language.T("common.status")'>
                         <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.RequestStatus)" Label="true">
                             @GetStatusText(context.RequestStatus)
                         </MudChip>
@@ -159,14 +159,14 @@
         _ => Color.Warning
     };
 
-    private static string GetStatusText(ApprovalStatus status) => status switch
+    private string GetStatusText(ApprovalStatus status) => status switch
     {
-        ApprovalStatus.Approved => "Đã duyệt",
-        ApprovalStatus.Rejected => "Từ chối",
-        ApprovalStatus.Cancelled => "Đã hủy",
-        ApprovalStatus.InProgress => "Đang xử lý",
-        ApprovalStatus.NeedsRevision => "Cần chỉnh sửa",
-        ApprovalStatus.Draft => "Nháp",
-        _ => "Chờ duyệt"
+        ApprovalStatus.Approved => Language.T("leave.statusApproved"),
+        ApprovalStatus.Rejected => Language.T("common.reject"),
+        ApprovalStatus.Cancelled => Language.T("leave.statusCancelled"),
+        ApprovalStatus.InProgress => Language.T("leave.statusInProgress"),
+        ApprovalStatus.NeedsRevision => Language.T("trip.canChinhSua"),
+        ApprovalStatus.Draft => Language.T("leave.statusDraft"),
+        _ => Language.T("leave.statusPending")
     };
 }

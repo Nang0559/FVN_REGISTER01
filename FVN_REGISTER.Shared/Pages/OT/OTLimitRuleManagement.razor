@@ -86,11 +86,11 @@ else
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
                     }
                 </MudTd>
-                <MudTd><b>@context.LimitHours.ToString("0.##") giờ</b></MudTd>
+                <MudTd><b>@Language.T("ot.gio2", context.LimitHours.ToString("0.##"))</b></MudTd>
                 <MudTd>@context.Description</MudTd>
                 <MudTd>
                     <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
-                        @(context.IsActive ? "Đang áp dụng" : "Tạm dừng")
+                        @(context.IsActive ? Language.T("ot.dangApDung") : Language.T("leave.tamDung"))
                     </MudChip>
                 </MudTd>
                 <MudTd Style="text-align:center">
@@ -159,7 +159,7 @@ else
         {
             [nameof(OTLimitRuleEditDialog.Model)] = new OTLimitRuleUpsertDto()
         };
-        var dialog = await DialogService.ShowAsync<OTLimitRuleEditDialog>("Thêm hạn mức OT", parameters, DialogOptions);
+        var dialog = await DialogService.ShowAsync<OTLimitRuleEditDialog>(Language.T("ot.themHanMucOt"), parameters, DialogOptions);
         if ((await dialog.Result) is { Canceled: false }) await LoadAsync();
     }
 
@@ -179,7 +179,7 @@ else
             IsActive = item.IsActive
         };
         var parameters = new DialogParameters { [nameof(OTLimitRuleEditDialog.Model)] = model };
-        var dialog = await DialogService.ShowAsync<OTLimitRuleEditDialog>("Sửa hạn mức OT", parameters, DialogOptions);
+        var dialog = await DialogService.ShowAsync<OTLimitRuleEditDialog>(Language.T("ot.suaHanMucOt"), parameters, DialogOptions);
         if ((await dialog.Result) is { Canceled: false }) await LoadAsync();
     }
 
@@ -193,9 +193,9 @@ else
     private async Task Delete(OTLimitRuleDto item)
     {
         var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Xóa hạn mức OT",
-            $"Bạn có chắc muốn xóa quy tắc “{item.ScopeText} - {GetLimitText(item.LimitType)}”?",
-            yesText: "Xóa", cancelText: "Hủy");
+            Language.T("ot.xoaHanMucOt"),
+            Language.T("ot.banCoChacMuonXoa", item.ScopeText, GetLimitText(item.LimitType)),
+            yesText: Language.T("common.delete"), cancelText: Language.T("common.cancel"));
 
         if (confirmed != true) return;
 
@@ -204,13 +204,13 @@ else
         if (result.IsSuccess) await LoadAsync();
     }
 
-    private static string GetLimitText(OTLimitType type) => type switch
+    private string GetLimitText(OTLimitType type) => type switch
     {
-        OTLimitType.Daily => "Ngày",
-        OTLimitType.Weekly => "Tuần",
-        OTLimitType.Monthly => "Tháng",
-        OTLimitType.Yearly => "Năm",
-        OTLimitType.Special => "Đặc biệt",
+        OTLimitType.Daily => Language.T("ot.date"),
+        OTLimitType.Weekly => Language.T("ot.week"),
+        OTLimitType.Monthly => Language.T("ot.month"),
+        OTLimitType.Yearly => Language.T("ot.year"),
+        OTLimitType.Special => Language.T("ot.dacBiet"),
         _ => type.ToString()
     };
 

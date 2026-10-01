@@ -24,7 +24,7 @@
 @if (_proposals.Count > 0)
 {
     <MudAlert Severity="Severity.Warning" Class="mb-3" Icon="@Icons.Material.Filled.SyncProblem">
-        Có @_proposals.Count thay đổi HRM đang chờ kiểm duyệt cấu hình Approver.
+        @Language.T("approval.coThayDoiHrmDang", _proposals.Count)
     </MudAlert>
     <MudPaper Elevation="1" Class="pa-3 mb-4">
         <MudText Typo="Typo.h6" Class="mb-2">@Language.T("approval.deXuatThayDoiTu")</MudText>
@@ -34,10 +34,10 @@
                 <MudTd><b>@context.EmployeeCode</b><br/>@context.ChangeType</MudTd>
                 <MudTd>@context.OldDeptCode / @context.OldPositionCode<br/>→ @context.NewDeptCode / @context.NewPositionCode</MudTd>
                 <MudTd>@context.CurrentApproverCode / L@context.CurrentLevel<br/>@context.CurrentApproveForDeptCode</MudTd>
-                <MudTd>@(context.SuggestedApproverCode ?? "Chưa xác định duy nhất") / L@(context.SuggestedLevel?.ToString() ?? "-")<br/>@context.SuggestedApproveForDeptCode</MudTd>
+                <MudTd>@(context.SuggestedApproverCode ?? Language.T("approval.chuaXacDinhDuyNhat")) / L@(context.SuggestedLevel?.ToString() ?? "-")<br/>@context.SuggestedApproveForDeptCode</MudTd>
                 <MudTd>
-                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="@string.IsNullOrWhiteSpace(context.SuggestedApproverCode)" OnClick="@(()=>AcceptProposal(context))">Áp dụng HRM</MudButton>
-                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>KeepProposal(context))">Giữ hiện tại</MudButton>
+                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="@string.IsNullOrWhiteSpace(context.SuggestedApproverCode)" OnClick="@(()=>AcceptProposal(context))">@Language.T("approval.apDungHrm")</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>KeepProposal(context))">@Language.T("approval.giuHienTai")</MudButton>
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -49,7 +49,7 @@
             @foreach (var dept in _departments) { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
         </MudSelect></MudItem>
         <MudItem xs="12" sm="3"><MudSelect T="int?" Label='@Language.T("approval.level")' @bind-Value="_filterLevel" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            @for (var level = 1; level <= 7; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">Cấp @l</MudSelectItem> }
+            @for (var level = 1; level <= 7; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">@Language.T("approval.levelN", l)</MudSelectItem> }
         </MudSelect></MudItem>
         <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="@Language.T("approval.loaiDon")" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">@Language.T("nav.reportLeave")</MudSelectItem>
@@ -72,10 +72,10 @@ else
         <RowTemplate>
             <MudTd>@context.ApproveForDeptName (@context.ApproveForDeptCode)</MudTd>
             <MudTd>@context.RequestType</MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Level)">@(context.RoleName ?? $"Cấp {context.Level}")</MudChip></MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Level)">@(context.RoleName ?? Language.T("approval.levelN", context.Level))</MudChip></MudTd>
             <MudTd>@context.ApproverName <MudText Typo="Typo.caption">@context.ApproverCode</MudText></MudTd>
             <MudTd>@context.ApproverEmail</MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Hoạt động" : "Tắt")</MudChip></MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? Language.T("common.active") : Language.T("approval.tat"))</MudChip></MudTd>
             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(context))" /><MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" Size="Size.Small" OnClick="@(() => ToggleApprover(context))" /><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmDelete(context))" /></MudTd>
         </RowTemplate>
         <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">@Language.T("approval.khongCoApproverPhuHop")</MudText></NoRecordsContent>
@@ -171,7 +171,7 @@ else
 
     private async Task ConfirmDelete(ApproverDto item)
     {
-        var confirm = await DialogService.ShowMessageBoxAsync("Xác nhận xóa", $"Xóa approver {item.ApproverName}?", yesText: "Xóa", cancelText: "Hủy");
+        var confirm = await DialogService.ShowMessageBoxAsync(Language.T("department.xacNhanXoa"), Language.T("approval.xoaApprover", item.ApproverName), yesText: Language.T("common.delete"), cancelText: Language.T("common.cancel"));
         if (confirm != true) return;
         var result = await ApproverService.DeleteAsync(item.Id);
         Snackbar.Add(result.IsSuccess ? Language.T("approval.daXoaApprover") : result.Message ?? Language.T("common.loiXoa"), result.IsSuccess ? Severity.Success : Severity.Error);

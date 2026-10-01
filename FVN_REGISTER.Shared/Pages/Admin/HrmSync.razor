@@ -54,8 +54,7 @@
         @if (_status.StartedAt.HasValue)
         {
             <MudText Typo="Typo.caption">
-                Bắt đầu: @_status.StartedAt.Value.ToString("dd/MM/yyyy HH:mm:ss")
-                · Người chạy: @_status.TriggeredBy
+                @Language.T("hrm.batDauNguoiChay", _status.StartedAt.Value.ToString("dd/MM/yyyy HH:mm:ss"), _status.TriggeredBy)
             </MudText>
         }
     </MudAlert>
@@ -63,7 +62,7 @@
 else if (_status?.LastRun != null)
 {
     <MudAlert Severity="@(_status.LastRun.Success ? Severity.Success : Severity.Error)" Class="mb-4">
-        <MudText Typo="Typo.body2"><b>@(_status.LastRun.Success ? "Đồng bộ hoàn tất" : "Đồng bộ có lỗi")</b></MudText>
+        <MudText Typo="Typo.body2"><b>@(_status.LastRun.Success ? Language.T("hrm.dongBoHoanTat") : Language.T("hrm.dongBoCoLoi"))</b></MudText>
         <MudText Typo="Typo.caption">@_status.LastRun.Summary</MudText>
     </MudAlert>
 }
@@ -93,9 +92,9 @@ else
                     else
                     {
                         <MudChip T="string" Size="Size.Small" Color="@(job.Success ? Color.Success : Color.Error)">
-                            @(job.Success ? "Thành công" : "Có lỗi")
+                            @(job.Success ? Language.T("common.success") : Language.T("hrm.coLoi"))
                         </MudChip>
-                        <MudText Typo="Typo.caption">Nguồn: @job.TotalSource</MudText>
+                        <MudText Typo="Typo.caption">@Language.T("hrm.nguon", job.TotalSource)</MudText>
                         <MudText Typo="Typo.caption">
                             +@job.Added · ↻@job.Updated · −@job.Deactivated · =@job.Unchanged
                         </MudText>
@@ -146,7 +145,7 @@ else
                 <MudTd><b>@context.EntityType</b></MudTd>
                 <MudTd>
                     <MudChip T="string" Size="Size.Small" Color="@(context.Success ? Color.Success : Color.Error)">
-                        @(context.Success ? "OK" : "Lỗi")
+                        @(context.Success ? "OK" : Language.T("common.error"))
                     </MudChip>
                 </MudTd>
                 <MudTd Style="text-align:right">@context.TotalSource</MudTd>
@@ -169,12 +168,12 @@ else
 @code {
     private sealed record MasterInfo(string EntityType, string Name, string Icon);
 
-    private readonly MasterInfo[] _masters =
+    private MasterInfo[] _masters =>
     [
-        new("LeaveType", "Loại nghỉ", Icons.Material.Filled.EventBusy),
-        new("Department", "Bộ phận", Icons.Material.Filled.Business),
-        new("Position", "Chức vụ", Icons.Material.Filled.Badge),
-        new("Employee", "Nhân viên", Icons.Material.Filled.People)
+        new("LeaveType", Language.T("common.loaiNghi"), Icons.Material.Filled.EventBusy),
+        new("Department", Language.T("equipment.assigned.department"), Icons.Material.Filled.Business),
+        new("Position", Language.T("common.position"), Icons.Material.Filled.Badge),
+        new("Employee", Language.T("common.employee"), Icons.Material.Filled.People)
     ];
 
     private HrmSyncRuntimeStatusDto? _status;
@@ -262,7 +261,7 @@ else
                 Snackbar.Add(
                     security.Message
                         ?? securityFirstError
-                        ?? "HRM đã chạy nhưng không thể provision User + Approver.",
+                        ?? Language.T("hrm.hrmDaChayNhungKhong"),
                     Severity.Error);
                 return;
             }
@@ -276,7 +275,7 @@ else
             combined.TriggeredBy = sync.Data.TriggeredBy;
             combined.Summary = sync.Data.Success
                 ? security.Data.Summary
-                : $"HRM có lỗi nhưng Security provisioning vẫn đã chạy. {sync.Data.Summary} | {security.Data.Summary}";
+                : Language.T("hrm.hrmCoLoiNhungSecurity", sync.Data.Summary, security.Data.Summary);
 
             _status = new HrmSyncRuntimeStatusDto
             {
@@ -292,8 +291,8 @@ else
                 security.Data.Success && sync.Data.Success
                     ? security.Data.Summary
                     : security.Data.Success
-                        ? firstError ?? "HRM có lỗi nhưng User + Approver đã được reconcile."
-                        : security.Data.Summary ?? "Provision User + Approver có lỗi.",
+                        ? firstError ?? Language.T("hrm.hrmCoLoiNhungUser")
+                        : security.Data.Summary ?? Language.T("hrm.provisionUserApproverCoLoi"),
                 security.Data.Success && sync.Data.Success
                     ? Severity.Success
                     : security.Data.Success
@@ -316,14 +315,14 @@ else
             var result = await SyncService.RunEntityAsync(entityType);
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? $"Không thể đồng bộ {entityType}.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("hrm.khongTheDongBo", entityType), Severity.Error);
                 return;
             }
 
             _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
             Snackbar.Add(result.Data.Success
-                ? $"Đã đồng bộ {entityType}."
-                : $"Đồng bộ {entityType} có lỗi.",
+                ? Language.T("hrm.daDongBo", entityType)
+                : Language.T("hrm.dongBoCoLoi2", entityType),
                 result.Data.Success ? Severity.Success : Severity.Warning);
             await RefreshConflictCountAsync();
         }

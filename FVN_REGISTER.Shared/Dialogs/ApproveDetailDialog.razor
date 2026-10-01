@@ -2,7 +2,7 @@
 @using FVN_REGISTER.Shared.Services.Approvals
 
 <MudDialog>
-    <TitleContent><MudText Typo="Typo.h6">Chi tiết đơn — @Item.EmployeeName</MudText></TitleContent>
+    <TitleContent><MudText Typo="Typo.h6">@Language.T("approval.chiTietDon", Item.EmployeeName)</MudText></TitleContent>
     <DialogContent>
         <MudSimpleTable Dense="true">
             <tbody>
@@ -19,7 +19,7 @@
     <DialogActions>
         <MudButton OnClick="@(() => MudDialog.Cancel())">@Language.T("common.close")</MudButton>
         <MudButton Color="Color.Error" Disabled="@(string.IsNullOrWhiteSpace(_comment) || _busy)" OnClick="Reject">@Language.T("common.reject")</MudButton>
-        <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_busy" OnClick="Approve">@(_busy ? "Đang xử lý..." : "Phê duyệt")</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_busy" OnClick="Approve">@(_busy ? Language.T("common.dangXuLy") : Language.T("common.approve"))</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -38,18 +38,18 @@
             .OrderBy(s => s.Level)
             .FirstOrDefault(s => s.IsRequired && s.IsApproved == null)?.Level ?? 0;
 
-    private static string GetKindLabel(FVN_REGISTER.Core.Enums.RequestModule kind) => kind switch
+    private string GetKindLabel(FVN_REGISTER.Core.Enums.RequestModule kind) => kind switch
     {
-        FVN_REGISTER.Core.Enums.RequestModule.Leave => "Nghỉ phép",
-        FVN_REGISTER.Core.Enums.RequestModule.Overtime => "Tăng ca",
-        FVN_REGISTER.Core.Enums.RequestModule.Trip => "Công tác",
-        FVN_REGISTER.Core.Enums.RequestModule.Equipment => "Thiết bị",
+        FVN_REGISTER.Core.Enums.RequestModule.Leave => Language.T("dashboard.leaveType"),
+        FVN_REGISTER.Core.Enums.RequestModule.Overtime => Language.T("approval.tangCa"),
+        FVN_REGISTER.Core.Enums.RequestModule.Trip => Language.T("dashboard.tripType"),
+        FVN_REGISTER.Core.Enums.RequestModule.Equipment => Language.T("help.EQUIPMENT_WORKSPACE.title"),
         _ => kind.ToString()
     };
 
-    private static string FormatUnits(PendingApprovalItemDto item)
+    private string FormatUnits(PendingApprovalItemDto item)
     {
-        var unit = item.Kind == FVN_REGISTER.Core.Enums.RequestModule.Overtime ? "giờ" : "ngày";
+        var unit = item.Kind == FVN_REGISTER.Core.Enums.RequestModule.Overtime ? Language.T("calendar.hours") : Language.T("dashboard.days");
         return $"{item.TotalUnits:N1} {unit}";
     }
 

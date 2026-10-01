@@ -25,7 +25,7 @@
                     <MudText Typo="Typo.h5">@Language.T("equipment.bieuMauYeuCauCua")</MudText>
                     <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.cacBieuMauDuoiDay")</MudText>
                 </div>
-                <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Quay lại Sổ thiết bị</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">@Language.T("equipment.quayLaiSoThietBi")</MudButton>
             </MudStack>
 
             <MudGrid>
@@ -37,7 +37,7 @@
                             <MudButton FullWidth="true" Variant="@(ReferenceEquals(form, _selectedForm) ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectForm(form))">
                                 <MudStack AlignItems="AlignItems.Start">
                                     <MudText>@form.Title</MudText>
-                                    <MudText Typo="Typo.caption">@form.FormCode • v@form.Version@(form.RequireApproval ? " • Cần phê duyệt" : "")</MudText>
+                                    <MudText Typo="Typo.caption">@form.FormCode • v@form.Version@(form.RequireApproval ? Language.T("equipment.canPheDuyet") : "")</MudText>
                                 </MudStack>
                             </MudButton>
                         }
@@ -50,7 +50,7 @@
                         <MudPaper Class="pa-4">
                             <MudText Typo="Typo.h6">@_selectedForm.Title</MudText>
                             <MudText Typo="Typo.body2" Class="mb-4">@_selectedForm.Description</MudText>
-                            <MudText Typo="Typo.caption">Thiết bị: @_selectedForm.EquipmentCode - @_selectedForm.EquipmentName</MudText>
+                            <MudText Typo="Typo.caption">@Language.T("equipment.thietBi2", _selectedForm.EquipmentCode, _selectedForm.EquipmentName)</MudText>
                             <MudDivider Class="my-4" />
 
                             @foreach (var question in _selectedForm.Questions.OrderBy(x => x.Sequence))
@@ -73,7 +73,7 @@
                                     }
                                     else if (string.Equals(question.QuestionType, "Boolean", StringComparison.OrdinalIgnoreCase) || string.Equals(question.QuestionType, "Bool", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <MudSwitch T="bool" Value="@GetBool(question.Id)" ValueChanged="@(v => SetBool(question.Id, v))" Color="Color.Primary">Có / Không</MudSwitch>
+                                        <MudSwitch T="bool" Value="@GetBool(question.Id)" ValueChanged="@(v => SetBool(question.Id, v))" Color="Color.Primary">@Language.T("equipment.coKhong")</MudSwitch>
                                     }
                                     else
                                     {
@@ -83,7 +83,7 @@
                             }
 
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
-                                @(_selectedForm.RequireApproval ? "Sau khi gửi, yêu cầu sẽ đi vào quy trình phê duyệt Equipment hiện tại." : "Biểu mẫu này không yêu cầu phê duyệt.")
+                                @(_selectedForm.RequireApproval ? Language.T("equipment.sauKhiGuiYeuCau") : Language.T("equipment.bieuMauNayKhongYeu"))
                             </MudAlert>
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SubmitAsync">@Language.T("equipment.guiYeuCau")</MudButton>
                         </MudPaper>

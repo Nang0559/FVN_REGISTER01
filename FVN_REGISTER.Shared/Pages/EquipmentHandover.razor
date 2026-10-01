@@ -9,9 +9,7 @@
     <MudPaper Outlined="true" Class="pa-6">
         <MudText Typo="Typo.h5">@Language.T("equipment.banGiaoThietBiDa")</MudText>
         <MudText Class="mt-3">
-            Thay đổi người phụ trách hoặc approver thiết bị không còn được thực hiện trực tiếp.
-            Người tiếp nhận phải lập Phiếu thay đổi quyền; phiếu sẽ đi qua các cấp phê duyệt của nghiệp vụ
-            và chỉ IT được thực hiện sau khi duyệt đầy đủ.
+            @Language.T("equipment.thayDoiNguoiPhuTrach")
         </MudText>
         <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Primary"
                    OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">

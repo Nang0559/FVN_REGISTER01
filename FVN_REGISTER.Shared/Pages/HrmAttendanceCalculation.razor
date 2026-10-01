@@ -31,7 +31,7 @@
  @if(_running){<MudProgressLinear Indeterminate="true" Class="mt-4"/>}
  @if(_result is not null)
 {
- <MudAlert Severity="Severity.Success" Class="mt-4">Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.</MudAlert>
+ <MudAlert Severity="Severity.Success" Class="mt-4">@Language.T("hrm.batchDongNhanVien", _result.CalculationBatchId, _result.CalculatedRows, _result.EmployeeCount)</MudAlert>
  <MudStack Row="true" Spacing="2" Class="mt-3">
   <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceAsync">
    @Language.T("hrm.xuatChamCong")

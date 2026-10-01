@@ -13,7 +13,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
-<PageTitle>Chi tiết đơn OT #@Id</PageTitle>
+<PageTitle>@Language.T("ot.chiTietDonOt2", Id)</PageTitle>
 
 @if (_isLoading)
 {
@@ -21,12 +21,12 @@
 }
 else if (_detail == null)
 {
-    <MudAlert Severity="Severity.Error">Không tìm thấy đơn OT #@Id</MudAlert>
+    <MudAlert Severity="Severity.Error">@Language.T("ot.khongTimThayDonOt", Id)</MudAlert>
 }
 else
 {
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
-        <div><MudText Typo="Typo.h5">Chi tiết đơn OT #@_detail.Id</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">@_detail.OTDate.ToString("dd/MM/yyyy") — @_detail.OTTypeCode — @_detail.Details.Count người</MudText></div>
+        <div><MudText Typo="Typo.h5">@Language.T("ot.chiTietDonOt2", _detail.Id)</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("ot.nguoi", _detail.OTDate.ToString("dd/MM/yyyy"), _detail.OTTypeCode, _detail.Details.Count)</MudText></div>
         <MudChip T="string" Color="@GetStatusColor(_detail.RequestStatus)">@_detail.StatusText</MudChip>
     </MudStack>
 
@@ -68,7 +68,7 @@ else
                     {
                         <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2" Class="mb-3">
                             <MudIcon Icon="@(step.IsRequired ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Color="@(step.IsRequired ? Color.Primary : Color.Default)" />
-                            <div><MudText Typo="Typo.body2"><b>Cấp @step.Level</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.ApproverName — @step.Decision</MudText></div>
+                            <div><MudText Typo="Typo.body2"><b>@Language.T("approval.levelN", step.Level)</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.ApproverName — @step.Decision</MudText></div>
                         </MudStack>
                     }
                 </MudCardContent>
@@ -76,7 +76,7 @@ else
 
             @if (_detail.RequesterCode == CurrentUser.User?.EmployeeCode && !_detail.IsFinished)
             {
-                <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="CancelOT" Disabled="_isCancelling">@(_isCancelling ? "Đang hủy..." : "Hủy đơn OT")</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="CancelOT" Disabled="_isCancelling">@(_isCancelling ? Language.T("ot.dangHuy") : Language.T("ot.huyDonOt"))</MudButton>
             }
         </MudItem>
     </MudGrid>
@@ -106,7 +106,7 @@ else
     private async Task CancelOT()
     {
         _isCancelling = true;
-        try { var result = await OTService.CancelAsync(Id, "Hủy từ trang chi tiết", _cts.Token); Snackbar.Add(result.IsSuccess ? Language.T("ot.daHuyDonOt") : result.Message ?? Language.T("ot.loiHuyDon"), result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadDetail(); }
+        try { var result = await OTService.CancelAsync(Id, Language.T("ot.huyTuTrangChiTiet"), _cts.Token); Snackbar.Add(result.IsSuccess ? Language.T("ot.daHuyDonOt") : result.Message ?? Language.T("ot.loiHuyDon"), result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadDetail(); }
         finally { _isCancelling = false; }
     }
 
