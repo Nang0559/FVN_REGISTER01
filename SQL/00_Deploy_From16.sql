@@ -10,6 +10,10 @@ Current SQL directory:
 :on error exit
 :setvar RepoRoot "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
 :r "16_EquipmentFlexibleImport.sql"
+:r "Excel/001_SharedExcelPlatform.sql"
+:r "Excel/002_SharedExcelPlatform_Normalize.sql"
+:r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
+:r "16_EquipmentFlexibleImport_LegacyCleanup.sql"
 :r "16A_EquipmentCapabilities.sql"
 :r "17_ApprovalRouteSelection.sql"
 :r "18_ApproverConfigurationReview.sql"
