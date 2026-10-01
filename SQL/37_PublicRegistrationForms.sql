@@ -234,7 +234,7 @@ BEGIN
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
     SELECT r.Id,f.Id,N'Own',N'Personal'
     FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
-    WHERE r.RoleCode=5 AND f.FunctionCode IN (2810,2811,2812)
+    WHERE r.RoleCode IN (3,4,5) AND f.FunctionCode IN (2810,2811,2812)
       AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 
     /* Every authenticated business role can hold the management capability, but the API
