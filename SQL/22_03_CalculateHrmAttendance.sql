@@ -47,7 +47,7 @@ BEGIN
   DECLARE @AppLockResult int;
   EXEC @AppLockResult=sp_getapplock
       @Resource=N'FVN_REGISTER:ATTENDANCE:DATE:'+CONVERT(nvarchar(10),@D,112),
-      @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=0;
+      @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=30000;
   IF @AppLockResult<0 THROW 51322,N'Ngày chấm công đang được một calculation khác xử lý.',1;
 
   DELETE FROM dbo.F03HrmAttendanceCalculated
