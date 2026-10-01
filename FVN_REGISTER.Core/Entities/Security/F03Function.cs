@@ -20,6 +20,11 @@ public partial class F03Function : BaseAuditEntity
     public DateTime? LastSeenAt { get; set; }
     [StringLength(150)] public string? ReplacementFunctionKey { get; set; }
     public int DisplayOrder { get; set; }
+
+    // System-critical capabilities are immutable at the activation level.
+    // Their IsActive state is protected by SQL and application invariants.
+    public bool IsSystemCritical { get; set; }
+
     public virtual ICollection<F03UserFunction> UserFunctions { get; set; } = new List<F03UserFunction>();
     public virtual ICollection<F03RoleFunction> RoleFunctions { get; set; } = new List<F03RoleFunction>();
 }
