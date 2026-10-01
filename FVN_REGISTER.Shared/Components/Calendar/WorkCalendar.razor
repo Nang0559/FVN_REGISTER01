@@ -2,10 +2,12 @@
 @using FVN_REGISTER.Shared.Services.Calendar
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Services.Language
+@using FVN_REGISTER.Shared.Services.Loading
 @inject IWorkCalendarClientService CalendarService
 @inject ICurrentUserClientService CurrentUser
 @inject IJSRuntime JS
 @inject ILogger<WorkCalendar> Logger
+@inject ILoadingService Loading
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-2" Elevation="0">
@@ -120,19 +122,22 @@
 
     private async Task LoadAsync(DateTime from, DateTime to)
     {
-        _rangeFrom = from.Date;
-        _rangeTo = to.Date;
+        await Loading.RunAsync(async () =>
+        {
+            _rangeFrom = from.Date;
+            _rangeTo = to.Date;
 
-        var effectiveEmployeeCode = EmployeeCode?.Trim();
-        if (string.IsNullOrWhiteSpace(effectiveEmployeeCode))
-            effectiveEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
+            var effectiveEmployeeCode = EmployeeCode?.Trim();
+            if (string.IsNullOrWhiteSpace(effectiveEmployeeCode))
+                effectiveEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
 
-        var result = string.IsNullOrWhiteSpace(effectiveEmployeeCode)
-            ? await CalendarService.GetAsync(from.Date, to.Date)
-            : await CalendarService.GetForEmployeeAsync(effectiveEmployeeCode, from.Date, to.Date);
+            var result = string.IsNullOrWhiteSpace(effectiveEmployeeCode)
+                ? await CalendarService.GetAsync(from.Date, to.Date)
+                : await CalendarService.GetForEmployeeAsync(effectiveEmployeeCode, from.Date, to.Date);
 
-        if (result.IsSuccess && result.Data is not null)
-            _data = result.Data;
+            if (result.IsSuccess && result.Data is not null)
+                _data = result.Data;
+        }, Language.T("common.loading"));
     }
 
     private List<object> BuildDays()
