@@ -90,7 +90,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         return Task.CompletedTask;
     }
 
-    public async Task<(byte[] Content, string FileName)> ExportAsync(CancellationToken ct = default)
+    public Task<(byte[] Content, string FileName)> ExportAsync(CancellationToken ct = default)
     {
         var catalog = ReadCatalog();
         using var workbook = new XLWorkbook();
