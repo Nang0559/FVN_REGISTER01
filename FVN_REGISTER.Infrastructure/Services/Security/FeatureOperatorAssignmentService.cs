@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
+using FVN_REGISTER.Application.Interfaces.Excel;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Constants;
@@ -15,12 +16,14 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly ICurrentUserService _currentUser;
+    private readonly IExcelPlatform _excel;
 
-    public FeatureOperatorAssignmentService(IUnitOfWork uow, IAuditService audit, ICurrentUserService currentUser)
+    public FeatureOperatorAssignmentService(IUnitOfWork uow, IAuditService audit, ICurrentUserService currentUser, IExcelPlatform excel)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
+        _excel = excel;
     }
 
     public async Task<List<FeatureOperatorAssignmentDto>> GetAsync(int functionCode, string resourceType, int? resourceId, CancellationToken ct = default)
@@ -118,7 +121,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             {
                 "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.Status != "Archived", ct),
                 "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
-                "EQUIPMENT_SCHEMA" => await _uow.Repository<F03EquipmentSchema>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
+                "EQUIPMENT_SCHEMA" => await EquipmentSchemaExistsAsync(request.ResourceId.Value, ct),
                 "EXECUTION_REVIEW" => false,
                 _ => false
             };
@@ -163,10 +166,32 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         {
             "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().Where(x => x.Status != "Archived").OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.Id.ToString(), Name = x.Title, Status = x.Status }).ToListAsync(ct),
             "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.FormCode, Name = x.Title, Status = x.Status }).ToListAsync(ct),
-            "EQUIPMENT_SCHEMA" => await _uow.Repository<F03EquipmentSchema>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.SchemaKey).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.SchemaKey, Name = x.SchemaName, Status = x.Status }).ToListAsync(ct),
+            "EQUIPMENT_SCHEMA" => await GetEquipmentSchemaResourcesAsync(ct),
             "EXECUTION_REVIEW" => new List<FeatureOperatorResourceDto>(),
             _ => throw new ArgumentException($"ResourceType không được hỗ trợ: {resourceType}")
         };
+    }
+
+    private async Task<bool> EquipmentSchemaExistsAsync(int schemaId, CancellationToken ct)
+    {
+        var schemas = await _excel.GetSchemasAsync("EQUIPMENT", "EQUIPMENT_ASSET", false, ct);
+        return schemas.Any(x => x.Id == schemaId && x.Status == FVN_REGISTER.Core.Excel.ExcelSchemaStatus.Active);
+    }
+
+    private async Task<List<FeatureOperatorResourceDto>> GetEquipmentSchemaResourcesAsync(CancellationToken ct)
+    {
+        var schemas = await _excel.GetSchemasAsync("EQUIPMENT", "EQUIPMENT_ASSET", false, ct);
+        return schemas
+            .Where(x => x.Status == FVN_REGISTER.Core.Excel.ExcelSchemaStatus.Active)
+            .OrderBy(x => x.SchemaKey)
+            .Select(x => new FeatureOperatorResourceDto
+            {
+                Id = x.Id,
+                Code = x.SchemaKey,
+                Name = x.SchemaName,
+                Status = x.Status.ToString()
+            })
+            .ToList();
     }
 
     private IQueryable<F03FeatureOperatorAssignment> Query(int functionCode, string type, int? resourceId)
