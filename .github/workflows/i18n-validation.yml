@@ -15,4 +15,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Validate localization
-        run: python3 scripts/validate-ui-localization.py
+        run: python3 scripts/validate-ui-localization.py --output artifacts/localization-audit.json
+      - name: Upload localization audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localization-audit
+          path: artifacts/localization-audit.json
+          if-no-files-found: ignore
