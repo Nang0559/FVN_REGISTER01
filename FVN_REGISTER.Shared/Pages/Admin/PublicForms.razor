@@ -429,7 +429,7 @@
         var response = await Http.GetAsync<PublicFormDto>($"api/public-forms/{id}");
         if (!response.IsSuccess || response.Data == null)
         {
-            Snackbar.Add(response.Message ?? Language.T("message.loadFailed"), Severity.Error);
+            Snackbar.Add(response.Message ?? Language.T("public.khongTaiDuocBieuMau"), Severity.Error);
             return;
         }
 
@@ -646,7 +646,7 @@
         if (r.IsSuccess)
         {
             Snackbar.Add(_editingId.HasValue
-                ? Language.T("common.updated")
+                ? Language.T("common.operationSucceeded")
                 : Language.T("public.daLuuBieuMauNhap"), Severity.Success);
             _editingId = null;
             _form = NewForm();
