@@ -569,7 +569,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 ActionCode = x.Function.ActionCode,
                 ScopeCode = x.EffectiveScope,
                 AccessMode = x.EffectiveAccessMode,
-                DisplayOrder = x.Function.DisplayOrder
+                DisplayOrder = x.Function.DisplayOrder,
+                IsSystemCritical = x.Function.IsSystemCritical
             })
             .ToList();
 
@@ -652,7 +653,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 ModuleCode = x.ModuleCode,
                 ActionCode = x.ActionCode,
                 ScopeCode = x.ScopeCode,
-                DisplayOrder = x.DisplayOrder
+                DisplayOrder = x.DisplayOrder,
+                IsSystemCritical = x.IsSystemCritical
             })
             .ToListAsync(ct);
     }
@@ -775,6 +777,12 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("Role không tồn tại hoặc đã ngừng hoạt động.");
 
         var codes = functionCodes.Distinct().ToList();
+
+        // SuperAdmin is the final security break-glass role. Its system-critical
+        // Security capabilities are not optional and cannot be removed by the matrix.
+        if (roleCode == 1)
+            codes = codes.Union(SecurityFunctionCodes.SystemCriticalCodes).Distinct().ToList();
+
         var normalizedScopeOverrides = scopeOverrides ?? new Dictionary<int, string?>();
         var normalizedAccessModeOverrides = accessModeOverrides ?? new Dictionary<int, string?>();
         var allowedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -829,11 +837,35 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
         var repo = _uow.Repository<F03RoleFunction>();
         var existing = await repo.Query().Where(x => x.IdRole == role.Id).ToListAsync(ct);
+        var existingByFunction = existing.ToDictionary(x => x.IdFunction);
+
         foreach (var row in existing)
+        {
+            var function = functions.FirstOrDefault(x => x.Id == row.IdFunction);
+            var isCritical = function?.IsSystemCritical == true;
+
+            // Never delete SuperAdmin's critical grants. Other role grants remain
+            // fully replaceable by the matrix.
+            if (roleCode == 1 && isCritical)
+                continue;
+
             repo.Remove(row);
+        }
 
         foreach (var function in functions)
         {
+            var isCriticalSuperAdmin = roleCode == 1 && function.IsSystemCritical;
+
+            if (isCriticalSuperAdmin && existingByFunction.TryGetValue(function.Id, out var existingCritical))
+            {
+                existingCritical.IsActive = true;
+                existingCritical.ScopeCode = null;
+                existingCritical.AccessMode = null;
+                existingCritical.ModifiedBy = actorUserId;
+                existingCritical.ModifiedAt = DateTime.Now;
+                continue;
+            }
+
             await repo.AddAsync(new F03RoleFunction
             {
                 IdRole = role.Id,
