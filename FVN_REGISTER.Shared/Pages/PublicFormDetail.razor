@@ -48,11 +48,12 @@ else
    </MudPaper>
   }
   <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="SubmitAsync" Disabled="_saving">@Language.T("public.guiDangKy")</MudButton>
+  <MudPaper Class="pa-4 mt-3" Outlined="true"><MudText Typo="Typo.subtitle1">@Language.T("public.feedback")</MudText><MudTextField @bind-Value="_feedback" Lines="3" Variant="Variant.Outlined" Label="@Language.T("public.feedback")" /><MudButton Class="mt-2" Variant="Variant.Outlined" OnClick="SendFeedbackAsync" Disabled="@(_saving || string.IsNullOrWhiteSpace(_feedback))">@Language.T("public.guiPhanHoi")</MudButton></MudPaper>
  </MudStack>
 }
 @code{
  [Parameter] public int Id {get;set;}
- private PublicFormDto? _form; private bool _loading=true,_saving; private readonly Dictionary<int,string> _answers=new();
+ private PublicFormDto? _form; private bool _loading=true,_saving; private string _feedback=string.Empty; private readonly Dictionary<int,string> _answers=new();
  protected override async Task OnParametersSetAsync(){var r=await Http.GetAsync<PublicFormDto>($"api/public-forms/{Id}");if(r.IsSuccess)_form=r.Data;else Snackbar.Add(r.Message??Language.T("public.khongTaiDuocBieuMau"),Severity.Error);_loading=false;}
  private string Value(int id)=>_answers.TryGetValue(id,out var v)?v:string.Empty;
  private void Set(int id, object? value)=>_answers[id]=value?.ToString()??string.Empty;
