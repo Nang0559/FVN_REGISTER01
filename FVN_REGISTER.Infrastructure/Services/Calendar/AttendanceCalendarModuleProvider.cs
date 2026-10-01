@@ -39,38 +39,83 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         // column untouched and remains seekable whether EmployeeCode is varchar
         // or nvarchar.
         var rows = await _db.Database.SqlQuery<AttendanceCalendarRow>($"""
+            WITH CurrentRows AS
+            (
+                SELECT
+                    a.WorkDate,
+                    a.HrmEmployeeId,
+                    a.EmployeeCode,
+                    a.ShiftId,
+                    a.ShiftAbbr,
+                    a.AttendanceDisplayValue,
+                    a.CheckInTime,
+                    a.CheckOutTime,
+                    a.WorkMinutesDay,
+                    a.WorkMinutesNight,
+                    a.OTMinutesDay,
+                    a.OTMinutesNight,
+                    a.OTMinutesDayTC,
+                    a.OTMinutesNightTC,
+                    a.OTRecognizedMinutesDay,
+                    a.OTRecognizedMinutesNight,
+                    a.RequiredMinutes,
+                    a.LateMinutesDay,
+                    a.LateMinutesNight,
+                    a.EarlyLeaveMinutesDay,
+                    a.EarlyLeaveMinutesNight,
+                    a.LeaveTotal,
+                    a.HrmHoliday,
+                    a.HrmEmployeeHoliday,
+                    a.HrmBCLyDoNghi,
+                    a.HrmBCGhiChu
+                FROM dbo.F03HrmAttendanceCalculated AS a
+                WHERE a.EmployeeCode = CONVERT(varchar(50), {context.EmployeeCode})
+                  AND a.WorkDate >= {context.From}
+                  AND a.WorkDate <= {context.To}
+            )
+            SELECT *
+            FROM CurrentRows
+
+            UNION ALL
+
             SELECT
-                a.WorkDate,
-                a.HrmEmployeeId,
-                a.EmployeeCode,
-                a.ShiftId,
-                a.ShiftAbbr,
-                a.AttendanceDisplayValue,
-                a.CheckInTime,
-                a.CheckOutTime,
-                a.WorkMinutesDay,
-                a.WorkMinutesNight,
-                a.OTMinutesDay,
-                a.OTMinutesNight,
-                a.OTMinutesDayTC,
-                a.OTMinutesNightTC,
-                a.OTRecognizedMinutesDay,
-                a.OTRecognizedMinutesNight,
-                a.RequiredMinutes,
-                a.LateMinutesDay,
-                a.LateMinutesNight,
-                a.EarlyLeaveMinutesDay,
-                a.EarlyLeaveMinutesNight,
-                a.LeaveTotal,
-                a.HrmHoliday,
-                a.HrmEmployeeHoliday,
-                a.HrmBCLyDoNghi,
-                a.HrmBCGhiChu
-            FROM dbo.F03HrmAttendanceCalculated AS a
-            WHERE a.EmployeeCode = CONVERT(varchar(50), {context.EmployeeCode})
-              AND a.WorkDate >= {context.From}
-              AND a.WorkDate <= {context.To}
-            ORDER BY a.WorkDate
+                h.WorkDate,
+                h.HrmEmployeeId,
+                h.EmployeeCode,
+                h.ShiftId,
+                h.ShiftAbbr,
+                h.AttendanceDisplayValue,
+                h.CheckInTime,
+                h.CheckOutTime,
+                h.WorkMinutesDay,
+                h.WorkMinutesNight,
+                h.OTMinutesDay,
+                h.OTMinutesNight,
+                h.OTMinutesDayTC,
+                h.OTMinutesNightTC,
+                h.OTRecognizedMinutesDay,
+                h.OTRecognizedMinutesNight,
+                h.RequiredMinutes,
+                h.LateMinutesDay,
+                h.LateMinutesNight,
+                h.EarlyLeaveMinutesDay,
+                h.EarlyLeaveMinutesNight,
+                h.LeaveTotal,
+                h.HrmHoliday,
+                h.HrmEmployeeHoliday,
+                h.HrmBCLyDoNghi,
+                h.HrmBCGhiChu
+            FROM dbo.F03HrmAttendanceHistory AS h
+            WHERE h.EmployeeCode = CONVERT(varchar(50), {context.EmployeeCode})
+              AND h.WorkDate >= {context.From}
+              AND h.WorkDate <= {context.To}
+              AND NOT EXISTS
+              (
+                  SELECT 1
+                  FROM CurrentRows AS c
+                  WHERE c.WorkDate = h.WorkDate
+              )
+            ORDER BY WorkDate
             """).ToListAsync(cancellationToken);
 
         var reconciliationByDate = await _db.ExecutionReconciliations
