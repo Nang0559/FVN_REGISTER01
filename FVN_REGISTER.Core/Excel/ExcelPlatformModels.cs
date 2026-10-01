@@ -1,7 +1,7 @@
 namespace FVN_REGISTER.Core.Excel;
 
-public enum ExcelSchemaStatus { Draft = 0, Active = 1, Retired = 2 }
-public enum ExcelImportBatchStatus { Draft = 0, Uploaded = 10, Previewed = 20, Validated = 30, Staged = 40, Committed = 100, Failed = 900, Cancelled = 910, Deleted = 920 }
+public enum ExcelSchemaStatus { Draft = 0, Active = 1, Retired = 2, Deleted = 920 }
+public enum ExcelImportBatchStatus { Draft = 0, Uploaded = 10, Previewed = 20, Validated = 30, Staged = 40, Committed = 100, Failed = 900, Cancelled = 910 }
 public enum ExcelImportRowStatus { Pending = 0, Valid = 10, Invalid = 20, Staged = 30, Imported = 100, Failed = 900 }
 public enum ExcelFieldDataType { Text, Integer, Decimal, Date, DateTime, Boolean, Guid, Enum }
 public enum ExcelSeverity { Info, Warning, Error }
