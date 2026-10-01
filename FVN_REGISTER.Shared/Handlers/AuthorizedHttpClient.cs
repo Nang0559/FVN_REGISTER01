@@ -2,6 +2,7 @@ using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Shared.Utils;
 using Microsoft.Extensions.Logging;
+using FVN_REGISTER.Shared.Services.Loading;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -14,13 +15,14 @@ namespace FVN_REGISTER.Shared.Handlers
         private readonly HttpClient _httpClient;
         private readonly ILogger<AuthorizedHttpClient> _logger;
         private readonly ITokenStorage _tokenStorage;
+        private readonly ILoadingService _loading;
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
         private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-        public AuthorizedHttpClient(HttpClient httpClient, ILogger<AuthorizedHttpClient> logger, ITokenStorage tokenStorage)
+        public AuthorizedHttpClient(HttpClient httpClient, ILogger<AuthorizedHttpClient> logger, ITokenStorage tokenStorage, ILoadingService loading)
         {
-            _httpClient = httpClient; _logger = logger; _tokenStorage = tokenStorage;
+            _httpClient = httpClient; _logger = logger; _tokenStorage = tokenStorage; _loading = loading;
             _logger.LogDebug("[HTTP] Base Address: {Base}", _httpClient.BaseAddress);
         }
 
@@ -33,10 +35,11 @@ namespace FVN_REGISTER.Shared.Handlers
                 _logger.LogWarning("[AUTH] Missing token | Path={Path}", request.RequestUri?.AbsolutePath);
         }
 
-        private async Task<ApiResponse<T>> SendAsync<T>(Func<HttpRequestMessage> requestFactory, string url, CancellationToken ct)
+        private async Task<ApiResponse<T>> SendAsync<T>(Func<HttpRequestMessage> requestFactory, string url, CancellationToken ct, bool showLoading)
         {
             try
             {
+                using var loadingScope = showLoading ? _loading.Begin() : null;
                 using var request = requestFactory();
                 await AttachTokenAsync(request);
                 using var response = await _httpClient.SendAsync(request, ct);
@@ -146,31 +149,31 @@ namespace FVN_REGISTER.Shared.Handlers
             catch (JsonException) { return default; }
         }
 
-        public Task<ApiResponse<T>> GetAsync<T>(string url, CancellationToken ct = default)
-            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Get, url), url, ct);
+        public Task<ApiResponse<T>> GetAsync<T>(string url, CancellationToken ct = default, bool showLoading = true)
+            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Get, url), url, ct, showLoading);
 
-        public Task<ApiResponse<T>> PostAsync<T>(string url, object data, CancellationToken ct = default)
-            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(data) }, url, ct);
+        public Task<ApiResponse<T>> PostAsync<T>(string url, object data, CancellationToken ct = default, bool showLoading = true)
+            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(data) }, url, ct, showLoading);
 
-        public Task<ApiResponse<T>> PutAsync<T>(string url, object data, CancellationToken ct = default)
-            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Put, url) { Content = JsonContent.Create(data) }, url, ct);
+        public Task<ApiResponse<T>> PutAsync<T>(string url, object data, CancellationToken ct = default, bool showLoading = true)
+            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Put, url) { Content = JsonContent.Create(data) }, url, ct, showLoading);
 
-        public Task<ApiResponse<T>> DeleteAsync<T>(string url, CancellationToken ct = default)
-            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Delete, url), url, ct);
+        public Task<ApiResponse<T>> DeleteAsync<T>(string url, CancellationToken ct = default, bool showLoading = true)
+            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Delete, url), url, ct, showLoading);
 
-        public Task<ApiResponse<T>> PatchAsync<T>(string url, object data, CancellationToken ct = default)
-            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Patch, url) { Content = JsonContent.Create(data) }, url, ct);
+        public Task<ApiResponse<T>> PatchAsync<T>(string url, object data, CancellationToken ct = default, bool showLoading = true)
+            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Patch, url) { Content = JsonContent.Create(data) }, url, ct, showLoading);
 
-        public Task<ApiResponse<PaginationResult<T>>> GetPagedAsync<T>(string url, CancellationToken ct = default)
-            => GetAsync<PaginationResult<T>>(url, ct);
+        public Task<ApiResponse<PaginationResult<T>>> GetPagedAsync<T>(string url, CancellationToken ct = default, bool showLoading = true)
+            => GetAsync<PaginationResult<T>>(url, ct, showLoading);
 
-        public async Task<ApiResponse<byte[]>> PostFileAsync(string url, object data, CancellationToken ct = default)
+        public async Task<ApiResponse<byte[]>> PostFileAsync(string url, object data, CancellationToken ct = default, bool showLoading = true)
         {
             try
             {
                 var result = await SendFileWithRefreshAsync(
                     () => new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(data) },
-                    url, ct);
+                    url, ct, showLoading);
 
                 return result;
             }
@@ -182,13 +185,13 @@ namespace FVN_REGISTER.Shared.Handlers
             }
         }
 
-        public async Task<ApiResponse<byte[]>> GetFileAsync(string url, CancellationToken ct = default)
+        public async Task<ApiResponse<byte[]>> GetFileAsync(string url, CancellationToken ct = default, bool showLoading = true)
         {
             try
             {
                 return await SendFileWithRefreshAsync(
                     () => new HttpRequestMessage(HttpMethod.Get, url),
-                    url, ct);
+                    url, ct, showLoading);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
@@ -201,8 +204,10 @@ namespace FVN_REGISTER.Shared.Handlers
         private async Task<ApiResponse<byte[]>> SendFileWithRefreshAsync(
             Func<HttpRequestMessage> requestFactory,
             string url,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool showLoading)
         {
+            using var loadingScope = showLoading ? _loading.Begin() : null;
             using var request = requestFactory();
             await AttachTokenAsync(request);
             using var response = await _httpClient.SendAsync(request, ct);
@@ -234,7 +239,7 @@ namespace FVN_REGISTER.Shared.Handlers
             return ApiResponse<byte[]>.Ok(bytes);
         }
 
-        public Task<ApiResponse<T>> PostMultipartAsync<T>(string url, MultipartFormDataContent content, CancellationToken ct = default)
-            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Post, url) { Content = content }, url, ct);
+        public Task<ApiResponse<T>> PostMultipartAsync<T>(string url, MultipartFormDataContent content, CancellationToken ct = default, bool showLoading = true)
+            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Post, url) { Content = content }, url, ct, showLoading);
     }
 }
