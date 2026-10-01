@@ -55,9 +55,9 @@ public sealed record ExcelCell(int RowIndex,int ColumnIndex,string? Value,string
 public sealed record ExcelRow(int RowIndex,IReadOnlyDictionary<int,string?> Cells);
 public sealed record ExcelValidationError(int RowNumber,int? ColumnIndex,string? FieldKey,string Code,string Message,string? RawValue=null,ExcelSeverity Severity=ExcelSeverity.Error);
 public sealed record ExcelPreviewResult(IReadOnlyList<ExcelRow> Rows,IReadOnlyList<ExcelValidationError> Errors,int TotalRows,int ValidRows,int InvalidRows);
-public sealed record ExcelImportResult(IReadOnlyList<ExcelRow> Rows,IReadOnlyList<ExcelValidationError> Errors,int TotalRows,int ValidRows,int InvalidRows,Guid? BatchId=null);
+public sealed record ExcelImportResult(IReadOnlyList<ExcelRow> Rows,IReadOnlyList<ExcelValidationError> Errors,int TotalRows,int ValidRows,int InvalidRows,long? BatchId=null);
 public sealed record ExcelImportRequest(string ModuleCode,string EntityCode,int SchemaId,string FileName,Stream Content,bool Commit=false);
 public sealed record ExcelSchemaCreateRequest(string ModuleCode,string EntityCode,string SchemaKey,string SchemaName,int SheetIndex,string SheetName,int HeaderRowIndex,int DataStartRowIndex,int? DataEndRowIndex,IReadOnlyList<int> SelectedColumnIndexes,IReadOnlyList<ExcelSchemaField> Fields,string Culture="vi-VN");
 public sealed record ExcelSchemaSummary(int Id,string ModuleCode,string EntityCode,string SchemaKey,string SchemaName,int Version,ExcelSchemaStatus Status,string? SourceFileName,DateTime CreatedAt,DateTime? UpdatedAt);
-public sealed record ExcelImportBatchSummary(Guid Id,string ModuleCode,string EntityCode,int SchemaId,string FileName,ExcelImportBatchStatus Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows,DateTime CreatedAt,DateTime? CompletedAt);
-public sealed record ExcelImportRow(long Id,Guid BatchId,int RowNumber,ExcelImportRowStatus Status,string? RawDataJson,string? NormalizedDataJson,int ErrorCount);
+public sealed record ExcelImportBatchSummary(long Id,string ModuleCode,string EntityCode,int SchemaId,string FileName,ExcelImportBatchStatus Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows,DateTime CreatedAt,DateTime? CompletedAt);
+public sealed record ExcelImportRow(long Id,long BatchId,int RowNumber,ExcelImportRowStatus Status,string? RawDataJson,string? NormalizedDataJson,int ErrorCount);
