@@ -14,11 +14,11 @@ public sealed class PermissionSnapshotDto
         Functions.Any(x => x.FunctionCode == functionCode &&
             string.Equals(x.ScopeCode, scope, StringComparison.OrdinalIgnoreCase));
 
-    public bool HasPersonal(int functionCode) => HasScope(functionCode, FVN_REGISTER.Core.Constants.AuthorizationScopeCodes.Own);
+    public bool HasPersonal(int functionCode) => HasScope(functionCode, "Own");
 
     public bool HasManagement(int functionCode) =>
         Functions.Any(x => x.FunctionCode == functionCode &&
-            FVN_REGISTER.Core.Constants.AuthorizationScopePolicy.IsManagementScope(x.ScopeCode));
+            string.Equals(x.ScopeCode, "Department", StringComparison.OrdinalIgnoreCase) || string.Equals(x.ScopeCode, "All", StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed class SecurityFunctionDto
