@@ -1,0 +1,73 @@
+using FVN_REGISTER.Application.Interfaces.Excel;
+using FVN_REGISTER.Core.Excel;
+using Microsoft.EntityFrameworkCore;
+using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
+using System.Data;
+using System.Text.Json;
+
+namespace FVN_REGISTER.Infrastructure.Services.Excel;
+
+public sealed class ExcelPlatform : IExcelPlatform
+{
+    private readonly DbContext _db;
+    public ExcelPlatform(DbContext db) => _db = db;
+
+    public Task<ExcelWorkbookInspection> InspectAsync(Stream content,string fileName,CancellationToken ct=default)
+    {
+        using var wb=Open(content,fileName);
+        var sheets=new List<ExcelSheetInspection>();
+        for(var i=0;i<wb.NumberOfSheets;i++)
+        {
+            var s=wb.GetSheetAt(i); var first=s.FirstRowNum; var last=s.LastRowNum; var min=int.MaxValue; var max=-1;
+            for(var r=first;r<=last;r++){var row=s.GetRow(r); if(row is null) continue; min=Math.Min(min,row.FirstCellNum<0?0:row.FirstCellNum); max=Math.Max(max,row.LastCellNum-1);}
+            sheets.Add(new ExcelSheetInspection(i,s.SheetName,first,last,min==int.MaxValue?0:min,max,FindHeaders(s,first,Math.Min(last,first+30),max)));
+        }
+        return Task.FromResult(new ExcelWorkbookInspection(fileName,Path.GetExtension(fileName).ToLowerInvariant(),content.CanSeek?content.Length:0,sheets));
+    }
+
+    public async Task<ExcelPreviewResult> PreviewAsync(Stream content,string fileName,ExcelSchemaDefinition schema,CancellationToken ct=default) => await ReadAsync(content,fileName,schema,ct);
+    public async Task<ExcelImportResult> ImportAsync(Stream content,string fileName,ExcelSchemaDefinition schema,CancellationToken ct=default)
+    { var p=await ReadAsync(content,fileName,schema,ct); return new ExcelImportResult(p.Rows,p.Errors,p.TotalRows,p.ValidRows,p.InvalidRows); }
+
+    public Task<Stream> ExportAsync(string fileName,ExcelSchemaDefinition schema,IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,CancellationToken ct=default)
+    {
+        IWorkbook wb=fileName.EndsWith(".xls",StringComparison.OrdinalIgnoreCase)?new HSSFWorkbook():new XSSFWorkbook(); var sheet=wb.CreateSheet(schema.EntityCode); var h=sheet.CreateRow(0);
+        for(var c=0;c<schema.Fields.Count;c++) h.CreateCell(c).SetCellValue(schema.Fields[c].HeaderName??schema.Fields[c].FieldKey);
+        for(var r=0;r<rows.Count;r++){var row=sheet.CreateRow(r+1);for(var c=0;c<schema.Fields.Count;c++){rows[r].TryGetValue(schema.Fields[c].FieldKey,out var v);row.CreateCell(c).SetCellValue(v?.ToString()??string.Empty);}}
+        using var output=new MemoryStream(); wb.Write(output,true); wb.Close(); output.Position=0; return Task.FromResult<Stream>(new MemoryStream(output.ToArray()));
+    }
+
+    public async Task<IReadOnlyList<ExcelSchemaSummary>> GetSchemasAsync(string moduleCode,string entityCode,bool includeRetired=false,CancellationToken ct=default)
+    {
+        await using var cmd=Command($"SELECT Id,ModuleCode,EntityCode,SchemaKey,SchemaName,Version,Status,SourceFileName,CreatedAt,UpdatedAt FROM F03ExcelSchemas WHERE ModuleCode=@m AND EntityCode=@e {(includeRetired?"":"AND Status<>2")} AND IsDeleted=0 ORDER BY SchemaKey,Version DESC",("@m",moduleCode),("@e",entityCode));
+        await using var rd=await cmd.ExecuteReaderAsync(ct); var list=new List<ExcelSchemaSummary>(); while(await rd.ReadAsync(ct)) list.Add(ReadSummary(rd)); return list;
+    }
+    public async Task<ExcelSchemaSummary?> GetSchemaAsync(int schemaId,CancellationToken ct=default)
+    { await using var cmd=Command("SELECT Id,ModuleCode,EntityCode,SchemaKey,SchemaName,Version,Status,SourceFileName,CreatedAt,UpdatedAt FROM F03ExcelSchemas WHERE Id=@id AND IsDeleted=0",("@id",schemaId)); await using var rd=await cmd.ExecuteReaderAsync(ct); return await rd.ReadAsync(ct)?ReadSummary(rd):null; }
+
+    public async Task<ExcelSchemaSummary> CreateDraftSchemaAsync(ExcelSchemaCreateRequest request,string? sourceFileName,CancellationToken ct=default)
+    {
+        var json=JsonSerializer.Serialize(new ExcelSchemaDefinition(request.ModuleCode,request.EntityCode,request.SchemaKey,1,request.SheetIndex,request.SheetName,request.HeaderRowIndex,request.DataStartRowIndex,request.DataEndRowIndex,request.SelectedColumnIndexes,request.Fields,request.Culture));
+        await using var cmd=Command("INSERT INTO F03ExcelSchemas(ModuleCode,EntityCode,SchemaKey,SchemaName,Version,Status,SourceFileName,DefinitionJson,IsDeleted,CreatedAt,UpdatedAt) VALUES(@m,@e,@k,@n,1,0,@f,@j,0,SYSUTCDATETIME(),SYSUTCDATETIME()); SELECT CAST(SCOPE_IDENTITY() AS int);",("@m",request.ModuleCode),("@e",request.EntityCode),("@k",request.SchemaKey),("@n",request.SchemaName),("@f",sourceFileName??(object)DBNull.Value),("@j",json));
+        var id=(int)(await cmd.ExecuteScalarAsync(ct)??0); return (await GetSchemaAsync(id,ct))!;
+    }
+    public async Task<ExcelSchemaSummary> ActivateSchemaAsync(int schemaId,CancellationToken ct=default)
+    {
+        await using var tx=await _db.Database.BeginTransactionAsync(ct); await using var cmd=Command("UPDATE F03ExcelSchemas SET Status=2,UpdatedAt=SYSUTCDATETIME() WHERE SchemaKey=(SELECT SchemaKey FROM F03ExcelSchemas WHERE Id=@id) AND ModuleCode=(SELECT ModuleCode FROM F03ExcelSchemas WHERE Id=@id) AND EntityCode=(SELECT EntityCode FROM F03ExcelSchemas WHERE Id=@id) AND Status=1 AND Id<>@id AND IsDeleted=0; UPDATE F03ExcelSchemas SET Status=1,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id AND Status=0 AND IsDeleted=0;",("@id",schemaId)); await cmd.ExecuteNonQueryAsync(ct); await tx.CommitAsync(ct); return (await GetSchemaAsync(schemaId,ct))??throw new InvalidOperationException("Schema not found or cannot be activated.");
+    }
+    public async Task DeleteDraftSchemaAsync(int schemaId,CancellationToken ct=default)
+    { await using var cmd=Command("UPDATE F03ExcelSchemas SET IsDeleted=1,Status=920,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id AND Status=0 AND IsDeleted=0 AND NOT EXISTS(SELECT 1 FROM F03ExcelImportBatches WHERE SchemaId=@id AND Status IN(40,100))",("@id",schemaId)); if(await cmd.ExecuteNonQueryAsync(ct)==0) throw new InvalidOperationException("Only an unused Draft schema can be deleted."); }
+
+    private async Task<ExcelPreviewResult> ReadAsync(Stream content,string fileName,ExcelSchemaDefinition schema,CancellationToken ct)
+    {
+        using var wb=Open(content,fileName); if(schema.SheetIndex<0||schema.SheetIndex>=wb.NumberOfSheets) throw new InvalidOperationException("Schema sheet does not exist."); var s=wb.GetSheetAt(schema.SheetIndex); var rows=new List<ExcelRow>(); var errors=new List<ExcelValidationError>(); var end=Math.Min(schema.DataEndRowIndex??s.LastRowNum,s.LastRowNum);
+        for(var r=Math.Max(0,schema.DataStartRowIndex);r<=end;r++){ct.ThrowIfCancellationRequested();var src=s.GetRow(r);if(src is null)continue;var cells=new Dictionary<int,string?>();foreach(var f in schema.Fields){var v=src.GetCell(f.SourceColumnIndex)?.ToString();cells[f.SourceColumnIndex]=v;if(f.Required&&string.IsNullOrWhiteSpace(v))errors.Add(new ExcelValidationError(r+1,f.SourceColumnIndex,f.FieldKey,"REQUIRED",$"{f.FieldKey} is required",v));}rows.Add(new ExcelRow(r+1,cells));}
+        return new ExcelPreviewResult(rows,errors,rows.Count,rows.Count-errors.Count(e=>e.Severity==ExcelSeverity.Error),errors.Count(e=>e.Severity==ExcelSeverity.Error));
+    }
+    private static IReadOnlyList<ExcelHeaderCandidate> FindHeaders(ISheet s,int first,int last,int max){var list=new List<ExcelHeaderCandidate>();for(var r=first;r<=last;r++){var row=s.GetRow(r);if(row is null)continue;var vals=new List<string?>();var nonEmpty=0;for(var c=0;c<=Math.Max(max,0);c++){var v=row.GetCell(c)?.ToString();vals.Add(v);if(!string.IsNullOrWhiteSpace(v))nonEmpty++;}if(nonEmpty>0)list.Add(new ExcelHeaderCandidate(r,vals,nonEmpty/(double)vals.Count));}return list;}
+    private static IWorkbook Open(Stream content,string fileName){if(fileName.EndsWith(".xls",StringComparison.OrdinalIgnoreCase))return new HSSFWorkbook(content);if(fileName.EndsWith(".xlsx",StringComparison.OrdinalIgnoreCase))return new XSSFWorkbook(content);throw new InvalidOperationException("Only .xls and .xlsx files are supported.");}
+    private System.Data.Common.DbCommand Command(string sql,params (string Name,object Value)[] parameters){var c=_db.Database.GetDbConnection().CreateCommand();c.CommandText=sql;foreach(var p in parameters){var x=c.CreateParameter();x.ParameterName=p.Name;x.Value=p.Value??DBNull.Value;c.Parameters.Add(x);}if(c.Connection!.State!=ConnectionState.Open)c.Connection.Open();return c;}
+    private static ExcelSchemaSummary ReadSummary(System.Data.Common.DbDataReader r)=>new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetInt32(5),(ExcelSchemaStatus)r.GetInt32(6),r.IsDBNull(7)?null:r.GetString(7),r.GetDateTime(8),r.IsDBNull(9)?null:r.GetDateTime(9));
+}
