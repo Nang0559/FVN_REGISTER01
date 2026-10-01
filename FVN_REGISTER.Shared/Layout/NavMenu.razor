@@ -11,9 +11,18 @@
 <MudNavMenu>
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">@Language.T("nav.dashboard")</MudText>
     <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@Language.T("nav.home")</MudNavLink>
-    <MudNavLink href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendar")</MudNavLink>
-    <MudNavLink href="/execution" Icon="@Icons.Material.Filled.FactCheck">@Language.T("nav.executionReconciliation")</MudNavLink>
-    <MudNavLink href="/work/inbox" Icon="@Icons.Material.Filled.Inbox">@Language.T("nav.workInbox")</MudNavLink>
+    @if (CanAny(SecurityFunctionCodes.CalendarView, SecurityFunctionCodes.WorkCalendarView))
+    {
+        <MudNavLink href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendar")</MudNavLink>
+    }
+    @if (Can(SecurityFunctionCodes.ExecutionReview))
+    {
+        <MudNavLink href="/execution" Icon="@Icons.Material.Filled.FactCheck">@Language.T("nav.executionReconciliation")</MudNavLink>
+    }
+    @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
+    {
+        <MudNavLink href="/work/inbox" Icon="@Icons.Material.Filled.Inbox">@Language.T("nav.workInbox")</MudNavLink>
+    }
 
     <MudNavGroup Title="@Language.T("nav.public")" Icon="@Icons.Material.Filled.Campaign" Expanded="false">
         <MudNavLink href="/public-information" Icon="@Icons.Material.Filled.Public">@Language.T("nav.publicInformation")</MudNavLink>
@@ -27,9 +36,48 @@
     @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
     { <MudNavGroup Title="@Language.T("nav.approval")" Icon="@Icons.Material.Filled.CheckCircle" Expanded="false"><MudNavLink href="/approvals" Icon="@Icons.Material.Filled.List">@Language.T("nav.approvalPending")</MudNavLink></MudNavGroup> }
 
-    @if (Can(SecurityFunctionCodes.LeaveCreate)) { <MudNavGroup Title="@Language.T("nav.leave")" Icon="@Icons.Material.Filled.EventBusy" Expanded="true"><MudNavLink href="/leave" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.leaveOverview")</MudNavLink><MudNavLink href="/leave/create" Icon="@Icons.Material.Filled.Add">@Language.T("nav.leaveCreate")</MudNavLink><MudNavLink href="/leave/history" Icon="@Icons.Material.Filled.History">@Language.T("nav.leaveHistory")</MudNavLink></MudNavGroup> }
-    @if (Can(SecurityFunctionCodes.OTCreate)) { <MudNavGroup Title="@Language.T("nav.ot")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false"><MudNavLink href="/ot" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.otOverview")</MudNavLink><MudNavLink href="/ot/create" Icon="@Icons.Material.Filled.AddAlarm">@Language.T("nav.otCreate")</MudNavLink><MudNavLink href="/ot/history" Icon="@Icons.Material.Filled.ManageHistory">@Language.T("nav.otHistory")</MudNavLink></MudNavGroup> }
-    @if (Can(SecurityFunctionCodes.TripCreate)) { <MudNavGroup Title="@Language.T("nav.trip")" Icon="@Icons.Material.Filled.FlightTakeoff" Expanded="false"><MudNavLink href="/trip" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.tripOverview")</MudNavLink><MudNavLink href="/trip/create" Icon="@Icons.Material.Filled.Add">@Language.T("nav.tripCreate")</MudNavLink><MudNavLink href="/trip/history" Icon="@Icons.Material.Filled.History">@Language.T("nav.tripHistory")</MudNavLink></MudNavGroup> }
+    @if (CanAny(SecurityFunctionCodes.LeaveView, SecurityFunctionCodes.LeaveCreate))
+    {
+        <MudNavGroup Title="@Language.T("nav.leave")" Icon="@Icons.Material.Filled.EventBusy" Expanded="true">
+            @if (Can(SecurityFunctionCodes.LeaveView))
+            {
+                <MudNavLink href="/leave" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.leaveOverview")</MudNavLink>
+                <MudNavLink href="/leave/history" Icon="@Icons.Material.Filled.History">@Language.T("nav.leaveHistory")</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.LeaveCreate))
+            {
+                <MudNavLink href="/leave/create" Icon="@Icons.Material.Filled.Add">@Language.T("nav.leaveCreate")</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+    @if (CanAny(SecurityFunctionCodes.OTView, SecurityFunctionCodes.OTCreate))
+    {
+        <MudNavGroup Title="@Language.T("nav.ot")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
+            @if (Can(SecurityFunctionCodes.OTView))
+            {
+                <MudNavLink href="/ot" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.otOverview")</MudNavLink>
+                <MudNavLink href="/ot/history" Icon="@Icons.Material.Filled.ManageHistory">@Language.T("nav.otHistory")</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.OTCreate))
+            {
+                <MudNavLink href="/ot/create" Icon="@Icons.Material.Filled.AddAlarm">@Language.T("nav.otCreate")</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+    @if (CanAny(SecurityFunctionCodes.TripView, SecurityFunctionCodes.TripCreate))
+    {
+        <MudNavGroup Title="@Language.T("nav.trip")" Icon="@Icons.Material.Filled.FlightTakeoff" Expanded="false">
+            @if (Can(SecurityFunctionCodes.TripView))
+            {
+                <MudNavLink href="/trip" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.tripOverview")</MudNavLink>
+                <MudNavLink href="/trip/history" Icon="@Icons.Material.Filled.History">@Language.T("nav.tripHistory")</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.TripCreate))
+            {
+                <MudNavLink href="/trip/create" Icon="@Icons.Material.Filled.Add">@Language.T("nav.tripCreate")</MudNavLink>
+            }
+        </MudNavGroup>
+    }
 
     @if (CanAny(SecurityFunctionCodes.EndpointView, SecurityFunctionCodes.EndpointInventoryView, SecurityFunctionCodes.EndpointSoftwareCatalogView, SecurityFunctionCodes.EndpointServiceCatalogView, SecurityFunctionCodes.EndpointCredentialProvision, SecurityFunctionCodes.EndpointCredentialRevoke))
     {
