@@ -34,5 +34,5 @@ public sealed class SecurityFunctionDto
     public string? ScopeCode { get; set; }
     public string? AccessMode { get; set; }
     public int DisplayOrder { get; set; }
+    public bool IsSystemCritical { get; set; }
 }
-
