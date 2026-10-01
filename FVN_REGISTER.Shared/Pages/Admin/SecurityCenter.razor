@@ -252,7 +252,16 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>
-                                <MudText Typo="Typo.body2"><b>@context.ModuleCode.@context.ActionCode</b></MudText>
+                                <MudText Typo="Typo.body2">
+                                    <b>@context.ModuleCode.@context.ActionCode</b>
+                                    @if (context.IsSystemCritical)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="ml-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                                            System Critical
+                                        </MudChip>
+                                    }
+                                </MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Detail</MudText>
                             </MudTd>
                             @foreach (var role in _roles)
@@ -262,12 +271,14 @@
                                         <MudCheckBox T="bool"
                                                      Value="@HasRoleFunction(role.RoleCode, context.FunctionCode)"
                                                      ValueChanged="@(value => ToggleRoleFunction(role.RoleCode, context.FunctionCode, value))"
+                                                     Disabled="@context.IsSystemCritical && role.RoleCode == 1"
                                                      Color="Color.Primary" />
                                         @if (HasRoleFunction(role.RoleCode, context.FunctionCode))
                                         {
                                             <MudSelect T="string"
                                                        Value="@GetRoleFunctionMode(role.RoleCode, context.FunctionCode)"
                                                        ValueChanged="@(value => SetRoleFunctionMode(role.RoleCode, context.FunctionCode, value))"
+                                                       Disabled="@context.IsSystemCritical && role.RoleCode == 1"
                                                        Dense="true"
                                                        Margin="Margin.Dense"
                                                        Variant="Variant.Outlined"
@@ -280,6 +291,7 @@
                                             <MudSelect T="string"
                                                        Value="@GetRoleFunctionScope(role.RoleCode, context.FunctionCode)"
                                                        ValueChanged="@(value => SetRoleFunctionScope(role.RoleCode, context.FunctionCode, value))"
+                                                       Disabled="@context.IsSystemCritical && role.RoleCode == 1"
                                                        Dense="true"
                                                        Margin="Margin.Dense"
                                                        Variant="Variant.Outlined"
