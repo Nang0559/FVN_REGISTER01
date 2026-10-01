@@ -132,6 +132,9 @@ Database/ is documentation/history only and is not executed by deployment.
 /* SECURITY ROLE/FUNCTION MATRIX */
 :r "64_SecurityRoleMatrixCapability.sql"
 
+/* SECURITY SYSTEM-CRITICAL INVARIANT */
+:r "65_SecuritySystemCriticalInvariant.sql"
+
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
 
