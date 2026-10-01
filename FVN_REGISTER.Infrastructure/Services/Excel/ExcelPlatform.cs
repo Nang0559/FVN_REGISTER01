@@ -118,7 +118,7 @@ public sealed class ExcelPlatform : IExcelPlatform
         var sheetName = schemaReader.GetString(5);
         var headerRow = schemaReader.GetInt32(6);
         var dataStart = schemaReader.GetInt32(7);
-        var dataEnd = schemaReader.IsDBNull(8) ? null : schemaReader.GetInt32(8);
+        int? dataEnd = schemaReader.IsDBNull(8) ? null : schemaReader.GetInt32(8);
         var selectedColumns = JsonSerializer.Deserialize<IReadOnlyList<int>>(schemaReader.GetString(9)) ?? Array.Empty<int>();
         var culture = schemaReader.IsDBNull(10) ? "vi-VN" : schemaReader.GetString(10);
         await schemaReader.CloseAsync();

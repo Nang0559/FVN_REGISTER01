@@ -56,14 +56,14 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         return Task.FromResult(catalog);
     }
 
-    public async Task UpsertAsync(LocalizationUpsertRequest request, CancellationToken ct = default)
+    public Task UpsertAsync(LocalizationUpsertRequest request, CancellationToken ct = default)
     {
         ValidateEntry(request.Key, request.Module, request.Vi, request.Ja);
         ValidatePlaceholders(request.Vi, request.Ja);
 
         var root = RequireLocalizationRoot();
         var all = ReadRawCatalog(root);
-        var oldModule = all.FirstOrDefault(x => string.Equals(x.Key, request.Key.Trim(), StringComparison.OrdinalIgnoreCase)).Module;
+        var oldModule = all.FirstOrDefault(x => string.Equals(x.Key, request.Key.Trim(), StringComparison.OrdinalIgnoreCase))?.Module;
 
         if (!string.IsNullOrWhiteSpace(oldModule) && !string.Equals(oldModule, request.Module.Trim(), StringComparison.OrdinalIgnoreCase))
         {
@@ -71,7 +71,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         }
 
         WriteEntry(root, request.Module.Trim(), request.Key.Trim(), request.Vi, request.Ja);
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     public Task DeleteAsync(string key, CancellationToken ct = default)
