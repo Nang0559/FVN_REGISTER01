@@ -426,7 +426,7 @@
         }
 
 
-        @if (_myPermissions?.Has(2604) == true)
+        @if (_myPermissions?.Has(SecurityFunctionCodes.SecurityAudit) == true)
         {
             <MudTabPanel Text="@Language.T("security.securityAudit")" Icon="@Icons.Material.Filled.Security">
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
@@ -596,7 +596,7 @@
     private string _twoFactorSearch = string.Empty;
     private bool _loadingTwoFactor;
     private bool _savingTwoFactor;
-    private const int ManageTwoFactorFunctionCode = 2407;
+    private const int ManageTwoFactorFunctionCode = SecurityFunctionCodes.UserManagementManageTwoFactor;
 
     // 2FA administration is explicitly restricted to SuperAdmin.
     // Do not depend on the 2407 RoleFunction row here; older databases may
@@ -658,7 +658,7 @@
                 await LoadFeatureOperatorsAsync();
             if (CanResetPassword)
                 await LoadPasswordResetRequestsAsync();
-            if (_myPermissions?.Has(2604) == true)
+            if (_myPermissions?.Has(SecurityFunctionCodes.SecurityAudit) == true)
                 await LoadSecurityAuditAsync();
             if (CanManageTwoFactor)
                 await LoadTwoFactorUsersAsync();
