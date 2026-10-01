@@ -472,8 +472,10 @@ WHERE r.RoleCode IN(1,2) AND f.FunctionCode IN(3081,3082)
 AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
 
-/* Attendance.View is for management/approval roles; normal User must not inherit the Department scope. */
-DELETE rf
+/* Attendance.View has two independent capability modes:
+   User = Personal/Own; Approver/manager = Management/Department. */
+UPDATE rf
+SET ScopeCode=N'Own', AccessMode=N'Personal'
 FROM dbo.F03RoleFunctions rf
 JOIN dbo.F03Roles r ON r.Id=rf.IdRole
 JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
