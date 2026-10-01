@@ -90,7 +90,7 @@ public sealed class WorkCalendarController : BaseApiController
         }
         else
         {
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.CalendarView, ct))
+            if (!await _authorization.HasManagementAsync(UserInfo, SecurityFunctionCodes.CalendarView, ct))
                 return Forbid();
 
             if (modules.Count == 0)
