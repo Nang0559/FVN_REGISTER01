@@ -73,7 +73,7 @@ public sealed class ExecutionController : BaseApiController
     [HttpGet("me/{reconciliationId:long}")]
     public async Task<IActionResult> Get(long reconciliationId, CancellationToken ct)
     {
-        if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.AttendanceView, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceView, ct))
             return Forbid();
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
@@ -85,7 +85,7 @@ public sealed class ExecutionController : BaseApiController
     [HttpGet("me/{reconciliationId:long}/detail")]
     public async Task<IActionResult> GetDetail(long reconciliationId, CancellationToken ct)
     {
-        if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.AttendanceView, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceView, ct))
             return Forbid();
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
@@ -100,7 +100,7 @@ public sealed class ExecutionController : BaseApiController
         [FromBody] ExecutionConfirmationRequest request,
         CancellationToken ct)
     {
-        if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
             return Forbid();
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
@@ -115,7 +115,7 @@ public sealed class ExecutionController : BaseApiController
         IFormFile file,
         CancellationToken ct)
     {
-        if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
             return Forbid();
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ."));
@@ -133,7 +133,7 @@ public sealed class ExecutionController : BaseApiController
         [FromBody] ExecutionEvidenceRequest request,
         CancellationToken ct)
     {
-        if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
             return Forbid();
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh người dùng hợp lệ."));
