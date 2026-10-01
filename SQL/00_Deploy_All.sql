@@ -129,6 +129,9 @@ Database/ is documentation/history only and is not executed by deployment.
 /* CALENDAR ATTENDANCE PERFORMANCE */
 :r "63_CalendarAttendancePerformance.sql"
 
+/* SECURITY ROLE/FUNCTION MATRIX */
+:r "64_SecurityRoleMatrixCapability.sql"
+
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
 
