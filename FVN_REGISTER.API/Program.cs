@@ -29,6 +29,7 @@ using FVN_REGISTER.Application.Interfaces.PublicInformation;
 using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Statics;
+using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
@@ -75,6 +76,7 @@ using FVN_REGISTER.Infrastructure.Services.PublicInformation;
 using FVN_REGISTER.Infrastructure.Services.Reports;
 using FVN_REGISTER.Infrastructure.Services.Security;
 using FVN_REGISTER.Infrastructure.Services.Statics;
+using FVN_REGISTER.Infrastructure.Services.Trips;
 using FVN_REGISTER.Infrastructure.Services.Users;
 using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -174,8 +176,8 @@ builder.Services.AddScoped<IOTLimitRuleManagementService, OTLimitRuleManagementS
 builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Trip
-builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripService, FVN_REGISTER.Infrastructure.Services.Trips.TripService>();
-builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripActualService, FVN_REGISTER.Infrastructure.Services.Trips.TripActualService>();
+builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<ITripActualService, TripActualService>();
 
 // Equipment
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
