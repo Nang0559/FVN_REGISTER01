@@ -1,3 +1,5 @@
+using FVN_REGISTER.Core.Attributes;
+
 namespace FVN_REGISTER.Core.Constants;
 
 public static class SecurityFunctionCodes
@@ -114,10 +116,15 @@ public static class SecurityFunctionCodes
     
     // Localization administration. These are normal RBAC functions and are assigned through
     // the existing F03Functions/F03RoleFunction matrix; no separate i18n permission model exists.
+    [SecurityFunctionDefinition("Language.View", "Xem quản trị ngôn ngữ", ModuleCode = "Language", ActionCode = "View", ScopeCode = AuthorizationScopeCodes.All)]
     public const int LanguageView = 3201;
+    [SecurityFunctionDefinition("Language.Manage", "Quản lý định nghĩa ngôn ngữ", ModuleCode = "Language", ActionCode = "Manage", ScopeCode = AuthorizationScopeCodes.All)]
     public const int LanguageManage = 3202;
+    [SecurityFunctionDefinition("Language.Import", "Nhập Excel ngôn ngữ", ModuleCode = "Language", ActionCode = "Import", ScopeCode = AuthorizationScopeCodes.All)]
     public const int LanguageImport = 3203;
+    [SecurityFunctionDefinition("Language.Export", "Xuất Excel ngôn ngữ", ModuleCode = "Language", ActionCode = "Export", ScopeCode = AuthorizationScopeCodes.All)]
     public const int LanguageExport = 3204;
+    [SecurityFunctionDefinition("Language.Audit", "Rà soát ngôn ngữ", ModuleCode = "Language", ActionCode = "Audit", ScopeCode = AuthorizationScopeCodes.All)]
     public const int LanguageAudit = 3205;
 
     // Endpoint capability family. These extend the existing Security Center;
