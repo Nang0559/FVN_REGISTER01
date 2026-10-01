@@ -21,5 +21,5 @@ public interface IAuthorizationService
     Task<List<SecurityFunctionDto>> GetFunctionsAsync(CancellationToken ct = default);
     Task<List<TwoFactorAdminUserDto>> GetTwoFactorUsersAsync(CancellationToken ct = default);
     Task<PermissionSnapshotDto> SetUserRolesAsync(int userId, IReadOnlyCollection<int> roleCodes, int actorUserId, CancellationToken ct = default);
-    Task<SecurityRoleDto> SetRoleFunctionsAsync(int roleCode, IReadOnlyCollection<int> functionCodes, IReadOnlyDictionary<int, string?> scopeOverrides, int actorUserId, CancellationToken ct = default);
+    Task<SecurityRoleDto> SetRoleFunctionsAsync(int roleCode, IReadOnlyCollection<int> functionCodes, IReadOnlyDictionary<int, string?> scopeOverrides, IReadOnlyDictionary<int, string?> accessModeOverrides, int actorUserId, CancellationToken ct = default);
 }
