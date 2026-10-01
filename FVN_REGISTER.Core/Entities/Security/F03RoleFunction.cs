@@ -14,6 +14,10 @@ public sealed class F03RoleFunction : BaseAuditEntity
     [StringLength(30)]
     public string? ScopeCode { get; set; }
 
+    /// <summary>Capability audience: Personal or Management. Null keeps legacy compatibility.</summary>
+    [StringLength(20)]
+    public string? AccessMode { get; set; }
+
     [ForeignKey(nameof(IdRole))]
     public F03Role Role { get; set; } = null!;
 
