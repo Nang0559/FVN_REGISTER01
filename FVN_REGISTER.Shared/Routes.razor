@@ -1,6 +1,6 @@
 @using FVN_REGISTER.Shared.Pages
 @using Microsoft.AspNetCore.Components.Authorization
 
-<CascadingAuthenticationState><MudThemeProvider Theme="_currentTheme" /><MudPopoverProvider /><MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.ExtraSmall" /><MudSnackbarProvider />
+<CascadingAuthenticationState><MudThemeProvider Theme="_currentTheme" /><GlobalLoadingOverlay /><MudPopoverProvider /><MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.ExtraSmall" /><MudSnackbarProvider />
 <Router AppAssembly="@typeof(Layout.MainLayout).Assembly"><Found Context="routeData"><AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)"><NotAuthorized>@if (!context.User.Identity?.IsAuthenticated ?? true){<RedirectToLogin />}else{<RouteStatusPopup Message="@Language.T("route.forbidden")" Severity="Severity.Error" />}</NotAuthorized></AuthorizeRouteView><FocusOnNavigate RouteData="@routeData" Selector="h1" /></Found><NotFound><PageTitle>@Language.T("route.notFound")</PageTitle><LayoutView Layout="@typeof(Layout.MainLayout)"><RouteStatusPopup Message="@Language.T("route.notFound")" Severity="Severity.Warning" /></LayoutView></NotFound></Router></CascadingAuthenticationState>
 @code { private MudTheme _currentTheme = new MudTheme { PaletteLight = new PaletteLight { Primary="#1E88E5", Secondary="#FF8F00", AppbarBackground="#1E88E5", Background="#F5F5F7" }, Typography = new Typography { Default = new DefaultTypography { FontFamily = new[]{"Roboto","Helvetica","Arial","sans-serif"} } } }; }
