@@ -5,8 +5,49 @@ public enum ExcelImportBatchStatus { Draft = 0, Uploaded = 10, Previewed = 20, V
 public enum ExcelImportRowStatus { Pending = 0, Valid = 10, Invalid = 20, Staged = 30, Imported = 100, Failed = 900 }
 public enum ExcelFieldDataType { Text, Integer, Decimal, Date, DateTime, Boolean, Guid, Enum }
 public enum ExcelSeverity { Info, Warning, Error }
-public sealed record ExcelSchemaField(string FieldKey,string DataType,bool Required,int SourceColumnIndex,string? HeaderName=null,string? Format=null,string? ResourceKey=null,string? TargetProperty=null,int DisplayOrder=0,bool AllowEmpty=true);
-public sealed record ExcelSchemaDefinition(string ModuleCode,string EntityCode,string SchemaKey,int Version,int SheetIndex,string SheetName,int HeaderRowIndex,int DataStartRowIndex,int? DataEndRowIndex,IReadOnlyList<int> SelectedColumnIndexes,IReadOnlyList<ExcelSchemaField> Fields,string Culture="vi-VN");
+
+public sealed record ExcelSchemaField(
+    string FieldKey,
+    string DataType,
+    bool Required,
+    int SourceColumnIndex,
+    string? HeaderName = null,
+    string? Format = null,
+    string? ResourceKey = null,
+    string? TargetProperty = null,
+    int DisplayOrder = 0,
+    bool AllowEmpty = true,
+    int? MaxLength = null,
+    string? DefaultValue = null,
+    string? ValidationRule = null);
+
+public sealed record ExcelSchemaDefinition(
+    string ModuleCode,
+    string EntityCode,
+    string SchemaKey,
+    int Version,
+    int SheetIndex,
+    string SheetName,
+    int HeaderRowIndex,
+    int DataStartRowIndex,
+    int? DataEndRowIndex,
+    IReadOnlyList<int> SelectedColumnIndexes,
+    IReadOnlyList<ExcelSchemaField> Fields,
+    string Culture = "vi-VN");
+
+public sealed record ExcelSchemaVersion(
+    int Id,
+    int SchemaId,
+    int Version,
+    ExcelSchemaStatus Status,
+    string SheetName,
+    int SheetIndex,
+    int HeaderRowIndex,
+    int DataStartRowIndex,
+    int? DataEndRowIndex,
+    string? SourceFileName,
+    DateTime CreatedAt);
+
 public sealed record ExcelWorkbookInspection(string FileName,string Extension,long Length,IReadOnlyList<ExcelSheetInspection> Sheets);
 public sealed record ExcelSheetInspection(int Index,string Name,int FirstRowIndex,int LastRowIndex,int FirstColumnIndex,int LastColumnIndex,IReadOnlyList<ExcelHeaderCandidate> HeaderCandidates);
 public sealed record ExcelHeaderCandidate(int RowIndex,IReadOnlyList<string?> Values,double Score);
@@ -19,3 +60,4 @@ public sealed record ExcelImportRequest(string ModuleCode,string EntityCode,int 
 public sealed record ExcelSchemaCreateRequest(string ModuleCode,string EntityCode,string SchemaKey,string SchemaName,int SheetIndex,string SheetName,int HeaderRowIndex,int DataStartRowIndex,int? DataEndRowIndex,IReadOnlyList<int> SelectedColumnIndexes,IReadOnlyList<ExcelSchemaField> Fields,string Culture="vi-VN");
 public sealed record ExcelSchemaSummary(int Id,string ModuleCode,string EntityCode,string SchemaKey,string SchemaName,int Version,ExcelSchemaStatus Status,string? SourceFileName,DateTime CreatedAt,DateTime? UpdatedAt);
 public sealed record ExcelImportBatchSummary(Guid Id,string ModuleCode,string EntityCode,int SchemaId,string FileName,ExcelImportBatchStatus Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows,DateTime CreatedAt,DateTime? CompletedAt);
+public sealed record ExcelImportRow(long Id,Guid BatchId,int RowNumber,ExcelImportRowStatus Status,string? RawDataJson,string? NormalizedDataJson,int ErrorCount);
