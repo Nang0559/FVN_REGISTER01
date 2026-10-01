@@ -34,8 +34,7 @@ public static class SecurityFunctionCatalog
             ["HrmUserRoleRule"] = "Quy tắc vai trò người dùng nhân sự",
             ["EmailQueue"] = "Hàng đợi thư điện tử",
             ["EmailTemplate"] = "Mẫu thư điện tử",
-            ["SecurityAccessChange"] = "Thay đổi quyền truy cập",
-            ["PublicForm"] = "Biểu mẫu công khai"
+            ["SecurityAccessChange"] = "Thay đổi quyền truy cập"
         };
 
     private static readonly IReadOnlyDictionary<string, string> ActionNames =
@@ -81,9 +80,7 @@ public static class SecurityFunctionCatalog
             ["Report"] = "Báo cáo",
             ["ExportExcel"] = "Xuất Excel",
             ["ImportExcel"] = "Nhập Excel",
-            ["SubmissionView"] = "Xem phản hồi",
             ["Submit"] = "Trả lời",
-            ["Feedback"] = "Gửi phản hồi",
             ["AuditView"] = "Xem lịch sử"
         };
 
