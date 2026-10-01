@@ -73,8 +73,10 @@ else
                         </MudSelect>
                     </MudTd>
                     <MudTd>
-                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="@(() => RetireAsync(context))">@Language.T("security.ngung")</MudButton>
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ReplaceAsync(context))" Disabled="@(!HasReplacement(context.FunctionKey))">@Language.T("security.thayThe")</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="@(() => RetireAsync(context))"
+                                   Disabled="@SecurityFunctionCodes.IsSystemCritical(context.FunctionCode)">@Language.T("security.ngung")</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ReplaceAsync(context))"
+                                   Disabled="@(!HasReplacement(context.FunctionKey) || SecurityFunctionCodes.IsSystemCritical(context.FunctionCode))">@Language.T("security.thayThe")</MudButton>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -106,7 +108,13 @@ else
                     <HeaderContent><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("common.module")</MudTh><MudTh>@Language.T("common.action2")</MudTh><MudTh>@Language.T("security.detail")</MudTh><MudTh /></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.FunctionCode</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.Detail</MudTd>
-                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteFunctionAsync(context.IdFunction))">@Language.T("security.xoaNgung")</MudButton></MudTd>
+                        <MudTd>
+                            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
+                                       OnClick="@(() => DeleteFunctionAsync(context.IdFunction))"
+                                       Disabled="@context.IsSystemCritical">
+                                @Language.T("security.xoaNgung")
+                            </MudButton>
+                        </MudTd>
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
