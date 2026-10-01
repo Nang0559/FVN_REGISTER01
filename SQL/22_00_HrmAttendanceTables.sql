@@ -299,6 +299,7 @@ BEGIN
     (
         CalculationBatchId uniqueidentifier NOT NULL CONSTRAINT PK_F03HrmAttendanceCalculationRun PRIMARY KEY,
         DeptCode nvarchar(20) NULL,
+        EmployeeCode nvarchar(50) NULL,
         FromDate date NOT NULL,
         ToDate date NOT NULL,
         TriggeredBy nvarchar(100) NOT NULL,
@@ -321,4 +322,18 @@ IF NOT EXISTS
 )
     CREATE INDEX IX_F03HrmAttendanceCalculationRun_DateStatus
         ON dbo.F03HrmAttendanceCalculationRun(FromDate,ToDate,Status,StartedAt DESC);
+GO
+
+/* Employee-scoped coverage metadata for calendar lazy backfill. */
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'EmployeeCode') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD EmployeeCode nvarchar(50) NULL;
+GO
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun')
+      AND name=N'IX_F03HrmAttendanceCalculationRun_Scope'
+)
+    CREATE INDEX IX_F03HrmAttendanceCalculationRun_Scope
+        ON dbo.F03HrmAttendanceCalculationRun(Status,EmployeeCode,DeptCode,FromDate,ToDate);
 GO
