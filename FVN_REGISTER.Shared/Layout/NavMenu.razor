@@ -27,7 +27,8 @@
     <MudNavGroup Title="@Language.T("nav.public")" Icon="@Icons.Material.Filled.Campaign" Expanded="false">
         <MudNavLink href="/public-information" Icon="@Icons.Material.Filled.Public">@Language.T("nav.publicInformation")</MudNavLink>
         <MudNavLink href="/public-forms" Icon="@Icons.Material.Filled.Assignment">@Language.T("nav.publicForms")</MudNavLink>
-        @if (Can(SecurityFunctionCodes.PublicFormManage)) { <MudNavLink href="/admin/public-forms" Icon="@Icons.Material.Filled.EditNote">@Language.T("nav.publicFormsManage")</MudNavLink> }
+        @if (CanManagement(SecurityFunctionCodes.PublicFormCreate) || CanManagement(SecurityFunctionCodes.PublicFormEdit) || CanManagement(SecurityFunctionCodes.PublicFormAssignAudience)) { <MudNavLink href="/admin/public-forms" Icon="@Icons.Material.Filled.EditNote">@Language.T("nav.publicFormsManage")</MudNavLink> }
+        @if (CanManagement(SecurityFunctionCodes.PublicFormResultView)) { <MudNavLink href="/admin/public-forms/submissions" Icon="@Icons.Material.Filled.Assessment">@Language.T("public.tongHopDangKyBieu")</MudNavLink> }
     </MudNavGroup>
 
     @if (CanAny(SecurityFunctionCodes.SecurityAccessChangeView, SecurityFunctionCodes.SecurityAccessChangeCreate, SecurityFunctionCodes.SecurityAccessChangeApprove, SecurityFunctionCodes.SecurityAccessChangeExecute))
