@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
+using FVN_REGISTER.Application.Interfaces.Excel;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
@@ -20,19 +21,21 @@ namespace FVN_REGISTER.Infrastructure.Services.Equipment;
 
 public sealed class EquipmentFormService : IEquipmentFormService
 {
-    private const string FormAssignmentResourceType = "EquipmentSchema";
+    private const string FormAssignmentResourceType = "EQUIPMENT_SCHEMA";
 
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
+    private readonly IExcelPlatform _excel;
     private readonly IFeatureOperatorAssignmentService _featureOperators;
     private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _workflow;
 
-    public EquipmentFormService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IFeatureOperatorAssignmentService featureOperators, IApprovalWorkflowOrchestrator<EquipmentRequestSubject> workflow)
+    public EquipmentFormService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IExcelPlatform excel, IFeatureOperatorAssignmentService featureOperators, IApprovalWorkflowOrchestrator<EquipmentRequestSubject> workflow)
     {
         _uow = uow;
         _currentUser = currentUser;
         _authorization = authorization;
+        _excel = excel;
         _featureOperators = featureOperators;
         _workflow = workflow;
     }
@@ -180,7 +183,9 @@ public sealed class EquipmentFormService : IEquipmentFormService
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentFormManage, ct)) return false;
         if (user.PermissionCode == UserPermissionCodes.SuperAdmin) return true;
 
-        var schema = await _uow.Repository<F03EquipmentSchema>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.SchemaKey == equipmentSchemaKey && x.IsActive == true, ct);
+        var schema = (await _excel.GetSchemasAsync("EQUIPMENT", "EQUIPMENT_ASSET", false, ct))
+            .FirstOrDefault(x => x.SchemaKey.Equals(equipmentSchemaKey, StringComparison.OrdinalIgnoreCase)
+                && x.Status == FVN_REGISTER.Core.Excel.ExcelSchemaStatus.Active);
         if (schema == null) return false;
         return await _featureOperators.CanOperateAsync(user.UserId, user.EmployeeCode, SecurityFunctionCodes.EquipmentFormManage, FormAssignmentResourceType, schema.Id, ct);
     }
