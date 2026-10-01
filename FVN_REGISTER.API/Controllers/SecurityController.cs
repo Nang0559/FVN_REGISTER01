@@ -228,7 +228,7 @@ public sealed class SecurityController : BaseApiController
         try
         {
             var role = await _authorization.SetRoleFunctionsAsync(
-                roleCode, request.FunctionCodes, request.ScopeOverrides, UserInfo.UserId, ct);
+                roleCode, request.FunctionCodes, request.ScopeOverrides, request.AccessModeOverrides, UserInfo.UserId, ct);
 
             await LogActionAsync($"Cập nhật function cho RoleCode={roleCode}");
             return Ok(ApiResponse<SecurityRoleDto>.Ok(role));
