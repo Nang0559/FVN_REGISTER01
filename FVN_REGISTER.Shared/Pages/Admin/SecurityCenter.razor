@@ -251,11 +251,28 @@
                             </MudTd>
                             @foreach (var role in _roles)
                             {
-                                <MudTd Style="text-align:center">
-                                    <MudCheckBox T="bool"
-                                                 Value="@HasRoleFunction(role.RoleCode, context.FunctionCode)"
-                                                 ValueChanged="@(value => ToggleRoleFunction(role.RoleCode, context.FunctionCode, value))"
-                                                 Color="Color.Primary" />
+                                <MudTd Style="text-align:center; min-width:150px">
+                                    <MudStack Spacing="0" AlignItems="AlignItems.Center">
+                                        <MudCheckBox T="bool"
+                                                     Value="@HasRoleFunction(role.RoleCode, context.FunctionCode)"
+                                                     ValueChanged="@(value => ToggleRoleFunction(role.RoleCode, context.FunctionCode, value))"
+                                                     Color="Color.Primary" />
+                                        @if (HasRoleFunction(role.RoleCode, context.FunctionCode))
+                                        {
+                                            <MudSelect T="string"
+                                                       Value="@GetRoleFunctionScope(role.RoleCode, context.FunctionCode)"
+                                                       ValueChanged="@(value => SetRoleFunctionScope(role.RoleCode, context.FunctionCode, value))"
+                                                       Dense="true"
+                                                       Margin="Margin.Dense"
+                                                       Variant="Variant.Outlined"
+                                                       Style="width:135px">
+                                                @foreach (var scope in ScopeOptions)
+                                                {
+                                                    <MudSelectItem T="string" Value="@scope">@scope</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        }
+                                    </MudStack>
                                 </MudTd>
                             }
                         </RowTemplate>
@@ -516,7 +533,7 @@
     private List<UserAccountDto> _users = new();
     private List<SecurityRoleDto> _roles = new();
     private List<SecurityFunctionDto> _matrixFunctions = new();
-    private Dictionary<int, HashSet<int>> _matrix = new();
+    private Dictionary<int, Dictionary<int, string>> _matrix = new();
 
     private PermissionSnapshotDto? _snapshot;
     private UserAccountDto? _selected;
@@ -824,26 +841,51 @@
         await LoadFeatureOperatorsAsync();
     }
 
+    private static readonly string[] ScopeOptions =
+        { AuthorizationScopeCodes.Own, AuthorizationScopeCodes.Employee, AuthorizationScopeCodes.Department, AuthorizationScopeCodes.All };
+
     private void BuildMatrix()
     {
         _matrix = _roles.ToDictionary(
             r => r.RoleCode,
-            r => r.FunctionCodes.ToHashSet());
+            r => r.FunctionScopes.ToDictionary(
+                x => x.Key,
+                x => string.IsNullOrWhiteSpace(x.Value) ? AuthorizationScopeCodes.Own : x.Value,
+                StringComparer.OrdinalIgnoreCase));
     }
 
     private bool HasRoleFunction(int roleCode, int functionCode)
-        => _matrix.TryGetValue(roleCode, out var functions) && functions.Contains(functionCode);
+        => _matrix.TryGetValue(roleCode, out var functions) && functions.ContainsKey(functionCode);
+
+    private string GetRoleFunctionScope(int roleCode, int functionCode)
+    {
+        if (_matrix.TryGetValue(roleCode, out var functions)
+            && functions.TryGetValue(functionCode, out var scope)
+            && !string.IsNullOrWhiteSpace(scope))
+            return scope;
+        return _matrixFunctions.FirstOrDefault(x => x.FunctionCode == functionCode)?.ScopeCode
+            ?? AuthorizationScopeCodes.Own;
+    }
 
     private void ToggleRoleFunction(int roleCode, int functionCode, bool enabled)
     {
         if (!_matrix.TryGetValue(roleCode, out var functions))
         {
-            functions = new HashSet<int>();
+            functions = new Dictionary<int, string>();
             _matrix[roleCode] = functions;
         }
 
-        if (enabled) functions.Add(functionCode);
-        else functions.Remove(functionCode);
+        if (enabled)
+            functions[functionCode] = GetRoleFunctionScope(roleCode, functionCode);
+        else
+            functions.Remove(functionCode);
+    }
+
+    private void SetRoleFunctionScope(int roleCode, int functionCode, string scope)
+    {
+        if (!_matrix.TryGetValue(roleCode, out var functions))
+            _matrix[roleCode] = functions = new Dictionary<int, string>();
+        functions[functionCode] = string.IsNullOrWhiteSpace(scope) ? AuthorizationScopeCodes.Own : scope;
     }
 
     private int GetMatrixCount(int roleCode)
@@ -914,7 +956,7 @@
             {
                 var index = _roles.FindIndex(x => x.RoleCode == role.RoleCode);
                 if (index >= 0) _roles[index] = saved;
-                _matrix[role.RoleCode] = saved.FunctionCodes.ToHashSet();
+                _matrix[role.RoleCode] = saved.FunctionScopes.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
             }
 
             if (_selected != null)
