@@ -115,7 +115,7 @@ namespace FVN_REGISTER.API.Controllers
                 RequestModule.Equipment => SecurityFunctionCodes.EquipmentCancel,
                 _ => 0
             };
-            if (cancelCode == 0 || !await _authorization.HasAsync(UserInfo, cancelCode, ct))
+            if (cancelCode == 0 || !await _authorization.HasPersonalAsync(UserInfo, cancelCode, ct))
                 return Forbid();
 
             var result = await _dispatcher.CancelAsync(
