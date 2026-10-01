@@ -91,7 +91,10 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
             where ur.IdUser == user.UserId && r.IsActive == true && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
-                && (rf.AccessMode == "Management" || (rf.AccessMode == null && AuthorizationScopePolicy.IsManagementScope(rf.ScopeCode ?? f.ScopeCode)))
+                && (rf.AccessMode == "Management"
+                    || (rf.AccessMode == null
+                        && ((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Department
+                            || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.All)))
             select f.Id
         ).AnyAsync(ct);
     }
