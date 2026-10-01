@@ -1,6 +1,8 @@
 @page "/"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Responses
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Dashboards
@@ -11,6 +13,7 @@
 @inject IDashboardClientService DashboardService
 @inject ICurrentUserClientService CurrentUserService
 @inject ISnackbar Snackbar
+@inject ISecurityClientService SecurityService
 @inject NavigationManager Navigation
 
 <PageTitle>@Language.T("home.title")</PageTitle>
@@ -39,8 +42,11 @@ else if (_model != null)
                 </div>
                 <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign" OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">@Language.T("home.information")</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => Navigation.NavigateTo("/leave/create"))">@Language.T("home.createLeave")</MudButton>
-                    @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.OTCreate) == true)
+                    @if (Can(SecurityFunctionCodes.LeaveCreate))
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => Navigation.NavigateTo("/leave/create"))">@Language.T("home.createLeave")</MudButton>
+                    }
+                    @if (Can(SecurityFunctionCodes.OTCreate))
                     {
                         <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule" OnClick="@(() => Navigation.NavigateTo("/ot/create"))">@Language.T("home.createOt")</MudButton>
                     }
@@ -55,10 +61,22 @@ else if (_model != null)
         <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">@Language.T("home.workCenter")</MudText>
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@Language.T("home.actionCenterDescription")</MudAlert>
         <MudGrid Spacing="3" Class="mb-5">
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/work/inbox"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.approval")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.approvalDescription")</MudText></MudCardContent></MudCard></MudItem>
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/leave"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.myLeave")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.myLeaveDescription")</MudText></MudCardContent></MudCard></MudItem>
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/ot"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.myOt")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.myOtDescription")</MudText></MudCardContent></MudCard></MudItem>
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/calendar"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.workCalendar")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.workCalendarDescription")</MudText></MudCardContent></MudCard></MudItem>
+            @if (_model.PendingApprovals.Any())
+            {
+                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/work/inbox"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.approval")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.approvalDescription")</MudText></MudCardContent></MudCard></MudItem>
+            }
+            @if (Can(SecurityFunctionCodes.LeaveView))
+            {
+                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/leave"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.myLeave")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.myLeaveDescription")</MudText></MudCardContent></MudCard></MudItem>
+            }
+            @if (Can(SecurityFunctionCodes.OTView))
+            {
+                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/ot"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.myOt")</MudText><MudText Typo="body2" Class="mud-text-secondary">@Language.T("home.myOtDescription")</MudText></MudCardContent></MudCard></MudItem>
+            }
+            @if (Can(SecurityFunctionCodes.WorkCalendarView))
+            {
+                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/calendar"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.workCalendar")</MudText><MudText Typo="body2" Class="mud-text-secondary">@Language.T("home.workCalendarDescription")</MudCardContent></MudCard></MudItem>
+            }
         </MudGrid>
 
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
@@ -66,9 +84,12 @@ else if (_model != null)
             <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.updatedAt", _loadedAt?.ToString("dd/MM/yyyy HH:mm"))</MudText>
         </MudStack>
 
-        <EquipmentDashboardTile />
+        @if (Can(SecurityFunctionCodes.EquipmentView))
+        {
+            <EquipmentDashboardTile />
+        }
 
-        @if (CurrentUserService.User?.IsAdmin == true || CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
+        @if (Can(SecurityFunctionCodes.EquipmentView))
         {
             <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -76,7 +97,7 @@ else if (_model != null)
                         <MudText Typo="Typo.h6">@Language.T("home.equipment")</MudText>
                         <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.equipmentDescription")</MudText>
                     </div>
-                    @if (CurrentUserService.User?.IsAdmin == true || CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentImport) == true)
+                    @if (Can(SecurityFunctionCodes.EquipmentImport))
                     {
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">@Language.T("home.importExcel")</MudButton>
                     }
@@ -110,7 +131,10 @@ else
     private string? _errorMessage;
     private bool _guestFallback;
     private DateTime? _loadedAt;
+    private PermissionSnapshotDto? _permissions;
     private readonly CancellationTokenSource _cts = new();
+
+    private bool Can(int functionCode) => _permissions?.Has(functionCode) == true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,6 +144,13 @@ else
             await Language.InitializeAsync(_cts.Token);
             await CurrentUserService.InitializeAsync();
             if (!CurrentUserService.IsLoggedIn) { _errorMessage = Language.T("home.sessionInvalid"); return; }
+
+            // Use the same effective Role -> Function/Action snapshot as the API.
+            // Do not infer UI visibility from PermissionCode/IsAdmin.
+            var permissionResult = await SecurityService.GetMyPermissionsAsync(_cts.Token);
+            if (permissionResult.IsSuccess)
+                _permissions = permissionResult.Data;
+
             var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
             if (result.IsSuccess && result.Data != null) { _model = result.Data; _loadedAt = DateTime.Now; }
             else if (result.IsUnauthorized) _errorMessage = Language.T("home.sessionExpired");
