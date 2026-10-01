@@ -96,7 +96,7 @@ public sealed class EquipmentSchemaController : ControllerBase
     public async Task<ActionResult<ExcelSchemaFieldDto>> SaveField([FromBody] SaveExcelSchemaFieldRequest request, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
-        var result = await _service.SaveFieldDefinitionAsync(request, ct);
+        var result = await _service.SaveSchemaFieldAsync(request, ct);
         return result.IsSuccess
             ? Ok(ApiResponse<ExcelSchemaFieldDto>.FromResult(result))
             : BadRequest(ApiResponse<ExcelSchemaFieldDto>.FromResult(result));
