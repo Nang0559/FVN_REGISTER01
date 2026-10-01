@@ -1,5 +1,6 @@
 /* FVN_REGISTER - Public Registration Forms v1. Separate from F03PublicInformation. */
 SET NOCOUNT ON;
+
 IF OBJECT_ID(N'dbo.F03PublicForms', N'U') IS NULL
 BEGIN
 CREATE TABLE dbo.F03PublicForms(
@@ -18,6 +19,7 @@ CREATE TABLE dbo.F03PublicForms(
  CONSTRAINT CK_F03PublicForms_DateRange CHECK(EndAt IS NULL OR StartAt IS NULL OR EndAt >= StartAt),
  CONSTRAINT CK_F03PublicForms_Max CHECK(MaxSubmissions IS NULL OR MaxSubmissions > 0)
 ); END;
+
 IF OBJECT_ID(N'dbo.F03PublicFormQuestions', N'U') IS NULL
 BEGIN
 CREATE TABLE dbo.F03PublicFormQuestions(
@@ -31,6 +33,7 @@ CREATE TABLE dbo.F03PublicFormQuestions(
  CONSTRAINT UQ_F03PublicFormQuestions_Code UNIQUE(FormId,QuestionCode),
  CONSTRAINT CK_F03PublicFormQuestions_Type CHECK(QuestionType IN (N'Text',N'Textarea',N'Number',N'Date',N'Time',N'DateTime',N'SingleChoice',N'MultiChoice',N'YesNo',N'Department',N'Employee',N'File'))
 ); END;
+
 IF OBJECT_ID(N'dbo.F03PublicFormQuestionOptions', N'U') IS NULL
 BEGIN
 CREATE TABLE dbo.F03PublicFormQuestionOptions(
@@ -41,6 +44,7 @@ CREATE TABLE dbo.F03PublicFormQuestionOptions(
  CONSTRAINT FK_F03PublicFormQuestionOptions_Question FOREIGN KEY(QuestionId) REFERENCES dbo.F03PublicFormQuestions(Id) ON DELETE CASCADE,
  CONSTRAINT UQ_F03PublicFormQuestionOptions_Code UNIQUE(QuestionId,OptionCode)
 ); END;
+
 IF OBJECT_ID(N'dbo.F03PublicFormAudiences', N'U') IS NULL
 BEGIN
 CREATE TABLE dbo.F03PublicFormAudiences(
@@ -50,6 +54,7 @@ CREATE TABLE dbo.F03PublicFormAudiences(
  CONSTRAINT FK_F03PublicFormAudiences_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE,
  CONSTRAINT CK_F03PublicFormAudiences_Type CHECK(ScopeType IN (N'AllCompany',N'Department',N'Position',N'Employee'))
 ); END;
+
 IF OBJECT_ID(N'dbo.F03PublicFormSubmissions', N'U') IS NULL
 BEGIN
 CREATE TABLE dbo.F03PublicFormSubmissions(
@@ -63,6 +68,7 @@ CREATE TABLE dbo.F03PublicFormSubmissions(
  CONSTRAINT FK_F03PublicFormSubmissions_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE,
  CONSTRAINT CK_F03PublicFormSubmissions_Status CHECK(Status IN (N'Submitted',N'Approved',N'Rejected',N'Cancelled'))
 ); END;
+
 IF OBJECT_ID(N'dbo.F03PublicFormAnswers', N'U') IS NULL
 BEGIN
 CREATE TABLE dbo.F03PublicFormAnswers(
@@ -73,6 +79,7 @@ CREATE TABLE dbo.F03PublicFormAnswers(
  CONSTRAINT FK_F03PublicFormAnswers_Question FOREIGN KEY(QuestionId) REFERENCES dbo.F03PublicFormQuestions(Id),
  CONSTRAINT UQ_F03PublicFormAnswers UNIQUE(SubmissionId,QuestionId)
 ); END;
+
 /* BaseAuditEntity compatibility for databases where these tables were created by an older version of this script. */
 DECLARE @PublicFormAuditTable sysname;
 DECLARE @Sql nvarchar(max);
@@ -93,8 +100,7 @@ WHILE @@FETCH_STATUS = 0
 BEGIN
     IF COL_LENGTH(N'dbo.' + @PublicFormAuditTable, N'LastModifiedSource') IS NULL
     BEGIN
-        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@PublicFormAuditTable)
-                 + N' ADD LastModifiedSource nvarchar(max) NULL;';
+        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@PublicFormAuditTable) + N' ADD LastModifiedSource nvarchar(max) NULL;';
         EXEC sys.sp_executesql @Sql;
     END;
     FETCH NEXT FROM PublicFormAuditCursor INTO @PublicFormAuditTable;
@@ -127,7 +133,7 @@ CREATE TABLE dbo.F03PublicFormAudits(
 );
 END;
 
-/* Recipient feedback is separate from answers so it is not mixed into form data. */
+/* Recipient feedback is intentionally not a child cascade of the form because a form already cascades to submissions. Keeping this relationship NO ACTION avoids multiple cascade paths while preserving the optional submission link. */
 IF OBJECT_ID(N'dbo.F03PublicFormFeedbacks',N'U') IS NULL
 BEGIN
 CREATE TABLE dbo.F03PublicFormFeedbacks(
@@ -142,16 +148,29 @@ CREATE TABLE dbo.F03PublicFormFeedbacks(
  ModifiedAt datetime2 NULL,
  LastModifiedSource nvarchar(max) NULL,
  IsActive bit NULL CONSTRAINT DF_F03PublicFormFeedbacks_IsActive DEFAULT 1,
- CONSTRAINT FK_F03PublicFormFeedbacks_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE,
+ CONSTRAINT FK_F03PublicFormFeedbacks_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE NO ACTION,
  CONSTRAINT FK_F03PublicFormFeedbacks_Submission FOREIGN KEY(SubmissionId) REFERENCES dbo.F03PublicFormSubmissions(Id) ON DELETE SET NULL
 );
 END;
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormAudits_FormCreated' AND object_id=OBJECT_ID(N'dbo.F03PublicFormAudits'))
-    CREATE INDEX IX_F03PublicFormAudits_FormCreated ON dbo.F03PublicFormAudits(FormId,CreatedAt DESC);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormFeedbacks_FormEmployee' AND object_id=OBJECT_ID(N'dbo.F03PublicFormFeedbacks'))
-    CREATE INDEX IX_F03PublicFormFeedbacks_FormEmployee ON dbo.F03PublicFormFeedbacks(FormId,EmployeeCode,CreatedAt DESC);
+/* Repair an older database where Feedbacks was created with the invalid CASCADE + SET NULL combination. */
+IF OBJECT_ID(N'dbo.F03PublicFormFeedbacks',N'U') IS NOT NULL
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PublicFormFeedbacks_Form' AND parent_object_id=OBJECT_ID(N'dbo.F03PublicFormFeedbacks'))
+        ALTER TABLE dbo.F03PublicFormFeedbacks DROP CONSTRAINT FK_F03PublicFormFeedbacks_Form;
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PublicFormFeedbacks_Form' AND parent_object_id=OBJECT_ID(N'dbo.F03PublicFormFeedbacks'))
+        ALTER TABLE dbo.F03PublicFormFeedbacks ADD CONSTRAINT FK_F03PublicFormFeedbacks_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE NO ACTION;
+END;
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormAudits_FormCreated' AND object_id=OBJECT_ID(N'dbo.F03PublicFormAudits')) CREATE INDEX IX_F03PublicFormAudits_FormCreated ON dbo.F03PublicFormAudits(FormId,CreatedAt DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormFeedbacks_FormEmployee' AND object_id=OBJECT_ID(N'dbo.F03PublicFormFeedbacks')) CREATE INDEX IX_F03PublicFormFeedbacks_FormEmployee ON dbo.F03PublicFormFeedbacks(FormId,EmployeeCode,CreatedAt DESC);
+
+/* F03Functions has a unique FunctionKey in newer schemas. Older seed statements omitted it and therefore inserted the empty default repeatedly. Temporarily remove the unique index while seeding, then normalize all missing keys and recreate it. */
+IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03Functions_FunctionKey' AND object_id=OBJECT_ID(N'dbo.F03Functions'))
+        DROP INDEX UX_F03Functions_FunctionKey ON dbo.F03Functions;
+END;
 
 IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
 BEGIN
@@ -162,7 +181,6 @@ BEGIN
  UPDATE dbo.F03Functions SET FunctionName=N'Public Registration Form - Manage',Detail=N'Tạo, thiết kế, publish, đóng và quản lý biểu mẫu đăng ký động',ModuleCode=N'PublicForm',ActionCode=N'Manage',ScopeCode=N'All',DisplayOrder=2807,IsActive=1 WHERE FunctionCode=2807;
 END;
 
-/* Submission reporting capabilities are intentionally separate from PublicForm.Manage. */
 IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
 BEGIN
     INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
@@ -173,24 +191,14 @@ BEGIN
     ) v(FunctionCode,FunctionName,Detail,ActionCode,DisplayOrder)
     WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
 
-    UPDATE f
-    SET FunctionName=v.FunctionName,
-        Detail=v.Detail,
-        ModuleCode=N'PublicForm',
-        ActionCode=v.ActionCode,
-        ScopeCode=N'All',
-        DisplayOrder=v.DisplayOrder,
-        IsActive=1
-    FROM dbo.F03Functions f
-    JOIN (VALUES
+    UPDATE f SET FunctionName=v.FunctionName,Detail=v.Detail,ModuleCode=N'PublicForm',ActionCode=v.ActionCode,ScopeCode=N'All',DisplayOrder=v.DisplayOrder,IsActive=1
+    FROM dbo.F03Functions f JOIN (VALUES
         (2808,N'PublicForm.SubmissionView',N'Xem danh sách, chi tiết và tổng hợp đăng ký biểu mẫu',N'SubmissionView',2808),
         (2809,N'PublicForm.Export',N'Xuất Excel dữ liệu đăng ký biểu mẫu',N'Export',2809)
-    ) v(FunctionCode,FunctionName,Detail,ActionCode,DisplayOrder)
-      ON f.FunctionCode=v.FunctionCode;
+    ) v(FunctionCode,FunctionName,Detail,ActionCode,DisplayOrder) ON f.FunctionCode=v.FunctionCode;
 END;
 GO
 
-/* Granular Public Form capabilities. Management capabilities use All data scope; access is restricted to Administration department 13 by the API. Recipient capabilities are Personal/Own. */
 IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
 BEGIN
     INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
@@ -208,11 +216,8 @@ BEGIN
     ) v(FunctionCode,FunctionName,Detail,ActionCode,ScopeCode,DisplayOrder)
     WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
 
-    UPDATE f
-    SET FunctionName=v.FunctionName, Detail=v.Detail, ModuleCode=N'PublicForm',
-        ActionCode=v.ActionCode, ScopeCode=v.ScopeCode, DisplayOrder=v.DisplayOrder, IsActive=1
-    FROM dbo.F03Functions f
-    JOIN (VALUES
+    UPDATE f SET FunctionName=v.FunctionName,Detail=v.Detail,ModuleCode=N'PublicForm',ActionCode=v.ActionCode,ScopeCode=v.ScopeCode,DisplayOrder=v.DisplayOrder,IsActive=1
+    FROM dbo.F03Functions f JOIN (VALUES
         (2810,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2810),
         (2811,N'PublicForm.Submit',N'Trả lời và gửi biểu mẫu được chỉ định',N'Submit',N'Own',2811),
         (2812,N'PublicForm.Feedback',N'Gửi phản hồi về biểu mẫu',N'Feedback',N'Own',2812),
@@ -222,12 +227,30 @@ BEGIN
         (2816,N'PublicForm.ResultView',N'Xem kết quả và phản hồi đã gửi',N'ResultView',N'All',2816),
         (2817,N'PublicForm.ResultExport',N'Xuất kết quả biểu mẫu',N'Export',N'All',2817),
         (2818,N'PublicForm.AuditView',N'Xem lịch sử tạo, sửa và thay đổi trạng thái biểu mẫu',N'AuditView',N'All',2818)
-    ) v(FunctionCode,FunctionName,Detail,ActionCode,ScopeCode,DisplayOrder)
-      ON f.FunctionCode=v.FunctionCode;
+    ) v(FunctionCode,FunctionName,Detail,ActionCode,ScopeCode,DisplayOrder) ON f.FunctionCode=v.FunctionCode;
 END;
 GO
 
-/* Recipients: standard User role receives only Personal/Own capabilities. */
+/* Normalize FunctionKey for the seeded PublicForm capabilities and any pre-existing blank legacy keys. */
+IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03Functions',N'FunctionKey') IS NOT NULL
+BEGIN
+    UPDATE f SET FunctionKey = CONCAT(N'PublicForm.', f.FunctionCode)
+    FROM dbo.F03Functions f
+    WHERE f.FunctionCode BETWEEN 2807 AND 2818;
+
+    UPDATE f
+    SET FunctionKey = CONCAT(
+        COALESCE(NULLIF(LTRIM(RTRIM(f.ModuleCode)),N''),N'Legacy'),N'.',
+        COALESCE(NULLIF(LTRIM(RTRIM(f.ActionCode)),N''),N'Function'),N'.',
+        f.FunctionCode,N'.',f.Id)
+    FROM dbo.F03Functions f
+    WHERE f.FunctionKey IS NULL OR LTRIM(RTRIM(f.FunctionKey))=N'';
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03Functions_FunctionKey' AND object_id=OBJECT_ID(N'dbo.F03Functions'))
+        CREATE UNIQUE INDEX UX_F03Functions_FunctionKey ON dbo.F03Functions(FunctionKey);
+END;
+GO
+
 IF OBJECT_ID(N'dbo.F03RoleFunctions',N'U') IS NOT NULL
 BEGIN
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
@@ -236,39 +259,28 @@ BEGIN
     WHERE r.RoleCode IN (3,4,5) AND f.FunctionCode IN (2810,2811,2812)
       AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 
-    /* Business roles may hold the management capability; the API restricts module ownership to Administration department 13. */
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
-    SELECT r.Id,f.Id,
-           N'All',
-           N'Management'
+    SELECT r.Id,f.Id,N'All',N'Management'
     FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
     WHERE r.RoleCode IN (1,2,3,4,5)
       AND f.FunctionCode IN (2813,2814,2815,2816,2817,2818)
       AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 
-    UPDATE rf
-    SET ScopeCode=N'All', AccessMode=N'Management'
+    UPDATE rf SET ScopeCode=N'All',AccessMode=N'Management'
     FROM dbo.F03RoleFunctions rf
     JOIN dbo.F03Roles r ON r.Id=rf.IdRole
     JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
-    WHERE f.FunctionCode IN (2813,2814,2815,2816,2817,2818)
-      AND r.RoleCode IN (1,2,3,4,5);
+    WHERE f.FunctionCode IN (2813,2814,2815,2816,2817,2818) AND r.RoleCode IN (1,2,3,4,5);
 END;
 GO
 
-/* Bootstrap these capabilities for system administrators only.
-   Other HR users receive them through the normal RBAC role/function assignment UI. */
 IF OBJECT_ID(N'dbo.F03RoleFunctions',N'U') IS NOT NULL
 BEGIN
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
     SELECT r.Id,f.Id
-    FROM dbo.F03Roles r
-    CROSS JOIN dbo.F03Functions f
+    FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
     WHERE r.RoleCode IN (1,2)
       AND f.FunctionCode IN (2808,2809)
-      AND NOT EXISTS (
-          SELECT 1 FROM dbo.F03RoleFunctions rf
-          WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id
-      );
+      AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 END;
 GO
