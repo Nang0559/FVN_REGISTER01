@@ -492,6 +492,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             where ur.IdUser == userId && r.IsActive == true && (f.IsActive ?? true)
             select f
         ).Distinct()
+            .GroupBy(x => x.FunctionCode)
             .Select(g => g.OrderBy(x => x.DisplayOrder).First())
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.FunctionCode)
@@ -508,10 +509,15 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             })
             .ToList();
 
+        var permissionCode = await _uow.Repository<F03User>().Query()
+            .Where(u => u.Id == userId)
+            .Select(u => (int?)u.PermissionCode)
+            .FirstOrDefaultAsync(ct);
+
         return new PermissionSnapshotDto
         {
             UserId = userId,
-            PermissionCode = legacyRole,
+            PermissionCode = permissionCode,
             RoleCodes = roleCodes,
             Functions = functions,
             FunctionCodes = functions.Select(x => x.FunctionCode).ToHashSet()
