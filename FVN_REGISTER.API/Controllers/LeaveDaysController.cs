@@ -157,7 +157,6 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
@@ -175,7 +174,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetRecent([FromQuery] int limit = 5, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo?.EmployeeCode == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return HandleResult(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct));
