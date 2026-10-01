@@ -107,13 +107,8 @@ public sealed class EquipmentController : ControllerBase
     [HttpGet("assigned-to-me")]
     public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> AssignedToMe(CancellationToken ct)
     {
-        var canView = await CanPersonalAsync(SecurityFunctionCodes.EquipmentView, ct);
-        var canRepair = await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct);
-        var user = _currentUser.GetCurrentUser();
-        var assigned = user != null && !string.IsNullOrWhiteSpace(user.EmployeeCode) &&
-            await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.IsActive == true &&
-                (x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode), ct);
-        if (!canView && !canRepair && !assigned) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentView, ct))
+            return Forbid();
         var result = await _service.GetMyAssignedAssetsAsync(ct);
         return result.IsSuccess ? Ok(ApiResponse<List<EquipmentAssetDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentAssetDto>>.FromResult(result));
     }
