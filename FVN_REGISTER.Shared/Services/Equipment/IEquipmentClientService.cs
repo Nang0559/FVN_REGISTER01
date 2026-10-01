@@ -48,7 +48,7 @@ public interface IEquipmentClientService
     Task<ApiResponse<ExcelSchemaFieldDto>> SaveSchemaFieldAsync(SaveExcelSchemaFieldRequest request, CancellationToken ct = default);
     Task<ApiResponse<ExcelImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee = false, int sheetIndex = 0, CancellationToken ct = default);
     Task<ApiResponse<ExcelImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee, CancellationToken ct);
-    Task<ApiResponse<ExcelImportCommitResultDto>> CommitImportAsync(int batchId, CancellationToken ct = default);
+    Task<ApiResponse<ExcelImportCommitResultDto>> CommitImportAsync(long batchId, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentAssetDto>>> GetRegisteredInspectionAssetsAsync(string? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentInspectionTemplateDto>>> GetInspectionTemplatesAsync(string? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<EquipmentInspectionTemplateDto>> GetInspectionTemplateAsync(int id, CancellationToken ct = default);
