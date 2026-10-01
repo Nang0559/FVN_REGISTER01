@@ -348,7 +348,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 FunctionCode = x.FunctionCode,
                 ModuleCode = x.ModuleCode!,
                 ActionCode = x.ActionCode ?? string.Empty,
-                ScopeCode = x.ScopeCode
+                ScopeCode = x.ScopeCode,
+                AccessMode = x.AccessMode
             })
             .ToList();
 
