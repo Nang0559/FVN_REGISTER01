@@ -22,8 +22,8 @@ public sealed class SecurityFunctionCapabilityMatrixTests
         {
             Functions = new List<SecurityFunctionDto>
             {
-                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Own },
-                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Department }
+                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Own, AccessMode = "Personal" },
+                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Department, AccessMode = "Management" }
             },
             FunctionCodes = new HashSet<int> { SecurityFunctionCodes.LeaveView }
         };
