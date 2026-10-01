@@ -89,7 +89,7 @@ public sealed class EquipmentController : ControllerBase
     [HttpPost("registrations")]
     public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> CreateRegistration([FromBody] CreateEquipmentRegistrationDto request, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
         var result = await _service.CreateRegistrationDraftAsync(request, ct);
         var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
@@ -107,7 +107,7 @@ public sealed class EquipmentController : ControllerBase
     [HttpGet("assigned-to-me")]
     public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> AssignedToMe(CancellationToken ct)
     {
-        var canView = await CanAsync(SecurityFunctionCodes.EquipmentView, ct);
+        var canView = await CanPersonalAsync(SecurityFunctionCodes.EquipmentView, ct);
         var canRepair = await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct);
         var user = _currentUser.GetCurrentUser();
         var assigned = user != null && !string.IsNullOrWhiteSpace(user.EmployeeCode) &&
