@@ -120,21 +120,19 @@
 
     private async Task LoadAsync(DateTime from, DateTime to)
     {
-        {
-            _rangeFrom = from.Date;
-            _rangeTo = to.Date;
-        
-            var effectiveEmployeeCode = EmployeeCode?.Trim();
-            if (string.IsNullOrWhiteSpace(effectiveEmployeeCode))
-                effectiveEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
-        
-            var result = string.IsNullOrWhiteSpace(effectiveEmployeeCode)
-                ? await CalendarService.GetAsync(from.Date, to.Date)
-                : await CalendarService.GetForEmployeeAsync(effectiveEmployeeCode, from.Date, to.Date);
-        
-            if (result.IsSuccess && result.Data is not null)
-                _data = result.Data;
-        }, Language.T("common.loading"));
+        _rangeFrom = from.Date;
+        _rangeTo = to.Date;
+
+        var effectiveEmployeeCode = EmployeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(effectiveEmployeeCode))
+            effectiveEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
+
+        var result = string.IsNullOrWhiteSpace(effectiveEmployeeCode)
+            ? await CalendarService.GetAsync(from.Date, to.Date)
+            : await CalendarService.GetForEmployeeAsync(effectiveEmployeeCode, from.Date, to.Date);
+
+        if (result.IsSuccess && result.Data is not null)
+            _data = result.Data;
     }
 
     private List<object> BuildDays()
