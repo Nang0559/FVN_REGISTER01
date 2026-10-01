@@ -48,7 +48,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Create([FromBody] LeaveRequestUpsertDto model, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveCreate, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveCreate, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (!ModelState.IsValid) return BadRequest(ModelState);
             return HandleResult(await _leaveService.CreateAsync(model, UserInfo, ct));
@@ -58,7 +58,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Cancel(int id, [FromBody] LeaveCancelRequestDto body, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveCancel, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveCancel, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
             return HandleResult(await _leaveService.CancelAsync(id, body.Reason, UserInfo, ct));
@@ -136,7 +136,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetBalance(int year, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo?.EmployeeCode == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
@@ -155,9 +155,9 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetHistory([FromQuery] int? year, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
