@@ -12,6 +12,7 @@ using FVN_REGISTER.Shared.Services.Histories;
 using FVN_REGISTER.Shared.Services.History;
 using FVN_REGISTER.Shared.Services.HrmSync;
 using FVN_REGISTER.Shared.Services.Language;
+using FVN_REGISTER.Shared.Services.Loading;
 using FVN_REGISTER.Shared.Services.Leaves;
 using FVN_REGISTER.Shared.Services.Notifications;
 using FVN_REGISTER.Shared.Services.OTs;
@@ -35,6 +36,7 @@ builder.Services.AddMudServices(config =>
 });
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<ILanguageService, LanguageService>();
+builder.Services.AddScoped<ILoadingService, LoadingService>();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies").AddCookie("Cookies", options => { options.LoginPath = "/login"; options.AccessDeniedPath = "/access-denied"; });
 builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState();
