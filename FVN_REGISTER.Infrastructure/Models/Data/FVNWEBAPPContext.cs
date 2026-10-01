@@ -106,6 +106,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03PublicFormSubmission> PublicFormSubmissions { get; set; }
     public DbSet<F03PublicFormAnswer> PublicFormAnswers { get; set; }
     public DbSet<F03PublicFormAudit> PublicFormAudits { get; set; }
+    public DbSet<F03PublicFormFeedback> PublicFormFeedbacks { get; set; }
     public DbSet<F03HrmUserRoleRule> HrmUserRoleRules { get; set; }
     public DbSet<F03BusinessRule> BusinessRules { get; set; }
     public DbSet<F03CompanyHoliday> CompanyHolidays { get; set; }
@@ -168,6 +169,7 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<F03PublicFormSubmission>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.FormId, x.EmployeeCode, x.Status }); entity.HasMany(x => x.Answers).WithOne().HasForeignKey(x => x.SubmissionId).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<F03PublicFormAnswer>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.SubmissionId, x.QuestionId }).IsUnique(); });
         modelBuilder.Entity<F03PublicFormAudit>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.FormId, x.CreatedAt }); entity.HasIndex(x => new { x.FormId, x.ActionCode }); });
+        modelBuilder.Entity<F03PublicFormFeedback>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.FormId, x.EmployeeCode, x.CreatedAt }); entity.HasIndex(x => x.SubmissionId); });
         modelBuilder.Entity<F03Position>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.PositionCode).IsRequired().HasMaxLength(20); entity.HasIndex(x => x.PositionCode).IsUnique(); });
         modelBuilder.Entity<F03ApprovalPolicy>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.PositionCode).IsRequired().HasMaxLength(20); entity.HasIndex(x => new { x.RequestType, x.PositionCode, x.Level }).IsUnique(); entity.HasOne<F03Position>().WithMany().HasForeignKey(x => x.PositionCode).HasPrincipalKey(x => x.PositionCode).OnDelete(DeleteBehavior.Restrict); });
         modelBuilder.Entity<F03ApprovalSelection>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.RequestType, x.RequestId, x.Level }).IsUnique(); });
