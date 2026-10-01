@@ -118,7 +118,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        return (stream.ToArray(), $"FVN_Localization_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+        return Task.FromResult((stream.ToArray(), $"FVN_Localization_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"));
     }
 
     public async Task<LocalizationImportResultDto> ImportAsync(Stream content, string fileName, CancellationToken ct = default)
