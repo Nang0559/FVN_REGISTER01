@@ -154,6 +154,8 @@ END;
 /* Role-specific scope override: one capability can be personal for User role and management-scoped for Approver/Manager role. */
 IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ScopeCode') IS NULL
     ALTER TABLE dbo.F03RoleFunctions ADD ScopeCode nvarchar(30) NULL;
+IF COL_LENGTH(N'dbo.F03RoleFunctions',N'AccessMode') IS NULL
+    ALTER TABLE dbo.F03RoleFunctions ADD AccessMode nvarchar(20) NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03RoleFunctions_Role_Function' AND object_id=OBJECT_ID(N'dbo.F03RoleFunctions'))
@@ -323,7 +325,8 @@ GO
     granted by each Role -> Function/Action edge.
 */
 UPDATE rf
-SET ScopeCode = CASE
+SET AccessMode = CASE WHEN r.RoleCode = 4 THEN N'Management' WHEN r.RoleCode = 5 THEN N'Personal' ELSE rf.AccessMode END,
+    ScopeCode = CASE
     WHEN r.RoleCode = 5 THEN N'Own'
     WHEN r.RoleCode = 4 AND f.ActionCode IN(N'View',N'Approve') THEN N'Department'
     ELSE rf.ScopeCode
