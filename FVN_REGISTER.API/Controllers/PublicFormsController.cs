@@ -311,13 +311,10 @@ public sealed class PublicFormsController : BaseApiController
             !await _authorization.HasManagementAsync(UserInfo, functionCode, ct))
             return false;
 
-        var scope = await _authorization.GetScopeAsync(UserInfo.UserId, functionCode, ct);
-
-        if (string.Equals(scope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(UserInfo.DeptCode?.Trim(), AdministrationDepartmentCode, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(
+            UserInfo.DeptCode?.Trim(),
+            AdministrationDepartmentCode,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<bool> CanAnyManagementAsync(CancellationToken ct, params int[] functionCodes)
