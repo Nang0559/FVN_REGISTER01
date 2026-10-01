@@ -337,6 +337,42 @@ JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
 WHERE r.RoleCode IN(4,5)
   AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment');
 
+/* Standard self-service / management capabilities for calendar and attendance. */
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+SELECT r.Id,f.Id,N'Own',N'Personal'
+FROM dbo.F03Roles r
+JOIN dbo.F03Functions f ON f.FunctionCode=2901
+WHERE r.RoleCode=5
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+UPDATE rf
+SET ScopeCode=N'Own', AccessMode=N'Personal'
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode=5 AND f.FunctionCode=2901;
+
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+SELECT r.Id,f.Id,N'Own',N'Personal'
+FROM dbo.F03Roles r
+JOIN dbo.F03Functions f ON f.FunctionCode=3043
+WHERE r.RoleCode=5
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+SELECT r.Id,f.Id,N'Department',N'Management'
+FROM dbo.F03Roles r
+JOIN dbo.F03Functions f ON f.FunctionCode=3043
+WHERE r.RoleCode=4
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+UPDATE rf
+SET ScopeCode=N'Department', AccessMode=N'Management'
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode=4 AND f.FunctionCode=3043;
+
 -- Approver is a management/approval role; it must not inherit personal registration actions.
 DELETE rf
 FROM dbo.F03RoleFunctions rf
