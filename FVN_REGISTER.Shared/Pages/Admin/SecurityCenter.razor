@@ -850,8 +850,7 @@
             r => r.RoleCode,
             r => r.FunctionScopes.ToDictionary(
                 x => x.Key,
-                x => string.IsNullOrWhiteSpace(x.Value) ? AuthorizationScopeCodes.Own : x.Value,
-                StringComparer.OrdinalIgnoreCase));
+                x => string.IsNullOrWhiteSpace(x.Value) ? AuthorizationScopeCodes.Own : x.Value));
     }
 
     private bool HasRoleFunction(int roleCode, int functionCode)
@@ -956,7 +955,7 @@
             {
                 var index = _roles.FindIndex(x => x.RoleCode == role.RoleCode);
                 if (index >= 0) _roles[index] = saved;
-                _matrix[role.RoleCode] = saved.FunctionScopes.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+                _matrix[role.RoleCode] = saved.FunctionScopes.ToDictionary(x => x.Key, x => x.Value);
             }
 
             if (_selected != null)
