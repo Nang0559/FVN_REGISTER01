@@ -17,6 +17,14 @@ TEXT_RE = re.compile(r'>(?P<text>[^<>@\r\n]+)<')
 SNACKBAR_RE = re.compile(r'Snackbar\.Add\(\s*"(?P<value>[^"]+)"')
 PLACEHOLDER_RE = re.compile(r"\{(\d+)\}")
 
+def looks_like_ui_text(value: str) -> bool:
+    if not value or value.startswith("@") or "://" in value:
+        return False
+    if re.fullmatch(r"[A-Za-z0-9_./:%+\-–—→•()\[\]{}]+", value):
+        return False
+    return bool(re.search(r"[A-Za-zÀ-ỹぁ-んァ-ヶ一-龯]", value))
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", default="", help="Optional JSON audit output path.")
 args = parser.parse_args()
