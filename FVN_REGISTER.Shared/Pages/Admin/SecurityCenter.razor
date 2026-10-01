@@ -79,17 +79,21 @@
 
                             <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("security.role")</MudText>
                             <MudSelect T="int" MultiSelection="true" SelectedValues="_selectedRoles"
-                                       SelectedValuesChanged="RolesChanged" Variant="Variant.Outlined">
+                                       SelectedValuesChanged="RolesChanged" Variant="Variant.Outlined"
+                                       Disabled="@(!CanAssignPermissions)">
                                 @foreach (var role in _roles)
                                 {
                                     <MudSelectItem T="int" Value="@role.RoleCode">@role.RoleCode - @role.RoleName</MudSelectItem>
                                 }
                             </MudSelect>
 
-                            <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
-                                       OnClick="SaveRolesAsync" Disabled="_saving">
-                                @Language.T("security.luuRole")
-                            </MudButton>
+                            @if (CanAssignPermissions)
+                            {
+                                <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
+                                           OnClick="SaveRolesAsync" Disabled="_saving">
+                                    @Language.T("security.luuRole")
+                                </MudButton>
+                            }
 
                             @if (CanResetPassword)
                             {
