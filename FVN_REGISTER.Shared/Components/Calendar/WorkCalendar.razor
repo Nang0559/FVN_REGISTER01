@@ -259,10 +259,16 @@
     public async Task OnCalendarRangeChanged(string start, string end)
     {
         if (!DateTime.TryParse(start, out var from)
-            || !DateTime.TryParse(end, out var to))
+            || !DateTime.TryParse(end, out _))
             return;
 
-        await LoadAsync(from.Date, to.Date.AddDays(-1));
+        // Load exactly the month currently displayed by FullCalendar.
+        // Navigation to any previous/future month therefore replaces the
+        // current data with that month's attendance + registrations.
+        var monthStart = new DateTime(from.Year, from.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        await LoadAsync(monthStart, monthEnd);
 
         if (_initialized)
             await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
