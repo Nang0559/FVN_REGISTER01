@@ -62,4 +62,5 @@ public sealed record SecurityRoleDto(
 {
     public int IdRole => Id;
     public List<int> FunctionCodes { get; init; } = new();
+    public Dictionary<int, string> FunctionScopes { get; init; } = new();
 }
