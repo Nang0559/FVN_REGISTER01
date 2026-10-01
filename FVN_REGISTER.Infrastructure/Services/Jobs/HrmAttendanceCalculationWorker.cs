@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs;
 /// Company-wide attendance calculation scheduler.
 ///
 /// Contract:
-/// 1. On application start, backfill the current payroll period through yesterday.
+/// 1. On application start, catch up the missing company-wide range through yesterday.
 /// 2. Every day at 00:30, calculate yesterday for the whole company.
 /// 3. Manual department/date calculation uses the same IHrmAttendanceCalculationService
 ///    and the same dbo.usp_CalculateHrmAttendance procedure.
@@ -76,15 +76,16 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     private async Task RunCatchUpAsync(CancellationToken ct)
     {
         var yesterday = DateTime.Today.AddDays(-1).Date;
-        var payrollStart = await GetPayrollPeriodStartAsync(yesterday, ct);
-        if (!payrollStart.HasValue) return;
+        var from = await GetCompanyWideCatchUpStartAsync(yesterday, ct);
+        if (!from.HasValue || from.Value > yesterday)
+            return;
 
         _logger.LogInformation(
-            "[HRM_ATTENDANCE_WORKER] Catch-up company-wide: {From} -> {To}",
-            payrollStart.Value.ToString("dd/MM/yyyy"),
+            "[HRM_ATTENDANCE_WORKER] Catch-up company-wide missing range: {From} -> {To}",
+            from.Value.ToString("dd/MM/yyyy"),
             yesterday.ToString("dd/MM/yyyy"));
 
-        await CalculateCompanyWideAsync(payrollStart.Value, yesterday, "HRM-ATTENDANCE-WORKER-CATCHUP", ct);
+        await CalculateCompanyWideAsync(from.Value, yesterday, "HRM-ATTENDANCE-WORKER-CATCHUP", ct);
     }
 
     private async Task RunYesterdayAsync(CancellationToken ct)
@@ -119,8 +120,10 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 {
                     // NULL = all active HRM employees/company-wide.
                     DeptCode = null,
+                    EmployeeCode = null,
                     FromDate = from,
-                    ToDate = to
+                    ToDate = to,
+                    ReopenPayrollPeriod = true
                 },
                 triggeredBy,
                 ct);
@@ -164,6 +167,25 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 from.ToString("dd/MM/yyyy"),
                 to.ToString("dd/MM/yyyy"));
         }
+    }
+
+    private async Task<DateTime?> GetCompanyWideCatchUpStartAsync(DateTime yesterday, CancellationToken ct)
+    {
+        await using var scope = _serviceProvider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
+
+        var last = await db.Database.SqlQuery<DateOnly>($"""
+            SELECT MAX(r.ToDate) AS Value
+            FROM dbo.F03HrmAttendanceCalculationRun AS r
+            WHERE r.Status=N'Succeeded'
+              AND r.DeptCode IS NULL
+              AND r.EmployeeCode IS NULL
+        """).SingleOrDefaultAsync(ct);
+
+        if (last != default)
+            return last.AddDays(1).ToDateTime(TimeOnly.MinValue);
+
+        return await GetPayrollPeriodStartAsync(yesterday, ct);
     }
 
     private async Task<DateTime?> GetPayrollPeriodStartAsync(DateTime date, CancellationToken ct)
