@@ -41,18 +41,18 @@ else if (_model != null)
                     <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">@Language.T("home.workspaceDescription")</MudText>
                 </div>
                 <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign" OnClick='@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))'>@Language.T("home.information")</MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign" OnClick="OpenPath_thong_tin_cong_khai">@Language.T("home.information")</MudButton>
                     @if (CanPersonal(SecurityFunctionCodes.LeaveCreate))
                     {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" OnClick='@(() => Navigation.NavigateTo("/leave/create"))'>@Language.T("home.createLeave")</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" OnClick="OpenPath_leave_create">@Language.T("home.createLeave")</MudButton>
                     }
                     @if (CanPersonal(SecurityFunctionCodes.OTCreate))
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule" OnClick='@(() => Navigation.NavigateTo("/ot/create"))'>@Language.T("home.createOt")</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule" OnClick="OpenPath_ot_create">@Language.T("home.createOt")</MudButton>
                     }
                     @if (CanPersonal(SecurityFunctionCodes.TripCreate))
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FlightTakeoff" OnClick='@(() => Navigation.NavigateTo("/trip/create"))'>@Language.T("home.createTrip")</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FlightTakeoff" OnClick="OpenPath_trip_create">@Language.T("home.createTrip")</MudButton>
                     }
                 </MudStack>
             </MudStack>
@@ -99,11 +99,11 @@ else if (_model != null)
                     </div>
                     @if (Can(SecurityFunctionCodes.EquipmentImport))
                     {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick='@(() => Navigation.NavigateTo("/equipment/workspace"))'>@Language.T("home.importExcel")</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="OpenPath_equipment_workspace">@Language.T("home.importExcel")</MudButton>
                     }
                     else
                     {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices" OnClick='@(() => Navigation.NavigateTo("/equipment"))'>@Language.T("home.openEquipment")</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices" OnClick="OpenPath_equipment">@Language.T("home.openEquipment")</MudButton>
                     }
                 </MudStack>
             </MudPaper>
@@ -114,7 +114,7 @@ else if (_model != null)
 }
 else if (_guestFallback)
 {
-    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8"><MudPaper Outlined="true" Class="pa-6" Style="border-radius:20px"><MudText Typo="Typo.h5">@Language.T("home.publicInformation")</MudText><MudText Typo="Typo.body2" Class="mt-2 mb-4 mud-text-secondary">@Language.T("home.publicOnlyDescription")</MudText><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Campaign" OnClick='@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))'>@Language.T("home.openPublicInformation")</MudButton></MudPaper></MudContainer>
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8"><MudPaper Outlined="true" Class="pa-6" Style="border-radius:20px"><MudText Typo="Typo.h5">@Language.T("home.publicInformation")</MudText><MudText Typo="Typo.body2" Class="mt-2 mb-4 mud-text-secondary">@Language.T("home.publicOnlyDescription")</MudText><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Campaign" OnClick="OpenPath_thong_tin_cong_khai">@Language.T("home.openPublicInformation")</MudButton></MudPaper></MudContainer>
 }
 else if (!string.IsNullOrWhiteSpace(_errorMessage))
 {
@@ -167,6 +167,17 @@ else
         catch (Exception ex) { _errorMessage = Language.T("home.loadError", ex.Message); Snackbar.Add(_errorMessage, Severity.Error); }
         finally { _isLoading = false; }
     }
+
+    private void OpenPath_thong_tin_cong_khai() => Navigation.NavigateTo("/thong-tin-cong-khai");
+    private void OpenPath_leave_create() => Navigation.NavigateTo("/leave/create");
+    private void OpenPath_ot_create() => Navigation.NavigateTo("/ot/create");
+    private void OpenPath_trip_create() => Navigation.NavigateTo("/trip/create");
+    private void OpenPath_work_inbox() => Navigation.NavigateTo("/work/inbox");
+    private void OpenPath_history_leave() => Navigation.NavigateTo("/history/leave");
+    private void OpenPath_history_ot() => Navigation.NavigateTo("/history/ot");
+    private void OpenPath_calendar() => Navigation.NavigateTo("/calendar");
+    private void OpenPath_equipment_workspace() => Navigation.NavigateTo("/equipment/workspace");
+    private void OpenPath_equipment() => Navigation.NavigateTo("/equipment");
 
     private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
     public void Dispose() { Language.LanguageChanged -= OnLanguageChanged; _cts.Cancel(); _cts.Dispose(); }
