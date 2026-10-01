@@ -58,7 +58,7 @@ public sealed class TripController : ControllerBase
     [HttpPost("{id:int}/submit")]
     public async Task<ActionResult<TripRequestDto>> Submit(int id, [FromBody] List<ApprovalSelectionDto>? approvalSelections, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
         var result = await _service.SubmitAsync(id, approvalSelections, ct);
         var response = ApiResponse<TripRequestDto>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
@@ -83,5 +83,11 @@ public sealed class TripController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         return user != null && await _authorization.HasAsync(user, functionCode, ct);
+    }
+
+    private async Task<bool> CanPersonalAsync(int functionCode, CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        return user != null && await _authorization.HasPersonalAsync(user, functionCode, ct);
     }
 }
