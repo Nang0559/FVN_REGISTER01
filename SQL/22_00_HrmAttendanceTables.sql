@@ -314,16 +314,6 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.indexes
-    WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun')
-      AND name=N'IX_F03HrmAttendanceCalculationRun_DateStatus'
-)
-    CREATE INDEX IX_F03HrmAttendanceCalculationRun_DateStatus
-        ON dbo.F03HrmAttendanceCalculationRun(FromDate,ToDate,Status,StartedAt DESC);
-GO
-
 /* Employee-scoped coverage metadata for calendar lazy backfill. */
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'EmployeeCode') IS NULL
     ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD EmployeeCode nvarchar(50) NULL;
