@@ -35,7 +35,7 @@ namespace FVN_REGISTER.Shared.Services.Notifications
         {
             try
             {
-                var result = await _http.GetAsync<UnreadCountDto>("api/notification/unread-count", ct);
+                var result = await _http.GetAsync<UnreadCountDto>("api/notification/unread-count", ct, showLoading: false);
                 if (result.IsSuccess && result.Data != null)
                 {
                     UnreadCount = result.Data.Count;
