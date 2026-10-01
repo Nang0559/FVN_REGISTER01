@@ -8,6 +8,7 @@ public interface IExcelPlatform
  Task<Stream> ExportAsync(string fileName,ExcelSchemaDefinition schema,IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,CancellationToken ct=default);
  Task<IReadOnlyList<ExcelSchemaSummary>> GetSchemasAsync(string moduleCode,string entityCode,bool includeRetired=false,CancellationToken ct=default);
  Task<ExcelSchemaSummary?> GetSchemaAsync(int schemaId,CancellationToken ct=default);
+ Task<ExcelSchemaDefinition?> GetSchemaDefinitionAsync(int schemaId,CancellationToken ct=default);
  Task<ExcelSchemaSummary> CreateDraftSchemaAsync(ExcelSchemaCreateRequest request,string? sourceFileName,CancellationToken ct=default);
  Task<ExcelSchemaSummary> ActivateSchemaAsync(int schemaId,CancellationToken ct=default);
  Task DeleteDraftSchemaAsync(int schemaId,CancellationToken ct=default);
