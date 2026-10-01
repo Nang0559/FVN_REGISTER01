@@ -761,7 +761,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             AuthorizationScopeCodes.All
         };
 
-        foreach (var overridePair in normalizedScopeOverrides
+        foreach (var overridePair in normalizedScopeOverrides)
         {
             if (!codes.Contains(overridePair.Key))
                 throw new InvalidOperationException($"Scope override không thuộc FunctionCodes: {overridePair.Key}.");
