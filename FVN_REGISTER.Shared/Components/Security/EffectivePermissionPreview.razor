@@ -28,7 +28,7 @@ else
             <MudText Typo="Typo.caption"><b>@group.Key</b></MudText>
             @foreach (var action in group.OrderBy(x => x.FunctionCode))
             {
-                <MudChip T="string" Size="Size.Small" Class="ma-1">@action.ActionCode · @action.ScopeCode</MudChip>
+                <MudChip T="string" Size="Size.Small" Class="ma-1">@action.ActionCode · @action.AccessMode · @action.ScopeCode</MudChip>
             }
         </MudPaper>
     }
