@@ -106,4 +106,9 @@
   "public.xemTaiLieu": "資料を見る",
   "public.xuatExcelThatBai": "Excelの出力に失敗しました。",
   "public.yeuCauApproval": "承認申請"
+,
+  "public.feedback": "フィードバック",
+  "public.guiPhanHoi": "フィードバックを送信",
+  "public.guiPhanHoiThanhCong": "フィードバックを送信しました。",
+  "public.guiPhanHoiThatBai": "フィードバックの送信に失敗しました。"
 }
