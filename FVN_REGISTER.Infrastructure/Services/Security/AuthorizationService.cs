@@ -532,7 +532,6 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .OrderBy(x => x.Function.DisplayOrder)
             .ThenBy(x => x.Function.FunctionCode)
             .Select(x => new SecurityFunctionDto
-            .Select(x => new SecurityFunctionDto
             {
                 IdFunction = x.Function.Id,
                 FunctionCode = x.Function.FunctionCode,
