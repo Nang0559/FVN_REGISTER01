@@ -87,21 +87,41 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   employeeCode=employeeCode.Trim();
   if(employeeCode.Length==0) return ServiceResult.Fail("Mã nhân viên là bắt buộc.");
 
+  // Future dates are registration/calendar data, not attendance-calculation input.
+  // Calendar may prepare data through today, but never calculate future attendance.
+  var effectiveTo = to > DateOnly.FromDateTime(DateTime.Today)
+      ? DateOnly.FromDateTime(DateTime.Today)
+      : to;
+  if(from > effectiveTo)
+   return ServiceResult.Ok();
+
   var runs=await _db.Database.SqlQuery<CoverageRun>($"""
    SELECT r.FromDate,r.ToDate,r.DeptCode,r.EmployeeCode,r.Status
    FROM dbo.F03HrmAttendanceCalculationRun AS r
    WHERE r.Status=N'Succeeded'
-     AND r.FromDate<={to}
+     AND r.FromDate<={effectiveTo}
      AND r.ToDate>={from}
      AND (
           r.EmployeeCode={employeeCode}
           OR (r.EmployeeCode IS NULL AND r.DeptCode IS NULL)
-          OR (r.EmployeeCode IS NULL AND r.DeptCode={deptCode})
      )
    ORDER BY r.FromDate
    """).ToListAsync(ct);
 
-  foreach(var gap in FindGaps(from,to,runs))
+  var gaps=FindGaps(from,effectiveTo,runs);
+
+  // Closed/exported payroll periods are immutable. They must be served from
+  // F03HrmAttendanceHistory by the calendar provider and must never be reopened
+  // or recalculated just because a user navigates to an old month.
+  var lockedPeriods=await _db.PayrollCalculationPeriods.AsNoTracking()
+   .Where(x=>x.IsActive!=false
+      && (x.Status=="Locked" || x.Status=="Exported")
+      && x.FromDate<=effectiveTo
+      && x.ToDate>=from)
+   .Select(x=>new DateRange(x.FromDate,x.ToDate))
+   .ToListAsync(ct);
+
+  foreach(var gap in SubtractRanges(gaps,lockedPeriods))
   {
    ct.ThrowIfCancellationRequested();
    var result=await CalculateAsync(
@@ -142,6 +162,39 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   }
   if(cursor<=to) gaps.Add(new DateRange(cursor,to));
   return gaps;
+ }
+
+ private static IReadOnlyList<DateRange> SubtractRanges(
+  IReadOnlyList<DateRange> source,
+  IReadOnlyList<DateRange> exclusions)
+ {
+  var result=new List<DateRange>();
+  foreach(var range in source)
+  {
+   var pieces=new List<DateRange>{range};
+   foreach(var exclusion in exclusions)
+   {
+    var next=new List<DateRange>();
+    foreach(var piece in pieces)
+    {
+     if(exclusion.To<piece.From || exclusion.From>piece.To)
+     {
+      next.Add(piece);
+      continue;
+     }
+
+     if(piece.From<exclusion.From)
+      next.Add(new DateRange(piece.From,exclusion.From.AddDays(-1)));
+
+     if(piece.To>exclusion.To)
+      next.Add(new DateRange(exclusion.To.AddDays(1),piece.To));
+    }
+    pieces=next;
+    if(pieces.Count==0) break;
+   }
+   result.AddRange(pieces);
+  }
+  return result;
  }
 
  private sealed record CoverageRun(DateOnly FromDate,DateOnly ToDate,string? DeptCode,string? EmployeeCode,string Status);
