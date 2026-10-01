@@ -46,6 +46,7 @@ public sealed class EffectivePermissionActionDto
     public string ModuleCode { get; set; } = string.Empty;
     public string ActionCode { get; set; } = string.Empty;
     public string? ScopeCode { get; set; }
+    public string? AccessMode { get; set; }
 }
 
 public sealed class EffectiveApprovalPolicyDto
