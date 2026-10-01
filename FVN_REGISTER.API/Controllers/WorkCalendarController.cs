@@ -258,16 +258,16 @@ public sealed class WorkCalendarController : BaseApiController
             return result;
         }
 
-        if (await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct))
+        if (await _authorization.HasManagementAsync(user, SecurityFunctionCodes.OTView, ct))
             result.Add("OT");
 
-        if (await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct))
+        if (await _authorization.HasManagementAsync(user, SecurityFunctionCodes.LeaveView, ct))
             result.Add("LEAVE");
 
-        if (await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct))
+        if (await _authorization.HasManagementAsync(user, SecurityFunctionCodes.TripView, ct))
             result.Add("TRIP");
 
-        if (await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct))
+        if (await _authorization.HasManagementAsync(user, SecurityFunctionCodes.AttendanceView, ct))
             result.Add("ATTENDANCE");
 
         return result;
