@@ -244,37 +244,23 @@ public sealed class EquipmentController : ControllerBase
         return Ok(true);
     }
 
-    [HttpGet("schema/{deptCode}")]
-    public async Task<ActionResult<List<EquipmentFieldDefinitionDto>>> Schema(string deptCode, CancellationToken ct)
-    {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        return Ok(await _import.GetFieldDefinitionsAsync(deptCode.Trim().ToUpperInvariant(), ct));
-    }
-
-    [HttpPut("schema")]
-    public async Task<ActionResult<EquipmentFieldDefinitionDto>> SaveSchema([FromBody] SaveEquipmentFieldDefinitionRequest request, CancellationToken ct)
-    {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        return Ok(await _import.SaveFieldDefinitionAsync(request, ct));
-    }
-
     [HttpPost("import")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<EquipmentImportBatchDto>>> Import([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int? schemaId = null, [FromQuery] int sheetIndex = 0, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelImportBatchDto>>> Import([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int? schemaId = null, [FromQuery] int sheetIndex = 0, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentImportBatchDto>.Fail("File Excel rỗng."));
-        if (sheetIndex < 0) return BadRequest(ApiResponse<EquipmentImportBatchDto>.Fail("Sheet Excel không hợp lệ."));
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("File Excel rỗng."));
+        if (sheetIndex < 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("Sheet Excel không hợp lệ."));
         deptCode = deptCode.Trim().ToUpperInvariant();
         await using var stream = file.OpenReadStream();
         var result = await _import.StageExcelSheetAsync(deptCode, schemaId, file.FileName, stream, sheetIndex, assignToEmployee, ct);
         return result.IsSuccess
-            ? Ok(ApiResponse<EquipmentImportBatchDto>.FromResult(result))
-            : BadRequest(ApiResponse<EquipmentImportBatchDto>.FromResult(result));
+            ? Ok(ApiResponse<ExcelImportBatchDto>.FromResult(result))
+            : BadRequest(ApiResponse<ExcelImportBatchDto>.FromResult(result));
     }
 
     [HttpGet("import/{batchId:int}")]
-    public async Task<ActionResult<EquipmentImportBatchDto>> ImportBatch(int batchId, CancellationToken ct)
+    public async Task<ActionResult<ExcelImportBatchDto>> ImportBatch(int batchId, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
         var result = await _import.GetBatchAsync(batchId, ct);
@@ -282,17 +268,11 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpPost("import/{batchId:int}/commit")]
-    public async Task<ActionResult<EquipmentImportCommitResultDto>> CommitImport(int batchId, CancellationToken ct)
+    public async Task<ActionResult<ExcelImportCommitResultDto>> CommitImport(int batchId, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        var batch = await _db.EquipmentImportBatches.AsNoTracking().FirstOrDefaultAsync(x => x.Id == batchId && x.IsActive == true, ct);
+        var batch = await _import.GetBatchAsync(batchId, ct);
         if (batch == null) return NotFound();
-        var rows = await _db.EquipmentImportRows.AsNoTracking().Where(x => x.BatchId == batchId && x.Status == "Valid").ToListAsync(ct);
-        var codes = rows.Select(x => TryGetEquipmentCode(x.RawJson)).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
-        var duplicateInFile = codes.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).Take(10).ToList();
-        if (duplicateInFile.Count > 0) return BadRequest($"File có mã thiết bị trùng: {string.Join(", ", duplicateInFile)}.");
-        var existing = await _db.EquipmentAssets.AsNoTracking().Where(x => codes.Contains(x.EquipmentCode)).Select(x => x.EquipmentCode).ToListAsync(ct);
-        if (existing.Count > 0) return Conflict($"Thiết bị đã tồn tại: {string.Join(", ", existing.Take(10))}.");
         return Ok(await _import.CommitAsync(batchId, ct));
     }
 
