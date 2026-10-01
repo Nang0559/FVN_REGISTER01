@@ -52,6 +52,17 @@ namespace FVN_REGISTER.API.Controllers
             if (!TryParseRequestKind(kind, out var requestKind))
                 return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
 
+            var functionCode = requestKind switch
+            {
+                RequestModule.Leave => SecurityFunctionCodes.LeaveView,
+                RequestModule.Overtime => SecurityFunctionCodes.OTView,
+                RequestModule.Trip => SecurityFunctionCodes.TripView,
+                RequestModule.Equipment => SecurityFunctionCodes.EquipmentView,
+                _ => 0
+            };
+            if (functionCode == 0 || !await _authorization.HasPersonalAsync(UserInfo, functionCode, ct))
+                return Forbid();
+
             var filter = new HistoryFilterDto
             {
                 Kind = requestKind,
@@ -75,6 +86,17 @@ namespace FVN_REGISTER.API.Controllers
             if (!TryParseRequestKind(kind, out var requestKind))
                 return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
 
+            var functionCode = requestKind switch
+            {
+                RequestModule.Leave => SecurityFunctionCodes.LeaveView,
+                RequestModule.Overtime => SecurityFunctionCodes.OTView,
+                RequestModule.Trip => SecurityFunctionCodes.TripView,
+                RequestModule.Equipment => SecurityFunctionCodes.EquipmentView,
+                _ => 0
+            };
+            if (functionCode == 0 || !await _authorization.HasPersonalAsync(UserInfo, functionCode, ct))
+                return Forbid();
+
             var result = await _dispatcher.GetDetailAsync(requestKind, id, UserInfo, ct);
             return HandleResult(result);
         }
@@ -88,6 +110,14 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized();
             if (!TryParseRequestKind(kind, out var requestKind))
                 return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
+
+            var functionCode = requestKind == RequestModule.Leave
+                ? SecurityFunctionCodes.LeaveView
+                : requestKind == RequestModule.Overtime
+                    ? SecurityFunctionCodes.OTView
+                    : 0;
+            if (functionCode == 0 || !await _authorization.HasPersonalAsync(UserInfo, functionCode, ct))
+                return Forbid();
 
             var result = await _dispatcher.GetBalanceAsync(
                 requestKind, year ?? DateTime.Now.Year, UserInfo, ct);
