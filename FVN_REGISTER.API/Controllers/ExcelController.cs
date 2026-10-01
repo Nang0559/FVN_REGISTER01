@@ -1,5 +1,5 @@
 using FVN_REGISTER.Core.Excel;
-using FVN_REGISTER.Infrastructure.Services.Excel;
+using FVN_REGISTER.Application.Interfaces.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,8 +10,8 @@ namespace FVN_REGISTER.API.Controllers;
 [Authorize]
 public sealed class ExcelController : ControllerBase
 {
-    private readonly ExcelPlatform _excel;
-    public ExcelController(ExcelPlatform excel) => _excel = excel;
+    private readonly IExcelPlatform _excel;
+    public ExcelController(IExcelPlatform excel) => _excel = excel;
 
     [HttpPost("inspect")]
     public async Task<ActionResult<ExcelWorkbookInspection>> Inspect(IFormFile file,CancellationToken ct)
