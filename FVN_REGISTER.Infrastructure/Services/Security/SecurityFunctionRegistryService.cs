@@ -185,10 +185,8 @@ public sealed class SecurityFunctionRegistryService
         var byCode = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionCode == request.FunctionCode, ct);
         if (byKey != null && byCode != null && byKey.Id != byCode.Id) throw new InvalidOperationException("Mã định danh và mã chức năng đang thuộc hai chức năng khác nhau.");
         var entity = byKey ?? byCode;
-        if (entity != null
-            && (entity.IsSystemCritical || SecurityFunctionCodes.IsSystemCritical(entity.FunctionCode))
-            && entity.FunctionCode != request.FunctionCode)
-            throw new InvalidOperationException("Không được đổi FunctionCode của System Critical Security Function.");
+        if (entity != null && (entity.IsSystemCritical || SecurityFunctionCodes.IsSystemCritical(entity.FunctionCode)))
+            throw new InvalidOperationException("System Critical Security Function chỉ được quản lý bằng code/SQL invariant.");
 
         if (SecurityFunctionCodes.IsSystemCritical(request.FunctionCode) && entity == null)
             throw new InvalidOperationException("System Critical Security Function phải được bootstrap từ SecurityFunctionCodes/SQL invariant.");
