@@ -223,6 +223,9 @@ public sealed class SecurityFunctionRegistryService
     public async Task DeleteRoleAsync(int id, int actorUserId, CancellationToken ct = default)
     {
         var role = await _db.Roles.Include(x => x.RoleFunctions).Include(x => x.UserRoles).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException("Không tìm thấy vai trò.");
+        if (role.RoleCode == 1)
+            throw new InvalidOperationException("Không được vô hiệu hóa hoặc xóa role SuperAdmin.");
+
         if (role.IsSystem || role.RoleFunctions.Count > 0 || role.UserRoles.Count > 0) { role.IsActive = false; role.ModifiedBy = actorUserId; role.ModifiedAt = DateTime.Now; } else _db.Roles.Remove(role);
         await _db.SaveChangesAsync(ct);
     }
