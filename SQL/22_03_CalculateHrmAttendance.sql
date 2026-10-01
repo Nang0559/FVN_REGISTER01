@@ -183,7 +183,8 @@ BEGIN
      /* XACT_ABORT is ON: the per-date transaction is doomed after an error and must be
         rolled back before the Run row can be updated, otherwise the run stays 'Running'. */
      IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
-     IF @D IS NOT NULL EXEC sp_releaseapplock @Resource=N'FVN_REGISTER:ATTENDANCE:DATE:'+CONVERT(nvarchar(10),@D,112),@LockOwner=N'Session';
+     IF @D IS NOT NULL AND @AppLockResource IS NOT NULL
+         EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
      UPDATE dbo.F03HrmAttendanceCalculationRun
      SET Status=N'Failed',FinishedAt=GETDATE(),ErrorMessage=ERROR_MESSAGE()
      WHERE CalculationBatchId=@BatchId;
