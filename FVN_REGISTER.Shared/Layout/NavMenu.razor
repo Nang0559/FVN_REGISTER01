@@ -36,7 +36,7 @@
     @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
     { <MudNavGroup Title="@Language.T("nav.approval")" Icon="@Icons.Material.Filled.CheckCircle" Expanded="false"><MudNavLink href="/approvals" Icon="@Icons.Material.Filled.List">@Language.T("nav.approvalPending")</MudNavLink></MudNavGroup> }
 
-    @if (CanAny(SecurityFunctionCodes.LeaveView, SecurityFunctionCodes.LeaveCreate))
+    @if (CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.LeaveCreate))
     {
         <MudNavGroup Title="@Language.T("nav.leave")" Icon="@Icons.Material.Filled.EventBusy" Expanded="true">
             @if (CanPersonal(SecurityFunctionCodes.LeaveView))
@@ -50,7 +50,7 @@
             }
         </MudNavGroup>
     }
-    @if (CanAny(SecurityFunctionCodes.OTView, SecurityFunctionCodes.OTCreate))
+    @if (CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.OTCreate))
     {
         <MudNavGroup Title="@Language.T("nav.ot")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
             @if (CanPersonal(SecurityFunctionCodes.OTView))
@@ -64,7 +64,7 @@
             }
         </MudNavGroup>
     }
-    @if (CanAny(SecurityFunctionCodes.TripView, SecurityFunctionCodes.TripCreate))
+    @if (CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.TripCreate))
     {
         <MudNavGroup Title="@Language.T("nav.trip")" Icon="@Icons.Material.Filled.FlightTakeoff" Expanded="false">
             @if (CanPersonal(SecurityFunctionCodes.TripView))
@@ -88,7 +88,7 @@
         </MudNavGroup>
     }
 
-    @if (CanManagement(SecurityFunctionCodes.EquipmentView))
+    @if (Can(SecurityFunctionCodes.EquipmentView))
     { <MudNavGroup Title="@Language.T("nav.equipment")" Icon="@Icons.Material.Filled.Devices" Expanded="false"><MudNavLink href="/equipment" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.equipmentRegister")</MudNavLink>@if(Can(SecurityFunctionCodes.EquipmentImport)){<MudNavLink href="/equipment/workspace" Icon="@Icons.Material.Filled.UploadFile">@Language.T("nav.equipmentImport")</MudNavLink>}</MudNavGroup> }
 
     @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.HrmSyncReview, SecurityFunctionCodes.HrmUserRoleRuleManage, SecurityFunctionCodes.ApprovalPolicyManage, SecurityFunctionCodes.AttendanceCalculate, SecurityFunctionCodes.DepartmentStatusView))
@@ -108,9 +108,9 @@
         <MudNavGroup Title="@Language.T("nav.otManagement")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">@if(CanManagement(SecurityFunctionCodes.OTView)){<MudNavLink href="/ot/list" Icon="@Icons.Material.Filled.FormatListBulleted">@Language.T("nav.otList")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.OTLimitManage)){<MudNavLink href="/admin/ot-limit-rules" Icon="@Icons.Material.Filled.Rule">@Language.T("nav.otLimits")</MudNavLink>}</MudNavGroup>
     }
 
-    @if (Can(SecurityFunctionCodes.ExecutionReview)){<MudNavGroup Title="@Language.T("nav.hrReconciliation")" Icon="@Icons.Material.Filled.Rule" Expanded="false"><MudNavLink href="/execution/hr" Icon="@Icons.Material.Filled.FactCheck">@Language.T("nav.hrQueue")</MudNavLink></MudNavGroup>}
+    @if (CanManagement(SecurityFunctionCodes.ExecutionReview)){<MudNavGroup Title="@Language.T("nav.hrReconciliation")" Icon="@Icons.Material.Filled.Rule" Expanded="false"><MudNavLink href="/execution/hr" Icon="@Icons.Material.Filled.FactCheck">@Language.T("nav.hrQueue")</MudNavLink></MudNavGroup>}
     @if (CanManagement(SecurityFunctionCodes.PayrollView)){<MudNavGroup Title="@Language.T("nav.payroll")" Icon="@Icons.Material.Filled.Payments" Expanded="false"><MudNavLink href="/payroll/table" Icon="@Icons.Material.Filled.TableView">@Language.T("nav.payrollTable")</MudNavLink></MudNavGroup>}
-    @if (CanAny(SecurityFunctionCodes.LeaveView,SecurityFunctionCodes.OTView,SecurityFunctionCodes.TripView,SecurityFunctionCodes.EquipmentView,SecurityFunctionCodes.AttendanceView)){<MudNavGroup Title="@Language.T("nav.reports")" Icon="@Icons.Material.Filled.Assessment" Expanded="false"><MudNavLink href="/reports" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.reportCenter")</MudNavLink>@if(CanManagement(SecurityFunctionCodes.LeaveView)){<MudNavLink href="/report/leave" Icon="@Icons.Material.Filled.BeachAccess">@Language.T("nav.reportLeave")</MudNavLink>}@if(Can(SecurityFunctionCodes.OTView)){<MudNavLink href="/report/ot" Icon="@Icons.Material.Filled.MoreTime">@Language.T("nav.reportOt")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.TripView)){<MudNavLink href="/report/operations?module=trip" Icon="@Icons.Material.Filled.FlightTakeoff">@Language.T("nav.reportTrip")</MudNavLink>}@if(Can(SecurityFunctionCodes.EquipmentView)){<MudNavLink href="/report/operations?module=equipment" Icon="@Icons.Material.Filled.Devices">@Language.T("nav.reportEquipment")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.AttendanceView)){<MudNavLink href="/report/operations?module=attendance" Icon="@Icons.Material.Filled.AccessTime">@Language.T("nav.reportAttendance")</MudNavLink>}</MudNavGroup>}
+    @if (CanManagement(SecurityFunctionCodes.LeaveView) || CanManagement(SecurityFunctionCodes.OTView) || CanManagement(SecurityFunctionCodes.TripView) || CanManagement(SecurityFunctionCodes.EquipmentView) || CanManagement(SecurityFunctionCodes.AttendanceView)){<MudNavGroup Title="@Language.T("nav.reports")" Icon="@Icons.Material.Filled.Assessment" Expanded="false"><MudNavLink href="/reports" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.reportCenter")</MudNavLink>@if(CanManagement(SecurityFunctionCodes.LeaveView)){<MudNavLink href="/report/leave" Icon="@Icons.Material.Filled.BeachAccess">@Language.T("nav.reportLeave")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.OTView)){<MudNavLink href="/report/ot" Icon="@Icons.Material.Filled.MoreTime">@Language.T("nav.reportOt")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.TripView)){<MudNavLink href="/report/operations?module=trip" Icon="@Icons.Material.Filled.FlightTakeoff">@Language.T("nav.reportTrip")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.EquipmentView)){<MudNavLink href="/report/operations?module=equipment" Icon="@Icons.Material.Filled.Devices">@Language.T("nav.reportEquipment")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.AttendanceView)){<MudNavLink href="/report/operations?module=attendance" Icon="@Icons.Material.Filled.AccessTime">@Language.T("nav.reportAttendance")</MudNavLink>}</MudNavGroup>}
 
     @if (Can(SecurityFunctionCodes.UserManagementView) || _permissions?.RoleCodes.Contains(1) == true)
     {
