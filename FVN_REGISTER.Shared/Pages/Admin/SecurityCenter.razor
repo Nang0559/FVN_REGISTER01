@@ -485,8 +485,9 @@
             </MudStack>
         </MudTabPanel>
         }
+        @if (CanManageTwoFactor)
+        {
         <MudTabPanel Text='@Language.T("security.twoFactor")' Icon="@Icons.Material.Filled.Security">
-            @if (CanManageTwoFactor)
             {
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
                     <MudAlert Severity="Severity.Info" Class="mb-3">
@@ -540,13 +541,8 @@
                     </MudTable>
                 </MudPaper>
             }
-            else
-            {
-                <MudAlert Severity="Severity.Warning">
-                    @Language.T("security.tinhNangNayChiHien")
-                </MudAlert>
-            }
         </MudTabPanel>
+        }
 
     </MudTabs>
 </MudStack>
