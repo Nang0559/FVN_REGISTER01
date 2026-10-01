@@ -441,6 +441,10 @@ WHERE r.RoleCode IN (1,2,3,4)
 GO
 
 /* OT export and attendance view/export are Department scoped. */
+UPDATE rf SET AccessMode=N'Management'
+FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode IN(1,2,3,4) AND f.FunctionCode=2901;
+GO
 UPDATE dbo.F03Functions SET ScopeCode=N'Department'
 WHERE FunctionCode IN (2107,2901,2902);
 GO
