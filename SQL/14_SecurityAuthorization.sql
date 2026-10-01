@@ -151,6 +151,11 @@ BEGIN
     IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD ModifiedBy int NULL;
     IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD ModifiedAt datetime2(0) NULL;
 END;
+/* Role-specific scope override: one capability can be personal for User role and management-scoped for Approver/Manager role. */
+IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ScopeCode') IS NULL
+    ALTER TABLE dbo.F03RoleFunctions ADD ScopeCode nvarchar(30) NULL;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03RoleFunctions_Role_Function' AND object_id=OBJECT_ID(N'dbo.F03RoleFunctions'))
     CREATE UNIQUE INDEX UX_F03RoleFunctions_Role_Function ON dbo.F03RoleFunctions(IdRole,IdFunction);
 
@@ -308,6 +313,36 @@ WHERE r.IsActive=1
       SELECT 1 FROM dbo.F03RoleFunctions rf
       WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id
   );
+GO
+
+/*
+  Scope normalization:
+  - User role = personal/self-service.
+  - Approver role = management/approval only.
+  - Role-specific scope overrides do not change FunctionCode; they refine the data scope
+    granted by each Role -> Function/Action edge.
+*/
+UPDATE rf
+SET ScopeCode = CASE
+    WHEN r.RoleCode = 5 THEN N'Own'
+    WHEN r.RoleCode = 4 AND f.ActionCode IN(N'View',N'Approve') THEN N'Department'
+    ELSE rf.ScopeCode
+END
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode IN(4,5)
+  AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment');
+
+-- Approver is a management/approval role; it must not inherit personal registration actions.
+DELETE rf
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode=4
+  AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment')
+  AND f.ActionCode IN(N'Create',N'Edit',N'Cancel');
+
 GO
 
 /* Migrate the legacy primary role into the normalized multi-role table. */
