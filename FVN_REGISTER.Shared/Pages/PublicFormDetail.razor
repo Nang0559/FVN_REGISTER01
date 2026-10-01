@@ -64,6 +64,19 @@ else
  private EventCallback<bool?> BoolChanged(int id) => EventCallback.Factory.Create<bool?>(this, v => Set(id, v == true ? "true" : "false"));
  private EventCallback<decimal?> DecimalChanged(int id) => EventCallback.Factory.Create<decimal?>(this, v => Set(id, v?.ToString(System.Globalization.CultureInfo.InvariantCulture)));
  private EventCallback<DateTime?> DateChanged(int id) => EventCallback.Factory.Create<DateTime?>(this, v => Set(id, v?.ToString("yyyy-MM-dd")));
+ private async Task SendFeedbackAsync()
+ {
+  if (_form == null || string.IsNullOrWhiteSpace(_feedback)) return;
+  _saving = true;
+  var result = await Http.PostAsync<int>($"api/public-forms/{Id}/feedback", new PublicFormFeedbackRequest { Content = _feedback.Trim() });
+  _saving = false;
+  if (result.IsSuccess)
+  {
+   Snackbar.Add(Language.T("public.guiPhanHoiThanhCong"), Severity.Success);
+   _feedback = string.Empty;
+  }
+  else Snackbar.Add(result.Message ?? Language.T("public.guiPhanHoiThatBai"), Severity.Error);
+ }
  private async Task SubmitAsync()
  {
   if(_form==null)return;
