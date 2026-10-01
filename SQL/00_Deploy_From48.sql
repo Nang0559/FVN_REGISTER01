@@ -24,6 +24,10 @@
 :r "60_EndpointAgentDataHardening.sql"
 :r "61_RequestModuleEmailTemplates.sql"
 :r "62_SuperAdminFullAccess.sql"
+
+/* SECURITY ROLE/FUNCTION MATRIX */
+:r "64_SecurityRoleMatrixCapability.sql"
+:r "65_SecuritySystemCriticalInvariant.sql"
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
