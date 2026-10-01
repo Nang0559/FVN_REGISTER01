@@ -84,10 +84,7 @@ public static class SecurityFunctionCatalog
             ["Submit"] = "Trả lời",
             ["AuditView"] = "Xem lịch sử",
             ["AssignAudience"] = "Chỉ định đối tượng nhận",
-            ["ResultView"] = "Xem kết quả",
-            ["Import"] = "Nhập dữ liệu",
-            ["Export"] = "Xuất dữ liệu",
-            ["Audit"] = "Rà soát"
+            ["ResultView"] = "Xem kết quả"
         };
 
     public static string GetDisplayName(string functionKey) => GetDisplayName(functionKey, "vi-VN");
