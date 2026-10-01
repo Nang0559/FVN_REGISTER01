@@ -58,6 +58,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
                 on rf.IdFunction equals f.Id
             where ur.IdUser == user.UserId
+                && ur.IsActive == true
+                && rf.IsActive == true
                 && r.IsActive == true
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
@@ -74,7 +76,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
             join r in _uow.Repository<F03Role>().Query().AsNoTracking() on ur.IdRole equals r.Id
             join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
-            where ur.IdUser == user.UserId && r.IsActive == true && (f.IsActive ?? true)
+            where ur.IdUser == user.UserId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
                 && (rf.AccessMode == "Personal" || (rf.AccessMode == null && (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own))
             select f.Id
@@ -546,7 +548,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 on rf.IdFunction equals f.Id
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
-            where ur.IdUser == userId && r.IsActive == true && (f.IsActive ?? true)
+            where ur.IdUser == userId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
             select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode, EffectiveAccessMode = rf.AccessMode ?? ((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee ? "Personal" : "Management") }
         ).ToListAsync(ct);
 
@@ -598,8 +600,19 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
                 on rf.IdFunction equals f.Id
             where roleIds.Contains(rf.IdRole)
+                && rf.IsActive == true
                 && (f.IsActive ?? true)
-            select new { rf.IdRole, f.FunctionCode }
+            select new
+            {
+                rf.IdRole,
+                f.FunctionCode,
+                EffectiveScope = rf.ScopeCode ?? f.ScopeCode ?? AuthorizationScopeCodes.None,
+                EffectiveAccessMode = rf.AccessMode
+                    ?? (((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own
+                        || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee)
+                        ? "Personal"
+                        : "Management")
+            }
         ).ToListAsync(ct);
 
         return roles.Select(r => new SecurityRoleDto(
@@ -611,7 +624,13 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             r.IsActive == true)
         {
             FunctionCodes = map.Where(x => x.IdRole == r.Id)
-                .Select(x => x.FunctionCode).Distinct().OrderBy(x => x).ToList()
+                .Select(x => x.FunctionCode).Distinct().OrderBy(x => x).ToList(),
+            FunctionScopes = map.Where(x => x.IdRole == r.Id)
+                .GroupBy(x => x.FunctionCode)
+                .ToDictionary(x => x.Key, x => x.First().EffectiveScope),
+            FunctionAccessModes = map.Where(x => x.IdRole == r.Id)
+                .GroupBy(x => x.FunctionCode)
+                .ToDictionary(x => x.Key, x => x.First().EffectiveAccessMode)
         }).ToList();
     }
 
