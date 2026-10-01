@@ -174,16 +174,16 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         await using var scope = _serviceProvider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
 
-        var last = await db.Database.SqlQuery<DateOnly>($"""
-            SELECT MAX(r.ToDate) AS Value
+        var last = await db.Database.SqlQuery<DateTime?>($"""
+            SELECT MAX(CONVERT(datetime2, r.ToDate)) AS Value
             FROM dbo.F03HrmAttendanceCalculationRun AS r
             WHERE r.Status=N'Succeeded'
               AND r.DeptCode IS NULL
               AND r.EmployeeCode IS NULL
         """).SingleOrDefaultAsync(ct);
 
-        if (last != default)
-            return last.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        if (last.HasValue)
+            return last.Value.Date.AddDays(1);
 
         return await GetPayrollPeriodStartAsync(yesterday, ct);
     }
