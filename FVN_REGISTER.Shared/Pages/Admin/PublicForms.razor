@@ -324,7 +324,7 @@
         <MudTh>@Language.T("common.thoiGian")</MudTh>
         <MudTh>@Language.T("common.status")</MudTh>
         <MudTh>@Language.T("public.doiTuong")</MudTh>
-        <MudTh />
+        <MudTh>@Language.T("common.action")</MudTh>
     </HeaderContent>
 
     <RowTemplate>
@@ -347,6 +347,15 @@
             }
         </MudTd>
         <MudTd>
+            @if (context.Status == "Draft")
+            {
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Outlined"
+                           OnClick="@(() => EditAsync(context.Id))">
+                    @Language.T("common.edit")
+                </MudButton>
+            }
+
             <MudButton Size="Size.Small"
                        OnClick="@(() => PublishAsync(context.Id))"
                        Disabled="@(context.Status != "Draft")">
@@ -372,6 +381,7 @@
 
     private List<PublicFormDto> _items = new();
     private SavePublicFormRequest _form = NewForm();
+    private int? _editingId;
 
     private string _audienceType = "AllCompany";
     private HashSet<string> _selectedAudienceValues = new(StringComparer.OrdinalIgnoreCase);
@@ -412,6 +422,68 @@
         {
             Snackbar.Add(r.Message ?? Language.T("public.khongTaiDuocForm"), Severity.Error);
         }
+    }
+
+    private async Task EditAsync(int id)
+    {
+        var response = await Http.GetAsync<PublicFormDto>($"api/public-forms/{id}");
+        if (!response.IsSuccess || response.Data == null)
+        {
+            Snackbar.Add(response.Message ?? Language.T("message.loadFailed"), Severity.Error);
+            return;
+        }
+
+        var form = response.Data;
+        _editingId = id;
+        _form = new SavePublicFormRequest
+        {
+            FormCode = form.FormCode,
+            Title = form.Title,
+            Description = form.Description,
+            CategoryCode = form.CategoryCode,
+            StartAt = form.StartAt,
+            EndAt = form.EndAt,
+            AllowMultipleSubmit = form.AllowMultipleSubmit,
+            RequireApproval = form.RequireApproval,
+            MaxSubmissions = form.MaxSubmissions,
+            Audiences = form.Audiences.Select(x => new SavePublicFormAudienceRequest
+            {
+                ScopeType = x.ScopeType,
+                ScopeValue = x.ScopeValue
+            }).ToList(),
+            Questions = form.Questions.OrderBy(x => x.Sequence).Select(q => new SavePublicFormQuestionRequest
+            {
+                QuestionCode = q.QuestionCode,
+                QuestionText = q.QuestionText,
+                QuestionType = q.QuestionType,
+                HelpText = q.HelpText,
+                Placeholder = q.Placeholder,
+                IsRequired = q.IsRequired,
+                Sequence = q.Sequence,
+                Options = q.Options.OrderBy(x => x.Sequence).Select(o => new SavePublicFormOptionRequest
+                {
+                    OptionCode = o.OptionCode,
+                    OptionText = o.OptionText,
+                    Sequence = o.Sequence
+                }).ToList()
+            }).ToList()
+        };
+
+        _audienceType = _form.Audiences.FirstOrDefault()?.ScopeType ?? "AllCompany";
+        _selectedAudienceValues = _form.Audiences
+            .Where(x => !string.Equals(x.ScopeType, "AllCompany", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.ScopeValue)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _selectedAudienceLabels = _selectedAudienceValues.ToDictionary(x => x, x => x, StringComparer.OrdinalIgnoreCase);
+
+        if (_audienceType == "Department" || _audienceType == "Position")
+            await LoadMasterAudienceAsync(_audienceType);
+        else if (_audienceType == "Employee")
+            await LoadEmployeesAsync(1);
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private void SetStartDate(DateTime? value)
@@ -567,11 +639,16 @@
 
         _form.Audiences = audiences;
 
-        var r = await Http.PostAsync<PublicFormDto>("api/public-forms", _form);
+        var r = _editingId.HasValue
+            ? await Http.PutAsync<PublicFormDto>($"api/public-forms/{_editingId.Value}", _form)
+            : await Http.PostAsync<PublicFormDto>("api/public-forms", _form);
 
         if (r.IsSuccess)
         {
-            Snackbar.Add(Language.T("public.daLuuBieuMauNhap"), Severity.Success);
+            Snackbar.Add(_editingId.HasValue
+                ? Language.T("common.updated")
+                : Language.T("public.daLuuBieuMauNhap"), Severity.Success);
+            _editingId = null;
             _form = NewForm();
             _audienceType = "AllCompany";
             _selectedAudienceValues.Clear();
