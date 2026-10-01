@@ -186,6 +186,8 @@ public sealed class WorkCalendarController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var employeeCode = UserInfo.EmployeeCode.Trim();
+        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
+        if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct)) return Forbid();
         var today = DateOnly.FromDateTime(DateTime.Today);
         var first = from ?? today;
         var last = to ?? today.AddDays(31);
@@ -213,6 +215,8 @@ public sealed class WorkCalendarController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var employeeCode = UserInfo.EmployeeCode.Trim();
+        var modules = await GetAuthorizedModulesAsync(UserInfo, includeOwnData: true, ct);
+        if (!await CanViewOwnCalendarAsync(UserInfo, modules, ct)) return Forbid();
         var result = await _workCalendar.GetAvailabilityAsync(
             employeeCode,
             date.ToDateTime(TimeOnly.MinValue),
@@ -225,7 +229,7 @@ public sealed class WorkCalendarController : BaseApiController
         IReadOnlySet<string> modules,
         CancellationToken ct)
     {
-        if (await _authorization.HasAsync(user, SecurityFunctionCodes.CalendarView, ct))
+        if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.CalendarView, ct))
             return true;
 
         // Own calendar is self-service data: modules already contains the caller's own modules.
@@ -243,10 +247,14 @@ public sealed class WorkCalendarController : BaseApiController
 
         if (includeOwnData)
         {
-            result.Add("OT");
-            result.Add("LEAVE");
-            result.Add("TRIP");
-            result.Add("ATTENDANCE");
+            if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.OTView, ct))
+                result.Add("OT");
+            if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.LeaveView, ct))
+                result.Add("LEAVE");
+            if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.TripView, ct))
+                result.Add("TRIP");
+            if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.AttendanceView, ct))
+                result.Add("ATTENDANCE");
             return result;
         }
 
