@@ -9,6 +9,16 @@ public sealed class PermissionSnapshotDto
     public HashSet<int> FunctionCodes { get; set; } = new();
 
     public bool Has(int functionCode) => FunctionCodes.Contains(functionCode);
+
+    public bool HasScope(int functionCode, string scope) =>
+        Functions.Any(x => x.FunctionCode == functionCode &&
+            string.Equals(x.ScopeCode, scope, StringComparison.OrdinalIgnoreCase));
+
+    public bool HasPersonal(int functionCode) => HasScope(functionCode, FVN_REGISTER.Core.Constants.AuthorizationScopeCodes.Own);
+
+    public bool HasManagement(int functionCode) =>
+        Functions.Any(x => x.FunctionCode == functionCode &&
+            FVN_REGISTER.Core.Constants.AuthorizationScopePolicy.IsManagementScope(x.ScopeCode));
 }
 
 public sealed class SecurityFunctionDto
