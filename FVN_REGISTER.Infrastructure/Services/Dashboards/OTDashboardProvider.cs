@@ -31,14 +31,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         {
             var year = DateTime.Now.Year;
             var month = DateTime.Now.Month;
+            var canPersonal = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.OTView, ct);
 
             var widgetsResult = await _otQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct);
-            var widgets = new List<WidgetCounterDto>(widgetsResult.Data ?? new List<WidgetCounterDto>());
+            var widgets = canPersonal
+                ? new List<WidgetCounterDto>(widgetsResult.Data ?? new List<WidgetCounterDto>())
+                : new List<WidgetCounterDto>();
 
-            var personalBalanceResult = await _otQuery.GetSimpleBalanceAsync(user.EmployeeCode!, year, ct);
-            var personalBalance = personalBalanceResult.Data;
-            var recentSummaryResult = await _otQuery.GetRecentSummaryAsync(user.EmployeeCode!, 5, ct);
-            var recentSummary = recentSummaryResult.Data ?? new List<OTSummaryDto>();
+            var personalBalance = canPersonal
+                ? (await _otQuery.GetSimpleBalanceAsync(user.EmployeeCode!, year, ct)).Data
+                : null;
+            var recentSummary = canPersonal
+                ? (await _otQuery.GetRecentSummaryAsync(user.EmployeeCode!, 5, ct)).Data ?? new List<OTSummaryDto>()
+                : new List<OTSummaryDto>();
 
             List<OTBalanceDto> nearLimitEmployees = new();
             if (!string.IsNullOrEmpty(user.DeptCode)
