@@ -57,10 +57,6 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03TripRequest> TripRequests { get; set; }
     public DbSet<F03StagingTrip> StagingTrips { get; set; }
     public DbSet<F03EquipmentAsset> EquipmentAssets { get; set; }
-    public DbSet<F03EquipmentSchema> EquipmentSchemas { get; set; }
-    public DbSet<F03EquipmentFieldDefinition> EquipmentFieldDefinitions { get; set; }
-    public DbSet<F03EquipmentImportBatch> EquipmentImportBatches { get; set; }
-    public DbSet<F03EquipmentImportRow> EquipmentImportRows { get; set; }
     public DbSet<F03EquipmentRequest> EquipmentRequests { get; set; }
     public DbSet<F03EquipmentRepairHistory> EquipmentRepairHistories { get; set; }
     public DbSet<F03EquipmentInspectionTemplate> EquipmentInspectionTemplates { get; set; }
