@@ -1,7 +1,7 @@
+using FVN_REGISTER.Application.Interfaces.Excel;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Excel;
 using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Infrastructure.Services.Excel;
 
 namespace FVN_REGISTER.Infrastructure.Services.Security;
 
@@ -12,8 +12,9 @@ public sealed class EndpointGovernanceExcelImportService
     private static readonly string[] VersionHeaders=["VersionConstraint","Version","AllowedVersion","Phiên bản","Điều kiện phiên bản"];
     private static readonly string[] AllowedHeaders=["IsAllowed","Allowed","Allow","Được phép","Cho phép"];
     private static readonly string[] RemarkHeaders=["Remark","Note","Ghi chú","Description","Mô tả"];
-    private readonly ExcelPlatform _excel;
-    public EndpointGovernanceExcelImportService(ExcelPlatform excel)=>_excel=excel;
+    private readonly IExcelPlatform _excel;
+
+    public EndpointGovernanceExcelImportService(IExcelPlatform excel) => _excel = excel;
 
     public async Task<EndpointGovernanceExcelPreviewDto> PreviewAsync(Stream stream,string fileName,EndpointGovernanceItemType itemType,EndpointTargetType targetType,CancellationToken ct=default)
     {
