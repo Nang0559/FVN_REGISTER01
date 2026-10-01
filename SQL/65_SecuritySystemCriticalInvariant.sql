@@ -93,16 +93,18 @@ BEGIN
     (
         SELECT 1
         FROM deleted AS d
+        LEFT JOIN inserted AS i ON i.Id = d.Id
         WHERE d.FunctionCode IN (2601, 2602, 2603, 2604)
-          AND NOT EXISTS
+          AND
           (
-              SELECT 1
-              FROM inserted AS i
-              WHERE i.Id = d.Id
+              i.Id IS NULL
+              OR i.FunctionCode NOT IN (2601, 2602, 2603, 2604)
+              OR ISNULL(i.IsSystemCritical, 0) <> 1
+              OR ISNULL(i.IsActive, 0) <> 1
           )
     )
     BEGIN
-        THROW 51002, N'Không được xóa System Critical Security Function.', 1;
+        THROW 51002, N'Không được xóa, đổi mã hoặc hạ cấp System Critical Security Function.', 1;
     END;
 END;
 GO
