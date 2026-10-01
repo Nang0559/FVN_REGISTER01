@@ -75,6 +75,7 @@ using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Infrastructure.Utils;
 using FVN_REGISTER.Infrastructure.Services;
 using FVN_REGISTER.Infrastructure.Services.Departments;
+using FVN_REGISTER.Infrastructure.Services.Language;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Exceptions;
@@ -194,6 +195,7 @@ builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IAccessChangeService, AccessChangeService>();
 builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAssignmentService>();
 builder.Services.AddScoped<SecurityFunctionRegistryService>();
+builder.Services.AddScoped<ILocalizationManagementService, LocalizationManagementService>();
 builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 
 // Background workers (BackgroundService) - trước đây chưa được đăng ký nên không chạy
