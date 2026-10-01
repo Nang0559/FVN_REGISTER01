@@ -41,6 +41,7 @@ using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Exceptions;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure;
+using FVN_REGISTER.Infrastructure.DependencyInjection;
 using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Repositories;
 using FVN_REGISTER.Infrastructure.Services;
@@ -220,7 +221,7 @@ builder.Services.AddScoped<IApprovalSelectionService, ApprovalSelectionService>(
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 builder.Services.AddScoped<IEndpointGovernanceService, EndpointGovernanceService>();
-builder.Services.AddScoped<IExcelPlatform, ExcelPlatform>();
+builder.Services.AddSharedExcelPlatform();
 builder.Services.AddScoped<EndpointGovernanceExcelImportService>();
 
 // History / email / notifications
