@@ -14,11 +14,13 @@ public sealed class PermissionSnapshotDto
         Functions.Any(x => x.FunctionCode == functionCode &&
             string.Equals(x.ScopeCode, scope, StringComparison.OrdinalIgnoreCase));
 
-    public bool HasPersonal(int functionCode) => HasScope(functionCode, "Own");
+    public bool HasPersonal(int functionCode) =>
+        Functions.Any(x => x.FunctionCode == functionCode &&
+            string.Equals(x.AccessMode, "Personal", StringComparison.OrdinalIgnoreCase));
 
     public bool HasManagement(int functionCode) =>
         Functions.Any(x => x.FunctionCode == functionCode &&
-            string.Equals(x.ScopeCode, "Department", StringComparison.OrdinalIgnoreCase) || string.Equals(x.ScopeCode, "All", StringComparison.OrdinalIgnoreCase));
+            string.Equals(x.AccessMode, "Management", StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed class SecurityFunctionDto
@@ -30,6 +32,7 @@ public sealed class SecurityFunctionDto
     public string? ModuleCode { get; set; }
     public string? ActionCode { get; set; }
     public string? ScopeCode { get; set; }
+    public string? AccessMode { get; set; }
     public int DisplayOrder { get; set; }
 }
 
