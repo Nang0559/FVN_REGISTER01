@@ -218,6 +218,8 @@
         </MudTabPanel>
         }
 
+        @if (_myPermissions?.Has(SecurityFunctionCodes.SecurityManageRoles) == true)
+        {
         <MudTabPanel Text='@Language.T("security.roles")' Icon="@Icons.Material.Filled.GridView">
             <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px; overflow-x:auto">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
@@ -317,10 +319,11 @@
                 }
             </MudPaper>
         </MudTabPanel>
+        }
 
         @if (CanAssignPermissions)
         {
-            <MudTabPanel Text="@Language.T("security.organizationScope")" Icon="@Icons.Material.Filled.AccountTree">
+            <MudTabPanel Text="@Language.T("security.organizationScope") Icon="@Icons.Material.Filled.AccountTree">
                 <ManagedScopeEditor User="_selected" />
             </MudTabPanel>
         }
@@ -456,6 +459,8 @@
             </MudTabPanel>
         }
 
+        @if (_myPermissions?.Has(SecurityFunctionCodes.ApprovalPolicyManage) == true)
+        {
         <MudTabPanel Text="@Language.T("security.approvalPolicyEffectivePreview")" Icon="@Icons.Material.Filled.Policy">
             <MudStack Spacing="2">
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
@@ -475,6 +480,7 @@
                 </MudPaper>
             </MudStack>
         </MudTabPanel>
+        }
         <MudTabPanel Text='@Language.T("security.twoFactor")' Icon="@Icons.Material.Filled.Security">
             @if (CanManageTwoFactor)
             {
@@ -596,7 +602,7 @@
     // Do not depend on the 2407 RoleFunction row here; older databases may
     // still be missing that compatibility grant while the account is SuperAdmin.
     private bool CanManageTwoFactor
-        => _myPermissions?.PermissionCode == UserPermissionCodes.SuperAdmin;
+        => _myPermissions?.Has(ManageTwoFactorFunctionCode) == true;
 
     private IEnumerable<TwoFactorAdminUserDto> FilteredTwoFactorUsers =>
         string.IsNullOrWhiteSpace(_twoFactorSearch)
@@ -628,6 +634,12 @@
             }
 
             _myPermissions = myPermissions.Data;
+
+            if (_myPermissions?.Has(SecurityFunctionCodes.SecurityView) != true)
+            {
+                _error = Language.T("security.noPermission");
+                return;
+            }
 
             var users = await UserService.GetAllAsync();
             var roles = await SecurityService.GetRolesAsync();
