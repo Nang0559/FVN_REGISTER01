@@ -543,7 +543,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
             where ur.IdUser == userId && r.IsActive == true && (f.IsActive ?? true)
-            select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode, EffectiveAccessMode = rf.AccessMode ?? (string.Equals(rf.ScopeCode ?? f.ScopeCode, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase) || string.Equals(rf.ScopeCode ?? f.ScopeCode, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase) ? "Personal" : "Management") }
+            select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode, EffectiveAccessMode = rf.AccessMode ?? ((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee ? "Personal" : "Management") }
         ).ToListAsync(ct);
 
         var functions = rawFunctions
