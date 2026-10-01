@@ -86,9 +86,9 @@ public sealed class SecurityFunctionRegistryService
         var discoveredKeys = discovered.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var f in functions)
         {
-            if (string.IsNullOrWhiteSpace(f.FunctionKey) || discoveredKeys.Contains(f.FunctionKey) || f.LifecycleStatus is "Retired" or "Replaced") continue;
+            if (string.IsNullOrWhiteSpace(f.FunctionKey) || discoveredKeys.Contains(f.FunctionKey)) continue;
 
-            // Discovery must never retire a system-critical capability.
+            // Discovery must also heal an accidentally retired critical capability.
             if (SecurityFunctionCodes.IsSystemCritical(f.FunctionCode))
             {
                 f.IsSystemCritical = true;
@@ -96,6 +96,8 @@ public sealed class SecurityFunctionRegistryService
                 f.IsActive = true;
                 continue;
             }
+
+            if (f.LifecycleStatus is "Retired" or "Replaced") continue;
 
             f.LifecycleStatus = "PendingRetirement"; f.IsActive = false; retirement++;
             if (registryByKey.TryGetValue(f.FunctionKey, out var item)) { item.LifecycleStatus = "PendingRetirement"; item.ResolvedAt = null; }
