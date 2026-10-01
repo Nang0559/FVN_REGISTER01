@@ -40,6 +40,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "Excel/001_SharedExcelPlatform.sql"
 :r "Excel/002_SharedExcelPlatform_Normalize.sql"
 :r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
+:r "16_EquipmentFlexibleImport_LegacyCleanup.sql"
 
 :r "16A_EquipmentCapabilities.sql"
 
