@@ -33,9 +33,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             var month = DateTime.Now.Month;
             var canPersonal = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.OTView, ct);
 
-            var widgetsResult = await _otQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct);
             var widgets = canPersonal
-                ? new List<WidgetCounterDto>(widgetsResult.Data ?? new List<WidgetCounterDto>())
+                ? new List<WidgetCounterDto>((await _otQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct)).Data ?? new List<WidgetCounterDto>())
                 : new List<WidgetCounterDto>();
 
             var personalBalance = canPersonal
