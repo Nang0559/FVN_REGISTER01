@@ -259,16 +259,16 @@ public sealed class EquipmentController : ControllerBase
             : BadRequest(ApiResponse<ExcelImportBatchDto>.FromResult(result));
     }
 
-    [HttpGet("import/{batchId:int}")]
-    public async Task<ActionResult<ExcelImportBatchDto>> ImportBatch(int batchId, CancellationToken ct)
+    [HttpGet("import/{batchId:long}")]
+    public async Task<ActionResult<ExcelImportBatchDto>> ImportBatch(long batchId, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
         var result = await _import.GetBatchAsync(batchId, ct);
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("import/{batchId:int}/commit")]
-    public async Task<ActionResult<ExcelImportCommitResultDto>> CommitImport(int batchId, CancellationToken ct)
+    [HttpPost("import/{batchId:long}/commit")]
+    public async Task<ActionResult<ExcelImportCommitResultDto>> CommitImport(long batchId, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
         var batch = await _import.GetBatchAsync(batchId, ct);
