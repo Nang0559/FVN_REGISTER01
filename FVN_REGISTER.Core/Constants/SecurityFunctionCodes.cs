@@ -111,6 +111,14 @@ public static class SecurityFunctionCodes
     public const int SecurityAccessChangeCreate = 3092;
     public const int SecurityAccessChangeApprove = 3093;
     public const int SecurityAccessChangeExecute = 3094;
+    
+    // Localization administration. These are normal RBAC functions and are assigned through
+    // the existing F03Functions/F03RoleFunction matrix; no separate i18n permission model exists.
+    public const int LanguageView = 3201;
+    public const int LanguageManage = 3202;
+    public const int LanguageImport = 3203;
+    public const int LanguageExport = 3204;
+    public const int LanguageAudit = 3205;
 
     // Endpoint capability family. These extend the existing Security Center;
     // they do not create a second permission system or imply any role assignment.
