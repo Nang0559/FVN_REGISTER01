@@ -72,7 +72,12 @@ public static class SecurityFunctionCodes
     public const int PublicFormView = 2810;
     public const int PublicFormSubmit = 2811;
     public const int PublicFormFeedback = 2812;
-    public const int PublicFormAuditView = 2813;
+    public const int PublicFormCreate = 2813;
+    public const int PublicFormEdit = 2814;
+    public const int PublicFormAssignAudience = 2815;
+    public const int PublicFormResultView = 2816;
+    public const int PublicFormResultExport = 2817;
+    public const int PublicFormAuditView = 2818;
     public const int ExecutionReview = 2802;
 
     public const int PayrollView = 2803;
