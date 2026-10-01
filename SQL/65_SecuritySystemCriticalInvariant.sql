@@ -156,6 +156,47 @@ GO
 
 /*
   Database guard #2:
+  The canonical SuperAdmin role itself must remain active.
+*/
+CREATE OR ALTER TRIGGER dbo.TR_F03Roles_SuperAdminGuard
+ON dbo.F03Roles
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM inserted AS i
+        WHERE i.RoleCode = 1
+          AND ISNULL(i.IsActive, 0) <> 1
+    )
+    BEGIN
+        THROW 51005, N'Role SuperAdmin (RoleCode=1) không được vô hiệu hóa.', 1;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM deleted AS d
+        LEFT JOIN inserted AS i ON i.Id = d.Id
+        WHERE d.RoleCode = 1
+          AND
+          (
+              i.Id IS NULL
+              OR i.RoleCode <> 1
+              OR ISNULL(i.IsActive, 0) <> 1
+          )
+    )
+    BEGIN
+        THROW 51006, N'Không được xóa hoặc đổi RoleCode của SuperAdmin.', 1;
+    END;
+END;
+GO
+
+/*
+  Database guard #3:
   SuperAdmin cannot lose a System Critical Security capability.
   Normal roles remain fully manageable by the existing RBAC matrix.
 */
