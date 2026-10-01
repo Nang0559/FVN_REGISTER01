@@ -180,12 +180,12 @@
                         @if (_audit != null)
                         {
                             <MudGrid Spacing="2" Class="mt-3">
-                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h4">@_audit.Summary.Total</MudText><MudText Typo="caption">@Language.T("language.totalIssues")</MudText></MudPaper></MudItem>
-                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.HardCodedUi</MudText><MudText Typo="caption">@Language.T("language.hardcoded")</MudText></MudPaper></MudItem>
-                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.MissingKey</MudText><MudText Typo="caption">@Language.T("language.missingKey")</MudText></MudPaper></MudItem>
-                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.MissingJa</MudText><MudText Typo="caption">@Language.T("language.missingJa")</MudText></MudPaper></MudItem>
-                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.MissingVi</MudText><MudText Typo="caption">@Language.T("language.missingVi")</MudText></MudPaper></MudItem>
-                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.UnusedKey</MudText><MudText Typo="caption">@Language.T("language.unused")</MudText></MudPaper></MudItem>
+                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h4">@_audit.Summary.Total</MudText><MudText Typo="Typo.caption">@Language.T("language.totalIssues")</MudText></MudPaper></MudItem>
+                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.HardCodedUi</MudText><MudText Typo="Typo.caption">@Language.T("language.hardcoded")</MudText></MudPaper></MudItem>
+                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.MissingKey</MudText><MudText Typo="Typo.caption">@Language.T("language.missingKey")</MudText></MudPaper></MudItem>
+                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.MissingJa</MudText><MudText Typo="Typo.caption">@Language.T("language.missingJa")</MudText></MudPaper></MudItem>
+                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.MissingVi</MudText><MudText Typo="Typo.caption">@Language.T("language.missingVi")</MudText></MudPaper></MudItem>
+                                <MudItem xs="6" sm="3" md="2"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.h5">@_audit.Summary.UnusedKey</MudText><MudText Typo="Typo.caption">@Language.T("language.unused")</MudText></MudPaper></MudItem>
                             </MudGrid>
 
                             @if (!_audit.SourceAvailable)
