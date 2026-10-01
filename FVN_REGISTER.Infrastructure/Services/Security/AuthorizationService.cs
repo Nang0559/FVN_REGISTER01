@@ -43,6 +43,39 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         return snapshot.Has(functionCode);
     }
 
+    public async Task<bool> HasScopeAsync(UserIdentityDto user, int functionCode, string scope, CancellationToken ct = default)
+    {
+        if (user.UserId <= 0 || string.IsNullOrWhiteSpace(scope))
+            return false;
+
+        var normalizedScope = scope.Trim();
+        return await (
+            from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
+                on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking()
+                on ur.IdRole equals r.Id
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId
+                && r.IsActive == true
+                && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+                && string.Equals(rf.ScopeCode ?? f.ScopeCode, normalizedScope)
+            select f.Id
+        ).AnyAsync(ct);
+    }
+
+    public Task<bool> HasPersonalAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default) =>
+        HasScopeAsync(user, functionCode, AuthorizationScopeCodes.Own, ct);
+
+    public async Task<bool> HasManagementAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default)
+    {
+        if (await HasScopeAsync(user, functionCode, AuthorizationScopeCodes.Department, ct))
+            return true;
+        return await HasScopeAsync(user, functionCode, AuthorizationScopeCodes.All, ct);
+    }
+
     public async Task<string> GetScopeAsync(int userId, int functionCode, CancellationToken ct = default)
     {
         if (userId <= 0)
@@ -60,7 +93,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 && r.IsActive == true
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
-            select f.ScopeCode
+            select rf.ScopeCode ?? f.ScopeCode
         ).ToListAsync(ct);
 
         return AuthorizationScopePolicy.ResolveEffectiveScope(scopes);
@@ -481,7 +514,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         // PermissionCode and legacy F03UserFunction are not effective grants.
         // This is important when an administrator removes a module from a role:
         // stale legacy rows must not make that module reappear in the UI/API.
-        var functions = await (
+        var rawFunctions = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
                 on ur.IdRole equals rf.IdRole
@@ -490,22 +523,25 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
             where ur.IdUser == userId && r.IsActive == true && (f.IsActive ?? true)
-            select f
-        ).Distinct()
-            .GroupBy(x => x.FunctionCode)
-            .Select(g => g.OrderBy(x => x.DisplayOrder).First())
-            .OrderBy(x => x.DisplayOrder)
-            .ThenBy(x => x.FunctionCode)
+            select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode }
+        ).ToListAsync(ct);
+
+        var functions = rawFunctions
+            .GroupBy(x => new { x.Function.FunctionCode, Scope = x.EffectiveScope ?? AuthorizationScopeCodes.None })
+            .Select(g => g.OrderBy(x => x.Function.DisplayOrder).First())
+            .OrderBy(x => x.Function.DisplayOrder)
+            .ThenBy(x => x.Function.FunctionCode)
+            .Select(x => new SecurityFunctionDto
             .Select(x => new SecurityFunctionDto
             {
-                IdFunction = x.Id,
-                FunctionCode = x.FunctionCode,
-                FunctionName = x.FunctionName,
-                Detail = x.Detail,
-                ModuleCode = x.ModuleCode,
-                ActionCode = x.ActionCode,
-                ScopeCode = x.ScopeCode,
-                DisplayOrder = x.DisplayOrder
+                IdFunction = x.Function.Id,
+                FunctionCode = x.Function.FunctionCode,
+                FunctionName = x.Function.FunctionName,
+                Detail = x.Function.Detail,
+                ModuleCode = x.Function.ModuleCode,
+                ActionCode = x.Function.ActionCode,
+                ScopeCode = x.EffectiveScope,
+                DisplayOrder = x.Function.DisplayOrder
             })
             .ToList();
 
@@ -679,6 +715,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     public async Task<SecurityRoleDto> SetRoleFunctionsAsync(
         int roleCode,
         IReadOnlyCollection<int> functionCodes,
+        IReadOnlyDictionary<int, string?> scopeOverrides,
         int actorUserId,
         CancellationToken ct = default)
     {
@@ -722,6 +759,9 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             {
                 IdRole = role.Id,
                 IdFunction = function.Id,
+                ScopeCode = scopeOverrides.TryGetValue(function.FunctionCode, out var scope) && !string.IsNullOrWhiteSpace(scope)
+                    ? scope.Trim()
+                    : null,
                 CreatedBy = actorUserId,
                 CreatedAt = DateTime.Now
             }, ct);
