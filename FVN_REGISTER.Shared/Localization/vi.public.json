@@ -106,4 +106,9 @@
   "public.xemTaiLieu": "Xem tài liệu",
   "public.xuatExcelThatBai": "Xuất Excel thất bại.",
   "public.yeuCauApproval": "Yêu cầu Approval"
+,
+  "public.feedback": "Phản hồi",
+  "public.guiPhanHoi": "Gửi phản hồi",
+  "public.guiPhanHoiThanhCong": "Đã gửi phản hồi.",
+  "public.guiPhanHoiThatBai": "Gửi phản hồi thất bại."
 }
