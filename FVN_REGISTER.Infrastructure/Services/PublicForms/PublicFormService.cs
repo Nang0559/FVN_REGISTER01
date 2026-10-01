@@ -24,7 +24,7 @@ public sealed class PublicFormService : IPublicFormService
     public Task<ServiceResult> PublishAsync(int id,int actor,CancellationToken ct=default)=>GuardAsync(()=>PublishAsyncCoreAsync(id,actor,ct));
     public Task<ServiceResult> CloseAsync(int id,int actor,CancellationToken ct=default)=>GuardAsync(()=>CloseAsyncCoreAsync(id,actor,ct));
     public Task<ServiceResult<int>> SubmitAsync(int id,string e,string? d,string? p,IReadOnlyCollection<PublicFormAnswerRequest> a,CancellationToken ct=default)=>GuardAsync(()=>SubmitAsyncCoreAsync(id,e,d,p,a,ct));
-    public Task<ServiceResult<int>> SubmitFeedbackAsync(int id,string e,PublicFormFeedbackRequest q,CancellationToken ct=default)=>GuardAsync(()=>SubmitFeedbackAsyncCoreAsync(id,e,q,ct));
+    public Task<ServiceResult<int>> SubmitFeedbackAsync(int id,string e,string? d,string? p,PublicFormFeedbackRequest q,CancellationToken ct=default)=>GuardAsync(()=>SubmitFeedbackAsyncCoreAsync(id,e,d,p,q,ct));
     public Task<ServiceResult<List<PublicFormDto>>> GetSubmissionFormsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionFormsAsyncCoreAsync(ct));
     public Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsync(int id,PublicFormSubmissionQueryDto q,string scope,CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionsAsyncCoreAsync(id,q,scope,ct));
     public Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsync(int id,PublicFormSubmissionQueryDto q,string scope,CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionSummaryAsyncCoreAsync(id,q,scope,ct));
@@ -252,11 +252,16 @@ public sealed class PublicFormService : IPublicFormService
         return sub.Id;
     }
 
-    private async Task<int> SubmitFeedbackAsyncCoreAsync(int formId, string employeeCode, PublicFormFeedbackRequest request, CancellationToken ct = default)
+    private async Task<int> SubmitFeedbackAsyncCoreAsync(int formId, string employeeCode, string? deptCode, string? positionCode, PublicFormFeedbackRequest request, CancellationToken ct = default)
     {
         var formExists = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .AnyAsync(x => x.Id == formId && x.IsActive == true, ct);
         if (!formExists) throw new KeyNotFoundException("Không tìm thấy biểu mẫu.");
+
+        var form = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
+            .Include(x => x.Audiences).FirstOrDefaultAsync(x => x.Id == formId, ct);
+        if (form == null || !Matches(form, employeeCode, deptCode, positionCode))
+            throw new UnauthorizedAccessException("Bạn không thuộc đối tượng được phép phản hồi.");
 
         if (string.IsNullOrWhiteSpace(request.Content))
             throw new ArgumentException("Nội dung phản hồi không được để trống.");
