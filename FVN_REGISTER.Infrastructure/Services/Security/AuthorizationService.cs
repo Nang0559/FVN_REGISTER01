@@ -91,7 +91,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
             join r in _uow.Repository<F03Role>().Query().AsNoTracking() on ur.IdRole equals r.Id
             join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
-            where ur.IdUser == user.UserId && r.IsActive == true && (f.IsActive ?? true)
+            where ur.IdUser == user.UserId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
                 && (rf.AccessMode == "Management"
                     || (rf.AccessMode == null
@@ -532,7 +532,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
-            where ur.IdUser == userId && r.IsActive == true
+            where ur.IdUser == userId && ur.IsActive == true && r.IsActive == true
             select r.RoleCode
         ).Distinct().ToListAsync(ct);
 
