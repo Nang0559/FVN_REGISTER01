@@ -61,7 +61,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 && r.IsActive == true
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
-                && string.Equals(rf.ScopeCode ?? f.ScopeCode, normalizedScope)
+                && (rf.ScopeCode ?? f.ScopeCode) == normalizedScope
             select f.Id
         ).AnyAsync(ct);
     }
