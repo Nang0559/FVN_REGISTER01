@@ -4,18 +4,30 @@ public sealed class LoadingService : ILoadingService
 {
     private int _activeOperations;
     private string? _message;
+    private readonly object _sync = new();
 
-    public bool IsLoading => _activeOperations > 0;
-    public string? Message => _message;
+    public bool IsLoading => Volatile.Read(ref _activeOperations) > 0;
+
+    public string? Message
+    {
+        get
+        {
+            lock (_sync)
+                return _message;
+        }
+    }
 
     public event EventHandler? StateChanged;
 
     public IDisposable Begin(string? message = null)
     {
-        _activeOperations++;
+        lock (_sync)
+        {
+            _activeOperations++;
 
-        if (!string.IsNullOrWhiteSpace(message))
-            _message = message;
+            if (!string.IsNullOrWhiteSpace(message))
+                _message = message;
+        }
 
         NotifyStateChanged();
         return new LoadingScope(this);
@@ -26,11 +38,14 @@ public sealed class LoadingService : ILoadingService
 
     public void Hide()
     {
-        if (_activeOperations > 0)
-            _activeOperations--;
+        lock (_sync)
+        {
+            if (_activeOperations > 0)
+                _activeOperations--;
 
-        if (_activeOperations == 0)
-            _message = null;
+            if (_activeOperations == 0)
+                _message = null;
+        }
 
         NotifyStateChanged();
     }
