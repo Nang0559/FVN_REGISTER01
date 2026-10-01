@@ -1,5 +1,6 @@
 ﻿using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
@@ -30,10 +31,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
         private readonly ISessionService _sessionService;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly ITwoFactorService _twoFactor;
+        private readonly IAuthorizationService _authorization;
 
-        public AuthService(IUnitOfWork uow, IAuditService audit, IOptions<JwtOptions> jwtOptions, ISessionService sessionService, IHubContext<NotificationHub> hubContext, ITwoFactorService twoFactor, ILogger<AuthService> logger, IOptionsMonitor<AuthDebugOptions> options) : base(logger, options)
+        public AuthService(IUnitOfWork uow, IAuditService audit, IOptions<JwtOptions> jwtOptions, ISessionService sessionService, IHubContext<NotificationHub> hubContext, ITwoFactorService twoFactor, IAuthorizationService authorization, ILogger<AuthService> logger, IOptionsMonitor<AuthDebugOptions> options) : base(logger, options)
         {
-            _uow = uow; _audit = audit; _jwtOptions = jwtOptions.Value; _sessionService = sessionService; _hubContext = hubContext; _twoFactor = twoFactor;
+            _uow = uow; _audit = audit; _jwtOptions = jwtOptions.Value; _sessionService = sessionService; _hubContext = hubContext; _twoFactor = twoFactor; _authorization = authorization;
         }
 
         public async Task<ServiceResult<AuthResultDto>> Login(string employeeCode,string password,string deviceId,string deviceType,string? deviceName,bool rememberMe,string? ipAddress,string? userAgent,CancellationToken ct=default)
@@ -43,7 +45,44 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
         }
 
         public async Task<ServiceResult<UserIdentityDto>> GetProfileAsync(int userId,CancellationToken ct=default)
-        { try { var user=await _uow.Repository<F03User>().Query().FirstOrDefaultAsync(x=>x.Id==userId,ct);if(user==null)return ServiceResult<UserIdentityDto>.Fail("Không tìm thấy thông tin tài khoản.");var functionIds=await _uow.Repository<F03UserFunction>().Query().Where(x=>x.IdUser==userId).Select(x=>x.IdFunction).ToListAsync(ct);var emp=await _uow.Repository<F03Employee>().Query().Where(x=>x.EmployeeCode==user.EmployeeCode).Select(x=>new{x.EmailAddress,x.PositionCode}).FirstOrDefaultAsync(ct);return ServiceResult<UserIdentityDto>.Ok(new UserIdentityDto{UserId=user.Id,Permission=user.PermissionCode,UserName=user.EmployeeCode,FullName=user.FullName,EmployeeCode=user.EmployeeCode,DeptCode=user.DeptCode,PositionCode=emp?.PositionCode,Email=emp?.EmailAddress,LevelApprove=user.LevelApprove,Functions=functionIds});}catch(Exception ex){Logger.LogError(ex,"[PROFILE] Exception for {UserId}",userId);return ServiceResult<UserIdentityDto>.Fail("Lỗi hệ thống khi lấy thông tin người dùng.");} }
+        {
+            try
+            {
+                var user=await _uow.Repository<F03User>().Query()
+                    .FirstOrDefaultAsync(x=>x.Id==userId,ct);
+                if(user==null)
+                    return ServiceResult<UserIdentityDto>.Fail("Không tìm thấy thông tin tài khoản.");
+
+                // Client identity exposes the same effective Role -> Function set as
+                // server-side authorization. Legacy direct F03UserFunction grants
+                // must not make a module visible after its role capability is removed.
+                var permissions = await _authorization.GetSnapshotAsync(userId, ct);
+
+                var emp=await _uow.Repository<F03Employee>().Query()
+                    .Where(x=>x.EmployeeCode==user.EmployeeCode)
+                    .Select(x=>new{x.EmailAddress,x.PositionCode})
+                    .FirstOrDefaultAsync(ct);
+
+                return ServiceResult<UserIdentityDto>.Ok(new UserIdentityDto
+                {
+                    UserId=user.Id,
+                    Permission=user.PermissionCode,
+                    UserName=user.EmployeeCode,
+                    FullName=user.FullName,
+                    EmployeeCode=user.EmployeeCode,
+                    DeptCode=user.DeptCode,
+                    PositionCode=emp?.PositionCode,
+                    Email=emp?.EmailAddress,
+                    LevelApprove=user.LevelApprove,
+                    Functions=permissions.FunctionCodes.ToList()
+                });
+            }
+            catch(Exception ex)
+            {
+                Logger.LogError(ex,"[PROFILE] Exception for {UserId}",userId);
+                return ServiceResult<UserIdentityDto>.Fail("Lỗi hệ thống khi lấy thông tin người dùng.");
+            }
+        }
         public async Task<ServiceResult> UpdateProfileAsync(int userId,string email,string? avatarUrl,CancellationToken ct=default){try{var user=await _uow.Repository<F03User>().Query().FirstOrDefaultAsync(x=>x.Id==userId,ct);if(user==null)return ServiceResult.Fail("Không tìm thấy người dùng.");user.Avatar=avatarUrl;await _uow.SaveChangesAsync(ct);Logger.LogInfoIf(Debug,"[PROFILE] Updated success: {UserId}",userId);return ServiceResult.Ok("Cập nhật thông tin thành công");}catch(Exception ex){Logger.LogError(ex,"[PROFILE] Update error: {UserId}",userId);return ServiceResult.Fail("Lỗi hệ thống khi cập nhật thông tin.");}}
         public async Task<ServiceResult> ChangePassword(string employeeCode,string currentPassword,string newPassword,CancellationToken ct=default){try{Logger.LogDebugIf(Debug,"[PASSWORD] Change attempt: {Emp}",employeeCode);var user=await _uow.Repository<F03User>().Query().FirstOrDefaultAsync(x=>x.EmployeeCode==employeeCode,ct);if(user==null)return ServiceResult.Fail("Tài khoản không tồn tại");if(!EncryptUtils.PwdCompare(currentPassword,user.Password)){Logger.LogWarnIf(Debug,"[PASSWORD] Wrong current password: {Emp}",employeeCode);return ServiceResult.Fail("Sai mật khẩu hiện tại");}user.Password=EncryptUtils.MD5(newPassword);await _uow.SaveChangesAsync(ct);await _sessionService.RevokeAllAsync(user.Id,ct);await _audit.LogAction("CHANGE_PASSWORD",user.Id,"Đổi mật khẩu thành công");Logger.LogInfoIf(Debug,"[PASSWORD] Changed success: {Emp}",employeeCode);return ServiceResult.Ok();}catch(Exception ex){Logger.LogError(ex,"[PASSWORD] Error for {Emp}",employeeCode);return ServiceResult.Fail("Lỗi hệ thống khi đổi mật khẩu.");}}
         public async Task<ServiceResult> Logout(int userId,string? refreshToken,string? ipAddress,string? userAgent,CancellationToken ct=default){try{Logger.LogDebugIf(Debug,"[LOGOUT] User: {UserId}",userId);if(!string.IsNullOrEmpty(refreshToken))await _sessionService.RevokeAsync(refreshToken,ct);await _audit.LogLogout(userId,ipAddress,userAgent);Logger.LogInfoIf(Debug,"[LOGOUT] Success: {UserId}",userId);return ServiceResult.Ok();}catch(Exception ex){Logger.LogError(ex,"[LOGOUT] Error: {UserId}",userId);return ServiceResult.Fail("Lỗi khi logout.");}}
