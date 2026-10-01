@@ -728,6 +728,24 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("Role không tồn tại hoặc đã ngừng hoạt động.");
 
         var codes = functionCodes.Distinct().ToList();
+        var allowedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            AuthorizationScopeCodes.Own,
+            AuthorizationScopeCodes.Employee,
+            AuthorizationScopeCodes.Department,
+            AuthorizationScopeCodes.All
+        };
+
+        foreach (var overridePair in scopeOverrides ?? new Dictionary<int, string?>())
+        {
+            if (!codes.Contains(overridePair.Key))
+                throw new InvalidOperationException($"Scope override không thuộc FunctionCodes: {overridePair.Key}.");
+
+            if (!string.IsNullOrWhiteSpace(overridePair.Value)
+                && !allowedScopes.Contains(overridePair.Value.Trim()))
+                throw new InvalidOperationException($"ScopeCode không hợp lệ: {overridePair.Value}.");
+        }
+
         var functions = await _uow.Repository<F03Function>().Query()
             .Where(x => codes.Contains(x.FunctionCode) && (x.IsActive ?? true))
             .ToListAsync(ct);
