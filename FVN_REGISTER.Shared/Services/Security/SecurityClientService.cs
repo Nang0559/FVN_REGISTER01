@@ -49,7 +49,6 @@ public sealed class SecurityClientService : ISecurityClientService
     public Task<ApiResponse<object>> DeleteSecurityFunctionAsync(int id, CancellationToken ct = default) => _http.DeleteAsync<object>($"api/security/registry/functions/{id}", ct);
     public Task<ApiResponse<object>> UpsertSecurityRoleAsync(SecurityRoleUpsertRequest request, CancellationToken ct = default) => _http.PostAsync<object>("api/security/registry/roles", request, ct);
     public Task<ApiResponse<object>> DeleteSecurityRoleAsync(int id, CancellationToken ct = default) => _http.DeleteAsync<object>($"api/security/registry/roles/{id}", ct);
-}
 
     public Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationCatalogDto>> GetLocalizationCatalogAsync(CancellationToken ct = default) => _http.GetAsync<FVN_REGISTER.Contract.Dtos.Language.LocalizationCatalogDto>("api/localization/catalog", ct);
     public Task<ApiResponse<object>> UpsertLocalizationAsync(FVN_REGISTER.Contract.Dtos.Language.LocalizationUpsertRequest request, CancellationToken ct = default) => _http.PostAsync<object>("api/localization/entries", request, ct);
@@ -57,3 +56,4 @@ public sealed class SecurityClientService : ISecurityClientService
     public Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationAuditResultDto>> AuditLocalizationAsync(CancellationToken ct = default) => _http.PostAsync<FVN_REGISTER.Contract.Dtos.Language.LocalizationAuditResultDto>("api/localization/audit", new { }, ct);
     public Task<ApiResponse<byte[]>> ExportLocalizationAsync(CancellationToken ct = default) => _http.GetFileAsync("api/localization/export", ct);
     public Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationImportResultDto>> ImportLocalizationAsync(MultipartFormDataContent content, CancellationToken ct = default) => _http.PostMultipartAsync<FVN_REGISTER.Contract.Dtos.Language.LocalizationImportResultDto>("api/localization/import", content, ct);
+}
