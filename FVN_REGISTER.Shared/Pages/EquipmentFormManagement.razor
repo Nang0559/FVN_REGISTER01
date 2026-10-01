@@ -41,10 +41,10 @@
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-3">
                         <MudText Typo="Typo.subtitle1">@Language.T("equipment.loaiSchemaThietBiDuoc")</MudText>
-                        @foreach (var schema in _schemas.OrderBy(x => x.DepartmentCode).ThenBy(x => x.SchemaName))
+                        @foreach (var schema in _schemas.OrderBy(x => x.DeptCode).ThenBy(x => x.SchemaName))
                         {
                             <MudButton FullWidth="true" Variant="@(schema.Id == _selectedSchemaId ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectSchemaAsync(schema))">
-                                @schema.DepartmentCode — @schema.SchemaName — v@schema.Version
+                                @schema.DeptCode — @schema.SchemaName — v@schema.Version
                             </MudButton>
                         }
                     </MudPaper>
@@ -95,7 +95,7 @@
                                         @foreach (var employee in _operatorEmployees)
                                         {
                                             <MudSelectItem T="string" Value="@employee.EmployeeCode">
-                                                @employee.EmployeeCode — @employee.EmployeeName — @employee.DepartmentCode — @employee.DeptName — @employee.PositionCode — @employee.PositionName
+                                                @employee.EmployeeCode — @employee.EmployeeName — @employee.DeptCode — @employee.DeptName — @employee.PositionCode — @employee.PositionName
                                             </MudSelectItem>
                                         }
                                     </MudSelect>
@@ -112,7 +112,7 @@
                                     </HeaderContent>
                                     <RowTemplate>
                                         <MudTd><b>@context.EmployeeCode</b> — @context.EmployeeName</MudTd>
-                                        <MudTd>@context.DepartmentCode — @context.DeptName</MudTd>
+                                        <MudTd>@context.DeptCode — @context.DeptName</MudTd>
                                         <MudTd>@context.PositionCode — @context.PositionName</MudTd>
                                         <MudTd Style="text-align:center">
                                             <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveOperatorAsync(context))">@Language.T("security.boChiDinh")</MudButton>
@@ -163,7 +163,7 @@
         var manageable = new List<ExcelSchemaSummaryDto>();
         foreach (var schema in candidates)
         {
-            var access = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaKey);
+            var access = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaCode);
             if (access.IsSuccess) manageable.Add(schema);
         }
         _schemas = manageable;
@@ -181,14 +181,14 @@
 
     private async Task SelectSchemaAsync(ExcelSchemaSummaryDto schema)
     {
-        var result = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaKey);
+        var result = await EquipmentClient.GetEquipmentFormAssignmentsAsync(schema.SchemaCode);
         if (!result.IsSuccess)
         {
             Snackbar.Add(result.Message ?? Language.T("equipment.banKhongCoQuyenQuan"), Severity.Warning);
             return;
         }
         _selectedSchemaId = schema.Id;
-        _selectedSchemaName = $"{schema.DepartmentCode} — {schema.SchemaName} — v{schema.Version}";
+        _selectedSchemaName = $"{schema.DeptCode} — {schema.SchemaName} — v{schema.Version}";
         _assignments = result.Data ?? new();
         _selectedFormId = 0;
         _operatorEmployeeCode = string.Empty;
@@ -250,7 +250,7 @@
         if (!_selectedSchemaId.HasValue || _selectedFormId <= 0) return;
         var schema = _schemas.FirstOrDefault(x => x.Id == _selectedSchemaId.Value);
         if (schema == null) return;
-        var result = await EquipmentClient.AssignEquipmentFormAsync(new EquipmentFormAssignmentRequest { EquipmentSchemaKey = schema.SchemaKey, FormId = _selectedFormId, DisplayOrder = _displayOrder });
+        var result = await EquipmentClient.AssignEquipmentFormAsync(new EquipmentFormAssignmentRequest { EquipmentSchemaKey = schema.SchemaCode, FormId = _selectedFormId, DisplayOrder = _displayOrder });
         if (result.IsSuccess)
         {
             Snackbar.Add(Language.T("equipment.daApDungBieuMau"), Severity.Success);
