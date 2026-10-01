@@ -324,13 +324,14 @@
             </MudPaper>
         </MudTabPanel>
         }
-
         @if (CanAssignPermissions)
         {
-            <MudTabPanel Text="@Language.T("security.organizationScope") Icon="@Icons.Material.Filled.AccountTree">
+            <MudTabPanel
+                Text="@Language.T("security.organizationScope")"
+                Icon="@Icons.Material.Filled.AccountTree">
                 <ManagedScopeEditor User="_selected" />
             </MudTabPanel>
-        }
+            }
 
         @if (CanAssignPermissions)
         {
