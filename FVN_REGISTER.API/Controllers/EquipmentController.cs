@@ -41,8 +41,8 @@ public sealed class EquipmentController : ControllerBase
         return Ok(new EquipmentActionAccessDto
         {
             View = true,
-            Create = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentCreate, ct),
-            Edit = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentEdit, ct),
+            Create = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.EquipmentCreate, ct),
+            Edit = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.EquipmentEdit, ct),
             Assign = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentAssign, ct),
             Transfer = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentTransfer, ct),
             Return = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentReturn, ct),
@@ -72,7 +72,7 @@ public sealed class EquipmentController : ControllerBase
     [HttpGet("assignment-employees")]
     public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> AssignmentEmployees([FromQuery] string? deptCode, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
         var result = await _service.GetAssignmentEmployeesAsync(deptCode, ct);
         return result.IsSuccess ? Ok(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result));
     }
@@ -98,7 +98,7 @@ public sealed class EquipmentController : ControllerBase
     [HttpPost("registrations/{id:int}/submit")]
     public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> SubmitRegistration(int id, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentEdit, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentEdit, ct)) return Forbid();
         var result = await _service.SubmitRegistrationAsync(id, ct);
         var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
@@ -121,7 +121,7 @@ public sealed class EquipmentController : ControllerBase
     [HttpGet("registrations/mine")]
     public async Task<ActionResult<ApiResponse<List<EquipmentRequestDto>>>> Mine(CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetMineAsync(ct);
         var response = ApiResponse<List<EquipmentRequestDto>>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
@@ -315,6 +315,12 @@ public sealed class EquipmentController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         return user != null && await _authorization.HasAsync(user, functionCode, ct);
+    }
+
+    private async Task<bool> CanPersonalAsync(int functionCode, CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        return user != null && await _authorization.HasPersonalAsync(user, functionCode, ct);
     }
 
     private async Task<bool> CanRepairOrAssignedAssetAsync(int assetId, CancellationToken ct)
