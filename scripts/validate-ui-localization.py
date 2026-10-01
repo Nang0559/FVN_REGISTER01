@@ -108,8 +108,6 @@ for path in sorted(SHARED.rglob("*.razor")):
 for path in sorted(SHARED.rglob("*.cs")):
     if any(part in {"bin", "obj"} for part in path.parts):
         continue
-    if "Services/Language" in path.as_posix():
-        continue
     text = path.read_text(encoding="utf-8-sig")
     used.update(LANGUAGE_KEY_RE.findall(text))
     used.update(STORE_KEY_RE.findall(text))
@@ -153,7 +151,7 @@ print(f"Potential hard-coded UI candidates: {len(raw_candidates)}")
 print(f"Unused keys: {len(unused)}")
 
 if raw_candidates:
-    print("\nPotential hard-coded UI literals:")
+    print("\nPotential hard-coded UI literals (audit only):")
     for item in raw_candidates:
         print(f"{item['file']}:{item['line']}: {item['kind']}: {item['text']}")
 
