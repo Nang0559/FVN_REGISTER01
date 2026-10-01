@@ -115,6 +115,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
                 on rf.IdFunction equals f.Id
             where ur.IdUser == userId
+                && ur.IsActive == true
+                && rf.IsActive == true
                 && r.IsActive == true
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
