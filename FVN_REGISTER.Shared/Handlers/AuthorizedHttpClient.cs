@@ -26,14 +26,21 @@ namespace FVN_REGISTER.Shared.Handlers
             _logger.LogDebug("[HTTP] Base Address: {Base}", _httpClient.BaseAddress);
         }
 
-        private async Task AttachTokenAsync(HttpRequestMessage request)
+        private async Task<string?> AttachTokenAsync(HttpRequestMessage request)
         {
             var token = await _tokenStorage.GetTokenAsync();
             if (!string.IsNullOrWhiteSpace(token))
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Trim('"').Trim());
-            else
-                _logger.LogWarning("[AUTH] Missing token | Path={Path}", request.RequestUri?.AbsolutePath);
+            {
+                token = NormalizeToken(token);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                return token;
+            }
+
+            _logger.LogWarning("[AUTH] Missing token | Path={Path}", request.RequestUri?.AbsolutePath);
+            return null;
         }
+
+        private static string NormalizeToken(string token) => token.Trim('"').Trim();
 
         private async Task<ApiResponse<T>> SendAsync<T>(Func<HttpRequestMessage> requestFactory, string url, CancellationToken ct, bool showLoading)
         {
@@ -41,12 +48,12 @@ namespace FVN_REGISTER.Shared.Handlers
             {
                 using var loadingScope = showLoading ? _loading.Begin() : null;
                 using var request = requestFactory();
-                await AttachTokenAsync(request);
+                var accessTokenUsed = await AttachTokenAsync(request);
                 using var response = await _httpClient.SendAsync(request, ct);
 
                 if (response.StatusCode == HttpStatusCode.Unauthorized && !IsAuthRefreshRequest(url))
                 {
-                    var refreshed = await TryRefreshTokenAsync(ct);
+                    var refreshed = await TryRefreshTokenAsync(accessTokenUsed, ct);
                     if (refreshed)
                     {
                         using var retry = requestFactory();
@@ -68,28 +75,50 @@ namespace FVN_REGISTER.Shared.Handlers
 
         private static bool IsAuthRefreshRequest(string url) => url.Contains("api/auth/refresh", StringComparison.OrdinalIgnoreCase);
 
-        private async Task<bool> TryRefreshTokenAsync(CancellationToken ct)
+        private async Task<bool> TryRefreshTokenAsync(string? failedAccessToken, CancellationToken ct)
         {
-            var refreshToken = await _tokenStorage.GetRefreshTokenAsync();
-            if (string.IsNullOrWhiteSpace(refreshToken)) return false;
-
             await _refreshLock.WaitAsync(ct);
             try
             {
+                // Another request may already have refreshed the token while this request
+                // was waiting for the lock. Reuse that token instead of refreshing again.
+                var currentAccessToken = await _tokenStorage.GetTokenAsync();
+                currentAccessToken = string.IsNullOrWhiteSpace(currentAccessToken)
+                    ? null
+                    : NormalizeToken(currentAccessToken);
+
+                if (!string.IsNullOrWhiteSpace(currentAccessToken) &&
+                    !string.Equals(currentAccessToken, failedAccessToken, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                // Read the refresh token only after acquiring the lock so concurrent 401s
+                // cannot race on a stale refresh token.
+                var refreshToken = await _tokenStorage.GetRefreshTokenAsync();
+                if (string.IsNullOrWhiteSpace(refreshToken)) return false;
+
                 using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/refresh")
                 {
-                    Content = JsonContent.Create(new FVN_REGISTER.Contract.Requests.Auths.RefreshTokenRequestDto { RefreshToken = refreshToken })
+                    Content = JsonContent.Create(new FVN_REGISTER.Contract.Requests.Auths.RefreshTokenRequestDto
+                    {
+                        RefreshToken = refreshToken
+                    })
                 };
+
                 using var response = await _httpClient.SendAsync(request, ct);
                 if (!response.IsSuccessStatusCode) return false;
 
                 var payload = await response.Content.ReadFromJsonAsync<ApiResponse<JsonElement>>(cancellationToken: ct);
                 if (payload?.IsSuccess != true || payload.Data.ValueKind != JsonValueKind.Object) return false;
-                if (!payload.Data.TryGetProperty("token", out var tokenNode) && !payload.Data.TryGetProperty("Token", out tokenNode)) return false;
+                if (!payload.Data.TryGetProperty("token", out var tokenNode) &&
+                    !payload.Data.TryGetProperty("Token", out tokenNode))
+                    return false;
 
                 var token = tokenNode.GetString();
                 if (string.IsNullOrWhiteSpace(token)) return false;
-                await _tokenStorage.SetTokenAsync(token);
+
+                await _tokenStorage.SetTokenAsync(NormalizeToken(token));
                 return true;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -130,16 +159,56 @@ namespace FVN_REGISTER.Shared.Handlers
                 };
             }
 
-            var trimmed = content.TrimStart();
-            if (trimmed.StartsWith("{", StringComparison.Ordinal))
+            // A successful response without a body is valid (204 and other empty 2xx).
+            // Do not try to deserialize an empty string as T.
+            if (string.IsNullOrWhiteSpace(content))
             {
-                var apiResult = TryDeserialize<ApiResponse<T>>(content);
-                if (apiResult != null) return apiResult;
+                return new ApiResponse<T>
+                {
+                    IsSuccess = true,
+                    StatusCode = (int)response.StatusCode,
+                    Message = "Success",
+                    Data = default
+                };
+            }
+
+            var trimmed = content.TrimStart();
+            if (trimmed.StartsWith("{", StringComparison.Ordinal) ||
+                trimmed.StartsWith("[", StringComparison.Ordinal))
+            {
+                using var document = TryParseJson(content);
+                if (document is not null)
+                {
+                    var root = document.RootElement;
+
+                    // Only treat an object as ApiResponse<T> when it actually has the
+                    // response-envelope marker. Otherwise deserialize it as the raw T.
+                    if (root.ValueKind == JsonValueKind.Object &&
+                        (HasProperty(root, "isSuccess") || HasProperty(root, "success")))
+                    {
+                        var apiResult = TryDeserialize<ApiResponse<T>>(content);
+                        if (apiResult != null)
+                        {
+                            apiResult.StatusCode = (int)response.StatusCode;
+                            return apiResult;
+                        }
+
+                        return ApiResponse<T>.Fail("Invalid response format.", (int)response.StatusCode);
+                    }
+                }
             }
 
             var raw = TryDeserialize<T>(content);
-            if (raw != null) return ApiResponse<T>.Ok(raw);
-            return ApiResponse<T>.Fail("Invalid response format.");
+            if (raw is not null || IsExplicitJsonNull(content))
+                return new ApiResponse<T>
+                {
+                    IsSuccess = true,
+                    StatusCode = (int)response.StatusCode,
+                    Message = "Success",
+                    Data = raw
+                };
+
+            return ApiResponse<T>.Fail("Invalid response format.", (int)response.StatusCode);
         }
 
         private static T? TryDeserialize<T>(string json)
@@ -148,6 +217,18 @@ namespace FVN_REGISTER.Shared.Handlers
             try { return JsonSerializer.Deserialize<T>(json, JsonOptions); }
             catch (JsonException) { return default; }
         }
+
+        private static JsonDocument? TryParseJson(string json)
+        {
+            try { return JsonDocument.Parse(json); }
+            catch (JsonException) { return null; }
+        }
+
+        private static bool HasProperty(JsonElement element, string name)
+            => element.TryGetProperty(name, out _);
+
+        private static bool IsExplicitJsonNull(string json)
+            => string.Equals(json.Trim(), "null", StringComparison.Ordinal);
 
         public Task<ApiResponse<T>> GetAsync<T>(string url, CancellationToken ct = default, bool showLoading = true)
             => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Get, url), url, ct, showLoading);
@@ -209,12 +290,12 @@ namespace FVN_REGISTER.Shared.Handlers
         {
             using var loadingScope = showLoading ? _loading.Begin() : null;
             using var request = requestFactory();
-            await AttachTokenAsync(request);
+            var accessTokenUsed = await AttachTokenAsync(request);
             using var response = await _httpClient.SendAsync(request, ct);
 
             if (response.StatusCode == HttpStatusCode.Unauthorized && !IsAuthRefreshRequest(url))
             {
-                if (await TryRefreshTokenAsync(ct))
+                if (await TryRefreshTokenAsync(accessTokenUsed, ct))
                 {
                     using var retry = requestFactory();
                     await AttachTokenAsync(retry);
@@ -239,7 +320,43 @@ namespace FVN_REGISTER.Shared.Handlers
             return ApiResponse<byte[]>.Ok(bytes);
         }
 
-        public Task<ApiResponse<T>> PostMultipartAsync<T>(string url, MultipartFormDataContent content, CancellationToken ct = default, bool showLoading = true)
-            => SendAsync<T>(() => new HttpRequestMessage(HttpMethod.Post, url) { Content = content }, url, ct, showLoading);
+        public async Task<ApiResponse<T>> PostMultipartAsync<T>(
+            string url,
+            MultipartFormDataContent content,
+            CancellationToken ct = default,
+            bool showLoading = true)
+        {
+            // HttpContent is single-use for retry purposes. Buffer the multipart payload
+            // once, then create a fresh HttpContent instance for every SendAsync attempt.
+            try
+            {
+                await using var buffer = new MemoryStream();
+                await content.CopyToAsync(buffer, ct);
+                var payload = buffer.ToArray();
+                var contentType = content.Headers.TryGetValues("Content-Type", out var values)
+                    ? values.SingleOrDefault()
+                    : null;
+
+                return await SendAsync<T>(
+                    () =>
+                    {
+                        var replayableContent = new ByteArrayContent(payload);
+                        if (!string.IsNullOrWhiteSpace(contentType))
+                            replayableContent.Headers.TryAddWithoutValidation("Content-Type", contentType);
+
+                        return new HttpRequestMessage(HttpMethod.Post, url)
+                        {
+                            Content = replayableContent
+                        };
+                    },
+                    url,
+                    ct,
+                    showLoading);
+            }
+            finally
+            {
+                content.Dispose();
+            }
+        }
     }
 }
