@@ -134,18 +134,18 @@
                                OnClick="@(() => OpenDetailAsync(context.Id))">
                         @Language.T("common.detail")
                     </MudButton>
-                    @if (context.RequiresConfirmation && context.ConfirmationId == null)
+                    @if (context.RequiresConfirmation)
                     {
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
-                                   OnClick="@(() => OpenConfirmationAsync(context))">
-                            @Language.T("common.confirm")
-                        </MudButton>
-                    }
-                    else if (context.ConfirmationId != null)
-                    {
-                        <MudStack Row="true" Spacing="1">
-                            <MudChip T="string" Size="Size.Small" Color="Color.Info">@Language.T("execution.daGuiXacNhan")</MudChip>
-                            @if (context.RequiresEvidence)
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            @if (context.ConfirmationId != null)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@Language.T("execution.daGuiXacNhan")</MudChip>
+                            }
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                       OnClick="@(() => OpenConfirmationAsync(context))">
+                                @Language.T("common.confirm")
+                            </MudButton>
+                            @if (context.ConfirmationId != null && context.RequiresEvidence)
                             {
                                 <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
                                            OnClick="@(() => OpenEvidenceAsync(context))">
