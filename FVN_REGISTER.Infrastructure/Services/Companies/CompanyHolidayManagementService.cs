@@ -18,8 +18,8 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
     public CompanyHolidayManagementService(IUnitOfWork uow, ILogger<CompanyHolidayManagementService> logger, IOptionsMonitor<AuthDebugOptions> options)
         : base(logger, options) => _uow = uow;
 
-    public async Task<List<CompanyHolidayDto>> GetAllAsync(CancellationToken ct = default)
-        => await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().OrderByDescending(x => x.HolidayDate).Select(ToDto).ToList();
+    public Task<List<CompanyHolidayDto>> GetAllAsync(CancellationToken ct = default)
+        => Task.FromResult(_uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().OrderByDescending(x => x.HolidayDate).Select(ToDto).ToList());
 
     public async Task<CompanyHolidayDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
@@ -128,15 +128,24 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
                 var description=worksheet.Cell(row,descriptionColumn).GetString().Trim(); if(string.IsNullOrWhiteSpace(description))return ServiceResult<string>.Fail($"Dòng {row}: thiếu Description.");
                 if(!int.TryParse(worksheet.Cell(row,typeColumn).GetString().Trim(),out var type)||type is<1 or>4)return ServiceResult<string>.Fail($"Dòng {row}: HolidayType chỉ nhận 1, 2, 3 hoặc 4.");
                 if(!TryParseBool(worksheet.Cell(row,paidColumn).GetString().Trim(),out var paid))return ServiceResult<string>.Fail($"Dòng {row}: TinhPhep chỉ nhận 1/0 hoặc Có/Không.");
-                if(!importedDates.Add(date))return ServiceResult<string>.Fail($"Dòng {row}: ngày bị trùng trong file.");
-                if(await repo.Query().AnyAsync(x=>x.HolidayDate.Date==date,ct)){skipped++;continue;}
-                await repo.AddAsync(new F03CompanyHoliday{HolidayDate=date,Description=description,Year=date.Year,HolidayType=(byte)type,TinhPhep=paid,CreatedBy=userId,CreatedAt=DateTime.Now},ct); added++;
+                if(!importedDates.Add(date)) { skipped++; continue; }
+                if(await repo.Query().AnyAsync(x=>x.HolidayDate.Date==date,ct)) { skipped++; continue; }
+                await repo.AddAsync(new F03CompanyHoliday { HolidayDate=date, Description=description, Year=date.Year, TinhPhep=paid, HolidayType=type, CreatedBy=userId, CreatedAt=DateTime.Now },ct); added++;
             }
-            if(added>0)await _uow.SaveChangesAsync(ct); return ServiceResult<string>.Ok($"Import {fileName}: thêm {added}, bỏ qua {skipped} ngày đã tồn tại.");
+            await _uow.SaveChangesAsync(ct); return ServiceResult<string>.Ok($"Đã thêm {added} ngày nghỉ; bỏ qua {skipped} dòng trùng.");
         }
-        catch(Exception ex){Logger.LogError(ex,"[HOLIDAY] Import Excel error: {FileName}",fileName);return ServiceResult<string>.Fail("Không đọc được file Excel. Hãy dùng nút 'Tải mẫu chuẩn'.");}
+        catch(Exception ex){Logger.LogError(ex,"[HOLIDAY] Import Excel error: {FileName}",fileName);return ServiceResult<string>.Fail("Import Excel thất bại.");}
     }
 
-    private static bool TryParseBool(string value,out bool result){switch(value.Trim().ToLowerInvariant()){case "1":case "true":case "yes":case "y":case "x":case "có":result=true;return true;case "0":case "false":case "no":case "n":case "không":result=false;return true;default:result=false;return false;}}
-    private static CompanyHolidayDto ToDto(F03CompanyHoliday entity)=>new(){Id=entity.Id,HolidayDate=entity.HolidayDate,Description=entity.Description,Year=entity.Year,IsPaidLeave=entity.TinhPhep,HolidayType=entity.HolidayType};
+    private static bool TryParseBool(string value,out bool result)
+    {
+        if(value.Equals("1",StringComparison.OrdinalIgnoreCase)||value.Equals("true",StringComparison.OrdinalIgnoreCase)||value.Equals("yes",StringComparison.OrdinalIgnoreCase)||value.Equals("có",StringComparison.OrdinalIgnoreCase)){result=true;return true;}
+        if(value.Equals("0",StringComparison.OrdinalIgnoreCase)||value.Equals("false",StringComparison.OrdinalIgnoreCase)||value.Equals("no",StringComparison.OrdinalIgnoreCase)||value.Equals("không",StringComparison.OrdinalIgnoreCase)){result=false;return true;}
+        result=false;return false;
+    }
+
+    private static CompanyHolidayDto ToDto(F03CompanyHoliday entity) => new()
+    {
+        Id=entity.Id, HolidayDate=entity.HolidayDate, Description=entity.Description, Year=entity.Year, IsPaidLeave=entity.TinhPhep, HolidayType=entity.HolidayType, IsActive=entity.IsActive
+    };
 }
