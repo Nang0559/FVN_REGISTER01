@@ -31,15 +31,6 @@
                         @Language.T("approval.noApprover")
                     </MudAlert>
                 }
-                else if (level.Candidates.Count == 1)
-                {
-                    <MudText Typo="Typo.body2">
-                        @level.Candidates[0].ApproverCode — @level.Candidates[0].ApproverName
-                    </MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @level.Candidates[0].PositionCode — @level.Candidates[0].PositionName
-                    </MudText>
-                }
                 else
                 {
                     <MudSelect T="string"
@@ -47,7 +38,9 @@
                                ValueChanged="@(value => SetSelected(level, value))"
                                Label='@Language.T("approval.selectApprover")'
                                Variant="Variant.Outlined"
-                               Dense="true">
+                               Dense="true"
+                               Required="@level.Required"
+                               Disabled="@(level.Candidates.Count == 1)">
                         @foreach (var candidate in level.Candidates)
                         {
                             <MudSelectItem Value="@candidate.ApproverCode">
@@ -59,6 +52,12 @@
                             </MudSelectItem>
                         }
                     </MudSelect>
+                    @if (level.Candidates.Count == 1)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @level.Candidates[0].PositionCode — @level.Candidates[0].PositionName
+                        </MudText>
+                    }
                 }
             </MudStack>
         }
