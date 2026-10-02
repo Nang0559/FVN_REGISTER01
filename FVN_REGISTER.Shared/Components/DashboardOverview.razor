@@ -1,4 +1,5 @@
 @using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Dtos.Actions
 @using FVN_REGISTER.Contract.Dtos.Dashboard
 @using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Core.Enums
@@ -31,6 +32,44 @@ else
                 </MudItem>
             }
         </MudGrid>
+    }
+
+    @if (Data.ActionCount > 0)
+    {
+        <MudCard Elevation="2" Class="mb-4" Style="border-radius:18px">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1">@Language.T("nav.workInbox")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @Language.T("home.actionCenterDescription")
+                    </MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Size="Size.Small" Variant="Variant.Text"
+                               OnClick="@(() => Navigation.NavigateTo("/execution/hr"))">
+                        @Language.T("common.mo")
+                    </MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent Class="pa-0">
+                @foreach (var action in Data.Actions.Take(5))
+                {
+                    <MudListItem T="ActionItemDto"
+                                 OnClick="@(() => OpenAction(action))">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2"><b>@action.Title</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @action.Summary
+                                </MudText>
+                            </MudStack>
+                            <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudCardContent>
+        </MudCard>
     }
 
     @if (Data.PendingApprovals.Any())
@@ -195,6 +234,14 @@ else
             "Công tác" => Language.T("dashboard.tripType"),
             _ => title
         };
+    }
+
+    private void OpenAction(ActionItemDto action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.DetailRoute))
+            Navigation.NavigateTo(action.DetailRoute);
+        else
+            Navigation.NavigateTo("/work/inbox");
     }
 
     private void OnWidgetClick(string? link)
