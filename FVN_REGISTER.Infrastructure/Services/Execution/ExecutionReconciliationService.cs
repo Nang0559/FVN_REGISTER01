@@ -366,7 +366,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 1,
                 100,
                 initialDueAt,
-                "/execution",
+                $"/execution?reconciliationId={entity.Id}",
                 null,
                 JsonSerializer.Serialize(new
                 {
