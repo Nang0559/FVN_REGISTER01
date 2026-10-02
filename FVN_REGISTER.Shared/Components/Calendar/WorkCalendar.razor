@@ -216,8 +216,8 @@
             var baseHours = FormatQuarterHours(baseMinutes);
             return shift switch
             {
-                "C2" => prefix + "C2" + baseHours,
-                "C3" => prefix + "C3" + baseHours,
+                "C2" => prefix == "T" ? prefix + "2" + baseHours : prefix + "C2" + baseHours,
+                "C3" => prefix == "T" ? prefix + "3" + baseHours : prefix + "C3" + baseHours,
                 _ => prefix + baseHours
             };
         }
@@ -225,8 +225,8 @@
         var hours = FormatQuarterHours(totalMinutes);
         return shift switch
         {
-            "C2" => prefix + "C2" + hours,
-            "C3" => prefix + "C3" + hours,
+            "C2" => prefix == "T" ? prefix + "2" + hours : prefix + "C2" + hours,
+            "C3" => prefix == "T" ? prefix + "3" + hours : prefix + "C3" + hours,
             _ => prefix + hours
         };
     }
@@ -236,28 +236,45 @@
         if (day.Attendance is null)
             return null;
 
+        var shift = NormalizeShift(day.Shift?.ShiftAbbr, day.Attendance.CheckIn);
+        var isHoliday = day.Holiday is not null;
+        var isSaturday = day.Date.DayOfWeek == DayOfWeek.Saturday;
+        var isSunday = day.Date.DayOfWeek == DayOfWeek.Sunday;
+        var isOffDay = isHoliday || isSaturday || isSunday;
+
         var actualMinutes = Math.Max(day.Attendance.ActualOtMinutes, day.Attendance.RecognizedOtMinutes);
         var registered = day.Registrations
             .Where(x => string.Equals(x.ModuleCode, "OT", StringComparison.OrdinalIgnoreCase))
             .ToArray();
         var registeredMinutes = registered.Sum(x => Math.Max(0, GetRegistrationMinutesForDate(x, day.Date)));
+        var elapsedMinutes = GetAttendanceElapsedMinutes(day.Attendance.CheckIn, day.Attendance.CheckOut);
+
+        if (isOffDay && elapsedMinutes >= 11 * 60 + 45 && actualMinutes <= 0 && registeredMinutes <= 0)
+            actualMinutes = 4 * 60;
+
         var minutes = actualMinutes > 0 ? actualMinutes : registeredMinutes;
         if (minutes <= 0)
             return null;
 
         minutes = (int)Math.Round(minutes / 15m, MidpointRounding.AwayFromZero) * 15;
         var hours = FormatQuarterHours(minutes);
-        var shift = NormalizeShift(day.Shift?.ShiftAbbr, day.Attendance.CheckIn);
 
-        var isK = shift is "C1" or "C2" or "C3";
+        if (isOffDay)
+        {
+            var prefix = isHoliday ? "NL" : isSunday ? "CN" : "T";
+            var isK = shift is "C1" or "C3";
+            return isK ? prefix + "K" + hours : prefix + hours;
+        }
+
+        var isNormalK = shift is "C1" or "C2" or "C3";
         if (shift == "HC")
         {
             var startsAfterNormalEnd = registered.Any(x => x.Start.TimeOfDay >= new TimeSpan(16, 45, 0));
             var checkoutAfterNormalEnd = day.Attendance.CheckOut?.TimeOfDay >= new TimeSpan(16, 45, 0);
-            isK = startsAfterNormalEnd || checkoutAfterNormalEnd == true;
+            isNormalK = startsAfterNormalEnd || checkoutAfterNormalEnd == true;
         }
 
-        return isK ? "K" + hours : hours;
+        return isNormalK ? "K" + hours : hours;
     }
 
     private static int GetRegistrationMinutesForDate(CalendarRegistrationDto registration, DateOnly date)
