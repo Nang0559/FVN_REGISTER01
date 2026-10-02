@@ -69,10 +69,6 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var canViewOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
         var canViewTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
 
-        // Reading a managed employee's calendar and being allowed to create a
-        // registration for that employee are different capabilities. Calendar
-        // must expose registration opportunities only when the caller has the
-        // corresponding Create permission for the target employee.
         var canCreateLeave = await _authorization.CanAccessAsync(
             user, SecurityFunctionCodes.LeaveCreate, normalizedEmployeeCode, null, ct);
         var canCreateOt = await _authorization.CanAccessAsync(
@@ -155,6 +151,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
             var future = date.Date > DateTime.Today;
             var past = date.Date < DateTime.Today;
             var working = workYear != null && holiday == null;
+            var holidayType = GetHolidayTypeCode(holiday?.HolidayType);
 
             var day = new WorkCalendarDayDto
             {
@@ -165,12 +162,13 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 IsPast = past,
                 IsWorkingDay = working,
                 HolidayName = holiday?.Description,
-                HolidayCode = holiday == null ? null : $"HOL-{holiday.HolidayDate:yyyyMMdd}",
+                HolidayCode = holiday == null ? null : $"HOL-{holidayType}-{holiday.HolidayDate:yyyyMMdd}",
+                HolidayType = holiday == null ? null : holidayType,
                 CanRegisterLeave = canCreateLeave && future && workYear != null && holiday == null,
                 CanRegisterOT = canCreateOt && future && workYear != null,
                 CanRegisterTrip = canCreateTrip && future && workYear != null && holiday == null,
                 AvailabilityNote = holiday != null
-                    ? $"Ngày nghỉ công ty: {holiday.Description} — chỉ đăng ký OT."
+                    ? $"Ngày nghỉ {GetHolidayTypeLabel(holiday.HolidayType)}: {holiday.Description} — chỉ đăng ký OT."
                     : !future
                         ? "Chỉ mở đăng ký từ ngày sau hôm nay."
                         : workYear == null
@@ -188,7 +186,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 Id = $"COMPANY_{h.Id}",
                 ModuleCode = "COMPANY",
                 EventType = "HOLIDAY",
-                Title = string.IsNullOrWhiteSpace(h.Description) ? "Nghỉ công ty" : h.Description,
+                Title = string.IsNullOrWhiteSpace(h.Description) ? GetHolidayTypeLabel(h.HolidayType) : h.Description,
                 Start = h.HolidayDate.Date,
                 End = h.HolidayDate.Date.AddDays(1),
                 Status = "Holiday",
@@ -282,6 +280,24 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         return result;
     }
+
+    private static string GetHolidayTypeCode(byte? holidayType)
+        => holidayType switch
+        {
+            2 => "NATIONAL",
+            3 => "COMPENSATORY",
+            4 => "OTHER",
+            _ => "COMPANY"
+        };
+
+    private static string GetHolidayTypeLabel(byte holidayType)
+        => holidayType switch
+        {
+            2 => "lễ quốc gia",
+            3 => "nghỉ bù",
+            4 => "nghỉ khác",
+            _ => "công ty"
+        };
 
     public async Task<ServiceResult<WorkCalendarDto>> GetAsync(
         string employeeCode,
@@ -478,7 +494,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var warnings = new List<string>();
         if (!item.IsFuture) warnings.Add("Chỉ mở đăng ký từ ngày sau hôm nay.");
         if (!string.IsNullOrWhiteSpace(item.HolidayName))
-            warnings.Add($"Ngày nghỉ công ty: {item.HolidayName} — chỉ OT.");
+            warnings.Add($"Ngày nghỉ {item.HolidayType?.ToLowerInvariant() ?? "công ty"}: {item.HolidayName} — chỉ OT.");
 
         if (calendar.Events.Any(x => x.ModuleCode == "LEAVE" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký nghỉ trong ngày.");

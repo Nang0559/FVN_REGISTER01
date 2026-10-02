@@ -135,6 +135,9 @@ Database/ is documentation/history only and is not executed by deployment.
 /* SECURITY SYSTEM-CRITICAL INVARIANT */
 :r "65_SecuritySystemCriticalInvariant.sql"
 
+/* CALENDAR HOLIDAY CLASSIFICATION */
+:r "66_CalendarHolidayClassification.sql"
+
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"
 
