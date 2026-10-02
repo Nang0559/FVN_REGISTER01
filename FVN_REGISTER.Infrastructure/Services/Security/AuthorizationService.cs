@@ -513,10 +513,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         if (role == null)
             return;
 
-        var criticalFunctions = await _uow.Repository<F03Function>().Query()
-            .Where(x => SecurityFunctionCodes.SystemCriticalCodes.Contains(x.FunctionCode)
-                && (x.IsActive ?? true))
-            .ToListAsync(ct);
+        // Materialize the IReadOnlySet as an array before entering the EF query.\n        // EF Core translates Enumerable.Contains over an array/list to SQL IN,\n        // while IReadOnlySet<T>.Contains is not translatable by the SQL Server provider.\n        var criticalFunctionCodes = SecurityFunctionCodes.SystemCriticalCodes.ToArray();\n\n        var criticalFunctions = await _uow.Repository<F03Function>().Query()\n            .Where(x => criticalFunctionCodes.Contains(x.FunctionCode)\n                && (x.IsActive ?? true))\n            .ToListAsync(ct);
 
         if (criticalFunctions.Count == 0)
             return;
