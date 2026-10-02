@@ -59,3 +59,27 @@ SET PolicyName = CASE WHEN NULLIF(LTRIM(RTRIM(PolicyName)), N'') IS NULL THEN N'
     HrReviewHours = CASE WHEN HrReviewHours <= 0 THEN 48 ELSE HrReviewHours END,
     AppealReviewHours = CASE WHEN AppealReviewHours <= 0 THEN 48 ELSE AppealReviewHours END,
     MaxAppealRounds = CASE WHEN AllowEmployeeAppeal = 1 AND MaxAppealRounds = 0 THEN 1 ELSE MaxAppealRounds END;
+
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'EmployeeDecisionStatus') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD EmployeeDecisionStatus nvarchar(40) NOT NULL CONSTRAINT DF_F03ExecutionReconciliations_EmployeeDecisionStatus DEFAULT N'Pending';
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'EmployeeDecisionAt') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD EmployeeDecisionAt datetime2 NULL;
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'EmployeeDecisionBy') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD EmployeeDecisionBy int NULL;
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'EmployeeDecisionComment') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD EmployeeDecisionComment nvarchar(2000) NULL;
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'AppealRound') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD AppealRound tinyint NOT NULL CONSTRAINT DF_F03ExecutionReconciliations_AppealRound DEFAULT 0;
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'FinalizedAt') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD FinalizedAt datetime2 NULL;
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'FinalizedBy') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD FinalizedBy int NULL;
+END;
