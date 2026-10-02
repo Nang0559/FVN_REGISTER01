@@ -168,6 +168,7 @@ else
             <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">v@context.PolicyVersion</MudChip></MudTd>
             <MudTd>
                 NV @context.EmployeeResponseHours h<br />
+                @(context.EmployeeTimeoutMode == 1 ? "Timeout: tự chấp nhận" : "Timeout: Final")<br />
                 HR @context.HrReviewHours h
                 @if (context.AllowEmployeeAppeal)
                 {
