@@ -160,11 +160,23 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
             request.EffectiveTo.Value <= request.EffectiveFrom.Value)
             return "EffectiveTo phải lớn hơn EffectiveFrom.";
 
-        if (await _db.ExecutionPolicies.AnyAsync(x =>
-                x.Id != id &&
-                x.IsActive != false &&
-                x.ModuleCode == module, ct))
-            return "Module này đang có policy active. Hãy sửa policy hiện tại; hệ thống sẽ tự version và vô hiệu policy cũ.";
+        if (request.IsActive)
+        {
+            var effectiveFrom = request.EffectiveFrom ?? DateTime.MinValue;
+            var effectiveTo = request.EffectiveTo ?? DateTime.MaxValue;
+
+            var activePolicies = await _db.ExecutionPolicies.AsNoTracking()
+                .Where(x => x.Id != id && x.IsActive != false && x.ModuleCode == module)
+                .Select(x => new { x.EffectiveFrom, x.EffectiveTo })
+                .ToListAsync(ct);
+
+            var overlaps = activePolicies.Any(x =>
+                (x.EffectiveFrom ?? DateTime.MinValue) < effectiveTo
+                && effectiveFrom < (x.EffectiveTo ?? DateTime.MaxValue));
+
+            if (overlaps)
+                return "Khoảng hiệu lực của policy bị chồng lấn với policy khác cùng module.";
+        }
 
         return null;
     }
