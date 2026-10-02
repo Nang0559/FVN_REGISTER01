@@ -238,17 +238,16 @@ public sealed class ActionItemService : IActionItemService
         if (!assigned)
             return;
 
+        // The employee confirmation is the source of truth for an HR review task.
+        // Evidence is optional, so backfill must not depend on ExecutionConfirmationEvidence.
         var pending = await (
-            from evidence in _db.ExecutionConfirmationEvidence.AsNoTracking()
-            join confirmation in _db.ExecutionConfirmations.AsNoTracking()
-                on evidence.ConfirmationId equals confirmation.Id
+            from confirmation in _db.ExecutionConfirmations.AsNoTracking()
             join reconciliation in _db.ExecutionReconciliations.AsNoTracking()
                 on confirmation.ReconciliationId equals reconciliation.Id
             join employee in _db.Employees.AsNoTracking()
                 on reconciliation.EmployeeId equals employee.Id
-            where evidence.IsActive != false
-                && evidence.ReviewStatus == "Pending"
-                && confirmation.IsActive != false
+            where confirmation.IsActive != false
+                && confirmation.Status == "Pending"
                 && reconciliation.IsActive != false
                 && reconciliation.ReconciliationStatus != "Resolved"
                 && _db.ExecutionPolicies.Any(p =>
@@ -266,10 +265,10 @@ public sealed class ActionItemService : IActionItemService
                 reconciliation.WorkDate,
                 employee.EmployeeCode,
                 employee.EmployeeName,
-                EvidenceId = evidence.Id,
-                EvidenceSubmittedBy = evidence.SubmittedBy
+                ConfirmationId = confirmation.Id,
+                ConfirmationCreatedBy = confirmation.CreatedBy
             })
-            .OrderByDescending(x => x.EvidenceId)
+            .OrderByDescending(x => x.ConfirmationId)
             .Take(200)
             .ToListAsync(cancellationToken);
 
@@ -305,7 +304,7 @@ public sealed class ActionItemService : IActionItemService
                 WorkDate = item.WorkDate,
                 ActionType = "EXECUTION_EVIDENCE_REVIEW",
                 Title = $"Phản hồi cần xử lý: {item.ModuleCode}",
-                Summary = $"{item.EmployeeCode} - {item.EmployeeName}: evidence #{item.EvidenceId} cần review.",
+                Summary = $"{item.EmployeeCode} - {item.EmployeeName}: phản hồi #{item.ConfirmationId} cần review.",
                 Severity = 1,
                 Priority = 200,
                 Status = ActionItemStatus.Open,
@@ -313,10 +312,10 @@ public sealed class ActionItemService : IActionItemService
                 PayloadJson = System.Text.Json.JsonSerializer.Serialize(new
                 {
                     ReconciliationId = item.Id,
-                    EvidenceId = item.EvidenceId,
+                    ConfirmationId = item.ConfirmationId,
                     EmployeeCode = item.EmployeeCode
                 }),
-                CreatedBy = item.EvidenceSubmittedBy ?? userId,
+                CreatedBy = item.ConfirmationCreatedBy ?? userId,
                 CreatedAt = DateTime.Now,
                 LastModifiedSource = "EXECUTION_OPERATOR_BACKFILL"
             });
