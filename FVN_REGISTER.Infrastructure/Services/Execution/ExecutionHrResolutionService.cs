@@ -665,7 +665,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await CompleteExecutionReviewActionsAsync(reconciliation.Id, userId, cancellationToken);
 
         if (!isFinalDecision)
-            await EnsureEmployeeResultActionAsync(reconciliation, employee.Id, now, policy.EmployeeResponseHours, cancellationToken);
+            reconciliation.ActionId = await EnsureEmployeeResultActionAsync(
+                reconciliation, employee.Id, now, policy.EmployeeResponseHours, cancellationToken);
 
         if (reconciliation.ActionId.HasValue)
         {
@@ -752,7 +753,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             now);
     }
 
-    private async Task EnsureEmployeeResultActionAsync(
+    private async Task<Guid> EnsureEmployeeResultActionAsync(
         F03ExecutionReconciliation reconciliation,
         int employeeId,
         DateTime now,
@@ -768,9 +769,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             ct);
 
         if (existing is not null)
-            return;
+            return existing.ActionId;
 
-        _db.ActionItems.Add(new F03ActionItem
+        var action = new F03ActionItem
         {
             ActionId = Guid.NewGuid(),
             ModuleCode = reconciliation.ModuleCode,
@@ -793,7 +794,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             CreatedBy = 0,
             CreatedAt = now,
             LastModifiedSource = "EXECUTION_HR_RESOLUTION"
-        });
+        };
+        _db.ActionItems.Add(action);
+        return action.ActionId;
     }
 
     private async Task CompleteExecutionReviewActionsAsync(
