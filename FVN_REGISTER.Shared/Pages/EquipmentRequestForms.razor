@@ -1,10 +1,13 @@
 @page "/equipment/request-forms/{AssetId:int}"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.EquipmentForms
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Equipment
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject IEquipmentClientService EquipmentClient
+@inject IApprovalRouteClientService ApprovalRouteService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -82,6 +85,24 @@
                                 </MudStack>
                             }
 
+                            @if (_selectedForm.RequireApproval)
+                            {
+                                @if (_approvalRoute != null)
+                                {
+                                    <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+                                }
+                                else if (_approvalRouteLoadFailed)
+                                {
+                                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-3">
+                                        @Language.T("common.khongTaiDuocLuongPhe")
+                                    </MudAlert>
+                                }
+                                else
+                                {
+                                    <MudProgressLinear Indeterminate="true" Class="mb-3" />
+                                }
+                            }
+
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
                                 @(_selectedForm.RequireApproval ? Language.T("equipment.sauKhiGuiYeuCau") : Language.T("equipment.bieuMauNayKhongYeu"))
                             </MudAlert>
@@ -102,6 +123,9 @@
     private EquipmentApplicableFormDto? _selectedForm;
     private readonly Dictionary<int, string> _values = new();
     private readonly Dictionary<int, bool> _boolValues = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
+    private bool _approvalRouteLoadFailed;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -111,6 +135,7 @@
         {
             _forms = result.Data ?? new();
             _selectedForm = _forms.FirstOrDefault();
+            await LoadApprovalRouteAsync();
         }
         else
         {
@@ -124,6 +149,7 @@
         _selectedForm = form;
         _values.Clear();
         _boolValues.Clear();
+        _approvalRouteLoadFailed = false;
     }
 
     private string GetValue(int id) => _values.TryGetValue(id, out var value) ? value : string.Empty;
@@ -165,7 +191,20 @@
                 answers.Add(answer);
             }
 
-            var result = await EquipmentClient.SubmitEquipmentFormAsync(new EquipmentFormSubmissionRequest { AssetId = AssetId, FormId = _selectedForm.FormId, Answers = answers });
+            var selections = _approvalSelector?.GetSelections() ?? new();
+            if (_selectedForm.RequireApproval && selections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+            {
+                Snackbar.Add(Language.T("common.vuiLongChonNguoiPhe"), Severity.Warning);
+                return;
+            }
+
+            var result = await EquipmentClient.SubmitEquipmentFormAsync(new EquipmentFormSubmissionRequest
+            {
+                AssetId = AssetId,
+                FormId = _selectedForm.FormId,
+                Answers = answers,
+                ApprovalSelections = selections
+            });
             if (result.IsSuccess)
             {
                 Snackbar.Add(result.Message ?? Language.T("equipment.daGuiYeuCau"), Severity.Success);
@@ -174,5 +213,23 @@
             else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheGuiYeuCau"), Severity.Error);
         }
         finally { _busy = false; }
+    }
+
+    private async Task LoadApprovalRouteAsync()
+    {
+        _approvalRoute = null;
+        _approvalRouteLoadFailed = false;
+        if (_selectedForm?.RequireApproval != true)
+            return;
+
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Equipment);
+        if (result.IsSuccess && result.Data != null)
+            _approvalRoute = result.Data;
+        else
+        {
+            _approvalRouteLoadFailed = true;
+            Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocLuongPhe"), Severity.Warning);
+        }
+        await InvokeAsync(StateHasChanged);
     }
 }
