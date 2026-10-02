@@ -141,3 +141,19 @@ BEGIN
                 (3073, N'Execution.PolicyManage', N'Execution', N'PolicyManage', N'All', N'Active', 1);
     END
 END;
+
+IF OBJECT_ID(N'dbo.F03SecurityFunctionRegistry', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM dbo.F03SecurityFunctionRegistry WHERE FunctionKey = N'Execution.PolicyManage')
+BEGIN
+    INSERT INTO dbo.F03SecurityFunctionRegistry
+    (
+        FunctionKey, FunctionCode, DefinitionName, ModuleCode, ActionCode, ScopeCode,
+        LifecycleStatus, SourceType, DefinitionHash, FirstDiscoveredAt, LastSeenAt, IsIgnored
+    )
+    SELECT
+        N'Execution.PolicyManage', 3073, N'Execution.PolicyManage',
+        N'Execution', N'PolicyManage', N'All', N'Active', N'Code',
+        CONVERT(varchar(128), HASHBYTES('SHA2_256', N'Execution.PolicyManage|3073|Execution.PolicyManage'), 2),
+        GETDATE(), GETDATE(), 0;
+END;
