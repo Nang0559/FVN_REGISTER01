@@ -61,7 +61,7 @@ else if (_model != null)
         <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">@Language.T("home.workCenter")</MudText>
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@Language.T("home.actionCenterDescription")</MudAlert>
         <MudGrid Spacing="3" Class="mb-5">
-            @if (_model.ActionCount > 0)
+            @if (_model.ActionCount.TotalOpenCount > 0)
             {
                 <MudItem xs="12" sm="3">
                     <MudCard Elevation="1"
@@ -78,7 +78,7 @@ else if (_model != null)
                                 @Language.T("home.actionCenterDescription")
                             </MudText>
                             <MudText Typo="Typo.h4" Color="Color.Error" Class="mt-2">
-                                @_model.ActionCount
+                                @_model.ActionCount.TotalOpenCount
                             </MudText>
                         </MudCardContent>
                     </MudCard>
