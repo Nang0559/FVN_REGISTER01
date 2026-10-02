@@ -76,6 +76,7 @@ builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();
 builder.Services.AddScoped<ILeaveEntitlementClientService, LeaveEntitlementClientService>();
 builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
 builder.Services.AddScoped<IExecutionReconciliationClientService, ExecutionReconciliationClientService>();
+builder.Services.AddScoped<IExecutionResolutionPolicyClientService, ExecutionResolutionPolicyClientService>();
 builder.Services.AddScoped<IWorkYearManagementClientService, WorkYearManagementClientService>();
 builder.Services.AddScoped<ICompanyHolidayManagementClientService, CompanyHolidayManagementClientService>();
 builder.Services.AddScoped<FVN_REGISTER.Shared.Services.Equipment.IEquipmentClientService, FVN_REGISTER.Shared.Services.Equipment.EquipmentClientService>();
