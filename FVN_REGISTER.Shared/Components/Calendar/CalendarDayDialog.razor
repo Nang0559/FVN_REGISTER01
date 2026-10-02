@@ -29,14 +29,14 @@
                     @if (!string.IsNullOrWhiteSpace(WorkSymbol))
                     {
                         <MudText Typo="Typo.body2">
-                            <b>Ký hiệu công:</b> @WorkSymbol
+                            <b>@Language.T("calendar.symbolWork"):</b> @WorkSymbol
                         </MudText>
                     }
 
                     @if (!string.IsNullOrWhiteSpace(OtSymbol))
                     {
                         <MudText Typo="Typo.body2">
-                            <b>Ký hiệu OT:</b> @OtSymbol
+                            <b>@Language.T("calendar.symbolOt"):</b> @OtSymbol
                         </MudText>
                     }
 
@@ -256,14 +256,12 @@
         var minutes = Math.Max(Day.Attendance.ActualOtMinutes, Day.Attendance.RecognizedOtMinutes);
         var elapsed = ElapsedMinutes(Day.Attendance.CheckIn, Day.Attendance.CheckOut);
 
-        // Kíp 12h / 11.75h: 4h cuối là phần OT tách riêng. Không lấy toàn bộ 4.25~4.5h do lệch thẻ.
         if (isOffDay && elapsed >= 11 * 60 + 45 && minutes <= 0)
             minutes = 4 * 60;
 
         if (minutes <= 0)
             return null;
 
-        // Quy ước chốt công của phần K: tối đa 4h; 4.5h trên màn hình cũ là sai do lấy elapsed In/Out.
         minutes = Math.Min(4 * 60, RoundDown15(minutes));
         if (minutes <= 0)
             return null;
