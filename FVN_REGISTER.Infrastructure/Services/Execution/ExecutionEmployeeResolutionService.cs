@@ -124,13 +124,21 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 if (policy.RequireEvidenceOnAppeal)
                 {
                     var confirmationId = r.ConfirmationId;
-                    if (confirmationId.HasValue && !await _db.ExecutionConfirmationEvidence.AnyAsync(
+                    var lastResolutionAt = await _db.Set<F03ExecutionResolution>().AsNoTracking()
+                        .Where(x => x.ReconciliationId == r.Id && x.IsActive != false)
+                        .OrderByDescending(x => x.ResolvedAt)
+                        .Select(x => (DateTime?)x.ResolvedAt)
+                        .FirstOrDefaultAsync(ct);
+
+                    var hasAppealEvidence = confirmationId.HasValue
+                        && await _db.ExecutionConfirmationEvidence.AnyAsync(
                             x => x.ConfirmationId == confirmationId.Value
                                 && x.IsActive != false
-                                && x.ReviewStatus == "Pending", ct))
-                    {
-                        // Evidence may be submitted after opening the appeal.
-                    }
+                                && (!lastResolutionAt.HasValue || x.SubmittedAt > lastResolutionAt.Value), ct);
+
+                    if (!hasAppealEvidence)
+                        return ServiceResult<ExecutionEmployeeResolutionDto>.Fail(
+                            "Policy yêu cầu evidence mới cho mỗi vòng khiếu nại. Vui lòng bổ sung evidence trước khi gửi khiếu nại.");
                 }
 
                 await EnsureHrAppealActionAsync(r, employee.Id, now, policy.AppealReviewHours, ct);
