@@ -32,8 +32,6 @@ public static class SecurityFunctionCatalog
             ["OTLimit"] = "Giới hạn làm thêm giờ",
             ["ApprovalPolicy"] = "Chính sách phê duyệt",
             ["HrmUserRoleRule"] = "Quy tắc vai trò người dùng nhân sự",
-            ["Execution"] = "Xử lý đối soát",
-            ["WorkCalendar"] = "Lịch làm việc",
             ["EmailQueue"] = "Hàng đợi thư điện tử",
             ["EmailTemplate"] = "Mẫu thư điện tử",
             ["SecurityAccessChange"] = "Thay đổi quyền truy cập",
