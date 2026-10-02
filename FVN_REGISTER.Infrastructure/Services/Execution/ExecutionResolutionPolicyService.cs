@@ -33,74 +33,60 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
         if (error is not null)
             return ServiceResult<ExecutionResolutionPolicyDto>.Fail(error);
 
-        F03ExecutionPolicy entity;
+        F03ExecutionPolicy? previous = null;
         if (id.HasValue)
         {
-            entity = await _db.ExecutionPolicies
-                .FirstOrDefaultAsync(x => x.Id == id.Value, ct)
-                ?? throw new KeyNotFoundException("Không tìm thấy Execution Resolution Policy.");
+            previous = await _db.ExecutionPolicies
+                .FirstOrDefaultAsync(x => x.Id == id.Value, ct);
 
-            // A policy is scoped to a module. Do not move an existing version
-            // to another module because that would make its audit history ambiguous.
-            if (!string.Equals(entity.ModuleCode, request.ModuleCode?.Trim(), StringComparison.OrdinalIgnoreCase))
-                return ServiceResult<ExecutionResolutionPolicyDto>.Fail("Không được đổi ModuleCode của policy đã tồn tại. Hãy tạo policy mới cho module mới.");
+            if (previous is null)
+                return ServiceResult<ExecutionResolutionPolicyDto>.Fail("Không tìm thấy Execution Resolution Policy.");
 
-            // Existing cases must keep their historical policy snapshot. Incrementing
-            // the version makes every later case/round distinguishable in audit.
-            entity.PolicyVersion = Math.Max(1, entity.PolicyVersion + 1);
+            if (!string.Equals(previous.ModuleCode, request.ModuleCode?.Trim(), StringComparison.OrdinalIgnoreCase))
+                return ServiceResult<ExecutionResolutionPolicyDto>.Fail(
+                    "Không được đổi ModuleCode của policy đã tồn tại. Hãy tạo policy mới cho module mới.");
+
+            previous.IsActive = false;
+            previous.ModifiedBy = actorUserId;
+            previous.ModifiedAt = DateTime.Now;
+            previous.LastModifiedSource = "EXECUTION_RESOLUTION_POLICY_SUPERSEDED";
         }
-        else
+
+        var entity = new F03ExecutionPolicy
         {
-            entity = new F03ExecutionPolicy { PolicyVersion = 1 };
-            _db.ExecutionPolicies.Add(entity);
-        }
+            ModuleCode = request.ModuleCode.Trim().ToUpperInvariant(),
+            PolicyName = request.PolicyName.Trim(),
+            PolicyVersion = previous is null ? 1 : Math.Max(1, previous.PolicyVersion + 1),
+            ReconciliationMode = request.ReconciliationMode,
+            ConfirmationMode = request.ConfirmationMode,
+            EvidenceMode = request.EvidenceMode,
+            ReviewMode = request.ReviewMode,
+            DueHours = request.DueHours,
+            AutoResolveMode = request.AutoResolveMode,
+            CorrectionMode = request.CorrectionMode,
+            EmployeeResponseHours = request.EmployeeResponseHours,
+            HrReviewHours = request.HrReviewHours,
+            AllowEmployeeAppeal = request.AllowEmployeeAppeal,
+            MaxAppealRounds = request.AllowEmployeeAppeal ? request.MaxAppealRounds : (byte)0,
+            AppealReviewHours = request.AppealReviewHours,
+            RequireEvidenceOnAppeal = request.RequireEvidenceOnAppeal,
+            RequireFinalDecision = request.RequireFinalDecision,
+            FinalDecisionPositionCode = string.IsNullOrWhiteSpace(request.FinalDecisionPositionCode)
+                ? null : request.FinalDecisionPositionCode.Trim(),
+            PayrollCutoffMode = request.PayrollCutoffMode,
+            AllowReopenAfterPayroll = request.AllowReopenAfterPayroll,
+            AdjustmentPeriodMode = request.AdjustmentPeriodMode,
+            EffectiveFrom = request.EffectiveFrom,
+            EffectiveTo = request.EffectiveTo,
+            IsActive = request.IsActive,
+            CreatedBy = actorUserId,
+            CreatedAt = DateTime.Now,
+            ModifiedBy = actorUserId,
+            ModifiedAt = DateTime.Now,
+            LastModifiedSource = "EXECUTION_RESOLUTION_POLICY"
+        };
 
-        entity.ModuleCode = request.ModuleCode.Trim().ToUpperInvariant();
-        entity.PolicyName = request.PolicyName.Trim();
-        entity.ReconciliationMode = request.ReconciliationMode;
-        entity.ConfirmationMode = request.ConfirmationMode;
-        entity.EvidenceMode = request.EvidenceMode;
-        entity.ReviewMode = request.ReviewMode;
-        entity.DueHours = request.DueHours;
-        entity.AutoResolveMode = request.AutoResolveMode;
-        entity.CorrectionMode = request.CorrectionMode;
-        entity.EmployeeResponseHours = request.EmployeeResponseHours;
-        entity.HrReviewHours = request.HrReviewHours;
-        entity.AllowEmployeeAppeal = request.AllowEmployeeAppeal;
-        entity.MaxAppealRounds = request.AllowEmployeeAppeal ? request.MaxAppealRounds : (byte)0;
-        entity.AppealReviewHours = request.AppealReviewHours;
-        entity.RequireEvidenceOnAppeal = request.RequireEvidenceOnAppeal;
-        entity.RequireFinalDecision = request.RequireFinalDecision;
-        entity.FinalDecisionPositionCode = string.IsNullOrWhiteSpace(request.FinalDecisionPositionCode)
-            ? null : request.FinalDecisionPositionCode.Trim();
-        entity.PayrollCutoffMode = request.PayrollCutoffMode;
-        entity.AllowReopenAfterPayroll = request.AllowReopenAfterPayroll;
-        entity.AdjustmentPeriodMode = request.AdjustmentPeriodMode;
-        entity.EffectiveFrom = request.EffectiveFrom;
-        entity.EffectiveTo = request.EffectiveTo;
-        entity.IsActive = request.IsActive;
-        entity.ModifiedBy = actorUserId;
-        entity.ModifiedAt = DateTime.Now;
-        entity.LastModifiedSource = "EXECUTION_RESOLUTION_POLICY";
-
-        if (entity.CreatedBy is null || entity.CreatedBy == 0)
-        {
-            entity.CreatedBy = actorUserId;
-            entity.CreatedAt = DateTime.Now;
-        }
-
-        // Only one active policy may govern a module at a time.
-        if (entity.IsActive)
-        {
-            await _db.ExecutionPolicies
-                .Where(x => x.Id != entity.Id && x.IsActive != false && x.ModuleCode == entity.ModuleCode)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(x => x.IsActive, false)
-                    .SetProperty(x => x.ModifiedBy, actorUserId)
-                    .SetProperty(x => x.ModifiedAt, DateTime.Now)
-                    .SetProperty(x => x.LastModifiedSource, "EXECUTION_RESOLUTION_POLICY_SUPERSEDED"), ct);
-        }
-
+        _db.ExecutionPolicies.Add(entity);
         await _db.SaveChangesAsync(ct);
 
         var dto = await _db.ExecutionPolicies.AsNoTracking()
