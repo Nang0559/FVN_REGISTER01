@@ -79,6 +79,57 @@
             </MudTable>
         }
 
+        @if (_detail.EmployeeDecision is not null)
+        {
+            <MudDivider Class="my-3" />
+            <MudAlert Severity="@(_detail.EmployeeDecision.Status == "Accepted" ? Severity.Success : _detail.EmployeeDecision.Status == "Disputed" ? Severity.Warning : Severity.Info)">
+                <b>Trạng thái xác nhận kết quả:</b> @_detail.EmployeeDecision.Status
+                — Vòng khiếu nại: @_detail.EmployeeDecision.AppealRound / @_detail.EmployeeDecision.MaxAppealRounds
+                @if (!string.IsNullOrWhiteSpace(_detail.EmployeeDecision.Comment))
+                {
+                    <div class="mt-1">@_detail.EmployeeDecision.Comment</div>
+                }
+            </MudAlert>
+
+            @if (_detail.EmployeeDecision.CanRespond)
+            {
+                <MudStack Row="true" Spacing="2" Class="mt-3">
+                    <MudButton Color="Color.Success" Variant="Variant.Filled"
+                               Disabled="_employeeDecisionBusy"
+                               OnClick="@(() => DecideEmployeeAsync("ACCEPT"))">
+                        Đồng ý & đóng vấn đề
+                    </MudButton>
+                    @if (_detail.EmployeeDecision.CanAppeal)
+                    {
+                        <MudButton Color="Color.Warning" Variant="Variant.Outlined"
+                                   Disabled="_employeeDecisionBusy"
+                                   OnClick="@(() => DecideEmployeeAsync("APPEAL"))">
+                            Không đồng ý / Khiếu nại
+                        </MudButton>
+                    }
+                </MudStack>
+            }
+
+            @if (_employeeAppealOpen)
+            {
+                <MudPaper Outlined="true" Class="pa-3 mt-3">
+                    <MudText Typo="Typo.subtitle2">Nội dung khiếu nại</MudText>
+                    <MudTextField @bind-Value="_employeeDecisionComment"
+                                  Lines="4" Variant="Variant.Outlined"
+                                  Label="Lý do / nội dung khiếu nại"
+                                  Class="mt-2" />
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2">
+                        <MudButton OnClick="@(() => _employeeAppealOpen = false)">Hủy</MudButton>
+                        <MudButton Color="Color.Warning" Variant="Variant.Filled"
+                                   Disabled="_employeeDecisionBusy"
+                                   OnClick="@(() => DecideEmployeeAsync("APPEAL"))">
+                            Gửi khiếu nại
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        }
+
         @if (_detail.HrResolution is not null)
         {
             <MudDivider Class="my-3" />
@@ -214,6 +265,9 @@
     private int? _fileId;
     private IBrowserFile? _evidenceFile;
     private ExecutionReconciliationDetailDto? _detail;
+    private bool _employeeDecisionBusy;
+    private bool _employeeAppealOpen;
+    private string? _employeeDecisionComment;
 
     [SupplyParameterFromQuery(Name = "reconciliationId")]
     public long? ReconciliationId { get; set; }
@@ -260,6 +314,59 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task DecideEmployeeAsync(string decision)
+    {
+        if (_detail is null) return;
+
+        if (decision == "APPEAL")
+        {
+            if (!_employeeAppealOpen)
+            {
+                _employeeAppealOpen = true;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_employeeDecisionComment))
+            {
+                Snackbar.Add("Vui lòng nhập nội dung khiếu nại.", Severity.Warning);
+                return;
+            }
+        }
+
+        _employeeDecisionBusy = true;
+        try
+        {
+            var result = await ExecutionService.DecideEmployeeResolutionAsync(
+                _detail.Reconciliation.Id,
+                new ExecutionEmployeeDecisionRequest
+                {
+                    Decision = decision,
+                    Comment = decision == "APPEAL" ? _employeeDecisionComment : null
+                });
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể cập nhật kết quả.", Severity.Error);
+                return;
+            }
+
+            _employeeAppealOpen = false;
+            _employeeDecisionComment = null;
+            Snackbar.Add(
+                decision == "ACCEPT"
+                    ? "Đã xác nhận kết quả. Vấn đề đã được đóng."
+                    : "Đã gửi khiếu nại. Case đã chuyển sang vòng xử lý tiếp theo.",
+                Severity.Success);
+
+            await OpenDetailAsync(_detail.Reconciliation.Id);
+            await LoadAsync();
+        }
+        finally
+        {
+            _employeeDecisionBusy = false;
         }
     }
 
