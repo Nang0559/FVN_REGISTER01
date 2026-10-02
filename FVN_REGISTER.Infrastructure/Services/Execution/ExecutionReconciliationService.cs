@@ -213,11 +213,36 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 x.Id, x.Decision, x.Reason, x.CalendarAction, x.ResolvedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
+        var history = await (
+            from h in _db.ExecutionReconciliationHistory.AsNoTracking()
+            join actor in _db.Employees.AsNoTracking()
+                on h.ActorEmployeeId equals actor.Id into actors
+            from actor in actors.DefaultIfEmpty()
+            where h.ReconciliationId == reconciliationId
+            orderby h.CreatedAt
+            select new ExecutionReconciliationHistoryDto(
+                h.Id, h.FromStatus, h.ToStatus, h.EventType, h.Reason,
+                h.ActorUserId, h.ActorEmployeeId,
+                actor == null ? null : actor.EmployeeCode,
+                h.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        var employeeDecision = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId)
+            .Select(x => new ExecutionEmployeeDecisionSummaryDto(
+                x.EmployeeDecisionStatus, x.EmployeeDecisionComment, x.AppealRound,
+                x.EmployeeDecisionAt,
+                x.ReconciliationStatus == "AwaitingEmployeeDecision",
+                false, 0))
+            .SingleAsync(cancellationToken);
+
         return new ExecutionReconciliationDetailDto(
             reconciliation,
             confirmation,
             evidence,
-            hrResolution);
+            hrResolution,
+            employeeDecision,
+            history);
     }
 
     private async Task<IReadOnlyList<ExecutionReconciliationDto>> GetMineAsyncCoreAsync(string employeeCode, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
