@@ -58,7 +58,7 @@ public sealed class HrmSyncService : IHrmSyncService
                 SELECT COUNT(*) AS Value
                 FROM dbo.F03Employees e
                 INNER JOIN dbo.F03ApprovalPolicies ap
-                    ON ap.PositionCode=e.PositionCode
+                    ON ap.ApprovalPositionCode=e.PositionCode
                    AND ap.IsActive=1
                 LEFT JOIN dbo.F03Approvers a
                     ON a.ApproverCode=e.EmployeeCode
