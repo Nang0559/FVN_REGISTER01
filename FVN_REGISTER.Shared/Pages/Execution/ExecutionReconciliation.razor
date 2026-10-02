@@ -106,6 +106,13 @@
                                    OnClick="@(() => DecideEmployeeAsync("APPEAL"))">
                             Không đồng ý / Khiếu nại
                         </MudButton>
+                        @if (_detail.Confirmation is not null)
+                        {
+                            <MudButton Color="Color.Info" Variant="Variant.Outlined"
+                                       OnClick="@(() => OpenEvidenceAsync(_detail.Reconciliation))">
+                                Bổ sung evidence
+                            </MudButton>
+                        }
                     }
                 </MudStack>
             }
