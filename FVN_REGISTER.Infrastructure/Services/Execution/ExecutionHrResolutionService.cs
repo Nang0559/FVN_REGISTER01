@@ -92,11 +92,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .Where(x => x.IsActive != false
                 && x.ReconciliationStatus != "Resolved"
                 && (x.ReconciliationStatus == "Mismatch"
-                    || x.ReconciliationStatus == "AwaitingConfirmation")
-                && _db.ExecutionPolicies.Any(p =>
-                    p.IsActive != false
-                    && p.ModuleCode == x.ModuleCode
-                    && p.ReviewMode != 0));
+                    || x.ReconciliationStatus == "AwaitingConfirmation"
+                    || x.ReconciliationStatus == "EmployeeDisputed"
+                    || x.ReconciliationStatus == "AppealReviewing"));
 
         if (!string.IsNullOrWhiteSpace(moduleCode))
             query = query.Where(x => x.ModuleCode == moduleCode.Trim().ToUpperInvariant());
