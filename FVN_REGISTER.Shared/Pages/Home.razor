@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Actions
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Components
@@ -58,49 +59,59 @@ else if (_model != null)
             </MudStack>
         </MudPaper>
 
-        <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">@Language.T("home.workCenter")</MudText>
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@Language.T("home.actionCenterDescription")</MudAlert>
-        <MudGrid Spacing="3" Class="mb-5">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <div>
+                <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.workCenter")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.actionCenterDescription")</MudText>
+            </div>
             @if (_model.ActionCount.TotalOpenCount > 0)
             {
-                <MudItem xs="12" sm="3">
-                    <MudCard Elevation="1"
-                             Style="height:100%; border-radius:18px; cursor:pointer"
-                             @onclick="OpenExecutionWork">
-                        <MudCardContent Class="pa-5">
-                            <MudIcon Icon="@Icons.Material.Filled.FactCheck"
-                                     Color="Color.Error"
-                                     Size="Size.Large" />
-                            <MudText Typo="Typo.h6" Class="mt-3">
-                                @Language.T("nav.workInbox")
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">
-                                @Language.T("home.actionCenterDescription")
-                            </MudText>
-                            <MudText Typo="Typo.h4" Color="Color.Error" Class="mt-2">
-                                @_model.ActionCount.TotalOpenCount
-                            </MudText>
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
+                <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_work_inbox">
+                    @Language.T("dashboard.viewAll")
+                </MudButton>
             }
-            @if (_model.PendingApprovals.Any())
-            {
-                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="OpenPath_work_inbox"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.approval")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.approvalDescription")</MudText></MudCardContent></MudCard></MudItem>
-            }
-            @if (CanPersonal(SecurityFunctionCodes.LeaveView))
-            {
-                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="OpenPath_history_leave"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.myLeave")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.myLeaveDescription")</MudText></MudCardContent></MudCard></MudItem>
-            }
-            @if (CanPersonal(SecurityFunctionCodes.OTView))
-            {
-                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="OpenPath_history_ot"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.myOt")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.myOtDescription")</MudText></MudCardContent></MudCard></MudItem>
-            }
-            @if (CanPersonal(SecurityFunctionCodes.CalendarView))
-            {
-                <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="OpenPath_calendar"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">@Language.T("home.workCalendar")</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.workCalendarDescription")</MudText></MudCardContent></MudCard></MudItem>
-            }
-        </MudGrid>
+        </MudStack>
+
+        @if (_model.Actions.Any())
+        {
+            <MudPaper Outlined="true" Class="mb-5" Style="border-radius:18px; overflow:hidden">
+                <MudList T="ActionItemDto" Dense="true">
+                    @foreach (var action in _model.Actions.Take(8))
+                    {
+                        <MudListItem T="ActionItemDto" OnClick="@(() => OpenAction(action))">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>@action.Title</b></MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@action.Summary</MudText>
+                                </MudStack>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
+                                    @if (action.Status == 0)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error">
+                                            @Language.T("dashboard.pending")
+                                        </MudChip>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+                @if (_model.Actions.Count > 8)
+                {
+                    <MudButton Variant="Variant.Text" Class="ma-2" OnClick="OpenPath_work_inbox">
+                        @Language.T("dashboard.viewAll")
+                    </MudButton>
+                }
+            </MudPaper>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mb-5">
+                @Language.T("home.noActions")
+            </MudAlert>
+        }
 
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
             <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.personalOverview")</MudText>
@@ -196,16 +207,13 @@ else
     private void OpenPath_ot_create() => Navigation.NavigateTo("/ot/create");
     private void OpenPath_trip_create() => Navigation.NavigateTo("/trip/create");
     private void OpenPath_work_inbox() => Navigation.NavigateTo("/work/inbox");
-    private void OpenExecutionWork()
+    private void OpenExecutionWork() => OpenPath_work_inbox;
+    private void OpenAction(ActionItemDto action)
     {
-        var action = _model?.Actions.FirstOrDefault();
-        if (action is not null && !string.IsNullOrWhiteSpace(action.DetailRoute))
-        {
+        if (!string.IsNullOrWhiteSpace(action.DetailRoute))
             Navigation.NavigateTo(action.DetailRoute);
-            return;
-        }
-
-        Navigation.NavigateTo("/work/inbox");
+        else
+            Navigation.NavigateTo("/work/inbox");
     }
     private void OpenPath_history_leave() => Navigation.NavigateTo("/history/leave");
     private void OpenPath_history_ot() => Navigation.NavigateTo("/history/ot");
