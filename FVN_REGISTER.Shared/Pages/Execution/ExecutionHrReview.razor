@@ -179,11 +179,25 @@
     [SupplyParameterFromQuery(Name = "reconciliationId")]
     public long? ReconciliationId { get; set; }
 
+    private long? _openedQueryReconciliationId;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
-        if (ReconciliationId.HasValue)
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Query-string parameters are supplied during the parameter-setting phase.
+        // Handle them here so /execution/hr?reconciliationId=4 also works when
+        // navigation reuses the existing interactive component.
+        if (ReconciliationId.HasValue
+            && ReconciliationId.Value > 0
+            && _openedQueryReconciliationId != ReconciliationId.Value)
+        {
+            _openedQueryReconciliationId = ReconciliationId.Value;
             await OpenDetailAsync(ReconciliationId.Value);
+        }
     }
 
     private async Task LoadAsync()
@@ -221,10 +235,12 @@
             $"api/execution/hr/reconciliations/{reconciliationId}/detail");
         if (!result.IsSuccess || result.Data is null)
         {
-            Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocChiTiet"), Severity.Error);
+            _error = result.Message ?? Language.T("common.khongTaiDuocChiTiet");
+            Snackbar.Add(_error, Severity.Error);
             return;
         }
 
+        _error = null;
         _detail = result.Data;
     }
 
