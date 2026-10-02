@@ -58,3 +58,69 @@ self.addEventListener('fetch', event => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// Web Push: update the app-icon badge and show a notification, even when the
+// app is closed or the user is signed out. The payload only carries the
+// absolute unread count (and a relative URL); text is localized here.
+// ---------------------------------------------------------------------------
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { data = {}; }
+
+  const badge = Number.isFinite(data.badge) ? Math.max(0, data.badge) : 0;
+
+  event.waitUntil((async () => {
+    try {
+      if ('setAppBadge' in self.navigator) {
+        if (badge > 0) await self.navigator.setAppBadge(badge);
+        else await self.navigator.clearAppBadge();
+      }
+    } catch (e) { /* badge is cosmetic */ }
+
+    // If the app is on screen the in-app bell (SignalR) already shows it:
+    // skip the system notification and just let the page know.
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (windows.some(c => c.visibilityState === 'visible')) {
+      windows.forEach(c => c.postMessage({ type: 'fvn-push', badge }));
+      return;
+    }
+
+    const ja = (self.navigator.language || 'vi').toLowerCase().startsWith('ja');
+    const title = data.title || 'e-Approval';
+    const body = data.body || (ja
+      ? `未読の通知が ${badge} 件あります`
+      : `Bạn có ${badge} thông báo chưa đọc`);
+
+    await self.registration.showNotification(title, {
+      body,
+      tag: 'fvn-unread',
+      renotify: true,
+      data: { url: data.url || '/' }
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+
+  event.waitUntil((async () => {
+    let target = self.location.origin + '/';
+    try {
+      const u = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
+      if (u.origin === self.location.origin) target = u.href;
+    } catch (e) { /* keep default */ }
+
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) {
+      if ('focus' in client) {
+        await client.focus();
+        if ('navigate' in client && client.url !== target) {
+          try { await client.navigate(target); } catch (e) { /* ignore */ }
+        }
+        return;
+      }
+    }
+    await self.clients.openWindow(target);
+  })());
+});

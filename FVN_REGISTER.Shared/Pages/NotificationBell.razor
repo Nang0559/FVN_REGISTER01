@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using MudBlazor
 @inject INotificationClientService NotifyService
+@inject IPushClientService Push
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Nav
 @inject IConfiguration Configuration
@@ -156,7 +157,11 @@
         _panelOpen = false;
     }
 
-    private void OnNotifyChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnNotifyChanged()
+    {
+        _ = Push.SetBadgeAsync(NotifyService.UnreadCount);
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     private static string GetMudIcon(NotificationAction action) => action switch
     {

@@ -73,6 +73,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03SyncReviewFlag> SyncReviewFlags { get; set; }
     public DbSet<HrmLeaveTypeChangeLog> HrmLeaveTypeChangeLogs { get; set; }
     public DbSet<F03AppNotification> AppNotifications { get; set; }
+    public DbSet<F03PushSubscription> PushSubscriptions { get; set; }
     public DbSet<F03CalendarModuleDefinition> CalendarModuleDefinitions { get; set; }
     public DbSet<F03CalendarModulePolicy> CalendarModulePolicies { get; set; }
     public DbSet<F03CalendarProjection> CalendarProjections { get; set; }

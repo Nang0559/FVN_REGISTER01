@@ -76,6 +76,7 @@ namespace FVN_REGISTER
             builder.Services.AddScoped<IWorkYearManagementClientService, WorkYearManagementClientService>();
             builder.Services.AddScoped<ICompanyHolidayManagementClientService, CompanyHolidayManagementClientService>();
             builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
+            builder.Services.AddScoped<IPushClientService, PushClientService>();
             builder.Services.AddScoped<IDeptClientService, DeptClientService>();
             builder.Services.AddScoped<IOTClientService, OTClientService>();
             builder.Services.AddScoped<IOTLimitRuleManagementClientService, OTLimitRuleManagementClientService>();

@@ -192,6 +192,7 @@
   "common.view": "Xem",
   "common.vuiLongChonNguoiPhe": "Vui lòng chọn người phê duyệt cho từng cấp.",
   "common.warning": "Cảnh báo",
+  "common.pushEnable": "Bật thông báo trên biểu tượng ứng dụng",
   "common.yes": "Có",
   "common.yesDelete": "Có, xóa"
 }

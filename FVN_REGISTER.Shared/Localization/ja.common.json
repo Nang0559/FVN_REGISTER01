@@ -192,6 +192,7 @@
   "common.view": "表示",
   "common.vuiLongChonNguoiPhe": "各レベルの承認者を選択してください。",
   "common.warning": "警告",
+  "common.pushEnable": "アプリアイコンの通知バッジを有効にする",
   "common.yes": "はい",
   "common.yesDelete": "はい、削除"
 }

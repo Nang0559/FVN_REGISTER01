@@ -234,6 +234,8 @@ builder.Services.AddScoped<IHistoryHandler, EquipmentHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.Configure<WebPushOptions>(builder.Configuration.GetSection("WebPush"));
+builder.Services.AddScoped<IWebPushService, WebPushService>();
 builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationService>();
 
 // Approval: provider -> engine -> workflow -> cross-module inbox/resolver

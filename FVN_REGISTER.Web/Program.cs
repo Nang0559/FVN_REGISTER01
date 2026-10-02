@@ -49,6 +49,7 @@ builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>(
 builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
 builder.Services.AddScoped<IReportClientService, ReportClientService>();
 builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
+builder.Services.AddScoped<IPushClientService, PushClientService>();
 builder.Services.AddScoped<IDeptClientService, DeptClientService>();
 builder.Services.AddScoped<IOTClientService, OTClientService>();
 builder.Services.AddScoped<IOTLimitRuleManagementClientService, OTLimitRuleManagementClientService>();
