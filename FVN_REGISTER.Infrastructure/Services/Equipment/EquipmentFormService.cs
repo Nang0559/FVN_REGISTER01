@@ -29,8 +29,9 @@ public sealed class EquipmentFormService : IEquipmentFormService
     private readonly IExcelPlatform _excel;
     private readonly IFeatureOperatorAssignmentService _featureOperators;
     private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _workflow;
+    private readonly IApprovalSelectionService _approvalSelections;
 
-    public EquipmentFormService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IExcelPlatform excel, IFeatureOperatorAssignmentService featureOperators, IApprovalWorkflowOrchestrator<EquipmentRequestSubject> workflow)
+    public EquipmentFormService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IExcelPlatform excel, IFeatureOperatorAssignmentService featureOperators, IApprovalWorkflowOrchestrator<EquipmentRequestSubject> workflow, IApprovalSelectionService approvalSelections)
     {
         _uow = uow;
         _currentUser = currentUser;
@@ -38,6 +39,7 @@ public sealed class EquipmentFormService : IEquipmentFormService
         _excel = excel;
         _featureOperators = featureOperators;
         _workflow = workflow;
+        _approvalSelections = approvalSelections;
     }
 
     public async Task<ServiceResult<List<EquipmentApplicableFormDto>>> GetMyApplicableFormsAsync(int assetId, CancellationToken ct = default)
@@ -154,6 +156,9 @@ public sealed class EquipmentFormService : IEquipmentFormService
         var result = new EquipmentFormSubmissionDto { SubmissionId = submission.Id, AssetId = asset.Id, FormId = form.Id, FormCode = form.FormCode, Status = submission.Status, RequireApproval = form.RequireApproval };
         if (!form.RequireApproval) return ServiceResult<EquipmentFormSubmissionDto>.Ok(result, "Đã gửi biểu mẫu.");
 
+        if (request.ApprovalSelections == null || request.ApprovalSelections.Count == 0)
+            return ServiceResult<EquipmentFormSubmissionDto>.Fail("Vui lòng chọn người phê duyệt cho từng cấp.");
+
         var employee = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(x => x.EmployeeCode == user.EmployeeCode && x.IsActive == true && x.EndWorkingDate == null)
             .Select(x => new { x.EmployeeCode, x.DeptCode, x.PositionCode }).FirstOrDefaultAsync(ct);
         if (employee == null || string.IsNullOrWhiteSpace(employee.DeptCode) || string.IsNullOrWhiteSpace(employee.PositionCode)) return ServiceResult<EquipmentFormSubmissionDto>.Fail("Không xác định được bộ phận/chức vụ của người yêu cầu để khởi tạo phê duyệt.");
@@ -168,6 +173,7 @@ public sealed class EquipmentFormService : IEquipmentFormService
             Location = asset.Location, Note = $"Biểu mẫu thiết bị {form.FormCode} - Submission #{submission.Id}"
         };
         await _uow.Repository<F03EquipmentRequest>().AddAsync(equipmentRequest, ct); await _uow.SaveChangesAsync(ct);
+        await _approvalSelections.ReplaceAsync(RequestModule.Equipment, equipmentRequest.Id, request.ApprovalSelections, user.UserId, ct);
         var approval = await _workflow.InitApprovalAsync(equipmentRequest.Id, ApprovalBuildContext.ForEquipment(equipmentRequest.Id, employee.EmployeeCode, employee.DeptCode, employee.PositionCode), ct);
         if (!approval.IsSuccess)
         {
