@@ -85,7 +85,14 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 r.ResolvedAt = r.ResolvedAt ?? now;
                 r.ResolvedBy = r.ResolvedBy ?? userId;
 
-                await ApplyCorrectionIfRequiredAsync(r, policy.CorrectionMode, userId, ct);
+                var latestResolution = await _db.Set<F03ExecutionResolution>().AsNoTracking()
+                    .Where(x => x.ReconciliationId == r.Id && x.IsActive != false)
+                    .OrderByDescending(x => x.ResolvedAt)
+                    .FirstOrDefaultAsync(ct);
+
+                if (latestResolution?.Decision == "OK")
+                    await ApplyCorrectionIfRequiredAsync(r, policy.CorrectionMode, userId, ct);
+
                 await FinalizeCalendarAsync(r, ct);
 
                 _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
