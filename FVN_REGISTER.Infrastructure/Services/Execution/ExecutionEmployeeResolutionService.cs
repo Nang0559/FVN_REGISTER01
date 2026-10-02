@@ -4,15 +4,9 @@ using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
+using FVN_REGISTER.Application.Interfaces.Execution;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
-
-public interface IExecutionEmployeeResolutionService
-{
-    Task<ServiceResult<ExecutionEmployeeResolutionDto>> DecideAsync(
-        int userId, string employeeCode, long reconciliationId,
-        ExecutionEmployeeDecisionRequest request, CancellationToken ct = default);
-}
 
 public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResolutionService
 {
