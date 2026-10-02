@@ -108,6 +108,8 @@
   "calendar.scope": "カレンダー範囲",
   "calendar.shift": "シフト {0}",
   "calendar.shiftLabel": "シフト",
+  "calendar.symbolOt": "残業記号",
+  "calendar.symbolWork": "勤務記号",
   "calendar.taiMauChuan": "標準テンプレートをダウンロード",
   "calendar.taoChuNhat": "日曜日を作成",
   "calendar.themNam": "年を追加",
