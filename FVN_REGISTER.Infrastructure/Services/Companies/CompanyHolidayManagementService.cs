@@ -19,7 +19,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
         : base(logger, options) => _uow = uow;
 
     public async Task<List<CompanyHolidayDto>> GetAllAsync(CancellationToken ct = default)
-        => await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().OrderByDescending(x => x.HolidayDate).Select(ToDto).ToListAsync(ct);
+        => await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().OrderByDescending(x => x.HolidayDate).Select(ToDto).ToList();
 
     public async Task<CompanyHolidayDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
@@ -93,7 +93,6 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
             var headers=new[]{"HolidayDate","Description","Year","HolidayType","TinhPhep"};
             for(var i=0;i<headers.Length;i++) ws.Cell(1,i+1).Value=headers[i];
             ws.Cell(2,1).Value=DateTime.Today; ws.Cell(2,2).Value="Ví dụ: Tết Dương lịch"; ws.Cell(2,3).FormulaA1="=YEAR(A2)"; ws.Cell(2,4).Value=2; ws.Cell(2,5).Value=1;
-            ws.Cell(2,4).Comment.AddText("1 = Nghỉ công ty; 2 = Nghỉ lễ quốc gia; 3 = Nghỉ bù; 4 = Nghỉ khác.");
             ws.Column(1).Style.DateFormat.Format="dd/MM/yyyy"; ws.Column(3).Style.NumberFormat.Format="0"; ws.Column(4).Style.NumberFormat.Format="0"; ws.Column(5).Style.NumberFormat.Format="0";
             var header=ws.Range(1,1,1,5); header.Style.Font.Bold=true; header.Style.Fill.BackgroundColor=XLColor.FromHtml("#E8EEF7"); header.Style.Alignment.Horizontal=XLAlignmentHorizontalValues.Center;
             ws.Range(1,1,200,5).Style.Border.OutsideBorder=XLBorderStyleValues.Thin; ws.Range(1,1,200,5).Style.Border.InsideBorder=XLBorderStyleValues.Thin;
