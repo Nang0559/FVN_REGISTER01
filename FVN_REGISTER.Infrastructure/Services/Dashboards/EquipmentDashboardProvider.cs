@@ -5,6 +5,7 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Enums;
 
 namespace FVN_REGISTER.Infrastructure.Services.Dashboards;
@@ -12,12 +13,20 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards;
 public sealed class EquipmentDashboardProvider : IModuleDashboardProvider
 {
     private readonly IEquipmentService _service;
+    private readonly IAuthorizationService _authorization;
     public RequestModule Module => RequestModule.Equipment;
     public int RequiredFunctionCode => SecurityFunctionCodes.EquipmentView;
-    public EquipmentDashboardProvider(IEquipmentService service) => _service = service;
+    public EquipmentDashboardProvider(IEquipmentService service, IAuthorizationService authorization)
+    {
+        _service = service;
+        _authorization = authorization;
+    }
 
     public async Task<ModuleDashboardContribution> GetContributionAsync(UserIdentityDto user, CancellationToken ct = default)
     {
+        if (!await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.EquipmentView, ct))
+            return new ModuleDashboardContribution { Module = Module, Widgets = new List<WidgetCounterDto>(), Detail = new List<EquipmentRequestDto>() };
+
         var result = await _service.GetMineAsync(ct);
         var rows = result.IsSuccess && result.Data != null
             ? result.Data

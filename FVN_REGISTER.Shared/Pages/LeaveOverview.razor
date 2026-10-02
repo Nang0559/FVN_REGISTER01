@@ -2,6 +2,6 @@
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
-<ModuleOverview Title="Nghỉ phép — Tổng quan"
-                 Description="Tình hình số dư, đơn nghỉ và các việc cần chú ý của module Leave."
+<ModuleOverview Title="@Language.T("leave.nghiPhepTongQuan")"
+                 Description="@Language.T("leave.tinhHinhSoDuDon")"
                  CreateUrl="/leave/create" HistoryUrl="/leave/history" ModulePrefix="/leave" />

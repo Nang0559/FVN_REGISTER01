@@ -1,0 +1,15 @@
+{
+  "history.choDuyet": "承認待ち",
+  "history.conLai": "残り",
+  "history.daDung": "使用済み",
+  "history.daDuyet": "承認済み",
+  "history.daHuyThanhCong": "取消しました。",
+  "history.huyDon": "申請をキャンセル",
+  "history.huyDon2": "申請 #{0} をキャンセルしますか？",
+  "history.lichSuYeuCau": "申請履歴",
+  "history.loiHuy": "取消エラー。",
+  "history.loiTaiLichSu": "履歴の読み込みエラー。",
+  "history.nguoiDungHuy": "ユーザーによるキャンセル",
+  "history.tongGioOt": "残業時間合計",
+  "history.tongPhep": "休暇合計"
+}

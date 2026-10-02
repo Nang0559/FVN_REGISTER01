@@ -1,3 +1,5 @@
+using FVN_REGISTER.Core.Attributes;
+
 namespace FVN_REGISTER.Core.Constants;
 
 public static class SecurityFunctionCodes
@@ -65,10 +67,33 @@ public static class SecurityFunctionCodes
     public const int SecurityManageFunctions = 2603;
     public const int SecurityAudit = 2604;
 
+    // These capabilities protect the Security Center itself. Their function
+    // definitions must never be disabled or retired at runtime.
+    public static readonly IReadOnlySet<int> SystemCriticalCodes =
+        new HashSet<int>
+        {
+            SecurityView,
+            SecurityManageRoles,
+            SecurityManageFunctions,
+            SecurityAudit
+        };
+
+    public static bool IsSystemCritical(int functionCode)
+        => SystemCriticalCodes.Contains(functionCode);
+
     public const int PublicInformationManage = 2801;
     public const int PublicFormManage = 2807;
     public const int PublicFormSubmissionView = 2808;
     public const int PublicFormExport = 2809;
+    public const int PublicFormView = 2810;
+    public const int PublicFormSubmit = 2811;
+    public const int PublicFormFeedback = 2812;
+    public const int PublicFormCreate = 2813;
+    public const int PublicFormEdit = 2814;
+    public const int PublicFormAssignAudience = 2815;
+    public const int PublicFormResultView = 2816;
+    public const int PublicFormResultExport = 2817;
+    public const int PublicFormAuditView = 2818;
     public const int ExecutionReview = 2802;
 
     public const int PayrollView = 2803;
@@ -102,6 +127,19 @@ public static class SecurityFunctionCodes
     public const int SecurityAccessChangeCreate = 3092;
     public const int SecurityAccessChangeApprove = 3093;
     public const int SecurityAccessChangeExecute = 3094;
+    
+    // Localization administration. These are normal RBAC functions and are assigned through
+    // the existing F03Functions/F03RoleFunction matrix; no separate i18n permission model exists.
+    [SecurityFunctionDefinition("Language.View", "Xem quản trị ngôn ngữ", ModuleCode = "Language", ActionCode = "View", ScopeCode = AuthorizationScopeCodes.All)]
+    public const int LanguageView = 3201;
+    [SecurityFunctionDefinition("Language.Manage", "Quản lý định nghĩa ngôn ngữ", ModuleCode = "Language", ActionCode = "Manage", ScopeCode = AuthorizationScopeCodes.All)]
+    public const int LanguageManage = 3202;
+    [SecurityFunctionDefinition("Language.Import", "Nhập Excel ngôn ngữ", ModuleCode = "Language", ActionCode = "Import", ScopeCode = AuthorizationScopeCodes.All)]
+    public const int LanguageImport = 3203;
+    [SecurityFunctionDefinition("Language.Export", "Xuất Excel ngôn ngữ", ModuleCode = "Language", ActionCode = "Export", ScopeCode = AuthorizationScopeCodes.All)]
+    public const int LanguageExport = 3204;
+    [SecurityFunctionDefinition("Language.Audit", "Rà soát ngôn ngữ", ModuleCode = "Language", ActionCode = "Audit", ScopeCode = AuthorizationScopeCodes.All)]
+    public const int LanguageAudit = 3205;
 
     // Endpoint capability family. These extend the existing Security Center;
     // they do not create a second permission system or imply any role assignment.

@@ -27,7 +27,7 @@ GO
 -- These capabilities were declared but have no corresponding business action/service
 -- on the current branch. Keep them out of the active matrix until the workflow exists.
 UPDATE dbo.F03Functions SET IsActive = 0
-WHERE FunctionCode IN (2106, 2309, 2310, 2311, 2312, 2602);
+WHERE FunctionCode IN (2106, 2309, 2310, 2311, 2312);
 GO
 
 

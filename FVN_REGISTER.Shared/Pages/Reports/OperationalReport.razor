@@ -17,7 +17,7 @@
 @inject ISnackbar Snackbar
 @inherits AppComponentBase
 
-<MudText Typo="Typo.h5" Class="mb-4"><MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />Báo cáo nghiệp vụ</MudText>
+<MudText Typo="Typo.h5" Class="mb-4"><MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />@Language.T("report.baoCaoNghiepVu")</MudText>
 
 @if (_permissionLoading)
 {
@@ -30,21 +30,21 @@ else
         <MudTabs ActivePanelIndex="_tab" ActivePanelIndexChanged="OnTabChanged" Class="mb-4">
             @if (ModuleKey == "trip")
             {
-                <MudTabPanel Text="Theo phòng ban" />
-                <MudTabPanel Text="Theo nhân viên" />
-                <MudTabPanel Text="Chi tiết" />
-                <MudTabPanel Text="Trạng thái duyệt" />
+                <MudTabPanel Text="@Language.T("common.theoPhongBan")" />
+                <MudTabPanel Text="@Language.T("common.theoNhanVien")" />
+                <MudTabPanel Text='@Language.T("common.detail")' />
+                <MudTabPanel Text="@Language.T("common.trangThaiDuyet")" />
             }
             else if (ModuleKey == "equipment")
             {
-                <MudTabPanel Text="Theo phòng ban" />
-                <MudTabPanel Text="Cây thiết bị & checklist" />
-                <MudTabPanel Text="Sửa chữa" />
+                <MudTabPanel Text="@Language.T("common.theoPhongBan")" />
+                <MudTabPanel Text="@Language.T("report.cayThietBiChecklist")" />
+                <MudTabPanel Text='@Language.T("equipment.repair")' />
             }
             else if (ModuleKey == "attendance")
             {
-                <MudTabPanel Text="Tổng hợp" />
-                <MudTabPanel Text="Chi tiết" />
+                <MudTabPanel Text="@Language.T("report.tongHop")" />
+                <MudTabPanel Text='@Language.T("common.detail")' />
             }
         </MudTabs>
         @if (ModuleKey == "equipment" && _tab == 1)
@@ -52,19 +52,19 @@ else
             <MudPaper Outlined="true" Class="pa-3 mb-3">
                 <MudGrid>
                     <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="_query.FromDate" Label="Từ ngày" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudDatePicker @bind-Date="_query.FromDate" Label='@Language.T("trip.fromDate")' Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="_query.ToDate" Label="Đến ngày" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudDatePicker @bind-Date="_query.ToDate" Label='@Language.T("trip.toDate")' Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
                             @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="3" Class="d-flex align-end">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadInspectionTreeAsync">
-                            Cập nhật cây
+                            @Language.T("report.capNhatCay")
                         </MudButton>
                     </MudItem>
                 </MudGrid>
@@ -76,15 +76,15 @@ else
         <ReportBase @ref="_base" ReportType="_type" Query="_query">
             <AdditionalFilters>
                 <MudItem xs="12" sm="3">
-                    <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
-                        <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
+                    <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelectItem T="string" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
                         @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 @if (_type is ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.AttendanceDetail)
                 {
                     <MudItem xs="12" sm="3">
-                        <MudAutocomplete T="KeyValuePair<string,string>" Label="Nhân viên" Value="@_employee" ValueChanged="OnEmployeeChanged" SearchFunc="SearchEmployees" ToStringFunc="@(x=>x.Value)" Clearable="true" />
+                        <MudAutocomplete T="KeyValuePair<string,string>" Label='@Language.T("ot.employee")' Value="@_employee" ValueChanged="OnEmployeeChanged" SearchFunc="SearchEmployees" ToStringFunc="@(x=>x.Value)" Clearable="true" />
                     </MudItem>
                 }
             </AdditionalFilters>
@@ -93,7 +93,7 @@ else
     }
     else if (_permission != null)
     {
-        <MudAlert Severity="Severity.Warning">Tài khoản không có quyền xem nhóm báo cáo này.</MudAlert>
+        <MudAlert Severity="Severity.Warning">@Language.T("report.taiKhoanKhongCoQuyen")</MudAlert>
     }
 }
 
@@ -155,7 +155,7 @@ else
             _query.ToDate ?? DateTime.Today,
             _query.DeptCode);
         if (report.IsSuccess) _inspectionTasks = report.Data?.Rows ?? new();
-        else Snackbar.Add(report.Message ?? "Không tải được checklist thiết bị.", Severity.Error);
+        else Snackbar.Add(report.Message ?? Language.T("report.khongTaiDuocChecklistThiet"), Severity.Error);
     }
     private void OnEmployeeChanged(KeyValuePair<string,string> x){_employee=x;_query.EmployeeCode=string.IsNullOrWhiteSpace(x.Key)?null:x.Key;}
     private async Task<IEnumerable<KeyValuePair<string,string>>> SearchEmployees(string value,CancellationToken ct)

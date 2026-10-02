@@ -7,6 +7,7 @@ using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Infrastructure.Utils;
@@ -18,16 +19,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
     {
         private readonly IUnitOfWork _uow;
         private readonly IHubContext<NotificationHub> _hub;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public NotificationService(
             IUnitOfWork uow,
             IHubContext<NotificationHub> hub,
+            IServiceScopeFactory scopeFactory,
             ILogger<NotificationService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
         {
             _uow = uow;
             _hub = hub;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task<NotificationDto> CreateAsync(CreateNotificationDto dto, CancellationToken ct = default)
@@ -74,6 +78,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
             var resultDto = NotificationMapper.ToDto(entity);
 
             await PushRealtimeAsync(dto.UserId, resultDto, ct);
+            await QueueWebPushAsync(dto.UserId, entity.Title, entity.Body, entity.ActionUrl, ct);
 
             Logger.LogDebugIf(Debug, "[NOTIFY] Created for UserId={UserId} | {Title}", dto.UserId, dto.Title);
 
@@ -151,6 +156,33 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
 
             await _uow.SaveChangesAsync(ct);
             return ServiceResult.Ok();
+        }
+
+        // Web Push (app-icon badge). Best effort and off the request path: it runs in its own DI scope
+        // because the request-scoped DbContext is disposed when the request ends.
+        private async Task QueueWebPushAsync(int userId, string? title, string? body, string? url, CancellationToken ct)
+        {
+            int unread;
+            try { unread = await GetUnreadCountAsync(userId, ct); }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "[NOTIFY] Unread count for Web Push failed. UserId={UserId}", userId);
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var push = scope.ServiceProvider.GetRequiredService<IWebPushService>();
+                    await push.NotifyNewAsync(userId, unread, title, body, url, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "[NOTIFY] Web Push dispatch failed. UserId={UserId}", userId);
+                }
+            });
         }
 
         // private helper — không lộ ra interface

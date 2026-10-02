@@ -5,9 +5,9 @@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="2">
-            <MudText Typo="Typo.h6">Đăng ký ngày @Date.ToString("dd/MM/yyyy")</MudText>
+            <MudText Typo="Typo.h6">@Language.T("calendar.registerDay", Date.ToString("dd/MM/yyyy"))</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Chọn nghiệp vụ muốn đăng ký cho ngày này.
+                @Language.T("calendar.chooseBusiness")
             </MudText>
 
             @if (Availability.Warnings.Count > 0)
@@ -26,34 +26,34 @@
                             StartIcon="@Icons.Material.Filled.EventAvailable"
                             Disabled="@(!Availability.CanRegisterLeave)"
                             OnClick="@(() => Select("LEAVE"))">
-                    Đăng ký nghỉ
+                    @Language.T("calendar.registerLeave")
                 </MudButton>
                 <MudButton Variant="Variant.Filled"
                             Color="Color.Warning"
                             StartIcon="@Icons.Material.Filled.MoreTime"
                             Disabled="@(!Availability.CanRegisterOT)"
                             OnClick="@(() => Select("OT"))">
-                    Đăng ký OT
+                    @Language.T("calendar.registerOt")
                 </MudButton>
                 <MudButton Variant="Variant.Filled"
                             Color="Color.Info"
                             StartIcon="@Icons.Material.Filled.FlightTakeoff"
                             Disabled="@(!Availability.CanRegisterTrip)"
                             OnClick="@(() => Select("TRIP"))">
-                    Đăng ký công tác
+                    @Language.T("calendar.registerTrip")
                 </MudButton>
             </MudStack>
 
             @if (!Availability.CanRegisterLeave && !Availability.CanRegisterOT && !Availability.CanRegisterTrip)
             {
                 <MudAlert Severity="Severity.Warning" Dense="true">
-                    Ngày này hiện không có nghiệp vụ đăng ký khả dụng.
+                    @Language.T("calendar.noAvailableRegistration")
                 </MudAlert>
             }
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Đóng</MudButton>
+        <MudButton OnClick="Cancel">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 

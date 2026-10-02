@@ -1,30 +1,20 @@
 ﻿/*
 ===============================================================================
-FVN_REGISTER - MASTER SQL DEPLOYMENT
+FVN_REGISTER deployment from SQL/16 onward.
 ===============================================================================
 SSMS: enable Query -> SQLCMD Mode before executing this file.
-
-IMPORTANT:
-SQLCMD :r resolves relative paths from the SQLCMD working directory, which is
-not reliably the folder containing this file in SSMS. Therefore RepoRoot is
-set to the actual local SQL directory used by this deployment machine.
-
 Current SQL directory:
   H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL
-
-Database/ is documentation/history only and is not executed by deployment.
 ===============================================================================
 */
-
 :on error exit
-
 :setvar RepoRoot "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
-
-/* CORE DATABASE FOUNDATION */
 :r "16_EquipmentFlexibleImport.sql"
+:r "Excel/001_SharedExcelPlatform.sql"
+:r "Excel/002_SharedExcelPlatform_Normalize.sql"
+:r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
+:r "16_EquipmentFlexibleImport_LegacyCleanup.sql"
 :r "16A_EquipmentCapabilities.sql"
-
-/* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
 :r "17_ApprovalRouteSelection.sql"
 :r "18_ApproverConfigurationReview.sql"
 :r "19_OT_LimitRule_ScopeColumns.sql"
@@ -33,18 +23,16 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "22_00_HrmAttendanceTables.sql"
 :r "22_02_HrmCompatibleTimeKeepingForStaff.sql"
 :r "22_03_CalculateHrmAttendance.sql"
+:r "22_03A_DepartmentCodeCompatibility.sql"
 :r "22_04_HrmAttendanceHistory.sql"
+:r "22_05_HrmAttendanceBatchSnapshot.sql"
 :r "23_LeaveBalanceUpgrade.sql"
 :r "24_WorkYearUpgrade.sql"
 :r "25_RemoveLegacyOTSync.sql"
 :r "26_WorkCalendarAction.sql"
 :r "27_WorkCalendarActionIndexesSeed.sql"
 :r "28_Verify_WorkCalendarAction.sql"
-
-/* TRIPS */
 :r "28B_Trips.sql"
-
-/* EXECUTION / PAYROLL / APPROVAL / PUBLIC / EMAIL / SECURITY */
 :r "29_ExecutionReconciliation.sql"
 :r "30_Payroll.sql"
 :r "32_ExecutionReviewSecurity.sql"
@@ -60,8 +48,6 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "40_EmailCenter.sql"
 :r "41_EmailCenter_ProfileCompatibility.sql"
 :r "41_SecurityFunctionCleanup.sql"
-
-/* EQUIPMENT EXTENSIONS */
 :r "42_EquipmentInspection.sql"
 :r "43_EquipmentHandover.sql"
 :r "44_SecurityAccessChange.sql"
@@ -74,25 +60,29 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
 
-/* APPROVAL FOUNDATION BEFORE ENDPOINT SECURITY */
-:r "53_ApprovalUnifiedFoundation.sql"
-:r "58_EndpointSecurityCapabilities.sql"
+/* The 01-15 baseline normally contains the canonical RBAC catalog. Keep this
+   patch here as well so From16 can repair the capability on an existing DB. */
+:r "14E_AttendanceCalculateCapability.sql"
+:r "51_SecurityAdminCompatibility.sql"
 
-/* ENDPOINT / GOVERNANCE */
+/* ENDPOINT GOVERNANCE - schema must exist before capability seed/verify */
+:r "53_ApprovalUnifiedFoundation.sql"
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
 :r "55_Endpoint_Credentials.sql"
 :r "55_EndpointGovernanceCatalogApproval.sql"
 :r "56_EndpointGovernanceExtensions.sql"
 :r "57_Verify_Endpoint_Governance.sql"
+:r "58_EndpointSecurityCapabilities.sql"
+:r "59_CalendarViewCapability.sql"
+:r "60_EndpointAgentDataHardening.sql"
+:r "61_RequestModuleEmailTemplates.sql"
+:r "62_SuperAdminFullAccess.sql"
 
-/* FINAL VERIFICATION */
+/* Authorization schema gate for an already-established 01-15 baseline. */
+:r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
 
-PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment completed.';
-PRINT N'============================================================';
 GO
-
-

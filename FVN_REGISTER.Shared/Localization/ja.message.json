@@ -1,0 +1,12 @@
+{
+  "message.approveSuccess": "承認しました。",
+  "message.deleteFailed": "削除に失敗しました。",
+  "message.deleteSuccess": "削除しました。",
+  "message.loadFailed": "データを読み込めませんでした。",
+  "message.noPermission": "この操作を実行する権限がありません。",
+  "message.rejectSuccess": "却下しました。",
+  "message.saveFailed": "保存に失敗しました。",
+  "message.saveSuccess": "保存しました。",
+  "message.sessionExpired": "ログインセッションの有効期限が切れました。",
+  "message.submitSuccess": "送信しました。"
+}

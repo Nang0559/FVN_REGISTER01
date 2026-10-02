@@ -1,0 +1,11 @@
+{
+  "status.approved": "承認済み",
+  "status.awaitingConfirmation": "確認待ち",
+  "status.cancelled": "キャンセル済み",
+  "status.expired": "期限切れ",
+  "status.mismatch": "不一致",
+  "status.needMoreEvidence": "証拠の追加が必要",
+  "status.pending": "処理待ち",
+  "status.rejected": "却下済み",
+  "status.resolved": "解決済み"
+}

@@ -15,7 +15,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "03_Tables.sql"
 :r "04_Constraints.sql"
 :r "05_Indexes.sql"
--- 06_Seed.sql is intentionally excluded from normal deployment.
+-- [SEED] :r "06_Seed_All_Modules.sql"
 :r "07_Views.sql"
 :r "08_Functions.sql"
 :r "09_StoredProcedures.sql"
@@ -30,10 +30,18 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "14A_SecurityTwoFactorColumns.sql"
 :r "14B_SecurityManagedScopes.sql"
 :r "14C_SecurityFeatureOperatorAssignments.sql"
+:r "14E_AttendanceCalculateCapability.sql"
 :r "15_PublicInformation.sql"
 
 /* EQUIPMENT - CANONICAL OWNER */
 :r "16_EquipmentFlexibleImport.sql"
+
+/* SHARED EXCEL - SINGLE CANONICAL OWNER */
+:r "Excel/001_SharedExcelPlatform.sql"
+:r "Excel/002_SharedExcelPlatform_Normalize.sql"
+:r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
+:r "16_EquipmentFlexibleImport_LegacyCleanup.sql"
+
 :r "16A_EquipmentCapabilities.sql"
 
 /* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
@@ -45,6 +53,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "22_00_HrmAttendanceTables.sql"
 :r "22_02_HrmCompatibleTimeKeepingForStaff.sql"
 :r "22_03_CalculateHrmAttendance.sql"
+:r "22_03A_DepartmentCodeCompatibility.sql"
 :r "22_04_HrmAttendanceHistory.sql"
 :r "22_05_HrmAttendanceBatchSnapshot.sql"
 :r "23_LeaveBalanceUpgrade.sql"
@@ -85,6 +94,9 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
 
+/* ADMIN/RBAC COMPATIBILITY */
+:r "51_SecurityAdminCompatibility.sql"
+
 /* APPROVAL FOUNDATION MUST EXIST BEFORE ENDPOINT GOVERNANCE */
 :r "53_ApprovalUnifiedFoundation.sql"
 
@@ -96,11 +108,35 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "56_EndpointGovernanceExtensions.sql"
 
 /* ENDPOINT SECURITY CAPABILITIES / ROLE SEED - AFTER ALL ENDPOINT OBJECTS EXIST */
-:r "58_EndpointSecurityCapabilities.sql"
 :r "57_Verify_Endpoint_Governance.sql"
+:r "58_EndpointSecurityCapabilities.sql"
 
 /* CALENDAR CAPABILITY */
 :r "59_CalendarViewCapability.sql"
+
+/* ENDPOINT AGENT DATA / CATALOG / FINDING RETENTION */
+:r "60_EndpointAgentDataHardening.sql"
+
+/* REQUEST MODULE EMAIL TEMPLATE COMPATIBILITY */
+:r "61_RequestModuleEmailTemplates.sql"
+
+/* CANONICAL SUPERADMIN FULL-ACCESS INVARIANT */
+:r "62_SuperAdminFullAccess.sql"
+
+/* FINAL RUNTIME SCHEMA COMPATIBILITY GATE */
+:r "62_RuntimeSchemaCompatibility.sql"
+
+/* CALENDAR ATTENDANCE PERFORMANCE */
+:r "63_CalendarAttendancePerformance.sql"
+
+/* SECURITY ROLE/FUNCTION MATRIX */
+:r "64_SecurityRoleMatrixCapability.sql"
+
+/* SECURITY SYSTEM-CRITICAL INVARIANT */
+:r "65_SecuritySystemCriticalInvariant.sql"
+
+/* CALENDAR HOLIDAY CLASSIFICATION */
+:r "66_CalendarHolidayClassification.sql"
 
 /* AUTHORIZATION SCHEMA GATE */
 :r "14D_SecuritySchemaVerify.sql"

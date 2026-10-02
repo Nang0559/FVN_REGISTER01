@@ -7,22 +7,22 @@
 @inject IExecutionReconciliationClientService ExecutionService
 @inject ISnackbar Snackbar
 
-<PageTitle>Đối soát thực tế</PageTitle>
+<PageTitle>@Language.T("nav.executionReconciliation")</PageTitle>
 
 @if (_detail is not null)
 {
     <MudPaper Outlined="true" Class="pa-4 mb-4">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <MudText Typo="Typo.h6">
-                Chi tiết @_detail.Reconciliation.ModuleCode / @_detail.Reconciliation.SourceId
+                @Language.T("execution.chiTiet", _detail.Reconciliation.ModuleCode, _detail.Reconciliation.SourceId)
             </MudText>
-            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="CloseDetail">Đóng</MudButton>
+            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="CloseDetail">@Language.T("common.close")</MudButton>
         </MudStack>
 
         <MudGrid Class="mt-2">
             <MudItem xs="12" md="4">
                 <MudText Typo="Typo.body2">
-                    Trạng thái: <b>@_detail.Reconciliation.ReconciliationStatus</b>
+                    @Language.T("execution.trangThai") <b>@_detail.Reconciliation.ReconciliationStatus</b>
                 </MudText>
             </MudItem>
             <MudItem xs="12" md="4">
@@ -40,7 +40,7 @@
         @if (_detail.Confirmation is not null)
         {
             <MudDivider Class="my-3" />
-            <MudText Typo="Typo.subtitle1">Xác nhận nhân viên</MudText>
+            <MudText Typo="Typo.subtitle1">@Language.T("execution.xacNhanNhanVien")</MudText>
             <MudText Typo="Typo.body2">
                 Decision: <b>@_detail.Confirmation.Decision</b> —
                 Status: <b>@_detail.Confirmation.Status</b>
@@ -52,7 +52,7 @@
             @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.ReviewNote))
             {
                 <MudAlert Severity="Severity.Warning" Class="mt-2">
-                    Ghi chú review: @_detail.Confirmation.ReviewNote
+                    @Language.T("execution.ghiChuReview", _detail.Confirmation.ReviewNote)
                 </MudAlert>
             }
         }
@@ -60,14 +60,14 @@
         @if (_detail.Evidence.Count > 0)
         {
             <MudDivider Class="my-3" />
-            <MudText Typo="Typo.subtitle1">Evidence</MudText>
+            <MudText Typo="Typo.subtitle1">@Language.T("execution.evidence2")</MudText>
             <MudTable Items="_detail.Evidence" Dense="true" Hover="true">
                 <HeaderContent>
-                    <MudTh>Loại</MudTh>
+                    <MudTh>@Language.T("common.type")</MudTh>
                     <MudTh>FileId</MudTh>
-                    <MudTh>Tham chiếu</MudTh>
-                    <MudTh>Review</MudTh>
-                    <MudTh>Ghi chú HR</MudTh>
+                    <MudTh>@Language.T("execution.thamChieu")</MudTh>
+                    <MudTh>@Language.T("execution.review")</MudTh>
+                    <MudTh>@Language.T("execution.ghiChuHr")</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.EvidenceType</MudTd>
@@ -92,11 +92,11 @@
 
 <MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
-        <MudText Typo="Typo.h5">Đối soát thực tế</MudText>
+        <MudText Typo="Typo.h5">@Language.T("nav.executionReconciliation")</MudText>
         <MudStack Row="true" Spacing="1">
-            <MudDatePicker @bind-Date="_from" Label="Từ ngày" />
-            <MudDatePicker @bind-Date="_to" Label="Đến ngày" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Tải lại</MudButton>
+            <MudDatePicker @bind-Date="_from" Label='@Language.T("trip.fromDate")' />
+            <MudDatePicker @bind-Date="_to" Label='@Language.T("trip.toDate")' />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">@Language.T("common.taiLai")</MudButton>
         </MudStack>
     </MudStack>
 
@@ -106,50 +106,50 @@
     }
     else if (_items.Count == 0)
     {
-        <MudAlert Severity="Severity.Info">Không có reconciliation trong khoảng thời gian đã chọn.</MudAlert>
+        <MudAlert Severity="Severity.Info">@Language.T("execution.khongCoReconciliationTrongKhoang")</MudAlert>
     }
     else
     {
         <MudTable Items="_items" Hover="true" Dense="true" Striped="true">
             <HeaderContent>
-                <MudTh>Ngày</MudTh>
-                <MudTh>Module</MudTh>
-                <MudTh>Nguồn</MudTh>
-                <MudTh>Participant</MudTh>
-                <MudTh>Dự kiến</MudTh>
-                <MudTh>Thực tế</MudTh>
-                <MudTh>Trạng thái</MudTh>
+                <MudTh>@Language.T("ot.date")</MudTh>
+                <MudTh>@Language.T("common.module")</MudTh>
+                <MudTh>@Language.T("common.nguon")</MudTh>
+                <MudTh>@Language.T("execution.participant")</MudTh>
+                <MudTh>@Language.T("execution.duKien")</MudTh>
+                <MudTh>@Language.T("execution.thucTe")</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel='@Language.T("ot.date")'>@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd DataLabel="Module">@context.ModuleCode</MudTd>
-                <MudTd DataLabel="Nguồn">@context.SourceType / @context.SourceId</MudTd>
+                <MudTd DataLabel='@Language.T("common.nguon")'>@context.SourceType / @context.SourceId</MudTd>
                 <MudTd DataLabel="Participant">@(context.ParticipantId ?? "-")</MudTd>
-                <MudTd DataLabel="Dự kiến">@(context.PlannedState ?? "-")</MudTd>
-                <MudTd DataLabel="Thực tế">@(context.ActualState ?? "-")</MudTd>
-                <MudTd DataLabel="Trạng thái">@context.ReconciliationStatus</MudTd>
+                <MudTd DataLabel='@Language.T("execution.duKien")'>@(context.PlannedState ?? "-")</MudTd>
+                <MudTd DataLabel='@Language.T("execution.thucTe")'>@(context.ActualState ?? "-")</MudTd>
+                <MudTd DataLabel='@Language.T("common.status")'>@context.ReconciliationStatus</MudTd>
                 <MudTd>
                     <MudButton Size="Size.Small" Variant="Variant.Text"
                                OnClick="@(() => OpenDetailAsync(context.Id))">
-                        Chi tiết
+                        @Language.T("common.detail")
                     </MudButton>
                     @if (context.RequiresConfirmation && context.ConfirmationId == null)
                     {
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
                                    OnClick="@(() => OpenConfirmationAsync(context))">
-                            Xác nhận
+                            @Language.T("common.confirm")
                         </MudButton>
                     }
                     else if (context.ConfirmationId != null)
                     {
                         <MudStack Row="true" Spacing="1">
-                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Đã gửi xác nhận</MudChip>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">@Language.T("execution.daGuiXacNhan")</MudChip>
                             @if (context.RequiresEvidence)
                             {
                                 <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
                                            OnClick="@(() => OpenEvidenceAsync(context))">
-                                    Bổ sung evidence
+                                    @Language.T("execution.boSungEvidence")
                                 </MudButton>
                             }
                         </MudStack>
@@ -163,16 +163,16 @@
     @if (_confirmationOpen && _selected is not null)
     {
         <MudPaper Outlined="true" Class="pa-4 mt-4">
-            <MudText Typo="Typo.h6">Xác nhận @_selected.ModuleCode / @_selected.SourceId</MudText>
-            <MudSelect T="string" @bind-Value="_decision" Label="Kết luận" Variant="Variant.Outlined" Class="mt-3">
-                <MudSelectItem Value="@("CONFIRMED")">Xác nhận đúng</MudSelectItem>
-                <MudSelectItem Value="@("REJECTED")">Từ chối / cần xử lý lại</MudSelectItem>
+            <MudText Typo="Typo.h6">@Language.T("execution.xacNhan", _selected.ModuleCode, _selected.SourceId)</MudText>
+            <MudSelect T="string" @bind-Value="_decision" Label="@Language.T("execution.ketLuan")" Variant="Variant.Outlined" Class="mt-3">
+                <MudSelectItem Value="@("CONFIRMED")">@Language.T("execution.xacNhanDung")</MudSelectItem>
+                <MudSelectItem Value="@("REJECTED")">@Language.T("execution.tuChoiCanXuLy")</MudSelectItem>
             </MudSelect>
-            <MudTextField @bind-Value="_comment" Label="Ghi chú" Variant="Variant.Outlined" Lines="3" Class="mt-3" />
-            <MudCheckBox @bind-Value="_evidenceRequired" Label="Yêu cầu bổ sung bằng chứng" />
+            <MudTextField @bind-Value="_comment" Label='@Language.T("common.note")' Variant="Variant.Outlined" Lines="3" Class="mt-3" />
+            <MudCheckBox @bind-Value="_evidenceRequired" Label="@Language.T("execution.yeuCauBoSungBang")" />
             <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-3">
-                <MudButton OnClick="CloseConfirmation">Hủy</MudButton>
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitConfirmationAsync">Gửi xác nhận</MudButton>
+                <MudButton OnClick="CloseConfirmation">@Language.T("common.cancel")</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitConfirmationAsync">@Language.T("execution.guiXacNhan")</MudButton>
             </MudStack>
         </MudPaper>
     }
@@ -180,18 +180,18 @@
     @if (_evidenceOpen && _selected is not null)
     {
         <MudPaper Outlined="true" Class="pa-4 mt-4">
-            <MudText Typo="Typo.h6">Bổ sung evidence</MudText>
+            <MudText Typo="Typo.h6">@Language.T("execution.boSungEvidence")</MudText>
             <MudText Typo="Typo.body2" Class="mb-2">
-                @_selected.ModuleCode / @_selected.SourceId — có thể dùng mã tham chiếu hoặc URL chứng từ.
+                @Language.T("execution.coTheDungMaTham", _selected.ModuleCode, _selected.SourceId)
             </MudText>
-            <MudTextField @bind-Value="_evidenceType" Label="Loại evidence" Variant="Variant.Outlined" Required="true" />
-            <MudTextField @bind-Value="_referenceNo" Label="Số tham chiếu" Variant="Variant.Outlined" Class="mt-2" />
-            <MudTextField @bind-Value="_externalUrl" Label="URL chứng từ (http/https)" Variant="Variant.Outlined" Class="mt-2" />
-            <MudTextField @bind-Value="_evidenceDescription" Label="Mô tả" Variant="Variant.Outlined" Lines="3" Class="mt-2" />
-            <MudNumericField T="int?" @bind-Value="_fileId" Label="FileId chứng từ đã upload" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTextField @bind-Value="_evidenceType" Label="@Language.T("execution.loaiEvidence")" Variant="Variant.Outlined" Required="true" />
+            <MudTextField @bind-Value="_referenceNo" Label="@Language.T("execution.soThamChieu")" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTextField @bind-Value="_externalUrl" Label="@Language.T("execution.urlChungTuHttpHttps")" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTextField @bind-Value="_evidenceDescription" Label='@Language.T("common.description")' Variant="Variant.Outlined" Lines="3" Class="mt-2" />
+            <MudNumericField T="int?" @bind-Value="_fileId" Label="@Language.T("execution.fileidChungTuDaUpload")" Variant="Variant.Outlined" Class="mt-2" />
             <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-3">
-                <MudButton OnClick="CloseEvidence">Hủy</MudButton>
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitEvidenceAsync">Gửi evidence</MudButton>
+                <MudButton OnClick="CloseEvidence">@Language.T("common.cancel")</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitEvidenceAsync">@Language.T("execution.guiEvidence")</MudButton>
             </MudStack>
         </MudPaper>
     }
@@ -230,7 +230,7 @@
         if (_from is null || _to is null) return;
         if (_to.Value.Date < _from.Value.Date)
         {
-            Snackbar.Add("Khoảng ngày không hợp lệ.", Severity.Warning);
+            Snackbar.Add(Language.T("common.khoangNgayKhongHopLe"), Severity.Warning);
             return;
         }
 
@@ -244,7 +244,7 @@
             if (result.IsSuccess && result.Data is not null)
                 _items = result.Data.ToList();
             else
-                Snackbar.Add(result.Message ?? "Không tải được dữ liệu đối soát.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("execution.khongTaiDuocDuLieu"), Severity.Error);
         }
         finally
         {
@@ -269,7 +269,7 @@
         var result = await ExecutionService.GetDetailAsync(reconciliationId);
         if (!result.IsSuccess || result.Data is null)
         {
-            Snackbar.Add(result.Message ?? "Không tải được chi tiết đối soát.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("execution.khongTaiDuocChiTiet"), Severity.Error);
             return;
         }
 
@@ -297,13 +297,13 @@
     {
         if (_selected?.ConfirmationId is not long confirmationId)
         {
-            Snackbar.Add("Chưa có confirmation để bổ sung evidence.", Severity.Warning);
+            Snackbar.Add(Language.T("execution.chuaCoConfirmationDeBo"), Severity.Warning);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_evidenceType))
         {
-            Snackbar.Add("Vui lòng nhập loại evidence.", Severity.Warning);
+            Snackbar.Add(Language.T("execution.vuiLongNhapLoaiEvidence"), Severity.Warning);
             return;
         }
 
@@ -315,7 +315,7 @@
 
             if (!upload.IsSuccess || upload.Data <= 0)
             {
-                Snackbar.Add(upload.Message ?? "Không thể upload file evidence.", Severity.Error);
+                Snackbar.Add(upload.Message ?? Language.T("execution.khongTheUploadFileEvidence"), Severity.Error);
                 return;
             }
 
@@ -333,11 +333,11 @@
 
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không thể thêm evidence.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("execution.khongTheThemEvidence"), Severity.Error);
             return;
         }
 
-        Snackbar.Add("Đã gửi evidence.", Severity.Success);
+        Snackbar.Add(Language.T("execution.daGuiEvidence"), Severity.Success);
         _evidenceOpen = false;
         await LoadAsync();
         if (_selected is not null)
@@ -367,11 +367,11 @@
 
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không gửi được xác nhận.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("execution.khongGuiDuocXacNhan"), Severity.Error);
             return;
         }
 
-        Snackbar.Add("Đã gửi xác nhận.", Severity.Success);
+        Snackbar.Add(Language.T("execution.daGuiXacNhan2"), Severity.Success);
         _confirmationOpen = false;
         await LoadAsync();
         if (_selected is not null)

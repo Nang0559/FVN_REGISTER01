@@ -23,6 +23,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FVN_REGISTER.Infrastructure
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FVN_REGISTER.EndpointAgent", "FVN_REGISTER.EndpointAgent\FVN_REGISTER.EndpointAgent.csproj", "{B6B52C1B-7A9E-4C5E-9A3E-7E5D8F1A2C44}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{D02DA5C0-5F94-4BB1-87A0-60A5A8BB9E7A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FVN_REGISTER.Shared.Tests", "Tests\FVN_REGISTER.Shared.Tests\FVN_REGISTER.Shared.Tests.csproj", "{A42AF3B2-1639-4F60-B52A-FF64F4351167}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,11 +74,18 @@ Global
 		{B6B52C1B-7A9E-4C5E-9A3E-7E5D8F1A2C44}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6B52C1B-7A9E-4C5E-9A3E-7E5D8F1A2C44}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6B52C1B-7A9E-4C5E-9A3E-7E5D8F1A2C44}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A42AF3B2-1639-4F60-B52A-FF64F4351167}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A42AF3B2-1639-4F60-B52A-FF64F4351167}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A42AF3B2-1639-4F60-B52A-FF64F4351167}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A42AF3B2-1639-4F60-B52A-FF64F4351167}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D6774892-663E-4FF3-9473-D42B23CD88A8}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A42AF3B2-1639-4F60-B52A-FF64F4351167} = {D02DA5C0-5F94-4BB1-87A0-60A5A8BB9E7A}
 	EndGlobalSection
 EndGlobal

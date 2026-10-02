@@ -24,6 +24,11 @@ GO
 
 IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NOT NULL
 BEGIN
+    /*
+       46_SecurityFunctionRegistry makes FunctionKey NOT NULL. Every new
+       function introduced after that point must therefore provide its
+       canonical stable key explicitly.
+    */
     IF NOT EXISTS
     (
         SELECT 1
@@ -33,24 +38,47 @@ BEGIN
     BEGIN
         INSERT INTO dbo.F03Functions
         (
+            FunctionKey,
             IsActive,
             CreatedBy,
             LastModifiedSource,
             CreatedAt,
             FunctionCode,
             FunctionName,
-            Detail
+            Detail,
+            ModuleCode,
+            ActionCode,
+            ScopeCode,
+            DisplayOrder
         )
         VALUES
         (
+            N'Payroll.Approve',
             1,
             0,
             N'SYSTEM_APPROVAL_UNIFIED',
             GETDATE(),
             2810,
             N'Phê duyệt bảng công/bảng lương',
-            N'Phê duyệt kỳ đã chốt trước khi được in hoặc xuất dữ liệu. Dùng chung Approval Engine; không thay đổi luồng Leave/OT/Trip/Equipment.'
+            N'Phê duyệt kỳ đã chốt trước khi được in hoặc xuất dữ liệu. Dùng chung Approval Engine; không thay đổi luồng Leave/OT/Trip/Equipment.',
+            N'Payroll',
+            N'Approve',
+            N'Department',
+            2810
         );
+    END
+    ELSE
+    BEGIN
+        UPDATE dbo.F03Functions
+        SET FunctionKey = N'Payroll.Approve',
+            IsActive = 1,
+            FunctionName = N'Phê duyệt bảng công/bảng lương',
+            Detail = N'Phê duyệt kỳ đã chốt trước khi được in hoặc xuất dữ liệu. Dùng chung Approval Engine; không thay đổi luồng Leave/OT/Trip/Equipment.',
+            ModuleCode = N'Payroll',
+            ActionCode = N'Approve',
+            ScopeCode = N'Department',
+            DisplayOrder = 2810
+        WHERE FunctionCode = 2810;
     END;
 END;
 GO
@@ -63,6 +91,7 @@ RequestType = Payroll using the existing PositionCode-based routing.
 SELECT
     FunctionCode,
     FunctionName,
+    FunctionKey,
     IsActive
 FROM dbo.F03Functions
 WHERE FunctionCode = 2810;

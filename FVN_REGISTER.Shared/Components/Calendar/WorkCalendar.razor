@@ -1,6 +1,8 @@
+@using System.Globalization
 @using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Services.Calendar
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Language
 @inject IWorkCalendarClientService CalendarService
 @inject ICurrentUserClientService CurrentUser
 @inject IJSRuntime JS
@@ -31,14 +33,14 @@
     [Parameter] public EventCallback<DateTime> OnRegistrationRequested { get; set; }
     [Parameter] public EventCallback<CalendarDayDto> OnDaySelected { get; set; }
 
-    private static readonly (string Code, string Name)[] Filters =
+    private IEnumerable<(string Code, string Name)> Filters =>
     [
-        ("ALL", "Tất cả"),
-        ("COMPANY", "Công ty"),
-        ("ATTENDANCE", "Chấm công"),
-        ("LEAVE", "Nghỉ phép"),
-        ("OT", "OT"),
-        ("TRIP", "Công tác")
+        ("ALL", Language.T("calendar.filter.all")),
+        ("COMPANY", Language.T("calendar.filter.company")),
+        ("ATTENDANCE", Language.T("calendar.filter.attendance")),
+        ("LEAVE", Language.T("calendar.filter.leave")),
+        ("OT", Language.T("calendar.filter.ot")),
+        ("TRIP", Language.T("calendar.filter.trip"))
     ];
 
     private ElementReference _element;
@@ -49,6 +51,9 @@
     private DateTime _rangeFrom;
     private DateTime _rangeTo;
 
+    protected override void OnInitialized()
+        => Language.LanguageChanged += OnLanguageChanged;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || _initialized)
@@ -58,8 +63,12 @@
             await CurrentUser.InitializeAsync();
 
         _moduleFilter = "ALL";
-        _rangeFrom = DateTime.Today.AddMonths(-1).Date;
-        _rangeTo = DateTime.Today.AddMonths(2).Date.AddDays(-1);
+
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+        _rangeFrom = monthStart;
+        _rangeTo = monthEnd;
 
         await LoadAsync(_rangeFrom, _rangeTo);
         _ref = DotNetObjectReference.Create(this);
@@ -71,7 +80,9 @@
                 _element,
                 _ref,
                 BuildDays(),
-                DateTime.Today.ToString("yyyy-MM-dd"));
+                DateTime.Today.ToString("yyyy-MM-dd"),
+                Language.Current == LanguageCode.Ja ? "ja" : "vi",
+                BuildJsLabels());
 
             _initialized = true;
         }
@@ -85,6 +96,24 @@
                 EmployeeCode ?? CurrentUser.User?.EmployeeCode);
         }
     }
+
+    private Dictionary<string, string> BuildJsLabels() => new()
+    {
+        ["issue"] = Language.T("calendar.issue"),
+        ["holiday"] = Language.T("calendar.holiday"),
+        ["shift"] = Language.T("calendar.shift", "{0}"),
+        ["approved"] = Language.T("calendar.approved"),
+        ["pending"] = Language.T("calendar.pending"),
+        ["inProgress"] = Language.T("calendar.inProgress"),
+        ["rejected"] = Language.T("calendar.rejected"),
+        ["cancelled"] = Language.T("calendar.cancelled"),
+        ["needsRevision"] = Language.T("calendar.needsRevision"),
+        ["level"] = Language.T("calendar.level", "{0}"),
+        ["register"] = Language.T("calendar.register"),
+        ["today"] = Language.T("calendar.today"),
+        ["month"] = Language.T("calendar.month"),
+        ["list"] = Language.T("calendar.list")
+    };
 
     private async Task LoadAsync(DateTime from, DateTime to)
     {
@@ -107,47 +136,193 @@
     {
         return _data.Days
             .Where(VisibleDay)
-            .Select(day => new
+            .Select(day =>
             {
-                date = day.Date.ToString("yyyy-MM-dd"),
-                holiday = day.Holiday?.Name,
-                shift = day.Shift?.ShiftAbbr,
-                attendance = day.Attendance is null
-                    ? null
-                    : new
-                    {
-                        checkIn = day.Attendance.CheckIn?.ToString("HH:mm"),
-                        checkOut = day.Attendance.CheckOut?.ToString("HH:mm"),
-                        display = day.Attendance.DisplayValue,
-                        actualHours = day.Attendance.ActualHours,
-                        requiredHours = day.Attendance.RequiredHours
-                    },
-                registrations = day.Registrations
-                    .Where(x => _moduleFilter == "ALL" || x.ModuleCode == _moduleFilter)
-                    .Select(x => new
-                    {
-                        moduleCode = x.ModuleCode,
-                        title = x.Title,
-                        isHalfDay = x.IsHalfDay,
-                        dayValue = x.DayValue,
-                        approvalStatus = x.ApprovalStatus ?? x.Status,
-                        approvalLevel = x.ApprovalLevel,
-                        approvalLevelName = x.ApprovalLevelName,
-                        currentApproverName = x.CurrentApproverName,
-                        isApproved = x.IsApproved
-                    }),
-                issues = day.Issues.Select(x => new
+                var attendanceSymbol = BuildAttendanceSymbol(day);
+                var otSymbol = BuildOtSymbol(day);
+
+                return new
                 {
-                    code = x.Code,
-                    severity = x.Severity,
-                    marker = x.Marker,
-                    title = x.Title,
-                    summary = x.Summary
-                }),
-                canRegister = day.CanRegisterLeave || day.CanRegisterOT || day.CanRegisterTrip
+                    date = day.Date.ToString("yyyy-MM-dd"),
+                    holiday = day.Holiday?.Name,
+                    shift = day.Shift?.ShiftAbbr,
+                    attendance = day.Attendance is null
+                        ? null
+                        : new
+                        {
+                            checkIn = day.Attendance.CheckIn?.ToString("HH:mm"),
+                            checkOut = day.Attendance.CheckOut?.ToString("HH:mm"),
+                            display = day.Attendance.DisplayValue,
+                            symbol = attendanceSymbol,
+                            otSymbol,
+                            actualHours = day.Attendance.ActualHours,
+                            requiredHours = day.Attendance.RequiredHours
+                        },
+                    registrations = day.Registrations
+                        .Where(x => _moduleFilter == "ALL" || x.ModuleCode == _moduleFilter)
+                        .Select(x => new
+                        {
+                            moduleCode = x.ModuleCode,
+                            title = x.Title,
+                            start = x.Start.ToString("HH:mm"),
+                            end = x.End.ToString("HH:mm"),
+                            isHalfDay = x.IsHalfDay,
+                            dayValue = x.DayValue,
+                            approvalStatus = x.ApprovalStatus ?? x.Status,
+                            approvalLevel = x.ApprovalLevel,
+                            approvalLevelName = x.ApprovalLevelName,
+                            currentApproverName = x.CurrentApproverName,
+                            isApproved = x.IsApproved
+                        }),
+                    issues = day.Issues.Select(x => new
+                    {
+                        code = x.Code,
+                        severity = x.Severity,
+                        marker = x.Marker,
+                        title = x.Title,
+                        summary = x.Summary
+                    }),
+                    canRegister = day.CanRegisterLeave || day.CanRegisterOT || day.CanRegisterTrip
+                };
             })
             .Cast<object>()
             .ToList();
+    }
+
+    private static string? BuildAttendanceSymbol(CalendarDayDto day)
+    {
+        if (day.Attendance is null)
+            return null;
+
+        var shift = NormalizeShift(day.Shift?.ShiftAbbr, day.Attendance.CheckIn);
+        var isHoliday = day.Holiday is not null;
+        var isSaturday = day.Date.DayOfWeek == DayOfWeek.Saturday;
+        var isSunday = day.Date.DayOfWeek == DayOfWeek.Sunday;
+
+        if (!isHoliday && !isSaturday && !isSunday)
+            return shift;
+
+        var prefix = isHoliday ? "NL" : isSunday ? "CN" : "T";
+        var totalMinutes = GetAttendanceElapsedMinutes(day.Attendance.CheckIn, day.Attendance.CheckOut);
+        if (totalMinutes <= 0)
+            totalMinutes = Math.Max(0, (int)Math.Round((day.Attendance.WorkMinutes + day.Attendance.ActualOtMinutes) / 15m, MidpointRounding.AwayFromZero) * 15);
+
+        if (totalMinutes <= 0)
+            return null;
+
+        if (totalMinutes >= 11 * 60 + 45)
+        {
+            var baseMinutes = Math.Min(8 * 60, totalMinutes - 4 * 60);
+            var baseHours = FormatQuarterHours(baseMinutes);
+            return shift switch
+            {
+                "C2" => prefix == "T" ? prefix + "2" + baseHours : prefix + "C2" + baseHours,
+                "C3" => prefix == "T" ? prefix + "3" + baseHours : prefix + "C3" + baseHours,
+                _ => prefix + baseHours
+            };
+        }
+
+        var hours = FormatQuarterHours(totalMinutes);
+        return shift switch
+        {
+            "C2" => prefix == "T" ? prefix + "2" + hours : prefix + "C2" + hours,
+            "C3" => prefix == "T" ? prefix + "3" + hours : prefix + "C3" + hours,
+            _ => prefix + hours
+        };
+    }
+
+    private static string? BuildOtSymbol(CalendarDayDto day)
+    {
+        if (day.Attendance is null)
+            return null;
+
+        var shift = NormalizeShift(day.Shift?.ShiftAbbr, day.Attendance.CheckIn);
+        var isHoliday = day.Holiday is not null;
+        var isSaturday = day.Date.DayOfWeek == DayOfWeek.Saturday;
+        var isSunday = day.Date.DayOfWeek == DayOfWeek.Sunday;
+        var isOffDay = isHoliday || isSaturday || isSunday;
+
+        var actualMinutes = Math.Max(day.Attendance.ActualOtMinutes, day.Attendance.RecognizedOtMinutes);
+        var registered = day.Registrations
+            .Where(x => string.Equals(x.ModuleCode, "OT", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var registeredMinutes = registered.Sum(x => Math.Max(0, GetRegistrationMinutesForDate(x, day.Date)));
+        var elapsedMinutes = GetAttendanceElapsedMinutes(day.Attendance.CheckIn, day.Attendance.CheckOut);
+
+        if (isOffDay && elapsedMinutes >= 11 * 60 + 45 && actualMinutes <= 0 && registeredMinutes <= 0)
+            actualMinutes = 4 * 60;
+
+        var minutes = actualMinutes > 0 ? actualMinutes : registeredMinutes;
+        if (minutes <= 0)
+            return null;
+
+        minutes = (int)Math.Round(minutes / 15m, MidpointRounding.AwayFromZero) * 15;
+        var hours = FormatQuarterHours(minutes);
+
+        if (isOffDay)
+        {
+            var prefix = isHoliday ? "NL" : isSunday ? "CN" : "T";
+            var isK = shift is "C1" or "C3";
+            return isK ? prefix + "K" + hours : prefix + hours;
+        }
+
+        var isNormalK = shift is "C1" or "C2" or "C3";
+        if (shift == "HC")
+        {
+            var startsAfterNormalEnd = registered.Any(x => x.Start.TimeOfDay >= new TimeSpan(16, 45, 0));
+            var checkoutAfterNormalEnd = day.Attendance.CheckOut?.TimeOfDay >= new TimeSpan(16, 45, 0);
+            isNormalK = startsAfterNormalEnd || checkoutAfterNormalEnd == true;
+        }
+
+        return isNormalK ? "K" + hours : hours;
+    }
+
+    private static int GetRegistrationMinutesForDate(CalendarRegistrationDto registration, DateOnly date)
+    {
+        var start = registration.Start;
+        var end = registration.End;
+        if (end <= start)
+            return 0;
+
+        var dayStart = date.ToDateTime(TimeOnly.MinValue);
+        var dayEnd = dayStart.AddDays(1);
+        var overlapStart = start > dayStart ? start : dayStart;
+        var overlapEnd = end < dayEnd ? end : dayEnd;
+        return overlapEnd > overlapStart ? (int)Math.Round((overlapEnd - overlapStart).TotalMinutes) : 0;
+    }
+
+    private static int GetAttendanceElapsedMinutes(DateTime? checkIn, DateTime? checkOut)
+    {
+        if (!checkIn.HasValue || !checkOut.HasValue || checkOut.Value <= checkIn.Value)
+            return 0;
+
+        return (int)Math.Round((checkOut.Value - checkIn.Value).TotalMinutes, MidpointRounding.AwayFromZero);
+    }
+
+    private static string NormalizeShift(string? shiftAbbr, DateTime? checkIn)
+    {
+        var text = (shiftAbbr ?? string.Empty).Trim().ToUpperInvariant().Replace(" ", string.Empty);
+        if (text.Contains("C1") || text.Contains("CA1")) return "C1";
+        if (text.Contains("C2") || text.Contains("CA2")) return "C2";
+        if (text.Contains("C3") || text.Contains("CA3")) return "C3";
+        if (text.Contains("HC")) return "HC";
+
+        if (checkIn.HasValue)
+        {
+            var time = checkIn.Value.TimeOfDay;
+            if (time >= new TimeSpan(5, 0, 0) && time < new TimeSpan(9, 0, 0)) return "C1";
+            if (time >= new TimeSpan(13, 0, 0) && time < new TimeSpan(17, 0, 0)) return "C2";
+            if (time >= new TimeSpan(21, 0, 0) || time < new TimeSpan(2, 0, 0)) return "C3";
+            if (time >= new TimeSpan(8, 0, 0) && time < new TimeSpan(13, 0, 0)) return "HC";
+        }
+
+        return "HC";
+    }
+
+    private static string FormatQuarterHours(int minutes)
+    {
+        var rounded = Math.Max(0, (int)Math.Round(minutes / 15m, MidpointRounding.AwayFromZero) * 15);
+        return (rounded / 60m).ToString("0.##", CultureInfo.InvariantCulture);
     }
 
     private bool VisibleDay(CalendarDayDto day)
@@ -172,6 +347,22 @@
         _moduleFilter = code;
         if (_initialized)
             await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
+    }
+
+    private async void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        await InvokeAsync(StateHasChanged);
+        if (_initialized)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync(
+                    "workCalendar.setLocale",
+                    Language.Current == LanguageCode.Ja ? "ja" : "vi",
+                    BuildJsLabels());
+            }
+            catch (JSDisconnectedException) { }
+        }
     }
 
     [JSInvokable]
@@ -211,10 +402,13 @@
     public async Task OnCalendarRangeChanged(string start, string end)
     {
         if (!DateTime.TryParse(start, out var from)
-            || !DateTime.TryParse(end, out var to))
+            || !DateTime.TryParse(end, out _))
             return;
 
-        await LoadAsync(from.Date, to.Date.AddDays(-1));
+        var monthStart = new DateTime(from.Year, from.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        await LoadAsync(monthStart, monthEnd);
 
         if (_initialized)
             await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
@@ -222,8 +416,12 @@
 
     public async Task RefreshAsync()
     {
-        var from = _rangeFrom == default ? DateTime.Today.AddMonths(-1).Date : _rangeFrom;
-        var to = _rangeTo == default ? DateTime.Today.AddMonths(2).Date.AddDays(-1) : _rangeTo;
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        var from = _rangeFrom == default ? monthStart : _rangeFrom;
+        var to = _rangeTo == default ? monthEnd : _rangeTo;
 
         await LoadAsync(from, to);
 
@@ -235,6 +433,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Language.LanguageChanged -= OnLanguageChanged;
         _ref?.Dispose();
 
         if (_initialized)

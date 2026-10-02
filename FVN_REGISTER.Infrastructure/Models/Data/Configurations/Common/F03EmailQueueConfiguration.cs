@@ -19,6 +19,13 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Common
                   .HasMaxLength(20)
                   .IsRequired();
 
+            // DB: DispatchMode nvarchar(30) ('AutoSend' | 'QueueForApproval' | 'Disabled').
+            // Thiếu conversion này EF đọc cột như int -> InvalidCastException String -> Int32.
+            entity.Property(e => e.DispatchMode)
+                  .HasConversion<string>()
+                  .HasMaxLength(30)
+                  .IsRequired();
+
             entity.Property(e => e.Body).HasColumnType("nvarchar(max)").IsRequired();
             entity.Property(e => e.Payload).HasColumnType("nvarchar(max)");
 
