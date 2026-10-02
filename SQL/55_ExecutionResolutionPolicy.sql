@@ -59,33 +59,3 @@ SET PolicyName = CASE WHEN NULLIF(LTRIM(RTRIM(PolicyName)), N'') IS NULL THEN N'
     HrReviewHours = CASE WHEN HrReviewHours <= 0 THEN 48 ELSE HrReviewHours END,
     AppealReviewHours = CASE WHEN AppealReviewHours <= 0 THEN 48 ELSE AppealReviewHours END,
     MaxAppealRounds = CASE WHEN AllowEmployeeAppeal = 1 AND MaxAppealRounds = 0 THEN 1 ELSE MaxAppealRounds END;
-
--- Register the management capability if the security registry table is already deployed.
-IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NOT NULL
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode = 3073)
-    BEGIN
-        INSERT INTO dbo.F03Functions
-        (
-            FunctionCode, FunctionName, ModuleCode, ActionCode, ScopeCode,
-            LifecycleStatus, IsActive
-        )
-        VALUES
-        (
-            3073, N'Execution.PolicyManage', N'Execution', N'PolicyManage', N'ALL',
-            N'Active', 1
-        );
-    END
-END;
-
-IF OBJECT_ID(N'dbo.F03ExecutionReconciliations', N'U') IS NOT NULL
-BEGIN
-    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyId') IS NULL
-        ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicyId int NULL;
-
-    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyVersion') IS NULL
-        ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicyVersion int NULL;
-
-    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicySnapshotJson') IS NULL
-        ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicySnapshotJson nvarchar(max) NULL;
-END;
