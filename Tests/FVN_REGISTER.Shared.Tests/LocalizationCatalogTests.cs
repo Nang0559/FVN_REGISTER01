@@ -8,6 +8,7 @@ namespace FVN_REGISTER.Shared.Tests;
 /// Guards the UI text catalog (FVN_REGISTER.Shared/Localization/{lang}.{module}.json).
 /// Duplicate keys inside one file are rejected by <see cref="LocalizationStore"/> itself (see the first test).
 /// </summary>
+[Collection("LocalizationStore")]
 public sealed class LocalizationCatalogTests
 {
     private static readonly Regex Placeholder = new(@"\{(\d+)(?:[^}]*)\}", RegexOptions.Compiled);

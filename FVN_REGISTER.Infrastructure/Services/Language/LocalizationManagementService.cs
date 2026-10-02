@@ -40,6 +40,11 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
 
     private static readonly Regex Placeholder = new(@"\{(\d+)\}", RegexOptions.Compiled);
 
+    // Every change is read-modify-write on shared JSON files: serialize them (one API process owns the files),
+    // otherwise two administrators saving at the same time silently lose one of the edits.
+    private static readonly object WriteGate = new();
+    private static readonly LocalizationRuntimeCatalog RuntimeCatalog = new();
+
     private readonly IHostEnvironment _environment;
     private readonly IConfiguration _configuration;
 
@@ -56,22 +61,49 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         return Task.FromResult(catalog);
     }
 
+    public Task<LocalizationRuntimeSnapshotDto> GetRuntimeSnapshotAsync(long? sinceVersion, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Missing folder is not an error here: clients simply keep their embedded text.
+        return Task.FromResult(RuntimeCatalog.Get(ResolveLocalizationRoot(), sinceVersion));
+    }
+
     public Task UpsertAsync(LocalizationUpsertRequest request, CancellationToken ct = default)
     {
         ValidateEntry(request.Key, request.Module, request.Vi, request.Ja);
         ValidatePlaceholders(request.Vi, request.Ja);
 
         var root = RequireLocalizationRoot();
-        var all = ReadRawCatalog(root);
-        var oldModule = all.FirstOrDefault(x => string.Equals(x.Key, request.Key.Trim(), StringComparison.OrdinalIgnoreCase))?.Module;
-
-        if (!string.IsNullOrWhiteSpace(oldModule) && !string.Equals(oldModule, request.Module.Trim(), StringComparison.OrdinalIgnoreCase))
+        lock (WriteGate)
         {
-            RemoveKey(root, oldModule, request.Key.Trim());
+            UpsertCore(root, request, ModuleByKey(ReadRawCatalog(root)));
+        }
+        return Task.CompletedTask;
+    }
+
+    private static Dictionary<string, string> ModuleByKey(IEnumerable<RawEntry> entries)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in entries)
+            map.TryAdd(entry.Key, entry.Module);
+        return map;
+    }
+
+    /// <summary>Writes one entry; <paramref name="moduleByKey"/> is kept in step so a bulk import reads the catalog only once.</summary>
+    private void UpsertCore(string root, LocalizationUpsertRequest request, Dictionary<string, string> moduleByKey)
+    {
+        var key = request.Key.Trim();
+        var module = request.Module.Trim();
+
+        if (moduleByKey.TryGetValue(key, out var oldModule) &&
+            !string.IsNullOrWhiteSpace(oldModule) &&
+            !string.Equals(oldModule, module, StringComparison.OrdinalIgnoreCase))
+        {
+            RemoveKey(root, oldModule, key);
         }
 
-        WriteEntry(root, request.Module.Trim(), request.Key.Trim(), request.Vi, request.Ja);
-        return Task.CompletedTask;
+        WriteEntry(root, module, key, request.Vi, request.Ja);
+        moduleByKey[key] = module;
     }
 
     public Task DeleteAsync(string key, CancellationToken ct = default)
@@ -80,12 +112,15 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
             throw new InvalidOperationException("Key không được để trống.");
 
         var root = RequireLocalizationRoot();
-        var entries = ReadRawCatalog(root).Where(x => string.Equals(x.Key, key.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
-        if (entries.Count == 0)
-            throw new InvalidOperationException($"Không tìm thấy key '{key}'.");
+        lock (WriteGate)
+        {
+            var entries = ReadRawCatalog(root).Where(x => string.Equals(x.Key, key.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            if (entries.Count == 0)
+                throw new InvalidOperationException($"Không tìm thấy key '{key}'.");
 
-        foreach (var item in entries)
-            RemoveKey(root, item.Module, item.Key);
+            foreach (var item in entries)
+                RemoveKey(root, item.Module, item.Key);
+        }
 
         return Task.CompletedTask;
     }
@@ -121,7 +156,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         return Task.FromResult((stream.ToArray(), $"FVN_Localization_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"));
     }
 
-    public async Task<LocalizationImportResultDto> ImportAsync(Stream content, string fileName, CancellationToken ct = default)
+    public Task<LocalizationImportResultDto> ImportAsync(Stream content, string fileName, CancellationToken ct = default)
     {
         if (!fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) &&
             !fileName.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
@@ -182,19 +217,24 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         }
 
         if (result.Errors.Count > 0)
-            return result;
+            return Task.FromResult(result);
 
-        foreach (var row in rows)
+        var root = RequireLocalizationRoot();
+        lock (WriteGate)
         {
-            ct.ThrowIfCancellationRequested();
-            var existing = ReadRawCatalog(RequireLocalizationRoot())
-                .FirstOrDefault(x => string.Equals(x.Key, row.Key, StringComparison.OrdinalIgnoreCase));
-            await UpsertAsync(row, ct);
-            result.Imported++;
-            if (existing is null) result.Created++; else result.Updated++;
+            // One read of the whole catalog for the entire import (it used to be re-read for every row).
+            var moduleByKey = ModuleByKey(ReadRawCatalog(root));
+            foreach (var row in rows)
+            {
+                ct.ThrowIfCancellationRequested();
+                var existed = moduleByKey.ContainsKey(row.Key.Trim());
+                UpsertCore(root, row, moduleByKey);
+                result.Imported++;
+                if (existed) result.Updated++; else result.Created++;
+            }
         }
 
-        return result;
+        return Task.FromResult(result);
     }
 
     public Task<LocalizationAuditResultDto> AuditAsync(CancellationToken ct = default)
@@ -427,9 +467,17 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
                 dict[p.Name] = p.Value.GetString() ?? string.Empty;
         }
         dict[key] = value;
+        WriteCatalogFile(file, dict);
+    }
+
+    /// <summary>Sorted, written to a temp file first and then moved over the target, so a crash or a concurrent reader never sees a half-written file.</summary>
+    private static void WriteCatalogFile(string file, Dictionary<string, string> dict)
+    {
         var ordered = dict.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-        File.WriteAllText(file, JsonSerializer.Serialize(ordered, JsonOptions) + Environment.NewLine, new UTF8Encoding(false));
+        var temp = file + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(ordered, JsonOptions) + Environment.NewLine, new UTF8Encoding(false));
+        File.Move(temp, file, overwrite: true);
     }
 
     private static void RemoveKey(string root, string module, string key)
@@ -443,7 +491,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
             foreach (var p in doc.RootElement.EnumerateObject())
                 if (!string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase))
                     dict[p.Name] = p.Value.GetString() ?? string.Empty;
-            File.WriteAllText(file, JsonSerializer.Serialize(dict.OrderBy(x => x.Key).ToDictionary(x => x.Key, x => x.Value), JsonOptions) + Environment.NewLine, new UTF8Encoding(false));
+            WriteCatalogFile(file, dict);
         }
     }
 

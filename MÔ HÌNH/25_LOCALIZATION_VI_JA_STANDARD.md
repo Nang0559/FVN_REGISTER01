@@ -122,3 +122,12 @@ Chỉ đánh dấu localization hoàn thành khi:
 ## 9. Trạng thái triển khai
 
 Nền localization, catalog, persistence, Login selector, authenticated shell, route status và audit script đã được triển khai trên branch `feature/i18n-vi-ja`. Các module Presentation còn lại phải được rà theo checklist mục 6 trước khi tuyên bố release-ready.
+
+## 10. Áp dụng thay đổi từ Language Center khi đang chạy
+
+- Language Center ghi vào các file `{lang}.{module}.json` trên **máy chủ API** (thư mục `Localization` trong thư mục publish của API, hoặc `Localization:SourceRoot`). Catalog nhúng trong assembly `FVN_REGISTER.Shared` chỉ là bản mặc định.
+- Client tải bản đang hiệu lực qua `GET api/localization/runtime?sinceVersion=` (công khai, chỉ đọc, trả về `Unchanged` khi version không đổi) và `LocalizationStore.ApplyOverrides` đặt nó lên trên catalog nhúng. Thứ tự ưu tiên: ja overlay → ja nhúng → vi overlay → vi nhúng → chính key.
+- `LanguageService.InitializeAsync` tải tối đa mỗi 30 giây; Language Center gọi `RefreshOverridesAsync(force: true)` sau khi lưu/xóa/nhập nên người sửa thấy ngay. Người dùng khác thấy khi tải trang hoặc điều hướng kế tiếp.
+- Xóa một key trên Language Center **không** làm key biến mất khỏi giao diện nếu catalog nhúng vẫn còn key đó; chỉ khi build lại thì key mới hết.
+- Mọi thao tác ghi tuần tự hóa bằng một khóa và ghi file nguyên tử (file tạm rồi thay thế). Chỉ chạy **một** tiến trình API ghi vào thư mục này.
+- Thư mục `Localization` của API nằm trong thư mục publish; nếu quy trình deploy ghi đè thư mục đó, các chỉnh sửa trên máy chủ sẽ mất. Đặt `Localization:SourceRoot` tới một thư mục ngoài thư mục deploy (và sao chép bản đã chỉnh về repo định kỳ) để tránh.

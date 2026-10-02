@@ -69,3 +69,16 @@ public sealed class LocalizationAuditResultDto
     public string? SourceRoot { get; set; }
     public bool SourceAvailable { get; set; }
 }
+
+/// <summary>
+/// The texts every client applies on top of its embedded catalog, so that what the Language Center saved shows on screen
+/// without a rebuild. <see cref="Version"/> changes only when a catalog file changes; <see cref="Unchanged"/> means the client
+/// already holds this version and the two dictionaries are empty.
+/// </summary>
+public sealed class LocalizationRuntimeSnapshotDto
+{
+    public long Version { get; set; }
+    public bool Unchanged { get; set; }
+    public Dictionary<string, string> Vi { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> Ja { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}

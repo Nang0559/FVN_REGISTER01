@@ -5,6 +5,9 @@ namespace FVN_REGISTER.Application.Interfaces.Language;
 public interface ILocalizationManagementService
 {
     Task<LocalizationCatalogDto> GetCatalogAsync(CancellationToken ct = default);
+
+    /// <summary>Public, read-only snapshot clients apply at runtime. Pass the version you hold to skip an unchanged download.</summary>
+    Task<LocalizationRuntimeSnapshotDto> GetRuntimeSnapshotAsync(long? sinceVersion, CancellationToken ct = default);
     Task UpsertAsync(LocalizationUpsertRequest request, CancellationToken ct = default);
     Task DeleteAsync(string key, CancellationToken ct = default);
     Task<LocalizationAuditResultDto> AuditAsync(CancellationToken ct = default);

@@ -339,6 +339,7 @@
                 return;
             }
             Snackbar.Add(Language.T("language.saved"), Severity.Success);
+            await Language.RefreshOverridesAsync(force: true);   // the saved text is visible immediately, no rebuild
             await LoadCatalogOnlyAsync();
             NewEntry();
         }
@@ -358,6 +359,7 @@
             return;
         }
         Snackbar.Add(Language.T("language.deleted"), Severity.Success);
+        await Language.RefreshOverridesAsync(force: true);
         await LoadCatalogOnlyAsync();
         NewEntry();
     }
@@ -395,6 +397,7 @@
 
             Snackbar.Add(Language.T("language.imported", result.Data?.Imported ?? 0), Severity.Success);
             _importFile = null;
+            await Language.RefreshOverridesAsync(force: true);
             await LoadCatalogOnlyAsync();
         }
         catch (Exception ex)

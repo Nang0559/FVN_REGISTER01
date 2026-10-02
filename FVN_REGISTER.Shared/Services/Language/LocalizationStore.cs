@@ -14,6 +14,11 @@ public sealed record LocalizationFile(LanguageCode Language, string Module, IRea
 ///  - every key is written once, in the file of its module (the key prefix before the first '.');
 ///  - a duplicated key inside one file throws instead of silently overwriting the earlier value;
 ///  - lookups are case-insensitive; a key missing in Japanese falls back to Vietnamese, then to the key itself.
+///
+/// Runtime overlay: the Language Center saves changes to the catalog files on the API server, not into this assembly.
+/// Clients therefore download those texts (<c>api/localization/runtime</c>) and hand them to <see cref="ApplyOverrides"/>;
+/// the overlay is consulted before the embedded text and is swapped atomically. <see cref="GetAll"/> and
+/// <see cref="ReadFiles"/> always describe the embedded defaults only.
 /// </summary>
 public static class LocalizationStore
 {
@@ -23,17 +28,69 @@ public static class LocalizationStore
     private static readonly Lazy<IReadOnlyDictionary<LanguageCode, IReadOnlyDictionary<string, string>>> Cache =
         new(() => Build(ReadFiles(typeof(LocalizationStore).Assembly)), LazyThreadSafetyMode.ExecutionAndPublication);
 
+    private sealed class Overlay
+    {
+        public static readonly Overlay NotLoaded = new(-1, Empty(), Empty());
+
+        public Overlay(long version, IReadOnlyDictionary<string, string> vi, IReadOnlyDictionary<string, string> ja)
+        {
+            Version = version;
+            Vi = vi;
+            Ja = ja;
+        }
+
+        public long Version { get; }
+        public IReadOnlyDictionary<string, string> Vi { get; }
+        public IReadOnlyDictionary<string, string> Ja { get; }
+        public IReadOnlyDictionary<string, string> For(LanguageCode language) => language == LanguageCode.Ja ? Ja : Vi;
+
+        private static Dictionary<string, string> Empty() => new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static volatile Overlay _overlay = Overlay.NotLoaded;
+
+    /// <summary>The embedded defaults only (the runtime overlay is not included).</summary>
     public static IReadOnlyDictionary<string, string> GetAll(LanguageCode language) => Cache.Value[language];
+
+    /// <summary>Version of the applied overlay; -1 until one was applied.</summary>
+    public static long OverridesVersion => _overlay.Version;
+
+    /// <summary>Replaces the whole overlay at once, so readers always see a complete and consistent set.</summary>
+    public static void ApplyOverrides(long version, IReadOnlyDictionary<string, string>? vi, IReadOnlyDictionary<string, string>? ja) =>
+        _overlay = new Overlay(version, Copy(vi), Copy(ja));
+
+    /// <summary>Drops the overlay, so only the embedded text is used again.</summary>
+    public static void ClearOverrides() => _overlay = Overlay.NotLoaded;
+
+    public static bool IsOverridden(LanguageCode language, string key) => _overlay.For(language).ContainsKey(key);
 
     public static bool TryGet(LanguageCode language, string key, out string value)
     {
+        var overlay = _overlay;
         var all = Cache.Value;
+        if (overlay.For(language).TryGetValue(key, out value!))
+            return true;
         if (all[language].TryGetValue(key, out value!))
             return true;
-        if (language != LanguageCode.Vi && all[LanguageCode.Vi].TryGetValue(key, out value!))
-            return true;
+        if (language != LanguageCode.Vi)
+        {
+            if (overlay.Vi.TryGetValue(key, out value!))
+                return true;
+            if (all[LanguageCode.Vi].TryGetValue(key, out value!))
+                return true;
+        }
         value = key;
         return false;
+    }
+
+    private static IReadOnlyDictionary<string, string> Copy(IReadOnlyDictionary<string, string>? source)
+    {
+        var copy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (source != null)
+            foreach (var (key, value) in source)
+                if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrEmpty(value))
+                    copy[key] = value;
+        return copy;
     }
 
     /// <summary>Returns the text for <paramref name="key"/>, or the key itself when it does not exist.</summary>

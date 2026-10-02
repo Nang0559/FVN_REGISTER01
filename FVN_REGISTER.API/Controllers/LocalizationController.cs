@@ -30,6 +30,18 @@ public sealed class LocalizationController : BaseApiController
         _authorization = authorization;
     }
 
+    /// <summary>
+    /// Public on purpose: the login page is translated too, and these texts are already shipped inside every client.
+    /// It is read-only; changing a text still needs Language.Manage on the other endpoints.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("runtime")]
+    public async Task<IActionResult> GetRuntime([FromQuery] long? sinceVersion, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return Ok(ApiResponse<LocalizationRuntimeSnapshotDto>.Ok(await _service.GetRuntimeSnapshotAsync(sinceVersion, ct)));
+    }
+
     [HttpGet("catalog")]
     public async Task<IActionResult> GetCatalog(CancellationToken ct)
     {
