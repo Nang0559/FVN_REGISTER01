@@ -27,6 +27,8 @@ public sealed class F03ExecutionPolicy : BaseAuditEntity
     // Resolution workflow policy. These values govern a reconciliation case
     // after the employee submits feedback; they do not alter payroll directly.
     public int EmployeeResponseHours { get; set; } = 48;
+    // 0 = escalate to final decision; 1 = auto-accept HR result after employee SLA. 
+    public byte EmployeeTimeoutMode { get; set; } = 0;
     public int HrReviewHours { get; set; } = 48;
     public bool AllowEmployeeAppeal { get; set; } = true;
     public byte MaxAppealRounds { get; set; } = 1;
