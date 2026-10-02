@@ -10,7 +10,7 @@ using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
-using FVN_REGISTER.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
 
@@ -32,6 +32,28 @@ public sealed class ExecutionHrClaimService : IExecutionHrClaimService
         _db = db;
         _authorization = authorization;
         _operatorAssignments = operatorAssignments;
+    }
+
+    public async Task EnsureClaimedAsync(
+        int userId,
+        long reconciliationId,
+        CancellationToken cancellationToken = default)
+    {
+        await AcquireClaimLockAsync(reconciliationId, cancellationToken);
+
+        var action = await _db.ActionItems
+            .AsNoTracking()
+            .Where(x => x.IsActive != false
+                && x.ActionType == ClaimActionType
+                && x.SourceId == reconciliationId.ToString()
+                && x.Status == ActionItemStatus.InProgress
+                && x.AssignedToUserId == userId)
+            .OrderByDescending(x => x.ModifiedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (action is null || !IsActiveClaim(action, DateTime.Now))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Yêu cầu chưa được bạn nhận xử lý hoặc phiên xử lý đã hết hạn. Vui lòng nhận xử lý lại.");
     }
 
     public Task<ServiceResult<ExecutionHrClaimDto>> ClaimAsync(
@@ -207,6 +229,8 @@ public sealed class ExecutionHrClaimService : IExecutionHrClaimService
         if (ids.Length == 0)
             return Array.Empty<ExecutionHrClaimDto>();
 
+        var sourceIds = ids.Select(x => x.ToString()).ToArray();
+
         var actions = await (
             from action in _db.ActionItems.AsNoTracking()
             join user in _db.Users.AsNoTracking()
@@ -215,11 +239,7 @@ public sealed class ExecutionHrClaimService : IExecutionHrClaimService
             where action.IsActive != false
                 && action.ActionType == ClaimActionType
                 && action.Status == ActionItemStatus.InProgress
-                && ids.Contains(
-                    _db.ExecutionReconciliations
-                        .Where(r => r.Id.ToString() == action.SourceId)
-                        .Select(r => r.Id)
-                        .FirstOrDefault())
+                && sourceIds.Contains(action.SourceId)
             select new
             {
                 ReconciliationId = action.SourceId,
