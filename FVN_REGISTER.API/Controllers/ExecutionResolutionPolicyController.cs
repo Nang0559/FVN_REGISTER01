@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
@@ -18,10 +19,12 @@ public sealed class ExecutionResolutionPolicyController : BaseApiController
 {
     private readonly IExecutionResolutionPolicyService _service;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
     public ExecutionResolutionPolicyController(
         IExecutionResolutionPolicyService service,
         IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operators,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         ILogger<ExecutionResolutionPolicyController> logger,
@@ -30,6 +33,7 @@ public sealed class ExecutionResolutionPolicyController : BaseApiController
     {
         _service = service;
         _authorization = authorization;
+        _operators = operators;
     }
 
     [HttpGet]
@@ -69,5 +73,10 @@ public sealed class ExecutionResolutionPolicyController : BaseApiController
     }
 
     private async Task<bool> CanAsync(CancellationToken ct)
-        => UserInfo is not null && await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.ExecutionPolicyManage, ct);
+    {
+        if (UserInfo is null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.ExecutionPolicyManage, ct))
+            return false;
+        return await _operators.CanOperateAsync(UserInfo.UserId, UserInfo.EmployeeCode,
+            SecurityFunctionCodes.ExecutionPolicyManage, FeatureOperatorCatalog.ExecutionPolicy, null, ct);
+    }
 }
