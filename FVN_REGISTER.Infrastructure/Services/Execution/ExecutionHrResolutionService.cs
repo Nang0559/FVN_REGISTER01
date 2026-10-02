@@ -22,6 +22,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Execution;
 public sealed record ExecutionResolutionPolicySnapshot(
     byte CorrectionMode,
     int EmployeeResponseHours,
+    byte EmployeeTimeoutMode,
     int HrReviewHours,
     bool AllowEmployeeAppeal,
     byte MaxAppealRounds,
