@@ -47,16 +47,25 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
                     "Không được đổi ModuleCode của policy đã tồn tại. Hãy tạo policy mới cho module mới.");
 
             previous.IsActive = false;
+            previous.EffectiveTo = request.EffectiveFrom ?? DateTime.Now;
             previous.ModifiedBy = actorUserId;
             previous.ModifiedAt = DateTime.Now;
             previous.LastModifiedSource = "EXECUTION_RESOLUTION_POLICY_SUPERSEDED";
         }
 
+        var moduleCode = request.ModuleCode.Trim().ToUpperInvariant();
+        var nextVersion = previous is not null
+            ? Math.Max(1, previous.PolicyVersion + 1)
+            : (await _db.ExecutionPolicies.AsNoTracking()
+                .Where(x => x.ModuleCode == moduleCode)
+                .Select(x => (int?)x.PolicyVersion)
+                .MaxAsync(ct) ?? 0) + 1;
+
         var entity = new F03ExecutionPolicy
         {
-            ModuleCode = request.ModuleCode.Trim().ToUpperInvariant(),
+            ModuleCode = moduleCode,
             PolicyName = request.PolicyName.Trim(),
-            PolicyVersion = previous is null ? 1 : Math.Max(1, previous.PolicyVersion + 1),
+            PolicyVersion = nextVersion,
             ReconciliationMode = request.ReconciliationMode,
             ConfirmationMode = request.ConfirmationMode,
             EvidenceMode = request.EvidenceMode,
