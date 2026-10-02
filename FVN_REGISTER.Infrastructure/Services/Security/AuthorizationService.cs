@@ -505,6 +505,65 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         return ManagedScopeMatches(scopes, targetDept, departmentMap);
     }
 
+    private async Task EnsureSuperAdminCriticalGrantsAsync(CancellationToken ct)
+    {
+        var role = await _uow.Repository<F03Role>().Query()
+            .FirstOrDefaultAsync(x => x.RoleCode == 1 && x.IsActive == true, ct);
+
+        if (role == null)
+            return;
+
+        var criticalFunctions = await _uow.Repository<F03Function>().Query()
+            .Where(x => SecurityFunctionCodes.SystemCriticalCodes.Contains(x.FunctionCode)
+                && (x.IsActive ?? true))
+            .ToListAsync(ct);
+
+        if (criticalFunctions.Count == 0)
+            return;
+
+        var repo = _uow.Repository<F03RoleFunction>();
+        var existing = await repo.Query()
+            .Where(x => x.IdRole == role.Id)
+            .ToListAsync(ct);
+        var existingByFunction = existing.ToDictionary(x => x.IdFunction);
+        var changed = false;
+
+        foreach (var function in criticalFunctions)
+        {
+            if (existingByFunction.TryGetValue(function.Id, out var grant))
+            {
+                if (grant.IsActive != true || grant.ScopeCode != null || grant.AccessMode != null)
+                {
+                    grant.IsActive = true;
+                    grant.ScopeCode = null;
+                    grant.AccessMode = null;
+                    grant.ModifiedBy = 0;
+                    grant.ModifiedAt = DateTime.Now;
+                    grant.LastModifiedSource = "SUPERADMIN_CRITICAL_SELF_HEAL";
+                    changed = true;
+                }
+
+                continue;
+            }
+
+            await repo.AddAsync(new F03RoleFunction
+            {
+                IdRole = role.Id,
+                IdFunction = function.Id,
+                IsActive = true,
+                ScopeCode = null,
+                AccessMode = null,
+                CreatedBy = 0,
+                CreatedAt = DateTime.Now,
+                LastModifiedSource = "SUPERADMIN_CRITICAL_SELF_HEAL"
+            }, ct);
+            changed = true;
+        }
+
+        if (changed)
+            await _uow.SaveChangesAsync(ct);
+    }
+
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
         int userId,
         CancellationToken ct = default)
@@ -514,6 +573,11 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .Where(x => x.Id == userId)
             .Select(x => (bool?)x.IsActive)
             .FirstOrDefaultAsync(ct);
+
+        // Existing databases may predate the immutable critical-function invariant.
+        // Heal the SuperAdmin security baseline before calculating effective permissions,
+        // so the Security Center matrix is never hidden merely because one legacy grant is missing.
+        await EnsureSuperAdminCriticalGrantsAsync(ct);
 
         if (active != true)
         {
