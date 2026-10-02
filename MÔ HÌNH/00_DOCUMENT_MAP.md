@@ -23,7 +23,6 @@ Chứa kiến trúc và cơ chế dùng chung cho nhiều module:
 - Reporting / Data Scope
 - Approval Route / Selection
 - Work Calendar / Action
-- Execution Reconciliation / Resolution Policy / Appeal
 
 Nguyên tắc: module chỉ mô tả cách sử dụng các cơ chế này; không định nghĩa lại engine dùng chung.
 
