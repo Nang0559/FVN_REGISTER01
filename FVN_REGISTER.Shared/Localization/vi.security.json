@@ -177,5 +177,7 @@
   "security.usersEffectivePermission": "Users & Effective Permission",
   "security.xemVaDangXuatCac": "Xem và đăng xuất các thiết bị đang sử dụng tài khoản này.",
   "security.xoaNgung": "Xóa/Ngừng",
-  "security.yeuCauQuenMatKhau": "Yêu cầu quên mật khẩu"
+  "security.yeuCauQuenMatKhau": "Yêu cầu quên mật khẩu",
+  "security.operatorGlobalHint": "Quyền này áp dụng ở cấp module. Không cần chọn đối tượng cụ thể.",
+  "security.operatorResourceHint": "Quyền này áp dụng theo từng đối tượng cụ thể. Hãy chọn resource trước khi chỉ định nhân viên."
 }
