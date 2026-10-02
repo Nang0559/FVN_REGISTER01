@@ -25,6 +25,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     private readonly IAuthorizationService _authorization;
     private readonly IFeatureOperatorAssignmentService _operatorAssignments;
     private readonly INotificationService _notificationService;
+    private readonly IExecutionHrClaimService _claimService;
     private readonly ILogger<ExecutionHrResolutionService> _logger;
     public Task<ServiceResult<IReadOnlyList<ExecutionHrReviewItemDto>>> GetPendingAsync(int uid,string? m,string? s,DateOnly? f,DateOnly? t,CancellationToken ct=default)=>GuardAsync(()=>GetPendingAsyncCoreAsync(uid,m,s,f,t,ct));
     public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(int uid,string e,long id,CancellationToken ct=default){try{var v=await GetDetailAsyncCoreAsync(uid,e,id,ct);return v is null?ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation."):ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<ExecutionReconciliationDetailDto>.Fail(ex.Message);}}
@@ -41,6 +42,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         IAuthorizationService authorization,
         IFeatureOperatorAssignmentService operatorAssignments,
         INotificationService notificationService,
+        IExecutionHrClaimService claimService,
         ILogger<ExecutionHrResolutionService> logger)
     {
         _db = db;
@@ -48,6 +50,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _authorization = authorization;
         _operatorAssignments = operatorAssignments;
         _notificationService = notificationService;
+        _claimService = claimService;
         _logger = logger;
     }
 
@@ -291,6 +294,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .FirstOrDefaultAsync(x => x.Id == confirmation.ReconciliationId && x.IsActive != false, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy reconciliation của evidence.");
 
+        await _claimService.EnsureClaimedAsync(userId, reconciliation.Id, cancellationToken);
+
         if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
 
@@ -420,6 +425,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         var reconciliation = await _db.ExecutionReconciliations
             .FirstOrDefaultAsync(x => x.Id == reconciliationId && x.IsActive != false, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy phản hồi đối soát.");
+
+        await _claimService.EnsureClaimedAsync(userId, reconciliationId, cancellationToken);
 
         if (reconciliation.ReconciliationStatus == "Resolved")
             throw new InvalidOperationException("Phản hồi này đã được HR giải quyết.");
