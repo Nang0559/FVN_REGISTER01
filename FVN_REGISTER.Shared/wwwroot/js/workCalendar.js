@@ -10,6 +10,13 @@ window.workCalendar = (function () {
     function clearCustomContent(cell){cell.querySelectorAll('.fcc-calendar-day-content,.fcc-calendar-issue-marker').forEach(x=>x.remove());}
     function appendLine(container,text,className){if(!text)return;const line=document.createElement('div');line.className=className||'fcc-calendar-day-line';line.textContent=text;if((className||'').includes('attendance-symbol')||(className||'').includes('ot-symbol')){line.style.fontWeight='800';line.style.fontSize='12px';line.style.lineHeight='1.15';}container.appendChild(line);}
 
+    // Ký hiệu OT được chốt theo block 15 phút và giới hạn 4h cho phần K của ca.
+    // Dữ liệu cũ có thể trả về K4.5 do lấy toàn bộ thời gian chênh lệch In/Out.
+    // K4.5 không phải ký hiệu chốt công hợp lệ theo quy ước hiện tại.
+    function normalizeOtSymbol(symbol){
+        return String(symbol||'').replace(/K4\.5/g,'K4');
+    }
+
     function renderCell(arg){
         const key=dayKey(arg.date), day=_days.get(key); clearCustomContent(arg.el); if(!day)return;
         const top=arg.el.querySelector('.fc-daygrid-day-top'), frame=arg.el.querySelector('.fc-daygrid-day-frame'); if(!frame)return;
@@ -21,7 +28,7 @@ window.workCalendar = (function () {
         if(day.attendance){
             const i=day.attendance.checkIn||'--:--',o=day.attendance.checkOut||'--:--';
             if(day.attendance.symbol)appendLine(body,String(day.attendance.symbol),'fcc-calendar-day-line attendance-symbol');
-            if(day.attendance.otSymbol)appendLine(body,String(day.attendance.otSymbol),'fcc-calendar-day-line ot-symbol');
+            if(day.attendance.otSymbol)appendLine(body,normalizeOtSymbol(day.attendance.otSymbol),'fcc-calendar-day-line ot-symbol');
             appendLine(body,i+' → '+o,'fcc-calendar-day-line attendance');
             if(day.attendance.actualHours!=null&&day.attendance.requiredHours!=null)appendLine(body,Number(day.attendance.actualHours).toFixed(2).replace(/\.00$/,'')+'h / '+Number(day.attendance.requiredHours).toFixed(2).replace(/\.00$/,'')+'h','fcc-calendar-day-line hours');
             else if(day.attendance.display)appendLine(body,String(day.attendance.display),'fcc-calendar-day-line hours');
