@@ -25,23 +25,18 @@ window.workCalendar = (function () {
 
     function buildOtSymbol(day){
         const a=day?.attendance;if(!a)return null;const shift=normalizeShift(day.shift,a.checkIn);const holiday=holidayInfo(day.holiday);const dow=new Date(day.date+'T00:00:00').getDay();const national=holiday.type==='NATIONAL';const saturday=dow===6;const sunday=dow===0;const off=national||saturday||sunday;const total=rounded15(elapsedMinutes(a));
+        // Ngày nghỉ tuần/ngày lễ: dưới 11h45 không tách OT; ký hiệu Công đã chứa tổng giờ (T/CN/NL).
+        // 11h45 và 12h là kíp chốt riêng: phần Công = tổng - 4h, phần OT = K4.
+        if(off){if(total<705)return null;const prefix=national?'NL':sunday?'CN':'T';return(shift==='C1'||shift==='C3')?prefix+'K4':prefix+'4';}
+
         let minutes=Math.max(Number(a.actualOtMinutes||0),Number(a.recognizedOtMinutes||0));
         if(minutes<=0&&total>0){const required=Math.max(0,Math.round(Number(a.requiredHours||8)*60));minutes=Math.max(0,total-required);}
         minutes=rounded15(minutes);if(total>=705)minutes=240;if(minutes<=0)return null;const hours=quarterHours(minutes);
-        if(off){const prefix=national?'NL':sunday?'CN':'T';return(shift==='C1'||shift==='C3')?prefix+'K'+hours:prefix+hours;}
         if(shift==='HC'){const lateAfterNormalEnd=String(a.checkOut||'')>='16:45';return lateAfterNormalEnd?'K'+hours:hours;}
         return(shift==='C1'||shift==='C2'||shift==='C3')?'K'+hours:hours;
     }
 
-    function paintHolidayFrame(frame,day){
-        if(!frame)return;const h=holidayInfo(day?.holiday);const dow=new Date(day.date+'T00:00:00').getDay();let bg='';
-        if(h.type==='NATIONAL')bg='#ff00ff';
-        else if(h.type==='COMPANY'||h.type==='COMPENSATORY')bg='#00ff00';
-        else if(h.type==='OTHER')bg='#00aeea';
-        else if(dow===0)bg='#001dff';
-        else if(dow===6)bg='#ffff00';
-        if(bg){frame.style.backgroundColor=bg;frame.style.backgroundImage='none';}
-    }
+    function paintHolidayFrame(frame,day){if(!frame)return;const h=holidayInfo(day?.holiday);const dow=new Date(day.date+'T00:00:00').getDay();let bg='';if(h.type==='NATIONAL')bg='#ff00ff';else if(h.type==='COMPANY'||h.type==='COMPENSATORY')bg='#00ff00';else if(h.type==='OTHER')bg='#00aeea';else if(dow===0)bg='#001dff';else if(dow===6)bg='#ffff00';if(bg){frame.style.backgroundColor=bg;frame.style.backgroundImage='none';}}
 
     function renderCell(arg){
         const key=dayKey(arg.date),day=_days.get(key);clearCustomContent(arg.el);if(!day)return;const top=arg.el.querySelector('.fc-daygrid-day-top'),frame=arg.el.querySelector('.fc-daygrid-day-frame');if(!frame)return;paintHolidayFrame(frame,day);
