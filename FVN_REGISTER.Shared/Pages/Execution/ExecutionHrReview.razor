@@ -348,6 +348,14 @@
             }
 
             _claims[reconciliationId] = result.Data;
+            if (!result.Data.IsClaimedByCurrentUser)
+            {
+                Snackbar.Add(
+                    $"Yêu cầu đang được xử lý bởi {result.Data.ClaimedByName ?? result.Data.ClaimedByEmployeeCode ?? "người khác"}.",
+                    Severity.Warning);
+                return;
+            }
+
             Snackbar.Add("Đã nhận xử lý yêu cầu.", Severity.Success);
         }
         finally
