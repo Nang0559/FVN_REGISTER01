@@ -177,5 +177,7 @@
   "security.usersEffectivePermission": "ユーザーと有効な権限",
   "security.xemVaDangXuatCac": "このアカウントを使用中のデバイスを確認してログアウトします。",
   "security.xoaNgung": "削除/停止",
-  "security.yeuCauQuenMatKhau": "パスワード忘れ申請"
+  "security.yeuCauQuenMatKhau": "パスワード忘れ申請",
+  "security.operatorGlobalHint": "この権限はモジュール単位で適用されます。特定の対象を選択する必要はありません。",
+  "security.operatorResourceHint": "この権限は特定のリソース単位で適用されます。社員を指定する前に対象リソースを選択してください。"
 }
