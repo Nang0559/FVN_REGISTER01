@@ -19,6 +19,7 @@ It is intentionally separate from:
 | 2807 PublicForm.Manage | PUBLIC_FORM | F03PublicForms.Id |
 | 2808 PublicForm.SubmissionView | PUBLIC_FORM | F03PublicForms.Id |
 | 2809 PublicForm.Export | PUBLIC_FORM | F03PublicForms.Id |
+| 3110 Endpoint.SoftwareCatalogManage | ENDPOINT_SOFTWARE_CATALOG | NULL (global operator) |
 
 ## Authorization order
 
@@ -41,6 +42,9 @@ Assign E0005 to 2801 / PUBLIC_INFORMATION / 15. Only E0005 can edit/publish/arch
 The audience answers who can register. Operator assignment answers who can manage the form/submissions.
 
 Example: Audience = AllCompany; 2807 E0005 manages form 12; 2808 E0005 views submissions for form 12; 2809 E0012 exports submissions for form 12.
+
+### Endpoint Software Catalog
+Assign E0015 to 3110 / ENDPOINT_SOFTWARE_CATALOG / NULL. E0015 must still have the 3110 RBAC capability. When at least one global operator is configured, only assigned employees may create/import Software Catalog drafts.
 
 ## Security Center
 The Security Center exposes operator assignment with HRM employee lookup showing EmployeeCode — EmployeeName — DeptCode — PositionCode.

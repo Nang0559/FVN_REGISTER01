@@ -62,6 +62,7 @@
   "security.effective": "Quyền hiệu lực",
   "security.effectivePermissions": "Effective permissions",
   "security.employee": "Employee",
+  "security.endpointSoftwareCatalogManage": "Quản lý danh sách phần mềm Endpoint",
   "security.factory": "Factory",
   "security.factoryCanFactorycodeHoac": "Factory cần FactoryCode hoặc NodeCode.",
   "security.featureOperatorAssignment": "Feature Operator Assignment",

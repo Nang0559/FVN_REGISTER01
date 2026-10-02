@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Contract.Responses;
@@ -21,13 +22,15 @@ public sealed class EndpointGovernanceController : ControllerBase
     private readonly EndpointGovernanceExcelImportService _excelImport;
     private readonly ICurrentUserService _currentUser;
     private readonly AppAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
-    public EndpointGovernanceController(IEndpointGovernanceService service, EndpointGovernanceExcelImportService excelImport, ICurrentUserService currentUser, AppAuthorizationService authorization)
+    public EndpointGovernanceController(IEndpointGovernanceService service, EndpointGovernanceExcelImportService excelImport, ICurrentUserService currentUser, AppAuthorizationService authorization, IFeatureOperatorAssignmentService operators)
     {
         _service = service;
         _excelImport = excelImport;
         _currentUser = currentUser;
         _authorization = authorization;
+        _operators = operators;
     }
 
     [HttpGet("policies")]
@@ -152,8 +155,24 @@ public sealed class EndpointGovernanceController : ControllerBase
         var user = _currentUser.GetCurrentUser();
         if (user?.IsAdmin == true) return true;
         if (user == null) return false;
-        var capability = itemType == EndpointGovernanceItemType.WindowsService ? SecurityFunctionCodes.EndpointServiceCatalogManage : SecurityFunctionCodes.EndpointSoftwareCatalogManage;
-        return await _authorization.HasAsync(user, capability, ct);
+
+        var capability = itemType == EndpointGovernanceItemType.WindowsService
+            ? SecurityFunctionCodes.EndpointServiceCatalogManage
+            : SecurityFunctionCodes.EndpointSoftwareCatalogManage;
+
+        if (!await _authorization.HasAsync(user, capability, ct))
+            return false;
+
+        if (itemType != EndpointGovernanceItemType.Software)
+            return true;
+
+        return await _operators.CanOperateAsync(
+            user.UserId,
+            user.EmployeeCode,
+            SecurityFunctionCodes.EndpointSoftwareCatalogManage,
+            "ENDPOINT_SOFTWARE_CATALOG",
+            null,
+            ct);
     }
 
     public sealed record EndpointSecurityReviewRequest(bool Approved, string? Comment);

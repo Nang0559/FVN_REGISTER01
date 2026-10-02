@@ -96,6 +96,16 @@ public sealed class SecurityFunctionCapabilityMatrixTests
     }
 
     [Fact]
+    public void FeatureOperatorCapabilities_IncludeExecutionReviewAndEndpointSoftwareCatalogManage()
+    {
+        Assert.Equal(2802, SecurityFunctionCodes.ExecutionReview);
+        Assert.Equal(3110, SecurityFunctionCodes.EndpointSoftwareCatalogManage);
+        Assert.NotEqual(
+            SecurityFunctionCodes.ExecutionReview,
+            SecurityFunctionCodes.EndpointSoftwareCatalogManage);
+    }
+
+    [Fact]
     public void NewCapabilities_AreUnique()
     {
         var codes = new[]

@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Authentication;
@@ -21,13 +22,15 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
     private readonly IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject> _workflow;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
-    public EndpointGovernanceService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject> workflow)
+    public EndpointGovernanceService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject> workflow, IFeatureOperatorAssignmentService operators)
     {
         _uow = uow;
         _currentUser = currentUser;
         _authorization = authorization;
         _workflow = workflow;
+        _operators = operators;
     }
 
     public async Task<ServiceResult<IReadOnlyList<EndpointGovernancePolicyDto>>> GetPoliciesAsync(EndpointGovernanceItemType? itemType, EndpointTargetType? targetType, CancellationToken ct = default)
@@ -330,6 +333,19 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
         if (user.IsAdmin) return;
         var code = itemType == EndpointGovernanceItemType.WindowsService ? SecurityFunctionCodes.EndpointServiceCatalogManage : SecurityFunctionCodes.EndpointSoftwareCatalogManage;
         if (!await _authorization.HasAsync(user, code, ct)) throw new UnauthorizedAccessException("Bạn không có quyền quản trị Endpoint catalog.");
+
+        // Software Catalog Manage may additionally be restricted to specifically
+        // designated operators. When no operator assignment exists, the existing
+        // RBAC behavior remains effective for backward compatibility.
+        if (itemType == EndpointGovernanceItemType.Software &&
+            !await _operators.CanOperateAsync(
+                user.UserId,
+                user.EmployeeCode,
+                SecurityFunctionCodes.EndpointSoftwareCatalogManage,
+                "ENDPOINT_SOFTWARE_CATALOG",
+                null,
+                ct))
+            throw new UnauthorizedAccessException("Bạn chưa được chỉ định quyền quản lý danh sách phần mềm Endpoint.");
     }
 
     private async Task EnsureCatalogSubmitAsync(UserIdentityDto user, EndpointGovernanceItemType itemType, CancellationToken ct)
