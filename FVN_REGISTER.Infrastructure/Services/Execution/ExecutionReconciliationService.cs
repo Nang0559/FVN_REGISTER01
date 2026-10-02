@@ -227,14 +227,34 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 h.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        var employeeDecision = await _db.ExecutionReconciliations.AsNoTracking()
+        var employeeDecisionRow = await _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.Id == reconciliationId)
-            .Select(x => new ExecutionEmployeeDecisionSummaryDto(
-                x.EmployeeDecisionStatus, x.EmployeeDecisionComment, x.AppealRound,
+            .Select(x => new
+            {
+                x.EmployeeDecisionStatus,
+                x.EmployeeDecisionComment,
+                x.AppealRound,
                 x.EmployeeDecisionAt,
-                x.ReconciliationStatus == "AwaitingEmployeeDecision",
-                false, 0))
+                x.ReconciliationStatus,
+                x.ResolutionPolicySnapshotJson
+            })
             .SingleAsync(cancellationToken);
+
+        var employeePolicy = string.IsNullOrWhiteSpace(employeeDecisionRow.ResolutionPolicySnapshotJson)
+            ? null
+            : JsonSerializer.Deserialize<ExecutionEmployeePolicySnapshot>(
+                employeeDecisionRow.ResolutionPolicySnapshotJson);
+
+        var employeeDecision = new ExecutionEmployeeDecisionSummaryDto(
+            employeeDecisionRow.EmployeeDecisionStatus,
+            employeeDecisionRow.EmployeeDecisionComment,
+            employeeDecisionRow.AppealRound,
+            employeeDecisionRow.EmployeeDecisionAt,
+            employeeDecisionRow.ReconciliationStatus == "AwaitingEmployeeDecision",
+            employeeDecisionRow.ReconciliationStatus == "AwaitingEmployeeDecision"
+                && employeePolicy?.AllowEmployeeAppeal == true
+                && employeeDecisionRow.AppealRound < employeePolicy.MaxAppealRounds,
+            employeePolicy?.MaxAppealRounds ?? 0);
 
         return new ExecutionReconciliationDetailDto(
             reconciliation,
@@ -1299,6 +1319,17 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         projection.LastModifiedSource = "EXECUTION_RECONCILIATION";
         projection.CalculatedAt = DateTime.Now;
     }
+
+    private sealed record ExecutionEmployeePolicySnapshot(
+        int EmployeeResponseHours,
+        byte EmployeeTimeoutMode,
+        int HrReviewHours,
+        bool AllowEmployeeAppeal,
+        byte MaxAppealRounds,
+        int AppealReviewHours,
+        bool RequireEvidenceOnAppeal,
+        bool RequireFinalDecision,
+        string? FinalDecisionPositionCode);
 
     private sealed class AttendanceFeedbackSourceRow
     {
