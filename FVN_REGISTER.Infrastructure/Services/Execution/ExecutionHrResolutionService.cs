@@ -287,12 +287,27 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 && employeeDecisionRow.AppealRound < (employeePolicy.MaxAppealRounds),
             employeePolicy?.MaxAppealRounds ?? 0);
 
+        var history = await (
+            from h in _db.ExecutionReconciliationHistory.AsNoTracking()
+            join actor in _db.Employees.AsNoTracking()
+                on h.ActorEmployeeId equals actor.Id into actors
+            from actor in actors.DefaultIfEmpty()
+            where h.ReconciliationId == reconciliationId
+            orderby h.CreatedAt
+            select new ExecutionReconciliationHistoryDto(
+                h.Id, h.FromStatus, h.ToStatus, h.EventType, h.Reason,
+                h.ActorUserId, h.ActorEmployeeId,
+                actor == null ? null : actor.EmployeeCode,
+                h.CreatedAt))
+            .ToListAsync(cancellationToken);
+
         return new ExecutionReconciliationDetailDto(
             reconciliation,
             confirmation,
             evidence,
             hrResolution,
-            employeeDecision);
+            employeeDecision,
+            history);
     }
 
     private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<T>.Fail(ex.Message);}}
