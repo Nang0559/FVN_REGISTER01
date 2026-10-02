@@ -77,3 +77,15 @@ BEGIN
         );
     END
 END;
+
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyId') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicyId int NULL;
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyVersion') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicyVersion int NULL;
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicySnapshotJson') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicySnapshotJson nvarchar(max) NULL;
+END;
