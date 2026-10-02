@@ -4,14 +4,20 @@ using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Approvals;
 
 public sealed class ApprovalPolicyService : IApprovalPolicyService
 {
     private readonly IUnitOfWork _uow;
+    private readonly ILogger<ApprovalPolicyService> _logger;
 
-    public ApprovalPolicyService(IUnitOfWork uow) => _uow = uow;
+    public ApprovalPolicyService(IUnitOfWork uow, ILogger<ApprovalPolicyService> logger)
+    {
+        _uow = uow;
+        _logger = logger;
+    }
 
     public async Task<ServiceResult<List<ApprovalPolicyDto>>> GetAllAsync(CancellationToken ct = default)
     {
@@ -332,7 +338,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             // an older database has not yet installed the provisioning procedure.
             // The next HRM security reconcile will self-heal the candidate pool.
             // Surface the error through logs rather than hiding the saved policy.
-            Console.Error.WriteLine($"[APPROVAL-POLICY] Approver reconcile failed: {ex}");
+            _logger.LogError(ex, "[APPROVAL-POLICY] Approver reconcile failed after policy change.");
         }
     }
 
