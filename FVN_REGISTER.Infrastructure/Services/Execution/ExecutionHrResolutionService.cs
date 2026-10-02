@@ -376,8 +376,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         evidence.ModifiedAt = DateTime.Now;
         evidence.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
 
-        // The HR review task is complete once this evidence has been reviewed.
-        await CompleteExecutionReviewActionsAsync(reconciliation.Id, userId, cancellationToken);
+        // Evidence review is a step inside the HR case. The shared HR action
+        // remains open until the actual resolution/final decision is committed.
 
         // Any negative evidence review keeps the employee action open.
         if (reviewStatus == "Rejected" || reviewStatus == "NeedMoreEvidence")
