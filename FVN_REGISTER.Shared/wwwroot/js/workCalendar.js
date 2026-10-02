@@ -33,7 +33,7 @@ window.workCalendar = (function () {
         const sunday=dow===0;
         // Saturday becomes T... only when F03CompanyHolidays explicitly classifies it as COMPANY.
         // A normal working Saturday remains C1/C2/C3/HC.
-        const off=national||sunday||companyHoliday;
+        const off=national||sunday||(dow===6&&companyHoliday);
         if(!off)return shift;
         const prefix=national?'NL':sunday?'CN':'T';
         const total=rounded15(elapsedMinutes(a));
@@ -50,7 +50,7 @@ window.workCalendar = (function () {
         const national=holiday.type==='NATIONAL';
         const companyHoliday=holiday.type==='COMPANY';
         const sunday=dow===0;
-        const off=national||sunday||companyHoliday;
+        const off=national||sunday||(dow===6&&companyHoliday);
         const total=rounded15(elapsedMinutes(a));
         if(off){if(total<705)return null;const prefix=national?'NL':sunday?'CN':'T';return(shift==='C1'||shift==='C3')?prefix+'K4':prefix+'4';}
 
