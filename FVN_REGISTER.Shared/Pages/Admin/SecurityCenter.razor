@@ -612,14 +612,19 @@
         SecurityFunctionCodes.PublicFormSubmissionView,
         SecurityFunctionCodes.PublicFormExport,
         SecurityFunctionCodes.EquipmentFormManage,
-        SecurityFunctionCodes.EndpointSoftwareCatalogManage
+        SecurityFunctionCodes.EndpointSoftwareCatalogManage,
+        SecurityFunctionCodes.ExecutionPolicyManage,
+        SecurityFunctionCodes.ApprovalPolicyManage,
+        SecurityFunctionCodes.OTLimitManage,
+        SecurityFunctionCodes.WorkCalendarManage,
+        SecurityFunctionCodes.HrmUserRoleRuleManage
     };
     private List<SecurityFunctionDto> _operatorFunctions = new();
     private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
     private List<FeatureOperatorResourceDto> _operatorResources = new();
     private List<FeatureOperatorAssignmentDto> _operatorAssignments = new();
-    private int _operatorFunctionCode = 2801;
-    private string _operatorResourceType = "PUBLIC_INFORMATION";
+    private int _operatorFunctionCode = SecurityFunctionCodes.PublicInformationManage;
+    private string _operatorResourceType = FeatureOperatorCatalog.PublicInformation;
     private int? _operatorResourceId;
     private string _operatorEmployeeCode = string.Empty;
     private FeatureOperatorEmployeeDto? _operatorEmployee;
@@ -836,14 +841,18 @@
     }
 
     private bool IsGlobalOperatorFunction
-        => _operatorFunctionCode is SecurityFunctionCodes.ExecutionReview
-            or SecurityFunctionCodes.EndpointSoftwareCatalogManage;
+        => FeatureOperatorCatalog.IsModuleWide(_operatorFunctionCode);
 
     private string OperatorResourceDescription
         => _operatorFunctionCode switch
         {
             SecurityFunctionCodes.ExecutionReview => Language.T("security.hrFeedbackToanModule"),
             SecurityFunctionCodes.EndpointSoftwareCatalogManage => Language.T("security.endpointSoftwareCatalogManage"),
+            SecurityFunctionCodes.ExecutionPolicyManage => "Toàn bộ chính sách đối soát công",
+            SecurityFunctionCodes.ApprovalPolicyManage => "Toàn bộ chính sách phê duyệt",
+            SecurityFunctionCodes.OTLimitManage => "Toàn bộ quy tắc giới hạn OT",
+            SecurityFunctionCodes.WorkCalendarManage => "Toàn bộ cấu hình lịch làm việc",
+            SecurityFunctionCodes.HrmUserRoleRuleManage => "Toàn bộ quy tắc vai trò HRM",
             _ => Language.T("security.resource")
         };
 
@@ -880,17 +889,9 @@
     }
 
     private static string GetResourceTypeForFunction(int functionCode)
-        => functionCode switch
-        {
-            SecurityFunctionCodes.PublicInformationManage => "PUBLIC_INFORMATION",
-            SecurityFunctionCodes.ExecutionReview => "EXECUTION_REVIEW",
-            SecurityFunctionCodes.PublicFormManage
-                or SecurityFunctionCodes.PublicFormSubmissionView
-                or SecurityFunctionCodes.PublicFormExport => "PUBLIC_FORM",
-            SecurityFunctionCodes.EquipmentFormManage => "EQUIPMENT_SCHEMA",
-            SecurityFunctionCodes.EndpointSoftwareCatalogManage => "ENDPOINT_SOFTWARE_CATALOG",
-            _ => string.Empty
-        };
+        => FeatureOperatorCatalog.TryGetResourceType(functionCode, out var resourceType)
+            ? resourceType
+            : string.Empty;
 
     private async Task OperatorResourceChanged(int? value)
     {
