@@ -106,6 +106,22 @@ public sealed class SecurityFunctionCapabilityMatrixTests
     }
 
     [Fact]
+    public void PolicyAndRuleCapabilities_UseTheSharedFeatureOperatorCatalog()
+    {
+        Assert.Equal(FeatureOperatorCatalog.ExecutionPolicy, FeatureOperatorCatalog.All[SecurityFunctionCodes.ExecutionPolicyManage]);
+        Assert.Equal(FeatureOperatorCatalog.ApprovalPolicy, FeatureOperatorCatalog.All[SecurityFunctionCodes.ApprovalPolicyManage]);
+        Assert.Equal(FeatureOperatorCatalog.OtLimitRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.OTLimitManage]);
+        Assert.Equal(FeatureOperatorCatalog.WorkCalendar, FeatureOperatorCatalog.All[SecurityFunctionCodes.WorkCalendarManage]);
+        Assert.Equal(FeatureOperatorCatalog.HrmUserRoleRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.HrmUserRoleRuleManage]);
+
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.ExecutionPolicyManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.ApprovalPolicyManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.OTLimitManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.WorkCalendarManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.HrmUserRoleRuleManage));
+    }
+
+    [Fact]
     public void NewCapabilities_AreUnique()
     {
         var codes = new[]
