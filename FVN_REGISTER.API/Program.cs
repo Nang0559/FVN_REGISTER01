@@ -140,6 +140,7 @@ builder.Services.AddScoped<ICalendarModuleProvider, AttendanceCalendarModuleProv
 builder.Services.AddScoped<IActionItemService, ActionItemService>();
 builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
 builder.Services.AddScoped<IExecutionReconciliationService, ExecutionReconciliationService>();
+builder.Services.AddScoped<IExecutionHrResolutionService, ExecutionHrResolutionService>();
 builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
 builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
