@@ -3,6 +3,7 @@ using FVN_REGISTER.Contract.Utils;
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -29,6 +30,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     private readonly IActionItemWriter _actionWriter;
     private readonly INotificationService _notificationService;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operatorAssignments;
     private readonly ILogger<ExecutionReconciliationService> _logger;
     private readonly IHostEnvironment _hostEnvironment;
 
@@ -37,6 +39,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         IActionItemWriter actionWriter,
         INotificationService notificationService,
         IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operatorAssignments,
         ILogger<ExecutionReconciliationService> logger,
         IHostEnvironment hostEnvironment)
     {
@@ -44,6 +47,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         _actionWriter = actionWriter;
         _notificationService = notificationService;
         _authorization = authorization;
+        _operatorAssignments = operatorAssignments;
         _logger = logger;
         _hostEnvironment = hostEnvironment;
     }
@@ -875,6 +879,109 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 },
                 cancellationToken);
         }
+
+        // FeatureOperatorAssignments are module-level delegated operators. They must
+        // receive a real ActionItem in addition to the notification, otherwise the
+        // assignment only changes authorization and never appears in the user's
+        // Work Center/Home/Dashboard task list.
+        var assignedOperators = await _operatorAssignments.GetAsync(
+            SecurityFunctionCodes.ExecutionReview,
+            "EXECUTION_REVIEW",
+            null,
+            cancellationToken);
+
+        if (assignedOperators.Count > 0)
+        {
+            var operatorCodes = assignedOperators
+                .Select(x => x.EmployeeCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var operatorUsers = await _db.Users.AsNoTracking()
+                .Where(x => x.IsActive != false && operatorCodes.Contains(x.EmployeeCode))
+                .Select(x => new { x.Id, x.EmployeeCode, x.FullName })
+                .ToListAsync(cancellationToken);
+
+            foreach (var assignment in assignedOperators)
+            {
+                var operatorUser = operatorUsers.FirstOrDefault(
+                    x => string.Equals(x.EmployeeCode, assignment.EmployeeCode, StringComparison.OrdinalIgnoreCase));
+
+                if (operatorUser is null)
+                    continue;
+
+                var identity = new UserIdentityDto
+                {
+                    UserId = operatorUser.Id,
+                    EmployeeCode = operatorUser.EmployeeCode,
+                    FullName = operatorUser.FullName,
+                    IsLoggedIn = true
+                };
+
+                // Keep the existing RBAC requirement: an assignment delegates the
+                // operator responsibility, while the Execution.Review capability
+                // remains an effective security requirement.
+                if (!await _authorization.HasAsync(identity, SecurityFunctionCodes.ExecutionReview, cancellationToken))
+                    continue;
+
+                await _actionWriter.EnsureOpenAsync(new ActionItemDraft(
+                    reconciliation.ModuleCode,
+                    reconciliation.Id.ToString(),
+                    reconciliation.EmployeeId,
+                    await ResolveEmployeeIdAsync(operatorUser.EmployeeCode, cancellationToken),
+                    operatorUser.Id,
+                    reconciliation.WorkDate,
+                    "EXECUTION_EVIDENCE_REVIEW",
+                    $"Phản hồi cần xử lý: {reconciliation.ModuleCode}",
+                    $"{employee.EmployeeCode} - {employee.EmployeeName}: evidence #{evidenceId} cần review.",
+                    1,
+                    200,
+                    null,
+                    $"/execution/hr?reconciliationId={reconciliation.Id}",
+                    null,
+                    JsonSerializer.Serialize(new
+                    {
+                        reconciliation.Id,
+                        EvidenceId = evidenceId,
+                        reconciliation.ModuleCode,
+                        EmployeeCode = employee.EmployeeCode,
+                        OperatorAssignmentId = assignment.Id
+                    }),
+                    reconciliation.SourceType,
+                    reconciliation.ParticipantId,
+                    evidenceId > 0 ? await ResolveEvidenceSubmitterAsync(evidenceId, cancellationToken) : null),
+                    cancellationToken);
+
+                // Avoid duplicate notification when the assigned operator is also
+                // already selected through role/scope candidate discovery.
+                if (!users.Any(x => x.UserId == operatorUser.Id))
+                {
+                    await _notificationService.CreateAsync(
+                        new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
+                        {
+                            UserId = operatorUser.Id,
+                            EmployeeCode = operatorUser.EmployeeCode,
+                            Module = module,
+                            Action = NotificationAction.Pending,
+                            Title = $"Phản hồi mới cần xử lý: {reconciliation.ModuleCode}",
+                            Body = $"{employee.EmployeeCode} - {employee.EmployeeName}: evidence #{evidenceId} cho ngày {reconciliation.WorkDate:dd/MM/yyyy}.",
+                            ActionUrl = $"/execution/hr?reconciliationId={reconciliation.Id}",
+                            ActionId = reconciliation.ActionId,
+                            NotificationType = "EXECUTION_EVIDENCE_REVIEW",
+                            Metadata = JsonSerializer.Serialize(new
+                            {
+                                reconciliation.Id,
+                                EvidenceId = evidenceId,
+                                reconciliation.ModuleCode,
+                                EmployeeCode = employee.EmployeeCode,
+                                OperatorAssignmentId = assignment.Id
+                            })
+                        },
+                        cancellationToken);
+                }
+            }
+        }
     }
 
 
@@ -1152,4 +1259,15 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     private static ExecutionEvidenceDto ToEvidenceDto(F03ExecutionConfirmationEvidence x) =>
         new(x.Id, x.ConfirmationId, x.EvidenceType, x.FileId, x.ReferenceNo, x.ExternalUrl, x.Description,
             x.ReviewStatus, x.SubmittedAt, x.ReviewedAt, x.ReviewNote);
+    private async Task<int?> ResolveEvidenceSubmitterAsync(
+        long evidenceId,
+        CancellationToken cancellationToken)
+    {
+        return await _db.ExecutionConfirmationEvidences
+            .AsNoTracking()
+            .Where(x => x.Id == evidenceId)
+            .Select(x => x.SubmittedBy)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
 }
