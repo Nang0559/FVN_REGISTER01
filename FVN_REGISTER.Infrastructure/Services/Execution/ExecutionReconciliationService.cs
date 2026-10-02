@@ -1129,10 +1129,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             or "AwaitingEmployeeDecision"
             or "AppealReviewing"
             or "FinalDecisionPending")
-        {
-            if (!string.Equals(requestedStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
-                return previousStatus;
-        }
+            return previousStatus;
 
         if (requiresConfirmation && string.Equals(requestedStatus, "Mismatch", StringComparison.OrdinalIgnoreCase))
             return "Mismatch";
