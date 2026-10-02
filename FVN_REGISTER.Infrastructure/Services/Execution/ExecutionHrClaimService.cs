@@ -195,7 +195,7 @@ public sealed class ExecutionHrClaimService : IExecutionHrClaimService
             .FirstOrDefaultAsync(cancellationToken);
 
         if (action is null)
-            return new ExecutionHrClaimDto(reconciliationId, false, false, true, null, null, null, null);
+            return new ExecutionHrClaimDto(reconciliationId, false, false, false, null, null, null, null);
 
         if (action.AssignedToUserId != userId)
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
@@ -209,7 +209,7 @@ public sealed class ExecutionHrClaimService : IExecutionHrClaimService
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return new ExecutionHrClaimDto(reconciliationId, false, false, true, null, null, null, null);
+        return new ExecutionHrClaimDto(reconciliationId, false, false, false, null, null, null, null);
     }
 
     private async Task<IReadOnlyList<ExecutionHrClaimDto>> GetClaimsCoreAsync(
@@ -246,7 +246,8 @@ public sealed class ExecutionHrClaimService : IExecutionHrClaimService
                 action.AssignedToUserId,
                 ClaimedAt = action.ModifiedAt,
                 EmployeeCode = user != null ? user.EmployeeCode : null,
-                FullName = user != null ? user.FullName : null
+                FullName = user != null ? user.FullName : null,
+                LastModifiedSource = action.LastModifiedSource
             })
             .ToListAsync(cancellationToken);
 
@@ -258,9 +259,9 @@ public sealed class ExecutionHrClaimService : IExecutionHrClaimService
                 .OrderByDescending(x => x.ClaimedAt)
                 .FirstOrDefault();
 
-            if (action is null || !IsActiveClaim(action.ClaimedAt, ClaimSource, DateTime.Now))
+            if (action is null || !IsActiveClaim(action.ClaimedAt, action.LastModifiedSource, DateTime.Now))
             {
-                result.Add(new ExecutionHrClaimDto(id, false, false, true, null, null, null, null));
+                result.Add(new ExecutionHrClaimDto(id, false, false, false, null, null, null, null));
                 continue;
             }
 
