@@ -49,8 +49,10 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
 
                     if (reconciliation is not null)
                     {
-                        var targetStatus = ExecutionActionLifecyclePolicy.ResolveDueStatus(
-                            reconciliation.ReconciliationStatus);
+                        var targetStatus = action.ActionType == "EXECUTION_RESULT_CONFIRMATION"
+                            ? ActionItemStatus.InProgress
+                            : ExecutionActionLifecyclePolicy.ResolveDueStatus(
+                                reconciliation.ReconciliationStatus);
 
                         if (action.Status != targetStatus)
                         {
@@ -94,7 +96,11 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
                         .AnyAsync(x => x.IsActive != false
                             && x.ActionId == action.ActionId
                             && (x.ReconciliationStatus == "Mismatch"
-                                || x.ReconciliationStatus == "AwaitingConfirmation"),
+                                || x.ReconciliationStatus == "AwaitingConfirmation"
+                                || x.ReconciliationStatus == "AwaitingEmployeeDecision"
+                                || x.ReconciliationStatus == "AppealReviewing"
+                                || x.ReconciliationStatus == "FinalDecisionPending"
+                                || x.ReconciliationStatus == "EmployeeDisputed"),
                             stoppingToken);
 
                     if (unresolved)
