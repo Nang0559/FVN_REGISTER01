@@ -849,8 +849,8 @@
 
     private string OperatorAssignmentHint
         => IsGlobalOperatorFunction
-            ? "Quyền này áp dụng ở cấp module. Không cần chọn đối tượng cụ thể."
-            : "Quyền này áp dụng theo đối tượng cụ thể. Hãy chọn resource trước khi chỉ định nhân viên.";
+            ? Language.T("security.operatorGlobalHint")
+            : Language.T("security.operatorResourceHint");
 
     private async Task<IEnumerable<FeatureOperatorEmployeeDto>> SearchOperatorEmployeesAsync(
         string value,
