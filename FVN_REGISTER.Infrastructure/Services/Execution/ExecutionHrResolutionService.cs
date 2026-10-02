@@ -19,6 +19,17 @@ using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
 
+public sealed record ExecutionResolutionPolicySnapshot(
+    byte CorrectionMode,
+    int EmployeeResponseHours,
+    int HrReviewHours,
+    bool AllowEmployeeAppeal,
+    byte MaxAppealRounds,
+    int AppealReviewHours,
+    bool RequireEvidenceOnAppeal,
+    bool RequireFinalDecision,
+    string? FinalDecisionPositionCode);
+
 public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 {
     private readonly IHrmAttendanceCalculationService _attendanceCalculation;
@@ -244,11 +255,28 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 x.Id, x.Decision, x.Reason, x.CalendarAction, x.ResolvedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
+        var employeeDecision = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId)
+            .Select(x => new ExecutionEmployeeDecisionSummaryDto(
+                x.EmployeeDecisionStatus,
+                x.EmployeeDecisionComment,
+                x.AppealRound,
+                x.EmployeeDecisionAt,
+                x.ReconciliationStatus == "AwaitingEmployeeDecision",
+                x.ReconciliationStatus == "AwaitingEmployeeDecision"
+                    && x.ResolutionPolicySnapshotJson != null,
+                x.ResolutionPolicySnapshotJson == null
+                    ? (byte)0
+                    : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
+                        x.ResolutionPolicySnapshotJson)!.MaxAppealRounds))
+            .SingleAsync(cancellationToken);
+
         return new ExecutionReconciliationDetailDto(
             reconciliation,
             confirmation,
             evidence,
-            hrResolution);
+            hrResolution,
+            employeeDecision);
     }
 
     private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<T>.Fail(ex.Message);}}
