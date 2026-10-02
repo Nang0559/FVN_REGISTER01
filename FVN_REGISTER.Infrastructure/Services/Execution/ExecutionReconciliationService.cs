@@ -329,6 +329,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 x.AutoResolveMode,
                 x.DueHours,
                 x.EmployeeResponseHours,
+                x.EmployeeTimeoutMode,
                 x.HrReviewHours,
                 x.AllowEmployeeAppeal,
                 x.MaxAppealRounds,
