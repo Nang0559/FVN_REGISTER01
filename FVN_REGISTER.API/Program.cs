@@ -142,6 +142,7 @@ builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
 builder.Services.AddScoped<IExecutionReconciliationService, ExecutionReconciliationService>();
 builder.Services.AddScoped<IExecutionHrResolutionService, ExecutionHrResolutionService>();
 builder.Services.AddScoped<IExecutionHrClaimService, ExecutionHrClaimService>();
+builder.Services.AddScoped<IExecutionResolutionPolicyService, ExecutionResolutionPolicyService>();
 builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
 builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
