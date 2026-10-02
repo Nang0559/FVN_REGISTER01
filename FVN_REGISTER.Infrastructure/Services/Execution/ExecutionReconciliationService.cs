@@ -589,8 +589,16 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             x.Id == confirmationId && x.IsActive != false && x.EmployeeId == employeeId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy confirmation.");
 
-        if (string.Equals(confirmation.Status, "Approved", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(confirmation.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+        var reconciliationForEvidence = await _db.ExecutionReconciliations
+            .AsNoTracking()
+            .FirstAsync(x => x.Id == confirmation.ReconciliationId, cancellationToken);
+
+        var isAppealRound = reconciliationForEvidence.ReconciliationStatus == "AppealReviewing"
+            || reconciliationForEvidence.ReconciliationStatus == "FinalDecisionPending";
+
+        if (!isAppealRound
+            && (string.Equals(confirmation.Status, "Approved", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(confirmation.Status, "Rejected", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("Confirmation đã được review, không thể thêm evidence.");
 
         if (request.FileId.HasValue)
@@ -684,8 +692,16 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy confirmation.");
 
-        if (string.Equals(confirmation.Status, "Approved", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(confirmation.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+        var reconciliationForUpload = await _db.ExecutionReconciliations
+            .AsNoTracking()
+            .FirstAsync(x => x.Id == confirmation.ReconciliationId, cancellationToken);
+
+        var isAppealUpload = reconciliationForUpload.ReconciliationStatus == "AppealReviewing"
+            || reconciliationForUpload.ReconciliationStatus == "FinalDecisionPending";
+
+        if (!isAppealUpload
+            && (string.Equals(confirmation.Status, "Approved", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(confirmation.Status, "Rejected", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("Confirmation đã được review, không thể upload evidence.");
 
         if (content is null)
