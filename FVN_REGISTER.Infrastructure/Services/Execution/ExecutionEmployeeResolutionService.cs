@@ -26,6 +26,108 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         _attendanceCalculation = attendanceCalculation;
     }
 
+    public async Task ProcessExpiredEmployeeDecisionAsync(
+        long reconciliationId, CancellationToken ct = default)
+    {
+        var row = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId
+                && x.IsActive != false
+                && x.ReconciliationStatus == "AwaitingEmployeeDecision")
+            .Join(_db.Employees.AsNoTracking(),
+                x => x.EmployeeId, e => e.Id,
+                (x, e) => new
+                {
+                    Reconciliation = x,
+                    EmployeeCode = e.EmployeeCode,
+                    EmployeeId = e.Id
+                })
+            .SingleOrDefaultAsync(ct);
+
+        if (row is null || string.IsNullOrWhiteSpace(row.Reconciliation.ResolutionPolicySnapshotJson))
+            return;
+
+        var policy = ParsePolicy(row.Reconciliation.ResolutionPolicySnapshotJson);
+        if (policy is null)
+            return;
+
+        var action = await _db.ActionItems
+            .FirstOrDefaultAsync(x =>
+                x.IsActive != false
+                && x.ActionType == EmployeeActionType
+                && x.SourceId == reconciliationId.ToString()
+                && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress)
+                && x.DueAt.HasValue
+                && x.DueAt.Value <= DateTime.Now, ct);
+
+        if (action is null)
+            return;
+
+        if (policy.EmployeeTimeoutMode == 1)
+        {
+            var user = await _db.Users.AsNoTracking()
+                .Where(x => x.IsActive != false && x.EmployeeCode == row.EmployeeCode)
+                .Select(x => new { x.Id })
+                .SingleOrDefaultAsync(ct);
+
+            if (user is not null)
+            {
+                await DecideAsync(
+                    user.Id,
+                    row.EmployeeCode,
+                    reconciliationId,
+                    new ExecutionEmployeeDecisionRequest
+                    {
+                        Decision = "ACCEPT",
+                        Comment = "Hết thời hạn phản hồi theo policy; hệ thống tự động chấp nhận kết quả HR."
+                    },
+                    ct);
+            }
+
+            return;
+        }
+
+        await using var tx = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, ct);
+
+        var reconciliation = await _db.ExecutionReconciliations
+            .FirstOrDefaultAsync(x => x.Id == reconciliationId && x.IsActive != false, ct);
+        if (reconciliation is null || reconciliation.ReconciliationStatus != "AwaitingEmployeeDecision")
+            return;
+
+        var now = DateTime.Now;
+        var oldStatus = reconciliation.ReconciliationStatus;
+        reconciliation.EmployeeDecisionStatus = "TimedOut";
+        reconciliation.EmployeeDecisionAt = now;
+        reconciliation.EmployeeDecisionComment =
+            "Nhân viên không phản hồi trong thời hạn policy quy định.";
+        reconciliation.ReconciliationStatus = "FinalDecisionPending";
+
+        CompleteEmployeeResultAction(reconciliation, 0, now);
+        reconciliation.ActionId = await EnsureHrAppealActionAsync(
+            reconciliation,
+            reconciliation.EmployeeId,
+            now,
+            policy.AppealReviewHours,
+            ct);
+
+        await MarkCalendarDisputedAsync(reconciliation, ct);
+
+        _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
+        {
+            ReconciliationId = reconciliation.Id,
+            FromStatus = oldStatus,
+            ToStatus = reconciliation.ReconciliationStatus,
+            EventType = "EMPLOYEE_RESPONSE_TIMEOUT",
+            Reason = reconciliation.EmployeeDecisionComment,
+            ActorUserId = null,
+            ActorEmployeeId = reconciliation.EmployeeId,
+            CreatedAt = now
+        });
+
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
     public async Task<ServiceResult<ExecutionEmployeeResolutionDto>> DecideAsync(
         int userId, string employeeCode, long reconciliationId,
         ExecutionEmployeeDecisionRequest request, CancellationToken ct = default)
