@@ -1,6 +1,8 @@
+using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
 
 namespace FVN_REGISTER.Infrastructure.Tests;
@@ -110,6 +112,24 @@ WHERE name IN
             missing.Length == 0,
             "The EF model is missing DbSet entity mappings:" + Environment.NewLine +
             string.Join(Environment.NewLine, missing));
+    }
+
+    [Fact]
+    public void F03Attachment_uses_Id_as_database_primary_key()
+    {
+        using var db = CreateContext();
+
+        var entity = db.Model.FindEntityType(typeof(F03Attachment));
+        Assert.NotNull(entity);
+
+        var key = entity!.FindPrimaryKey();
+        Assert.NotNull(key);
+        Assert.Single(key!.Properties);
+        Assert.Equal(nameof(F03Attachment.Id), key.Properties[0].Name);
+
+        var column = key.Properties[0].GetColumnName(
+            StoreObjectIdentifier.Table("F03Attachment", null));
+        Assert.Equal("Id", column);
     }
 
     [Fact]
