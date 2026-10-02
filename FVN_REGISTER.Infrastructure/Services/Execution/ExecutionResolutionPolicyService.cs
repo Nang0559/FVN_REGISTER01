@@ -40,6 +40,11 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
                 .FirstOrDefaultAsync(x => x.Id == id.Value, ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy Execution Resolution Policy.");
 
+            // A policy is scoped to a module. Do not move an existing version
+            // to another module because that would make its audit history ambiguous.
+            if (!string.Equals(entity.ModuleCode, request.ModuleCode?.Trim(), StringComparison.OrdinalIgnoreCase))
+                return ServiceResult<ExecutionResolutionPolicyDto>.Fail("Không được đổi ModuleCode của policy đã tồn tại. Hãy tạo policy mới cho module mới.");
+
             // Existing cases must keep their historical policy snapshot. Incrementing
             // the version makes every later case/round distinguishable in audit.
             entity.PolicyVersion = Math.Max(1, entity.PolicyVersion + 1);
