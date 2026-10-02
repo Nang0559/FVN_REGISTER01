@@ -131,6 +131,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
 
         await _uow.Repository<F03ApprovalPolicy>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
         return ServiceResult<ApprovalPolicyDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -170,6 +171,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         entity.LastModifiedSource = "Manual";
 
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
         return ServiceResult<ApprovalPolicyDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -187,6 +189,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         entity.ModifiedAt = DateTime.Now;
         entity.LastModifiedSource = "Manual";
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
 
         return ServiceResult<object>.Ok(new { id, deactivated = true });
     }
@@ -308,6 +311,29 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             RoleName = x.RoleName,
             Required = x.Required
         };
+    }
+
+    private async Task ReconcileApproversAsync(int actorUserId, CancellationToken ct)
+    {
+        try
+        {
+            await _uow.ExecuteSqlRawAsync(
+                """
+                EXEC dbo.usp_ReconcileEmployeeApprovers
+                    @EmployeeCode=NULL,
+                    @CreatedBy={0};
+                """,
+                ct,
+                actorUserId);
+        }
+        catch (Exception ex)
+        {
+            // Policy changes must remain transactional/configurable even when
+            // an older database has not yet installed the provisioning procedure.
+            // The next HRM security reconcile will self-heal the candidate pool.
+            // Surface the error through logs rather than hiding the saved policy.
+            Console.Error.WriteLine($"[APPROVAL-POLICY] Approver reconcile failed: {ex}");
+        }
     }
 
     private static string? Normalize(string? value)
