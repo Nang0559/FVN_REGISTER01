@@ -500,6 +500,19 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             throw new InvalidOperationException(
                 "Reconciliation chưa có snapshot resolution policy. Không được tự ý áp dụng policy hiện tại cho case cũ.");
 
+        if (reconciliation.ReconciliationStatus == "FinalDecisionPending")
+        {
+            var previousResolver = await _db.Set<F03ExecutionResolution>().AsNoTracking()
+                .Where(x => x.ReconciliationId == reconciliation.Id && x.IsActive != false)
+                .OrderByDescending(x => x.ResolvedAt)
+                .Select(x => (int?)x.ResolvedByUserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (previousResolver == userId)
+                throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                    "Người đã xử lý vòng trước không được tự mình đưa ra quyết định cuối.");
+        }
+
         if (reconciliation.ReconciliationStatus == "FinalDecisionPending"
             && policy.RequireFinalDecision
             && !string.IsNullOrWhiteSpace(policy.FinalDecisionPositionCode))
