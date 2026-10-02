@@ -14,19 +14,19 @@
 @inject IPasswordResetRequestClientService PasswordResetRequestService
 @inject ISnackbar Snackbar
 
-<PageTitle>Security Center - FCC</PageTitle>
+<PageTitle>@Language.T("security.securityCenterFcc")</PageTitle>
 
 <MudStack Spacing="3">
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Security Center</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("security.title")</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Quản lý tài khoản, Role và ma trận Function/Action theo RBAC của FVN_REGISTER.
+                @Language.T("security.quanLyTaiKhoanRole")
             </MudText>
         </div>
         <MudSpacer />
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
-                   OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+                   OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 
     @if (_error != null)
@@ -35,14 +35,14 @@
     }
 
     <MudTabs Elevation="0" Rounded="true" Class="pa-2">
-        <MudTabPanel Text="Users & Effective Permission" Icon="@Icons.Material.Filled.People">
+        <MudTabPanel Text="@Language.T("security.usersEffectivePermission")" Icon="@Icons.Material.Filled.People">
             <MudGrid>
                 <MudItem xs="12" md="7">
                     <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
-                            <MudText Typo="Typo.h6">Tài khoản</MudText>
+                            <MudText Typo="Typo.h6">@Language.T("common.account")</MudText>
                             <MudSpacer />
-                            <MudTextField @bind-Value="_search" Placeholder="Tìm nhân viên..." Immediate="true"
+                            <MudTextField @bind-Value="_search" Placeholder="@Language.T("security.timNhanVien")" Immediate="true"
                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                                           Variant="Variant.Outlined" Margin="Margin.Dense" />
                         </MudStack>
@@ -50,10 +50,10 @@
                         <MudTable T="UserAccountDto" Items="FilteredUsers" Hover="true" Dense="true" Loading="_loading"
                                   OnRowClick="@(args => SelectUser(args))">
                             <HeaderContent>
-                                <MudTh>Nhân viên</MudTh>
-                                <MudTh>Phòng ban</MudTh>
-                                <MudTh>Role chính</MudTh>
-                                <MudTh>Trạng thái</MudTh>
+                                <MudTh>@Language.T("ot.employee")</MudTh>
+                                <MudTh>@Language.T("ot.department")</MudTh>
+                                <MudTh>@Language.T("security.roleChinh")</MudTh>
+                                <MudTh>@Language.T("common.status")</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd><b>@context.FullName</b><br /><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
@@ -77,29 +77,33 @@
                             <MudText Typo="Typo.caption">@_selected.EmployeeCode · @_selected.DeptCode</MudText>
                             <MudDivider Class="my-3" />
 
-                            <MudText Typo="Typo.subtitle2" Class="mb-2">Role</MudText>
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("security.role")</MudText>
                             <MudSelect T="int" MultiSelection="true" SelectedValues="_selectedRoles"
-                                       SelectedValuesChanged="RolesChanged" Variant="Variant.Outlined">
+                                       SelectedValuesChanged="RolesChanged" Variant="Variant.Outlined"
+                                       Disabled="@(!CanAssignPermissions)">
                                 @foreach (var role in _roles)
                                 {
                                     <MudSelectItem T="int" Value="@role.RoleCode">@role.RoleCode - @role.RoleName</MudSelectItem>
                                 }
                             </MudSelect>
 
-                            <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
-                                       OnClick="SaveRolesAsync" Disabled="_saving">
-                                Lưu role
-                            </MudButton>
+                            @if (CanAssignPermissions)
+                            {
+                                <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
+                                           OnClick="SaveRolesAsync" Disabled="_saving">
+                                    @Language.T("security.luuRole")
+                                </MudButton>
+                            }
 
                             @if (CanResetPassword)
                             {
                                 <MudDivider Class="my-4" />
-                                <MudText Typo="Typo.subtitle2">Hỗ trợ IT</MudText>
+                                <MudText Typo="Typo.subtitle2">@Language.T("security.hoTroIt")</MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                Reset mật khẩu về mật khẩu tạm FVN@123. Không xóa tài khoản, role hoặc dữ liệu người dùng.
+                                @Language.T("security.resetMatKhauVeMat")
                             </MudText>
                             <MudTextField T="string"
-                                          Label="Mã nhân viên cần reset"
+                                          Label="@Language.T("security.maNhanVienCanReset")"
                                           @bind-Value="_resetEmployeeCode"
                                           Variant="Variant.Outlined"
                                           Margin="Margin.Dense"
@@ -113,12 +117,12 @@
                                            StartIcon="@Icons.Material.Filled.LockReset"
                                            OnClick="ResetPasswordToDefaultAsync"
                                            Disabled="_resettingPassword || string.IsNullOrWhiteSpace(_resetEmployeeCode)">
-                                    @(_resettingPassword ? "Đang reset..." : "Reset về FVN@123")
+                                    @(_resettingPassword ? Language.T("security.dangReset") : Language.T("security.resetVeFvn123"))
                                 </MudButton>
                             }
 
                             <MudDivider Class="my-4" />
-                            <MudText Typo="Typo.subtitle2">Effective permissions</MudText>
+                            <MudText Typo="Typo.subtitle2">@Language.T("security.effectivePermissions")</MudText>
                             @if (_snapshot != null)
                             {
                                 @foreach (var group in _snapshot.Functions.GroupBy(x => x.ModuleCode))
@@ -127,7 +131,7 @@
                                     @foreach (var f in group.OrderBy(x => x.DisplayOrder))
                                     {
                                         <MudChip T="string" Size="Size.Small" Class="ma-1" Color="Color.Success">
-                                            @f.ActionCode
+                                            @f.ActionCode · @(f.AccessMode ?? "-") · @(f.ScopeCode ?? "-")
                                         </MudChip>
                                     }
                                 }
@@ -135,7 +139,7 @@
                         }
                         else
                         {
-                            <MudText Color="Color.Secondary">Chọn một tài khoản để xem quyền hiệu lực.</MudText>
+                            <MudText Color="Color.Secondary">@Language.T("security.chonMotTaiKhoanDe3")</MudText>
                         }
                     </MudPaper>
                 </MudItem>
@@ -144,31 +148,31 @@
 
         @if (CanResetPassword)
         {
-        <MudTabPanel Text="Quên mật khẩu" Icon="@Icons.Material.Filled.LockReset">
+        <MudTabPanel Text="@Language.T("security.quenMatKhau")" Icon="@Icons.Material.Filled.LockReset">
             <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
                     <div>
-                        <MudText Typo="Typo.h6">Yêu cầu quên mật khẩu</MudText>
+                        <MudText Typo="Typo.h6">@Language.T("security.yeuCauQuenMatKhau")</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            User gửi yêu cầu từ màn hình Login. IT xác minh và cấp mật khẩu tạm FVN@123.
+                            @Language.T("security.userGuiYeuCauTu")
                         </MudText>
                     </div>
                     <MudSpacer />
                     <MudChip T="string" Color="@( _resetRequests.Count > 0 ? Color.Warning : Color.Default )">
-                        @_resetRequests.Count chờ xử lý
+                        @Language.T("security.choXuLy", _resetRequests.Count)
                     </MudChip>
                     <MudButton Variant="Variant.Outlined"
                                StartIcon="@Icons.Material.Filled.Refresh"
                                OnClick="LoadPasswordResetRequestsAsync"
                                Disabled="_loadingResetRequests">
-                        Làm mới
+                        @Language.T("common.refresh")
                     </MudButton>
                 </MudStack>
 
                 @if (_resetRequests.Count == 0)
                 {
                     <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-                        Hiện không có yêu cầu quên mật khẩu đang chờ xử lý.
+                        @Language.T("security.hienKhongCoYeuCau")
                     </MudAlert>
                 }
                 else
@@ -180,12 +184,12 @@
                               Bordered="true"
                               Striped="true">
                         <HeaderContent>
-                            <MudTh>Mã NV</MudTh>
-                            <MudTh>Họ tên</MudTh>
-                            <MudTh>Phòng ban</MudTh>
-                            <MudTh>Thời gian</MudTh>
-                            <MudTh>Ghi chú</MudTh>
-                            <MudTh Style="text-align:center">Xử lý</MudTh>
+                            <MudTh>@Language.T("common.employeeCode")</MudTh>
+                            <MudTh>@Language.T("common.employeeName")</MudTh>
+                            <MudTh>@Language.T("ot.department")</MudTh>
+                            <MudTh>@Language.T("common.thoiGian")</MudTh>
+                            <MudTh>@Language.T("common.note")</MudTh>
+                            <MudTh Style="text-align:center">@Language.T("calendar.handle")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.EmployeeCode</b></MudTd>
@@ -200,7 +204,7 @@
                                            StartIcon="@Icons.Material.Filled.LockReset"
                                            OnClick="@(() => ProcessPasswordResetRequestAsync(context, true))"
                                            Disabled="_processingResetRequestId == context.Id">
-                                    @(_processingResetRequestId == context.Id ? "Đang xử lý..." : "Reset FVN@123")
+                                    @(_processingResetRequestId == context.Id ? Language.T("common.dangXuLy") : "Reset FVN@123")
                                 </MudButton>
                                 <MudButton Class="ms-2"
                                            Variant="Variant.Text"
@@ -208,7 +212,7 @@
                                            Size="Size.Small"
                                            OnClick="@(() => ProcessPasswordResetRequestAsync(context, false))"
                                            Disabled="_processingResetRequestId == context.Id">
-                                    Từ chối
+                                    @Language.T("common.reject")
                                 </MudButton>
                             </MudTd>
                         </RowTemplate>
@@ -218,13 +222,15 @@
         </MudTabPanel>
         }
 
-        <MudTabPanel Text="Role → Function / Action" Icon="@Icons.Material.Filled.GridView">
+        @if (_myPermissions?.Has(SecurityFunctionCodes.SecurityManageRoles) == true)
+        {
+        <MudTabPanel Text='@Language.T("security.roles")' Icon="@Icons.Material.Filled.GridView">
             <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px; overflow-x:auto">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
                     <div>
-                        <MudText Typo="Typo.h6">Ma trận phân quyền</MudText>
+                        <MudText Typo="Typo.h6">@Language.T("security.maTranPhanQuyen")</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Mỗi ô là một capability server-side. Thay đổi ma trận sẽ áp dụng cho mọi user đang mang Role đó.
+                            @Language.T("security.moiOLaMotCapability")
                         </MudText>
                     </div>
                     <MudSpacer />
@@ -235,7 +241,7 @@
                 {
                     <MudTable Items="_matrixFunctions" Dense="true" Hover="true" Bordered="true" Striped="true">
                         <HeaderContent>
-                            <MudTh Style="min-width:280px">Function / Action</MudTh>
+                            <MudTh Style="min-width:280px">@Language.T("security.functionAction")</MudTh>
                             @foreach (var role in _roles)
                             {
                                 <MudTh Style="min-width:120px; text-align:center">
@@ -246,16 +252,57 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>
-                                <MudText Typo="Typo.body2"><b>@context.ModuleCode.@context.ActionCode</b></MudText>
+                                <MudText Typo="Typo.body2">
+                                    <b>@context.ModuleCode.@context.ActionCode</b>
+                                    @if (context.IsSystemCritical)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="ml-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                                            System Critical
+                                        </MudChip>
+                                    }
+                                </MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Detail</MudText>
                             </MudTd>
                             @foreach (var role in _roles)
                             {
-                                <MudTd Style="text-align:center">
-                                    <MudCheckBox T="bool"
-                                                 Value="@HasRoleFunction(role.RoleCode, context.FunctionCode)"
-                                                 ValueChanged="@(value => ToggleRoleFunction(role.RoleCode, context.FunctionCode, value))"
-                                                 Color="Color.Primary" />
+                                <MudTd Style="text-align:center; min-width:150px">
+                                    <MudStack Spacing="0" AlignItems="AlignItems.Center">
+                                        <MudCheckBox T="bool"
+                                                     Value="@HasRoleFunction(role.RoleCode, context.FunctionCode)"
+                                                     ValueChanged="@(value => ToggleRoleFunction(role.RoleCode, context.FunctionCode, value))"
+                                                     Disabled="@(context.IsSystemCritical && role.RoleCode == 1)"
+                                                     Color="Color.Primary" />
+                                        @if (HasRoleFunction(role.RoleCode, context.FunctionCode))
+                                        {
+                                            <MudSelect T="string"
+                                                       Value="@GetRoleFunctionMode(role.RoleCode, context.FunctionCode)"
+                                                       ValueChanged="@(value => SetRoleFunctionMode(role.RoleCode, context.FunctionCode, value))"
+                                                       Disabled="@(context.IsSystemCritical && role.RoleCode == 1)"
+                                                       Dense="true"
+                                                       Margin="Margin.Dense"
+                                                       Variant="Variant.Outlined"
+                                                       Style="width:135px">
+                                                @foreach (var mode in AccessModeOptions)
+                                                {
+                                                    <MudSelectItem T="string" Value="@mode">@mode</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                            <MudSelect T="string"
+                                                       Value="@GetRoleFunctionScope(role.RoleCode, context.FunctionCode)"
+                                                       ValueChanged="@(value => SetRoleFunctionScope(role.RoleCode, context.FunctionCode, value))"
+                                                       Disabled="@(context.IsSystemCritical && role.RoleCode == 1)"
+                                                       Dense="true"
+                                                       Margin="Margin.Dense"
+                                                       Variant="Variant.Outlined"
+                                                       Style="width:135px">
+                                                @foreach (var scope in ScopeOptions)
+                                                {
+                                                    <MudSelectItem T="string" Value="@scope">@scope</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        }
+                                    </MudStack>
                                 </MudTd>
                             }
                         </RowTemplate>
@@ -272,11 +319,11 @@
                                     <MudText Typo="Typo.caption">@role.Detail</MudText>
                                 </div>
                                 <MudSpacer />
-                                <MudText Typo="Typo.caption">@GetMatrixCount(role.RoleCode) quyền</MudText>
+                                <MudText Typo="Typo.caption">@Language.T("security.quyen", GetMatrixCount(role.RoleCode))</MudText>
                                 <MudButton Variant="Variant.Filled" Size="Size.Small"
                                            Color="Color.Primary" Disabled="_savingRoleCode == role.RoleCode"
                                            OnClick="@(() => SaveRoleFunctionsAsync(role))">
-                                    Lưu @role.RoleName
+                                    @Language.T("security.luu", role.RoleName)
                                 </MudButton>
                             </MudStack>
                         </MudPaper>
@@ -284,31 +331,32 @@
                 }
                 else
                 {
-                    <MudAlert Severity="Severity.Info">Chưa có Role/Function để dựng ma trận.</MudAlert>
+                    <MudAlert Severity="Severity.Info">@Language.T("security.chuaCoRoleFunctionDe")</MudAlert>
                 }
             </MudPaper>
         </MudTabPanel>
-
+        }
         @if (CanAssignPermissions)
         {
-            <MudTabPanel Text="Organization Scope" Icon="@Icons.Material.Filled.AccountTree">
+            <MudTabPanel
+                Text="@Language.T("security.organizationScope")"
+                Icon="@Icons.Material.Filled.AccountTree">
                 <ManagedScopeEditor User="_selected" />
             </MudTabPanel>
-        }
+            }
 
         @if (CanAssignPermissions)
         {
-            <MudTabPanel Text="Feature Operator Assignment" Icon="@Icons.Material.Filled.PersonAdd">
+            <MudTabPanel Text="@Language.T("security.featureOperatorAssignment")" Icon="@Icons.Material.Filled.PersonAdd">
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
-                    <MudText Typo="Typo.h6">Chỉ định người thao tác</MudText>
+                    <MudText Typo="Typo.h6">@Language.T("security.chiDinhNguoiThaoTac")</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-                        Capability vẫn do RBAC quyết định. Tab này chỉ xác định nhân viên cụ thể được thao tác
-                        trên Public Information, Public Form hoặc xử lý phản hồi HR.
+                        @Language.T("security.capabilityVanDoRbacQuyet")
                     </MudText>
 
                     <MudGrid>
                         <MudItem xs="12" md="3">
-                            <MudSelect T="int" Label="Function / Action" Variant="Variant.Outlined"
+                            <MudSelect T="int" Label="@Language.T("security.functionAction")" Variant="Variant.Outlined"
                                        Value="_operatorFunctionCode" ValueChanged="OperatorFunctionChanged">
                                 @foreach (var f in _operatorFunctions)
                                 {
@@ -319,15 +367,15 @@
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" md="3">
-                            <MudSelect T="string" Label="Resource" Variant="Variant.Outlined"
+                            <MudSelect T="string" Label="@Language.T("security.resource")" Variant="Variant.Outlined"
                                        Value="_operatorResourceType" ValueChanged="OperatorResourceTypeChanged">
-                                <MudSelectItem Value="@("EXECUTION_REVIEW")">HR Feedback — toàn module</MudSelectItem>
-                                <MudSelectItem Value="@("PUBLIC_INFORMATION")">Public Information</MudSelectItem>
-                                <MudSelectItem Value="@("PUBLIC_FORM")">Public Form</MudSelectItem>
+                                <MudSelectItem Value="@("EXECUTION_REVIEW")">@Language.T("security.hrFeedbackToanModule")</MudSelectItem>
+                                <MudSelectItem Value="@("PUBLIC_INFORMATION")">@Language.T("security.publicInformation")</MudSelectItem>
+                                <MudSelectItem Value="@("PUBLIC_FORM")">@Language.T("security.publicForm")</MudSelectItem>
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" md="3">
-                            <MudSelect T="int?" Label="Đối tượng cụ thể" Variant="Variant.Outlined"
+                            <MudSelect T="int?" Label="@Language.T("security.doiTuongCuThe")" Variant="Variant.Outlined"
                                        Value="_operatorResourceId" ValueChanged="OperatorResourceChanged" Disabled="@(_operatorResourceType == "EXECUTION_REVIEW")">
                                 @if (_operatorResourceType != "EXECUTION_REVIEW")
                                 {
@@ -341,7 +389,7 @@
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" md="3">
-                            <MudSelect T="string" Label="Nhân viên thao tác" Variant="Variant.Outlined"
+                            <MudSelect T="string" Label="@Language.T("security.nhanVienThaoTac")" Variant="Variant.Outlined"
                                        @bind-Value="_operatorEmployeeCode">
                                 @foreach (var employee in _operatorEmployees)
                                 {
@@ -358,10 +406,10 @@
                                    StartIcon="@Icons.Material.Filled.PersonAdd"
                                    OnClick="AddFeatureOperatorAsync"
                                    Disabled="@(_savingOperator || string.IsNullOrWhiteSpace(_operatorEmployeeCode))">
-                            Chỉ định
+                            @Language.T("common.chiDinh")
                         </MudButton>
                         <MudButton Variant="Variant.Outlined" OnClick="LoadFeatureOperatorsAsync"
-                                   Disabled="_loadingOperators">Làm mới</MudButton>
+                                   Disabled="_loadingOperators">@Language.T("common.refresh")</MudButton>
                     </MudStack>
 
                     <MudDivider Class="my-4" />
@@ -369,12 +417,12 @@
                     <MudTable T="FeatureOperatorAssignmentDto" Items="_operatorAssignments"
                               Dense="true" Hover="true" Bordered="true" Striped="true">
                         <HeaderContent>
-                            <MudTh>Function</MudTh>
-                            <MudTh>Resource</MudTh>
-                            <MudTh>Nhân viên</MudTh>
-                            <MudTh>Phòng ban</MudTh>
-                            <MudTh>Chức vụ</MudTh>
-                            <MudTh Style="text-align:center">Xử lý</MudTh>
+                            <MudTh>@Language.T("common.function")</MudTh>
+                            <MudTh>@Language.T("security.resource")</MudTh>
+                            <MudTh>@Language.T("ot.employee")</MudTh>
+                            <MudTh>@Language.T("ot.department")</MudTh>
+                            <MudTh>@Language.T("hrm.position")</MudTh>
+                            <MudTh Style="text-align:center">@Language.T("calendar.handle")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>@context.FunctionCode</MudTd>
@@ -385,7 +433,7 @@
                             <MudTd Style="text-align:center">
                                 <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
                                            OnClick="@(() => RemoveFeatureOperatorAsync(context))">
-                                    Bỏ chỉ định
+                                    @Language.T("security.boChiDinh")
                                 </MudButton>
                             </MudTd>
                         </RowTemplate>
@@ -395,25 +443,25 @@
         }
 
 
-        @if (_myPermissions?.Has(2604) == true)
+        @if (_myPermissions?.Has(SecurityFunctionCodes.SecurityAudit) == true)
         {
-            <MudTabPanel Text="Security Audit" Icon="@Icons.Material.Filled.Security">
+            <MudTabPanel Text="@Language.T("security.securityAudit")" Icon="@Icons.Material.Filled.Security">
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
-                        <MudText Typo="Typo.h6">Security Audit</MudText>
+                        <MudText Typo="Typo.h6">@Language.T("security.securityAudit")</MudText>
                         <MudSpacer />
-                        <MudTextField T="string" Label="Tìm actor / action / nội dung"
+                        <MudTextField T="string" Label="@Language.T("security.timActorActionNoiDung")"
                                       @bind-Value="_auditSearch" Variant="Variant.Outlined" Margin="Margin.Dense" />
                         <MudButton Class="ms-2" Variant="Variant.Outlined" OnClick="LoadSecurityAuditAsync">
-                            Làm mới
+                            @Language.T("common.refresh")
                         </MudButton>
                     </MudStack>
                     <MudTable T="SecurityAuditEntryDto" Items="_auditEntries" Dense="true" Hover="true" Bordered="true" Striped="true">
                         <HeaderContent>
-                            <MudTh>Thời gian</MudTh>
-                            <MudTh>User</MudTh>
-                            <MudTh>Action</MudTh>
-                            <MudTh>Nội dung</MudTh>
+                            <MudTh>@Language.T("common.thoiGian")</MudTh>
+                            <MudTh>@Language.T("common.user2")</MudTh>
+                            <MudTh>@Language.T("common.action2")</MudTh>
+                            <MudTh>@Language.T("public.content")</MudTh>
                             <MudTh>IP</MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -428,18 +476,20 @@
             </MudTabPanel>
         }
 
-        <MudTabPanel Text="Approval Policy + Effective Preview" Icon="@Icons.Material.Filled.Policy">
+        @if (_myPermissions?.Has(SecurityFunctionCodes.ApprovalPolicyManage) == true)
+        {
+        <MudTabPanel Text="@Language.T("security.approvalPolicyEffectivePreview")" Icon="@Icons.Material.Filled.Policy">
             <MudStack Spacing="2">
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.h6">Approval Policy</MudText>
+                        <MudText Typo="Typo.h6">@Language.T("security.policies")</MudText>
                         <MudSpacer />
                         <MudButton Variant="Variant.Outlined" Href="/admin/approval-policies">
-                            Mở cấu hình Approval Policy
+                            @Language.T("security.moCauHinhApprovalPolicy")
                         </MudButton>
                     </MudStack>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
-                        Approval không được cấp bởi Role Approver. Route và level được resolve từ F03ApprovalPolicies + ApprovalRouteService.
+                        @Language.T("security.approvalKhongDuocCapBoi")
                     </MudText>
                 </MudPaper>
                 <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
@@ -447,24 +497,25 @@
                 </MudPaper>
             </MudStack>
         </MudTabPanel>
-        <MudTabPanel Text="2FA theo tài khoản" Icon="@Icons.Material.Filled.Security">
-            @if (CanManageTwoFactor)
+        }
+        @if (CanManageTwoFactor)
+        {
+        <MudTabPanel Text='@Language.T("security.twoFactor")' Icon="@Icons.Material.Filled.Security">
             {
                 <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
                     <MudAlert Severity="Severity.Info" Class="mb-3">
-                        Chỉ SuperAdmin có quyền cấu hình. 2FA được áp dụng theo từng tài khoản; hệ thống không tự suy luận từ quyền dữ liệu.
-                        Khi bật, người dùng sẽ đăng ký Microsoft Authenticator/Google Authenticator ở lần đăng nhập kế tiếp.
+                        @Language.T("security.chiSuperadminCoQuyenCau")
                     </MudAlert>
-                    <MudTextField @bind-Value="_twoFactorSearch" Placeholder="Tìm mã nhân viên / họ tên..." Immediate="true"
+                    <MudTextField @bind-Value="_twoFactorSearch" Placeholder="@Language.T("security.timMaNhanVienHo")" Immediate="true"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
                     <MudTable T="TwoFactorAdminUserDto" Items="FilteredTwoFactorUsers" Hover="true" Dense="true" Loading="_loadingTwoFactor">
                         <HeaderContent>
-                            <MudTh>Nhân viên</MudTh>
-                            <MudTh>Phòng ban</MudTh>
-                            <MudTh>Bắt buộc 2FA</MudTh>
-                            <MudTh>Đã đăng ký</MudTh>
-                            <MudTh>Thao tác</MudTh>
+                            <MudTh>@Language.T("ot.employee")</MudTh>
+                            <MudTh>@Language.T("ot.department")</MudTh>
+                            <MudTh>@Language.T("security.twoFactorRequired")</MudTh>
+                            <MudTh>@Language.T("trip.registered")</MudTh>
+                            <MudTh>@Language.T("security.actions")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.FullName</b><br /><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
@@ -474,12 +525,12 @@
                             </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="@(context.Required ? Color.Warning : Color.Default)">
-                                    @(context.Required ? "BẮT BUỘC" : "Không")
+                                    @(context.Required ? Language.T("security.batBuoc") : Language.T("common.no"))
                                 </MudChip>
                             </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="@(context.Enabled ? Color.Success : Color.Default)">
-                                    @(context.Enabled ? "Đã đăng ký" : "Chưa đăng ký")
+                                    @(context.Enabled ? Language.T("trip.registered") : Language.T("endpoint.chuaDangKy"))
                                 </MudChip>
                             </MudTd>
                             <MudTd>
@@ -487,7 +538,7 @@
                                            Color="@(context.Required ? Color.Warning : Color.Primary)"
                                            OnClick="@(() => SetTwoFactorRequiredAsync(context))"
                                            Disabled="_savingTwoFactor">
-                                    @(context.Required ? "Tắt bắt buộc" : "Bật 2FA")
+                                    @(context.Required ? Language.T("security.tatBatBuoc") : Language.T("security.bat2fa"))
                                 </MudButton>
                                 @if (context.Enabled)
                                 {
@@ -495,7 +546,7 @@
                                                Class="ms-2"
                                                OnClick="@(() => ResetTwoFactorAsync(context))"
                                                Disabled="_savingTwoFactor">
-                                        Reset factor
+                                        @Language.T("security.resetFactor")
                                     </MudButton>
                                 }
                             </MudTd>
@@ -503,13 +554,8 @@
                     </MudTable>
                 </MudPaper>
             }
-            else
-            {
-                <MudAlert Severity="Severity.Warning">
-                    Tính năng này chỉ hiển thị cho tài khoản có quyền UserManagement.ManageTwoFactor (2407).
-                </MudAlert>
-            }
         </MudTabPanel>
+        }
 
     </MudTabs>
 </MudStack>
@@ -518,7 +564,8 @@
     private List<UserAccountDto> _users = new();
     private List<SecurityRoleDto> _roles = new();
     private List<SecurityFunctionDto> _matrixFunctions = new();
-    private Dictionary<int, HashSet<int>> _matrix = new();
+    private Dictionary<int, Dictionary<int, string>> _matrix = new();
+    private Dictionary<int, Dictionary<int, string>> _matrixModes = new();
 
     private PermissionSnapshotDto? _snapshot;
     private UserAccountDto? _selected;
@@ -562,13 +609,13 @@
     private string _twoFactorSearch = string.Empty;
     private bool _loadingTwoFactor;
     private bool _savingTwoFactor;
-    private const int ManageTwoFactorFunctionCode = 2407;
+    private const int ManageTwoFactorFunctionCode = SecurityFunctionCodes.UserManagementManageTwoFactor;
 
     // 2FA administration is explicitly restricted to SuperAdmin.
     // Do not depend on the 2407 RoleFunction row here; older databases may
     // still be missing that compatibility grant while the account is SuperAdmin.
     private bool CanManageTwoFactor
-        => _myPermissions?.PermissionCode == UserPermissionCodes.SuperAdmin;
+        => _myPermissions?.Has(ManageTwoFactorFunctionCode) == true;
 
     private IEnumerable<TwoFactorAdminUserDto> FilteredTwoFactorUsers =>
         string.IsNullOrWhiteSpace(_twoFactorSearch)
@@ -601,6 +648,12 @@
 
             _myPermissions = myPermissions.Data;
 
+            if (_myPermissions?.Has(SecurityFunctionCodes.SecurityView) != true)
+            {
+                _error = Language.T("security.noPermission");
+                return;
+            }
+
             var users = await UserService.GetAllAsync();
             var roles = await SecurityService.GetRolesAsync();
             var functions = await SecurityService.GetFunctionsAsync();
@@ -618,7 +671,7 @@
                 await LoadFeatureOperatorsAsync();
             if (CanResetPassword)
                 await LoadPasswordResetRequestsAsync();
-            if (_myPermissions?.Has(2604) == true)
+            if (_myPermissions?.Has(SecurityFunctionCodes.SecurityAudit) == true)
                 await LoadSecurityAuditAsync();
             if (CanManageTwoFactor)
                 await LoadTwoFactorUsersAsync();
@@ -636,7 +689,7 @@
             if (result.IsSuccess)
                 _twoFactorUsers = result.Data ?? new();
             else
-                Snackbar.Add(result.Message ?? "Không tải được danh sách 2FA.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTaiDuocDanhSach"), Severity.Error);
         }
         finally
         {
@@ -652,14 +705,14 @@
             var result = await SecurityService.SetTwoFactorRequiredAsync(user.UserId, !user.Required);
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể cập nhật chính sách 2FA.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheCapNhatChinh"), Severity.Error);
                 return;
             }
 
             Snackbar.Add(
                 user.Required
-                    ? $"Đã tắt bắt buộc 2FA cho {user.EmployeeCode}."
-                    : $"Đã bật bắt buộc 2FA cho {user.EmployeeCode}.",
+                    ? Language.T("security.daTatBatBuoc2fa", user.EmployeeCode)
+                    : Language.T("security.daBatBatBuoc2fa", user.EmployeeCode),
                 Severity.Success);
             await LoadTwoFactorUsersAsync();
         }
@@ -677,11 +730,11 @@
             var result = await SecurityService.ResetTwoFactorAsync(user.UserId);
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể reset factor.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheResetFactor"), Severity.Error);
                 return;
             }
 
-            Snackbar.Add($"Đã reset factor 2FA cho {user.EmployeeCode}.", Severity.Success);
+            Snackbar.Add(Language.T("security.daResetFactor2faCho", user.EmployeeCode), Severity.Success);
             await LoadTwoFactorUsersAsync();
         }
         finally
@@ -694,7 +747,7 @@
     {
         var result = await SecurityService.GetSecurityAuditAsync(search: _auditSearch);
         if (result.IsSuccess) _auditEntries = result.Data ?? new();
-        else Snackbar.Add(result.Message ?? "Không tải được Security Audit.", Severity.Error);
+        else Snackbar.Add(result.Message ?? Language.T("security.khongTaiDuocSecurityAudit"), Severity.Error);
     }
 
     private async Task LoadPasswordResetRequestsAsync()
@@ -725,20 +778,20 @@
                 {
                     Approve = approve,
                     ResultNote = approve
-                        ? "IT đã xác minh và cấp mật khẩu tạm."
-                        : "IT từ chối yêu cầu."
+                        ? Language.T("security.itDaXacMinhVa")
+                        : Language.T("security.itTuChoiYeuCau")
                 });
 
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể xử lý yêu cầu.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheXuLyYeu"), Severity.Error);
                 return;
             }
 
             Snackbar.Add(
                 approve
-                    ? $"Đã reset mật khẩu cho {request.EmployeeCode} về FVN@123."
-                    : $"Đã từ chối yêu cầu của {request.EmployeeCode}.",
+                    ? Language.T("security.daResetMatKhauCho2", request.EmployeeCode)
+                    : Language.T("security.daTuChoiYeuCau", request.EmployeeCode),
                 approve ? Severity.Success : Severity.Info);
 
             await LoadPasswordResetRequestsAsync();
@@ -803,11 +856,11 @@
 
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể chỉ định người thao tác.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheChiDinhNguoi"), Severity.Error);
                 return;
             }
 
-            Snackbar.Add("Đã chỉ định người thao tác.", Severity.Success);
+            Snackbar.Add(Language.T("security.daChiDinhNguoiThao"), Severity.Success);
             await LoadFeatureOperatorsAsync();
         }
         finally { _savingOperator = false; }
@@ -818,34 +871,88 @@
         var result = await SecurityService.RemoveFeatureOperatorAsync(assignment.Id);
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không thể bỏ chỉ định.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("common.khongTheBoChiDinh"), Severity.Error);
             return;
         }
 
-        Snackbar.Add("Đã bỏ chỉ định.", Severity.Success);
+        Snackbar.Add(Language.T("security.daBoChiDinh"), Severity.Success);
         await LoadFeatureOperatorsAsync();
     }
+
+    private static readonly string[] ScopeOptions =
+        { AuthorizationScopeCodes.Own, AuthorizationScopeCodes.Employee, AuthorizationScopeCodes.Department, AuthorizationScopeCodes.All };
+    private static readonly string[] AccessModeOptions = { "Personal", "Management" };
 
     private void BuildMatrix()
     {
         _matrix = _roles.ToDictionary(
             r => r.RoleCode,
-            r => r.FunctionCodes.ToHashSet());
+            r => r.FunctionScopes.ToDictionary(
+                x => x.Key,
+                x => string.IsNullOrWhiteSpace(x.Value) ? AuthorizationScopeCodes.Own : x.Value));
+        _matrixModes = _roles.ToDictionary(
+            r => r.RoleCode,
+            r => r.FunctionAccessModes.ToDictionary(
+                x => x.Key,
+                x => string.IsNullOrWhiteSpace(x.Value) ? "Personal" : x.Value));
     }
 
     private bool HasRoleFunction(int roleCode, int functionCode)
-        => _matrix.TryGetValue(roleCode, out var functions) && functions.Contains(functionCode);
+        => _matrix.TryGetValue(roleCode, out var functions) && functions.ContainsKey(functionCode);
+
+    private string GetRoleFunctionScope(int roleCode, int functionCode)
+    {
+        if (_matrix.TryGetValue(roleCode, out var functions)
+            && functions.TryGetValue(functionCode, out var scope)
+            && !string.IsNullOrWhiteSpace(scope))
+            return scope;
+        return _matrixFunctions.FirstOrDefault(x => x.FunctionCode == functionCode)?.ScopeCode
+            ?? AuthorizationScopeCodes.Own;
+    }
+
+    private string GetRoleFunctionMode(int roleCode, int functionCode)
+    {
+        if (_matrixModes.TryGetValue(roleCode, out var modes)
+            && modes.TryGetValue(functionCode, out var mode)
+            && !string.IsNullOrWhiteSpace(mode))
+            return mode;
+        return "Personal";
+    }
 
     private void ToggleRoleFunction(int roleCode, int functionCode, bool enabled)
     {
         if (!_matrix.TryGetValue(roleCode, out var functions))
         {
-            functions = new HashSet<int>();
+            functions = new Dictionary<int, string>();
             _matrix[roleCode] = functions;
         }
+        if (!_matrixModes.TryGetValue(roleCode, out var modes))
+            _matrixModes[roleCode] = modes = new Dictionary<int, string>();
 
-        if (enabled) functions.Add(functionCode);
-        else functions.Remove(functionCode);
+        if (enabled)
+        {
+            functions[functionCode] = GetRoleFunctionScope(roleCode, functionCode);
+            modes[functionCode] = GetRoleFunctionMode(roleCode, functionCode);
+        }
+        else
+        {
+            functions.Remove(functionCode);
+            modes.Remove(functionCode);
+        }
+    }
+
+    private void SetRoleFunctionMode(int roleCode, int functionCode, string mode)
+    {
+        if (!_matrixModes.TryGetValue(roleCode, out var modes))
+            _matrixModes[roleCode] = modes = new Dictionary<int, string>();
+        modes[functionCode] = string.IsNullOrWhiteSpace(mode) ? "Personal" : mode;
+    }
+
+    private void SetRoleFunctionScope(int roleCode, int functionCode, string scope)
+    {
+        if (!_matrix.TryGetValue(roleCode, out var functions))
+            _matrix[roleCode] = functions = new Dictionary<int, string>();
+        functions[functionCode] = string.IsNullOrWhiteSpace(scope) ? AuthorizationScopeCodes.Own : scope;
     }
 
     private int GetMatrixCount(int roleCode)
@@ -863,13 +970,13 @@
 
         if (target == null)
         {
-            Snackbar.Add($"Không tìm thấy tài khoản của mã nhân viên {employeeCode}.", Severity.Error);
+            Snackbar.Add(Language.T("security.khongTimThayTaiKhoan", employeeCode), Severity.Error);
             return;
         }
 
         if (!target.IsActive)
         {
-            Snackbar.Add($"Tài khoản {employeeCode} đang không hoạt động.", Severity.Warning);
+            Snackbar.Add(Language.T("security.taiKhoanDangKhongHoat", employeeCode), Severity.Warning);
             return;
         }
 
@@ -880,12 +987,12 @@
 
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể reset mật khẩu.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheResetMatKhau"), Severity.Error);
                 return;
             }
 
             Snackbar.Add(
-                $"Đã reset mật khẩu cho {target.FullName} ({target.EmployeeCode}) về mật khẩu tạm.",
+                Language.T("security.daResetMatKhauCho", target.FullName, target.EmployeeCode),
                 Severity.Success);
         }
         finally
@@ -897,17 +1004,23 @@
     private async Task SaveRoleFunctionsAsync(SecurityRoleDto role)
     {
         if (!_matrix.TryGetValue(role.RoleCode, out var functions))
-            functions = new HashSet<int>();
+            functions = new Dictionary<int, string>();
 
         _savingRoleCode = role.RoleCode;
         try
         {
+            var functionCodes = functions.Keys.OrderBy(x => x).ToList();
+            var scopeOverrides = functions.ToDictionary(x => x.Key, x => (string?)x.Value);
+            var accessModeOverrides = _matrixModes.TryGetValue(role.RoleCode, out var modes)
+                ? modes.ToDictionary(x => x.Key, x => (string?)x.Value)
+                : new Dictionary<int, string?>();
+
             var result = await SecurityService.SetRoleFunctionsAsync(
-                role.RoleCode, functions.OrderBy(x => x).ToList());
+                role.RoleCode, functionCodes, scopeOverrides, accessModeOverrides);
 
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể lưu ma trận.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheLuuMaTran"), Severity.Error);
                 return;
             }
 
@@ -916,13 +1029,14 @@
             {
                 var index = _roles.FindIndex(x => x.RoleCode == role.RoleCode);
                 if (index >= 0) _roles[index] = saved;
-                _matrix[role.RoleCode] = saved.FunctionCodes.ToHashSet();
+                _matrix[role.RoleCode] = saved.FunctionScopes.ToDictionary(x => x.Key, x => x.Value);
+                _matrixModes[role.RoleCode] = saved.FunctionAccessModes.ToDictionary(x => x.Key, x => x.Value);
             }
 
             if (_selected != null)
                 await SelectUserAsync(_selected);
 
-            Snackbar.Add($"Đã lưu ma trận cho role {role.RoleName}.", Severity.Success);
+            Snackbar.Add(Language.T("security.daLuuMaTranCho", role.RoleName), Severity.Success);
         }
         finally
         {
@@ -939,7 +1053,7 @@
         var result = await SecurityService.GetUserPermissionsAsync(_selected.IdUser);
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không tải được quyền.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("security.khongTaiDuocQuyen"), Severity.Error);
             return;
         }
 
@@ -961,12 +1075,12 @@
 
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể lưu role.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheLuuRole"), Severity.Error);
                 return;
             }
 
             _snapshot = result.Data;
-            Snackbar.Add("Đã cập nhật role và effective permissions.", Severity.Success);
+            Snackbar.Add(Language.T("security.daCapNhatRoleVa"), Severity.Success);
         }
         finally { _saving = false; }
     }

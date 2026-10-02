@@ -34,7 +34,8 @@ public static class SecurityFunctionCatalog
             ["HrmUserRoleRule"] = "Quy tắc vai trò người dùng nhân sự",
             ["EmailQueue"] = "Hàng đợi thư điện tử",
             ["EmailTemplate"] = "Mẫu thư điện tử",
-            ["SecurityAccessChange"] = "Thay đổi quyền truy cập"
+            ["SecurityAccessChange"] = "Thay đổi quyền truy cập",
+            ["Language"] = "Ngôn ngữ"
         };
 
     private static readonly IReadOnlyDictionary<string, string> ActionNames =
@@ -79,7 +80,11 @@ public static class SecurityFunctionCatalog
             ["Execute"] = "Thực hiện",
             ["Report"] = "Báo cáo",
             ["ExportExcel"] = "Xuất Excel",
-            ["ImportExcel"] = "Nhập Excel"
+            ["ImportExcel"] = "Nhập Excel",
+            ["Submit"] = "Trả lời",
+            ["AuditView"] = "Xem lịch sử",
+            ["AssignAudience"] = "Chỉ định đối tượng nhận",
+            ["ResultView"] = "Xem kết quả"
         };
 
     public static string GetDisplayName(string functionKey) => GetDisplayName(functionKey, "vi-VN");

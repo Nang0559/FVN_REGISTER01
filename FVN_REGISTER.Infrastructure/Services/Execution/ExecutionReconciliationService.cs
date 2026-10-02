@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using FVN_REGISTER.Contract.Utils;
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Execution;
@@ -47,7 +48,16 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         _hostEnvironment = hostEnvironment;
     }
 
-    public async Task<ExecutionReconciliationDto> EnsureAttendanceFeedbackAsync(
+    public Task<ServiceResult<ExecutionReconciliationDto>> EnsureAttendanceFeedbackAsync(string e,DateOnly d,CancellationToken ct=default)=>GuardAsync(()=>EnsureAttendanceFeedbackAsyncCoreAsync(e,d,ct));
+    public async Task<ServiceResult<ExecutionReconciliationDto>> GetAsync(string e,long id,CancellationToken ct=default){try{var v=await GetAsyncCoreAsync(e,id,ct);return v is null?ServiceResult<ExecutionReconciliationDto>.Fail("Không tìm thấy reconciliation."):ServiceResult<ExecutionReconciliationDto>.Ok(v);}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult<ExecutionReconciliationDto>.Fail(ex.Message);}}
+    public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(string e,long id,CancellationToken ct=default){try{var v=await GetDetailAsyncCoreAsync(e,id,ct);return v is null?ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation."):ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult<ExecutionReconciliationDetailDto>.Fail(ex.Message);}}
+    public Task<ServiceResult<IReadOnlyList<ExecutionReconciliationDto>>> GetMineAsync(string e,DateOnly f,DateOnly t,CancellationToken ct=default)=>GuardAsync(()=>GetMineAsyncCoreAsync(e,f,t,ct));
+    public Task<ServiceResult<ExecutionReconciliationDto>> UpsertAsync(string e,ExecutionReconciliationUpsertRequest q,CancellationToken ct=default,int? actorUserId=null)=>GuardAsync(()=>UpsertAsyncCoreAsync(e,q,ct,actorUserId));
+    public Task<ServiceResult<ExecutionConfirmationDto>> SubmitConfirmationAsync(string e,long id,ExecutionConfirmationRequest q,CancellationToken ct=default)=>GuardAsync(()=>SubmitConfirmationAsyncCoreAsync(e,id,q,ct));
+    public Task<ServiceResult<ExecutionEvidenceDto>> AddEvidenceAsync(string e,int uid,long id,ExecutionEvidenceRequest q,CancellationToken ct=default)=>GuardAsync(()=>AddEvidenceAsyncCoreAsync(e,uid,id,q,ct));
+    public Task<ServiceResult<int>> UploadEvidenceFileAsync(string e,int uid,long id,string fn,string? ctpe,long len,Stream content,CancellationToken ct=default)=>GuardAsync(()=>UploadEvidenceFileAsyncCoreAsync(e,uid,id,fn,ctpe,len,content,ct));
+
+    private async Task<ExecutionReconciliationDto> EnsureAttendanceFeedbackAsyncCoreAsync(
         string employeeCode,
         DateOnly workDate,
         CancellationToken cancellationToken = default)
@@ -109,7 +119,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         var sourceId = $"{normalizedEmployeeCode}:{workDate:yyyyMMdd}";
 
-        return await UpsertAsync(
+        return await UpsertAsyncCoreAsync(
             normalizedEmployeeCode,
             new ExecutionReconciliationUpsertRequest(
                 "OT",
@@ -145,7 +155,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             cancellationToken);
     }
 
-    public async Task<ExecutionReconciliationDto?> GetAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
+    private async Task<ExecutionReconciliationDto?> GetAsyncCoreAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
     {
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
         return await _db.ExecutionReconciliations.AsNoTracking()
@@ -154,7 +164,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
+    private async Task<ExecutionReconciliationDetailDto?> GetDetailAsyncCoreAsync(
         string employeeCode,
         long reconciliationId,
         CancellationToken cancellationToken = default)
@@ -206,7 +216,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             hrResolution);
     }
 
-    public async Task<IReadOnlyList<ExecutionReconciliationDto>> GetMineAsync(string employeeCode, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    private async Task<IReadOnlyList<ExecutionReconciliationDto>> GetMineAsyncCoreAsync(string employeeCode, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
         if (to < from) throw new ArgumentException("Khoảng ngày không hợp lệ.");
         if (to.DayNumber - from.DayNumber > 93) throw new ArgumentException("Khoảng ngày tối đa là 94 ngày.");
@@ -218,7 +228,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .Select(ToDto()).ToListAsync(cancellationToken);
     }
 
-    public async Task<ExecutionReconciliationDto> UpsertAsync(
+    private async Task<ExecutionReconciliationDto> UpsertAsyncCoreAsync(
         string employeeCode,
         ExecutionReconciliationUpsertRequest request,
         CancellationToken cancellationToken = default,
@@ -417,7 +427,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .Select(ToDto()).SingleAsync(cancellationToken);
     }
 
-    public async Task<ExecutionConfirmationDto> SubmitConfirmationAsync(string employeeCode, long reconciliationId, ExecutionConfirmationRequest request, CancellationToken cancellationToken = default)
+    private async Task<ExecutionConfirmationDto> SubmitConfirmationAsyncCoreAsync(string employeeCode, long reconciliationId, ExecutionConfirmationRequest request, CancellationToken cancellationToken = default)
     {
         var decision = NormalizeConfirmationDecision(request.Decision);
         var comment = request.Comment?.Trim();
@@ -502,7 +512,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         return ToConfirmationDto(confirmation);
     }
 
-    public async Task<ExecutionEvidenceDto> AddEvidenceAsync(
+    private async Task<ExecutionEvidenceDto> AddEvidenceAsyncCoreAsync(
         string employeeCode,
         int userId,
         long confirmationId,
@@ -577,7 +587,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         return ToEvidenceDto(evidence);
     }
 
-    public async Task<int> UploadEvidenceFileAsync(
+    private async Task<int> UploadEvidenceFileAsyncCoreAsync(
         string employeeCode,
         int userId,
         long confirmationId,
@@ -1128,6 +1138,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         return "có";
     }
+
+    private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult<T>.Fail(ex.Message);}}
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
         x => new ExecutionReconciliationDto(x.Id, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId, x.EmployeeId, x.WorkDate,

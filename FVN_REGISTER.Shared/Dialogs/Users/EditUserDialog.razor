@@ -6,41 +6,41 @@
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
-            Sửa quyền tài khoản
+            @Language.T("user.suaQuyenTaiKhoan")
         </MudText>
     </TitleContent>
 
     <DialogContent>
         <MudSelect T="int" @bind-Value="Request.PermissionCode"
-                   Label="Quyền (*)"
+                   Label="@Language.T("user.quyen")"
                    Variant="Variant.Outlined"
                    Margin="Margin.Dense">
-            <MudSelectItem Value="2">Administrator</MudSelectItem>
-            <MudSelectItem Value="4">Approver</MudSelectItem>
-            <MudSelectItem Value="5">User</MudSelectItem>
+            <MudSelectItem Value="2">@Language.T("user.administrator")</MudSelectItem>
+            <MudSelectItem Value="4">@Language.T("nav.approvers")</MudSelectItem>
+            <MudSelectItem Value="5">@Language.T("common.user2")</MudSelectItem>
         </MudSelect>
         <MudStack Class="mt-4" Spacing="1">
-            <MudText Typo="Typo.subtitle2">Quyền module thiết bị</MudText>
-            <MudCheckBox @bind-Value="_equipmentAccess">Sổ quản lý thiết bị</MudCheckBox>
-            <MudCheckBox @bind-Value="_equipmentImportAccess">Import Excel thiết bị</MudCheckBox>
+            <MudText Typo="Typo.subtitle2">@Language.T("user.quyenModuleThietBi")</MudText>
+            <MudCheckBox @bind-Value="_equipmentAccess">@Language.T("equipment.register")</MudCheckBox>
+            <MudCheckBox @bind-Value="_equipmentImportAccess">@Language.T("equipment.import")</MudCheckBox>
             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                Chỉ user được cấp quyền mới nhìn thấy và gọi được chức năng tương ứng.
+                @Language.T("user.chiUserDuocCapQuyen")
             </MudText>
         </MudStack>
 
         <MudTextField @bind-Value="Request.DeptCode"
-                      Label="Mã phòng ban"
+                      Label='@Language.T("common.departmentCode")'
                       Variant="Variant.Outlined"
                       Margin="Margin.Dense"
                       Class="mt-3" />
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudButton OnClick="Submit"
                    Variant="Variant.Filled"
                    Color="Color.Primary">
-            Lưu thay đổi
+            @Language.T("user.luuThayDoi")
         </MudButton>
     </DialogActions>
 </MudDialog>

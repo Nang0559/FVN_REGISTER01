@@ -43,6 +43,64 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         return snapshot.Has(functionCode);
     }
 
+    public async Task<bool> HasScopeAsync(UserIdentityDto user, int functionCode, string scope, CancellationToken ct = default)
+    {
+        if (user.UserId <= 0 || string.IsNullOrWhiteSpace(scope))
+            return false;
+
+        var normalizedScope = scope.Trim();
+        return await (
+            from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
+                on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking()
+                on ur.IdRole equals r.Id
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId
+                && ur.IsActive == true
+                && rf.IsActive == true
+                && r.IsActive == true
+                && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+                && (rf.ScopeCode ?? f.ScopeCode) == normalizedScope
+            select f.Id
+        ).AnyAsync(ct);
+    }
+
+    public async Task<bool> HasPersonalAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default)
+    {
+        if (user.UserId <= 0) return false;
+        return await (
+            from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking() on ur.IdRole equals r.Id
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+                && (rf.AccessMode == "Personal" || (rf.AccessMode == null && (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own))
+            select f.Id
+        ).AnyAsync(ct);
+    }
+
+    public async Task<bool> HasManagementAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default)
+    {
+        if (user.UserId <= 0) return false;
+        return await (
+            from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking() on ur.IdRole equals r.Id
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+                && (rf.AccessMode == "Management"
+                    || (rf.AccessMode == null
+                        && ((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Department
+                            || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.All)))
+            select f.Id
+        ).AnyAsync(ct);
+    }
+
     public async Task<string> GetScopeAsync(int userId, int functionCode, CancellationToken ct = default)
     {
         if (userId <= 0)
@@ -57,24 +115,13 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
                 on rf.IdFunction equals f.Id
             where ur.IdUser == userId
+                && ur.IsActive == true
+                && rf.IsActive == true
                 && r.IsActive == true
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
-            select f.ScopeCode
+            select rf.ScopeCode ?? f.ScopeCode
         ).ToListAsync(ct);
-
-        // Legacy direct grants have no reliable scope metadata in old databases.
-        // During migration, treat an unscoped legacy grant as Own rather than
-        // silently expanding it to Department/All.
-        scopes.AddRange(await (
-            from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
-            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.Id
-            where uf.IdUser == userId
-                && (f.IsActive ?? true)
-                && f.FunctionCode == functionCode
-            select f.ScopeCode
-        ).ToListAsync(ct));
 
         return AuthorizationScopePolicy.ResolveEffectiveScope(scopes);
     }
@@ -308,7 +355,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 FunctionCode = x.FunctionCode,
                 ModuleCode = x.ModuleCode!,
                 ActionCode = x.ActionCode ?? string.Empty,
-                ScopeCode = x.ScopeCode
+                ScopeCode = x.ScopeCode,
+                AccessMode = x.AccessMode
             })
             .ToList();
 
@@ -457,6 +505,70 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         return ManagedScopeMatches(scopes, targetDept, departmentMap);
     }
 
+    private async Task EnsureSuperAdminCriticalGrantsAsync(CancellationToken ct)
+    {
+        var role = await _uow.Repository<F03Role>().Query()
+            .FirstOrDefaultAsync(x => x.RoleCode == 1 && x.IsActive == true, ct);
+
+        if (role == null)
+            return;
+
+        // Materialize the IReadOnlySet as an array before entering the EF query.
+        // EF Core translates Enumerable.Contains over an array/list to SQL IN,
+        // while IReadOnlySet<T>.Contains is not translatable by the SQL Server provider.
+        var criticalFunctionCodes = SecurityFunctionCodes.SystemCriticalCodes.ToArray();
+
+        var criticalFunctions = await _uow.Repository<F03Function>().Query()
+            .Where(x => criticalFunctionCodes.Contains(x.FunctionCode)
+                && (x.IsActive ?? true))
+            .ToListAsync(ct);
+
+        if (criticalFunctions.Count == 0)
+            return;
+
+        var repo = _uow.Repository<F03RoleFunction>();
+        var existing = await repo.Query()
+            .Where(x => x.IdRole == role.Id)
+            .ToListAsync(ct);
+        var existingByFunction = existing.ToDictionary(x => x.IdFunction);
+        var changed = false;
+
+        foreach (var function in criticalFunctions)
+        {
+            if (existingByFunction.TryGetValue(function.Id, out var grant))
+            {
+                if (grant.IsActive != true || grant.ScopeCode != null || grant.AccessMode != null)
+                {
+                    grant.IsActive = true;
+                    grant.ScopeCode = null;
+                    grant.AccessMode = null;
+                    grant.ModifiedBy = 0;
+                    grant.ModifiedAt = DateTime.Now;
+                    grant.LastModifiedSource = "SUPERADMIN_CRITICAL_SELF_HEAL";
+                    changed = true;
+                }
+
+                continue;
+            }
+
+            await repo.AddAsync(new F03RoleFunction
+            {
+                IdRole = role.Id,
+                IdFunction = function.Id,
+                IsActive = true,
+                ScopeCode = null,
+                AccessMode = null,
+                CreatedBy = 0,
+                CreatedAt = DateTime.Now,
+                LastModifiedSource = "SUPERADMIN_CRITICAL_SELF_HEAL"
+            }, ct);
+            changed = true;
+        }
+
+        if (changed)
+            await _uow.SaveChangesAsync(ct);
+    }
+
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
         int userId,
         CancellationToken ct = default)
@@ -486,21 +598,21 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
-            where ur.IdUser == userId && r.IsActive == true
+            where ur.IdUser == userId && ur.IsActive == true && r.IsActive == true
             select r.RoleCode
         ).Distinct().ToListAsync(ct);
 
-        // Compatibility: primary PermissionCode is still an effective role while
-        // deployments are migrating from the legacy single-role model.
-        var legacyRole = await _uow.Repository<F03User>().Query()
-            .Where(u => u.Id == userId)
-            .Select(u => (int?)u.PermissionCode)
-            .FirstOrDefaultAsync(ct);
+        // Existing databases may predate the immutable critical-function invariant.
+        // Heal only the active SuperAdmin baseline before calculating effective permissions,
+        // so the Security Center matrix is never hidden merely because one legacy grant is missing.
+        if (roleCodes.Contains(1))
+            await EnsureSuperAdminCriticalGrantsAsync(ct);
 
-        if (legacyRole.HasValue && !roleCodes.Contains(legacyRole.Value))
-            roleCodes.Add(legacyRole.Value);
-
-        var functionCodes = await (
+        // Canonical RBAC: User -> Role -> Function/Action.
+        // PermissionCode and legacy F03UserFunction are not effective grants.
+        // This is important when an administrator removes a module from a role:
+        // stale legacy rows must not make that module reappear in the UI/API.
+        var rawFunctions = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
                 on ur.IdRole equals rf.IdRole
@@ -508,42 +620,39 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 on rf.IdFunction equals f.Id
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
-            where ur.IdUser == userId && r.IsActive == true && (f.IsActive ?? true)
-            select f
-        ).Distinct().ToListAsync(ct);
-
-        // Legacy direct grants remain effective during migration.
-        var legacyFunctions = await (
-            from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
-            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.Id
-            where uf.IdUser == userId && (f.IsActive ?? true)
-            select f
+            where ur.IdUser == userId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
+            select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode, EffectiveAccessMode = rf.AccessMode ?? ((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee ? "Personal" : "Management") }
         ).ToListAsync(ct);
 
-        var functions = functionCodes
-            .Concat(legacyFunctions)
-            .GroupBy(x => x.FunctionCode)
-            .Select(g => g.OrderBy(x => x.DisplayOrder).First())
-            .OrderBy(x => x.DisplayOrder)
-            .ThenBy(x => x.FunctionCode)
+        var functions = rawFunctions
+            .GroupBy(x => new { x.Function.FunctionCode, Scope = x.EffectiveScope ?? AuthorizationScopeCodes.None, Mode = x.EffectiveAccessMode })
+            .Select(g => g.OrderBy(x => x.Function.DisplayOrder).First())
+            .OrderBy(x => x.Function.DisplayOrder)
+            .ThenBy(x => x.Function.FunctionCode)
             .Select(x => new SecurityFunctionDto
             {
-                IdFunction = x.Id,
-                FunctionCode = x.FunctionCode,
-                FunctionName = x.FunctionName,
-                Detail = x.Detail,
-                ModuleCode = x.ModuleCode,
-                ActionCode = x.ActionCode,
-                ScopeCode = x.ScopeCode,
-                DisplayOrder = x.DisplayOrder
+                IdFunction = x.Function.Id,
+                FunctionCode = x.Function.FunctionCode,
+                FunctionName = x.Function.FunctionName,
+                Detail = x.Function.Detail,
+                ModuleCode = x.Function.ModuleCode,
+                ActionCode = x.Function.ActionCode,
+                ScopeCode = x.EffectiveScope,
+                AccessMode = x.EffectiveAccessMode,
+                DisplayOrder = x.Function.DisplayOrder,
+                IsSystemCritical = x.Function.IsSystemCritical
             })
             .ToList();
+
+        var permissionCode = await _uow.Repository<F03User>().Query()
+            .Where(u => u.Id == userId)
+            .Select(u => (int?)u.PermissionCode)
+            .FirstOrDefaultAsync(ct);
 
         return new PermissionSnapshotDto
         {
             UserId = userId,
-            PermissionCode = legacyRole,
+            PermissionCode = permissionCode,
             RoleCodes = roleCodes,
             Functions = functions,
             FunctionCodes = functions.Select(x => x.FunctionCode).ToHashSet()
@@ -564,8 +673,19 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
                 on rf.IdFunction equals f.Id
             where roleIds.Contains(rf.IdRole)
+                && rf.IsActive == true
                 && (f.IsActive ?? true)
-            select new { rf.IdRole, f.FunctionCode }
+            select new
+            {
+                rf.IdRole,
+                f.FunctionCode,
+                EffectiveScope = rf.ScopeCode ?? f.ScopeCode ?? AuthorizationScopeCodes.None,
+                EffectiveAccessMode = rf.AccessMode
+                    ?? (((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own
+                        || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee)
+                        ? "Personal"
+                        : "Management")
+            }
         ).ToListAsync(ct);
 
         return roles.Select(r => new SecurityRoleDto(
@@ -577,7 +697,13 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             r.IsActive == true)
         {
             FunctionCodes = map.Where(x => x.IdRole == r.Id)
-                .Select(x => x.FunctionCode).Distinct().OrderBy(x => x).ToList()
+                .Select(x => x.FunctionCode).Distinct().OrderBy(x => x).ToList(),
+            FunctionScopes = map.Where(x => x.IdRole == r.Id)
+                .GroupBy(x => x.FunctionCode)
+                .ToDictionary(x => x.Key, x => x.First().EffectiveScope),
+            FunctionAccessModes = map.Where(x => x.IdRole == r.Id)
+                .GroupBy(x => x.FunctionCode)
+                .ToDictionary(x => x.Key, x => x.First().EffectiveAccessMode)
         }).ToList();
     }
 
@@ -597,7 +723,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 ModuleCode = x.ModuleCode,
                 ActionCode = x.ActionCode,
                 ScopeCode = x.ScopeCode,
-                DisplayOrder = x.DisplayOrder
+                DisplayOrder = x.DisplayOrder,
+                IsSystemCritical = x.IsSystemCritical
             })
             .ToListAsync(ct);
     }
@@ -705,6 +832,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     public async Task<SecurityRoleDto> SetRoleFunctionsAsync(
         int roleCode,
         IReadOnlyCollection<int> functionCodes,
+        IReadOnlyDictionary<int, string?> scopeOverrides,
+        IReadOnlyDictionary<int, string?> accessModeOverrides,
         int actorUserId,
         CancellationToken ct = default)
     {
@@ -718,6 +847,45 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("Role không tồn tại hoặc đã ngừng hoạt động.");
 
         var codes = functionCodes.Distinct().ToList();
+
+        // SuperAdmin is the final security break-glass role. Its system-critical
+        // Security capabilities are not optional and cannot be removed by the matrix.
+        if (roleCode == 1)
+            codes = codes.Union(SecurityFunctionCodes.SystemCriticalCodes).Distinct().ToList();
+
+        var normalizedScopeOverrides = scopeOverrides ?? new Dictionary<int, string?>();
+        var normalizedAccessModeOverrides = accessModeOverrides ?? new Dictionary<int, string?>();
+        var allowedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            AuthorizationScopeCodes.Own,
+            AuthorizationScopeCodes.Employee,
+            AuthorizationScopeCodes.Department,
+            AuthorizationScopeCodes.All
+        };
+
+        foreach (var overridePair in normalizedScopeOverrides)
+        {
+            if (!codes.Contains(overridePair.Key))
+                throw new InvalidOperationException($"Scope override không thuộc FunctionCodes: {overridePair.Key}.");
+
+            if (!string.IsNullOrWhiteSpace(overridePair.Value)
+                && !allowedScopes.Contains(overridePair.Value.Trim()))
+                throw new InvalidOperationException($"ScopeCode không hợp lệ: {overridePair.Value}.");
+        }
+
+        var allowedAccessModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Personal",
+            "Management"
+        };
+        foreach (var modePair in normalizedAccessModeOverrides)
+        {
+            if (!codes.Contains(modePair.Key))
+                throw new InvalidOperationException($"AccessMode override không thuộc FunctionCodes: {modePair.Key}.");
+            if (!string.IsNullOrWhiteSpace(modePair.Value) && !allowedAccessModes.Contains(modePair.Value.Trim()))
+                throw new InvalidOperationException($"AccessMode không hợp lệ: {modePair.Value}.");
+        }
+
         var functions = await _uow.Repository<F03Function>().Query()
             .Where(x => codes.Contains(x.FunctionCode) && (x.IsActive ?? true))
             .ToListAsync(ct);
@@ -739,15 +907,45 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
         var repo = _uow.Repository<F03RoleFunction>();
         var existing = await repo.Query().Where(x => x.IdRole == role.Id).ToListAsync(ct);
+        var existingByFunction = existing.ToDictionary(x => x.IdFunction);
+
         foreach (var row in existing)
+        {
+            var function = functions.FirstOrDefault(x => x.Id == row.IdFunction);
+            var isCritical = function?.IsSystemCritical == true;
+
+            // Never delete SuperAdmin's critical grants. Other role grants remain
+            // fully replaceable by the matrix.
+            if (roleCode == 1 && isCritical)
+                continue;
+
             repo.Remove(row);
+        }
 
         foreach (var function in functions)
         {
+            var isCriticalSuperAdmin = roleCode == 1 && function.IsSystemCritical;
+
+            if (isCriticalSuperAdmin && existingByFunction.TryGetValue(function.Id, out var existingCritical))
+            {
+                existingCritical.IsActive = true;
+                existingCritical.ScopeCode = null;
+                existingCritical.AccessMode = null;
+                existingCritical.ModifiedBy = actorUserId;
+                existingCritical.ModifiedAt = DateTime.Now;
+                continue;
+            }
+
             await repo.AddAsync(new F03RoleFunction
             {
                 IdRole = role.Id,
                 IdFunction = function.Id,
+                ScopeCode = normalizedScopeOverrides.TryGetValue(function.FunctionCode, out var scope) && !string.IsNullOrWhiteSpace(scope)
+                    ? scope.Trim()
+                    : null,
+                AccessMode = normalizedAccessModeOverrides.TryGetValue(function.FunctionCode, out var mode) && !string.IsNullOrWhiteSpace(mode)
+                    ? mode.Trim()
+                    : null,
                 CreatedBy = actorUserId,
                 CreatedAt = DateTime.Now
             }, ct);

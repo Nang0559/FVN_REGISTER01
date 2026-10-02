@@ -1,6 +1,7 @@
 @using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Services.Calendar
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Language
 @inject IWorkCalendarClientService CalendarService
 @inject ICurrentUserClientService CurrentUser
 @inject IJSRuntime JS
@@ -31,14 +32,14 @@
     [Parameter] public EventCallback<DateTime> OnRegistrationRequested { get; set; }
     [Parameter] public EventCallback<CalendarDayDto> OnDaySelected { get; set; }
 
-    private static readonly (string Code, string Name)[] Filters =
+    private IEnumerable<(string Code, string Name)> Filters =>
     [
-        ("ALL", "Tất cả"),
-        ("COMPANY", "Công ty"),
-        ("ATTENDANCE", "Chấm công"),
-        ("LEAVE", "Nghỉ phép"),
-        ("OT", "OT"),
-        ("TRIP", "Công tác")
+        ("ALL", Language.T("calendar.filter.all")),
+        ("COMPANY", Language.T("calendar.filter.company")),
+        ("ATTENDANCE", Language.T("calendar.filter.attendance")),
+        ("LEAVE", Language.T("calendar.filter.leave")),
+        ("OT", Language.T("calendar.filter.ot")),
+        ("TRIP", Language.T("calendar.filter.trip"))
     ];
 
     private ElementReference _element;
@@ -49,6 +50,9 @@
     private DateTime _rangeFrom;
     private DateTime _rangeTo;
 
+    protected override void OnInitialized()
+        => Language.LanguageChanged += OnLanguageChanged;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || _initialized)
@@ -58,8 +62,16 @@
             await CurrentUser.InitializeAsync();
 
         _moduleFilter = "ALL";
-        _rangeFrom = DateTime.Today.AddMonths(-1).Date;
-        _rangeTo = DateTime.Today.AddMonths(2).Date.AddDays(-1);
+
+        // The calendar is a month-view UI. Do not pre-load a three-month window
+        // (previous month + current month + two future months) just to render
+        // the first screen. FullCalendar will notify OnCalendarRangeChanged
+        // with its actual visible range after initialization.
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+        _rangeFrom = monthStart;
+        _rangeTo = monthEnd;
 
         await LoadAsync(_rangeFrom, _rangeTo);
         _ref = DotNetObjectReference.Create(this);
@@ -71,7 +83,9 @@
                 _element,
                 _ref,
                 BuildDays(),
-                DateTime.Today.ToString("yyyy-MM-dd"));
+                DateTime.Today.ToString("yyyy-MM-dd"),
+                Language.Current == LanguageCode.Ja ? "ja" : "vi",
+                BuildJsLabels());
 
             _initialized = true;
         }
@@ -85,6 +99,24 @@
                 EmployeeCode ?? CurrentUser.User?.EmployeeCode);
         }
     }
+
+    private Dictionary<string, string> BuildJsLabels() => new()
+    {
+        ["issue"] = Language.T("calendar.issue"),
+        ["holiday"] = Language.T("calendar.holiday"),
+        ["shift"] = Language.T("calendar.shift", "{0}"),
+        ["approved"] = Language.T("calendar.approved"),
+        ["pending"] = Language.T("calendar.pending"),
+        ["inProgress"] = Language.T("calendar.inProgress"),
+        ["rejected"] = Language.T("calendar.rejected"),
+        ["cancelled"] = Language.T("calendar.cancelled"),
+        ["needsRevision"] = Language.T("calendar.needsRevision"),
+        ["level"] = Language.T("calendar.level", "{0}"),
+        ["register"] = Language.T("calendar.register"),
+        ["today"] = Language.T("calendar.today"),
+        ["month"] = Language.T("calendar.month"),
+        ["list"] = Language.T("calendar.list")
+    };
 
     private async Task LoadAsync(DateTime from, DateTime to)
     {
@@ -174,6 +206,22 @@
             await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
     }
 
+    private async void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        await InvokeAsync(StateHasChanged);
+        if (_initialized)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync(
+                    "workCalendar.setLocale",
+                    Language.Current == LanguageCode.Ja ? "ja" : "vi",
+                    BuildJsLabels());
+            }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
     [JSInvokable]
     public async Task OnCalendarDateClick(string date)
     {
@@ -211,10 +259,16 @@
     public async Task OnCalendarRangeChanged(string start, string end)
     {
         if (!DateTime.TryParse(start, out var from)
-            || !DateTime.TryParse(end, out var to))
+            || !DateTime.TryParse(end, out _))
             return;
 
-        await LoadAsync(from.Date, to.Date.AddDays(-1));
+        // Load exactly the month currently displayed by FullCalendar.
+        // Navigation to any previous/future month therefore replaces the
+        // current data with that month's attendance + registrations.
+        var monthStart = new DateTime(from.Year, from.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        await LoadAsync(monthStart, monthEnd);
 
         if (_initialized)
             await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
@@ -222,8 +276,12 @@
 
     public async Task RefreshAsync()
     {
-        var from = _rangeFrom == default ? DateTime.Today.AddMonths(-1).Date : _rangeFrom;
-        var to = _rangeTo == default ? DateTime.Today.AddMonths(2).Date.AddDays(-1) : _rangeTo;
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        var from = _rangeFrom == default ? monthStart : _rangeFrom;
+        var to = _rangeTo == default ? monthEnd : _rangeTo;
 
         await LoadAsync(from, to);
 
@@ -235,6 +293,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Language.LanguageChanged -= OnLanguageChanged;
         _ref?.Dispose();
 
         if (_initialized)

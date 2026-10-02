@@ -34,20 +34,15 @@ public sealed class EndpointCredentialController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Forbid();
-
         var canProvision = await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialProvision, ct);
         var canRotate = await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialRotate, ct);
         if (!canProvision && !canRotate) return Forbid();
-
         try
         {
             var result = await _service.GetStatusAsync(deviceKey, ct);
             return Ok(ApiResponse<EndpointCredentialStatusDto>.Ok(result));
         }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ApiResponse<EndpointCredentialStatusDto>.Fail(ex.Message));
-        }
+        catch (ArgumentException ex) { return BadRequest(ApiResponse<EndpointCredentialStatusDto>.Fail(ex.Message)); }
     }
 
     [HttpPost("provision")]
@@ -56,20 +51,27 @@ public sealed class EndpointCredentialController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Forbid();
-
         try
         {
             var status = await _service.GetStatusAsync(request.DeviceKey, ct);
-            var requiredPermission = status.HasActiveCredential
-                ? SecurityFunctionCodes.EndpointCredentialRotate
-                : SecurityFunctionCodes.EndpointCredentialProvision;
-
+            var requiredPermission = status.HasActiveCredential ? SecurityFunctionCodes.EndpointCredentialRotate : SecurityFunctionCodes.EndpointCredentialProvision;
             if (!await _authorization.HasAsync(user, requiredPermission, ct)) return Forbid();
-
             var result = await _service.ProvisionAsync(request, user.UserId, ct);
             return Ok(ApiResponse<EndpointCredentialProvisionResult>.Ok(result));
         }
         catch (ArgumentException ex) { return BadRequest(ApiResponse<EndpointCredentialProvisionResult>.Fail(ex.Message)); }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("agent-rotate")]
+    public async Task<IActionResult> AgentRotate(CancellationToken ct)
+    {
+        var apiKey = Request.Headers["X-FVN-Device-Api-Key"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(apiKey)) return Unauthorized(ApiResponse<EndpointCredentialProvisionResult>.Fail("Thiếu API key thiết bị.", 401));
+        var result = await _service.RotateWithCurrentApiKeyAsync(apiKey, ct);
+        return result == null
+            ? Unauthorized(ApiResponse<EndpointCredentialProvisionResult>.Fail("API key không hợp lệ hoặc đã hết hạn; cần SuperAdmin provision lại credential.", 401))
+            : Ok(ApiResponse<EndpointCredentialProvisionResult>.Ok(result));
     }
 
     [HttpPost("{deviceKey}/revoke")]

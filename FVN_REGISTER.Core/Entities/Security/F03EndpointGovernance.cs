@@ -37,8 +37,9 @@ public sealed class F03EndpointGovernancePolicyItem : BaseAuditEntity
     [StringLength(255)] public string? DisplayName { get; set; }
     [StringLength(255)] public string? Publisher { get; set; }
     [StringLength(100)] public string? VersionConstraint { get; set; }
-    public bool IsAllowed { get; set; } = true;
+    [StringLength(2000)] public string? AliasNames { get; set; }
     [StringLength(1000)] public string? Remark { get; set; }
+    public bool IsAllowed { get; set; } = true;
 }
 
 [Table("F03EndpointGovernanceRequests")]

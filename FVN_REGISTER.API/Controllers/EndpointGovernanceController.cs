@@ -69,7 +69,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     {
         if (!await HasManageAsync(itemType, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("File Excel rỗng."));
-        if (!string.Equals(Path.GetExtension(file.FileName), ".xlsx", StringComparison.OrdinalIgnoreCase)) return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("Chỉ hỗ trợ .xlsx."));
+        if (!IsSupportedExcelFile(file.FileName)) return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("Chỉ hỗ trợ .xls hoặc .xlsx."));
         try
         {
             await using var stream = file.OpenReadStream();
@@ -86,7 +86,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     {
         if (!await HasManageAsync(itemType, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail("File Excel rỗng."));
-        if (!string.Equals(Path.GetExtension(file.FileName), ".xlsx", StringComparison.OrdinalIgnoreCase)) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail("Chỉ hỗ trợ .xlsx."));
+        if (!IsSupportedExcelFile(file.FileName)) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail("Chỉ hỗ trợ .xls hoặc .xlsx."));
         try
         {
             await using var stream = file.OpenReadStream();
@@ -138,6 +138,13 @@ public sealed class EndpointGovernanceController : ControllerBase
     {
         var result = await _service.GetFindingsAsync(endpointDeviceId, openOnly, ct);
         return result.Success ? Ok(ApiResponse<IReadOnlyList<EndpointComplianceFindingDto>>.Ok(result.Data!)) : StatusCode(403, ApiResponse<IReadOnlyList<EndpointComplianceFindingDto>>.Fail(result.Message ?? "Không có quyền."));
+    }
+
+    private static bool IsSupportedExcelFile(string fileName)
+    {
+        var extension = Path.GetExtension(fileName);
+        return string.Equals(extension, ".xls", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<bool> HasManageAsync(EndpointGovernanceItemType itemType, CancellationToken ct)

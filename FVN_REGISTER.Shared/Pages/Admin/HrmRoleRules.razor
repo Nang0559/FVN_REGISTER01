@@ -11,26 +11,26 @@
 @inject IHrmUserRoleRuleClientService RuleService
 @inject ISnackbar Snackbar
 
-<PageTitle>Rule Role HRM - FCC</PageTitle>
+<PageTitle>@Language.T("hrm.ruleRoleHrmFcc")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <div>
-        <MudText Typo="Typo.h5" Style="font-weight:700">Mapping Role HRM → F03User</MudText>
+        <MudText Typo="Typo.h5" Style="font-weight:700">@Language.T("hrm.mappingRoleHrmF03user")</MudText>
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Cấu hình quyền tự động theo Phòng ban + Chức vụ. Rule cụ thể được ưu tiên trước rule wildcard.
+            @Language.T("hrm.cauHinhQuyenTuDong")
         </MudText>
     </div>
     <MudSpacer />
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+               OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
 </MudStack>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
-    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa rule" : "Thêm rule")</MudText>
+    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? Language.T("hrm.suaRule") : Language.T("hrm.themRule"))</MudText>
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string" @bind-Value="_form.DeptCode" Label="Phòng ban" Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="string" Value="@null">Tất cả phòng ban</MudSelectItem>
+            <MudSelect T="string" @bind-Value="_form.DeptCode" Label='@Language.T("ot.department")' Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="string" Value="@null">@Language.T("hrm.tatCaPhongBan")</MudSelectItem>
                 @foreach (var dept in _departments)
                 {
                     <MudSelectItem T="string" Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
@@ -38,8 +38,8 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string" @bind-Value="_form.PositionCode" Label="Chức vụ" Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="string" Value="@null">Tất cả chức vụ</MudSelectItem>
+            <MudSelect T="string" @bind-Value="_form.PositionCode" Label='@Language.T("hrm.position")' Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="string" Value="@null">@Language.T("hrm.tatCaChucVu")</MudSelectItem>
                 @foreach (var position in _positions)
                 {
                     <MudSelectItem T="string" Value="@position.PositionCode">@position.PositionCode — @position.PositionName</MudSelectItem>
@@ -47,7 +47,7 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="int" @bind-Value="_form.PermissionCode" Label="Role" Variant="Variant.Outlined">
+            <MudSelect T="int" @bind-Value="_form.PermissionCode" Label='@Language.T("security.role")' Variant="Variant.Outlined">
                 @foreach (var role in _roles)
                 {
                     <MudSelectItem Value="@role.Code">@role.Code - @role.Name</MudSelectItem>
@@ -55,36 +55,36 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudNumericField T="int" @bind-Value="_form.Priority" Label="Priority"
+            <MudNumericField T="int" @bind-Value="_form.Priority" Label="@Language.T("hrm.priority")"
                              Variant="Variant.Outlined" Min="0" />
         </MudItem>
         <MudItem xs="12" md="2" Class="d-flex align-center">
-            <MudSwitch T="bool" @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
+            <MudSwitch T="bool" @bind-Value="_form.IsActive" Color="Color.Primary">@Language.T("common.active2")</MudSwitch>
         </MudItem>
         <MudItem xs="12">
-            <MudTextField @bind-Value="_form.Note" Label="Ghi chú" Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="_form.Note" Label='@Language.T("common.note")' Variant="Variant.Outlined" />
         </MudItem>
     </MudGrid>
     <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
         @if (_editingId.HasValue)
         {
-            <MudButton Variant="Variant.Text" OnClick="ResetForm">Hủy sửa</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="ResetForm">@Language.T("common.huySua")</MudButton>
         }
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    OnClick="SaveAsync" Disabled="@_loading">
-            @(_editingId.HasValue ? "Cập nhật" : "Thêm rule")
+            @(_editingId.HasValue ? Language.T("hrm.capNhat") : Language.T("hrm.themRule"))
         </MudButton>
     </MudStack>
 </MudPaper>
 
 <MudTable Items="_rules" Dense="true" Hover="true" Striped="true" Loading="_loading">
     <HeaderContent>
-        <MudTh>Priority</MudTh>
-        <MudTh>Phòng ban</MudTh>
-        <MudTh>Chức vụ</MudTh>
-        <MudTh>Role</MudTh>
-        <MudTh>Active</MudTh>
-        <MudTh>Ghi chú</MudTh>
+        <MudTh>@Language.T("hrm.priority")</MudTh>
+        <MudTh>@Language.T("ot.department")</MudTh>
+        <MudTh>@Language.T("hrm.position")</MudTh>
+        <MudTh>@Language.T("security.role")</MudTh>
+        <MudTh>@Language.T("common.active2")</MudTh>
+        <MudTh>@Language.T("common.note")</MudTh>
         <MudTh />
     </HeaderContent>
     <RowTemplate>
@@ -92,7 +92,7 @@
         <MudTd>@context.DeptCode — @context.DeptName</MudTd>
         <MudTd>@context.PositionCode — @context.PositionName</MudTd>
         <MudTd><MudChip T="string" Size="Size.Small">@context.PermissionCode - @context.PermissionName</MudChip></MudTd>
-        <MudTd>@(context.IsActive ? "Có" : "Không")</MudTd>
+        <MudTd>@(context.IsActive ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
         <MudTd>@context.Note</MudTd>
         <MudTd>
             <MudStack Row="true" Spacing="1">
@@ -134,19 +134,19 @@
             if (result.IsSuccess)
                 _rules = result.Data ?? new();
             else
-                Snackbar.Add(result.Message ?? "Không tải được role rules.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("hrm.khongTaiDuocRoleRules"), Severity.Error);
 
             var departments = await RuleService.GetDepartmentsAsync();
             if (departments.IsSuccess)
                 _departments = departments.Data ?? new();
             else
-                Snackbar.Add(departments.Message ?? "Không tải được danh sách phòng ban.", Severity.Error);
+                Snackbar.Add(departments.Message ?? Language.T("common.khongTaiDuocDanhSach2"), Severity.Error);
 
             var positions = await RuleService.GetPositionsAsync();
             if (positions.IsSuccess)
                 _positions = positions.Data ?? new();
             else
-                Snackbar.Add(positions.Message ?? "Không tải được danh sách chức vụ.", Severity.Error);
+                Snackbar.Add(positions.Message ?? Language.T("common.khongTaiDuocDanhSach"), Severity.Error);
         }
         finally { _loading = false; }
     }
@@ -162,11 +162,11 @@
 
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể lưu rule.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("hrm.khongTheLuuRule"), Severity.Error);
                 return;
             }
 
-            Snackbar.Add(_editingId.HasValue ? "Đã cập nhật rule." : "Đã thêm rule.", Severity.Success);
+            Snackbar.Add(_editingId.HasValue ? Language.T("hrm.daCapNhatRule") : Language.T("hrm.daThemRule"), Severity.Success);
             ResetForm();
             await LoadAsync();
         }
@@ -192,11 +192,11 @@
         var result = await RuleService.DeleteAsync(rule.Id);
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không thể vô hiệu hóa rule.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("hrm.khongTheVoHieuHoa"), Severity.Error);
             return;
         }
 
-        Snackbar.Add("Đã vô hiệu hóa rule.", Severity.Success);
+        Snackbar.Add(Language.T("hrm.daVoHieuHoaRule"), Severity.Success);
         await LoadAsync();
     }
 

@@ -65,7 +65,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             return details.Select(LeaveMapper.ToDetailDto).ToList();
         }
 
-        public override async Task<List<WidgetCounterDto>> GetMyWidgetsAsync(string employeeCode, CancellationToken ct = default)
+        protected override async Task<List<WidgetCounterDto>> GetMyWidgetsCoreAsync(string employeeCode, CancellationToken ct = default)
         {
             var pendingCount = await Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().CountAsync(x => x.EmployeeCode == employeeCode && x.IsActive == true && (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress), ct);
             var usedThisYear = await Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == employeeCode && x.IsActive == true && x.RequestStatus == ApprovalStatus.Approved && x.WorkYear == DateTime.Now.Year).SumAsync(x => (decimal?)x.TotalLeaveDay, ct) ?? 0;
@@ -76,17 +76,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             };
         }
 
-        public override async Task<List<LeaveSummaryDto>> GetRecentSummaryAsync(string employeeCode, int limit = 5, CancellationToken ct = default)
+        protected override async Task<List<LeaveSummaryDto>> GetRecentSummaryCoreAsync(string employeeCode, int limit = 5, CancellationToken ct = default)
         {
             var data = await Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == employeeCode && x.IsActive == true).OrderByDescending(x => x.CreatedAt).Take(limit).ToListAsync(ct);
             return data.Select(MapToSummary).ToList();
         }
 
-        public override async Task<LeaveBalanceDto> GetSimpleBalanceAsync(string employeeCode, int year, CancellationToken ct = default)
+        protected override async Task<LeaveBalanceDto> GetSimpleBalanceCoreAsync(string employeeCode, int year, CancellationToken ct = default)
         {
             // Entitlement là dữ liệu được tính từ FirstWorkingDate + F03WorkYear.
             // Recalculate trước khi đọc view balance để tránh dùng snapshot cũ.
-            await _leaveEntitlement.EnsureCalculatedAsync(employeeCode, year, ct);
+            var entitlementResult = await _leaveEntitlement.EnsureCalculatedAsync(employeeCode, year, ct);
+            if (!entitlementResult.IsSuccess)
+                throw new InvalidOperationException(entitlementResult.Message ?? "Không thể tính số dư phép.");
 
             var phep = await Uow.Repository<VF03LeaveBalance>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == employeeCode && x.WorkYear == year, ct);
             var pendingDays = await Uow.Repository<F03LeaveDay>().Query().AsNoTracking().Where(x => x.EmployeeCode == employeeCode && x.WorkYear == year && x.IsActive == true && (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress)).SumAsync(x => (decimal?)x.TotalDay, ct) ?? 0;
@@ -156,7 +158,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             };
         }
 
-        public override async Task<PaginationResult<LeaveSummaryDto>> GetPagedAsync(string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
+        protected override async Task<PaginationResult<LeaveSummaryDto>> GetPagedCoreAsync(string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
         {
             var query = Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.IsActive == true);
             var user = _currentUser.GetCurrentUser();
@@ -177,7 +179,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             return new PaginationResult<LeaveSummaryDto>(items.Select(MapToSummary).ToList(), totalCount, page, pageSize);
         }
 
-        public override async Task<List<LeaveRequestDto>> GetDeptByDateAsync(string deptCode, DateTime date, CancellationToken ct = default)
+        protected override async Task<List<LeaveRequestDto>> GetDeptByDateCoreAsync(string deptCode, DateTime date, CancellationToken ct = default)
         {
             var user = _currentUser.GetCurrentUser();
             if (user == null) return new List<LeaveRequestDto>();

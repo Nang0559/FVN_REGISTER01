@@ -1,0 +1,48 @@
+@using FVN_REGISTER.Shared.Services.Notifications
+@using FVN_REGISTER.Shared.Utils
+@using MudBlazor
+@inject IPushClientService Push
+
+@* Renders nothing unless the user has not decided yet. When permission is already granted it silently
+   re-binds this device to the signed-in user (important on shared computers). *@
+@if (_showButton)
+{
+    <MudTooltip Text="@Language.T("common.pushEnable")">
+        <MudIconButton Icon="@Icons.Material.Filled.NotificationsActive"
+                       Color="Color.Inherit"
+                       OnClick="EnableAsync"
+                       data-fvn-push-request="1" />
+    </MudTooltip>
+}
+
+@code {
+    private bool _showButton;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var state = await Push.GetStateAsync();
+        if (state == "granted")
+        {
+            await Push.EnableAsync();
+        }
+        else if (state == "default")
+        {
+            _showButton = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EnableAsync()
+    {
+        if (await Push.EnableAsync())
+        {
+            _showButton = false;
+        }
+        else
+        {
+            _showButton = await Push.GetStateAsync() == "default";
+        }
+    }
+}
