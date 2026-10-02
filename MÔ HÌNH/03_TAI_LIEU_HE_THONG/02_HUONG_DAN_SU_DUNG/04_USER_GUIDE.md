@@ -100,6 +100,42 @@ Không có attendance thực tế ở ngày tương lai là bình thường. Cal
 
 `?` là marker của **Issue**, không phải request và không phải ActionId. Click marker để xem issue và các ActionOption.
 
+### Ca và ký hiệu chấm công
+
+**Ca (`C1/C2/C3/HC/...`) lấy từ HRM**, cụ thể từ kết quả `F03HrmAttendanceCalculated`. Calendar không tự suy ra lại ca từ In/Out.
+
+Phần ký hiệu Work/OT được tạo bởi Calendar Symbol Rules. Rule dùng DayType + Shift + khoảng In/Out/OT + block để tạo ký hiệu; thay đổi Rule được thực hiện ở màn hình quản trị Rule, không sửa code UI.
+
+Nguyên tắc DayType:
+- Thứ 7 nghỉ công ty → `T`.
+- Chủ nhật → `CN`.
+- Lễ quốc gia → `NL`.
+- Thứ 7 đi làm bình thường, không phải ngày nghỉ công ty → vẫn classification ngày thường và màu lịch ngày thường.
+
+OT dùng block 15 phút theo Rule. Ví dụ C1 `05:49 → 14:05` không sinh `K0.25`; nếu phần OT trong OT window chỉ 5 phút và Rule dùng FLOOR 15 phút thì OT = 0. C1 `05:47 → 18:05` cho phần OT chuẩn 4 giờ → `K4`.
+
+### Ký hiệu kíp 12 giờ
+
+Rule hỗ trợ split Work/OT, ví dụ:
+
+| Ngày | Kíp | Ký hiệu |
+|---|---|---|
+| T7 nghỉ công ty | 06:00–18:00 | `T8` + `TK4` |
+| T7 nghỉ công ty | 10:00–22:00 | `T28` + `T4` |
+| T7 nghỉ công ty | 18:00–06:00 | `T38` + `TK4` |
+| CN | 06:00–18:00 | `CN8` + `CNK4` |
+| CN | 10:00–22:00 | `CNC28` + `CN4` |
+| CN | 18:00–06:00 | `CNC38` + `CNK4` |
+| Lễ | 06:00–18:00 | `NL8` + `NLK4` |
+| Lễ | 10:00–22:00 | `NLC28` + `NL4` |
+| Lễ | 18:00–06:00 | `NLC38` + `NLK4` |
+
+Ký hiệu lẻ được tính theo block Rule; Rule có thể tách phần Work và OT. Ví dụ kíp 06:00–18:00 làm 11h45 trên T7 → `T7.75 + TK4`, không gộp thành `T11.75`.
+
+### Dấu `?` và OT
+
+`?` là trạng thái reconciliation/action, không phải một phần của symbol. Vì vậy có thể thấy `C3 + K4 + ?`: `C3` từ HRM Shift, `K4` từ Symbol Rule, còn `?` do Execution Reconciliation xác định khi Actual OT chưa có Approved OT tương ứng.
+
 ## 10. Action / Confirmation / Notification
 
 - **Action:** việc cần người dùng xử lý.
@@ -135,7 +171,6 @@ flowchart TD
 
 Khi báo lỗi: ghi module, request code nếu có, thời điểm, thao tác ngay trước lỗi và ảnh màn hình. Không gửi password/token.
 
-
 ## 14. Execution Reconciliation — kết quả HR, xác nhận và khiếu nại
 
 Khi một mismatch đã được HR xử lý, **HR Resolution không mặc định đồng nghĩa đóng vụ việc**. Nếu policy yêu cầu nhân viên xác nhận, hệ thống tạo một Action mới cho nhân viên.
@@ -152,3 +187,19 @@ Khi một mismatch đã được HR xử lý, **HR Resolution không mặc đị
 **Lịch:** trạng thái Chờ nhân viên xác nhận / Đang xem xét khiếu nại / Chờ quyết định cuối đều là trạng thái cần xử lý. ActionId của reconciliation luôn trỏ tới action hiện tại.
 
 **Payroll:** case chưa resolved vẫn là payroll-readiness blocker theo thiết kế hiện tại; không hiểu PayrollCutoffMode là tự động bỏ qua case.
+
+## 15. Quản trị Calendar Symbol Rules
+
+Chỉ người có capability quản trị Rule và được chỉ định làm operator (khi feature đã cấu hình operator) mới được tạo/sửa/kích hoạt Rule.
+
+Tại màn hình quản trị Rule:
+1. Chọn DayType và Shift/Pattern.
+2. Khai báo từng Work/OT segment.
+3. Chọn block và rounding.
+4. Khai báo prefix/template và split sequence.
+5. Dùng **Test Rule** với một bộ In/Out thực tế.
+6. Chỉ kích hoạt sau khi kết quả test đúng.
+
+Không sửa JavaScript/C# để thay một ký hiệu nghiệp vụ. Nếu nghiệp vụ đổi `K4`, `T8`, `CNK4`, `NL8` hoặc block/rounding, sửa Rule và kiểm thử lại.
+
+Rule test phải được hiểu là mô phỏng; dữ liệu ca thực tế trên Calendar vẫn lấy từ HRM.
