@@ -87,6 +87,7 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
             AutoResolveMode = request.AutoResolveMode,
             CorrectionMode = request.CorrectionMode,
             EmployeeResponseHours = request.EmployeeResponseHours,
+            EmployeeTimeoutMode = request.EmployeeTimeoutMode,
             HrReviewHours = request.HrReviewHours,
             AllowEmployeeAppeal = request.AllowEmployeeAppeal,
             MaxAppealRounds = request.AllowEmployeeAppeal ? request.MaxAppealRounds : (byte)0,
@@ -149,6 +150,9 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
         if (request.EmployeeResponseHours <= 0)
             return "Thời hạn nhân viên phản hồi phải > 0 giờ.";
 
+        if (request.EmployeeTimeoutMode > 1)
+            return "EmployeeTimeoutMode không hợp lệ.";
+
         if (request.HrReviewHours <= 0)
             return "Thời hạn HR xử lý phải > 0 giờ.";
 
@@ -199,7 +203,7 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
             x.Id, x.ModuleCode, x.PolicyName, x.PolicyVersion,
             x.ReconciliationMode, x.ConfirmationMode, x.EvidenceMode,
             x.ReviewMode, x.DueHours, x.AutoResolveMode, x.CorrectionMode,
-            x.EmployeeResponseHours, x.HrReviewHours, x.AllowEmployeeAppeal,
+            x.EmployeeResponseHours, x.EmployeeTimeoutMode, x.HrReviewHours, x.AllowEmployeeAppeal,
             x.MaxAppealRounds, x.AppealReviewHours, x.RequireEvidenceOnAppeal,
             x.RequireFinalDecision, x.FinalDecisionPositionCode,
             x.PayrollCutoffMode, x.AllowReopenAfterPayroll,
