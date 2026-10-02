@@ -513,6 +513,21 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
 
         await transaction.CommitAsync(cancellationToken);
+
+        // A confirmation itself is actionable for HR Execution Review even when
+        // the employee submitted only a comment and no evidence file.
+        try
+        {
+            await NotifyHrEvidenceAddedAsync(reconciliation.Id, 0, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Execution confirmation HR notification failed for ReconciliationId={ReconciliationId}.",
+                reconciliation.Id);
+        }
+
         return ToConfirmationDto(confirmation);
     }
 
@@ -866,15 +881,19 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                     EmployeeCode = user.EmployeeCode,
                     Module = module,
                     Action = NotificationAction.Pending,
-                    Title = $"Evidence mới cần review: {reconciliation.ModuleCode}",
-                    Body = $"{employee.EmployeeCode} - {employee.EmployeeName}: evidence #{evidenceId} cho ngày {reconciliation.WorkDate:dd/MM/yyyy}.",
+                    Title = evidenceId > 0
+                        ? $"Evidence mới cần review: {reconciliation.ModuleCode}"
+                        : $"Phản hồi mới cần review: {reconciliation.ModuleCode}",
+                    Body = evidenceId > 0
+                        ? $"{employee.EmployeeCode} - {employee.EmployeeName}: evidence #{evidenceId} cho ngày {reconciliation.WorkDate:dd/MM/yyyy}."
+                        : $"{employee.EmployeeCode} - {employee.EmployeeName}: phản hồi ngày {reconciliation.WorkDate:dd/MM/yyyy} cần review.",
                     ActionUrl = $"/execution/hr?reconciliationId={reconciliation.Id}",
                     ActionId = reconciliation.ActionId,
                     NotificationType = "EXECUTION_EVIDENCE_REVIEW",
                     Metadata = JsonSerializer.Serialize(new
                     {
                         reconciliation.Id,
-                        EvidenceId = evidenceId,
+                        EvidenceId = evidenceId == 0 ? (long?)null : evidenceId,
                         reconciliation.ModuleCode,
                         EmployeeCode = employee.EmployeeCode
                     })
