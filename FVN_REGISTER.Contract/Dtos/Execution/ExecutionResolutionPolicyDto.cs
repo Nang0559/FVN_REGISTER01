@@ -13,6 +13,7 @@ public sealed record ExecutionResolutionPolicyDto(
     byte AutoResolveMode,
     byte CorrectionMode,
     int EmployeeResponseHours,
+    byte EmployeeTimeoutMode,
     int HrReviewHours,
     bool AllowEmployeeAppeal,
     byte MaxAppealRounds,
@@ -39,6 +40,7 @@ public sealed class ExecutionResolutionPolicyRequest
     public byte AutoResolveMode { get; set; }
     public byte CorrectionMode { get; set; }
     public int EmployeeResponseHours { get; set; } = 48;
+    public byte EmployeeTimeoutMode { get; set; } = 0;
     public int HrReviewHours { get; set; } = 48;
     public bool AllowEmployeeAppeal { get; set; } = true;
     public byte MaxAppealRounds { get; set; } = 1;
