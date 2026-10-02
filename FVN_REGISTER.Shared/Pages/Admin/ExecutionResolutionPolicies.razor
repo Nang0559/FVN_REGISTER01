@@ -48,6 +48,13 @@
             <MudNumericField T="int" @bind-Value="_form.HrReviewHours"
                              Label="HR xử lý (giờ)" Min="1" Variant="Variant.Outlined" />
         </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="byte" @bind-Value="_form.EmployeeTimeoutMode"
+                       Label="Hết SLA nhân viên" Variant="Variant.Outlined">
+                <MudSelectItem Value="@((byte)0)">Chuyển quyết định cuối</MudSelectItem>
+                <MudSelectItem Value="@((byte)1)">Tự động chấp nhận kết quả HR</MudSelectItem>
+            </MudSelect>
+        </MudItem>
 
         <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
             <MudSwitch T="bool" @bind-Value="_form.AllowEmployeeAppeal" Color="Color.Primary">
@@ -246,6 +253,7 @@ else
             AutoResolveMode = x.AutoResolveMode,
             CorrectionMode = x.CorrectionMode,
             EmployeeResponseHours = x.EmployeeResponseHours,
+            EmployeeTimeoutMode = x.EmployeeTimeoutMode,
             HrReviewHours = x.HrReviewHours,
             AllowEmployeeAppeal = x.AllowEmployeeAppeal,
             MaxAppealRounds = x.MaxAppealRounds,
@@ -317,6 +325,7 @@ else
         EvidenceMode = 2,
         ReviewMode = 1,
         EmployeeResponseHours = 48,
+        EmployeeTimeoutMode = 0,
         HrReviewHours = 48,
         AllowEmployeeAppeal = true,
         MaxAppealRounds = 1,
