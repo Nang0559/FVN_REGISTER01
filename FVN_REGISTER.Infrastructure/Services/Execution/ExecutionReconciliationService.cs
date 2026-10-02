@@ -311,8 +311,12 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             }
         }
 
+        var policyNow = DateTime.Now;
         var policy = await _db.ExecutionPolicies.AsNoTracking()
-            .Where(x => x.IsActive != false && x.ModuleCode == entity.ModuleCode)
+            .Where(x => x.IsActive != false
+                && x.ModuleCode == entity.ModuleCode
+                && (!x.EffectiveFrom.HasValue || x.EffectiveFrom.Value <= policyNow)
+                && (!x.EffectiveTo.HasValue || x.EffectiveTo.Value > policyNow))
             .Select(x => new
             {
                 x.Id,
