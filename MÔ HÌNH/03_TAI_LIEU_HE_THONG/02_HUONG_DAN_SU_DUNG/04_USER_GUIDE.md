@@ -134,3 +134,21 @@ flowchart TD
 ```
 
 Khi báo lỗi: ghi module, request code nếu có, thời điểm, thao tác ngay trước lỗi và ảnh màn hình. Không gửi password/token.
+
+
+## 14. Execution Reconciliation — kết quả HR, xác nhận và khiếu nại
+
+Khi một mismatch đã được HR xử lý, **HR Resolution không mặc định đồng nghĩa đóng vụ việc**. Nếu policy yêu cầu nhân viên xác nhận, hệ thống tạo một Action mới cho nhân viên.
+
+**Nhân viên:**
+- **Chấp nhận** → vụ việc chuyển Resolved.
+- **Khiếu nại** → hệ thống kiểm tra policy, giới hạn số vòng appeal và yêu cầu evidence mới nếu có; sau đó chuyển case về HR.
+- Khi đạt số vòng tối đa → case chuyển **Chờ quyết định cuối**.
+
+**HR:** nhiều HR có thể được cấp quyền xử lý, nhưng một case chỉ có một người claim/lock để thay đổi tại một thời điểm.
+
+**Timeout:** theo policy snapshot của case, hệ thống hoặc escalate sang final decision hoặc auto-accept kết quả HR.
+
+**Lịch:** trạng thái Chờ nhân viên xác nhận / Đang xem xét khiếu nại / Chờ quyết định cuối đều là trạng thái cần xử lý. ActionId của reconciliation luôn trỏ tới action hiện tại.
+
+**Payroll:** case chưa resolved vẫn là payroll-readiness blocker theo thiết kế hiện tại; không hiểu PayrollCutoffMode là tự động bỏ qua case.
