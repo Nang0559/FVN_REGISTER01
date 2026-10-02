@@ -103,7 +103,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .Where(x => x.IsActive != false
                 && x.ReconciliationStatus != "Resolved"
                 && (x.ReconciliationStatus == "Mismatch"
-                    || x.ReconciliationStatus == "AwaitingConfirmation"));
+                    || x.ReconciliationStatus == "AwaitingConfirmation"
+                    || x.ReconciliationStatus == "AppealReviewing"
+                    || x.ReconciliationStatus == "FinalDecisionPending"));
 
         if (!string.IsNullOrWhiteSpace(moduleCode))
             query = query.Where(x => x.ModuleCode == moduleCode.Trim().ToUpperInvariant());
