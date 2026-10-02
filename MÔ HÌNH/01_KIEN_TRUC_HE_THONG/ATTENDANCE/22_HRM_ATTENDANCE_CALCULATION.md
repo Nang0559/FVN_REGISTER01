@@ -191,3 +191,132 @@ Không tạo lại công thức Work/OT C# riêng, pipeline reconciliation thay 
 > **HRM sở hữu luật và dữ liệu chấm công. FVN sở hữu lần chạy, snapshot kết quả và giao diện sử dụng.**
 
 FVN phải chạy độc lập về UI nhưng không được tạo một HRM thứ hai về business formula.
+
+## 19. Ranh giới Attendance và Calendar Symbol Rule
+
+Phần xác định **ca và kết quả chấm công** không thuộc Calendar Symbol Rule Engine.
+
+`F03HrmAttendanceCalculated` là nguồn chính thức cho:
+- `ShiftId` / `ShiftAbbr`;
+- `CheckInTime` / `CheckOutTime`;
+- `RequiredMinutes`;
+- Work minutes;
+- OT minutes và OT recognized minutes do HRM calculation cung cấp.
+
+Calendar Symbol Rule Engine chỉ diễn giải kết quả đó thành ký hiệu hiển thị. Không được tính lại ca bằng cách lấy `CheckOut - CheckIn - RequiredHours` và không được tạo các ký hiệu giả như `K0.25` chỉ vì chênh vài phút so với giờ ca.
+
+Luồng chuẩn:
+
+```text
+HRM
+  ↓
+dbo.usp_CalculateHrmAttendance
+  ↓
+F03HrmAttendanceCalculated
+  ├── Shift / Ca ─────────────── giữ nguyên
+  ├── In / Out ───────────────── giữ nguyên
+  ├── OT minutes ─────────────── input cho Rule
+  └── Required minutes ───────── input cho Rule
+              ↓
+      Calendar Symbol Rules
+              ↓
+       Work / OT symbols
+```
+
+## 20. Nguyên tắc tính ký hiệu OT
+
+Ký hiệu OT phải được tính theo **khoảng OT được cấu hình trong Rule**, không tính bằng tổng số giờ vượt `RequiredMinutes`.
+
+Block mặc định của nghiệp vụ hiện tại là 15 phút. Rule phải xác định cách lượng hóa phần thời gian nằm trong OT window; phần thời gian nhỏ hơn một block không tự sinh ra ký hiệu fractional OT nếu Rule không cho phép.
+
+Ví dụ: C1 có Work window 06:00–14:00 và OT window 14:00–18:00. Attendance `05:49 → 14:05` vẫn là C1 và phần OT chỉ có 5 phút; với block 15 phút/FLOOR thì OT được tính là 0, không phải `K0.25`.
+
+`05:47 → 18:05` của C1 có OT nằm trong OT window là 4 giờ; phần 5 phút sau đó không làm tăng block, nên ký hiệu OT là `K4`.
+
+## 21. Day Type và prefix ký hiệu
+
+Day Type phải lấy từ Company Calendar/holiday classification, không suy ra chỉ từ thứ trong tuần.
+
+- Ngày thường → prefix Work theo Rule ngày thường.
+- Thứ 7 **nghỉ công ty** → `T`.
+- Chủ nhật → `CN`.
+- Ngày lễ quốc gia → `NL`.
+- Thứ 7 đi làm bình thường, không được khai báo là ngày nghỉ công ty → vẫn là ngày thường về màu và classification, không tự đổi sang `T`.
+
+`F03CompanyHolidays` là source để phân biệt ngày nghỉ công ty và ngày lễ quốc gia theo `HolidayType`; không hard-code danh sách ngày lễ trong Calendar UI.
+
+## 22. Split rule cho ca/kíp đặc biệt
+
+Rule phải hỗ trợ nhiều segment để biểu diễn các ca/kíp có cả Work và OT, thay vì gộp thành một giá trị tổng.
+
+Ví dụ chuẩn hiện tại:
+
+| Day Type | Kíp | Kết quả |
+|---|---|---|
+| T7 nghỉ công ty | 06:00–18:00 | `T8` + `TK4` |
+| T7 nghỉ công ty | 10:00–22:00 | `T28` + `T4` |
+| T7 nghỉ công ty | 18:00–06:00 | `T38` + `TK4` |
+| CN | 06:00–18:00 | `CN8` + `CNK4` |
+| CN | 10:00–22:00 | `CNC28` + `CN4` |
+| CN | 18:00–06:00 | `CNC38` + `CNK4` |
+| Lễ quốc gia | 06:00–18:00 | `NL8` + `NLK4` |
+| Lễ quốc gia | 10:00–22:00 | `NLC28` + `NL4` |
+| Lễ quốc gia | 18:00–06:00 | `NLC38` + `NLK4` |
+
+Các giá trị lẻ được lượng hóa theo block 15 phút; Rule có thể tách phần Work và OT theo segment. Ví dụ 11h45 của kíp 06:00–18:00 phải trở thành `T7.75 + TK4`, không phải `T11.75`.
+
+## 23. Dấu `?` là reconciliation state, không phải symbol
+
+`?` không được lưu chung với ký hiệu `C1/K4/T8/...`.
+
+- Symbol Rule quyết định Work/OT symbol.
+- Execution Reconciliation quyết định có mismatch/action hay không.
+- Khi Actual OT > 0 nhưng không có Approved OT tương ứng, reconciliation có thể tạo `?`.
+- Khi Approved OT xuất hiện hoặc Actual OT biến mất sau recalculation, reconciliation có thể auto-resolve theo policy.
+
+Do đó một ngày có thể có:
+
+```text
+C3
+K4
+?
+```
+
+mà ba thành phần này có nguồn và lifecycle độc lập.
+
+## 24. UI quản trị Rule
+
+Rule phải được quản lý bằng dữ liệu cấu hình, không yêu cầu sửa C# khi thay đổi nghiệp vụ.
+
+Mỗi Rule tối thiểu phải định nghĩa:
+
+- RuleCode / RuleName;
+- DayType;
+- Shift/Pattern;
+- Priority và hiệu lực;
+- Segment Work/OT;
+- Start/End time;
+- Symbol type/prefix/template;
+- Value mode (duration/fixed);
+- Block minutes;
+- Rounding mode;
+- Split/sequence;
+- IsActive.
+
+Màn hình quản trị phải có **Test Rule** để nhập ngày, DayType, ca, In/Out và xem kết quả trước khi kích hoạt. Test phải hiển thị cả input HRM, OT window, block, phần thời gian được nhận và symbol sinh ra.
+
+Không để `WorkCalendar.razor` hoặc `workCalendar.js` chứa business formula cho symbol.
+
+## 25. Phân quyền Rule
+
+Quản trị Rule không tạo cơ chế authorization riêng. Endpoint/UI phải áp dụng đồng thời:
+
+`RBAC capability + Organization/ManagedScope (nếu áp dụng) + Feature Operator Assignment (nếu feature đã cấu hình operator) + Business State.`
+
+Rule management là configuration capability; người có quyền xem Calendar không mặc nhiên được sửa Rule.
+
+## 26. Nguyên tắc cuối của Attendance/Calendar
+
+> **HRM quyết định ca và dữ liệu chấm công; Calendar Rule quyết định cách biểu diễn Work/OT; Execution Reconciliation quyết định dấu `?`; Company Calendar quyết định DayType.**
+
+Khi thay đổi cách hiển thị ký hiệu, ưu tiên sửa Rule trên UI/DB và test Rule, không sửa công thức HRM và không tạo calculation engine thứ hai.
