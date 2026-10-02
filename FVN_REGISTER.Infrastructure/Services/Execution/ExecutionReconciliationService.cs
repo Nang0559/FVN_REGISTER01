@@ -315,13 +315,55 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .Where(x => x.IsActive != false && x.ModuleCode == entity.ModuleCode)
             .Select(x => new
             {
+                x.Id,
+                x.PolicyVersion,
+                x.ModuleCode,
+                x.PolicyName,
                 x.ConfirmationMode,
                 x.EvidenceMode,
                 x.ReviewMode,
                 x.AutoResolveMode,
-                x.DueHours
+                x.DueHours,
+                x.EmployeeResponseHours,
+                x.HrReviewHours,
+                x.AllowEmployeeAppeal,
+                x.MaxAppealRounds,
+                x.AppealReviewHours,
+                x.RequireEvidenceOnAppeal,
+                x.RequireFinalDecision,
+                x.FinalDecisionPositionCode,
+                x.PayrollCutoffMode,
+                x.AllowReopenAfterPayroll,
+                x.AdjustmentPeriodMode,
+                x.EffectiveFrom,
+                x.EffectiveTo
             })
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (isNew && policy is not null)
+        {
+            entity.ResolutionPolicyId = policy.Id;
+            entity.ResolutionPolicyVersion = policy.PolicyVersion;
+            entity.ResolutionPolicySnapshotJson = JsonSerializer.Serialize(new
+            {
+                policy.ModuleCode,
+                policy.PolicyName,
+                policy.PolicyVersion,
+                policy.EmployeeResponseHours,
+                policy.HrReviewHours,
+                policy.AllowEmployeeAppeal,
+                policy.MaxAppealRounds,
+                policy.AppealReviewHours,
+                policy.RequireEvidenceOnAppeal,
+                policy.RequireFinalDecision,
+                policy.FinalDecisionPositionCode,
+                policy.PayrollCutoffMode,
+                policy.AllowReopenAfterPayroll,
+                policy.AdjustmentPeriodMode,
+                policy.EffectiveFrom,
+                policy.EffectiveTo
+            });
+        }
 
         if (policy is not null
             && policy.AutoResolveMode != 0
