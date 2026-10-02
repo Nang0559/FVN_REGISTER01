@@ -338,18 +338,19 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
 
-        var policy = await _db.ExecutionPolicies.AsNoTracking()
-            .Where(x => x.IsActive != false && x.ModuleCode == reconciliation.ModuleCode)
-            .Select(x => new
-            {
-                x.ReviewMode,
-                x.CorrectionMode
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var policy = string.IsNullOrWhiteSpace(reconciliation.ResolutionPolicySnapshotJson)
+            ? null
+            : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
+                reconciliation.ResolutionPolicySnapshotJson);
 
-        if (policy is null || policy.ReviewMode == 0)
+        if (policy is null)
             throw new InvalidOperationException(
-                $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+                "Reconciliation chưa có snapshot resolution policy.");
+
+        // Evidence review is available only while the case is still actionable.
+        if (reconciliation.ReconciliationStatus is not ("AwaitingConfirmation" or "AppealReviewing" or "FinalDecisionPending"))
+            throw new InvalidOperationException(
+                $"Trạng thái {reconciliation.ReconciliationStatus} không cho phép review evidence.");
 
         var targetEmployeeCode = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
