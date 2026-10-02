@@ -2,6 +2,8 @@ using System.Text.Json;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
+using FVN_REGISTER.Core.Entities.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Application.Interfaces.Execution;
@@ -189,6 +191,31 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         if (existing is not null)
             return;
 
+        var operatorCode = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
+            .Where(x => x.IsActive == true
+                && x.FunctionCode == SecurityFunctionCodes.ExecutionReview
+                && x.ResourceType == "EXECUTION_REVIEW"
+                && x.ResourceId == null)
+            .OrderBy(x => x.CreatedAt)
+            .Select(x => x.EmployeeCode)
+            .FirstOrDefaultAsync(ct);
+
+        var operatorUser = string.IsNullOrWhiteSpace(operatorCode)
+            ? null
+            : await _db.Users.AsNoTracking()
+                .Where(x => x.IsActive != false && x.EmployeeCode == operatorCode)
+                .Select(x => new { x.Id, x.EmployeeCode })
+                .FirstOrDefaultAsync(ct);
+
+        if (operatorUser is null)
+            throw new InvalidOperationException(
+                "Không tìm thấy nhân sự được phân công Execution Review để nhận vòng khiếu nại.");
+
+        var operatorEmployee = await _db.Employees.AsNoTracking()
+            .Where(x => x.IsActive != false && x.EmployeeCode == operatorUser.EmployeeCode)
+            .Select(x => (int?)x.Id)
+            .SingleAsync(ct);
+
         _db.ActionItems.Add(new F03ActionItem
         {
             ActionId = Guid.NewGuid(),
@@ -197,7 +224,8 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             SourceId = r.Id.ToString(),
             ParticipantId = r.ParticipantId,
             EmployeeId = employeeId,
-            AssignedToEmployeeId = employeeId,
+            AssignedToEmployeeId = operatorEmployee,
+            AssignedToUserId = operatorUser.Id,
             WorkDate = r.WorkDate,
             ActionType = HrAppealActionType,
             Title = r.AppealRound >= 1 ? "Xử lý khiếu nại đối soát công" : "Xử lý phản hồi đối soát công",
