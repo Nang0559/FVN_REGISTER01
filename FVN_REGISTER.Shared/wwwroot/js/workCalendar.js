@@ -17,16 +17,36 @@ window.workCalendar = (function () {
     function normalizeShift(shift,checkIn){const text=String(shift||'').trim().toUpperCase().replace(/\s+/g,'');if(text.includes('C1')||text.includes('CA1'))return'C1';if(text.includes('C2')||text.includes('CA2'))return'C2';if(text.includes('C3')||text.includes('CA3'))return'C3';if(text.includes('HC'))return'HC';const time=String(checkIn||'');if(time>='05:00'&&time<'09:00')return'C1';if(time>='13:00'&&time<'17:00')return'C2';if(time>='21:00'||time<'02:00')return'C3';return'HC';}
 
     function buildAttendanceSymbol(day){
-        const a=day?.attendance;if(!a)return null;const shift=normalizeShift(day.shift,a.checkIn);const holiday=holidayInfo(day.holiday);const dow=new Date(day.date+'T00:00:00').getDay();const national=holiday.type==='NATIONAL';const saturday=dow===6;const sunday=dow===0;const off=national||saturday||sunday;if(!off)return shift;
-        const prefix=national?'NL':sunday?'CN':'T';const total=rounded15(elapsedMinutes(a));if(total<=0)return null;
+        const a=day?.attendance;if(!a)return null;
+        const shift=normalizeShift(day.shift,a.checkIn);
+        const holiday=holidayInfo(day.holiday);
+        const dow=new Date(day.date+'T00:00:00').getDay();
+        const national=holiday.type==='NATIONAL';
+        const companyHoliday=holiday.type==='COMPANY';
+        const sunday=dow===0;
+        // Saturday is only an off-day symbol (T...) when it is explicitly a company holiday.
+        // A normal working Saturday must keep the normal shift symbol (C1/C2/C3/HC).
+        const off=national||sunday||companyHoliday;
+        if(!off)return shift;
+        const prefix=national?'NL':sunday?'CN':'T';
+        const total=rounded15(elapsedMinutes(a));
+        if(total<=0)return null;
         if(total>=705){const base=Math.min(480,Math.max(0,total-240));const h=quarterHours(base);if(shift==='C2')return prefix+'C2'+h;if(shift==='C3')return prefix+'C3'+h;return prefix+h;}
         const base=total===495?480:Math.min(480,total);const h=quarterHours(base);if(shift==='C2')return prefix+'C2'+h;if(shift==='C3')return prefix+'C3'+h;return prefix+h;
     }
 
     function buildOtSymbol(day){
-        const a=day?.attendance;if(!a)return null;const shift=normalizeShift(day.shift,a.checkIn);const holiday=holidayInfo(day.holiday);const dow=new Date(day.date+'T00:00:00').getDay();const national=holiday.type==='NATIONAL';const saturday=dow===6;const sunday=dow===0;const off=national||saturday||sunday;const total=rounded15(elapsedMinutes(a));
-        // Ngày nghỉ tuần/ngày lễ: dưới 11h45 không tách OT; ký hiệu Công đã chứa tổng giờ (T/CN/NL).
-        // 11h45 và 12h là kíp chốt riêng: phần Công = tổng - 4h, phần OT = K4.
+        const a=day?.attendance;if(!a)return null;
+        const shift=normalizeShift(day.shift,a.checkIn);
+        const holiday=holidayInfo(day.holiday);
+        const dow=new Date(day.date+'T00:00:00').getDay();
+        const national=holiday.type==='NATIONAL';
+        const companyHoliday=holiday.type==='COMPANY';
+        const sunday=dow===0;
+        const off=national||sunday||companyHoliday;
+        const total=rounded15(elapsedMinutes(a));
+        // Company-holiday Saturday, Sunday and national holidays use T/CN/NL symbols.
+        // A normal Saturday is a normal workday and therefore uses ordinary OT rules.
         if(off){if(total<705)return null;const prefix=national?'NL':sunday?'CN':'T';return(shift==='C1'||shift==='C3')?prefix+'K4':prefix+'4';}
 
         let minutes=Math.max(Number(a.actualOtMinutes||0),Number(a.recognizedOtMinutes||0));
@@ -36,7 +56,20 @@ window.workCalendar = (function () {
         return(shift==='C1'||shift==='C2'||shift==='C3')?'K'+hours:hours;
     }
 
-    function paintHolidayFrame(frame,day){if(!frame)return;const h=holidayInfo(day?.holiday);const dow=new Date(day.date+'T00:00:00').getDay();let bg='';if(h.type==='NATIONAL')bg='#ff00ff';else if(h.type==='COMPANY'||h.type==='COMPENSATORY')bg='#00ff00';else if(h.type==='OTHER')bg='#00aeea';else if(dow===0)bg='#001dff';else if(dow===6)bg='#ffff00';if(bg){frame.style.backgroundColor=bg;frame.style.backgroundImage='none';}}
+    // Color is a property of the calendar day classification, not of the
+    // attendance symbol. Never recolor a cell while calculating C/T/CN/NL symbols.
+    function paintHolidayFrame(frame,day){
+        if(!frame)return;
+        const h=holidayInfo(day?.holiday);
+        const dow=new Date(day.date+'T00:00:00').getDay();
+        let bg='';
+        if(h.type==='NATIONAL')bg='#ff00ff';
+        else if(dow===0)bg='#001dff';
+        else if(dow===6)bg='#ffff00';
+        else if(h.type==='COMPENSATORY'||h.type==='COMPANY')bg='#00ff00';
+        else if(h.type==='OTHER')bg='#00aeea';
+        if(bg){frame.style.backgroundColor=bg;frame.style.backgroundImage='none';}
+    }
 
     function renderCell(arg){
         const key=dayKey(arg.date),day=_days.get(key);clearCustomContent(arg.el);if(!day)return;const top=arg.el.querySelector('.fc-daygrid-day-top'),frame=arg.el.querySelector('.fc-daygrid-day-frame');if(!frame)return;paintHolidayFrame(frame,day);
