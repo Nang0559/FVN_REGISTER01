@@ -239,7 +239,7 @@ public sealed class ActionItemService : IActionItemService
             return;
 
         var pending = await (
-            from evidence in _db.ExecutionConfirmationEvidences.AsNoTracking()
+            from evidence in _db.ExecutionConfirmationEvidence.AsNoTracking()
             join confirmation in _db.ExecutionConfirmations.AsNoTracking()
                 on evidence.ConfirmationId equals confirmation.Id
             join reconciliation in _db.ExecutionReconciliations.AsNoTracking()
