@@ -37,6 +37,10 @@ public sealed class F03ExecutionReconciliation : BaseAuditEntity
 
     public long? ConfirmationId { get; set; }
     public Guid? ActionId { get; set; }
+    public int? ResolutionPolicyId { get; set; }
+    public int? ResolutionPolicyVersion { get; set; }
+    public string? ResolutionPolicySnapshotJson { get; set; }
+
 
     public string? DetailJson { get; set; }
     public DateTime? ResolvedAt { get; set; }
