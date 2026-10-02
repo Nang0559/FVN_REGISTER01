@@ -17,6 +17,11 @@ public interface IExecutionHrClaimService
         long reconciliationId,
         CancellationToken cancellationToken = default);
 
+    Task EnsureClaimedAsync(
+        int userId,
+        long reconciliationId,
+        CancellationToken cancellationToken = default);
+
     Task<ServiceResult<IReadOnlyList<ExecutionHrClaimDto>>> GetClaimsAsync(
         int userId,
         string employeeCode,
