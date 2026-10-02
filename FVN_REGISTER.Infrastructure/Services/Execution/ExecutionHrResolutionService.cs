@@ -699,7 +699,23 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await _db.SaveChangesAsync(cancellationToken);
 
         if (calendar is not null)
-            ApplyCalendarResolution(calendar, decision, calendarAction, reason, DateTime.Now);
+        {
+            if (isFinalDecision)
+                ApplyCalendarResolution(calendar, decision, calendarAction, reason, DateTime.Now);
+            else
+            {
+                calendar.RequiresAction = true;
+                calendar.StatusCode = "HrResolvedPendingEmployee";
+                calendar.Marker = "!";
+                calendar.Severity = 2;
+                calendar.Summary = string.IsNullOrWhiteSpace(calendar.Summary)
+                    ? $"HR: {reason} | Chờ nhân viên xác nhận."
+                    : $"{calendar.Summary} | HR: {reason} | Chờ nhân viên xác nhận.";
+                calendar.CalculatedAt = DateTime.Now;
+                calendar.ModifiedAt = DateTime.Now;
+                calendar.LastModifiedSource = "EXECUTION_HR_RESOLUTION_PENDING_EMPLOYEE";
+            }
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
