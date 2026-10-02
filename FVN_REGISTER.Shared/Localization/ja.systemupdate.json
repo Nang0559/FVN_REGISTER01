@@ -20,5 +20,6 @@
   "systemupdate.state.Succeeded": "成功",
   "systemupdate.state.Failed": "失敗",
   "systemupdate.state.RolledBack": "ロールバック済み",
-  "systemupdate.state.Rejected": "拒否"
+  "systemupdate.state.Rejected": "拒否",
+  "security.noPermission": "この操作を実行する権限がありません。"
 }
