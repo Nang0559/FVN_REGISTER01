@@ -50,3 +50,17 @@ Click ngày để chọn `Detail / Confirmation / Registration / Info`.
 ## 7. Khi có dấu `?`
 
 Mở marker → đọc Issue → chọn ActionOption. Không tự đổi dữ liệu để làm mất mismatch.
+
+
+## 8. Execution Reconciliation — luồng sau HR Resolution
+
+HR Resolution không nhất thiết đóng case ngay. Nếu policy yêu cầu employee decision:
+
+**HR Resolution → AwaitingEmployeeDecision → Accept / Appeal**
+
+- Accept → Resolved.
+- Appeal → AppealReviewing → HR Resolution tiếp theo.
+- Đạt MaxAppealRounds → FinalDecisionPending.
+- Timeout → Escalate hoặc Auto-accept theo policy snapshot.
+
+ActionId luôn trỏ action hiện tại; Calendar và Action Center dùng cùng action chain. Nhiều HR có thể xử lý cùng function nhưng claim/lock bảo đảm một case chỉ có một người mutate tại một thời điểm.
