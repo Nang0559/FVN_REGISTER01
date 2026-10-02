@@ -16,6 +16,9 @@ IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'PolicyVersion') IS NULL
 IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'EmployeeResponseHours') IS NULL
     ALTER TABLE dbo.F03ExecutionPolicies ADD EmployeeResponseHours int NOT NULL CONSTRAINT DF_F03ExecutionPolicies_EmployeeResponseHours DEFAULT 48;
 
+IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'EmployeeTimeoutMode') IS NULL
+    ALTER TABLE dbo.F03ExecutionPolicies ADD EmployeeTimeoutMode tinyint NOT NULL CONSTRAINT DF_F03ExecutionPolicies_EmployeeTimeoutMode DEFAULT 0;
+
 IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'HrReviewHours') IS NULL
     ALTER TABLE dbo.F03ExecutionPolicies ADD HrReviewHours int NOT NULL CONSTRAINT DF_F03ExecutionPolicies_HrReviewHours DEFAULT 48;
 
@@ -97,6 +100,7 @@ BEGIN
                    p.PolicyName,
                    p.PolicyVersion,
                    p.EmployeeResponseHours,
+                   p.EmployeeTimeoutMode,
                    p.HrReviewHours,
                    p.AllowEmployeeAppeal,
                    p.MaxAppealRounds,
