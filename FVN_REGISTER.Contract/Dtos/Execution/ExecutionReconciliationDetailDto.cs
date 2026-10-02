@@ -16,9 +16,21 @@ public sealed record ExecutionEmployeeDecisionSummaryDto(
     bool CanAppeal,
     byte MaxAppealRounds);
 
+public sealed record ExecutionReconciliationHistoryDto(
+    long Id,
+    string? FromStatus,
+    string ToStatus,
+    string EventType,
+    string? Reason,
+    int? ActorUserId,
+    int? ActorEmployeeId,
+    string? ActorEmployeeCode,
+    DateTime CreatedAt);
+
 public sealed record ExecutionReconciliationDetailDto(
     ExecutionReconciliationDto Reconciliation,
     ExecutionConfirmationDto? Confirmation,
     IReadOnlyList<ExecutionEvidenceDto> Evidence,
     ExecutionHrResolutionSummaryDto? HrResolution,
-    ExecutionEmployeeDecisionSummaryDto? EmployeeDecision);
+    ExecutionEmployeeDecisionSummaryDto? EmployeeDecision,
+    IReadOnlyList<ExecutionReconciliationHistoryDto> History);
