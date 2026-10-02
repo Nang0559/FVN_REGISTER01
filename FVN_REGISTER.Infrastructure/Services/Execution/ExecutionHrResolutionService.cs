@@ -469,7 +469,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             throw new InvalidOperationException("Phản hồi này đã được HR giải quyết.");
 
         if (reconciliation.ReconciliationStatus != "Mismatch"
-            && reconciliation.ReconciliationStatus != "AwaitingConfirmation")
+            && reconciliation.ReconciliationStatus != "AwaitingConfirmation"
+            && reconciliation.ReconciliationStatus != "AppealReviewing"
+            && reconciliation.ReconciliationStatus != "FinalDecisionPending")
             throw new InvalidOperationException(
                 $"Trạng thái {reconciliation.ReconciliationStatus} không thuộc hàng chờ HR xử lý.");
 
@@ -485,18 +487,28 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
 
-        var policy = await _db.ExecutionPolicies.AsNoTracking()
-            .Where(x => x.IsActive != false && x.ModuleCode == reconciliation.ModuleCode)
-            .Select(x => new
-            {
-                x.ReviewMode,
-                x.CorrectionMode
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var policy = string.IsNullOrWhiteSpace(reconciliation.ResolutionPolicySnapshotJson)
+            ? null
+            : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
+                reconciliation.ResolutionPolicySnapshotJson);
 
-        if (policy is null || policy.ReviewMode == 0)
+        if (policy is null)
             throw new InvalidOperationException(
-                $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+                "Reconciliation chưa có snapshot resolution policy. Không được tự ý áp dụng policy hiện tại cho case cũ.");
+
+        if (reconciliation.ReconciliationStatus == "FinalDecisionPending"
+            && policy.RequireFinalDecision
+            && !string.IsNullOrWhiteSpace(policy.FinalDecisionPositionCode))
+        {
+            var actorPosition = await _db.Employees.AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive != false)
+                .Select(x => x.PositionCode)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (!string.Equals(actorPosition, policy.FinalDecisionPositionCode, StringComparison.OrdinalIgnoreCase))
+                throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                    $"Case này yêu cầu quyết định cuối bởi PositionCode {policy.FinalDecisionPositionCode}.");
+        }
 
         var correctionMode = policy.CorrectionMode;
 
@@ -569,7 +581,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _db.Set<F03ExecutionResolution>().Add(resolution);
         await _db.SaveChangesAsync(cancellationToken);
 
-        if (decision == "OK"
+        var awaitingEmployeeDecision = reconciliation.ReconciliationStatus != "FinalDecisionPending";
+
+        if (!awaitingEmployeeDecision
+            && decision == "OK"
             && correctionMode != (byte)ExecutionCorrectionMode.None)
         {
             if (correctionMode != (byte)ExecutionCorrectionMode.AttendanceRecalculate)
@@ -634,14 +649,20 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             await _db.SaveChangesAsync(cancellationToken);
         }
         var oldStatus = reconciliation.ReconciliationStatus;
-        reconciliation.ReconciliationStatus = "Resolved";
-        reconciliation.ResolvedAt = now;
-        reconciliation.ResolvedBy = userId;
+        var isFinalDecision = oldStatus == "FinalDecisionPending";
+        reconciliation.ReconciliationStatus = isFinalDecision
+            ? "Resolved"
+            : "AwaitingEmployeeDecision";
+        reconciliation.ResolvedAt = isFinalDecision ? now : null;
+        reconciliation.ResolvedBy = isFinalDecision ? userId : null;
         reconciliation.RequiresConfirmation = false;
         reconciliation.RequiresEvidence = false;
         reconciliation.LastModifiedSource = "HR_EXECUTION_REVIEW";
 
         await CompleteExecutionReviewActionsAsync(reconciliation.Id, userId, cancellationToken);
+
+        if (!isFinalDecision)
+            await EnsureEmployeeResultActionAsync(reconciliation, employee.Id, now, policy.EmployeeResponseHours, cancellationToken);
 
         if (reconciliation.ActionId.HasValue)
         {
@@ -665,8 +686,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         {
             ReconciliationId = reconciliation.Id,
             FromStatus = oldStatus,
-            ToStatus = "Resolved",
-            EventType = decision == "OK" ? "HR_RESOLUTION_OK" : "HR_RESOLUTION_NG",
+            ToStatus = reconciliation.ReconciliationStatus,
+            EventType = isFinalDecision
+                ? (decision == "OK" ? "HR_FINAL_DECISION_OK" : "HR_FINAL_DECISION_NG")
+                : (decision == "OK" ? "HR_RESOLUTION_OK_AWAITING_EMPLOYEE" : "HR_RESOLUTION_NG_AWAITING_EMPLOYEE"),
             Reason = reason,
             ActorUserId = userId,
             ActorEmployeeId = resolution.ResolvedByEmployeeId,
@@ -708,6 +731,50 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             reason,
             calendarAction,
             now);
+    }
+
+    private async Task EnsureEmployeeResultActionAsync(
+        F03ExecutionReconciliation reconciliation,
+        int employeeId,
+        DateTime now,
+        int dueHours,
+        CancellationToken ct)
+    {
+        var existing = await _db.ActionItems.FirstOrDefaultAsync(x =>
+            x.IsActive != false
+            && x.ActionType == "EXECUTION_RESULT_CONFIRMATION"
+            && x.SourceId == reconciliation.Id.ToString()
+            && x.AssignedToEmployeeId == employeeId
+            && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress),
+            ct);
+
+        if (existing is not null)
+            return;
+
+        _db.ActionItems.Add(new F03ActionItem
+        {
+            ActionId = Guid.NewGuid(),
+            ModuleCode = reconciliation.ModuleCode,
+            SourceType = reconciliation.SourceType,
+            SourceId = reconciliation.Id.ToString(),
+            ParticipantId = reconciliation.ParticipantId,
+            EmployeeId = employeeId,
+            AssignedToEmployeeId = employeeId,
+            WorkDate = reconciliation.WorkDate,
+            ActionType = "EXECUTION_RESULT_CONFIRMATION",
+            Title = "Xác nhận kết quả đối soát công",
+            Summary = "HR đã xử lý phản hồi. Vui lòng xem kết quả và xác nhận hoặc khiếu nại.",
+            Severity = 2,
+            Priority = 40,
+            Status = ActionItemStatus.Open,
+            DueAt = now.AddHours(Math.Max(1, dueHours)),
+            DetailRoute = $"/execution?reconciliationId={reconciliation.Id}",
+            ReferenceNo = reconciliation.SourceId,
+            PayloadJson = JsonSerializer.Serialize(new { reconciliation.Id }),
+            CreatedBy = 0,
+            CreatedAt = now,
+            LastModifiedSource = "EXECUTION_HR_RESOLUTION"
+        });
     }
 
     private async Task CompleteExecutionReviewActionsAsync(
