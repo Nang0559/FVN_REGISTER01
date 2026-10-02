@@ -46,7 +46,7 @@ else
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Size="Size.Small" Variant="Variant.Text"
-                               OnClick="@(() => Navigation.NavigateTo("/execution/hr"))">
+                               OnClick="@OpenActionWork">
                         @Language.T("common.mo")
                     </MudButton>
                 </CardHeaderActions>
@@ -234,6 +234,18 @@ else
             "Công tác" => Language.T("dashboard.tripType"),
             _ => title
         };
+    }
+
+    private void OpenActionWork()
+    {
+        var action = Data?.Actions.FirstOrDefault();
+        if (action is not null && !string.IsNullOrWhiteSpace(action.DetailRoute))
+        {
+            Navigation.NavigateTo(action.DetailRoute);
+            return;
+        }
+
+        Navigation.NavigateTo("/work/inbox");
     }
 
     private void OpenAction(ActionItemDto action)
