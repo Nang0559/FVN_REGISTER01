@@ -1216,6 +1216,10 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             {
                 "Mismatch" => "?",
                 "AwaitingConfirmation" => "?",
+                "AwaitingEmployeeDecision" => "!",
+                "AppealReviewing" => "!",
+                "FinalDecisionPending" => "!",
+                "EmployeeDisputed" => "!",
                 "Resolved" => "OK",
                 _ => null
             }
@@ -1238,15 +1242,24 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             {
                 "Mismatch" => $"Chênh lệch {reconciliation.ModuleCode}: cần xác nhận.",
                 "AwaitingConfirmation" => $"Đang chờ xác nhận {reconciliation.ModuleCode}.",
+                "AwaitingEmployeeDecision" => $"HR đã xử lý {reconciliation.ModuleCode} — chờ nhân viên xác nhận/khiếu nại.",
+                "AppealReviewing" => $"Đang xử lý khiếu nại {reconciliation.ModuleCode}.",
+                "FinalDecisionPending" => $"{reconciliation.ModuleCode}: chờ quyết định cuối.",
+                "EmployeeDisputed" => $"{reconciliation.ModuleCode}: nhân viên không đồng ý, đang xử lý tiếp.",
                 "Resolved" => $"Đã giải quyết {reconciliation.ModuleCode}.",
                 _ => $"Đối soát {reconciliation.ModuleCode}: {reconciliation.ReconciliationStatus}."
             };
-        projection.Severity = reconciliation.SourceType == "OT_ACTUAL_ONLY"
-            ? reconciliation.ReconciliationStatus is "Mismatch" or "AwaitingConfirmation" ? (byte)3 : (byte)0
-            : reconciliation.ReconciliationStatus == "Mismatch" ? (byte)2 :
-              reconciliation.ReconciliationStatus == "AwaitingConfirmation" ? (byte)1 : (byte)0;
-        projection.RequiresAction = reconciliation.RequiresConfirmation
-            && !string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase);
+        projection.Severity = reconciliation.ReconciliationStatus switch
+        {
+            "Mismatch" => reconciliation.SourceType == "OT_ACTUAL_ONLY" ? (byte)3 : (byte)2,
+            "AwaitingConfirmation" => reconciliation.SourceType == "OT_ACTUAL_ONLY" ? (byte)3 : (byte)1,
+            "AwaitingEmployeeDecision" or "AppealReviewing" or "FinalDecisionPending" or "EmployeeDisputed" => (byte)2,
+            _ => (byte)0
+        };
+        projection.RequiresAction = reconciliation.ReconciliationStatus != "Resolved"
+            && reconciliation.ReconciliationStatus is
+                "Mismatch" or "AwaitingConfirmation" or "AwaitingEmployeeDecision"
+                or "AppealReviewing" or "FinalDecisionPending" or "EmployeeDisputed";
         projection.ActionId = reconciliation.ActionId;
         projection.DetailRoute = $"/execution?reconciliationId={reconciliation.Id}";
         projection.PayloadJson = reconciliation.DetailJson;
