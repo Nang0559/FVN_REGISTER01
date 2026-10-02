@@ -255,21 +255,34 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 x.Id, x.Decision, x.Reason, x.CalendarAction, x.ResolvedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
-        var employeeDecision = await _db.ExecutionReconciliations.AsNoTracking()
+        var employeeDecisionRow = await _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.Id == reconciliationId)
-            .Select(x => new ExecutionEmployeeDecisionSummaryDto(
+            .Select(x => new
+            {
                 x.EmployeeDecisionStatus,
                 x.EmployeeDecisionComment,
                 x.AppealRound,
                 x.EmployeeDecisionAt,
-                x.ReconciliationStatus == "AwaitingEmployeeDecision",
-                x.ReconciliationStatus == "AwaitingEmployeeDecision"
-                    && x.ResolutionPolicySnapshotJson != null,
-                x.ResolutionPolicySnapshotJson == null
-                    ? (byte)0
-                    : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
-                        x.ResolutionPolicySnapshotJson)!.MaxAppealRounds))
+                x.ReconciliationStatus,
+                x.ResolutionPolicySnapshotJson
+            })
             .SingleAsync(cancellationToken);
+
+        var employeePolicy = string.IsNullOrWhiteSpace(employeeDecisionRow.ResolutionPolicySnapshotJson)
+            ? null
+            : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
+                employeeDecisionRow.ResolutionPolicySnapshotJson);
+
+        var employeeDecision = new ExecutionEmployeeDecisionSummaryDto(
+            employeeDecisionRow.EmployeeDecisionStatus,
+            employeeDecisionRow.EmployeeDecisionComment,
+            employeeDecisionRow.AppealRound,
+            employeeDecisionRow.EmployeeDecisionAt,
+            employeeDecisionRow.ReconciliationStatus == "AwaitingEmployeeDecision",
+            employeeDecisionRow.ReconciliationStatus == "AwaitingEmployeeDecision"
+                && employeePolicy?.AllowEmployeeAppeal == true
+                && employeeDecisionRow.AppealRound < (employeePolicy.MaxAppealRounds),
+            employeePolicy?.MaxAppealRounds ?? 0);
 
         return new ExecutionReconciliationDetailDto(
             reconciliation,
