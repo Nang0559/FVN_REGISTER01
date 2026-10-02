@@ -86,6 +86,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 r.ResolvedBy = r.ResolvedBy ?? userId;
 
                 await ApplyCorrectionIfRequiredAsync(r, policy.CorrectionMode, userId, ct);
+                await FinalizeCalendarAsync(r, ct);
 
                 _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
                 {
@@ -222,6 +223,54 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
         return JsonSerializer.Deserialize<ResolutionPolicySnapshot>(json);
+    }
+
+    private async Task FinalizeCalendarAsync(
+        F03ExecutionReconciliation reconciliation,
+        CancellationToken ct)
+    {
+        var resolution = await _db.Set<F03ExecutionResolution>().AsNoTracking()
+            .Where(x => x.ReconciliationId == reconciliation.Id && x.IsActive != false)
+            .OrderByDescending(x => x.ResolvedAt)
+            .FirstOrDefaultAsync(ct);
+
+        var calendar = await _db.CalendarProjections.FirstOrDefaultAsync(x =>
+            x.IsActive != false
+            && x.EmployeeId == reconciliation.EmployeeId
+            && x.WorkDate == reconciliation.WorkDate
+            && x.ModuleCode == reconciliation.ModuleCode
+            && x.SourceType == reconciliation.SourceType
+            && x.SourceId == reconciliation.SourceId
+            && x.ParticipantId == reconciliation.ParticipantId, ct);
+
+        if (calendar is null) return;
+
+        calendar.RequiresAction = false;
+        if (resolution?.CalendarAction == "CANCEL")
+        {
+            calendar.StatusCode = "Cancelled";
+            calendar.Marker = null;
+            calendar.Severity = 0;
+        }
+        else if (resolution?.CalendarAction == "REFRESH" && resolution.Decision == "OK")
+        {
+            calendar.StatusCode = "Confirmed";
+            calendar.Marker = null;
+            calendar.Severity = 0;
+        }
+        else
+        {
+            calendar.StatusCode = "Resolved";
+            calendar.Marker = null;
+            calendar.Severity = 0;
+        }
+
+        calendar.Summary = string.IsNullOrWhiteSpace(calendar.Summary)
+            ? "Đã hoàn tất đối soát."
+            : $"{calendar.Summary} | Đã hoàn tất đối soát.";
+        calendar.CalculatedAt = DateTime.Now;
+        calendar.ModifiedAt = DateTime.Now;
+        calendar.LastModifiedSource = "EXECUTION_EMPLOYEE_ACCEPT";
     }
 
     private async Task ApplyCorrectionIfRequiredAsync(
