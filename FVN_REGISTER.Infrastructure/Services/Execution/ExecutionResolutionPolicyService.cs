@@ -46,8 +46,21 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
                 return ServiceResult<ExecutionResolutionPolicyDto>.Fail(
                     "Không được đổi ModuleCode của policy đã tồn tại. Hãy tạo policy mới cho module mới.");
 
-            previous.IsActive = false;
-            previous.EffectiveTo = request.EffectiveFrom ?? DateTime.Now;
+            var effectiveFrom = request.EffectiveFrom;
+            var isScheduledFutureVersion = request.IsActive
+                && effectiveFrom.HasValue
+                && effectiveFrom.Value > DateTime.Now;
+
+            if (isScheduledFutureVersion)
+            {
+                previous.EffectiveTo = effectiveFrom;
+            }
+            else
+            {
+                previous.IsActive = false;
+                previous.EffectiveTo = effectiveFrom ?? DateTime.Now;
+            }
+
             previous.ModifiedBy = actorUserId;
             previous.ModifiedAt = DateTime.Now;
             previous.LastModifiedSource = "EXECUTION_RESOLUTION_POLICY_SUPERSEDED";
