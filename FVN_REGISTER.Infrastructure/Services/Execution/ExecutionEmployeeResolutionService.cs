@@ -143,7 +143,8 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                             "Policy yêu cầu evidence mới cho mỗi vòng khiếu nại. Vui lòng bổ sung evidence trước khi gửi khiếu nại.");
                 }
 
-                await EnsureHrAppealActionAsync(r, employee.Id, now, policy.AppealReviewHours, ct);
+                r.ActionId = await EnsureHrAppealActionAsync(
+                    r, employee.Id, now, policy.AppealReviewHours, ct);
                 await MarkCalendarDisputedAsync(r, ct);
 
                 _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
@@ -179,7 +180,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         catch (Exception ex) { return ServiceResult<ExecutionEmployeeResolutionDto>.Fail(ex.Message); }
     }
 
-    private async Task EnsureHrAppealActionAsync(
+    private async Task<Guid> EnsureHrAppealActionAsync(
         F03ExecutionReconciliation r, int employeeId, DateTime now, int dueHours, CancellationToken ct)
     {
         var existing = await _db.ActionItems.FirstOrDefaultAsync(x =>
@@ -190,7 +191,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             ct);
 
         if (existing is not null)
-            return;
+            return existing.ActionId;
 
         var operatorCode = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
             .Where(x => x.IsActive == true
@@ -217,7 +218,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             .Select(x => (int?)x.Id)
             .SingleAsync(ct);
 
-        _db.ActionItems.Add(new F03ActionItem
+        var action = new F03ActionItem
         {
             ActionId = Guid.NewGuid(),
             ModuleCode = r.ModuleCode,
@@ -241,7 +242,9 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             CreatedBy = 0,
             CreatedAt = now,
             LastModifiedSource = "EXECUTION_EMPLOYEE_APPEAL"
-        });
+        };
+        _db.ActionItems.Add(action);
+        return action.ActionId;
     }
 
     private void CompleteEmployeeResultAction(F03ExecutionReconciliation r, int userId, DateTime now)
