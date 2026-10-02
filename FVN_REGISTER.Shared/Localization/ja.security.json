@@ -62,6 +62,7 @@
   "security.effective": "有効権限",
   "security.effectivePermissions": "有効な権限",
   "security.employee": "社員",
+  "security.endpointSoftwareCatalogManage": "Endpointソフトウェアカタログ管理",
   "security.factory": "工場",
   "security.factoryCanFactorycodeHoac": "FactoryにはFactoryCodeまたはNodeCodeが必要です。",
   "security.featureOperatorAssignment": "機能オペレーター割り当て",

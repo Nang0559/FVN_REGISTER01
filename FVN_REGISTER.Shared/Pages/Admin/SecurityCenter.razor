@@ -372,12 +372,13 @@
                                 <MudSelectItem Value="@("EXECUTION_REVIEW")">@Language.T("security.hrFeedbackToanModule")</MudSelectItem>
                                 <MudSelectItem Value="@("PUBLIC_INFORMATION")">@Language.T("security.publicInformation")</MudSelectItem>
                                 <MudSelectItem Value="@("PUBLIC_FORM")">@Language.T("security.publicForm")</MudSelectItem>
+                                <MudSelectItem Value="@("ENDPOINT_SOFTWARE_CATALOG")">@Language.T("security.endpointSoftwareCatalogManage")</MudSelectItem>
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" md="3">
                             <MudSelect T="int?" Label="@Language.T("security.doiTuongCuThe")" Variant="Variant.Outlined"
-                                       Value="_operatorResourceId" ValueChanged="OperatorResourceChanged" Disabled="@(_operatorResourceType == "EXECUTION_REVIEW")">
-                                @if (_operatorResourceType != "EXECUTION_REVIEW")
+                                       Value="_operatorResourceId" ValueChanged="OperatorResourceChanged" Disabled="@(_operatorResourceType is "EXECUTION_REVIEW" or "ENDPOINT_SOFTWARE_CATALOG")">
+                                @if (_operatorResourceType is not ("EXECUTION_REVIEW" or "ENDPOINT_SOFTWARE_CATALOG"))
                                 {
                                     @foreach (var resource in _operatorResources)
                                     {
@@ -581,7 +582,7 @@
     private bool _loadingResetRequests;
     private PermissionSnapshotDto? _myPermissions;
 
-    private readonly int[] _operatorFunctionCodes = { 2801, 2802, 2807, 2808, 2809 };
+    private readonly int[] _operatorFunctionCodes = { 2801, 2802, 2807, 2808, 2809, SecurityFunctionCodes.EndpointSoftwareCatalogManage };
     private List<SecurityFunctionDto> _operatorFunctions = new();
     private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
     private List<FeatureOperatorResourceDto> _operatorResources = new();
@@ -850,7 +851,7 @@
                 {
                     FunctionCode = _operatorFunctionCode,
                     ResourceType = _operatorResourceType,
-                    ResourceId = _operatorResourceType == "EXECUTION_REVIEW" ? null : _operatorResourceId,
+                    ResourceId = _operatorResourceType is "EXECUTION_REVIEW" or "ENDPOINT_SOFTWARE_CATALOG" ? null : _operatorResourceId,
                     EmployeeCode = _operatorEmployeeCode
                 });
 

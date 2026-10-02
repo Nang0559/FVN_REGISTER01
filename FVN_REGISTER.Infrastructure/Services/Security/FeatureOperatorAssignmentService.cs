@@ -82,7 +82,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         if (request.FunctionCode <= 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("FunctionCode không hợp lệ.");
         var type = NormalizeResourceType(request.ResourceType);
         if (type.Length == 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceType là bắt buộc.");
-        if (type is not ("PUBLIC_INFORMATION" or "PUBLIC_FORM" or "EXECUTION_REVIEW" or "EQUIPMENT_SCHEMA")) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceType không được hỗ trợ.");
+        if (type is not ("PUBLIC_INFORMATION" or "PUBLIC_FORM" or "EXECUTION_REVIEW" or "EQUIPMENT_SCHEMA" or "ENDPOINT_SOFTWARE_CATALOG")) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceType không được hỗ trợ.");
 
         if (type == "EQUIPMENT_SCHEMA")
         {
@@ -97,6 +97,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             SecurityFunctionCodes.ExecutionReview => "EXECUTION_REVIEW",
             SecurityFunctionCodes.PublicFormManage or SecurityFunctionCodes.PublicFormSubmissionView or SecurityFunctionCodes.PublicFormExport => "PUBLIC_FORM",
             SecurityFunctionCodes.EquipmentFormManage => "EQUIPMENT_SCHEMA",
+            SecurityFunctionCodes.EndpointSoftwareCatalogManage => "ENDPOINT_SOFTWARE_CATALOG",
             _ => null
         };
         if (expectedType != null && !string.Equals(expectedType, type, StringComparison.OrdinalIgnoreCase)) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không phù hợp với ResourceType.");
@@ -123,11 +124,13 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
                 "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
                 "EQUIPMENT_SCHEMA" => await EquipmentSchemaExistsAsync(request.ResourceId.Value, ct),
                 "EXECUTION_REVIEW" => false,
+                "ENDPOINT_SOFTWARE_CATALOG" => false,
                 _ => false
             };
             if (!resourceExists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Resource không tồn tại hoặc đã inactive.");
         }
-        if (type == "EXECUTION_REVIEW" && request.ResourceId.HasValue) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Execution Review là assignment cấp module; ResourceId phải để trống.");
+        if ((type is "EXECUTION_REVIEW" or "ENDPOINT_SOFTWARE_CATALOG") && request.ResourceId.HasValue)
+            return ServiceResult<FeatureOperatorAssignmentDto>.Fail($"{type} là assignment cấp module; ResourceId phải để trống.");
 
         var exists = await _uow.Repository<F03FeatureOperatorAssignment>().Query().AnyAsync(x => x.IsActive == true && x.FunctionCode == request.FunctionCode && x.ResourceType == type && x.ResourceId == request.ResourceId && x.EmployeeCode == employeeCode, ct);
         if (exists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên đã được chỉ định.");
@@ -168,6 +171,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.FormCode, Name = x.Title, Status = x.Status }).ToListAsync(ct),
             "EQUIPMENT_SCHEMA" => await GetEquipmentSchemaResourcesAsync(ct),
             "EXECUTION_REVIEW" => new List<FeatureOperatorResourceDto>(),
+            "ENDPOINT_SOFTWARE_CATALOG" => new List<FeatureOperatorResourceDto>(),
             _ => throw new ArgumentException($"ResourceType không được hỗ trợ: {resourceType}")
         };
     }
