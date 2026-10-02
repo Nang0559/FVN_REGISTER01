@@ -123,3 +123,21 @@ BEGIN
     ) p
     WHERE r.ResolutionPolicySnapshotJson IS NULL;
 END;
+
+-- Register the management capability in the legacy function catalog.
+IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode = 3073)
+    BEGIN
+        IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+            INSERT INTO dbo.F03Functions
+                (FunctionCode, FunctionKey, FunctionName, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
+            VALUES
+                (3073, N'Execution.PolicyManage', N'Execution.PolicyManage', N'Execution', N'PolicyManage', N'All', N'Active', 1);
+        ELSE
+            INSERT INTO dbo.F03Functions
+                (FunctionCode, FunctionName, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
+            VALUES
+                (3073, N'Execution.PolicyManage', N'Execution', N'PolicyManage', N'All', N'Active', 1);
+    END
+END;
