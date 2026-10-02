@@ -144,6 +144,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 }
 
                 await EnsureHrAppealActionAsync(r, employee.Id, now, policy.AppealReviewHours, ct);
+                await MarkCalendarDisputedAsync(r, ct);
 
                 _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
                 {
@@ -266,6 +267,35 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
         return JsonSerializer.Deserialize<ResolutionPolicySnapshot>(json);
+    }
+
+    private async Task MarkCalendarDisputedAsync(
+        F03ExecutionReconciliation reconciliation,
+        CancellationToken ct)
+    {
+        var calendar = await _db.CalendarProjections.FirstOrDefaultAsync(x =>
+            x.IsActive != false
+            && x.EmployeeId == reconciliation.EmployeeId
+            && x.WorkDate == reconciliation.WorkDate
+            && x.ModuleCode == reconciliation.ModuleCode
+            && x.SourceType == reconciliation.SourceType
+            && x.SourceId == reconciliation.SourceId
+            && x.ParticipantId == reconciliation.ParticipantId, ct);
+
+        if (calendar is null) return;
+
+        calendar.RequiresAction = true;
+        calendar.StatusCode = reconciliation.ReconciliationStatus == "FinalDecisionPending"
+            ? "FinalDecisionPending"
+            : "EmployeeDisputed";
+        calendar.Marker = "!";
+        calendar.Severity = 2;
+        calendar.Summary = string.IsNullOrWhiteSpace(calendar.Summary)
+            ? "Nhân viên không đồng ý kết quả HR; đang chờ xử lý tiếp."
+            : $"{calendar.Summary} | Nhân viên khiếu nại; đang chờ xử lý tiếp.";
+        calendar.CalculatedAt = DateTime.Now;
+        calendar.ModifiedAt = DateTime.Now;
+        calendar.LastModifiedSource = "EXECUTION_EMPLOYEE_APPEAL";
     }
 
     private async Task FinalizeCalendarAsync(
