@@ -13,11 +13,8 @@ HolidayType:
 TinhPhep remains the leave-entitlement flag and is intentionally NOT reused
 for holiday classification.
 
-This script is idempotent and supports both:
-  - new databases whose base table was created without HolidayType;
-  - existing databases that already contain F03CompanyHolidays.
-
-The final table definition is therefore always equivalent to:
+This script is idempotent and supports both existing and new databases.
+The final schema is:
   Id, IsActive, CreatedBy, LastModifiedSource, CreatedAt, ModifiedBy,
   ModifiedAt, HolidayDate, Description, Year, TinhPhep, HolidayType.
 ===============================================================================
@@ -26,7 +23,18 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 /* ---------------------------------------------------------------------------
-   1. Canonical table creation for a database where the base table is absent.
+   1. Compatibility for the historical singular table name.
+   Rename first, before attempting canonical creation.
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID(N'dbo.F03CompanyHolidays', N'U') IS NULL
+   AND OBJECT_ID(N'dbo.F03CompanyHoliday', N'U') IS NOT NULL
+BEGIN
+    EXEC sys.sp_rename N'dbo.F03CompanyHoliday', N'F03CompanyHolidays';
+END;
+
+/* ---------------------------------------------------------------------------
+   2. Canonical table creation when neither legacy nor canonical table exists.
+   This guarantees that a fresh deployment also receives HolidayType.
    --------------------------------------------------------------------------- */
 IF OBJECT_ID(N'dbo.F03CompanyHolidays', N'U') IS NULL
 BEGIN
@@ -57,19 +65,9 @@ BEGIN
 END;
 
 /* ---------------------------------------------------------------------------
-   2. Compatibility for the historical singular table name.
-   --------------------------------------------------------------------------- */
-IF OBJECT_ID(N'dbo.F03CompanyHolidays', N'U') IS NULL
-   AND OBJECT_ID(N'dbo.F03CompanyHoliday', N'U') IS NOT NULL
-BEGIN
-    EXEC sys.sp_rename N'dbo.F03CompanyHoliday', N'F03CompanyHolidays';
-END;
-
-/* ---------------------------------------------------------------------------
    3. Normalize legacy column name IsPaidLeave -> TinhPhep.
    --------------------------------------------------------------------------- */
-IF OBJECT_ID(N'dbo.F03CompanyHolidays', N'U') IS NOT NULL
-   AND COL_LENGTH(N'dbo.F03CompanyHolidays', N'TinhPhep') IS NULL
+IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'TinhPhep') IS NULL
    AND COL_LENGTH(N'dbo.F03CompanyHolidays', N'IsPaidLeave') IS NOT NULL
 BEGIN
     EXEC sys.sp_rename N'dbo.F03CompanyHolidays.IsPaidLeave', N'TinhPhep', N'COLUMN';
@@ -77,8 +75,8 @@ END;
 
 /* ---------------------------------------------------------------------------
    4. Upgrade an existing table to the canonical HolidayType column.
-   Existing rows deliberately default to COMPANY (1). Administrators must
-   explicitly classify national/compensatory/other holidays.
+   Existing rows deliberately default to COMPANY (1). Classification as
+   NATIONAL/COMPENSATORY/OTHER must be explicit administrator data.
    --------------------------------------------------------------------------- */
 IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayType') IS NULL
 BEGIN
@@ -88,8 +86,7 @@ BEGIN
 END;
 
 /* ---------------------------------------------------------------------------
-   5. Ensure the default constraint exists when a legacy table already had
-      HolidayType but no default constraint.
+   5. Ensure the default constraint exists for legacy HolidayType columns.
    --------------------------------------------------------------------------- */
 IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayType') IS NOT NULL
    AND NOT EXISTS
@@ -124,8 +121,8 @@ BEGIN
 END;
 
 /* ---------------------------------------------------------------------------
-   7. Validate/fix invalid historical values before the CHECK is enforced by
-      future writes. Do not infer NATIONAL from TinhPhep or Description.
+   7. Normalize invalid/null historical values to COMPANY.
+   Do not infer NATIONAL from TinhPhep or Description.
    --------------------------------------------------------------------------- */
 UPDATE dbo.F03CompanyHolidays
 SET HolidayType = 1
@@ -133,9 +130,7 @@ WHERE HolidayType IS NULL
    OR HolidayType NOT IN (1,2,3,4);
 
 /* ---------------------------------------------------------------------------
-   8. Final schema gate. Deployment must stop if the canonical columns are
-      not present. This prevents UI/API code from running against an old
-      holiday schema.
+   8. Final schema gate.
    --------------------------------------------------------------------------- */
 IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayDate') IS NULL
    OR COL_LENGTH(N'dbo.F03CompanyHolidays', N'Description') IS NULL
