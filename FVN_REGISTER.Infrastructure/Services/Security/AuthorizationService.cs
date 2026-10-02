@@ -574,11 +574,6 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .Select(x => (bool?)x.IsActive)
             .FirstOrDefaultAsync(ct);
 
-        // Existing databases may predate the immutable critical-function invariant.
-        // Heal the SuperAdmin security baseline before calculating effective permissions,
-        // so the Security Center matrix is never hidden merely because one legacy grant is missing.
-        await EnsureSuperAdminCriticalGrantsAsync(ct);
-
         if (active != true)
         {
             return new PermissionSnapshotDto
@@ -601,6 +596,12 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             where ur.IdUser == userId && ur.IsActive == true && r.IsActive == true
             select r.RoleCode
         ).Distinct().ToListAsync(ct);
+
+        // Existing databases may predate the immutable critical-function invariant.
+        // Heal only the active SuperAdmin baseline before calculating effective permissions,
+        // so the Security Center matrix is never hidden merely because one legacy grant is missing.
+        if (roleCodes.Contains(1))
+            await EnsureSuperAdminCriticalGrantsAsync(ct);
 
         // Canonical RBAC: User -> Role -> Function/Action.
         // PermissionCode and legacy F03UserFunction are not effective grants.
