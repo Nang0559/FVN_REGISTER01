@@ -7,6 +7,7 @@ using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
 
