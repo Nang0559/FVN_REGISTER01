@@ -459,20 +459,37 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
     {
         var configured = _configuration["Localization:SourceRoot"];
         if (!string.IsNullOrWhiteSpace(configured))
-            return Path.GetFullPath(configured);
+        {
+            // Relative configuration is relative to the ASP.NET Core content root,
+            // not the IIS worker process working directory.
+            return Path.IsPathRooted(configured)
+                ? Path.GetFullPath(configured)
+                : Path.GetFullPath(Path.Combine(_environment.ContentRootPath, configured));
+        }
 
+        // IIS publish contains the catalog at <publish>/Localization.
+        var publishedRoot = Path.Combine(_environment.ContentRootPath, "Localization");
+        if (Directory.Exists(publishedRoot))
+            return publishedRoot;
+
+        // Development fallback: read the source project's Shared/Localization folder.
         var shared = ResolveSharedRoot();
-        var root = Path.Combine(shared, "Localization");
-        if (Directory.Exists(root)) return root;
+        var sourceRoot = Path.Combine(shared, "Localization");
+        if (Directory.Exists(sourceRoot))
+            return sourceRoot;
 
-        return Path.Combine(_environment.ContentRootPath, "Localization");
+        return publishedRoot;
     }
 
     private string ResolveSharedRoot()
     {
         var configured = _configuration["Localization:SharedRoot"];
         if (!string.IsNullOrWhiteSpace(configured))
-            return Path.GetFullPath(configured);
+        {
+            return Path.IsPathRooted(configured)
+                ? Path.GetFullPath(configured)
+                : Path.GetFullPath(Path.Combine(_environment.ContentRootPath, configured));
+        }
 
         return Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "..", "FVN_REGISTER.Shared"));
     }
