@@ -196,7 +196,17 @@ else
     private void OpenPath_ot_create() => Navigation.NavigateTo("/ot/create");
     private void OpenPath_trip_create() => Navigation.NavigateTo("/trip/create");
     private void OpenPath_work_inbox() => Navigation.NavigateTo("/work/inbox");
-    private void OpenExecutionWork() => Navigation.NavigateTo("/execution/hr");
+    private void OpenExecutionWork()
+    {
+        var action = _model?.Actions.FirstOrDefault();
+        if (action is not null && !string.IsNullOrWhiteSpace(action.DetailRoute))
+        {
+            Navigation.NavigateTo(action.DetailRoute);
+            return;
+        }
+
+        Navigation.NavigateTo("/work/inbox");
+    }
     private void OpenPath_history_leave() => Navigation.NavigateTo("/history/leave");
     private void OpenPath_history_ot() => Navigation.NavigateTo("/history/ot");
     private void OpenPath_calendar() => Navigation.NavigateTo("/calendar");
