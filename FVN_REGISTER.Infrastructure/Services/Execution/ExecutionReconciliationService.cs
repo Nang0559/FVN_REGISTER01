@@ -354,6 +354,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 policy.PolicyName,
                 policy.PolicyVersion,
                 policy.EmployeeResponseHours,
+                policy.EmployeeTimeoutMode,
                 policy.HrReviewHours,
                 policy.AllowEmployeeAppeal,
                 policy.MaxAppealRounds,
