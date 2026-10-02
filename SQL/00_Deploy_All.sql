@@ -7,7 +7,6 @@ Database/ is documentation/history only and is not executed by deployment.
 ===============================================================================
 */
 :on error exit
-
 :r "01_Database.sql"
 :r "02A_Preflight.sql"
 :r "02B_Schemas.sql"
@@ -23,8 +22,6 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "10B_Triggers.sql"
 :r "11A_Automation.sql"
 :r "11B_Permissions.sql"
-
-/* HRM / SECURITY / PUBLIC INFORMATION */
 :r "13_HrmShiftMaster.sql"
 :r "14_SecurityAuthorization.sql"
 :r "14A_SecurityTwoFactorColumns.sql"
@@ -32,19 +29,12 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "14C_SecurityFeatureOperatorAssignments.sql"
 :r "14E_AttendanceCalculateCapability.sql"
 :r "15_PublicInformation.sql"
-
-/* EQUIPMENT - CANONICAL OWNER */
 :r "16_EquipmentFlexibleImport.sql"
-
-/* SHARED EXCEL - SINGLE CANONICAL OWNER */
 :r "Excel/001_SharedExcelPlatform.sql"
 :r "Excel/002_SharedExcelPlatform_Normalize.sql"
 :r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
 :r "16_EquipmentFlexibleImport_LegacyCleanup.sql"
-
 :r "16A_EquipmentCapabilities.sql"
-
-/* APPROVAL / OT / REPORTS / ATTENDANCE / LEAVE / WORK CALENDAR */
 :r "17_ApprovalRouteSelection.sql"
 :r "18_ApproverConfigurationReview.sql"
 :r "19_OT_LimitRule_ScopeColumns.sql"
@@ -63,8 +53,6 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "27_WorkCalendarActionIndexesSeed.sql"
 :r "28_Verify_WorkCalendarAction.sql"
 :r "28B_Trips.sql"
-
-/* EXECUTION / PAYROLL / APPROVAL / PUBLIC / EMAIL / SECURITY */
 :r "29_ExecutionReconciliation.sql"
 :r "30_Payroll.sql"
 :r "32_ExecutionReviewSecurity.sql"
@@ -80,8 +68,6 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "40_EmailCenter.sql"
 :r "41_EmailCenter_ProfileCompatibility.sql"
 :r "41_SecurityFunctionCleanup.sql"
-
-/* EQUIPMENT EXTENSIONS */
 :r "42_EquipmentInspection.sql"
 :r "43_EquipmentHandover.sql"
 :r "44_SecurityAccessChange.sql"
@@ -93,58 +79,28 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "50_EquipmentManageCapability.sql"
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
-
-/* ADMIN/RBAC COMPATIBILITY */
 :r "51_SecurityAdminCompatibility.sql"
-
-/* APPROVAL FOUNDATION MUST EXIST BEFORE ENDPOINT GOVERNANCE */
 :r "53_ApprovalUnifiedFoundation.sql"
-
-/* ENDPOINT GOVERNANCE SCHEMA */
 :r "54_Endpoint_Inventory_Compliance.sql"
 :r "54_EndpointGovernanceFoundation.sql"
 :r "55_Endpoint_Credentials.sql"
 :r "55_EndpointGovernanceCatalogApproval.sql"
 :r "56_EndpointGovernanceExtensions.sql"
-
-/* ENDPOINT SECURITY CAPABILITIES / ROLE SEED - AFTER ALL ENDPOINT OBJECTS EXIST */
 :r "57_Verify_Endpoint_Governance.sql"
 :r "58_EndpointSecurityCapabilities.sql"
-
-/* CALENDAR CAPABILITY */
 :r "59_CalendarViewCapability.sql"
-
-/* ENDPOINT AGENT DATA / CATALOG / FINDING RETENTION */
 :r "60_EndpointAgentDataHardening.sql"
-
-/* REQUEST MODULE EMAIL TEMPLATE COMPATIBILITY */
 :r "61_RequestModuleEmailTemplates.sql"
-
-/* CANONICAL SUPERADMIN FULL-ACCESS INVARIANT */
 :r "62_SuperAdminFullAccess.sql"
-
-/* FINAL RUNTIME SCHEMA COMPATIBILITY GATE */
 :r "62_RuntimeSchemaCompatibility.sql"
-
-/* CALENDAR ATTENDANCE PERFORMANCE */
 :r "63_CalendarAttendancePerformance.sql"
-
-/* SECURITY ROLE/FUNCTION MATRIX */
 :r "64_SecurityRoleMatrixCapability.sql"
-
-/* SECURITY SYSTEM-CRITICAL INVARIANT */
 :r "65_SecuritySystemCriticalInvariant.sql"
-
-/* CALENDAR HOLIDAY CLASSIFICATION */
 :r "66_CalendarHolidayClassification.sql"
-
-/* AUTHORIZATION SCHEMA GATE */
+:r "67_AttendanceSymbolRules.sql"
 :r "14D_SecuritySchemaVerify.sql"
-
-/* FINAL VERIFICATION */
 :r "12_Verify.sql"
 :r "99_Verify.sql"
-
 PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment completed.';
 PRINT N'============================================================';
