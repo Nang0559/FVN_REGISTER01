@@ -1,0 +1,125 @@
+@page "/admin/system-update"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.SystemUpdate
+@using FVN_REGISTER.Shared.Services.SystemUpdate
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@inherits AppComponentBase
+@inject ISystemUpdateClientService UpdateService
+@inject ISnackbar Snackbar
+
+<PageTitle>@Language.T("systemupdate.title")</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("systemupdate.title")</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("systemupdate.subtitle")</MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton>
+    </MudStack>
+
+    @if (_error != null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    @if (_overview != null && !_overview.Enabled) { <MudAlert Severity="Severity.Warning">@Language.T("systemupdate.disabled")</MudAlert> }
+    @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+
+    @if (_overview?.Enabled == true)
+    {
+        <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+            <MudText Typo="Typo.h6" Class="mb-2">@Language.T("systemupdate.current")</MudText>
+            @if (_overview.Current == null)
+            {
+                <MudText Color="Color.Secondary">@Language.T("systemupdate.noStatus")</MudText>
+            }
+            else
+            {
+                var c = _overview.Current;
+                <MudStack Spacing="1">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudChip T="string" Size="Size.Small" Color="@StateColor(c.State)">@StateText(c.State)</MudChip>
+                        <MudText><b>@Language.T("systemupdate.version"):</b> @(c.Version ?? "—")</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body2">@Language.T("systemupdate.startedAt"): @Fmt(c.StartedAt) &nbsp; @Language.T("systemupdate.finishedAt"): @Fmt(c.FinishedAt) &nbsp; @Language.T("systemupdate.uploadedBy"): @(c.UploadedBy ?? "—")</MudText>
+                    @if (!string.IsNullOrWhiteSpace(c.Message)) { <MudAlert Severity="@(c.State == "Succeeded" ? Severity.Success : Severity.Warning)" Dense="true">@c.Message</MudAlert> }
+                    @if (c.Steps.Count > 0)
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">@Language.T("systemupdate.steps")</MudText>
+                        @foreach (var s in c.Steps) { <MudText Typo="Typo.caption">@Fmt(s.At) — @s.Text</MudText> }
+                    }
+                </MudStack>
+            }
+            @if (_overview.PendingPackages.Count > 0)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">@Language.T("systemupdate.pending"): @string.Join(", ", _overview.PendingPackages)</MudAlert>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+            <MudText Typo="Typo.h6" Class="mb-2">@Language.T("systemupdate.uploadTitle")</MudText>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <InputFile OnChange="OnFileSelected" accept=".zip" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_file == null || _uploading" OnClick="UploadAsync" StartIcon="@Icons.Material.Filled.CloudUpload">@Language.T("systemupdate.upload")</MudButton>
+            </MudStack>
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">@Language.T("systemupdate.maxSize"): @(_overview.MaxPackageBytes / 1024 / 1024) MB</MudText>
+            @if (_uploading) { <MudProgressLinear Indeterminate="true" Class="mt-2" /> }
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+            <MudText Typo="Typo.h6" Class="mb-2">@Language.T("systemupdate.history")</MudText>
+            <MudTable Items="_overview.History" Hover="true" Dense="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>@Language.T("systemupdate.version")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("systemupdate.startedAt")</MudTh><MudTh>@Language.T("systemupdate.uploadedBy")</MudTh><MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><b>@context.Version</b></MudTd><MudTd><MudChip T="string" Size="Size.Small" Color="@StateColor(context.State)">@StateText(context.State)</MudChip></MudTd><MudTd>@Fmt(context.StartedAt)</MudTd><MudTd>@context.UploadedBy</MudTd><MudTd><MudText Typo="Typo.caption">@context.Message</MudText></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</MudStack>
+
+@code {
+    private SystemUpdateOverviewDto? _overview;
+    private IBrowserFile? _file;
+    private bool _loading;
+    private bool _uploading;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try
+        {
+            var result = await UpdateService.GetOverviewAsync();
+            if (!result.IsSuccess) { _error = result.Message; return; }
+            _overview = result.Data;
+        }
+        finally { _loading = false; }
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e) => _file = e.File;
+
+    private async Task UploadAsync()
+    {
+        if (_file == null || _overview == null) return;
+        _uploading = true;
+        try
+        {
+            await using var stream = _file.OpenReadStream(_overview.MaxPackageBytes);
+            var result = await UpdateService.UploadAsync(stream, _file.Name);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Upload failed", Severity.Error); return; }
+            Snackbar.Add(Language.T("systemupdate.uploaded"), Severity.Success);
+            _file = null;
+            await LoadAsync();
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _uploading = false; }
+    }
+
+    private string StateText(string state) => Language.T("systemupdate.state." + state);
+    private static Color StateColor(string state) => state switch { "Succeeded" => Color.Success, "Failed" or "Rejected" => Color.Error, "RolledBack" => Color.Warning, "Running" => Color.Info, _ => Color.Default };
+    private static string Fmt(DateTime? value) => value?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "—";
+}
