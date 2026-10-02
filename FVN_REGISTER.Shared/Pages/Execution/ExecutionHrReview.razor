@@ -34,6 +34,8 @@
                 <MudSelect T="string" Label='@Language.T("common.status")' @bind-Value="_status">
                     <MudSelectItem Value="@("Mismatch")">@Language.T("execution.mismatch")</MudSelectItem>
                     <MudSelectItem Value="@("AwaitingConfirmation")">AwaitingConfirmation</MudSelectItem>
+                    <MudSelectItem Value="@("AppealReviewing")">AppealReviewing</MudSelectItem>
+                    <MudSelectItem Value="@("FinalDecisionPending")">FinalDecisionPending</MudSelectItem>
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="4" Class="d-flex align-end">
