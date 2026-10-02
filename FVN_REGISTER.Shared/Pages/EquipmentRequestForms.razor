@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.EquipmentForms
 @using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Equipment
 @using Microsoft.AspNetCore.Authorization
@@ -150,6 +151,7 @@
         _values.Clear();
         _boolValues.Clear();
         _approvalRouteLoadFailed = false;
+        _ = LoadApprovalRouteAsync();
     }
 
     private string GetValue(int id) => _values.TryGetValue(id, out var value) ? value : string.Empty;
