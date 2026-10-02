@@ -2,6 +2,7 @@ using System.Text.Json;
 using FVN_REGISTER.Contract.Utils;
 using System.Linq.Expressions;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Policies;
@@ -22,6 +23,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 {
     private readonly IHrmAttendanceCalculationService _attendanceCalculation;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operatorAssignments;
     private readonly INotificationService _notificationService;
     private readonly ILogger<ExecutionHrResolutionService> _logger;
     public Task<ServiceResult<IReadOnlyList<ExecutionHrReviewItemDto>>> GetPendingAsync(int uid,string? m,string? s,DateOnly? f,DateOnly? t,CancellationToken ct=default)=>GuardAsync(()=>GetPendingAsyncCoreAsync(uid,m,s,f,t,ct));
@@ -37,12 +39,14 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         FVNWEBAPPContext db,
         IHrmAttendanceCalculationService attendanceCalculation,
         IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operatorAssignments,
         INotificationService notificationService,
         ILogger<ExecutionHrResolutionService> logger)
     {
         _db = db;
         _attendanceCalculation = attendanceCalculation;
         _authorization = authorization;
+        _operatorAssignments = operatorAssignments;
         _notificationService = notificationService;
         _logger = logger;
     }
@@ -62,13 +66,22 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .Select(x => new { x.EmployeeCode, x.DeptCode })
             .SingleAsync(cancellationToken);
 
+        var isAssignedOperator = await _operatorAssignments.CanOperateAsync(
+            userId,
+            actor.EmployeeCode,
+            HrExecutionReviewFunctionCode,
+            "EXECUTION_REVIEW",
+            null,
+            cancellationToken);
+
         var scope = await _authorization.GetScopeAsync(
             userId,
             HrExecutionReviewFunctionCode,
             cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(scope)
-            || string.Equals(scope, AuthorizationScopeCodes.None, StringComparison.OrdinalIgnoreCase))
+        if (!isAssignedOperator
+            && (string.IsNullOrWhiteSpace(scope)
+                || string.Equals(scope, AuthorizationScopeCodes.None, StringComparison.OrdinalIgnoreCase)))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
                 "Execution Review chưa được cấp data scope.");
 
@@ -91,10 +104,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (from.HasValue) query = query.Where(x => x.WorkDate >= from.Value);
         if (to.HasValue) query = query.Where(x => x.WorkDate <= to.Value);
 
-        if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+        if (!isAssignedOperator && string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             query = query.Where(x => _db.Employees.Any(e =>
                 e.Id == x.EmployeeId && e.DeptCode == actor.DeptCode && e.IsActive != false));
-        else if (string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase))
+        else if (!isAssignedOperator && string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase))
             query = query.Where(x => _db.Employees.Any(e =>
                 e.Id == x.EmployeeId && e.EmployeeCode == actor.EmployeeCode && e.IsActive != false));
 
@@ -678,8 +691,22 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             IsLoggedIn = true
         };
 
-        if (!await _authorization.HasAsync(identity, HrExecutionReviewFunctionCode, cancellationToken))
-            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("Tài khoản không có quyền Execution Review.");
+        var hasExecutionReview = await _authorization.HasAsync(
+            identity,
+            HrExecutionReviewFunctionCode,
+            cancellationToken);
+
+        var isAssignedOperator = await _operatorAssignments.CanOperateAsync(
+            userId,
+            user.EmployeeCode,
+            HrExecutionReviewFunctionCode,
+            "EXECUTION_REVIEW",
+            null,
+            cancellationToken);
+
+        if (!hasExecutionReview && !isAssignedOperator)
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Tài khoản không có quyền Execution Review.");
 
         if (requireAllScope)
         {
@@ -748,7 +775,16 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new UnauthorizedAccessException("Tài khoản HR không tồn tại.");
 
-        if (!await _authorization.CanAccessAsync(
+        var assignedOperator = await _operatorAssignments.CanOperateAsync(
+            userId,
+            actor.EmployeeCode,
+            HrExecutionReviewFunctionCode,
+            "EXECUTION_REVIEW",
+            null,
+            cancellationToken);
+
+        if (!assignedOperator
+            && !await _authorization.CanAccessAsync(
                 actor,
                 HrExecutionReviewFunctionCode,
                 targetEmployeeCode,
