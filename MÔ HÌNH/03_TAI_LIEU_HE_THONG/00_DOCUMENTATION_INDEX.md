@@ -26,6 +26,8 @@ MÔ HÌNH/
 ## 3. Tài liệu kỹ thuật / triển khai
 
 - `04_KY_THUAT_TRIEN_KHAI/ENDPOINT/` — toàn bộ tài liệu Endpoint Inventory & Compliance.
+- `../01_KIEN_TRUC_HE_THONG/EXECUTION/19_EXECUTION_RESOLUTION_POLICY.md` — thiết kế policy, SLA, appeal, final decision và payroll boundary của Execution Reconciliation.
+- `02_HUONG_DAN_SU_DUNG/EXECUTION_RECONCILIATION_GUIDE.md` — hướng dẫn nhân viên và HR xử lý phản hồi/đối soát.
 - Các tài liệu triển khai khác được đưa vào cùng lớp này thay vì duy trì thư mục `docs/` độc lập.
 
 ## 4. Tiêu chuẩn tài liệu
