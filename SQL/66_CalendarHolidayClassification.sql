@@ -85,7 +85,8 @@ BEGIN
            OR HolidayType NOT IN (1,2,3,4);';
 END;
 
-/* 6. Ensure a default exists for legacy HolidayType columns. */
+/* 6. Ensure a default exists for legacy HolidayType columns.
+      This ALTER TABLE is dynamic for the same-batch SQL Server compilation rule. */
 IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayType') IS NOT NULL
    AND NOT EXISTS
    (
@@ -98,11 +99,14 @@ IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayType') IS NOT NULL
          AND c.name = N'HolidayType'
    )
 BEGIN
-    ALTER TABLE dbo.F03CompanyHolidays
-        ADD CONSTRAINT DF_F03CompanyHolidays_HolidayType DEFAULT ((1)) FOR HolidayType;
+    EXEC sys.sp_executesql N'
+        ALTER TABLE dbo.F03CompanyHolidays
+        ADD CONSTRAINT DF_F03CompanyHolidays_HolidayType DEFAULT ((1)) FOR HolidayType;';
 END;
 
-/* 7. Ensure the allowed-value constraint exists. */
+/* 7. Ensure the allowed-value constraint exists.
+      The ALTER TABLE is dynamic so SQL Server cannot bind HolidayType before
+      the column exists in a legacy database. */
 IF NOT EXISTS
 (
     SELECT 1
@@ -111,9 +115,10 @@ IF NOT EXISTS
       AND name = N'CK_F03CompanyHolidays_HolidayType'
 )
 BEGIN
-    ALTER TABLE dbo.F03CompanyHolidays
+    EXEC sys.sp_executesql N'
+        ALTER TABLE dbo.F03CompanyHolidays
         ADD CONSTRAINT CK_F03CompanyHolidays_HolidayType
-        CHECK (HolidayType IN (1,2,3,4));
+        CHECK (HolidayType IN (1,2,3,4));';
 END;
 
 /* 8. Final schema gate. */
