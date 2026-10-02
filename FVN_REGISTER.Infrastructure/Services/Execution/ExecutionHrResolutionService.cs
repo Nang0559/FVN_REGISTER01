@@ -331,6 +331,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         evidence.ModifiedAt = DateTime.Now;
         evidence.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
 
+        // The HR review task is complete once this evidence has been reviewed.
+        await CompleteExecutionReviewActionsAsync(reconciliation.Id, userId, cancellationToken);
+
         // Any negative evidence review keeps the employee action open.
         if (reviewStatus == "Rejected" || reviewStatus == "NeedMoreEvidence")
         {
@@ -594,6 +597,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         reconciliation.RequiresEvidence = false;
         reconciliation.LastModifiedSource = "HR_EXECUTION_REVIEW";
 
+        await CompleteExecutionReviewActionsAsync(reconciliation.Id, userId, cancellationToken);
+
         if (reconciliation.ActionId.HasValue)
         {
             var action = await _db.ActionItems.FirstOrDefaultAsync(
@@ -659,6 +664,32 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             reason,
             calendarAction,
             now);
+    }
+
+    private async Task CompleteExecutionReviewActionsAsync(
+        long reconciliationId,
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var actions = await _db.ActionItems
+            .Where(x => x.IsActive != false
+                && x.ActionType == "EXECUTION_EVIDENCE_REVIEW"
+                && x.SourceId == reconciliationId.ToString()
+                && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
+            .ToListAsync(cancellationToken);
+
+        if (actions.Count == 0)
+            return;
+
+        var now = DateTime.Now;
+        foreach (var action in actions)
+        {
+            action.Status = ActionItemStatus.Completed;
+            action.CompletedAt = now;
+            action.ModifiedBy = userId;
+            action.ModifiedAt = now;
+            action.LastModifiedSource = "HR_EXECUTION_REVIEW";
+        }
     }
 
     private async Task EnsureHrPermissionAsync(
