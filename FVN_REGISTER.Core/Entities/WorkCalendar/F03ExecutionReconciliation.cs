@@ -41,6 +41,19 @@ public sealed class F03ExecutionReconciliation : BaseAuditEntity
     public int? ResolutionPolicyVersion { get; set; }
     public string? ResolutionPolicySnapshotJson { get; set; }
 
+    [StringLength(40)]
+    public string EmployeeDecisionStatus { get; set; } = "Pending";
+
+    public DateTime? EmployeeDecisionAt { get; set; }
+    public int? EmployeeDecisionBy { get; set; }
+
+    [StringLength(2000)]
+    public string? EmployeeDecisionComment { get; set; }
+
+    public byte AppealRound { get; set; }
+
+    public DateTime? FinalizedAt { get; set; }
+    public int? FinalizedBy { get; set; }
 
     public string? DetailJson { get; set; }
     public DateTime? ResolvedAt { get; set; }
