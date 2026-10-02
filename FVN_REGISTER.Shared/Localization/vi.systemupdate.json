@@ -20,5 +20,6 @@
   "systemupdate.state.Succeeded": "Thành công",
   "systemupdate.state.Failed": "Thất bại",
   "systemupdate.state.RolledBack": "Đã rollback",
-  "systemupdate.state.Rejected": "Bị từ chối"
+  "systemupdate.state.Rejected": "Bị từ chối",
+  "security.noPermission": "Bạn không có quyền thực hiện thao tác này."
 }
