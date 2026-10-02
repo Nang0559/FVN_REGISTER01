@@ -184,7 +184,8 @@ namespace FVN_REGISTER.Shared.Handlers
                     // Only treat an object as ApiResponse<T> when it actually has the
                     // response-envelope marker. Otherwise deserialize it as the raw T.
                     if (root.ValueKind == JsonValueKind.Object &&
-                        (HasProperty(root, "isSuccess") || HasProperty(root, "success")))
+                        (HasProperty(root, "isSuccess", "IsSuccess") ||
+                         HasProperty(root, "success", "Success")))
                     {
                         var apiResult = TryDeserialize<ApiResponse<T>>(content);
                         if (apiResult != null)
@@ -224,8 +225,8 @@ namespace FVN_REGISTER.Shared.Handlers
             catch (JsonException) { return null; }
         }
 
-        private static bool HasProperty(JsonElement element, string name)
-            => element.TryGetProperty(name, out _);
+        private static bool HasProperty(JsonElement element, params string[] names)
+            => names.Any(name => element.TryGetProperty(name, out _));
 
         private static bool IsExplicitJsonNull(string json)
             => string.Equals(json.Trim(), "null", StringComparison.Ordinal);
