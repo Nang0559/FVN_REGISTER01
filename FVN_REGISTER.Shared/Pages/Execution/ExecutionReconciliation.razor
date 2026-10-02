@@ -141,13 +141,12 @@
         {
             <MudDivider Class="my-3" />
             <MudText Typo="Typo.subtitle1">Lịch sử xử lý</MudText>
-            <MudTimeline TimelinePosition="TimelinePosition.Start" Class="mt-2">
+            <MudList Dense="true" Class="mt-2">
                 @foreach (var h in _detail.History)
                 {
-                    <MudTimelineItem Color="Color.Primary">
+                    <MudListItem>
                         <MudText Typo="Typo.body2">
-                            <b>@h.EventType</b>
-                            — @h.FromStatus → @h.ToStatus
+                            <b>@h.EventType</b> — @h.FromStatus → @h.ToStatus
                         </MudText>
                         <MudText Typo="Typo.caption">
                             @h.CreatedAt.ToString("dd/MM/yyyy HH:mm")
@@ -157,9 +156,9 @@
                         {
                             <MudText Typo="Typo.body2">@h.Reason</MudText>
                         }
-                    </MudTimelineItem>
+                    </MudListItem>
                 }
-            </MudTimeline>
+            </MudList>
         }
 
         @if (_detail.HrResolution is not null)
