@@ -271,14 +271,14 @@
                                         <MudCheckBox T="bool"
                                                      Value="@HasRoleFunction(role.RoleCode, context.FunctionCode)"
                                                      ValueChanged="@(value => ToggleRoleFunction(role.RoleCode, context.FunctionCode, value))"
-                                                     Disabled="@context.IsSystemCritical && role.RoleCode == 1"
+                                                     Disabled="@(context.IsSystemCritical && role.RoleCode == 1)"
                                                      Color="Color.Primary" />
                                         @if (HasRoleFunction(role.RoleCode, context.FunctionCode))
                                         {
                                             <MudSelect T="string"
                                                        Value="@GetRoleFunctionMode(role.RoleCode, context.FunctionCode)"
                                                        ValueChanged="@(value => SetRoleFunctionMode(role.RoleCode, context.FunctionCode, value))"
-                                                       Disabled="@context.IsSystemCritical && role.RoleCode == 1"
+                                                       Disabled="@(context.IsSystemCritical && role.RoleCode == 1)"
                                                        Dense="true"
                                                        Margin="Margin.Dense"
                                                        Variant="Variant.Outlined"
@@ -291,7 +291,7 @@
                                             <MudSelect T="string"
                                                        Value="@GetRoleFunctionScope(role.RoleCode, context.FunctionCode)"
                                                        ValueChanged="@(value => SetRoleFunctionScope(role.RoleCode, context.FunctionCode, value))"
-                                                       Disabled="@context.IsSystemCritical && role.RoleCode == 1"
+                                                       Disabled="@(context.IsSystemCritical && role.RoleCode == 1)"
                                                        Dense="true"
                                                        Margin="Margin.Dense"
                                                        Variant="Variant.Outlined"
