@@ -1,4 +1,4 @@
-<##
+<#
   Apply-Patch.ps1 - the FVN_REGISTER updater. Runs every minute as a scheduled task (SYSTEM or a
   dedicated service account) and processes at most one signed package from <root>\patch-inbox.
 
