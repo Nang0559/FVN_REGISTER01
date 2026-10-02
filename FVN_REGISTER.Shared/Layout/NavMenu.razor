@@ -103,6 +103,7 @@
             @if (Can(SecurityFunctionCodes.HrmSyncReview)){<MudNavLink href="/admin/hrm-sync-review" Icon="@Icons.Material.Filled.WarningAmber">@Language.T("nav.hrmConflict")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.HrmUserRoleRuleManage)){<MudNavLink href="/admin/hrm-role-rules" Icon="@Icons.Material.Filled.Rule">@Language.T("nav.hrmRoleRules")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.ApprovalPolicyManage)){<MudNavLink href="/admin/approval-policies" Icon="@Icons.Material.Filled.Policy">@Language.T("nav.approvalPolicy")</MudNavLink>}
+            @if (Can(SecurityFunctionCodes.ExecutionPolicyManage)){<MudNavLink href="/admin/execution-policies" Icon="@Icons.Material.Filled.Rule">Chính sách đối soát công</MudNavLink>}
             @if (CanManagement(SecurityFunctionCodes.DepartmentStatusView)){<MudNavLink href="/leave/department-status" Icon="@Icons.Material.Filled.Assessment">@Language.T("nav.departmentStatus")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.AttendanceCalculate)){<MudNavLink href="/hrm/attendance-calculation" Icon="@Icons.Material.Filled.AccessTime">@Language.T("nav.attendanceCalculation")</MudNavLink>}
         </MudNavGroup>
