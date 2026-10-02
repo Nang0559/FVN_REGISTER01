@@ -95,6 +95,8 @@ public static class SecurityFunctionCodes
     public const int PublicFormResultExport = 2817;
     public const int PublicFormAuditView = 2818;
     public const int ExecutionReview = 2802;
+    [SecurityFunctionDefinition("Execution.PolicyManage", "Quản lý chính sách đối soát công", ModuleCode = "Execution", ActionCode = "PolicyManage", ScopeCode = AuthorizationScopeCodes.All)]
+    public const int ExecutionPolicyManage = 3073;
 
     public const int PayrollView = 2803;
     public const int PayrollPrepare = 2804;
