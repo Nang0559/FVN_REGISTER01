@@ -218,11 +218,22 @@
     [SupplyParameterFromQuery(Name = "reconciliationId")]
     public long? ReconciliationId { get; set; }
 
+    private long? _openedQueryReconciliationId;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
-        if (ReconciliationId.HasValue)
-            await OpenDetailAsync(ReconciliationId.Value);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ReconciliationId.HasValue
+            && ReconciliationId.Value > 0
+            && _openedQueryReconciliationId != ReconciliationId.Value)
+        {
+            _openedQueryReconciliationId = ReconciliationId.Value;
+            await OpenDetailAsync(ReconciliationId.Value, adjustDateRange: true);
+        }
     }
 
     private async Task LoadAsync()
@@ -264,13 +275,21 @@
 
     private void CloseConfirmation() => _confirmationOpen = false;
 
-    private async Task OpenDetailAsync(long reconciliationId)
+    private async Task OpenDetailAsync(long reconciliationId, bool adjustDateRange = false)
     {
         var result = await ExecutionService.GetDetailAsync(reconciliationId);
         if (!result.IsSuccess || result.Data is null)
         {
             Snackbar.Add(result.Message ?? Language.T("execution.khongTaiDuocChiTiet"), Severity.Error);
             return;
+        }
+
+        if (adjustDateRange)
+        {
+            var workDate = result.Data.Reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue);
+            _from = workDate.AddDays(-30);
+            _to = workDate.AddDays(30);
+            await LoadAsync();
         }
 
         _detail = result.Data;
