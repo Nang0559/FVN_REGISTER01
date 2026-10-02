@@ -73,11 +73,17 @@ BEGIN
             CONSTRAINT DF_F03CompanyHolidays_HolidayType DEFAULT ((1)) WITH VALUES;
 END;
 
-/* 5. Normalize invalid legacy values BEFORE adding/enforcing the CHECK. */
-UPDATE dbo.F03CompanyHolidays
-SET HolidayType = 1
-WHERE HolidayType IS NULL
-   OR HolidayType NOT IN (1,2,3,4);
+/* 5. Normalize invalid legacy values BEFORE adding/enforcing the CHECK.
+      The UPDATE is executed dynamically because HolidayType may have been
+      created by the ALTER TABLE immediately above in the same batch. */
+IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayType') IS NOT NULL
+BEGIN
+    EXEC sys.sp_executesql N'
+        UPDATE dbo.F03CompanyHolidays
+        SET HolidayType = 1
+        WHERE HolidayType IS NULL
+           OR HolidayType NOT IN (1,2,3,4);';
+END;
 
 /* 6. Ensure a default exists for legacy HolidayType columns. */
 IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayType') IS NOT NULL
