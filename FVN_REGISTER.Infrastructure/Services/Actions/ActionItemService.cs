@@ -1,5 +1,8 @@
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Contract.Dtos.Actions;
+using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.Security;
+using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +24,7 @@ public sealed class ActionItemService : IActionItemService
         CancellationToken cancellationToken = default)
     {
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId, cancellationToken);
         var query = _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -67,6 +71,7 @@ public sealed class ActionItemService : IActionItemService
         CancellationToken cancellationToken = default)
     {
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId, cancellationToken);
         var counts = await _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -213,6 +218,112 @@ public sealed class ActionItemService : IActionItemService
 
         await _db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task EnsureAssignedExecutionReviewActionsAsync(
+        string employeeCode,
+        int userId,
+        int employeeId,
+        CancellationToken cancellationToken)
+    {
+        var assigned = await _db.Set<F03FeatureOperatorAssignment>()
+            .AsNoTracking()
+            .AnyAsync(x => x.IsActive == true
+                && x.FunctionCode == SecurityFunctionCodes.ExecutionReview
+                && x.ResourceType == "EXECUTION_REVIEW"
+                && x.ResourceId == null
+                && x.EmployeeCode == employeeCode,
+                cancellationToken);
+
+        if (!assigned)
+            return;
+
+        var pending = await (
+            from evidence in _db.ExecutionConfirmationEvidences.AsNoTracking()
+            join confirmation in _db.ExecutionConfirmations.AsNoTracking()
+                on evidence.ConfirmationId equals confirmation.Id
+            join reconciliation in _db.ExecutionReconciliations.AsNoTracking()
+                on confirmation.ReconciliationId equals reconciliation.Id
+            join employee in _db.Employees.AsNoTracking()
+                on reconciliation.EmployeeId equals employee.Id
+            where evidence.IsActive != false
+                && evidence.ReviewStatus == "Pending"
+                && confirmation.IsActive != false
+                && reconciliation.IsActive != false
+                && reconciliation.ReconciliationStatus != "Resolved"
+                && _db.ExecutionPolicies.Any(p =>
+                    p.IsActive != false
+                    && p.ModuleCode == reconciliation.ModuleCode
+                    && p.ReviewMode != 0)
+            select new
+            {
+                reconciliation.Id,
+                reconciliation.ModuleCode,
+                reconciliation.SourceType,
+                reconciliation.SourceId,
+                reconciliation.ParticipantId,
+                reconciliation.EmployeeId,
+                reconciliation.WorkDate,
+                employee.EmployeeCode,
+                employee.EmployeeName,
+                EvidenceId = evidence.Id,
+                EvidenceSubmittedBy = evidence.SubmittedBy
+            })
+            .OrderByDescending(x => x.EvidenceId)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+
+        if (pending.Count == 0)
+            return;
+
+        var sourceIds = pending.Select(x => x.Id.ToString()).Distinct().ToList();
+        var existing = await _db.ActionItems
+            .Where(x => x.IsActive != false
+                && x.AssignedToEmployeeId == employeeId
+                && x.AssignedToUserId == userId
+                && x.ActionType == "EXECUTION_EVIDENCE_REVIEW"
+                && sourceIds.Contains(x.SourceId)
+                && (x.Status == ActionItemStatus.Open
+                    || x.Status == ActionItemStatus.InProgress
+                    || x.Status == ActionItemStatus.Expired))
+            .Select(x => x.SourceId)
+            .ToListAsync(cancellationToken);
+
+        var existingSet = existing.ToHashSet(StringComparer.Ordinal);
+        foreach (var item in pending.Where(x => !existingSet.Contains(x.Id.ToString())))
+        {
+            _db.ActionItems.Add(new F03ActionItem
+            {
+                ActionId = Guid.NewGuid(),
+                ModuleCode = item.ModuleCode,
+                SourceType = item.SourceType,
+                SourceId = item.Id.ToString(),
+                ParticipantId = item.ParticipantId,
+                EmployeeId = item.EmployeeId,
+                AssignedToEmployeeId = employeeId,
+                AssignedToUserId = userId,
+                WorkDate = item.WorkDate,
+                ActionType = "EXECUTION_EVIDENCE_REVIEW",
+                Title = $"Phản hồi cần xử lý: {item.ModuleCode}",
+                Summary = $"{item.EmployeeCode} - {item.EmployeeName}: evidence #{item.EvidenceId} cần review.",
+                Severity = 1,
+                Priority = 200,
+                Status = ActionItemStatus.Open,
+                DetailRoute = $"/execution/hr?reconciliationId={item.Id}",
+                PayloadJson = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    ReconciliationId = item.Id,
+                    EvidenceId = item.EvidenceId,
+                    EmployeeCode = item.EmployeeCode
+                }),
+                CreatedBy = item.EvidenceSubmittedBy ?? userId,
+                CreatedAt = DateTime.Now,
+                LastModifiedSource = "EXECUTION_OPERATOR_BACKFILL"
+            });
+        }
+
+        if (_db.ChangeTracker.HasChanges())
+            await _db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<int> ResolveEmployeeIdAsync(string employeeCode, CancellationToken cancellationToken)
