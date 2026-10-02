@@ -137,6 +137,31 @@
             }
         }
 
+        @if (_detail.History.Count > 0)
+        {
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle1">Lịch sử xử lý</MudText>
+            <MudTimeline TimelinePosition="TimelinePosition.Start" Class="mt-2">
+                @foreach (var h in _detail.History)
+                {
+                    <MudTimelineItem Color="Color.Primary">
+                        <MudText Typo="Typo.body2">
+                            <b>@h.EventType</b>
+                            — @h.FromStatus → @h.ToStatus
+                        </MudText>
+                        <MudText Typo="Typo.caption">
+                            @h.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                            · @(h.ActorEmployeeCode ?? "Hệ thống")
+                        </MudText>
+                        @if (!string.IsNullOrWhiteSpace(h.Reason))
+                        {
+                            <MudText Typo="Typo.body2">@h.Reason</MudText>
+                        }
+                    </MudTimelineItem>
+                }
+            </MudTimeline>
+        }
+
         @if (_detail.HrResolution is not null)
         {
             <MudDivider Class="my-3" />
