@@ -355,7 +355,7 @@
                     </MudText>
 
                     <MudGrid>
-                        <MudItem xs="12" md="3">
+                        <MudItem xs="12" md="4">
                             <MudSelect T="int" Label="@Language.T("security.functionAction")" Variant="Variant.Outlined"
                                        Value="_operatorFunctionCode" ValueChanged="OperatorFunctionChanged">
                                 @foreach (var f in _operatorFunctions)
@@ -366,41 +366,63 @@
                                 }
                             </MudSelect>
                         </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudSelect T="string" Label="@Language.T("security.resource")" Variant="Variant.Outlined"
-                                       Value="_operatorResourceType" ValueChanged="OperatorResourceTypeChanged">
-                                <MudSelectItem Value="@("EXECUTION_REVIEW")">@Language.T("security.hrFeedbackToanModule")</MudSelectItem>
-                                <MudSelectItem Value="@("PUBLIC_INFORMATION")">@Language.T("security.publicInformation")</MudSelectItem>
-                                <MudSelectItem Value="@("PUBLIC_FORM")">@Language.T("security.publicForm")</MudSelectItem>
-                                <MudSelectItem Value="@("ENDPOINT_SOFTWARE_CATALOG")">@Language.T("security.endpointSoftwareCatalogManage")</MudSelectItem>
-                            </MudSelect>
-                        </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudSelect T="int?" Label="@Language.T("security.doiTuongCuThe")" Variant="Variant.Outlined"
-                                       Value="_operatorResourceId" ValueChanged="OperatorResourceChanged" Disabled="@(_operatorResourceType is "EXECUTION_REVIEW" or "ENDPOINT_SOFTWARE_CATALOG")">
-                                @if (_operatorResourceType is not ("EXECUTION_REVIEW" or "ENDPOINT_SOFTWARE_CATALOG"))
-                                {
+
+                        <MudItem xs="12" md="4">
+                            @if (IsGlobalOperatorFunction)
+                            {
+                                <MudTextField T="string"
+                                              Label="@Language.T("security.resource")"
+                                              Value="@OperatorResourceDescription"
+                                              ReadOnly="true"
+                                              Variant="Variant.Outlined"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Public" />
+                            }
+                            else
+                            {
+                                <MudSelect T="int?" Label="@Language.T("security.doiTuongCuThe")" Variant="Variant.Outlined"
+                                           Value="_operatorResourceId" ValueChanged="OperatorResourceChanged"
+                                           Disabled="@(_operatorResources.Count == 0)">
                                     @foreach (var resource in _operatorResources)
                                     {
                                         <MudSelectItem T="int?" Value="@((int?)resource.Id)">
                                             @resource.Code — @resource.Name
                                         </MudSelectItem>
                                     }
-                                }
-                            </MudSelect>
+                                </MudSelect>
+                            }
                         </MudItem>
-                        <MudItem xs="12" md="3">
-                            <MudSelect T="string" Label="@Language.T("security.nhanVienThaoTac")" Variant="Variant.Outlined"
-                                       @bind-Value="_operatorEmployeeCode">
-                                @foreach (var employee in _operatorEmployees)
-                                {
-                                    <MudSelectItem T="string" Value="@employee.EmployeeCode">
-                                        @employee.EmployeeCode — @employee.EmployeeName — @employee.DeptCode — @employee.DeptName — @employee.PositionCode — @employee.PositionName
-                                    </MudSelectItem>
-                                }
-                            </MudSelect>
+
+                        <MudItem xs="12" md="4">
+                            <MudAutocomplete T="FeatureOperatorEmployeeDto"
+                                             Label="@Language.T("security.nhanVienThaoTac")"
+                                             Placeholder="@Language.T("security.timNhanVien")"
+                                             Value="_operatorEmployee"
+                                             ValueChanged="OperatorEmployeeChanged"
+                                             SearchFunc="SearchOperatorEmployeesAsync"
+                                             ToStringFunc="FormatOperatorEmployee"
+                                             MinCharacters="2"
+                                             MaxItems="50"
+                                             Clearable="true"
+                                             ResetValueOnEmptyText="true"
+                                             CoerceText="true"
+                                             Variant="Variant.Outlined"
+                                             Dense="true">
+                                <ItemTemplate Context="employee">
+                                    <div>
+                                        <b>@employee.EmployeeCode — @employee.EmployeeName</b>
+                                        <div style="font-size:12px; opacity:.75">
+                                            @employee.DeptCode — @employee.DeptName · @employee.PositionCode — @employee.PositionName
+                                        </div>
+                                    </div>
+                                </ItemTemplate>
+                            </MudAutocomplete>
                         </MudItem>
                     </MudGrid>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                        @OperatorAssignmentHint
+                    </MudText>
 
                     <MudStack Row="true" Class="mt-3">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -582,7 +604,16 @@
     private bool _loadingResetRequests;
     private PermissionSnapshotDto? _myPermissions;
 
-    private readonly int[] _operatorFunctionCodes = { 2801, 2802, 2807, 2808, 2809, SecurityFunctionCodes.EndpointSoftwareCatalogManage };
+    private readonly int[] _operatorFunctionCodes =
+    {
+        SecurityFunctionCodes.PublicInformationManage,
+        SecurityFunctionCodes.ExecutionReview,
+        SecurityFunctionCodes.PublicFormManage,
+        SecurityFunctionCodes.PublicFormSubmissionView,
+        SecurityFunctionCodes.PublicFormExport,
+        SecurityFunctionCodes.EquipmentFormManage,
+        SecurityFunctionCodes.EndpointSoftwareCatalogManage
+    };
     private List<SecurityFunctionDto> _operatorFunctions = new();
     private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
     private List<FeatureOperatorResourceDto> _operatorResources = new();
@@ -591,6 +622,7 @@
     private string _operatorResourceType = "PUBLIC_INFORMATION";
     private int? _operatorResourceId;
     private string _operatorEmployeeCode = string.Empty;
+    private FeatureOperatorEmployeeDto? _operatorEmployee;
     private bool _loadingOperators;
     private bool _savingOperator;
 
@@ -803,17 +835,73 @@
         }
     }
 
-    private async Task OperatorResourceChanged(int? value) { _operatorResourceId = value; await LoadFeatureOperatorsAsync(); }
+    private bool IsGlobalOperatorFunction
+        => _operatorFunctionCode is SecurityFunctionCodes.ExecutionReview
+            or SecurityFunctionCodes.EndpointSoftwareCatalogManage;
+
+    private string OperatorResourceDescription
+        => _operatorFunctionCode switch
+        {
+            SecurityFunctionCodes.ExecutionReview => Language.T("security.hrFeedbackToanModule"),
+            SecurityFunctionCodes.EndpointSoftwareCatalogManage => Language.T("security.endpointSoftwareCatalogManage"),
+            _ => Language.T("security.resource")
+        };
+
+    private string OperatorAssignmentHint
+        => IsGlobalOperatorFunction
+            ? "Quyền này áp dụng ở cấp module. Không cần chọn đối tượng cụ thể."
+            : "Quyền này áp dụng theo đối tượng cụ thể. Hãy chọn resource trước khi chỉ định nhân viên.";
+
+    private async Task<IEnumerable<FeatureOperatorEmployeeDto>> SearchOperatorEmployeesAsync(
+        string value,
+        CancellationToken ct)
+    {
+        var term = value?.Trim();
+        if (string.IsNullOrWhiteSpace(term) || term.Length < 2)
+            return Array.Empty<FeatureOperatorEmployeeDto>();
+
+        var result = await SecurityService.GetFeatureOperatorEmployeesAsync(term, ct);
+        if (!result.IsSuccess || result.Data == null)
+            return Array.Empty<FeatureOperatorEmployeeDto>();
+
+        return result.Data.Take(50);
+    }
+
+    private static string FormatOperatorEmployee(FeatureOperatorEmployeeDto? employee)
+        => employee == null
+            ? string.Empty
+            : $"{employee.EmployeeCode} — {employee.EmployeeName} — {employee.DeptCode} — {employee.DeptName} — {employee.PositionCode} — {employee.PositionName}";
+
+    private Task OperatorEmployeeChanged(FeatureOperatorEmployeeDto? value)
+    {
+        _operatorEmployee = value;
+        _operatorEmployeeCode = value?.EmployeeCode ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private static string GetResourceTypeForFunction(int functionCode)
+        => functionCode switch
+        {
+            SecurityFunctionCodes.PublicInformationManage => "PUBLIC_INFORMATION",
+            SecurityFunctionCodes.ExecutionReview => "EXECUTION_REVIEW",
+            SecurityFunctionCodes.PublicFormManage
+                or SecurityFunctionCodes.PublicFormSubmissionView
+                or SecurityFunctionCodes.PublicFormExport => "PUBLIC_FORM",
+            SecurityFunctionCodes.EquipmentFormManage => "EQUIPMENT_SCHEMA",
+            SecurityFunctionCodes.EndpointSoftwareCatalogManage => "ENDPOINT_SOFTWARE_CATALOG",
+            _ => string.Empty
+        };
+
+    private async Task OperatorResourceChanged(int? value)
+    {
+        _operatorResourceId = value;
+        await LoadFeatureOperatorsAsync();
+    }
 
     private async Task OperatorFunctionChanged(int value)
     {
         _operatorFunctionCode = value;
-        await LoadFeatureOperatorsAsync();
-    }
-
-    private async Task OperatorResourceTypeChanged(string value)
-    {
-        _operatorResourceType = value;
+        _operatorResourceType = GetResourceTypeForFunction(value);
         _operatorResourceId = null;
         await LoadFeatureOperatorsAsync();
     }
@@ -831,11 +919,7 @@
                 _operatorResourceId);
             _operatorAssignments = assignments.IsSuccess ? assignments.Data ?? new() : new();
 
-            if (_operatorEmployees.Count == 0)
-            {
-                var employees = await SecurityService.GetFeatureOperatorEmployeesAsync();
-                _operatorEmployees = employees.IsSuccess ? employees.Data ?? new() : new();
-            }
+
         }
         finally { _loadingOperators = false; }
     }
@@ -851,7 +935,7 @@
                 {
                     FunctionCode = _operatorFunctionCode,
                     ResourceType = _operatorResourceType,
-                    ResourceId = _operatorResourceType is "EXECUTION_REVIEW" or "ENDPOINT_SOFTWARE_CATALOG" ? null : _operatorResourceId,
+                    ResourceId = IsGlobalOperatorFunction ? null : _operatorResourceId,
                     EmployeeCode = _operatorEmployeeCode
                 });
 
