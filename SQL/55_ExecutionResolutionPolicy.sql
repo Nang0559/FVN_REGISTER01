@@ -83,3 +83,43 @@ BEGIN
     IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'FinalizedBy') IS NULL
         ALTER TABLE dbo.F03ExecutionReconciliations ADD FinalizedBy int NULL;
 END;
+
+-- Backfill legacy reconciliation rows once. From this point onward runtime requires
+-- a snapshot so editing a policy can never change an existing case.
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations', N'U') IS NOT NULL
+BEGIN
+    UPDATE r
+       SET ResolutionPolicyId = p.Id,
+           ResolutionPolicyVersion = p.PolicyVersion,
+           ResolutionPolicySnapshotJson = (
+               SELECT
+                   p.ModuleCode,
+                   p.PolicyName,
+                   p.PolicyVersion,
+                   p.EmployeeResponseHours,
+                   p.HrReviewHours,
+                   p.AllowEmployeeAppeal,
+                   p.MaxAppealRounds,
+                   p.AppealReviewHours,
+                   p.RequireEvidenceOnAppeal,
+                   p.RequireFinalDecision,
+                   p.FinalDecisionPositionCode,
+                   p.PayrollCutoffMode,
+                   p.AllowReopenAfterPayroll,
+                   p.AdjustmentPeriodMode,
+                   p.EffectiveFrom,
+                   p.EffectiveTo,
+                   p.CorrectionMode
+               FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+           )
+    FROM dbo.F03ExecutionReconciliations r
+    CROSS APPLY
+    (
+        SELECT TOP (1) p.*
+        FROM dbo.F03ExecutionPolicies p
+        WHERE p.ModuleCode = r.ModuleCode
+          AND p.IsActive <> 0
+        ORDER BY p.PolicyVersion DESC, p.Id DESC
+    ) p
+    WHERE r.ResolutionPolicySnapshotJson IS NULL;
+END;
