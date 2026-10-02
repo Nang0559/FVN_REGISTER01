@@ -130,7 +130,16 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
                 if(!TryParseBool(worksheet.Cell(row,paidColumn).GetString().Trim(),out var paid))return ServiceResult<string>.Fail($"Dòng {row}: TinhPhep chỉ nhận 1/0 hoặc Có/Không.");
                 if(!importedDates.Add(date)) { skipped++; continue; }
                 if(await repo.Query().AnyAsync(x=>x.HolidayDate.Date==date,ct)) { skipped++; continue; }
-                await repo.AddAsync(new F03CompanyHoliday { HolidayDate=date, Description=description, Year=date.Year, TinhPhep=paid, HolidayType=type, CreatedBy=userId, CreatedAt=DateTime.Now },ct); added++;
+                await repo.AddAsync(new F03CompanyHoliday
+                {
+                    HolidayDate = date,
+                    Description = description,
+                    Year = date.Year,
+                    TinhPhep = paid,
+                    HolidayType = (byte)type,
+                    CreatedBy = userId,
+                    CreatedAt = DateTime.Now
+                }, ct);
             }
             await _uow.SaveChangesAsync(ct); return ServiceResult<string>.Ok($"Đã thêm {added} ngày nghỉ; bỏ qua {skipped} dòng trùng.");
         }
@@ -146,6 +155,11 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
 
     private static CompanyHolidayDto ToDto(F03CompanyHoliday entity) => new()
     {
-        Id=entity.Id, HolidayDate=entity.HolidayDate, Description=entity.Description, Year=entity.Year, IsPaidLeave=entity.TinhPhep, HolidayType=entity.HolidayType, IsActive=entity.IsActive
+        Id = entity.Id,
+        HolidayDate = entity.HolidayDate,
+        Description = entity.Description,
+        Year = entity.Year,
+        IsPaidLeave = entity.TinhPhep,
+        HolidayType = entity.HolidayType
     };
 }
