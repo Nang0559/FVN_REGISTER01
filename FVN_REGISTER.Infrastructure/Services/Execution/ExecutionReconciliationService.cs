@@ -734,7 +734,9 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             {
                 x.Id,
                 x.ModuleCode,
+                x.SourceType,
                 x.SourceId,
+                x.ParticipantId,
                 x.EmployeeId,
                 x.WorkDate,
                 x.ActionId
@@ -1263,7 +1265,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         long evidenceId,
         CancellationToken cancellationToken)
     {
-        return await _db.ExecutionConfirmationEvidences
+        return await _db.ExecutionConfirmationEvidence
             .AsNoTracking()
             .Where(x => x.Id == evidenceId)
             .Select(x => x.SubmittedBy)
