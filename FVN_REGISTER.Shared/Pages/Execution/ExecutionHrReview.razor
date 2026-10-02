@@ -310,7 +310,7 @@
     private ExecutionHrClaimDto GetClaim(long reconciliationId)
         => _claims.TryGetValue(reconciliationId, out var claim)
             ? claim
-            : new ExecutionHrClaimDto(reconciliationId, false, false, true, null, null, null, null);
+            : new ExecutionHrClaimDto(reconciliationId, false, false, false, null, null, null, null);
 
     private bool CanProcess(long reconciliationId)
         => GetClaim(reconciliationId).CanProcess;
