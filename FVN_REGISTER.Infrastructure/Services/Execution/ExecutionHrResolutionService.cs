@@ -668,24 +668,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             reconciliation.ActionId = await EnsureEmployeeResultActionAsync(
                 reconciliation, employee.Id, now, policy.EmployeeResponseHours, cancellationToken);
 
-        if (reconciliation.ActionId.HasValue)
-        {
-            var action = await _db.ActionItems.FirstOrDefaultAsync(
-                x => x.ActionId == reconciliation.ActionId.Value, cancellationToken);
-            if (action is not null
-                && action.Status != ActionItemStatus.Completed
-                && action.Status != ActionItemStatus.Cancelled
-                && action.Status != ActionItemStatus.Expired
-                && action.Status != ActionItemStatus.Dismissed)
-            {
-                action.Status = ActionItemStatus.Completed;
-                action.CompletedAt = now;
-                action.ModifiedBy = userId;
-                action.ModifiedAt = now;
-                action.LastModifiedSource = "HR_EXECUTION_REVIEW";
-            }
-        }
-
+        // The HR action is completed by CompleteExecutionReviewActionsAsync.
+        // A provisional result creates a new employee action, which must remain open.
         _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
         {
             ReconciliationId = reconciliation.Id,
