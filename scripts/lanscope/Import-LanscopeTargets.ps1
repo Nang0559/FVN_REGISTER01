@@ -4,7 +4,6 @@ param(
     [Parameter(Mandatory=$true)] [string]$DeploymentCode,
     [int]$DeploymentId = 0,
     [switch]$ReissuePending,
-    [string]$AccessToken,
     [string]$PackageVersion = '',
     [string]$OutputDirectory = '.\lanscope-bootstrap',
     [int]$BatchSize = 500
@@ -14,9 +13,9 @@ $uri=[Uri]$ApiBaseUrl
 if(-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https'){throw 'ApiBaseUrl phải là HTTPS.'}
 if(-not (Test-Path $CsvPath)){throw "Không tìm thấy CSV: $CsvPath"}
 if($BatchSize -lt 1 -or $BatchSize -gt 5000){throw 'BatchSize phải từ 1 đến 5000.'}
-if([string]::IsNullOrWhiteSpace($AccessToken)){ $AccessToken=$env:FVN_LANSCOPE_ACCESS_TOKEN }
+$AccessToken=$env:FVN_LANSCOPE_ACCESS_TOKEN
 if([string]::IsNullOrWhiteSpace($AccessToken)){ $secure=Read-Host 'Nhập FVN access token' -AsSecureString; $AccessToken=[System.Net.NetworkCredential]::new('', $secure).Password }
-if([string]::IsNullOrWhiteSpace($AccessToken)){throw 'Thiếu access token. Ưu tiên FVN_LANSCOPE_ACCESS_TOKEN; không truyền secret trực tiếp trên command line.'}
+if([string]::IsNullOrWhiteSpace($AccessToken)){throw 'Thiếu access token. Đặt FVN_LANSCOPE_ACCESS_TOKEN trong môi trường hoặc nhập prompt bảo mật; không truyền secret trên command line.'}
 $headers=@{Authorization="Bearer $AccessToken"}
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
