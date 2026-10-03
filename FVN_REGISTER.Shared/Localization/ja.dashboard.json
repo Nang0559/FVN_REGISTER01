@@ -31,5 +31,10 @@
   "dashboard.tripType": "出張",
   "dashboard.upcomingDays": "今後の休暇合計: {0}日",
   "dashboard.used": "取得済み",
-  "dashboard.viewAll": "すべて表示"
+  "dashboard.viewAll": "すべて表示",
+  "dashboard.equipmentAssigned\": \"担当中の設備\"": "x",
+  "dashboard.equipmentAssigned": "担当中の設備",
+  "dashboard.equipmentRequests": "自分の設備申請",
+  "dashboard.equipmentPending": "承認待ちの設備申請",
+  "dashboard.equipmentApproved": "承認済みの設備申請"
 }
