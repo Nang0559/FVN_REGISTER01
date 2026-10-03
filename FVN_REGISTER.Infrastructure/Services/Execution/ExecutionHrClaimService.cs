@@ -401,8 +401,11 @@ SELECT @result;
             null,
             cancellationToken);
 
-        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasPermission, assigned)
-            && !await _authorization.CanAccessAsync(
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasPermission, assigned))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
+
+        if (!await _authorization.CanAccessAsync(
                 actor,
                 SecurityFunctionCodes.ExecutionReview,
                 targetEmployeeCode,
