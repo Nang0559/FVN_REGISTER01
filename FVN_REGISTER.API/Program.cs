@@ -85,6 +85,10 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Net;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,6 +97,8 @@ var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<stri
     "https://localhost:7264", "http://localhost:5120", "http://localhost:5017", "https://localhost:7135"
 };
 
+builder.Services.Configure<ForwardedHeadersOptions>(options=>{options.ForwardedHeaders=ForwardedHeaders.XForwardedFor|ForwardedHeaders.XForwardedProto;foreach(var value in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()??Array.Empty<string>())if(IPAddress.TryParse(value,out var ip))options.KnownProxies.Add(ip);});
+builder.Services.AddRateLimiter(options=>{options.RejectionStatusCode=StatusCodes.Status429TooManyRequests;options.OnRejected=async(context,token)=>{context.HttpContext.Response.Headers.RetryAfter="60";await context.HttpContext.Response.WriteAsJsonAsync(new{message="Quá nhiều yêu cầu. Vui lòng thử lại sau.",status=429},token);};options.AddPolicy("EndpointAnonymous",httpContext=>RateLimitPartition.GetFixedWindowLimiter($"{httpContext.Request.Path}:{httpContext.Connection.RemoteIpAddress?.ToString()??"unknown"}",_=>new FixedWindowRateLimiterOptions{PermitLimit=60,Window=TimeSpan.FromMinutes(1),QueueLimit=0,AutoReplenishment=true}));});
 builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
     .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 builder.Services.AddMemoryCache();
@@ -228,6 +234,7 @@ builder.Services.AddScoped<IEndpointGovernanceService, EndpointGovernanceService
 builder.Services.AddScoped<IEndpointInventoryService, EndpointInventoryService>();
 builder.Services.AddScoped<IEndpointComplianceService, EndpointComplianceService>();
 builder.Services.AddScoped<IEndpointCredentialService, EndpointCredentialService>();
+builder.Services.AddHostedService<EndpointCredentialCleanupHostedService>();
 builder.Services.AddSharedExcelPlatform();
 builder.Services.AddScoped<EndpointGovernanceExcelImportService>();
 
@@ -347,7 +354,9 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     context.Response.ContentType = "application/json";
     await context.Response.WriteAsJsonAsync(new { message = feature?.Error.Message ?? "Unexpected error." });
 }));
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 app.UseCors("FccCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
