@@ -123,6 +123,9 @@ public sealed class SecurityFunctionCapabilityMatrixTests
         Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.HrmUserRoleRuleManage));
         Assert.Equal(3044, SecurityFunctionCodes.WorkCalendarSymbolRuleManage);
         Assert.Equal(3073, SecurityFunctionCodes.ExecutionPolicyManage);
+        Assert.True(FeatureOperatorCatalog.IsModuleWideResourceType(FeatureOperatorCatalog.ExecutionPolicy));
+        Assert.True(FeatureOperatorCatalog.IsModuleWideResourceType(FeatureOperatorCatalog.AttendanceSymbolRule));
+        Assert.False(FeatureOperatorCatalog.IsModuleWideResourceType(FeatureOperatorCatalog.PublicForm));
     }
 
     [Fact]
