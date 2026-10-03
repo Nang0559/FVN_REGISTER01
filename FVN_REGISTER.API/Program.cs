@@ -117,6 +117,9 @@ builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(jwtOpt
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required. For Development, set it with .NET User Secrets or the ConnectionStrings__DefaultConnection environment variable. For Production, use ConnectionStrings__DefaultConnection.");
+var lanscopePublicBaseUrl=builder.Configuration["LanscopeDeployment:PublicBaseUrl"]?.Trim();
+if(string.IsNullOrWhiteSpace(lanscopePublicBaseUrl)||!Uri.TryCreate(lanscopePublicBaseUrl,UriKind.Absolute,out var lanscopeUri)||lanscopeUri.Scheme!=Uri.UriSchemeHttps)
+    throw new InvalidOperationException("LanscopeDeployment:PublicBaseUrl is required and must be an HTTPS URL. Configure it via environment variable LanscopeDeployment__PublicBaseUrl or environment-specific appsettings.");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
