@@ -296,21 +296,26 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         if (existing is not null)
             return existing.ActionId;
 
-        var operatorCode = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
+        var operatorUser = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
             .Where(x => x.IsActive == true
                 && x.FunctionCode == SecurityFunctionCodes.ExecutionReview
                 && x.ResourceType == "EXECUTION_REVIEW"
                 && x.ResourceId == null)
+            .Join(
+                _db.Users.AsNoTracking().Where(x => x.IsActive != false),
+                assignment => assignment.EmployeeCode,
+                user => user.EmployeeCode,
+                (assignment, user) => new
+                {
+                    UserId = user.Id,
+                    user.EmployeeCode,
+                    assignment.CreatedAt,
+                    AssignmentId = assignment.Id
+                })
             .OrderBy(x => x.CreatedAt)
-            .Select(x => x.EmployeeCode)
+            .ThenBy(x => x.AssignmentId)
+            .Select(x => new { Id = x.UserId, x.EmployeeCode })
             .FirstOrDefaultAsync(ct);
-
-        var operatorUser = string.IsNullOrWhiteSpace(operatorCode)
-            ? null
-            : await _db.Users.AsNoTracking()
-                .Where(x => x.IsActive != false && x.EmployeeCode == operatorCode)
-                .Select(x => new { x.Id, x.EmployeeCode })
-                .FirstOrDefaultAsync(ct);
 
         if (operatorUser is null)
             throw new InvalidOperationException(
