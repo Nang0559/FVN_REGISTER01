@@ -126,3 +126,26 @@ Có bộ lọc bộ phận, người phụ trách, bộ phận sửa chữa và 
 - Repair completion idempotent; request đã hoàn thành không được hoàn thành lần hai.
 - Khi một thành viên xử lý Department repair, các Action song song còn lại được cancel.
 - Lịch sử sửa chữa/bàn giao giữ nguyên sau khi thay đổi trách nhiệm.
+
+
+## 9. Entry point và quyền truy cập Endpoint Agent
+
+Màn hình vận hành chuẩn là Equipment → Endpoint Agent. Người vận hành không cần và không nên nhập DeviceKey để bắt đầu cấp credential.
+
+Quyền được kiểm tra theo Security Function Registry:
+- Equipment.Manage — bật/tắt eligibility và cấu hình Endpoint Agent capability của Equipment theo data scope.
+- Endpoint.View / Endpoint.InventoryView — xem Endpoint status/history nếu được cấp.
+- Endpoint.CredentialProvision — cấp credential cho Equipment chưa có credential active.
+- Endpoint.CredentialRotate — rotate credential đang active.
+- Endpoint.CredentialRevoke — thu hồi credential.
+
+Ẩn nút trên UI chỉ là UX; API vẫn phải kiểm tra capability và scope server-side.
+
+## 10. Hợp đồng business/technical
+EquipmentAssetId là entry point business của credential lifecycle. Controller hỗ trợ:
+- GET /api/security/endpoints/credentials/equipment/{equipmentAssetId}/status
+- GET /api/security/endpoints/credentials/equipment/{equipmentAssetId}/history
+- POST /api/security/endpoints/credentials/equipment/{equipmentAssetId}/provision
+- POST /api/security/endpoints/credentials/equipment/{equipmentAssetId}/revoke
+
+Các endpoint /{deviceKey}/... vẫn tồn tại cho technical/security compatibility nhưng không phải flow UI chính.

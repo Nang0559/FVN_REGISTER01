@@ -212,3 +212,30 @@ h1:focus {
         font-size: 11px;
     }
 }
+
+
+/* Global application loading state */
+.fcc-global-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .18);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
+}
+
+.fcc-global-loading-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 180px;
+    max-width: min(90vw, 420px);
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--mud-palette-surface);
+    color: var(--mud-palette-text-primary);
+    box-shadow: var(--mud-elevation-8);
+}

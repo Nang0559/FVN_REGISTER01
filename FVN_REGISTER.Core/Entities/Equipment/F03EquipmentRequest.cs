@@ -23,6 +23,8 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
     public DateTime? ExpectedDepreciationDate { get; set; }
     [StringLength(250)] public string? Location { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
+    public bool EndpointAgentEligible { get; set; }
+    [StringLength(30)] public string? EndpointOsFamily { get; set; }
     public DateTime? RepairDate { get; set; }
     [StringLength(1000)] public string? RepairContent { get; set; }
     [StringLength(250)] public string? RepairVendor { get; set; }

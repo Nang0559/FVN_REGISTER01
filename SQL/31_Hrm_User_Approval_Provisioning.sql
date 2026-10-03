@@ -207,21 +207,21 @@ BEGIN
         e.PositionCode,
         e.EmployeeName,
         e.EmailAddress,
-        e.DeptCode,
+        LTRIM(RTRIM(e.DeptCode)) AS DeptCode,
         d.DeptName,
         ap.RequestType,
         ap.Level,
         ap.LevelName,
         ap.RoleName,
-        e.DeptCode AS ApproveForDeptCode,
-        ISNULL(d.DeptName,e.DeptCode) AS ApproveForDeptName
+        LTRIM(RTRIM(e.DeptCode)) AS ApproveForDeptCode,
+        ISNULL(d.DeptName,LTRIM(RTRIM(e.DeptCode))) AS ApproveForDeptName
     INTO #HrmApproverSource
     FROM dbo.F03Employees e
     INNER JOIN dbo.F03ApprovalPolicies ap
-        ON ap.ApprovalPositionCode=e.PositionCode
+        ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
        AND ap.IsActive=1
     LEFT JOIN dbo.F03Departments d
-        ON d.DeptCode=e.DeptCode
+        ON LTRIM(RTRIM(d.DeptCode))=LTRIM(RTRIM(e.DeptCode))
     WHERE e.IsActive=1
       AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
 
@@ -236,7 +236,7 @@ BEGIN
              WHEN 3 THEN N'Equipment'
          END
      AND target.Level=src.Level
-     AND target.ApproveForDeptCode=src.ApproveForDeptCode
+     AND LTRIM(RTRIM(target.ApproveForDeptCode))=src.ApproveForDeptCode
     WHEN MATCHED
          AND ISNULL(target.LastModifiedSource,N'')=N'HRM'
     THEN
@@ -301,7 +301,7 @@ BEGIN
               SELECT 1
               FROM dbo.F03ApprovalPolicies ap
               WHERE ap.IsActive=1
-                AND ap.ApprovalPositionCode=e.PositionCode
+                AND ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
                 AND a.RequestType=
                     CASE ap.RequestType
                         WHEN 0 THEN N'Leave'
@@ -310,7 +310,7 @@ BEGIN
                         WHEN 3 THEN N'Equipment'
                     END
                 AND a.Level=ap.Level
-                AND a.ApproveForDeptCode=e.DeptCode
+                AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(e.DeptCode))
           )
       );
 
@@ -367,7 +367,7 @@ LEFT JOIN dbo.F03Approvers a
        WHEN 3 THEN N'Equipment'
    END
    AND a.Level=ap.Level
-   AND a.ApproveForDeptCode=e.DeptCode
+   AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(e.DeptCode))
 WHERE e.IsActive=1
   AND a.Id IS NULL;
 GO

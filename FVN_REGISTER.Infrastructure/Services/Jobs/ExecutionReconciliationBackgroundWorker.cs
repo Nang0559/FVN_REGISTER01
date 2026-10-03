@@ -45,6 +45,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
     private async Task RunOnceAsync(IServiceProvider services, CancellationToken ct)
     {
         var db = services.GetRequiredService<FVNWEBAPPContext>();
+        var employeeResolution = services.GetRequiredService<IExecutionEmployeeResolutionService>();
         var policies = await db.ExecutionPolicies.AsNoTracking()
             .Where(x => x.IsActive != false && x.ReconciliationMode != 0)
             .ToDictionaryAsync(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase, ct);
@@ -54,6 +55,35 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         var today = DateOnly.FromDateTime(DateTime.Today);
         var from = today.AddDays(-2);
         var to = today;
+
+        var expiredEmployeeActions = await db.ActionItems.AsNoTracking()
+            .Where(x => x.IsActive != false
+                && x.ActionType == "EXECUTION_RESULT_CONFIRMATION"
+                && (x.Status == FVN_REGISTER.Core.Enums.ActionItemStatus.Open
+                    || x.Status == FVN_REGISTER.Core.Enums.ActionItemStatus.InProgress)
+                && x.DueAt.HasValue
+                && x.DueAt.Value <= DateTime.Now)
+            .Select(x => x.SourceId)
+            .Distinct()
+            .Take(200)
+            .ToListAsync(ct);
+
+        foreach (var sourceId in expiredEmployeeActions)
+        {
+            if (long.TryParse(sourceId, out var reconciliationId))
+            {
+                try
+                {
+                    await employeeResolution.ProcessExpiredEmployeeDecisionAsync(reconciliationId, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Employee execution decision timeout processing failed for ReconciliationId={ReconciliationId}.",
+                        reconciliationId);
+                }
+            }
+        }
 
         foreach (var provider in providers)
         {

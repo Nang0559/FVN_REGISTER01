@@ -1,132 +1,28 @@
+using FVN_REGISTER.Core.Attributes;
 namespace FVN_REGISTER.Core.Constants;
-
 public static class SecurityFunctionCodes
 {
-    public const int DashboardView = 2701;
-
-    public const int LeaveView = 2001;
-    public const int LeaveCreate = 2002;
-    public const int LeaveEdit = 2003;
-    public const int LeaveCancel = 2004;
-    public const int LeaveApprove = 2005;
-    public const int LeaveExport = 2006;
-
-    public const int OTView = 2101;
-    public const int OTCreate = 2102;
-    public const int OTEdit = 2103;
-    public const int OTCancel = 2104;
-    public const int OTApprove = 2105;
-    public const int OTReconcile = 2106;
-    public const int OTExport = 2107;
-
-    public const int TripView = 2201;
-    public const int TripCreate = 2202;
-    public const int TripEdit = 2203;
-    public const int TripCancel = 2204;
-    public const int TripApprove = 2205;
-    public const int TripExport = 2206;
-
-    public const int EquipmentView = 2301;
-    public const int EquipmentCreate = 2302;
-    public const int EquipmentEdit = 2303;
-    public const int EquipmentRepair = 2304;
-    public const int EquipmentApprove = 2305;
-    public const int EquipmentImport = 2306;
-    public const int EquipmentExport = 2307;
-    public const int EquipmentCancel = 2308;
-    public const int EquipmentAssign = 2309;
-    public const int EquipmentTransfer = 2310;
-    public const int EquipmentReturn = 2311;
-    public const int EquipmentLiquidate = 2312;
-    public const int EquipmentQR = 2313;
-    public const int EquipmentHistory = 2314;
-    public const int EquipmentInspectionManage = 2315;
-    public const int EquipmentInspectionExecute = 2316;
-    public const int EquipmentInspectionApprove = 2317;
-    public const int EquipmentInspectionReport = 2318;
-    public const int EquipmentManage = 2319;
-    public const int EquipmentFormManage = 2320;
-
-    public const int UserManagementView = 2401;
-    public const int UserManagementCreate = 2402;
-    public const int UserManagementEdit = 2403;
-    public const int UserManagementLock = 2404;
-    public const int UserManagementResetPassword = 2405;
-    public const int UserManagementAssignPermission = 2406;
-    public const int UserManagementManageTwoFactor = 2407;
-
-    public const int HrmSyncViewStatus = 2501;
-    public const int HrmSyncSync = 2502;
-    public const int HrmSyncReview = 2503;
-    public const int HrmSyncRetry = 2504;
-
-    public const int SecurityView = 2601;
-    public const int SecurityManageRoles = 2602;
-    public const int SecurityManageFunctions = 2603;
-    public const int SecurityAudit = 2604;
-
-    public const int PublicInformationManage = 2801;
-    public const int PublicFormManage = 2807;
-    public const int PublicFormSubmissionView = 2808;
-    public const int PublicFormExport = 2809;
-    public const int ExecutionReview = 2802;
-
-    public const int PayrollView = 2803;
-    public const int PayrollPrepare = 2804;
-    public const int PayrollLock = 2805;
-    public const int PayrollExport = 2806;
-
-    public const int AttendanceView = 2901;
-    public const int AttendanceExport = 2902;
-    public const int AttendanceCalculate = 2911;
-    public const int AttendanceFeedback = 2912;
-
-    public const int DepartmentView = 3001;
-    public const int DepartmentManage = 3002;
-    public const int EmployeeView = 3011;
-    public const int EmployeeManage = 3012;
-    public const int LeaveTypeView = 3021;
-    public const int LeaveTypeManage = 3022;
-    public const int ApproverView = 3031;
-    public const int ApproverManage = 3032;
-    public const int WorkCalendarView = 3041;
-    public const int WorkCalendarManage = 3042;
-    public const int CalendarView = 3043;
-    public const int DepartmentStatusView = 3051;
-    public const int OTLimitManage = 3061;
-    public const int ApprovalPolicyManage = 3071;
-    public const int HrmUserRoleRuleManage = 3072;
-    public const int EmailQueueManage = 3081;
-    public const int EmailTemplateManage = 3082;
-    public const int SecurityAccessChangeView = 3091;
-    public const int SecurityAccessChangeCreate = 3092;
-    public const int SecurityAccessChangeApprove = 3093;
-    public const int SecurityAccessChangeExecute = 3094;
-
-    // Endpoint capability family. These extend the existing Security Center;
-    // they do not create a second permission system or imply any role assignment.
-    public const int EndpointView = 3101;
-    public const int EndpointInventoryView = 3102;
-    public const int EndpointComplianceView = 3103;
-    public const int EndpointAlertView = 3104;
-    public const int EndpointAlertResolve = 3105;
-    public const int EndpointCredentialProvision = 3106;
-    public const int EndpointCredentialRotate = 3107;
-    public const int EndpointCredentialRevoke = 3108;
-    public const int EndpointSoftwareCatalogView = 3109;
-    public const int EndpointSoftwareCatalogManage = 3110;
-    public const int EndpointSoftwarePolicySubmit = 3111;
-    public const int EndpointSoftwarePolicyApprove = 3112;
-    public const int EndpointSoftwareSecurityReview = 3113;
-    public const int EndpointServiceCatalogView = 3114;
-    public const int EndpointServiceCatalogManage = 3115;
-    public const int EndpointServicePolicySubmit = 3116;
-    public const int EndpointServicePolicyApprove = 3117;
-    public const int EndpointServiceSecurityReview = 3118;
-    public const int EndpointInstallRequestCreate = 3119;
-    public const int EndpointInstallRequestView = 3120;
-    public const int EndpointInstallRequestApprove = 3121;
-    public const int EndpointExceptionCreate = 3122;
-    public const int EndpointExceptionView = 3123;
-    public const int EndpointExceptionApprove = 3124;
+ public const int DashboardView=2701;
+ public const int LeaveView=2001,LeaveCreate=2002,LeaveEdit=2003,LeaveCancel=2004,LeaveApprove=2005,LeaveExport=2006;
+ public const int OTView=2101,OTCreate=2102,OTEdit=2103,OTCancel=2104,OTApprove=2105,OTReconcile=2106,OTExport=2107;
+ public const int TripView=2201,TripCreate=2202,TripEdit=2203,TripCancel=2204,TripApprove=2205,TripExport=2206;
+ public const int EquipmentView=2301,EquipmentCreate=2302,EquipmentEdit=2303,EquipmentRepair=2304,EquipmentApprove=2305,EquipmentImport=2306,EquipmentExport=2307,EquipmentCancel=2308,EquipmentAssign=2309,EquipmentTransfer=2310,EquipmentReturn=2311,EquipmentLiquidate=2312,EquipmentQR=2313,EquipmentHistory=2314,EquipmentInspectionManage=2315,EquipmentInspectionExecute=2316,EquipmentInspectionApprove=2317,EquipmentInspectionReport=2318,EquipmentManage=2319,EquipmentFormManage=2320;
+ public const int UserManagementView=2401,UserManagementCreate=2402,UserManagementEdit=2403,UserManagementLock=2404,UserManagementResetPassword=2405,UserManagementAssignPermission=2406,UserManagementManageTwoFactor=2407;
+ public const int HrmSyncViewStatus=2501,HrmSyncSync=2502,HrmSyncReview=2503,HrmSyncRetry=2504;
+ public const int SecurityView=2601,SecurityManageRoles=2602,SecurityManageFunctions=2603,SecurityAudit=2604;
+ public static readonly IReadOnlySet<int> SystemCriticalCodes=new HashSet<int>{SecurityView,SecurityManageRoles,SecurityManageFunctions,SecurityAudit};
+ public static bool IsSystemCritical(int functionCode)=>SystemCriticalCodes.Contains(functionCode);
+ public const int PublicInformationManage=2801,PublicFormManage=2807,PublicFormSubmissionView=2808,PublicFormExport=2809,PublicFormView=2810,PublicFormSubmit=2811,PublicFormFeedback=2812,PublicFormCreate=2813,PublicFormEdit=2814,PublicFormAssignAudience=2815,PublicFormResultView=2816,PublicFormResultExport=2817,PublicFormAuditView=2818,ExecutionReview=2802;
+ [SecurityFunctionDefinition("Execution.PolicyManage","Quản lý chính sách đối soát công",ModuleCode="Execution",ActionCode="PolicyManage",ScopeCode=AuthorizationScopeCodes.All)] public const int ExecutionPolicyManage=3073;
+ public const int PayrollView=2803,PayrollPrepare=2804,PayrollLock=2805,PayrollExport=2806;
+ public const int AttendanceView=2901,AttendanceExport=2902,AttendanceCalculate=2911,AttendanceFeedback=2912;
+ public const int DepartmentView=3001,DepartmentManage=3002,EmployeeView=3011,EmployeeManage=3012,LeaveTypeView=3021,LeaveTypeManage=3022,ApproverView=3031,ApproverManage=3032,WorkCalendarView=3041,WorkCalendarManage=3042,CalendarView=3043;
+ [SecurityFunctionDefinition("WorkCalendar.SymbolRuleManage","Quản lý rule ký hiệu chấm công",ModuleCode="WorkCalendar",ActionCode="SymbolRuleManage",ScopeCode=AuthorizationScopeCodes.All)] public const int WorkCalendarSymbolRuleManage=3044;
+ public const int DepartmentStatusView=3051,OTLimitManage=3061,ApprovalPolicyManage=3071,HrmUserRoleRuleManage=3072,EmailQueueManage=3081,EmailTemplateManage=3082,SecurityAccessChangeView=3091,SecurityAccessChangeCreate=3092,SecurityAccessChangeApprove=3093,SecurityAccessChangeExecute=3094;
+ [SecurityFunctionDefinition("Language.View","Xem quản trị ngôn ngữ",ModuleCode="Language",ActionCode="View",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageView=3201;
+ [SecurityFunctionDefinition("Language.Manage","Quản lý định nghĩa ngôn ngữ",ModuleCode="Language",ActionCode="Manage",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageManage=3202;
+ [SecurityFunctionDefinition("Language.Import","Nhập Excel ngôn ngữ",ModuleCode="Language",ActionCode="Import",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageImport=3203;
+ [SecurityFunctionDefinition("Language.Export","Xuất Excel ngôn ngữ",ModuleCode="Language",ActionCode="Export",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageExport=3204;
+ [SecurityFunctionDefinition("Language.Audit","Rà soát ngôn ngữ",ModuleCode="Language",ActionCode="Audit",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageAudit=3205;
+ public const int EndpointView=3101,EndpointInventoryView=3102,EndpointComplianceView=3103,EndpointAlertView=3104,EndpointAlertResolve=3105,EndpointCredentialProvision=3106,EndpointCredentialRotate=3107,EndpointCredentialRevoke=3108,EndpointSoftwareCatalogView=3109,EndpointSoftwareCatalogManage=3110,EndpointSoftwarePolicySubmit=3111,EndpointSoftwarePolicyApprove=3112,EndpointSoftwareSecurityReview=3113,EndpointServiceCatalogView=3114,EndpointServiceCatalogManage=3115,EndpointServicePolicySubmit=3116,EndpointServicePolicyApprove=3117,EndpointServiceSecurityReview=3118,EndpointInstallRequestCreate=3119,EndpointInstallRequestView=3120,EndpointInstallRequestApprove=3121,EndpointExceptionCreate=3122,EndpointExceptionView=3123,EndpointExceptionApprove=3124,EndpointLanscopeDeploymentManage=3125,EndpointLanscopeDeploymentView=3126;
 }

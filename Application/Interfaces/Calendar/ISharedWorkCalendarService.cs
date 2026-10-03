@@ -1,10 +1,11 @@
 using FVN_REGISTER.Contract.Dtos.Calendar;
+using FVN_REGISTER.Contract.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.Calendar;
 
 public interface ISharedWorkCalendarService
 {
-    Task<CalendarMonthDto> GetMonthAsync(
+    Task<ServiceResult<CalendarMonthDto>> GetMonthAsync(
         string employeeCode,
         int userId,
         DateOnly from,
@@ -12,7 +13,7 @@ public interface ISharedWorkCalendarService
         IReadOnlySet<string>? allowedModules = null,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<CalendarAlertItemDto>> GetAlertsAsync(
+    Task<ServiceResult<IReadOnlyList<CalendarAlertItemDto>>> GetAlertsAsync(
         string employeeCode,
         int userId,
         DateOnly from,

@@ -1,10 +1,11 @@
 using FVN_REGISTER.Contract.Dtos.Calendar;
+using FVN_REGISTER.Contract.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.Calendar;
 
 public interface IWorkCalendarService
 {
-    Task<WorkCalendarDto> GetAsync(
+    Task<ServiceResult<WorkCalendarDto>> GetAsync(
         string employeeCode,
         string? deptCode,
         string? positionCode,
@@ -12,12 +13,12 @@ public interface IWorkCalendarService
         DateTime to,
         CancellationToken ct = default);
 
-    Task<CalendarAvailabilityDto> GetAvailabilityAsync(
+    Task<ServiceResult<CalendarAvailabilityDto>> GetAvailabilityAsync(
         string employeeCode,
         DateTime date,
         CancellationToken ct = default);
 
-    Task<IReadOnlyList<CalendarRegistrationOpportunityDto>> GetRegistrationOpportunitiesAsync(
+    Task<ServiceResult<IReadOnlyList<CalendarRegistrationOpportunityDto>>> GetRegistrationOpportunitiesAsync(
         string employeeCode,
         DateTime from,
         DateTime to,

@@ -19,13 +19,10 @@
     <PackageReference Include="NPOI" Version="2.7.6" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="Polly" Version="8.8.0" />
+    <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
 
   <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
-  <ItemGroup>
-    <None Include="..\SQL\HRM\GA.xls" Link="Templates\HRM\GA.xls" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\SQL\HRM\OT - GA.xls" Link="Templates\HRM\OT - GA.xls" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Application\FVN_REGISTER.Application.csproj" />
     <ProjectReference Include="..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />

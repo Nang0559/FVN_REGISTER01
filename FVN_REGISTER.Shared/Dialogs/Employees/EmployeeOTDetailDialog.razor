@@ -6,7 +6,7 @@
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.AccessTime" Color="Color.Warning" />
             <MudText Typo="Typo.h6">
-                OT chi tiết — @Employee?.EmployeeName (@Employee?.EmployeeCode)
+                @Language.T("ot.otChiTiet", Employee?.EmployeeName, Employee?.EmployeeCode)
             </MudText>
         </MudStack>
     </TitleContent>
@@ -17,7 +17,7 @@
             <MudStack AlignItems="AlignItems.Center" Class="pa-6">
                 <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
-                    Đang tải dữ liệu OT...
+                    @Language.T("employee.dangTaiDuLieuOt")
                 </MudText>
             </MudStack>
         }
@@ -30,7 +30,7 @@
                             @_summary.TotalHours.ToString("N1")
                         </MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Tổng giờ OT @_summary.Year
+                            @Language.T("ot.tongGioOt2", _summary.Year)
                         </MudText>
                     </MudPaper>
                 </MudItem>
@@ -40,7 +40,7 @@
                             @_summary.TotalDays
                         </MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Số ngày OT
+                            @Language.T("employee.soNgayOt")
                         </MudText>
                     </MudPaper>
                 </MudItem>
@@ -52,12 +52,12 @@
                       Hover="true"
                       Style="border-radius:10px; overflow:hidden">
                 <HeaderContent>
-                    <MudTh>Tháng</MudTh>
-                    <MudTh Style="text-align:right">Số ngày</MudTh>
-                    <MudTh Style="text-align:right">Số giờ</MudTh>
+                    <MudTh>@Language.T("ot.month")</MudTh>
+                    <MudTh Style="text-align:right">@Language.T("common.soNgay")</MudTh>
+                    <MudTh Style="text-align:right">@Language.T("ot.hours")</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>Tháng @context.Month</MudTd>
+                    <MudTd>@Language.T("ot.thang", context.Month)</MudTd>
                     <MudTd Style="text-align:right">@context.Days</MudTd>
                     <MudTd Style="text-align:right">
                         <MudText Style="font-weight:600">@context.Hours.ToString("N1") h</MudText>
@@ -68,7 +68,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.EventBusy"
                                  Size="Size.Large" Color="Color.Secondary" />
                         <MudText Color="Color.Secondary">
-                            Chưa có dữ liệu OT năm @_summary.Year
+                            @Language.T("ot.chuaCoDuLieuOt", _summary.Year)
                         </MudText>
                     </MudStack>
                 </NoRecordsContent>
@@ -76,7 +76,7 @@
                     @if (_summary.Monthly.Any())
                     {
                         <MudTFootRow>
-                            <MudTd><MudText Style="font-weight:700">Tổng cộng</MudText></MudTd>
+                            <MudTd><MudText Style="font-weight:700">@Language.T("employee.tongCong")</MudText></MudTd>
                             <MudTd Style="text-align:right">
                                 <MudText Style="font-weight:700">@_summary.TotalDays</MudText>
                             </MudTd>
@@ -90,12 +90,12 @@
         }
         else
         {
-            <MudAlert Severity="Severity.Info">Không có dữ liệu OT cho nhân viên này.</MudAlert>
+            <MudAlert Severity="Severity.Info">@Language.T("employee.khongCoDuLieuOt")</MudAlert>
         }
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">Đóng</MudButton>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -124,7 +124,7 @@
         if (result.IsSuccess)
             _summary = result.Data;
         else
-            Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu OT", Severity.Warning);
+            Snackbar.Add(result.Message ?? Language.T("employee.loiTaiDuLieuOt"), Severity.Warning);
 
         _isLoading = false;
     }

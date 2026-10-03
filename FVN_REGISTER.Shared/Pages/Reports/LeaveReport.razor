@@ -10,30 +10,30 @@
 @inherits AppComponentBase
 @inject IReportClientService ReportService
 
-<MudText Typo="Typo.h5" Class="mb-4"><MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />Báo cáo nghỉ phép</MudText>
+<MudText Typo="Typo.h5" Class="mb-4"><MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />@Language.T("report.leave")</MudText>
 
 <MudTabs ActivePanelIndex="_activeTab" ActivePanelIndexChanged="OnTabChanged" Color="Color.Primary" Rounded="true" Class="mb-4">
-    <MudTabPanel Text="Số dư phép" /><MudTabPanel Text="Theo phòng ban" /><MudTabPanel Text="Theo nhân viên" /><MudTabPanel Text="Chi tiết đơn" /><MudTabPanel Text="Trạng thái duyệt" />
+    <MudTabPanel Text="@Language.T("leave.soDuPhep")" /><MudTabPanel Text="@Language.T("common.theoPhongBan")" /><MudTabPanel Text="@Language.T("common.theoNhanVien")" /><MudTabPanel Text="@Language.T("leave.chiTietDon")" /><MudTabPanel Text="@Language.T("common.trangThaiDuyet")" />
 </MudTabs>
 
 <ReportBase @ref="_baseRef" ReportType="_currentType" Query="_query">
     <AdditionalFilters>
         @if (_activeTab == 0)
         {
-            <MudItem xs="12" sm="3"><MudSelect T="int?" Label="Năm làm việc" @bind-Value="_query.WorkYear" Margin="Margin.Dense" Variant="Variant.Outlined">
+            <MudItem xs="12" sm="3"><MudSelect T="int?" Label="@Language.T("common.namLamViec")" @bind-Value="_query.WorkYear" Margin="Margin.Dense" Variant="Variant.Outlined">
                 @for (int y = DateTime.Now.Year; y >= 2022; y--) { var currentYear = y; <MudSelectItem T="int?" Value="@((int?)currentYear)">@currentYear</MudSelectItem> }
             </MudSelect></MudItem>
         }
         else if (_activeTab == 1 || _activeTab == 4)
         {
-            <MudItem xs="12" sm="3"><MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="string" Value="@(null)">-- Tất cả phòng ban --</MudSelectItem>
+            <MudItem xs="12" sm="3"><MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="string" Value="@(null)">@Language.T("leave.tatCaPhongBan")</MudSelectItem>
                 @foreach (var dept in _departments ?? new()) { <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem> }
             </MudSelect></MudItem>
         }
         else if (_activeTab == 2 || _activeTab == 3)
         {
-            <MudItem xs="12" sm="3"><MudAutocomplete T="KeyValuePair<string, string>" Label="Nhân viên" Value="@_selectedEmployee" ValueChanged="OnEmployeeChanged" SearchFunc="@SearchEmployees" ToStringFunc="@(e => e.Value)" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined" ResetValueOnEmptyText="true" CoerceText="true" /></MudItem>
+            <MudItem xs="12" sm="3"><MudAutocomplete T="KeyValuePair<string, string>" Label='@Language.T("ot.employee")' Value="@_selectedEmployee" ValueChanged="OnEmployeeChanged" SearchFunc="@SearchEmployees" ToStringFunc="@(e => e.Value)" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined" ResetValueOnEmptyText="true" CoerceText="true" /></MudItem>
         }
     </AdditionalFilters>
 </ReportBase>

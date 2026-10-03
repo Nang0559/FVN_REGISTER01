@@ -38,14 +38,18 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             UserIdentityDto user, CancellationToken ct = default)
         {
             var year = DateTime.Now.Year;
+            var canPersonal = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.LeaveView, ct);
 
-            var widgets = new List<WidgetCounterDto>(
-                await _leaveQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct));
+            var widgets = canPersonal
+                ? new List<WidgetCounterDto>((await _leaveQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct)).Data ?? new List<WidgetCounterDto>())
+                : new List<WidgetCounterDto>();
 
-            var personalBalance = await _leaveQuery.GetSimpleBalanceAsync(
-                user.EmployeeCode!, year, ct);
-            var recentSummary = await _leaveQuery.GetRecentSummaryAsync(
-                user.EmployeeCode!, 5, ct);
+            var personalBalance = canPersonal
+                ? (await _leaveQuery.GetSimpleBalanceAsync(user.EmployeeCode!, year, ct)).Data
+                : null;
+            var recentSummary = canPersonal
+                ? (await _leaveQuery.GetRecentSummaryAsync(user.EmployeeCode!, 5, ct)).Data ?? new List<LeaveSummaryDto>()
+                : new List<LeaveSummaryDto>();
 
             AbsenceWarningDto? deptWarning = null;
             var departmentStatistics = new List<LeaveStatisticsDto>();

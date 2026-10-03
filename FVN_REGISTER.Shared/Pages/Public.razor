@@ -3,10 +3,10 @@
 @using FVN_REGISTER.Shared.Handlers
 @inject IHttpClientWithAuth Http
 
-<PageTitle>Public</PageTitle>
-<MudText Typo="Typo.h5" Class="mb-4"><b>Public</b></MudText>
+<PageTitle>@Language.T("public.public")</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4"><b>@Language.T("public.public")</b></MudText>
 @if(_loading){<MudProgressLinear Indeterminate="true" />}
-else if(!_items.Any()){<MudAlert Severity="Severity.Info">Hiện chưa có nội dung được công khai.</MudAlert>}
+else if(!_items.Any()){<MudAlert Severity="Severity.Info">@Language.T("public.hienChuaCoNoiDung")</MudAlert>}
 else
 {
     <MudStack Spacing="2">
@@ -15,7 +15,7 @@ else
         <MudPaper Class="pa-4" Elevation="1">
             <MudStack Row="true" AlignItems="AlignItems.Center">
                 <MudChip T="string" Size="Size.Small">@TypeName(item.Type)</MudChip>
-                @if(item.IsImportant){<MudChip T="string" Size="Size.Small" Color="Color.Error">Quan trọng</MudChip>}
+                @if(item.IsImportant){<MudChip T="string" Size="Size.Small" Color="Color.Error">@Language.T("public.quanTrong")</MudChip>}
             </MudStack>
             <MudText Typo="Typo.h6" Class="mt-2">@item.Title</MudText>
             <MudText Color="Color.Secondary">@item.Summary</MudText>
@@ -27,5 +27,5 @@ else
 @code{
  private List<PublicInformationDto> _items=new(); private bool _loading=true;
  protected override async Task OnInitializedAsync(){var r=await Http.GetAsync<List<PublicInformationDto>>("api/public-information");if(r.IsSuccess)_items=r.Data??new();_loading=false;}
- private static string TypeName(string type)=>type switch{"Announcement"=>"Thông báo","News"=>"Tin tức","HRContent"=>"Nội dung HR","CompanyInfo"=>"Thông tin công ty","PublicContent"=>"Nội dung được công khai",_=>type};
+ private string TypeName(string type)=>type switch{"Announcement"=>Language.T("common.thongBao"),"News"=>Language.T("public.tinTuc"),"HRContent"=>Language.T("public.noiDungHr"),"CompanyInfo"=>Language.T("public.thongTinCongTy"),"PublicContent"=>Language.T("public.noiDungDuocCongKhai"),_=>type};
 }

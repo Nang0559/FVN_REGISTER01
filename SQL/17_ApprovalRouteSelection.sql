@@ -226,6 +226,61 @@ INNER JOIN DuplicatePolicies d
 WHERE d.rn > 1;
 GO
 
+/*
+    PositionCode may still be covered by legacy indexes on databases that
+    already ran an earlier version of this script. Discover the actual
+    dependency instead of assuming only the two canonical index names.
+    PKs and unique constraints are never dropped implicitly; if one depends
+    on PositionCode, stop with a clear diagnostic.
+*/
+DECLARE @PositionIndexName sysname;
+DECLARE @DropPositionIndexSql nvarchar(max);
+
+DECLARE position_index_cursor CURSOR LOCAL FAST_FORWARD FOR
+SELECT DISTINCT i.name
+FROM sys.indexes AS i
+JOIN sys.index_columns AS ic
+  ON ic.object_id = i.object_id
+ AND ic.index_id = i.index_id
+JOIN sys.columns AS c
+  ON c.object_id = ic.object_id
+ AND c.column_id = ic.column_id
+WHERE i.object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+  AND c.name = N'PositionCode'
+  AND i.is_primary_key = 0
+  AND i.is_unique_constraint = 0;
+
+OPEN position_index_cursor;
+FETCH NEXT FROM position_index_cursor INTO @PositionIndexName;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SET @DropPositionIndexSql =
+        N'DROP INDEX ' + QUOTENAME(@PositionIndexName)
+        + N' ON dbo.F03ApprovalPolicies;';
+    EXEC sys.sp_executesql @DropPositionIndexSql;
+    FETCH NEXT FROM position_index_cursor INTO @PositionIndexName;
+END;
+
+CLOSE position_index_cursor;
+DEALLOCATE position_index_cursor;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.indexes AS i
+    JOIN sys.index_columns AS ic
+      ON ic.object_id = i.object_id
+     AND ic.index_id = i.index_id
+    JOIN sys.columns AS c
+      ON c.object_id = ic.object_id
+     AND c.column_id = ic.column_id
+    WHERE i.object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+      AND c.name = N'PositionCode'
+      AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1)
+)
+    THROW 51003, 'PositionCode is still referenced by a primary/unique constraint; migration stopped safely.', 1;
+
 ALTER TABLE dbo.F03ApprovalPolicies
     ALTER COLUMN PositionCode nvarchar(20) NOT NULL;
 GO

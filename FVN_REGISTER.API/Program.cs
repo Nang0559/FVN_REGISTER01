@@ -1,52 +1,64 @@
+﻿using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Factories;
-using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Actions;
+using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Auths;
-using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Calendar;
-using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Companies;
-using FVN_REGISTER.Application.Interfaces.EmailTemplates;
+using FVN_REGISTER.Application.Interfaces.Dashboards;
 using FVN_REGISTER.Application.Interfaces.Emails;
+using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Employees;
 using FVN_REGISTER.Application.Interfaces.Equipment;
+using FVN_REGISTER.Application.Interfaces.Excel;
+using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Language;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Notifications;
-using FVN_REGISTER.Application.Interfaces.OT;
-using FVN_REGISTER.Application.Interfaces.Payroll;
-using FVN_REGISTER.Application.Interfaces.OTTypes;
-using FVN_REGISTER.Application.Interfaces.OTLimitRules;
-using FVN_REGISTER.Application.Interfaces.PublicInformation;
-using FVN_REGISTER.Application.Interfaces.PublicForms;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
+using FVN_REGISTER.Application.Interfaces.OT;
+using FVN_REGISTER.Application.Interfaces.OTLimitRules;
+using FVN_REGISTER.Application.Interfaces.OTTypes;
+using FVN_REGISTER.Application.Interfaces.Payroll;
+using FVN_REGISTER.Application.Interfaces.PublicForms;
+using FVN_REGISTER.Application.Interfaces.PublicInformation;
 using FVN_REGISTER.Application.Interfaces.Reports;
-using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.Security;
-using FVN_REGISTER.Application.Interfaces.Dashboards;
+using FVN_REGISTER.Application.Interfaces.Statics;
+using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Orchestrators;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.OT;
+using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Exceptions;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Infrastructure;
+using FVN_REGISTER.Infrastructure.DependencyInjection;
 using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Repositories;
-using FVN_REGISTER.Infrastructure.Services.Approvals;
+using FVN_REGISTER.Infrastructure.Services;
 using FVN_REGISTER.Infrastructure.Services.Actions;
+using FVN_REGISTER.Infrastructure.Services.Approvals;
 using FVN_REGISTER.Infrastructure.Services.Auths;
-using FVN_REGISTER.Infrastructure.Services.Companies;
 using FVN_REGISTER.Infrastructure.Services.Calendar;
 using FVN_REGISTER.Infrastructure.Services.Calendar.Rules;
-using FVN_REGISTER.Infrastructure.Services.Execution;
 using FVN_REGISTER.Infrastructure.Services.Common;
+using FVN_REGISTER.Infrastructure.Services.Companies;
+using FVN_REGISTER.Infrastructure.Services.Dashboards;
+using FVN_REGISTER.Infrastructure.Services.Departments;
 using FVN_REGISTER.Infrastructure.Services.Emails;
 using FVN_REGISTER.Infrastructure.Services.Employees;
 using FVN_REGISTER.Infrastructure.Services.Equipment;
-using FVN_REGISTER.Infrastructure.Services.Security;
+using FVN_REGISTER.Infrastructure.Services.Excel;
+using FVN_REGISTER.Infrastructure.Services.Execution;
 using FVN_REGISTER.Infrastructure.Services.Histories;
 using FVN_REGISTER.Infrastructure.Services.HrmSync;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers;
@@ -54,30 +66,29 @@ using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Readers;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.SourceRows;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs;
 using FVN_REGISTER.Infrastructure.Services.Jobs;
+using FVN_REGISTER.Infrastructure.Services.Language;
 using FVN_REGISTER.Infrastructure.Services.Leaves;
 using FVN_REGISTER.Infrastructure.Services.Notifications;
 using FVN_REGISTER.Infrastructure.Services.OT;
-using FVN_REGISTER.Infrastructure.Services.Payroll;
 using FVN_REGISTER.Infrastructure.Services.OTs;
-using FVN_REGISTER.Infrastructure.Services.PublicInformation;
+using FVN_REGISTER.Infrastructure.Services.Payroll;
 using FVN_REGISTER.Infrastructure.Services.PublicForms;
+using FVN_REGISTER.Infrastructure.Services.PublicInformation;
 using FVN_REGISTER.Infrastructure.Services.Reports;
+using FVN_REGISTER.Infrastructure.Services.Security;
 using FVN_REGISTER.Infrastructure.Services.Statics;
-using FVN_REGISTER.Infrastructure.Services.Dashboards;
+using FVN_REGISTER.Infrastructure.Services.Trips;
 using FVN_REGISTER.Infrastructure.Services.Users;
+using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using FVN_REGISTER.Application.Configuration;
-using FVN_REGISTER.Infrastructure;
-using FVN_REGISTER.Infrastructure.Utils;
-using FVN_REGISTER.Infrastructure.Services;
-using FVN_REGISTER.Infrastructure.Services.Departments;
-using FVN_REGISTER.Application.Policies;
-using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Exceptions;
+using System.Net;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,6 +97,8 @@ var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<stri
     "https://localhost:7264", "http://localhost:5120", "http://localhost:5017", "https://localhost:7135"
 };
 
+builder.Services.Configure<ForwardedHeadersOptions>(options=>{options.ForwardedHeaders=ForwardedHeaders.XForwardedFor|ForwardedHeaders.XForwardedProto;foreach(var value in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()??Array.Empty<string>())if(IPAddress.TryParse(value,out var ip))options.KnownProxies.Add(ip);});
+builder.Services.AddRateLimiter(options=>{options.RejectionStatusCode=StatusCodes.Status429TooManyRequests;options.OnRejected=async(context,token)=>{context.HttpContext.Response.Headers.RetryAfter="60";await context.HttpContext.Response.WriteAsJsonAsync(new{message="Quá nhiều yêu cầu. Vui lòng thử lại sau.",status=429},token);};options.AddPolicy("EndpointAnonymous",httpContext=>RateLimitPartition.GetFixedWindowLimiter($"{httpContext.Request.Path}:{httpContext.Connection.RemoteIpAddress?.ToString()??"unknown"}",_=>new FixedWindowRateLimiterOptions{PermitLimit=60,Window=TimeSpan.FromMinutes(1),QueueLimit=0,AutoReplenishment=true}));});
 builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
     .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 builder.Services.AddMemoryCache();
@@ -104,6 +117,9 @@ builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(jwtOpt
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required. For Development, set it with .NET User Secrets or the ConnectionStrings__DefaultConnection environment variable. For Production, use ConnectionStrings__DefaultConnection.");
+var lanscopePublicBaseUrl=builder.Configuration["LanscopeDeployment:PublicBaseUrl"]?.Trim();
+if(string.IsNullOrWhiteSpace(lanscopePublicBaseUrl)||!Uri.TryCreate(lanscopePublicBaseUrl,UriKind.Absolute,out var lanscopeUri)||lanscopeUri.Scheme!=Uri.UriSchemeHttps)
+    throw new InvalidOperationException("LanscopeDeployment:PublicBaseUrl is required and must be an HTTPS URL. Configure it via environment variable LanscopeDeployment__PublicBaseUrl or environment-specific appsettings.");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -134,6 +150,9 @@ builder.Services.AddScoped<IActionItemService, ActionItemService>();
 builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
 builder.Services.AddScoped<IExecutionReconciliationService, ExecutionReconciliationService>();
 builder.Services.AddScoped<IExecutionHrResolutionService, ExecutionHrResolutionService>();
+builder.Services.AddScoped<IExecutionHrClaimService, ExecutionHrClaimService>();
+builder.Services.AddScoped<IExecutionResolutionPolicyService, ExecutionResolutionPolicyService>();
+builder.Services.AddScoped<IExecutionEmployeeResolutionService, ExecutionEmployeeResolutionService>();
 builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
 builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
@@ -171,8 +190,8 @@ builder.Services.AddScoped<IOTLimitRuleManagementService, OTLimitRuleManagementS
 builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Trip
-builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripService, FVN_REGISTER.Infrastructure.Services.Trips.TripService>();
-builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripActualService, FVN_REGISTER.Infrastructure.Services.Trips.TripActualService>();
+builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<ITripActualService, TripActualService>();
 
 // Equipment
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
@@ -195,23 +214,17 @@ builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IAccessChangeService, AccessChangeService>();
 builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAssignmentService>();
 builder.Services.AddScoped<SecurityFunctionRegistryService>();
+builder.Services.AddScoped<ILocalizationManagementService, LocalizationManagementService>();
 builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 
-// Background workers. Each can be switched off with BackgroundWorkers:<Name>:Enabled=false
-// (e.g. Email on a development database). Default is enabled.
-void AddWorker<TWorker>(string name) where TWorker : class, Microsoft.Extensions.Hosting.IHostedService
-{
-    if (builder.Configuration.GetValue<bool?>($"BackgroundWorkers:{name}:Enabled") ?? true)
-        builder.Services.AddHostedService<TWorker>();
-}
-AddWorker<HrmAttendanceCalculationWorker>("HrmAttendanceCalculation");
-AddWorker<HrmSyncBackgroundWorker>("HrmSync");
-AddWorker<ExecutionReconciliationBackgroundWorker>("ExecutionReconciliation");
-AddWorker<ActionItemLifecycleBackgroundWorker>("ActionItemLifecycle");
-AddWorker<EscalationBackgroundWorker>("Escalation");
-AddWorker<EquipmentInspectionBackgroundWorker>("EquipmentInspection");
-AddWorker<EmailBackgroundWorker>("Email");
-
+// Background workers (BackgroundService) - trước đây chưa được đăng ký nên không chạy
+builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
+builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
+builder.Services.AddHostedService<EmailBackgroundWorker>();
+builder.Services.AddHostedService<EscalationBackgroundWorker>();
+builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
+builder.Services.AddHostedService<ExecutionReconciliationBackgroundWorker>();
+builder.Services.AddHostedService<EquipmentInspectionBackgroundWorker>();
 builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
 builder.Services.AddScoped<IPublicFormService, PublicFormService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
@@ -221,9 +234,11 @@ builder.Services.AddScoped<IApprovalSelectionService, ApprovalSelectionService>(
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 builder.Services.AddScoped<IEndpointGovernanceService, EndpointGovernanceService>();
-builder.Services.AddScoped<IEndpointComplianceService, EndpointComplianceService>();
 builder.Services.AddScoped<IEndpointInventoryService, EndpointInventoryService>();
+builder.Services.AddScoped<IEndpointComplianceService, EndpointComplianceService>();
 builder.Services.AddScoped<IEndpointCredentialService, EndpointCredentialService>();
+builder.Services.AddHostedService<EndpointCredentialCleanupHostedService>();
+builder.Services.AddSharedExcelPlatform();
 builder.Services.AddScoped<EndpointGovernanceExcelImportService>();
 
 // History / email / notifications
@@ -236,6 +251,8 @@ builder.Services.AddScoped<IHistoryHandler, EquipmentHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.Configure<WebPushOptions>(builder.Configuration.GetSection("WebPush"));
+builder.Services.AddScoped<IWebPushService, WebPushService>();
 builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationService>();
 
 // Approval: provider -> engine -> workflow -> cross-module inbox/resolver
@@ -317,7 +334,7 @@ builder.Services.AddAuthentication(options =>
             if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
             var qs = context.Request.Query["access_token"].ToString();
             if (!string.IsNullOrEmpty(qs)) { context.Token = qs; return Task.CompletedTask; }
-            var header = context.HttpContext.Request.Headers["Authorization"].ToString();
+            var header = context.Request.Headers["Authorization"].ToString();
             if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) context.Token = header["Bearer ".Length..];
             return Task.CompletedTask;
         }
@@ -325,9 +342,12 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    options.JsonSerializerOptions.PropertyNamingPolicy =
+    System.Text.Json.JsonNamingPolicy.CamelCase);
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
 
 var app = builder.Build();
 app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
@@ -337,7 +357,9 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     context.Response.ContentType = "application/json";
     await context.Response.WriteAsJsonAsync(new { message = feature?.Error.Message ?? "Unexpected error." });
 }));
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 app.UseCors("FccCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

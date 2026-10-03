@@ -19,6 +19,8 @@ It is intentionally separate from:
 | 2807 PublicForm.Manage | PUBLIC_FORM | F03PublicForms.Id |
 | 2808 PublicForm.SubmissionView | PUBLIC_FORM | F03PublicForms.Id |
 | 2809 PublicForm.Export | PUBLIC_FORM | F03PublicForms.Id |
+| 3110 Endpoint.SoftwareCatalogManage | ENDPOINT_SOFTWARE_CATALOG | NULL (global operator) |
+| 3044 WorkCalendar.SymbolRuleManage | ATTENDANCE_SYMBOL_RULE | NULL (module-level operator) |
 
 ## Authorization order
 
@@ -42,6 +44,45 @@ The audience answers who can register. Operator assignment answers who can manag
 
 Example: Audience = AllCompany; 2807 E0005 manages form 12; 2808 E0005 views submissions for form 12; 2809 E0012 exports submissions for form 12.
 
+### Endpoint Software Catalog
+Assign E0015 to 3110 / ENDPOINT_SOFTWARE_CATALOG / NULL. E0015 must still have the 3110 RBAC capability. When at least one global operator is configured, only assigned employees may create/import Software Catalog drafts.
+
 ## Security Center
 The Security Center exposes operator assignment with HRM employee lookup showing EmployeeCode — EmployeeName — DeptCode — PositionCode.
 No employee name, department name, position name or email supplied by the client is trusted.
+
+## Chuẩn chung cho Policy / Rule cấu hình
+
+Feature Operator Assignment là lớp phân công người thao tác cho các cấu hình quản trị có tác động nghiệp vụ. Mô hình thống nhất:
+
+**RBAC capability + ManagedScope (nếu có) + Feature Operator Assignment (nếu feature đã được cấu hình operator).**
+
+Các policy/rule cấu hình cấp module hiện dùng chung catalog:
+
+| Function | ResourceType | Phạm vi |
+|---|---|---|
+| 3073 Execution.PolicyManage | EXECUTION_POLICY | Toàn module |
+| 3071 ApprovalPolicy.Manage | APPROVAL_POLICY | Toàn module |
+| 3061 OTLimit.Manage | OT_LIMIT_RULE | Toàn module |
+| 3042 WorkCalendar.Manage | WORK_CALENDAR | Toàn module |
+| 3072 HrmUserRoleRule.Manage | HRM_USER_ROLE_RULE | Toàn module |
+| 3044 WorkCalendar.SymbolRuleManage | ATTENDANCE_SYMBOL_RULE | Toàn module |
+
+Các feature đã dùng operator assignment trước đó tiếp tục giữ nguyên cơ chế resource-specific/global.
+
+Nguyên tắc mở rộng: khi thêm một policy/rule quản trị mới, không tạo cơ chế phân quyền riêng. Function mới phải được khai báo trong FeatureOperatorCatalog, chọn ResourceType, xác định ResourceScoped, sau đó endpoint quản trị phải kiểm tra đồng thời capability RBAC và CanOperateAsync. UI Security Center lấy cùng catalog để người quản trị chỉ định nhân viên.
+
+Đối với policy cấp module, ResourceId luôn để trống. Khi chưa có assignment cho feature, hệ thống giữ hành vi tương thích hiện tại (RBAC + scope); khi đã có assignment, chỉ nhân viên được chỉ định mới được thao tác. Điều này cho phép triển khai dần mà không khóa các hệ thống đang chạy.
+
+## Calendar Symbol Rule governance
+
+`ATTENDANCE_SYMBOL_RULE` là configuration resource cấp module. Rule thay đổi cách Calendar diễn giải kết quả attendance thành symbol, nhưng không thay đổi HRM attendance calculation.
+
+Người quản trị phải:
+1. Có `WorkCalendar.SymbolRuleManage` qua RBAC.
+2. Thuộc ManagedScope phù hợp nếu hệ thống áp dụng scope cho configuration.
+3. Có Feature Operator Assignment khi feature đã được cấu hình operator.
+4. Thay đổi Rule qua UI; không sửa trực tiếp symbol trong Calendar source code.
+5. Dùng Test Rule trước khi Active.
+
+Mọi thay đổi Rule phải được audit cùng actor, thời điểm, rule và trạng thái trước/sau. Operator Assignment không thay thế RBAC và không cấp quyền Approve/HR Resolution.

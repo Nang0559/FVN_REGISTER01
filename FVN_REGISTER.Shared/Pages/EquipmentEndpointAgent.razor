@@ -1,0 +1,272 @@
+@page "/equipment/{AssetId:int}/endpoint-agent"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Application.Interfaces.Security
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Equipment
+@using FVN_REGISTER.Shared.Services.Security
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@inherits AppComponentBase
+@inject IEquipmentClientService EquipmentClient
+@inject IEndpointCredentialClientService CredentialClient
+@inject ISecurityClientService Security
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    @if (_loading)
+    {
+        <MudStack AlignItems="AlignItems.Center" Class="pa-8"><MudProgressCircular Indeterminate="true" /></MudStack>
+    }
+    else if (_asset == null)
+    {
+        <MudAlert Severity="Severity.Error">Không tìm thấy Equipment hoặc bạn không có quyền truy cập.</MudAlert>
+    }
+    else
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h5">Endpoint Agent</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Quản lý Agent và credential theo tài sản thiết bị.</MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack"
+                        OnClick="@(() => Navigation.NavigateTo("/equipment"))">Sổ thiết bị</MudButton>
+        </MudStack>
+
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="5">
+                <MudCard Outlined="true" Class="pa-4">
+                    <MudText Typo="Typo.h6">@_asset.EquipmentName</MudText>
+                    <MudText Typo="Typo.body2">Mã thiết bị: <b>@_asset.EquipmentCode</b></MudText>
+                    <MudText Typo="Typo.body2">Mã tài sản: @_asset.AssetCode</MudText>
+                    <MudText Typo="Typo.body2">Serial: @_asset.SerialNumber</MudText>
+                    <MudText Typo="Typo.body2">Người phụ trách: @_asset.ResponsibleEmployeeCode</MudText>
+                    <MudDivider Class="my-3" />
+
+                    @if (!_asset.EndpointAgentEligible)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            Equipment này chưa được bật khả năng quản lý Endpoint Agent.
+                        </MudAlert>
+                        @if (_canManageEligibility)
+                        {
+                            <MudSelect T="string" @bind-Value="_osFamily" Label="Hệ điều hành dự kiến" Class="mt-3">
+                                <MudSelectItem Value="@("Windows")">Windows</MudSelectItem>
+                                <MudSelectItem Value="@("Linux")">Linux</MudSelectItem>
+                                <MudSelectItem Value="@("macOS")">macOS</MudSelectItem>
+                            </MudSelect>
+                            <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
+                                       Disabled="@(_busy || string.IsNullOrWhiteSpace(_osFamily))"
+                                       OnClick="EnableEligibilityAsync">
+                                Bật Endpoint Agent cho Equipment
+                            </MudButton>
+                        }
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Endpoint Agent được phép</MudChip>
+                        <MudText Typo="Typo.body2" Class="mt-2">OS dự kiến: <b>@(_asset.EndpointOsFamily ?? "Chưa xác định")</b></MudText>
+                    }
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="7">
+                <MudCard Outlined="true" Class="pa-4">
+                    <MudText Typo="Typo.h6">Endpoint / Agent</MudText>
+                    @if (_status == null || !_status.EndpointExists)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">
+                            Chưa có Endpoint identity. Hãy cấp credential để tạo identity kỹ thuật cho Equipment, sau đó cài Agent trên máy.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudGrid Class="mt-1">
+                            <MudItem xs="12" sm="6"><MudText Typo="Typo.body2">DeviceKey: <b>@_status.DeviceKey</b></MudText></MudItem>
+                            <MudItem xs="12" sm="6"><MudText Typo="Typo.body2">Computer: @_status.ComputerName</MudText></MudItem>
+                            <MudItem xs="12" sm="6"><MudText Typo="Typo.body2">OS: @(_status.OsName ?? _asset.EndpointOsFamily) @(_status.OsVersion)</MudText></MudItem>
+                            <MudItem xs="12" sm="6"><MudText Typo="Typo.body2">Agent: @_status.AgentVersion</MudText></MudItem>
+                            <MudItem xs="12" sm="6"><MudText Typo="Typo.body2">Trạng thái: <b>@(_status.AgentStatus ?? "PendingRegistration")</b></MudText></MudItem>
+                            <MudItem xs="12" sm="6"><MudText Typo="Typo.body2">Last seen: @(_status.LastSeenUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "Chưa kết nối")</MudText></MudItem>
+                            <MudItem xs="12"><MudText Typo="Typo.body2">Agent installation: @_status.AgentInstallationId</MudText></MudItem>
+                        </MudGrid>
+                    }
+
+                    @if (_asset.EndpointAgentEligible && (_canProvision || _canRotate || _canRevoke))
+                    {
+                        <MudDivider Class="my-4" />
+                        <MudText Typo="Typo.subtitle1">Credential của Agent</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            Secret chỉ hiển thị một lần sau khi cấp/rotate; hệ thống chỉ lưu hash.
+                        </MudText>
+                        @if (_status?.HasActiveCredential == true)
+                        {
+                            <MudChip T="string" Color="Color.Success" Class="mt-2">Active</MudChip>
+                            <MudText Typo="Typo.body2" Class="mt-1">Hết hạn: @_status.ExpiresAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudText>
+                        }
+                        else if (_status?.EndpointExists == true)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Class="mt-2">Chưa có credential active</MudChip>
+                        }
+
+                        <MudStack Row="true" Spacing="2" Class="mt-3">
+                            @if ((_status?.HasActiveCredential != true && _canProvision) || (_status?.HasActiveCredential == true && _canRotate))
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="ProvisionAsync">
+                                    @(_status?.HasActiveCredential == true ? "Rotate credential" : "Cấp credential")
+                                </MudButton>
+                            }
+                            @if (_status?.HasActiveCredential == true && _canRevoke)
+                            {
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="_busy" OnClick="RevokeAsync">Thu hồi credential</MudButton>
+                            }
+                        </MudStack>
+
+                        @if (!string.IsNullOrWhiteSpace(_newSecret))
+                        {
+                            <MudAlert Severity="Severity.Warning" Class="mt-4">
+                                <MudText Typo="Typo.subtitle2">Credential mới — hãy sao chép ngay</MudText>
+                                <MudTextField @bind-Value="_newSecret" ReadOnly="true" Variant="Variant.Outlined" />
+                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy" Class="mt-2" OnClick="CopySecretAsync">Sao chép credential</MudButton>
+                                <MudText Typo="Typo.caption">Sau khi rời màn hình này secret sẽ không thể lấy lại.</MudText>
+                            </MudAlert>
+                        }
+                    }
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudCard Outlined="true" Class="pa-4">
+                    <MudText Typo="Typo.h6">Lịch sử credential</MudText>
+                    <MudTable Items="_history" Dense="true" Hover="true" Loading="_historyLoading" Class="mt-3">
+                        <HeaderContent>
+                            <MudTh>Thời điểm</MudTh><MudTh>Hành động</MudTh><MudTh>Hết hạn</MudTh><MudTh>Thu hồi</MudTh><MudTh>Actor</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+                            <MudTd>@context.LastAction</MudTd>
+                            <MudTd>@context.ExpiresAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            <MudTd>@(context.RevokedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</MudTd>
+                            <MudTd>@(context.CreatedBy?.ToString() ?? "SYSTEM")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+
+    private EquipmentAssetDto? _asset;
+    private EndpointCredentialStatusDto? _status;
+    private IReadOnlyList<EndpointCredentialHistoryDto> _history = Array.Empty<EndpointCredentialHistoryDto>();
+    private bool _loading = true;
+    private bool _historyLoading;
+    private bool _busy;
+    private bool _canProvision;
+    private bool _canRotate;
+    private bool _canRevoke;
+    private bool _canManageEligibility;
+    private string? _osFamily;
+    private string? _newSecret;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await Security.GetMyPermissionsAsync();
+        var codes = permissions.Data?.FunctionCodes ?? new HashSet<int>();
+        _canProvision = codes.Contains(SecurityFunctionCodes.EndpointCredentialProvision);
+        _canRotate = codes.Contains(SecurityFunctionCodes.EndpointCredentialRotate);
+        _canRevoke = codes.Contains(SecurityFunctionCodes.EndpointCredentialRevoke);
+        _canManageEligibility = codes.Contains(SecurityFunctionCodes.EquipmentManage);
+
+        var result = await EquipmentClient.GetAssetAsync(AssetId);
+        if (result.IsSuccess) _asset = result.Data;
+        if (_asset != null)
+        {
+            _osFamily = _asset.EndpointOsFamily;
+            await LoadEndpointAsync();
+        }
+        else if (!result.IsSuccess)
+            Snackbar.Add(result.Message ?? "Không thể tải Equipment.", Severity.Error);
+
+        _loading = false;
+    }
+
+    private async Task LoadEndpointAsync()
+    {
+        _status = null;
+        _historyLoading = true;
+        var status = await CredentialClient.GetEquipmentStatusAsync(AssetId);
+        if (status.IsSuccess) _status = status.Data;
+
+        var history = await CredentialClient.GetEquipmentHistoryAsync(AssetId);
+        if (history.IsSuccess) _history = history.Data ?? Array.Empty<EndpointCredentialHistoryDto>();
+        _historyLoading = false;
+    }
+
+    private async Task EnableEligibilityAsync()
+    {
+        if (_asset == null || !_canManageEligibility || string.IsNullOrWhiteSpace(_osFamily)) return;
+        _busy = true;
+        try
+        {
+            var result = await EquipmentClient.SetEndpointAgentEligibilityAsync(AssetId, new EndpointAgentEligibilityRequest(true, _osFamily));
+            if (result.IsSuccess)
+            {
+                _asset = result.Data ?? _asset;
+                Snackbar.Add("Đã bật khả năng quản lý Endpoint Agent.", Severity.Success);
+            }
+            else Snackbar.Add(result.Message ?? "Không thể bật Endpoint Agent.", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task ProvisionAsync()
+    {
+        if (_asset == null) return;
+        _busy = true; _newSecret = null;
+        try
+        {
+            var result = await CredentialClient.ProvisionForEquipmentAsync(AssetId);
+            if (result.IsSuccess && result.Data != null)
+            {
+                _newSecret = result.Data.ApiKey;
+                Snackbar.Add("Credential đã được cấp. Hãy sao chép secret trước khi đóng màn hình.", Severity.Success);
+                await LoadEndpointAsync();
+            }
+            else Snackbar.Add(result.Message ?? "Không thể cấp credential.", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task RevokeAsync()
+    {
+        if (_asset == null) return;
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Thu hồi credential của Endpoint Agent này? Agent sẽ không thể gửi inventory bằng credential hiện tại.");
+        if (!confirmed) return;
+        _busy = true;
+        try
+        {
+            var result = await CredentialClient.RevokeForEquipmentAsync(AssetId);
+            if (result.IsSuccess)
+            {
+                _newSecret = null;
+                Snackbar.Add("Đã thu hồi credential Endpoint Agent.", Severity.Success);
+                await LoadEndpointAsync();
+            }
+            else Snackbar.Add(result.Message ?? "Không thể thu hồi credential.", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task CopySecretAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newSecret)) return;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", _newSecret);
+        Snackbar.Add("Đã sao chép credential.", Severity.Success);
+    }
+}

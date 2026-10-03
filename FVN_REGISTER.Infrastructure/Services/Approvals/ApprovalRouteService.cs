@@ -72,7 +72,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 $"Không tìm thấy chức vụ HRM {employee.PositionCode} trong F03Positions.");
         }
 
-        var resolvedDeptCode = employee.DeptCode ?? string.Empty;
+        var resolvedDeptCode = (employee.DeptCode ?? string.Empty).Trim();
 
         // Policy precedence:
         // 1) exact requester Department + Position

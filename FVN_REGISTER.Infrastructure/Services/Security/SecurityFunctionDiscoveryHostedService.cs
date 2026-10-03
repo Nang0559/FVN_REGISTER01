@@ -1,5 +1,5 @@
-using FVN_REGISTER.Core.Entities.Security;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -10,6 +10,7 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SecurityFunctionDiscoveryHostedService> _logger;
+    private DateOnly? _lastCleanupLocalDate;
 
     public SecurityFunctionDiscoveryHostedService(IServiceScopeFactory scopeFactory, ILogger<SecurityFunctionDiscoveryHostedService> logger)
     {
@@ -31,7 +32,7 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
                 var registry = scope.ServiceProvider.GetRequiredService<SecurityFunctionRegistryService>();
                 var result = await registry.ReconcileAsync(stoppingToken);
 
-                var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
+                var db = scope.ServiceProvider.GetRequiredService<FVN_REGISTER.Infrastructure.FVNWEBAPPContext>();
                 var endpointSources = scope.ServiceProvider.GetServices<EndpointDataSource>();
                 var candidateDiscovery = new SecurityCandidateDiscovery(db, endpointSources);
                 var candidates = await candidateDiscovery.ScanAsync(stoppingToken);
@@ -39,6 +40,8 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
                 _logger.LogInformation(
                     "Security function discovery completed: Discovered={Discovered}, Matched={Matched}, New={New}, Retirement={Retirement}, Conflict={Conflict}, Candidates={Candidates}",
                     result.Discovered, result.Matched, result.PendingRegistration, result.PendingRetirement, result.Conflict, candidates);
+
+                await RunDailyEndpointComplianceCleanupAsync(db, stoppingToken);
                 interval = TimeSpan.FromHours(6);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
@@ -51,5 +54,32 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
             try { await Task.Delay(interval, stoppingToken); }
             catch (OperationCanceledException) { return; }
         }
+    }
+
+    private async Task RunDailyEndpointComplianceCleanupAsync(FVN_REGISTER.Infrastructure.FVNWEBAPPContext db, CancellationToken cancellationToken)
+    {
+        var localNow = GetVietnamNow();
+        if (localNow.Hour < 3 || _lastCleanupLocalDate == DateOnly.FromDateTime(localNow.Date)) return;
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "EXEC dbo.usp_CleanupEndpointComplianceFindings @RetentionDays={0}, @BatchSize={1}",
+                new object[] { 180, 5000 }, cancellationToken);
+            _lastCleanupLocalDate = DateOnly.FromDateTime(localNow.Date);
+            _logger.LogInformation("Endpoint compliance finding cleanup completed at Vietnam local time {LocalTime}.", localNow);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Endpoint compliance finding cleanup failed at Vietnam local time {LocalTime}.", localNow);
+        }
+    }
+
+    private static DateTime GetVietnamNow()
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "SE Asia Standard Time" : "Asia/Ho_Chi_Minh");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone);
     }
 }

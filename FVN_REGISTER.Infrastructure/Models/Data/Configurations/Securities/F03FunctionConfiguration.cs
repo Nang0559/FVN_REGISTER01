@@ -7,7 +7,15 @@ public sealed class F03FunctionConfiguration : IEntityTypeConfiguration<F03Funct
 {
     public void Configure(EntityTypeBuilder<F03Function> entity)
     {
-        entity.ToTable("F03Functions");
+        entity.ToTable("F03Functions", table =>
+        {
+            // F03Functions has database triggers. EF Core 9 must not emit
+            // UPDATE ... OUTPUT for this table.
+            table.UseSqlOutputClause(false);
+            // Keep trigger metadata explicit for EF Core versions/providers
+            // that use HasTrigger to opt out of OUTPUT.
+            table.HasTrigger("TR_F03Functions_EFCore");
+        });
         entity.HasKey(e => e.Id);
 
         entity.HasIndex(e => e.FunctionCode, "IX_Function_Code").IsUnique();

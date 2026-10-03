@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Companies;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Core.Constants;
@@ -15,15 +16,18 @@ public sealed class CompanyHolidayManagementController : ControllerBase
     readonly ICompanyHolidayManagementService _service;
     readonly ICurrentUserService _currentUser;
     readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
     public CompanyHolidayManagementController(
         ICompanyHolidayManagementService service,
         ICurrentUserService currentUser,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operators)
     {
         _service = service;
         _currentUser = currentUser;
         _authorization = authorization;
+        _operators = operators;
     }
 
     [HttpGet]
@@ -129,7 +133,9 @@ public sealed class CompanyHolidayManagementController : ControllerBase
     async Task<bool> CanManage(CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
-        return user != null &&
-               await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarManage, ct);
+        if (user == null || !await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarManage, ct))
+            return false;
+        return await _operators.CanOperateAsync(user.UserId, user.EmployeeCode,
+            SecurityFunctionCodes.WorkCalendarManage, FeatureOperatorCatalog.WorkCalendar, null, ct);
     }
 }
