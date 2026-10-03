@@ -89,8 +89,23 @@
         </MudNavGroup>
     }
 
-    @if (Can(SecurityFunctionCodes.EquipmentView))
-    { <MudNavGroup Title="@Language.T("nav.equipment")" Icon="@Icons.Material.Filled.Devices" Expanded="false"><MudNavLink href="/equipment" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.equipmentRegister")</MudNavLink>@if(Can(SecurityFunctionCodes.EquipmentImport)){<MudNavLink href="/equipment/workspace" Icon="@Icons.Material.Filled.UploadFile">@Language.T("nav.equipmentImport")</MudNavLink>}</MudNavGroup> }
+    @if (CanPersonal(SecurityFunctionCodes.EquipmentView) || CanManagement(SecurityFunctionCodes.EquipmentView))
+    {
+        <MudNavGroup Title="@Language.T("nav.equipment")" Icon="@Icons.Material.Filled.Devices" Expanded="false">
+            @if (CanPersonal(SecurityFunctionCodes.EquipmentView))
+            {
+                <MudNavLink href="/equipment" Icon="@Icons.Material.Filled.Devices">@Language.T("nav.equipmentRegister")</MudNavLink>
+            }
+            @if (CanManagement(SecurityFunctionCodes.EquipmentView))
+            {
+                <MudNavLink href="/equipment" Icon="@Icons.Material.Filled.Inventory2">@Language.T("nav.equipmentRegister")</MudNavLink>
+            }
+            @if (CanManagement(SecurityFunctionCodes.EquipmentImport))
+            {
+                <MudNavLink href="/equipment/workspace" Icon="@Icons.Material.Filled.UploadFile">@Language.T("nav.equipmentImport")</MudNavLink>
+            }
+        </MudNavGroup>
+    }
 
     @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.HrmSyncReview, SecurityFunctionCodes.HrmUserRoleRuleManage, SecurityFunctionCodes.ApprovalPolicyManage, SecurityFunctionCodes.AttendanceCalculate, SecurityFunctionCodes.DepartmentStatusView))
     {
