@@ -79,7 +79,7 @@ else if (_model != null)
                         @if (_model.Actions.Any())
                         {
                             <MudList T="ActionItemDto" Dense="true">
-                                @foreach (var action in _model.Actions.Take(6))
+                                @foreach (var action in _model.Actions.Take(5))
                                 {
                                     <MudListItem T="ActionItemDto" OnClick="@(() => OpenAction(action))">
                                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
@@ -87,7 +87,7 @@ else if (_model != null)
                                                 <MudText Typo="Typo.body2"><b>@action.Title</b></MudText>
                                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">@action.Summary</MudText>
                                             </MudStack>
-                                            <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
+                                            <MudStack Row="true" Spacing="1">\n                                                <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>\n                                                @if (action.Status == 0)\n                                                {\n                                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.pending")</MudChip>\n                                                }\n                                            </MudStack>
                                         </MudStack>
                                     </MudListItem>
                                     <MudDivider />
