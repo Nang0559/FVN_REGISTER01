@@ -48,7 +48,7 @@ BEGIN
 END;
 GO
 
-/* Symbol-rule management is module-wide. Seed the canonical SuperAdmin and HR
+/* Symbol-rule management is module-wide. Seed the canonical SuperAdmin/Admin
    grants; Feature Operator Assignment still controls designated operators. */
 INSERT INTO dbo.F03RoleFunctions
 (
@@ -57,7 +57,7 @@ INSERT INTO dbo.F03RoleFunctions
 SELECT r.Id, f.Id, 1, 0, GETDATE()
 FROM dbo.F03Roles AS r
 CROSS JOIN dbo.F03Functions AS f
-WHERE r.RoleCode IN (1, 7)
+WHERE r.RoleCode IN (1, 2)
   AND r.IsActive = 1
   AND f.FunctionCode = 3044
   AND f.IsActive = 1
@@ -74,7 +74,7 @@ SET rf.IsActive = 1
 FROM dbo.F03RoleFunctions AS rf
 INNER JOIN dbo.F03Roles AS r ON r.Id = rf.IdRole
 INNER JOIN dbo.F03Functions AS f ON f.Id = rf.IdFunction
-WHERE r.RoleCode IN (1, 7)
+WHERE r.RoleCode IN (1, 2)
   AND r.IsActive = 1
   AND f.FunctionCode = 3044
   AND f.IsActive = 1;
