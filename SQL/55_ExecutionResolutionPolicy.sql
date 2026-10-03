@@ -146,6 +146,36 @@ BEGIN
     END
 END;
 
+/* Execution policy management follows the canonical SuperAdmin/Admin capability matrix. */
+INSERT INTO dbo.F03RoleFunctions
+(
+    IdRole, IdFunction, IsActive, CreatedBy, CreatedAt
+)
+SELECT r.Id, f.Id, 1, 0, GETDATE()
+FROM dbo.F03Roles AS r
+CROSS JOIN dbo.F03Functions AS f
+WHERE r.RoleCode IN (1, 2)
+  AND r.IsActive = 1
+  AND f.FunctionCode = 3073
+  AND f.IsActive = 1
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.F03RoleFunctions AS rf
+      WHERE rf.IdRole = r.Id
+        AND rf.IdFunction = f.Id
+  );
+
+UPDATE rf
+SET rf.IsActive = 1
+FROM dbo.F03RoleFunctions AS rf
+INNER JOIN dbo.F03Roles AS r ON r.Id = rf.IdRole
+INNER JOIN dbo.F03Functions AS f ON f.Id = rf.IdFunction
+WHERE r.RoleCode IN (1, 2)
+  AND r.IsActive = 1
+  AND f.FunctionCode = 3073
+  AND f.IsActive = 1;
+
 IF OBJECT_ID(N'dbo.F03SecurityFunctionRegistry', N'U') IS NOT NULL
 AND COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM dbo.F03SecurityFunctionRegistry WHERE FunctionKey = N'Execution.PolicyManage')
