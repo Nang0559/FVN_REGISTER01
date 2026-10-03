@@ -57,16 +57,19 @@ Feature Operator Assignment là lớp phân công người thao tác cho các c�
 
 **RBAC capability + ManagedScope (nếu có) + Feature Operator Assignment (nếu feature đã được cấu hình operator).**
 
-Các policy/rule cấu hình cấp module hiện dùng chung catalog:
+Các policy/rule cấu hình cấp module và feature quản trị có phân công operator hiện dùng chung catalog:
 
-| Function | ResourceType | Phạm vi |
+| Function | ResourceType | Phạm vi / mục đích |
 |---|---|---|
-| 3073 Execution.PolicyManage | EXECUTION_POLICY | Toàn module |
-| 3071 ApprovalPolicy.Manage | APPROVAL_POLICY | Toàn module |
-| 3061 OTLimit.Manage | OT_LIMIT_RULE | Toàn module |
-| 3042 WorkCalendar.Manage | WORK_CALENDAR | Toàn module |
-| 3072 HrmUserRoleRule.Manage | HRM_USER_ROLE_RULE | Toàn module |
-| 3044 WorkCalendar.SymbolRuleManage | ATTENDANCE_SYMBOL_RULE | Toàn module |
+| 3073 Execution.PolicyManage | EXECUTION_POLICY | Toàn module — chính sách đối soát công |
+| 3071 ApprovalPolicy.Manage | APPROVAL_POLICY | Toàn module — chính sách phê duyệt |
+| 3061 OTLimit.Manage | OT_LIMIT_RULE | Toàn module — quy tắc giới hạn OT |
+| 3042 WorkCalendar.Manage | WORK_CALENDAR | Toàn module — cấu hình lịch làm việc |
+| 3044 WorkCalendar.SymbolRuleManage | ATTENDANCE_SYMBOL_RULE | Toàn module — rule ký hiệu chấm công |
+| 3072 HrmUserRoleRule.Manage | HRM_USER_ROLE_RULE | Toàn module — quy tắc vai trò người dùng HRM |
+| 2802 Execution.Review | EXECUTION_REVIEW | Toàn module — tiếp nhận/xử lý phản hồi đối soát của nhân viên |
+
+`Execution.Review` là **feature xử lý phản hồi**, không phải policy cấu hình; nó được đưa vào cùng bảng để thể hiện đầy đủ các feature module-wide đang dùng chung cơ chế Feature Operator Assignment. Người được chỉ định vẫn phải có capability `Execution.Review` qua RBAC.
 
 Các feature đã dùng operator assignment trước đó tiếp tục giữ nguyên cơ chế resource-specific/global.
 
