@@ -86,3 +86,20 @@ IF OBJECT_ID('dbo.F03Roles','U') IS NOT NULL AND OBJECT_ID('dbo.F03RoleFunctions
  WHERE (r.RoleCode=1 OR r.RoleName=N'IT Endpoint Operator') AND f.FunctionCode IN(3125,3126)
  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
+
+GO
+/* Production schema gate: fail deployment instead of leaving a partially usable LANSCOPE feature. */
+IF OBJECT_ID(N'dbo.F03EndpointDeployments',N'U') IS NULL
+    THROW 51690, N'F03EndpointDeployments was not created.', 1;
+IF OBJECT_ID(N'dbo.F03EndpointDeploymentTargets',N'U') IS NULL
+    THROW 51691, N'F03EndpointDeploymentTargets was not created.', 1;
+IF OBJECT_ID(N'dbo.F03EndpointEnrollmentTokens',N'U') IS NULL
+    THROW 51692, N'F03EndpointEnrollmentTokens was not created.', 1;
+IF COL_LENGTH(N'dbo.F03EndpointDevices',N'LanscopeClientId') IS NULL
+    THROW 51693, N'F03EndpointDevices.LanscopeClientId is missing.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3125 AND IsActive=1)
+    THROW 51694, N'LANSCOPE deployment manage capability 3125 is missing.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3126 AND IsActive=1)
+    THROW 51695, N'LANSCOPE deployment view capability 3126 is missing.', 1;
+PRINT N'Endpoint LANSCOPE deployment schema verified.';
+GO

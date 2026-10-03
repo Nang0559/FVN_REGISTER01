@@ -34,6 +34,10 @@ Equipment Asset → Endpoint Agent eligible → Provision → one-time secret �
 
 Secret chỉ trả về một lần cho người có capability provision/rotate. Server lưu hash; credential active được gắn với Endpoint Device/DeviceKey. Credential không cấp user permission.
 
+### LANSCOPE bulk enrollment
+
+The LANSCOPE flow is separate from manual Equipment credential provisioning. A Golden Package never contains a long-lived endpoint credential. Each deployment target receives a one-time bootstrap token; the Agent exchanges it over HTTPS for a newly issued DeviceKey and endpoint credential. The plaintext credential is returned only by the enrollment operation, then protected locally with DPAPI LocalMachine. The bootstrap file is deleted after successful enrollment.
+
 ### Rotate/Revoke
 - Rotate thay credential active và phát secret mới.
 - Revoke vô hiệu hóa credential; lịch sử vẫn giữ.
