@@ -107,3 +107,30 @@ Không bật Deny diện rộng ngay; trước tiên Monitor để phát hiện 
 ## 15. Production gate
 
 Agent identity ổn định; credential lifecycle; inventory idempotent; compliance tests; Approval/exception dùng engine hiện tại; audit; không phụ thuộc AD; không remote command; rollback/revoke; dashboard unmanaged/offline/non-compliant.
+
+
+## 4. Equipment-first installation (current)
+
+### Bước 1 — Equipment
+Tạo/đăng ký Equipment Asset và hoàn tất approval nếu nghiệp vụ yêu cầu.
+
+### Bước 2 — Endpoint Agent
+Trong Sổ thiết bị → Endpoint Agent, kiểm tra OS family và EndpointAgentEligible. Chỉ người có capability phù hợp mới được bật eligibility.
+
+### Bước 3 — Provision credential
+Chọn Cấp credential. Server tạo/duy trì DeviceKey và credential riêng. Secret plaintext chỉ trả một lần.
+
+### Bước 4 — Cài Agent
+Dùng DeviceKey được trả về cho Equipment và nhập secret qua cơ chế bảo mật của installer; không đưa secret plaintext vào command-line/log. Installer lưu secret bảo vệ cục bộ bằng DPAPI.
+
+### Bước 5 — Xác nhận
+Quay lại Equipment → Endpoint Agent để kiểm tra AgentVersion, LastSeen, AgentInstallationId và credential status.
+
+### Lifecycle sau triển khai
+- Rotate credential khi cần thay secret.
+- Revoke khi endpoint không còn được phép gửi inventory.
+- Bàn giao Equipment không tạo DeviceKey mới.
+- Reinstall có thể đổi AgentInstallationId; hardware identity được dùng để xác minh.
+
+### Không dùng flow legacy
+Không provision bằng một màn hình độc lập yêu cầu người vận hành tự nhập DeviceKey như business flow. Nếu cần technical endpoint API theo DeviceKey, đó là operation dành cho security/technical compatibility.

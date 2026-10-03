@@ -203,3 +203,36 @@ Tại màn hình quản trị Rule:
 Không sửa JavaScript/C# để thay một ký hiệu nghiệp vụ. Nếu nghiệp vụ đổi `K4`, `T8`, `CNK4`, `NL8` hoặc block/rounding, sửa Rule và kiểm thử lại.
 
 Rule test phải được hiểu là mô phỏng; dữ liệu ca thực tế trên Calendar vẫn lấy từ HRM.
+
+## 15. Equipment và Endpoint Agent — thao tác chuẩn
+
+### Người dùng/nhân viên
+- Mở Sổ thiết bị để xem Equipment được phép theo scope.
+- Nếu được giao thiết bị, có thể xem thông tin tài sản và các thao tác được capability cho phép.
+- Không tự nhập DeviceKey hoặc credential.
+
+### IT / Endpoint Operator
+1. Mở Sổ thiết bị.
+2. Chọn Equipment là laptop/desktop/máy có OS.
+3. Mở Endpoint Agent.
+4. Kiểm tra Endpoint Agent được phép và OS family.
+5. Nếu chưa bật, người có Equipment.Manage bật eligibility.
+6. Chọn Cấp credential.
+7. Sao chép secret một lần.
+8. Cài Agent trên đúng máy và bảo vệ secret bằng DPAPI.
+9. Quay lại Equipment để kiểm tra Agent status, version, LastSeen và installation identity.
+10. Khi cần đổi secret, dùng Rotate credential; khi cần vô hiệu hóa, dùng Thu hồi credential.
+
+### Không sử dụng flow cũ
+Không bắt đầu bằng việc mở một form riêng và nhập DeviceKey để gắn credential vào máy. Nếu security-center còn hiển thị chức năng legacy, chức năng đó chỉ phục vụ audit/technical compatibility; Equipment vẫn là entry point nghiệp vụ.
+
+### Các trường hợp thường gặp
+| Tình huống | Xử lý |
+|---|---|
+| Equipment không có OS | Không bật Endpoint Agent |
+| Chưa có Endpoint | Cấp credential từ Equipment, sau đó cài Agent |
+| Credential hết/thu hồi | Rotate hoặc provision lại theo capability |
+| Đổi người sử dụng | Không tạo DeviceKey mới |
+| Cài lại Windows | Kiểm tra AgentInstallationId + hardware identity |
+| Đổi tên máy | Không coi là Endpoint mới nếu identity vẫn hợp lệ |
+| Secret đã mất | Không thể xem lại; rotate/provision credential mới |
