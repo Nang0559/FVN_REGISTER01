@@ -18,4 +18,21 @@ public static class FeatureOperatorAuthorizationPolicy
         bool activeUserExists,
         bool hasRbacCapability)
         => employeeExists && activeUserExists && hasRbacCapability;
+
+    /// <summary>
+    /// Selects the first currently valid assigned operator. Candidates are already
+    /// ordered by assignment creation/ID; an assigned user whose RBAC was revoked
+    /// must be skipped rather than selected.
+    /// </summary>
+    public static (int Id, string EmployeeCode)? SelectFirstEligibleOperator(
+        IEnumerable<(int Id, string EmployeeCode, bool HasRbac)> candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (CanOperate(candidate.HasRbac, true))
+                return (candidate.Id, candidate.EmployeeCode);
+        }
+
+        return null;
+    }
 }
