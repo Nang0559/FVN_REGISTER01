@@ -64,6 +64,7 @@ public sealed class EndpointWorker : BackgroundService
             FailConfiguration("ApiKeyProtected cannot be decrypted on this Windows machine.");
             return;
         }
+        }
 
         var delay = TimeSpan.FromMinutes(Math.Clamp(_options.IntervalMinutes, 5, 1440));
         while (!stoppingToken.IsCancellationRequested)
