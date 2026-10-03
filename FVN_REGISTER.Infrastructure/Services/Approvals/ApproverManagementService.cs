@@ -229,6 +229,18 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 return ServiceResult.Fail("Không xác định được cấp duyệt. Vui lòng chọn thủ công.");
 
             model.Level = resolvedLevel;
+
+            if (!await HasActiveApprovalPolicyAsync(
+                    model.RequestType,
+                    model.ApproveForDeptCode!,
+                    model.Level,
+                    employee.PositionCode,
+                    ct))
+            {
+                return ServiceResult.Fail(
+                    $"Chức vụ {employee.PositionCode} của nhân viên {employee.EmployeeName} chưa được cấu hình làm vị trí phê duyệt cho {model.RequestType}, cấp {model.Level}, phòng ban {model.ApproveForDeptCode}.");
+            }
+
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
             model.DeptCode = employee.DeptCode ?? "";
@@ -292,6 +304,18 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, employee.PositionCode);
             model.Level = resolvedLevel;
+
+            if (!await HasActiveApprovalPolicyAsync(
+                    model.RequestType,
+                    model.ApproveForDeptCode!,
+                    model.Level,
+                    employee.PositionCode,
+                    ct))
+            {
+                return ServiceResult.Fail(
+                    $"Chức vụ {employee.PositionCode} của nhân viên {employee.EmployeeName} chưa được cấu hình làm vị trí phê duyệt cho {model.RequestType}, cấp {model.Level}, phòng ban {model.ApproveForDeptCode}.");
+            }
+
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
             model.DeptCode = employee.DeptCode ?? entity.ApproverDeptCode;
@@ -401,6 +425,28 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         if(flag==null) return ServiceResult.Fail("Không tìm thấy đề xuất hoặc đề xuất đã được xử lý.");
         flag.IsResolved=true;flag.ResolvedAt=DateTime.Now;flag.ResolvedBy=currentUserId.ToString();flag.Decision="KeepCurrentConfiguration";await _uow.SaveChangesAsync(ct);
         return ServiceResult.Ok("Đã giữ nguyên cấu hình Approver hiện tại.");
+    }
+
+
+    private async Task<bool> HasActiveApprovalPolicyAsync(
+        RequestModule requestType,
+        string approveForDeptCode,
+        int level,
+        string positionCode,
+        CancellationToken ct)
+    {
+        var deptCode = approveForDeptCode.Trim();
+        var posCode = positionCode.Trim();
+
+        return await _uow.Repository<F03ApprovalPolicy>().Query()
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive == true &&
+                x.RequestType == requestType &&
+                x.DeptCode == deptCode &&
+                x.Level == level &&
+                x.ApprovalPositionCode == posCode,
+                ct);
     }
 
     private static ServiceResult ValidateModel(ApproverDto model)

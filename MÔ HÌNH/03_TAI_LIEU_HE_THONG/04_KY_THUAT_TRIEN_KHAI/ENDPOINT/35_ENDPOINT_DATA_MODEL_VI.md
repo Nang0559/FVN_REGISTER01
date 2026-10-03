@@ -45,3 +45,17 @@ ComputerName chỉ là thuộc tính, không tạo endpoint mới.
 ## Máy không có Equipment Asset
 
 Có thể tồn tại trạng thái `UnmanagedDevice`/`PendingRegistration` nếu discovery hoặc Agent xuất hiện trước khi IT đăng ký asset. Sau xác minh, bind endpoint vào Equipment Asset.
+
+
+## 9. Equipment ↔ Endpoint identity contract
+
+Employee (HRM) → Equipment Asset → Endpoint Device → DeviceKey + HardwareUuid/SerialNumber + AgentInstallationId → Credential history.
+
+EmployeeCode, EquipmentAssetId/AssetCode và DeviceKey là ba lớp identity khác nhau.
+
+- Bàn giao: đổi quan hệ Equipment → Employee; giữ Endpoint identity.
+- Reinstall: AgentInstallationId có thể đổi; đối chiếu hardware identity.
+- Mainboard/hardware identity đổi: IT review.
+- ComputerName đổi: không tự tạo Endpoint mới.
+
+Không dùng EmployeeCode làm Endpoint key và không dùng DeviceKey làm Equipment asset key.

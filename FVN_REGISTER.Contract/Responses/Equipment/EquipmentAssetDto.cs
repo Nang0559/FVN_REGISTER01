@@ -17,6 +17,15 @@ public sealed class EquipmentAssetDto
     public string QrUrl { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
     public string? Note { get; set; }
+    public bool EndpointAgentEligible { get; set; }
+    public string? EndpointOsFamily { get; set; }
+    public long? EndpointDeviceId { get; set; }
+    public string? EndpointDeviceKey { get; set; }
+    public string? EndpointAgentStatus { get; set; }
+    public string? EndpointAgentVersion { get; set; }
+    public DateTime? EndpointLastSeenUtc { get; set; }
+    public bool EndpointHasActiveCredential { get; set; }
+    public DateTimeOffset? EndpointCredentialExpiresAtUtc { get; set; }
     public string? ResponsibleDeptCode { get; set; }
     public string? ResponsibleEmployeeCode { get; set; }
     public string? ResponsibleEmployeeName { get; set; }

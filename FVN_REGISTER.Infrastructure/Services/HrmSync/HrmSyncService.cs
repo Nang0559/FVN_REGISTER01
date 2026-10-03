@@ -58,7 +58,7 @@ public sealed class HrmSyncService : IHrmSyncService
                 SELECT COUNT(*) AS Value
                 FROM dbo.F03Employees e
                 INNER JOIN dbo.F03ApprovalPolicies ap
-                    ON ap.PositionCode=e.PositionCode
+                    ON ap.ApprovalPositionCode=e.PositionCode
                    AND ap.IsActive=1
                 LEFT JOIN dbo.F03Approvers a
                     ON a.ApproverCode=e.EmployeeCode
@@ -70,7 +70,7 @@ public sealed class HrmSyncService : IHrmSyncService
                        WHEN 3 THEN N'Equipment'
                    END
                    AND a.Level=ap.Level
-                   AND a.ApproveForDeptCode=e.DeptCode
+                   AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(e.DeptCode))
                 WHERE e.IsActive=1 AND a.Id IS NULL;
                 """, ct);
 

@@ -12,6 +12,8 @@ public interface IEquipmentService
     Task<ServiceResult<EquipmentRequestDto>> SubmitRegistrationAsync(int requestId, CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentRequestDto>>> GetMineAsync(CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentAssetDto>>> GetMyAssignedAssetsAsync(CancellationToken ct = default);
+    Task<ServiceResult<List<EquipmentAssetDto>>> GetAssetsAsync(string? deptCode = null, CancellationToken ct = default);
+    Task<ServiceResult<EquipmentAssetDto>> SetEndpointAgentEligibilityAsync(int assetId, EndpointAgentEligibilityRequest request, CancellationToken ct = default);
     Task<ServiceResult<EquipmentRequestDto>> CreateRepairDraftAsync(CreateEquipmentRepairDto request, CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>> GetRepairAssigneesAsync(string? deptCode = null, CancellationToken ct = default);
     Task<ServiceResult<EquipmentRequestDto>> SubmitRepairAsync(int requestId, CancellationToken ct = default);

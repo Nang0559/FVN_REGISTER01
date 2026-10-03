@@ -1,0 +1,340 @@
+@page "/admin/execution-policies"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Execution
+@using FVN_REGISTER.Shared.Services.Execution
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IExecutionResolutionPolicyClientService PolicyService
+@inject ISnackbar Snackbar
+
+<PageTitle>Chính sách đối soát công</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight:750">Chính sách xử lý đối soát công</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Cấu hình SLA, số vòng khiếu nại, cấp quyết định cuối và cách chốt kỳ công.
+        </MudText>
+    </div>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+</MudStack>
+
+<MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+    Policy là luật cho <b>vòng xử lý</b>, không phải trạng thái của từng vụ việc.
+    Khi sửa policy, hệ thống tăng version; policy cũ không được dùng để thay đổi lịch sử của case đã phát sinh.
+</MudAlert>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
+    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa policy" : "Thêm policy")</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudTextField @bind-Value="_form.ModuleCode" Label="ModuleCode"
+                          Placeholder="OT / LEAVE / TRIP / ATTENDANCE"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="5">
+            <MudTextField @bind-Value="_form.PolicyName" Label="Tên policy"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudNumericField T="int" @bind-Value="_form.EmployeeResponseHours"
+                             Label="Nhân viên phản hồi (giờ)" Min="1" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudNumericField T="int" @bind-Value="_form.HrReviewHours"
+                             Label="HR xử lý (giờ)" Min="1" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="byte" @bind-Value="_form.EmployeeTimeoutMode"
+                       Label="Hết SLA nhân viên" Variant="Variant.Outlined">
+                <MudSelectItem Value="@((byte)0)">Chuyển quyết định cuối</MudSelectItem>
+                <MudSelectItem Value="@((byte)1)">Tự động chấp nhận kết quả HR</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_form.AllowEmployeeAppeal" Color="Color.Primary">
+                Cho phép khiếu nại
+            </MudSwitch>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudNumericField T="byte" @bind-Value="_form.MaxAppealRounds"
+                             Label="Số vòng khiếu nại tối đa" Min="0" Max="5"
+                             Disabled="@(!_form.AllowEmployeeAppeal)" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudNumericField T="int" @bind-Value="_form.AppealReviewHours"
+                             Label="Xử lý khiếu nại (giờ)" Min="1"
+                             Disabled="@(!_form.AllowEmployeeAppeal)" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_form.RequireEvidenceOnAppeal" Color="Color.Primary"
+                       Disabled="@(!_form.AllowEmployeeAppeal)">
+                Bắt buộc chứng cứ khi khiếu nại
+            </MudSwitch>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_form.RequireFinalDecision" Color="Color.Primary">
+                Bắt buộc quyết định cuối
+            </MudSwitch>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudTextField @bind-Value="_form.FinalDecisionPositionCode"
+                          Label="Position quyết định cuối"
+                          Placeholder="VD: 0001"
+                          Disabled="@(!_form.RequireFinalDecision)"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="byte" @bind-Value="_form.PayrollCutoffMode"
+                       Label="Xử lý khi tới cutoff payroll" Variant="Variant.Outlined">
+                <MudSelectItem Value="@((byte)0)">Chốt theo kết quả nội bộ hiện tại</MudSelectItem>
+                <MudSelectItem Value="@((byte)1)">Ép chuyển cấp quyết định cuối</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_form.AllowReopenAfterPayroll" Color="Color.Warning">
+                Cho phép mở lại sau khi payroll lock
+            </MudSwitch>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudNumericField T="int?" @bind-Value="_form.DueHours"
+                             Label="Action deadline (giờ)" Min="1" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="byte" @bind-Value="_form.AdjustmentPeriodMode"
+                       Label="Điều chỉnh sau payroll" Variant="Variant.Outlined">
+                <MudSelectItem Value="@((byte)0)">Sửa theo quy trình điều chỉnh</MudSelectItem>
+                <MudSelectItem Value="@((byte)1)">Chuyển sang kỳ kế tiếp</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker @bind-Date="_effectiveFrom" Label="Hiệu lực từ" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker @bind-Date="_effectiveTo" Label="Hiệu lực đến" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
+        </MudItem>
+    </MudGrid>
+
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+        @if (_editingId.HasValue)
+        {
+            <MudButton Variant="Variant.Text" OnClick="ResetForm">Hủy sửa</MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="SaveAsync" Disabled="@_loading">
+            @(_editingId.HasValue ? "Cập nhật policy" : "Thêm policy")
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="mb-2" />
+}
+else if (!_policies.Any())
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+        Chưa có policy đối soát công. Các reconciliation có review sẽ không có luật SLA/khiếu nại cấu hình.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="_policies" Dense="true" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Module</MudTh>
+            <MudTh>Version</MudTh>
+            <MudTh>SLA</MudTh>
+            <MudTh>Khiếu nại</MudTh>
+            <MudTh>Quyết định cuối</MudTh>
+            <MudTh>Payroll cutoff</MudTh>
+            <MudTh>Hiệu lực</MudTh>
+            <MudTh />
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <b>@context.ModuleCode</b>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.PolicyName</MudText>
+            </MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">v@context.PolicyVersion</MudChip></MudTd>
+            <MudTd>
+                NV @context.EmployeeResponseHours h<br />
+                @(context.EmployeeTimeoutMode == 1 ? "Timeout: tự chấp nhận" : "Timeout: Final")<br />
+                HR @context.HrReviewHours h
+                @if (context.AllowEmployeeAppeal)
+                {
+                    <div>Appeal @context.AppealReviewHours h</div>
+                }
+            </MudTd>
+            <MudTd>
+                @(context.AllowEmployeeAppeal
+                    ? $"{context.MaxAppealRounds} vòng"
+                    : "Không")
+            </MudTd>
+            <MudTd>
+                @(context.RequireFinalDecision
+                    ? $"Position {context.FinalDecisionPositionCode}"
+                    : "Không bắt buộc")
+            </MudTd>
+            <MudTd>
+                @(context.PayrollCutoffMode == 1
+                    ? "Ép Final"
+                    : "Chốt nội bộ")
+            </MudTd>
+            <MudTd>
+                @(context.EffectiveFrom?.ToString("dd/MM/yyyy") ?? "Ngay")
+                —
+                @(context.EffectiveTo?.ToString("dd/MM/yyyy") ?? "Không hạn")
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(context.IsActive ? Color.Success : Color.Default)"
+                         Variant="Variant.Outlined">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true" Spacing="1">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                   OnClick="@(() => Edit(context))" />
+                    @if (context.IsActive)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error"
+                                       OnClick="@(() => DeactivateAsync(context))" />
+                    }
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<ExecutionResolutionPolicyDto> _policies = new();
+    private ExecutionResolutionPolicyRequest _form = NewForm();
+    private int? _editingId;
+    private bool _loading;
+    private DateTime? _effectiveFrom;
+    private DateTime? _effectiveTo;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await PolicyService.GetAllAsync();
+            if (result.IsSuccess)
+                _policies = result.Data?.ToList() ?? new();
+            else
+                Snackbar.Add(result.Message ?? "Không tải được policy.", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private void Edit(ExecutionResolutionPolicyDto x)
+    {
+        _editingId = x.Id;
+        _form = new ExecutionResolutionPolicyRequest
+        {
+            ModuleCode = x.ModuleCode,
+            PolicyName = x.PolicyName,
+            ReconciliationMode = x.ReconciliationMode,
+            ConfirmationMode = x.ConfirmationMode,
+            EvidenceMode = x.EvidenceMode,
+            ReviewMode = x.ReviewMode,
+            DueHours = x.DueHours,
+            AutoResolveMode = x.AutoResolveMode,
+            CorrectionMode = x.CorrectionMode,
+            EmployeeResponseHours = x.EmployeeResponseHours,
+            EmployeeTimeoutMode = x.EmployeeTimeoutMode,
+            HrReviewHours = x.HrReviewHours,
+            AllowEmployeeAppeal = x.AllowEmployeeAppeal,
+            MaxAppealRounds = x.MaxAppealRounds,
+            AppealReviewHours = x.AppealReviewHours,
+            RequireEvidenceOnAppeal = x.RequireEvidenceOnAppeal,
+            RequireFinalDecision = x.RequireFinalDecision,
+            FinalDecisionPositionCode = x.FinalDecisionPositionCode,
+            PayrollCutoffMode = x.PayrollCutoffMode,
+            AllowReopenAfterPayroll = x.AllowReopenAfterPayroll,
+            AdjustmentPeriodMode = x.AdjustmentPeriodMode,
+            IsActive = x.IsActive
+        };
+        _effectiveFrom = x.EffectiveFrom;
+        _effectiveTo = x.EffectiveTo;
+    }
+
+    private async Task SaveAsync()
+    {
+        _form.EffectiveFrom = _effectiveFrom;
+        _form.EffectiveTo = _effectiveTo;
+
+        _loading = true;
+        try
+        {
+            var result = _editingId.HasValue
+                ? await PolicyService.UpdateAsync(_editingId.Value, _form)
+                : await PolicyService.CreateAsync(_form);
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu policy.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_editingId.HasValue ? "Đã cập nhật policy và tạo version mới." : "Đã thêm policy.", Severity.Success);
+            ResetForm();
+            await LoadAsync();
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task DeactivateAsync(ExecutionResolutionPolicyDto x)
+    {
+        var result = await PolicyService.DeactivateAsync(x.Id);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể vô hiệu policy.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Đã vô hiệu policy {x.ModuleCode}.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private void ResetForm()
+    {
+        _editingId = null;
+        _form = NewForm();
+        _effectiveFrom = null;
+        _effectiveTo = null;
+    }
+
+    private static ExecutionResolutionPolicyRequest NewForm() => new()
+    {
+        ModuleCode = "OT",
+        PolicyName = "OT Attendance Reconciliation",
+        ReconciliationMode = 1,
+        ConfirmationMode = 1,
+        EvidenceMode = 2,
+        ReviewMode = 1,
+        EmployeeResponseHours = 48,
+        EmployeeTimeoutMode = 0,
+        HrReviewHours = 48,
+        AllowEmployeeAppeal = true,
+        MaxAppealRounds = 1,
+        AppealReviewHours = 48,
+        RequireEvidenceOnAppeal = true,
+        RequireFinalDecision = true,
+        PayrollCutoffMode = 0,
+        AdjustmentPeriodMode = 1,
+        IsActive = true
+    };
+}

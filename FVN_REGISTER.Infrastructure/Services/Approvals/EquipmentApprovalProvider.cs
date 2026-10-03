@@ -151,6 +151,8 @@ public sealed class EquipmentApprovalProvider
                         QrToken = entity.QrToken,
                         IsQrActive = true,
                         Note = entity.Note,
+                        EndpointAgentEligible = entity.EndpointAgentEligible,
+                        EndpointOsFamily = entity.EndpointOsFamily,
                         CreatedBy = entity.OperatorUserId
                     };
 

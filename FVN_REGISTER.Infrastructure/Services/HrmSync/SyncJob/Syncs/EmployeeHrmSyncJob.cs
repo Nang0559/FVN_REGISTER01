@@ -52,8 +52,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         {
             EmployeeCode = s.EntityKey,
             EmployeeName = s.EmployeeName,
-            DeptCode = s.DeptCode ?? string.Empty,
-            PositionCode = s.PositionCode ?? string.Empty,
+            DeptCode = NormalizeCode(s.DeptCode),
+            PositionCode = NormalizeCode(s.PositionCode),
             EmailAddress = s.EmailAddress,
             PhoneNumber = s.PhoneNumber,
             BirthDate = s.BirthDate,
@@ -73,12 +73,15 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             var oldDeptCode = e.DeptCode;
             var oldPositionCode = e.PositionCode;
 
-            bool deptChanged = e.DeptCode != (s.DeptCode ?? string.Empty);
-            bool positionChanged = e.PositionCode != (s.PositionCode ?? string.Empty);
+            var normalizedDeptCode = NormalizeCode(s.DeptCode);
+            var normalizedPositionCode = NormalizeCode(s.PositionCode);
+
+            bool deptChanged = !string.Equals(e.DeptCode, normalizedDeptCode, StringComparison.Ordinal);
+            bool positionChanged = !string.Equals(e.PositionCode, normalizedPositionCode, StringComparison.Ordinal);
 
             if (e.EmployeeName != s.EmployeeName) { e.EmployeeName = s.EmployeeName; changed = true; }
-            if (deptChanged) { e.DeptCode = s.DeptCode ?? string.Empty; changed = true; }
-            if (positionChanged) { e.PositionCode = s.PositionCode ?? string.Empty; changed = true; }
+            if (deptChanged) { e.DeptCode = normalizedDeptCode; changed = true; }
+            if (positionChanged) { e.PositionCode = normalizedPositionCode; changed = true; }
             if (e.BirthDate != s.BirthDate) { e.BirthDate = s.BirthDate; changed = true; }
             if (e.GenderCode != s.GenderCode) { e.GenderCode = s.GenderCode; changed = true; }
             if (e.FirstWorkingDate != s.FirstWorkingDate) { e.FirstWorkingDate = s.FirstWorkingDate; changed = true; }
@@ -444,6 +447,9 @@ ORDER BY
             _ when level == 3 => ApproverRole.GM,
             _ => $"Level{level}"
         };
+
+        private static string NormalizeCode(string? value)
+            => (value ?? string.Empty).Trim();
 
         private int? GetSuggestedLevel(string? positionCode)
             => positionCode != null && _positionLevelCache.TryGetValue(positionCode, out var level)

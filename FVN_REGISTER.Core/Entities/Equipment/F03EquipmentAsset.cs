@@ -30,6 +30,10 @@ public sealed class F03EquipmentAsset : BaseAuditEntity
     /// <summary>Schema/type key used to determine which employee request forms apply.</summary>
     [StringLength(64)] public string? EquipmentSchemaKey { get; set; }
 
+    /// <summary>Marks this physical asset as eligible for the FVN Endpoint Agent lifecycle.</summary>
+    public bool EndpointAgentEligible { get; set; }
+    [StringLength(30)] public string? EndpointOsFamily { get; set; }
+
     // Flexible, department-specific attributes. The canonical fields above remain strongly typed.
     [Column(TypeName = "nvarchar(max)")]
     public string CustomDataJson { get; set; } = "{}";

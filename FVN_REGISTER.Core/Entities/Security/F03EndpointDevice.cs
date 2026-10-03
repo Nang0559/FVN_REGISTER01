@@ -8,12 +8,21 @@ public sealed class F03EndpointDevice
 {
     public long Id { get; set; }
     [Required, StringLength(100)] public string DeviceKey { get; set; } = string.Empty;
+    [StringLength(100)] public string? LanscopeClientId { get; set; }
     [StringLength(255)] public string? ComputerName { get; set; }
+    [StringLength(100)] public string? IpAddress { get; set; }
+    [StringLength(100)] public string? MacAddress { get; set; }
     [StringLength(255)] public string? SerialNumber { get; set; }
     [StringLength(255)] public string? HardwareUuid { get; set; }
     [StringLength(100)] public string? AgentInstallationId { get; set; }
+    [StringLength(255)] public string? WindowsUser { get; set; }
+    [StringLength(255)] public string? DomainName { get; set; }
+    [StringLength(500)] public string? OrganizationalUnit { get; set; }
+    [StringLength(255)] public string? LanscopeGroup { get; set; }
     [StringLength(255)] public string? OsName { get; set; }
     [StringLength(100)] public string? OsVersion { get; set; }
+    [StringLength(255)] public string? Manufacturer { get; set; }
+    [StringLength(255)] public string? Model { get; set; }
     [StringLength(50)] public string? EmployeeCode { get; set; }
     public int? EquipmentAssetId { get; set; }
     [StringLength(50)] public string? AgentVersion { get; set; }

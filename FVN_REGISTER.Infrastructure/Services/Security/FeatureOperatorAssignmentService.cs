@@ -1,6 +1,9 @@
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
+using FVN_REGISTER.Application.Interfaces.Excel;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Equipment;
@@ -15,12 +18,21 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly ICurrentUserService _currentUser;
+    private readonly IExcelPlatform _excel;
+    private readonly IAuthorizationService _authorization;
 
-    public FeatureOperatorAssignmentService(IUnitOfWork uow, IAuditService audit, ICurrentUserService currentUser)
+    public FeatureOperatorAssignmentService(
+        IUnitOfWork uow,
+        IAuditService audit,
+        ICurrentUserService currentUser,
+        IExcelPlatform excel,
+        IAuthorizationService authorization)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
+        _excel = excel;
+        _authorization = authorization;
     }
 
     public async Task<List<FeatureOperatorAssignmentDto>> GetAsync(int functionCode, string resourceType, int? resourceId, CancellationToken ct = default)
@@ -79,7 +91,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         if (request.FunctionCode <= 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("FunctionCode không hợp lệ.");
         var type = NormalizeResourceType(request.ResourceType);
         if (type.Length == 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceType là bắt buộc.");
-        if (type is not ("PUBLIC_INFORMATION" or "PUBLIC_FORM" or "EXECUTION_REVIEW" or "EQUIPMENT_SCHEMA")) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceType không được hỗ trợ.");
+        if (!FeatureOperatorCatalog.All.Values.Contains(type, StringComparer.OrdinalIgnoreCase)) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceType không được hỗ trợ.");
 
         if (type == "EQUIPMENT_SCHEMA")
         {
@@ -88,14 +100,9 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
                 return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Chỉ SuperAdmin được chỉ định người phụ trách biểu mẫu theo loại thiết bị.");
         }
 
-        var expectedType = request.FunctionCode switch
-        {
-            SecurityFunctionCodes.PublicInformationManage => "PUBLIC_INFORMATION",
-            SecurityFunctionCodes.ExecutionReview => "EXECUTION_REVIEW",
-            SecurityFunctionCodes.PublicFormManage or SecurityFunctionCodes.PublicFormSubmissionView or SecurityFunctionCodes.PublicFormExport => "PUBLIC_FORM",
-            SecurityFunctionCodes.EquipmentFormManage => "EQUIPMENT_SCHEMA",
-            _ => null
-        };
+        var expectedType = FeatureOperatorCatalog.TryGetResourceType(request.FunctionCode, out var catalogType)
+            ? catalogType
+            : null;
         if (expectedType != null && !string.Equals(expectedType, type, StringComparison.OrdinalIgnoreCase)) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không phù hợp với ResourceType.");
 
         var employeeCode = request.EmployeeCode?.Trim() ?? string.Empty;
@@ -108,23 +115,64 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             }).FirstOrDefaultAsync(ct);
         if (employee == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên không tồn tại hoặc đã inactive.");
 
-        var functionExists = await _uow.Repository<F03Function>().Query().AsNoTracking().AnyAsync(x => x.FunctionCode == request.FunctionCode && (x.IsActive ?? true), ct);
-        if (!functionExists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không tồn tại hoặc đã inactive.");
+        var function = await _uow.Repository<F03Function>().Query().AsNoTracking()
+            .Where(x => x.FunctionCode == request.FunctionCode && (x.IsActive ?? true))
+            .Select(x => new { x.Id, x.FunctionCode, x.FunctionKey })
+            .FirstOrDefaultAsync(ct);
+        if (function == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không tồn tại hoặc đã inactive.");
+
+        // Operator assignment never grants RBAC. Use the canonical AuthorizationService
+        // so effective role/function/lifecycle rules stay identical to runtime authorization.
+        var operatorIdentity = await _uow.Repository<F03User>().Query().AsNoTracking()
+            .Where(x => x.EmployeeCode == employeeCode && (x.IsActive ?? true))
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                DeptCode = x.DeptCode,
+                Permission = x.PermissionCode,
+                FullName = x.FullName,
+                LevelApprove = x.LevelApprove,
+                IsLoggedIn = true
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var hasActiveUser = operatorIdentity is not null;
+        var hasRbacCapability = hasActiveUser
+            && await _authorization.HasAsync(operatorIdentity!, request.FunctionCode, ct);
+
+        if (!FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+                employee is not null,
+                hasActiveUser,
+                hasRbacCapability))
+        {
+            if (!hasActiveUser)
+                return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
+                    "Nhân viên được chỉ định chưa có tài khoản người dùng active.");
+
+            return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
+                $"Nhân viên {employeeCode} chưa có RBAC cho {function.FunctionKey}. Hãy cấp capability trước khi chỉ định operator.");
+        }
         if (request.ResourceId.HasValue && request.ResourceId.Value <= 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceId không hợp lệ.");
 
         if (request.ResourceId.HasValue)
         {
-            var resourceExists = type switch
-            {
-                "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.Status != "Archived", ct),
-                "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
-                "EQUIPMENT_SCHEMA" => await _uow.Repository<F03EquipmentSchema>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
-                "EXECUTION_REVIEW" => false,
-                _ => false
-            };
+            // Module-wide operator assignments never point to a concrete resource.
+            // Derive this from the canonical function catalog so new module-wide
+            // features do not require another hard-coded ResourceType list here.
+            var resourceExists = FeatureOperatorCatalog.IsModuleWide(request.FunctionCode)
+                ? true
+                : type switch
+                {
+                    "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.Status != "Archived", ct),
+                    "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
+                    "EQUIPMENT_SCHEMA" => await EquipmentSchemaExistsAsync(request.ResourceId.Value, ct),
+                    _ => false
+                };
             if (!resourceExists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Resource không tồn tại hoặc đã inactive.");
         }
-        if (type == "EXECUTION_REVIEW" && request.ResourceId.HasValue) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Execution Review là assignment cấp module; ResourceId phải để trống.");
+        if (FeatureOperatorCatalog.IsModuleWide(request.FunctionCode) && request.ResourceId.HasValue)
+            return ServiceResult<FeatureOperatorAssignmentDto>.Fail($"{type} là assignment cấp module; ResourceId phải để trống.");
 
         var exists = await _uow.Repository<F03FeatureOperatorAssignment>().Query().AnyAsync(x => x.IsActive == true && x.FunctionCode == request.FunctionCode && x.ResourceType == type && x.ResourceId == request.ResourceId && x.EmployeeCode == employeeCode, ct);
         if (exists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên đã được chỉ định.");
@@ -163,10 +211,32 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         {
             "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().Where(x => x.Status != "Archived").OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.Id.ToString(), Name = x.Title, Status = x.Status }).ToListAsync(ct),
             "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.FormCode, Name = x.Title, Status = x.Status }).ToListAsync(ct),
-            "EQUIPMENT_SCHEMA" => await _uow.Repository<F03EquipmentSchema>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.SchemaKey).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.SchemaKey, Name = x.SchemaName, Status = x.Status }).ToListAsync(ct),
-            "EXECUTION_REVIEW" => new List<FeatureOperatorResourceDto>(),
+            "EQUIPMENT_SCHEMA" => await GetEquipmentSchemaResourcesAsync(ct),
+            _ when FeatureOperatorCatalog.IsModuleWideResourceType(type) => new List<FeatureOperatorResourceDto>(),
             _ => throw new ArgumentException($"ResourceType không được hỗ trợ: {resourceType}")
         };
+    }
+
+    private async Task<bool> EquipmentSchemaExistsAsync(int schemaId, CancellationToken ct)
+    {
+        var schemas = await _excel.GetSchemasAsync("EQUIPMENT", "EQUIPMENT_ASSET", false, ct);
+        return schemas.Any(x => x.Id == schemaId && x.Status == FVN_REGISTER.Core.Excel.ExcelSchemaStatus.Active);
+    }
+
+    private async Task<List<FeatureOperatorResourceDto>> GetEquipmentSchemaResourcesAsync(CancellationToken ct)
+    {
+        var schemas = await _excel.GetSchemasAsync("EQUIPMENT", "EQUIPMENT_ASSET", false, ct);
+        return schemas
+            .Where(x => x.Status == FVN_REGISTER.Core.Excel.ExcelSchemaStatus.Active)
+            .OrderBy(x => x.SchemaKey)
+            .Select(x => new FeatureOperatorResourceDto
+            {
+                Id = x.Id,
+                Code = x.SchemaKey,
+                Name = x.SchemaName,
+                Status = x.Status.ToString()
+            })
+            .ToList();
     }
 
     private IQueryable<F03FeatureOperatorAssignment> Query(int functionCode, string type, int? resourceId)

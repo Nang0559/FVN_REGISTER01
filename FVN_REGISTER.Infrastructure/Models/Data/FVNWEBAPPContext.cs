@@ -57,10 +57,6 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03TripRequest> TripRequests { get; set; }
     public DbSet<F03StagingTrip> StagingTrips { get; set; }
     public DbSet<F03EquipmentAsset> EquipmentAssets { get; set; }
-    public DbSet<F03EquipmentSchema> EquipmentSchemas { get; set; }
-    public DbSet<F03EquipmentFieldDefinition> EquipmentFieldDefinitions { get; set; }
-    public DbSet<F03EquipmentImportBatch> EquipmentImportBatches { get; set; }
-    public DbSet<F03EquipmentImportRow> EquipmentImportRows { get; set; }
     public DbSet<F03EquipmentRequest> EquipmentRequests { get; set; }
     public DbSet<F03EquipmentRepairHistory> EquipmentRepairHistories { get; set; }
     public DbSet<F03EquipmentInspectionTemplate> EquipmentInspectionTemplates { get; set; }
@@ -77,6 +73,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03SyncReviewFlag> SyncReviewFlags { get; set; }
     public DbSet<HrmLeaveTypeChangeLog> HrmLeaveTypeChangeLogs { get; set; }
     public DbSet<F03AppNotification> AppNotifications { get; set; }
+    public DbSet<F03PushSubscription> PushSubscriptions { get; set; }
     public DbSet<F03CalendarModuleDefinition> CalendarModuleDefinitions { get; set; }
     public DbSet<F03CalendarModulePolicy> CalendarModulePolicies { get; set; }
     public DbSet<F03CalendarProjection> CalendarProjections { get; set; }
@@ -105,6 +102,8 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03PublicFormAudience> PublicFormAudiences { get; set; }
     public DbSet<F03PublicFormSubmission> PublicFormSubmissions { get; set; }
     public DbSet<F03PublicFormAnswer> PublicFormAnswers { get; set; }
+    public DbSet<F03PublicFormAudit> PublicFormAudits { get; set; }
+    public DbSet<F03PublicFormFeedback> PublicFormFeedbacks { get; set; }
     public DbSet<F03HrmUserRoleRule> HrmUserRoleRules { get; set; }
     public DbSet<F03BusinessRule> BusinessRules { get; set; }
     public DbSet<F03CompanyHoliday> CompanyHolidays { get; set; }
@@ -132,6 +131,9 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03EndpointGovernancePolicyItem> EndpointGovernancePolicyItems { get; set; }
     public DbSet<F03EndpointGovernanceRequest> EndpointGovernanceRequests { get; set; }
     public DbSet<F03EndpointComplianceFinding> EndpointComplianceFindings { get; set; }
+    public DbSet<F03EndpointDeployment> EndpointDeployments { get; set; }
+    public DbSet<F03EndpointDeploymentTarget> EndpointDeploymentTargets { get; set; }
+    public DbSet<F03EndpointEnrollmentToken> EndpointEnrollmentTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -154,6 +156,9 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<F03EndpointGovernancePolicyItem>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.PolicyId, x.NormalizedName, x.ItemType }).IsUnique(); });
         modelBuilder.Entity<F03EndpointGovernanceRequest>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.RequestType).HasConversion<int>(); entity.HasIndex(x => new { x.EndpointDeviceId, x.WorkflowStatus }); entity.HasIndex(x => new { x.EmployeeCode, x.RequestStatus }); });
         modelBuilder.Entity<F03EndpointComplianceFinding>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.EndpointDeviceId, x.PolicyId, x.PolicyVersion, x.EvaluatedAtUtc }); entity.HasIndex(x => new { x.EndpointDeviceId, x.Result, x.ObservedName }); });
+        modelBuilder.Entity<F03EndpointDeployment>(entity => { entity.HasKey(x=>x.Id); entity.HasIndex(x=>x.DeploymentCode).IsUnique(); });
+        modelBuilder.Entity<F03EndpointDeploymentTarget>(entity => { entity.HasKey(x=>x.Id); entity.HasIndex(x=>new{x.DeploymentId,x.TargetKey}).IsUnique(); entity.HasIndex(x=>x.ClientId); });
+        modelBuilder.Entity<F03EndpointEnrollmentToken>(entity => { entity.HasKey(x=>x.Id); entity.HasIndex(x=>x.TokenHash).IsUnique(); entity.HasIndex(x=>new{x.TargetId,x.UsedAtUtc,x.ExpiresAtUtc}); });
         modelBuilder.Entity<F03StagingEmployee>().Property(x => x.TotalLeaveDays).HasPrecision(10, 2);
         modelBuilder.Entity<F03StagingOTType>().Property(x => x.RateMultiplier).HasPrecision(10, 2);
         modelBuilder.Entity<F03PayrollInput>(entity => { entity.Property(x => x.WorkMinutes).HasPrecision(10, 2); entity.Property(x => x.LeaveTotal).HasPrecision(10, 2); entity.Property(x => x.OTMinutes).HasPrecision(10, 2); });
@@ -166,6 +171,8 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<F03PublicFormAudience>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.FormId, x.ScopeType, x.ScopeValue }); });
         modelBuilder.Entity<F03PublicFormSubmission>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.FormId, x.EmployeeCode, x.Status }); entity.HasMany(x => x.Answers).WithOne().HasForeignKey(x => x.SubmissionId).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<F03PublicFormAnswer>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.SubmissionId, x.QuestionId }).IsUnique(); });
+        modelBuilder.Entity<F03PublicFormAudit>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.FormId, x.CreatedAt }); entity.HasIndex(x => new { x.FormId, x.ActionCode }); });
+        modelBuilder.Entity<F03PublicFormFeedback>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.FormId, x.EmployeeCode, x.CreatedAt }); entity.HasIndex(x => x.SubmissionId); });
         modelBuilder.Entity<F03Position>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.PositionCode).IsRequired().HasMaxLength(20); entity.HasIndex(x => x.PositionCode).IsUnique(); });
         modelBuilder.Entity<F03ApprovalPolicy>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.PositionCode).IsRequired().HasMaxLength(20); entity.HasIndex(x => new { x.RequestType, x.PositionCode, x.Level }).IsUnique(); entity.HasOne<F03Position>().WithMany().HasForeignKey(x => x.PositionCode).HasPrincipalKey(x => x.PositionCode).OnDelete(DeleteBehavior.Restrict); });
         modelBuilder.Entity<F03ApprovalSelection>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.RequestType, x.RequestId, x.Level }).IsUnique(); });
@@ -174,8 +181,6 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<F03Role>(entity => entity.HasIndex(x => x.RoleCode).IsUnique());
         modelBuilder.Entity<F03FeatureOperatorAssignment>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired(); entity.Property(x => x.ResourceType).HasMaxLength(50).IsRequired(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.EmployeeCode }).IsUnique(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.IsActive }); });
         modelBuilder.Entity<F03EmailDispatchPolicy>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.TemplateCode, x.Priority }).IsUnique(); entity.Property(x => x.DispatchMode).HasConversion<string>().HasMaxLength(30); });
-        modelBuilder.Entity<F03SecurityFunctionRegistryItem>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => x.FunctionKey).IsUnique(); entity.Property(x => x.FunctionKey).IsRequired().HasMaxLength(150); entity.Property(x => x.LifecycleStatus).IsRequired().HasMaxLength(30); entity.Property(x => x.SourceType).IsRequired().HasMaxLength(30); entity.Property(x => x.DefinitionHash).IsRequired().HasMaxLength(128); });
-        modelBuilder.Entity<F03Function>(entity => { entity.HasIndex(x => x.FunctionKey).IsUnique(); });
     }
 
     public override int SaveChanges() { ApplyAuditInfo(); return base.SaveChanges(); }

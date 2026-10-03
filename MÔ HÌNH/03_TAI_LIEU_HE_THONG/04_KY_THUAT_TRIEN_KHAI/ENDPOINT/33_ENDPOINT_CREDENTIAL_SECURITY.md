@@ -14,13 +14,36 @@ Superadmin/IT
 
 ## Rules
 
-- Một endpoint chỉ có tối đa một credential active.
-- Rotate tạo secret mới và revoke secret cũ.
+- Một endpoint chỉ có tối đa một credential current; credential cũ chỉ có thể tồn tại trong grace window ngắn khi rotate để tránh mất credential trong lúc agent ghi local secret.
+- Rotate tạo secret mới; credential cũ được giữ grace ngắn trong transaction và tự hết hiệu lực, tránh làm mất credential nếu local persist thất bại.
 - Revoke làm endpoint không thể gửi inventory.
 - Credential không quyết định quyền người dùng; nó chỉ xác thực machine identity.
 - DeviceKey được lấy từ credential record, không tin DeviceKey trong payload.
 - Inventory endpoint phải HTTPS.
-- Rate-limit theo credential/device.
+- Rate-limit các endpoint anonymous `enroll` và `inventory` theo path + client IP; IP forwarding chỉ tin proxy nằm trong `ForwardedHeaders:KnownProxies`.
+- Credential cũ sau rotate chỉ hợp lệ trong 10 phút grace; sau đó `ResolveDeviceKeyAsync` từ chối và background cleanup revoke.
 - Audit provision/rotate/revoke.
 - Không dùng shared secret cho toàn bộ máy.
 - Không cho agent thực thi command từ server.
+
+
+## 3. Equipment-first credential lifecycle
+
+Credential lifecycle được khởi tạo từ Equipment Asset:
+
+Equipment Asset → Endpoint Agent eligible → Provision → one-time secret → Agent installation → Inventory.
+
+Secret chỉ trả về một lần cho người có capability provision/rotate. Server lưu hash; credential active được gắn với Endpoint Device/DeviceKey. Credential không cấp user permission.
+
+### LANSCOPE bulk enrollment
+
+The LANSCOPE flow is separate from manual Equipment credential provisioning. A Golden Package never contains a long-lived endpoint credential. Each deployment target receives a one-time bootstrap token; the Agent exchanges it over HTTPS for a newly issued DeviceKey and endpoint credential. The plaintext credential is returned only by the enrollment operation, then protected locally with DPAPI LocalMachine. The bootstrap file is deleted after successful enrollment.
+
+### Rotate/Revoke
+- Rotate thay credential active và phát secret mới.
+- Revoke vô hiệu hóa credential; lịch sử vẫn giữ.
+- Không tạo credential dùng chung cho nhiều máy.
+- Không cho người dùng tự nhập DeviceKey để mở rộng scope.
+
+### Audit
+Provision/rotate/revoke phải ghi actor, endpoint/equipment, thời điểm và kết quả; tuyệt đối không ghi plaintext secret.

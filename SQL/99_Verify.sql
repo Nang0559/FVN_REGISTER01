@@ -407,9 +407,37 @@ GO
 
 /* RBAC hardening verification. */
 DECLARE @RequiredCodes TABLE(FunctionCode int PRIMARY KEY);
-INSERT @RequiredCodes VALUES (3001),(3002),(3011),(3012),(3021),(3022),(3031),(3032),(3041),(3042),(3051),(3061),(3071),(3072);
+INSERT @RequiredCodes VALUES (3001),(3002),(3011),(3012),(3021),(3022),(3031),(3032),(3041),(3042),(3044),(3051),(3061),(3071),(3072),(3073);
 IF EXISTS (SELECT 1 FROM @RequiredCodes x WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=x.FunctionCode AND ISNULL(f.IsActive,1)=1))
     THROW 53050, N'Missing one or more P0/P1 dedicated RBAC functions.', 1;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 1
+      AND r.IsActive = 1
+      AND rf.IsActive = 1
+      AND f.FunctionCode = 3044
+      AND f.IsActive = 1
+)
+    THROW 53064, N'SuperAdmin role is missing WorkCalendar.SymbolRuleManage permission 3044.', 1;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 2
+      AND r.IsActive = 1
+      AND rf.IsActive = 1
+      AND f.FunctionCode = 3044
+      AND f.IsActive = 1
+)
+    THROW 53065, N'Admin role is missing WorkCalendar.SymbolRuleManage permission 3044.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=1 AND f.FunctionCode=3002)
     THROW 53051, N'SuperAdmin missing Department.Manage.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=2 AND f.FunctionCode=3061)
@@ -422,6 +450,90 @@ IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2901 AND ScopeCode<
     THROW 53055, N'Attendance.View must be Department scoped.', 1;
 IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=5 AND f.FunctionCode=2901)
     THROW 53063, N'Normal User must not have Attendance.View Department scope.', 1;
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+BEGIN
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.F03Functions
+        WHERE FunctionCode = 3044
+          AND FunctionKey = N'WorkCalendar.SymbolRuleManage'
+          AND ModuleCode = N'WorkCalendar'
+          AND ActionCode = N'SymbolRuleManage'
+          AND ScopeCode = N'All'
+          AND ISNULL(IsActive, 1) = 1
+    )
+        THROW 53066, N'WorkCalendar.SymbolRuleManage function 3044 is missing or incorrectly seeded.', 1;
+END
+ELSE IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03Functions
+    WHERE FunctionCode = 3044
+      AND FunctionName = N'WorkCalendar.SymbolRuleManage'
+      AND ModuleCode = N'WorkCalendar'
+      AND ActionCode = N'SymbolRuleManage'
+      AND ScopeCode = N'All'
+      AND ISNULL(IsActive, 1) = 1
+)
+    THROW 53066, N'WorkCalendar.SymbolRuleManage function 3044 is missing or incorrectly seeded.', 1;
+
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+BEGIN
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.F03Functions
+        WHERE FunctionCode = 3073
+          AND FunctionKey = N'Execution.PolicyManage'
+          AND ModuleCode = N'Execution'
+          AND ActionCode = N'PolicyManage'
+          AND ScopeCode = N'All'
+          AND ISNULL(IsActive, 1) = 1
+    )
+        THROW 53067, N'Execution.PolicyManage function 3073 is missing or incorrectly seeded.', 1;
+END
+ELSE IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03Functions
+    WHERE FunctionCode = 3073
+      AND FunctionName = N'Execution.PolicyManage'
+      AND ModuleCode = N'Execution'
+      AND ActionCode = N'PolicyManage'
+      AND ScopeCode = N'All'
+      AND ISNULL(IsActive, 1) = 1
+)
+    THROW 53067, N'Execution.PolicyManage function 3073 is missing or incorrectly seeded.', 1;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 1
+      AND r.IsActive = 1
+      AND rf.IsActive = 1
+      AND f.FunctionCode = 3073
+      AND f.IsActive = 1
+)
+    THROW 53068, N'SuperAdmin role is missing Execution.PolicyManage permission 3073.', 1;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 2
+      AND r.IsActive = 1
+      AND rf.IsActive = 1
+      AND f.FunctionCode = 3073
+      AND f.IsActive = 1
+)
+    THROW 53069, N'Admin role is missing Execution.PolicyManage permission 3073.', 1;
+
 PRINT N'RBAC hardening verification completed.';
 GO
 

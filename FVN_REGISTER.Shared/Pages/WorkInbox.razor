@@ -10,13 +10,13 @@
 @inject INotificationClientService Notifications
 @inject NavigationManager Navigation
 
-<PageTitle>Trung tâm công việc</PageTitle>
+<PageTitle>@Language.T("nav.workInbox")</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Trung tâm công việc</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Thông báo và phê duyệt được gom về một nơi.</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("nav.workInbox")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("workspace.thongBaoVaPheDuyet")</MudText>
         </div>
         <FeatureHelp />
     </MudStack>
@@ -27,7 +27,7 @@
     }
     else if (_model == null)
     {
-        <MudAlert Severity="Severity.Warning">@_error</MudAlert>
+        <MudAlert Severity="Severity.Warning">@(string.IsNullOrEmpty(_error) ? Language.T("notification.khongTheTaiTrungTam") : _error)</MudAlert>
     }
     else
     {
@@ -35,28 +35,28 @@
             <MudItem xs="12" sm="6">
                 <MudCard Elevation="1" Style="border-radius:18px;cursor:pointer" @onclick="ScrollNotifications">
                     <MudCardContent Class="pa-5">
-                        <MudText Typo="Typo.overline">THÔNG BÁO CHƯA ĐỌC</MudText>
+                        <MudText Typo="Typo.overline">@Language.T("workspace.thongBaoChuaDoc")</MudText>
                         <MudText Typo="Typo.h3" Color="Color.Primary">@_model.UnreadNotificationCount</MudText>
-                        <MudText Typo="Typo.body2">Thông báo cá nhân và nghiệp vụ.</MudText>
+                        <MudText Typo="Typo.body2">@Language.T("workspace.thongBaoCaNhanVa")</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudCard Elevation="1" Style="border-radius:18px;cursor:pointer" @onclick="ScrollApprovals">
                     <MudCardContent Class="pa-5">
-                        <MudText Typo="Typo.overline">CHỜ PHÊ DUYỆT</MudText>
+                        <MudText Typo="Typo.overline">@Language.T("workspace.choPheDuyet")</MudText>
                         <MudText Typo="Typo.h3" Color="Color.Warning">@_model.PendingApprovalCount</MudText>
-                        <MudText Typo="Typo.body2">Đã lọc theo capability và data scope.</MudText>
+                        <MudText Typo="Typo.body2">@Language.T("workspace.daLocTheoCapabilityVa")</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
         </MudGrid>
 
         <MudPaper id="notifications" Outlined="true" Class="pa-5 mb-5">
-            <MudText Typo="Typo.h6" Class="mb-3">Thông báo</MudText>
+            <MudText Typo="Typo.h6" Class="mb-3">@Language.T("common.thongBao")</MudText>
             @if (_model.Notifications.Count == 0)
             {
-                <MudText Class="mud-text-secondary">Không có thông báo.</MudText>
+                <MudText Class="mud-text-secondary">@Language.T("workspace.khongCoThongBao")</MudText>
             }
             @foreach (var n in _model.Notifications)
             {
@@ -70,14 +70,14 @@
         </MudPaper>
 
         <MudPaper id="approvals" Outlined="true" Class="pa-5">
-            <MudText Typo="Typo.h6" Class="mb-3">Approval Inbox</MudText>
+            <MudText Typo="Typo.h6" Class="mb-3">@Language.T("workspace.approvalInbox")</MudText>
             @if (_model.ApprovalGroups.Count == 0)
             {
-                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined">Không có việc phê duyệt trong phạm vi của bạn.</MudAlert>
+                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined">@Language.T("workspace.khongCoViecPheDuyet")</MudAlert>
             }
             @foreach (var group in _model.ApprovalGroups)
             {
-                <MudExpansionPanel Text="@($"{group.RequestType} • Cấp {group.ApproverLevel} • {group.Count} việc")">
+                <MudExpansionPanel Text="@(Language.T("notification.capViec", group.RequestType, group.ApproverLevel, group.Count))">
                     @foreach (var item in group.Requests)
                     {
                         <MudPaper Outlined="true" Class="pa-3 mb-2">
@@ -86,7 +86,7 @@
                                     <MudText Typo="Typo.subtitle2">@item.EmployeeName (@item.EmployeeCode)</MudText>
                                     <MudText Typo="Typo.body2">@item.DeptName • @item.FromDate?.ToString("dd/MM/yyyy") - @item.ToDate?.ToString("dd/MM/yyyy")</MudText>
                                 </div>
-                                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(item.Kind.ToString().ToLowerInvariant()))">Mở</MudButton>
+                                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(item.Kind.ToString().ToLowerInvariant()))">@Language.T("common.mo")</MudButton>
                             </MudStack>
                         </MudPaper>
                     }
@@ -99,7 +99,7 @@
 @code {
     private ActionCenterDto? _model;
     private bool _loading = true;
-    private string _error = "Không thể tải trung tâm công việc.";
+    private string _error = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,7 +116,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "[ACTION-CENTER] Load failed");
-            _error = "Không thể kết nối máy chủ.";
+            _error = Language.T("notification.khongTheKetNoiMay");
         }
         finally { _loading = false; }
     }

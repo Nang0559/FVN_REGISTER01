@@ -22,6 +22,13 @@ public static class AuthorizationScopePolicy
         return AuthorizationScopeCodes.None;
     }
 
+    public static bool IsManagementScope(string? scope) =>
+        string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(scope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsPersonalScope(string? scope) =>
+        string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase);
+
     public static bool CanAccess(
         string scope,
         string? actorEmployeeCode,

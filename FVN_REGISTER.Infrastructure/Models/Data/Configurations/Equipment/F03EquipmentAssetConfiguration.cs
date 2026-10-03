@@ -16,7 +16,7 @@ public sealed class F03EquipmentAssetConfiguration : IEntityTypeConfiguration<F0
         b.Property(x => x.DeptCode).HasMaxLength(20).IsRequired(); b.Property(x => x.Location).HasMaxLength(250);
         b.Property(x => x.QrToken).HasMaxLength(128).IsRequired(); b.Property(x => x.Note).HasMaxLength(1000);
         b.HasIndex(x => x.EquipmentCode).IsUnique(); b.HasIndex(x => x.QrToken).IsUnique(); b.HasIndex(x => x.DeptCode);
-        b.Property(x => x.IsQrActive).HasDefaultValue(false); b.Property(x => x.IsActive).HasDefaultValue(true);
+        b.Property(x => x.IsQrActive).HasDefaultValue(false); b.Property(x => x.EndpointAgentEligible).HasDefaultValue(false); b.Property(x => x.EndpointOsFamily).HasMaxLength(30); b.Property(x => x.IsActive).HasDefaultValue(true);
         b.Property(x => x.ResponsibleEmployeeCode).HasMaxLength(50); b.Property(x => x.ResponsibleApproverEmployeeCode).HasMaxLength(50);
         b.HasIndex(x => x.ResponsibleEmployeeCode); b.HasIndex(x => x.ResponsibleApproverEmployeeCode);
         b.HasMany(x => x.RepairHistory).WithOne(x => x.Asset).HasForeignKey(x => x.AssetId).OnDelete(DeleteBehavior.Restrict);

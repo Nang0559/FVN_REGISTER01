@@ -9,6 +9,10 @@ public interface ITripClientService
         CreateTripRequestDto request,
         CancellationToken ct = default);
 
+    Task<ApiResponse<TripRequestDto>> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default);
+
+    Task<ApiResponse<object>> CancelAsync(int requestId, string reason, CancellationToken ct = default);
+
     Task<ApiResponse<TripRequestDto>> SubmitAsync(
         int requestId,
         List<FVN_REGISTER.Contract.Requests.Approvals.ApprovalSelectionDto>? approvalSelections = null,

@@ -4,14 +4,20 @@ using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Approvals;
 
 public sealed class ApprovalPolicyService : IApprovalPolicyService
 {
     private readonly IUnitOfWork _uow;
+    private readonly ILogger<ApprovalPolicyService> _logger;
 
-    public ApprovalPolicyService(IUnitOfWork uow) => _uow = uow;
+    public ApprovalPolicyService(IUnitOfWork uow, ILogger<ApprovalPolicyService> logger)
+    {
+        _uow = uow;
+        _logger = logger;
+    }
 
     public async Task<ServiceResult<List<ApprovalPolicyDto>>> GetAllAsync(CancellationToken ct = default)
     {
@@ -131,6 +137,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
 
         await _uow.Repository<F03ApprovalPolicy>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
         return ServiceResult<ApprovalPolicyDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -170,6 +177,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         entity.LastModifiedSource = "Manual";
 
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
         return ServiceResult<ApprovalPolicyDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -187,6 +195,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         entity.ModifiedAt = DateTime.Now;
         entity.LastModifiedSource = "Manual";
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
 
         return ServiceResult<object>.Ok(new { id, deactivated = true });
     }
@@ -308,6 +317,29 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             RoleName = x.RoleName,
             Required = x.Required
         };
+    }
+
+    private async Task ReconcileApproversAsync(int actorUserId, CancellationToken ct)
+    {
+        try
+        {
+            await _uow.ExecuteSqlRawAsync(
+                """
+                EXEC dbo.usp_ReconcileEmployeeApprovers
+                    @EmployeeCode=NULL,
+                    @CreatedBy={0};
+                """,
+                ct,
+                actorUserId);
+        }
+        catch (Exception ex)
+        {
+            // Policy changes must remain transactional/configurable even when
+            // an older database has not yet installed the provisioning procedure.
+            // The next HRM security reconcile will self-heal the candidate pool.
+            // Surface the error through logs rather than hiding the saved policy.
+            _logger.LogError(ex, "[APPROVAL-POLICY] Approver reconcile failed after policy change.");
+        }
     }
 
     private static string? Normalize(string? value)

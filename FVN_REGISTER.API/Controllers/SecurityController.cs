@@ -99,13 +99,9 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
-
     [HttpGet("users/{userId:int}/managed-scopes")]
     public async Task<IActionResult> GetManagedScopes(int userId, CancellationToken ct)
     {
-        // ManagedScope is an assignment surface. Use the same capability for
-        // reading/editing this configuration so the UI cannot open an editor
-        // that the current user is unable to save.
         if (!await CanManageAsync(SecurityFunctionCodes.UserManagementAssignPermission, ct))
             return Forbid();
 
@@ -137,7 +133,6 @@ public sealed class SecurityController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
         }
     }
-
 
     [HttpGet("users/2fa")]
     public async Task<IActionResult> GetTwoFactorUsers(CancellationToken ct)
@@ -233,7 +228,7 @@ public sealed class SecurityController : BaseApiController
         try
         {
             var role = await _authorization.SetRoleFunctionsAsync(
-                roleCode, request.FunctionCodes, UserInfo.UserId, ct);
+                roleCode, request.FunctionCodes, request.ScopeOverrides, request.AccessModeOverrides, UserInfo.UserId, ct);
 
             await LogActionAsync($"Cập nhật function cho RoleCode={roleCode}");
             return Ok(ApiResponse<SecurityRoleDto>.Ok(role));
@@ -244,13 +239,14 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
-    private async Task<bool> CanManageTwoFactorAsync(CancellationToken ct)
+    private Task<bool> CanManageTwoFactorAsync(CancellationToken ct)
     {
         // 2FA administration is a SuperAdmin-only security operation.
         // The 2407 function remains part of the RBAC catalog for visibility/audit,
         // but a stale/missing RoleFunction row must not lock the SuperAdmin out.
-        return UserInfo != null
-            && UserInfo.Permission == UserPermissionCodes.SuperAdmin;
+        return Task.FromResult(
+            UserInfo != null &&
+            UserInfo.Permission == UserPermissionCodes.SuperAdmin);
     }
 
     private async Task<bool> CanManageAsync(int functionCode, CancellationToken ct)

@@ -10,7 +10,7 @@
 @inject NavigationManager Navigation
 @inherits AppComponentBase
 
-<PageTitle>Chi tiết công tác</PageTitle>
+<PageTitle>@Language.T("trip.chiTietCongTac")</PageTitle>
 
 @if (_loading)
 {
@@ -18,7 +18,7 @@
 }
 else if (_item == null)
 {
-    <MudAlert Severity="Severity.Warning" Class="mt-4">Không tìm thấy đăng ký công tác.</MudAlert>
+    <MudAlert Severity="Severity.Warning" Class="mt-4">@Language.T("trip.khongTimThayDangKy")</MudAlert>
 }
 else
 {
@@ -30,7 +30,7 @@ else
                         <MudIcon Icon="@Icons.Material.Filled.FlightTakeoff" Class="mr-2" />
                         @_item.TripCode
                     </MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Chi tiết đăng ký công tác</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("trip.chiTietDangKyCong")</MudText>
                 </div>
                 <MudChip T="string" Color="@GetStatusColor(_item.RequestStatus)" Label="true">
                     @GetStatusText(_item.RequestStatus)
@@ -40,18 +40,18 @@ else
 
         <MudPaper Class="pa-4" Elevation="1">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Nhân viên</MudText><MudText>@(_item.EmployeeName ?? _item.EmployeeCode)</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Bộ phận</MudText><MudText>@(_item.DeptCode ?? "—")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Từ ngày</MudText><MudText>@_item.StartDate.ToString("dd/MM/yyyy")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Đến ngày</MudText><MudText>@_item.EndDate.ToString("dd/MM/yyyy")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Địa điểm</MudText><MudText>@_item.Destination</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Khách hàng / đối tác</MudText><MudText>@(_item.CustomerOrPartner ?? "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Mục đích</MudText><MudText Style="white-space:pre-wrap">@_item.Purpose</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Phương tiện</MudText><MudText>@(_item.TransportMethod ?? "—")</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Chi phí dự kiến</MudText><MudText>@(_item.EstimatedCost.HasValue ? _item.EstimatedCost.Value.ToString("N0") + " ₫" : "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Nhân viên đi cùng</MudText><MudText>@(_item.CompanionEmployeeCodes ?? "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Lưu trú</MudText><MudText>@(_item.Accommodation ?? "—")</MudText></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.caption">Ghi chú</MudText><MudText Style="white-space:pre-wrap">@(_item.Note ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.employee")</MudText><MudText>@(_item.EmployeeName ?? _item.EmployeeCode)</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("nav.departments")</MudText><MudText>@(_item.DeptCode ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.startDate")</MudText><MudText>@_item.StartDate.ToString("dd/MM/yyyy")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.endDate")</MudText><MudText>@_item.EndDate.ToString("dd/MM/yyyy")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.diaDiem")</MudText><MudText>@_item.Destination</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.khachHangDoiTac")</MudText><MudText>@(_item.CustomerOrPartner ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("trip.purpose")</MudText><MudText Style="white-space:pre-wrap">@_item.Purpose</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.phuongTien")</MudText><MudText>@(_item.TransportMethod ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.chiPhiDuKien")</MudText><MudText>@(_item.EstimatedCost.HasValue ? _item.EstimatedCost.Value.ToString("N0") + " ₫" : "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("trip.nhanVienDiCung")</MudText><MudText>@(_item.CompanionEmployeeCodes ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("trip.luuTru")</MudText><MudText>@(_item.Accommodation ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">@Language.T("common.note")</MudText><MudText Style="white-space:pre-wrap">@(_item.Note ?? "—")</MudText></MudItem>
             </MudGrid>
 
             <MudDivider Class="my-4" />
@@ -59,10 +59,10 @@ else
                 @if (_item.RequestStatus == ApprovalStatus.Draft || _item.RequestStatus == ApprovalStatus.NeedsRevision)
                 {
                     <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@_submitting" StartIcon="@Icons.Material.Filled.Send">
-                        @(_submitting ? "Đang gửi..." : "Gửi duyệt")
+                        @(_submitting ? Language.T("calendar.feedback.sending") : Language.T("common.guiDuyet"))
                     </MudButton>
                 }
-                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/trip/history"))">Quay lại</MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/trip/history"))">@Language.T("common.back")</MudButton>
             </MudStack>
         </MudPaper>
     </MudStack>
@@ -83,7 +83,7 @@ else
             var result = await TripService.GetAsync(Id);
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể tải đăng ký.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("trip.khongTheTaiDangKy"), Severity.Error);
                 return;
             }
 
@@ -105,12 +105,12 @@ else
             var result = await TripService.SubmitAsync(_item.Id);
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể gửi đăng ký.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("trip.khongTheGuiDangKy2"), Severity.Error);
                 return;
             }
 
             _item = result.Data ?? _item;
-            Snackbar.Add("Đã gửi đăng ký công tác vào quy trình phê duyệt.", Severity.Success);
+            Snackbar.Add(Language.T("trip.daGuiDangKyCong"), Severity.Success);
         }
         finally
         {
@@ -129,14 +129,14 @@ else
         _ => Color.Warning
     };
 
-    private static string GetStatusText(ApprovalStatus status) => status switch
+    private string GetStatusText(ApprovalStatus status) => status switch
     {
-        ApprovalStatus.Approved => "Đã duyệt",
-        ApprovalStatus.Rejected => "Từ chối",
-        ApprovalStatus.Cancelled => "Đã hủy",
-        ApprovalStatus.InProgress => "Đang xử lý",
-        ApprovalStatus.NeedsRevision => "Cần chỉnh sửa",
-        ApprovalStatus.Draft => "Nháp",
-        _ => "Chờ duyệt"
+        ApprovalStatus.Approved => Language.T("leave.statusApproved"),
+        ApprovalStatus.Rejected => Language.T("common.reject"),
+        ApprovalStatus.Cancelled => Language.T("leave.statusCancelled"),
+        ApprovalStatus.InProgress => Language.T("leave.statusInProgress"),
+        ApprovalStatus.NeedsRevision => Language.T("trip.canChinhSua"),
+        ApprovalStatus.Draft => Language.T("leave.statusDraft"),
+        _ => Language.T("leave.statusPending")
     };
 }

@@ -31,20 +31,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         {
             var year = DateTime.Now.Year;
             var month = DateTime.Now.Month;
+            var canPersonal = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.OTView, ct);
 
-            var widgets = new List<WidgetCounterDto>(
-                await _otQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct));
+            var widgets = canPersonal
+                ? new List<WidgetCounterDto>((await _otQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct)).Data ?? new List<WidgetCounterDto>())
+                : new List<WidgetCounterDto>();
 
-            var personalBalance = await _otQuery.GetSimpleBalanceAsync(
-                user.EmployeeCode!, year, ct);
-            var recentSummary = await _otQuery.GetRecentSummaryAsync(
-                user.EmployeeCode!, 5, ct);
+            var personalBalance = canPersonal
+                ? (await _otQuery.GetSimpleBalanceAsync(user.EmployeeCode!, year, ct)).Data
+                : null;
+            var recentSummary = canPersonal
+                ? (await _otQuery.GetRecentSummaryAsync(user.EmployeeCode!, 5, ct)).Data ?? new List<OTSummaryDto>()
+                : new List<OTSummaryDto>();
 
             List<OTBalanceDto> nearLimitEmployees = new();
             if (!string.IsNullOrEmpty(user.DeptCode)
                 && await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, null, user.DeptCode, ct))
             {
-                nearLimitEmployees = await _otQuery.GetDeptNearLimitAsync(user.DeptCode, year, month, ct);
+                nearLimitEmployees = await _otQuery.GetDeptNearLimitAsync(user.DeptCode, year, month, ct) ?? new List<OTBalanceDto>();
 
                 // MỚI: thêm widget đếm số để hiện ngay trên dashboard tổng quan,
                 // đối xứng với cách LeaveDashboardProvider thêm dept-widgets vào Widgets list.

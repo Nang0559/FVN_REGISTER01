@@ -10,6 +10,7 @@
 @using FVN_REGISTER.Shared.Services.Calendar
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
+@implements IDisposable
 @inject NavigationManager NavigationManager
 @inject IWorkCalendarClientService CalendarService
 @inject IDialogService DialogService
@@ -19,20 +20,18 @@
 @inject IExecutionReconciliationClientService ExecutionService
 @inject ISnackbar Snackbar
 
-<PageTitle>Lịch làm việc của tôi</PageTitle>
+<PageTitle>@Language.T("calendar.title")</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
     <MudPaper Elevation="0" Class="pa-6 mb-4"
               Style="border-radius:24px; background:linear-gradient(135deg, rgba(25,118,210,.12), rgba(0,150,136,.08)); border:1px solid rgba(25,118,210,.10)">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="3">
             <div>
-                <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • CALENDAR</MudText>
+                <MudText Typo="Typo.overline" Color="Color.Primary">@Language.T("calendar.fvnRegisterCalendar")</MudText>
                 <MudText Typo="Typo.h4" Style="font-weight:850">
-                    @(IsCurrentEmployee ? "Lịch làm việc của tôi" : "Lịch làm việc theo phạm vi quản lý")
+                    @(IsCurrentEmployee ? Language.T("calendar.title") : Language.T("calendar.managerTitle"))
                 </MudText>
-                <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">
-                    Một ô ngày hợp nhất lịch công ty, ca, chấm công, đăng ký và các vấn đề cần xử lý.
-                </MudText>
+                <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">@Language.T("calendar.description")</MudText>
             </div>
 
             @if (_managedEmployees.Count > 0)
@@ -40,7 +39,7 @@
                 <MudSelect T="string"
                            Value="@_selectedEmployeeCode"
                            ValueChanged="OnEmployeeChanged"
-                           Label="Phạm vi lịch"
+                           Label="@Language.T("calendar.scope")"
                            Variant="Variant.Outlined"
                            Dense="true"
                            Style="min-width:280px">
@@ -56,7 +55,7 @@
             <MudButton Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Home"
                        OnClick="@(() => NavigationManager.NavigateTo("/"))">
-                Trang chủ
+                @Language.T("calendar.home")
             </MudButton>
         </MudStack>
     </MudPaper>
@@ -67,37 +66,22 @@
             <MudStack Spacing="2">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.NotificationImportant" Color="Color.Warning" />
-                    <MudText Typo="Typo.h6" Style="font-weight:750">Cần xử lý trong tháng</MudText>
-                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
-                        @_alerts.Count
-                    </MudChip>
+                    <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("calendar.actionRequired")</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@_alerts.Count</MudChip>
                 </MudStack>
 
                 @foreach (var alert in _alerts)
                 {
-                    <MudPaper Outlined="true"
-                              Class="pa-3"
-                              Style="border-radius:12px; border-left:4px solid var(--mud-palette-warning);">
-                        <MudStack Row="true"
-                                  Justify="Justify.SpaceBetween"
-                                  AlignItems="AlignItems.Center"
-                                  Wrap="Wrap.Wrap"
-                                  Spacing="2">
+                    <MudPaper Outlined="true" Class="pa-3" Style="border-radius:12px; border-left:4px solid var(--mud-palette-warning);">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
                             <div>
-                                <MudText Typo="Typo.body2" Style="font-weight:700">
-                                    @alert.WorkDate.ToString("dd/MM/yyyy") · @alert.ModuleCode
-                                </MudText>
+                                <MudText Typo="Typo.body2" Style="font-weight:700">@alert.WorkDate.ToString("dd/MM/yyyy") · @alert.ModuleCode</MudText>
                                 <MudText Typo="Typo.body2">@alert.Summary</MudText>
                             </div>
 
                             @if (alert.RequiresAction && !string.IsNullOrWhiteSpace(alert.DetailRoute))
                             {
-                                <MudButton Size="Size.Small"
-                                           Variant="Variant.Filled"
-                                           Color="Color.Warning"
-                                           OnClick="@(() => OpenRoute(alert.DetailRoute))">
-                                    Xử lý
-                                </MudButton>
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => OpenRoute(alert.DetailRoute))">@Language.T("calendar.handle")</MudButton>
                             }
                         </MudStack>
                     </MudPaper>
@@ -106,7 +90,7 @@
         </MudPaper>
     }
 
-    <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
+    @if (!_canViewCalendar)\n    {\n        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">\n            @Language.T("calendar.accessDenied")\n        </MudAlert>\n    }\n    else\n    {\n    <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
         <WorkCalendar @ref="_calendar"
                       @key="_selectedEmployeeCode"
                       EmployeeCode="@_selectedEmployeeCode"
@@ -120,7 +104,7 @@
     private readonly List<ManagedEmployeeDto> _managedEmployees = new();
     private WorkCalendar? _calendar;
     private string? _selectedEmployeeCode;
-    private string? _currentEmployeeCode;
+    private string? _currentEmployeeCode;\n    private bool _canViewCalendar;
 
     private bool IsCurrentEmployee =>
         !string.IsNullOrWhiteSpace(_currentEmployeeCode)
@@ -128,6 +112,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Language.LanguageChanged += OnLanguageChanged;
         try
         {
             await CurrentUser.InitializeAsync();
@@ -135,13 +120,12 @@
             _currentEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
             _selectedEmployeeCode = _currentEmployeeCode;
 
-            var managed = await SecurityService.GetMyManagedEmployeesAsync();
+            var permissions = await SecurityService.GetMyPermissionsAsync();\n            _canViewCalendar = permissions.IsSuccess && permissions.Data != null\n                && (permissions.Data.HasPersonal(SecurityFunctionCodes.CalendarView)\n                    || permissions.Data.HasManagement(SecurityFunctionCodes.CalendarView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.OTView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.LeaveView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.TripView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.AttendanceView));\n\n            if (!_canViewCalendar) return;\n\n            var managed = await SecurityService.GetMyManagedEmployeesAsync();
             if (managed.IsSuccess && managed.Data != null)
                 _managedEmployees.AddRange(managed.Data);
 
             if (!string.IsNullOrWhiteSpace(_currentEmployeeCode)
-                && !_managedEmployees.Any(x =>
-                    string.Equals(x.EmployeeCode?.Trim(), _currentEmployeeCode, StringComparison.OrdinalIgnoreCase)))
+                && !_managedEmployees.Any(x => string.Equals(x.EmployeeCode?.Trim(), _currentEmployeeCode, StringComparison.OrdinalIgnoreCase)))
             {
                 _managedEmployees.Insert(0, new ManagedEmployeeDto
                 {
@@ -161,29 +145,18 @@
     private async Task LoadAlertsAsync()
     {
         _alerts.Clear();
-
-        if (string.IsNullOrWhiteSpace(_selectedEmployeeCode))
-            return;
+        if (string.IsNullOrWhiteSpace(_selectedEmployeeCode)) return;
 
         var today = DateTime.Today;
         var from = new DateTime(today.Year, today.Month, 1);
         var to = from.AddMonths(1).AddDays(-1);
-
-        var result = await CalendarService.GetAlertsForEmployeeAsync(
-            _selectedEmployeeCode,
-            from,
-            to);
-
-        if (result.IsSuccess && result.Data != null)
-            _alerts.AddRange(result.Data);
+        var result = await CalendarService.GetAlertsForEmployeeAsync(_selectedEmployeeCode, from, to);
+        if (result.IsSuccess && result.Data != null) _alerts.AddRange(result.Data);
     }
 
     private async Task OnEmployeeChanged(string? employeeCode)
     {
-        _selectedEmployeeCode = string.IsNullOrWhiteSpace(employeeCode)
-            ? _currentEmployeeCode
-            : employeeCode.Trim();
-
+        _selectedEmployeeCode = string.IsNullOrWhiteSpace(employeeCode) ? _currentEmployeeCode : employeeCode.Trim();
         await LoadAlertsAsync();
     }
 
@@ -192,29 +165,18 @@
         var parameters = new DialogParameters
         {
             [nameof(CalendarDayDialog.Day)] = day,
-            [nameof(CalendarDayDialog.OnRegistrationSelected)] =
-                EventCallback.Factory.Create<CalendarRegistrationDto>(
-                    this,
-                    registration =>
-                    {
-                        OpenRegistration(registration.ModuleCode, day.Date);
-                        return Task.CompletedTask;
-                    }),
-            [nameof(CalendarDayDialog.OnActionSelected)] =
-                EventCallback.Factory.Create<CalendarActionRequestDto>(
-                    this,
-                    HandleCalendarActionAsync)
+            [nameof(CalendarDayDialog.OnRegistrationSelected)] = EventCallback.Factory.Create<CalendarRegistrationDto>(this, registration =>
+            {
+                OpenRegistration(registration.ModuleCode, day.Date);
+                return Task.CompletedTask;
+            }),
+            [nameof(CalendarDayDialog.OnActionSelected)] = EventCallback.Factory.Create<CalendarActionRequestDto>(this, HandleCalendarActionAsync)
         };
 
         await DialogService.ShowAsync<CalendarDayDialog>(
-            $"Lịch ngày {day.Date:dd/MM/yyyy}",
+            Language.T("calendar.dayTitle", day.Date.ToString("dd/MM/yyyy")),
             parameters,
-            new DialogOptions
-            {
-                MaxWidth = MaxWidth.Medium,
-                FullWidth = true,
-                CloseOnEscapeKey = true
-            });
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
     }
 
     private void OpenRegistration(string moduleCode, DateOnly date)
@@ -226,7 +188,6 @@
             "TRIP" => $"/trip/create?date={date:yyyy-MM-dd}",
             _ => "/calendar"
         };
-
         NavigationManager.NavigateTo(route);
     }
 
@@ -245,31 +206,24 @@
             case "CANCEL_OT":
                 if (request.RequestId is not int requestId)
                 {
-                    Snackbar.Add("Không xác định được đơn OT cần hủy.", Severity.Error);
+                    Snackbar.Add(Language.T("calendar.cancelOtUnknown"), Severity.Error);
                     return;
                 }
-
                 if (string.IsNullOrWhiteSpace(request.Reason))
                 {
-                    Snackbar.Add("Vui lòng nhập lý do hủy OT.", Severity.Warning);
+                    Snackbar.Add(Language.T("calendar.cancelOtReasonRequired"), Severity.Warning);
                     return;
                 }
 
                 var result = await OTClient.CancelAsync(requestId, request.Reason);
-
-                Snackbar.Add(
-                    result.Message ?? (result.IsSuccess ? "Đã hủy OT." : "Không thể hủy OT."),
-                    result.IsSuccess ? Severity.Success : Severity.Error);
+                Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("calendar.otCancelled") : Language.T("calendar.otCancelFailed")), result.IsSuccess ? Severity.Success : Severity.Error);
 
                 if (result.IsSuccess)
                 {
-                    if (_calendar is not null)
-                        await _calendar.RefreshAsync();
-
+                    if (_calendar is not null) await _calendar.RefreshAsync();
                     await LoadAlertsAsync();
                     await InvokeAsync(StateHasChanged);
                 }
-
                 return;
         }
     }
@@ -279,14 +233,11 @@
         if (string.IsNullOrWhiteSpace(_currentEmployeeCode)
             || !string.Equals(_selectedEmployeeCode, _currentEmployeeCode, StringComparison.OrdinalIgnoreCase))
         {
-            Snackbar.Add(
-                "Chức năng phản hồi ngày công chỉ gửi cho chính nhân viên đang đăng nhập.",
-                Severity.Warning);
+            Snackbar.Add(Language.T("calendar.feedbackSelfOnly"), Severity.Warning);
             return;
         }
 
         long reconciliationId;
-
         if (request.ReconciliationId is long existingReconciliationId)
         {
             reconciliationId = existingReconciliationId;
@@ -296,43 +247,31 @@
             var ensure = await ExecutionService.EnsureAttendanceFeedbackAsync(request.Date);
             if (!ensure.IsSuccess || ensure.Data is null)
             {
-                Snackbar.Add(
-                    ensure.Message ?? "Không tạo được hồ sơ phản hồi ngày công.",
-                    Severity.Error);
+                Snackbar.Add(ensure.Message ?? Language.T("calendar.feedbackCreateFailed"), Severity.Error);
                 return;
             }
-
             reconciliationId = ensure.Data.Id;
         }
 
         if (string.IsNullOrWhiteSpace(_selectedEmployeeCode))
         {
-            Snackbar.Add("Không xác định được nhân viên của lịch đang mở.", Severity.Error);
+            Snackbar.Add(Language.T("calendar.employeeUnknown"), Severity.Error);
             return;
         }
 
-        var result = await CalendarService.GetForEmployeeAsync(
-            _selectedEmployeeCode,
-            request.Date.ToDateTime(TimeOnly.MinValue),
-            request.Date.ToDateTime(TimeOnly.MinValue));
-
+        var result = await CalendarService.GetForEmployeeAsync(_selectedEmployeeCode, request.Date.ToDateTime(TimeOnly.MinValue), request.Date.ToDateTime(TimeOnly.MinValue));
         if (!result.IsSuccess || result.Data is null)
         {
-            Snackbar.Add(
-                result.Message ?? "Không tải được dữ liệu chấm công của ngày cần phản hồi.",
-                Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("calendar.attendanceLoadFailed"), Severity.Error);
             return;
         }
 
         var selectedDay = result.Data.Days.FirstOrDefault(x => x.Date == request.Date);
         var issue = selectedDay?.Issues.FirstOrDefault(x => x.Code == request.IssueCode);
         var action = issue?.Actions.FirstOrDefault(x => x.Code == request.ActionCode);
-
         if (selectedDay is null || issue is null || action is null)
         {
-            Snackbar.Add(
-                "Không tìm thấy nội dung chênh lệch cần phản hồi. Vui lòng tải lại lịch.",
-                Severity.Error);
+            Snackbar.Add(Language.T("calendar.issueNotFound"), Severity.Error);
             return;
         }
 
@@ -345,25 +284,20 @@
         };
 
         await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(
-            "Phản hồi ngày công",
+            Language.T("calendar.feedbackTitle"),
             parameters,
-            new DialogOptions
-            {
-                MaxWidth = MaxWidth.Medium,
-                FullWidth = true,
-                CloseOnEscapeKey = true
-            });
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
 
-        if (_calendar is not null)
-            await _calendar.RefreshAsync();
-
+        if (_calendar is not null) await _calendar.RefreshAsync();
         await LoadAlertsAsync();
         await InvokeAsync(StateHasChanged);
     }
 
     private void OpenRoute(string? route)
     {
-        if (!string.IsNullOrWhiteSpace(route))
-            NavigationManager.NavigateTo(route);
+        if (!string.IsNullOrWhiteSpace(route)) NavigationManager.NavigateTo(route);
     }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }

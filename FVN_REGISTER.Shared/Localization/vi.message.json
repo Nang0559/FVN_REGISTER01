@@ -1,0 +1,12 @@
+{
+  "message.approveSuccess": "Phê duyệt thành công.",
+  "message.deleteFailed": "Xóa thất bại.",
+  "message.deleteSuccess": "Xóa thành công.",
+  "message.loadFailed": "Không thể tải dữ liệu.",
+  "message.noPermission": "Bạn không có quyền thực hiện thao tác này.",
+  "message.rejectSuccess": "Từ chối thành công.",
+  "message.saveFailed": "Lưu thất bại.",
+  "message.saveSuccess": "Lưu thành công.",
+  "message.sessionExpired": "Phiên đăng nhập đã hết hạn.",
+  "message.submitSuccess": "Gửi thành công."
+}

@@ -7,57 +7,57 @@
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@(IsNew ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">@(IsNew ? "Thêm hình thức nghỉ" : "Chỉnh sửa hình thức nghỉ")</MudText>
+            <MudText Typo="Typo.h6">@(IsNew ? Language.T("leave.themHinhThucNghi") : Language.T("leave.chinhSuaHinhThucNghi"))</MudText>
         </MudStack>
     </TitleContent>
 
     <DialogContent>
         <MudForm @ref="_form">
-            <MudTextField T="string" Label="Mã hình thức nghỉ (*)"
+            <MudTextField T="string" Label="@Language.T("leave.maHinhThucNghi")"
                           @bind-Value="Model.LeaveTypeCode"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
-                          Disabled="@(!IsNew)" Required="true" RequiredError="Vui lòng nhập mã"
+                          Disabled="@(!IsNew)" Required="true" RequiredError="@Language.T("leave.vuiLongNhapMa")"
                           MaxLength="50" />
 
-            <MudTextField T="string" Label="Tên hình thức nghỉ (*)"
+            <MudTextField T="string" Label="@Language.T("leave.tenHinhThucNghi")"
                           @bind-Value="Model.LeaveTypeName"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
-                          Required="true" RequiredError="Vui lòng nhập tên" MaxLength="200" />
+                          Required="true" RequiredError="@Language.T("leave.vuiLongNhapTen")" MaxLength="200" />
 
-            <MudTextField T="string" Label="Tên phụ"
+            <MudTextField T="string" Label="@Language.T("leave.tenPhu")"
                           @bind-Value="Model.LeaveTypeName2"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
                           MaxLength="200" />
 
-            <MudTextField T="string" Label="Mã HRM tương ứng"
+            <MudTextField T="string" Label="@Language.T("leave.maHrmTuongUng")"
                           @bind-Value="Model.HRMCode"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4"
-                          MaxLength="50" HelperText="Để trống nếu không đồng bộ HRM" />
+                          MaxLength="50" HelperText="@Language.T("leave.deTrongNeuKhongDong")" />
 
             <MudDivider Class="mb-3" />
 
             <MudStack Row="true" Spacing="4" Class="mb-2">
-                <MudTooltip Text="Loại nghỉ này có bị trừ vào số ngày phép năm không?">
+                <MudTooltip Text="@Language.T("leave.loaiNghiNayCoBi")">
                     <MudSwitch T="bool" @bind-Value="Model.IsCountedAsLeave"
                                Color="Color.Primary"
-                               Label="@(Model.IsCountedAsLeave ? "Tính vào phép năm" : "Không tính phép")" />
+                               Label="@(Model.IsCountedAsLeave ? Language.T("leave.tinhVaoPhepNam") : Language.T("leave.khongTinhPhep"))" />
                 </MudTooltip>
 
-                <MudTooltip Text="Hình thức nghỉ đang được sử dụng">
+                <MudTooltip Text="@Language.T("leave.hinhThucNghiDangDuoc")">
                     <MudSwitch T="bool" @bind-Value="Model.IsActive"
                                Color="Color.Success"
-                               Label="@(Model.IsActive ? "Đang kích hoạt" : "Tạm dừng")" />
+                               Label="@(Model.IsActive ? Language.T("leave.dangKichHoat") : Language.T("leave.tamDung"))" />
                 </MudTooltip>
             </MudStack>
 
             <MudPaper Elevation="0" Class="pa-3 mt-2" Style="border:1px dashed #bdbdbd; border-radius:10px; background:#fafafa">
-                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">Xem trước:</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">@Language.T("leave.xemTruoc")</MudText>
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
                     <MudChip T="string" Color="@(Model.IsCountedAsLeave ? Color.Warning : Color.Default)" Size="Size.Small">
-                        @(Model.IsCountedAsLeave ? "Tính phép" : "Không tính")
+                        @(Model.IsCountedAsLeave ? Language.T("common.tinhPhep") : Language.T("leave.khongTinh"))
                     </MudChip>
                     <MudChip T="string" Color="@(Model.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
-                        @(Model.IsActive ? "Đang dùng" : "Tạm dừng")
+                        @(Model.IsActive ? Language.T("leave.dangDung") : Language.T("leave.tamDung"))
                     </MudChip>
                     @if (!string.IsNullOrWhiteSpace(Model.LeaveTypeCode))
                     {
@@ -73,10 +73,10 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isSaving">Hủy</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isSaving">@Language.T("common.cancel")</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="Submit" Disabled="@_isSaving">
-            @(_isSaving ? "Đang lưu..." : (IsNew ? "Thêm mới" : "Lưu thay đổi"))
+            @(_isSaving ? Language.T("common.dangLuu") : (IsNew ? Language.T("leave.themMoi") : Language.T("user.luuThayDoi")))
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -104,11 +104,11 @@
 
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Lỗi hệ thống", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("leave.loiHeThong"), Severity.Error);
                 return;
             }
 
-            Snackbar.Add(result.Message ?? (IsNew ? "Thêm thành công" : "Cập nhật thành công"), Severity.Success);
+            Snackbar.Add(result.Message ?? (IsNew ? Language.T("leave.themThanhCong") : Language.T("leave.capNhatThanhCong")), Severity.Success);
             MudDialog.Close(DialogResult.Ok(true));
         }
         finally

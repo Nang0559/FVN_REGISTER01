@@ -9,11 +9,11 @@
 
 <MudText Typo="Typo.h5" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />
-    Trung tâm báo cáo & thống kê
+    @Language.T("report.trungTamBaoCaoThong")
 </MudText>
 
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-    Chỉ hiển thị các nhóm báo cáo mà tài khoản có quyền xem. Quyền xuất Excel được kiểm tra riêng ở server.
+    @Language.T("report.chiHienThiCacNhom")
 </MudText>
 
 @if (_loading)
@@ -22,30 +22,30 @@
 }
 else if (_permission == null)
 {
-    <MudAlert Severity="Severity.Error">Không tải được thông tin phân quyền.</MudAlert>
+    <MudAlert Severity="Severity.Error">@Language.T("report.khongTaiDuocThongTin")</MudAlert>
 }
 else
 {
     <MudGrid>
         @if (_permission.Has(SecurityFunctionCodes.LeaveView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Nghỉ phép</MudText><MudText>Phép được cấp, sử dụng, theo phòng ban, nhân viên và trạng thái duyệt.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/leave"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">@Language.T("nav.reportLeave")</MudText><MudText>@Language.T("report.phepDuocCapSuDung")</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/leave"))">@Language.T("report.moBaoCao")</MudButton></MudCardActions></MudCard></MudItem>
         }
         @if (_permission.Has(SecurityFunctionCodes.OTView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Tăng ca (OT)</MudText><MudText>Giờ OT theo phòng, nhân viên, trạng thái và hạn mức.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/ot"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">@Language.T("report.tangCaOt")</MudText><MudText>@Language.T("report.gioOtTheoPhongNhan")</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/ot"))">@Language.T("report.moBaoCao")</MudButton></MudCardActions></MudCard></MudItem>
         }
         @if (_permission.Has(SecurityFunctionCodes.TripView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Công tác</MudText><MudText>Tổng hợp chuyến đi, chi phí và trạng thái duyệt.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=trip"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">@Language.T("trip.title")</MudText><MudText>@Language.T("report.tongHopChuyenDiChi")</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=trip"))">@Language.T("report.moBaoCao")</MudButton></MudCardActions></MudCard></MudItem>
         }
         @if (_permission.Has(SecurityFunctionCodes.EquipmentView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Thiết bị</MudText><MudText>Tài sản theo phòng, chi tiết thiết bị và sửa chữa.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=equipment"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">@Language.T("equipment.title")</MudText><MudText>@Language.T("report.taiSanTheoPhongChi")</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=equipment"))">@Language.T("report.moBaoCao")</MudButton></MudCardActions></MudCard></MudItem>
         }
         @if (_permission.Has(SecurityFunctionCodes.AttendanceView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Chấm công</MudText><MudText>Tổng hợp và chi tiết giờ công, vào/ra và OT từ dữ liệu staging.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=attendance"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">@Language.T("hrm.attendance")</MudText><MudText>@Language.T("report.tongHopVaChiTiet")</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=attendance"))">@Language.T("report.moBaoCao")</MudButton></MudCardActions></MudCard></MudItem>
         }
     </MudGrid>
 }

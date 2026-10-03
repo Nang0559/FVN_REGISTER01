@@ -1,0 +1,17 @@
+{
+  "workspace.approvalInbox": "承認受信箱",
+  "workspace.choPheDuyet": "承認待ち",
+  "workspace.daLocTheoCapabilityVa": "ケイパビリティとデータスコープで絞り込み済み。",
+  "workspace.khongCoThongBao": "通知はありません。",
+  "workspace.khongCoViecPheDuyet": "あなたの範囲に承認業務はありません。",
+  "workspace.list": "一覧",
+  "workspace.myTasks": "自分の処理待ち",
+  "workspace.openCalendar": "カレンダーを開く",
+  "workspace.overview": "ワークスペース概要",
+  "workspace.quickActions": "クイック操作",
+  "workspace.register": "申請",
+  "workspace.summary": "概要では状態のみを集約し、業務フローは申請・一覧・承認で処理します。",
+  "workspace.thongBaoCaNhanVa": "個人および業務の通知。",
+  "workspace.thongBaoChuaDoc": "未読通知",
+  "workspace.thongBaoVaPheDuyet": "通知と承認を1か所にまとめました。"
+}

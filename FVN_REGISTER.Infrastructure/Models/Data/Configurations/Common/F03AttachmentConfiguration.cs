@@ -11,7 +11,10 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Common
         public void Configure(EntityTypeBuilder<F03Attachment> builder)
         {
             builder.ToTable("F03Attachment");
-            builder.HasKey(x => x.FileId);
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Id)
+                .HasColumnName("Id")
+                .ValueGeneratedOnAdd();
 
             // Không FK cứng tới F03LeaveDay/F03OTRequest — vì RequestId trỏ tới nhiều bảng khác nhau tùy Module
             builder.HasIndex(x => new { x.Module, x.RequestId });   // index tăng tốc query load attachment theo đơn
