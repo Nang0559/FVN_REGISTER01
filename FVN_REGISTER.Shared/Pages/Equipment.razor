@@ -221,7 +221,7 @@ else
         if (employees.IsSuccess) _assignmentEmployees = employees.Data ?? new();
         await LoadAsync();
         _assetsLoading = true;
-        var assets = await EquipmentClient.GetAssetsAsync(_form.DeptCode);
+        var assets = await EquipmentClient.GetAssetsAsync();
         if (assets.IsSuccess) _assets = assets.Data ?? new();
         _assetsLoading = false;
         _ready = true;

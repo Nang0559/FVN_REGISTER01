@@ -98,6 +98,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "65_SecuritySystemCriticalInvariant.sql"
 :r "66_CalendarHolidayClassification.sql"
 :r "67_AttendanceSymbolRules.sql"
+:r "68_EndpointEquipmentAgentIntegration.sql"
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"

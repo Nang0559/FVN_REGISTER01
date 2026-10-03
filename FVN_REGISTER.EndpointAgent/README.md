@@ -6,13 +6,18 @@ The API returns the plaintext endpoint API key only at provisioning/rotation tim
 
 Preferred installation flow:
 
+1. In **Sổ thiết bị → Endpoint Agent**, select the Equipment and choose **Cấp credential**.
+2. Copy the returned secret immediately; it is shown only once.
+3. On the target Windows machine, run the installer without passing the secret on the command line:
+
 ```powershell
 .\install-agent.ps1 `
   -InstallPath 'C:\Program Files\FVN Register\EndpointAgent' `
   -ApiBaseUrl 'https://fvn-api.example' `
-  -DeviceKey 'PC-001' `
-  -ApiKey '<plaintext key returned by Security Center>'
+  -DeviceKey '<DeviceKey returned for the Equipment>'
 ```
+
+The installer securely prompts for the one-time secret and protects it locally with DPAPI before writing `appsettings.json`.
 
 The script pipes the plaintext key to:
 

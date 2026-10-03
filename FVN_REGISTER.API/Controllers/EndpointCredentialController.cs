@@ -34,7 +34,9 @@ public sealed class EndpointCredentialController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Forbid();
-        var canView = await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialProvision, ct)
+        var canView = await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointView, ct)
+                   || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointInventoryView, ct)
+                   || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialProvision, ct)
                    || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialRotate, ct)
                    || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialRevoke, ct);
         if (!canView) return Forbid();
@@ -48,8 +50,11 @@ public sealed class EndpointCredentialController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Forbid();
-        var canView = await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialProvision, ct)
-                   || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialRotate, ct);
+        var canView = await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointView, ct)
+                   || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointInventoryView, ct)
+                   || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialProvision, ct)
+                   || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialRotate, ct)
+                   || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointCredentialRevoke, ct);
         if (!canView) return Forbid();
         try { return Ok(ApiResponse<IReadOnlyList<EndpointCredentialHistoryDto>>.Ok(await _service.GetHistoryByEquipmentAsync(equipmentAssetId, ct))); }
         catch (ArgumentException ex) { return BadRequest(ApiResponse<IReadOnlyList<EndpointCredentialHistoryDto>>.Fail(ex.Message)); }

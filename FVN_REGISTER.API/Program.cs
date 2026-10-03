@@ -225,6 +225,9 @@ builder.Services.AddScoped<IApprovalSelectionService, ApprovalSelectionService>(
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 builder.Services.AddScoped<IEndpointGovernanceService, EndpointGovernanceService>();
+builder.Services.AddScoped<IEndpointInventoryService, EndpointInventoryService>();
+builder.Services.AddScoped<IEndpointComplianceService, EndpointComplianceService>();
+builder.Services.AddScoped<IEndpointCredentialService, EndpointCredentialService>();
 builder.Services.AddSharedExcelPlatform();
 builder.Services.AddScoped<EndpointGovernanceExcelImportService>();
 
