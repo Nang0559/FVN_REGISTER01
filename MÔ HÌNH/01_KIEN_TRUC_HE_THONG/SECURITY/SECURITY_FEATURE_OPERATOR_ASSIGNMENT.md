@@ -16,6 +16,11 @@ It is intentionally separate from:
 |---|---|---|
 | 2801 PublicInformation.Manage | PUBLIC_INFORMATION | F03PublicInformation.Id |
 | 2802 Execution.Review | EXECUTION_REVIEW | NULL (module-level operator) |
+| 3073 Execution.PolicyManage | EXECUTION_POLICY | NULL (module-level operator) |
+| 3071 ApprovalPolicy.Manage | APPROVAL_POLICY | NULL (module-level operator) |
+| 3061 OTLimit.Manage | OT_LIMIT_RULE | NULL (module-level operator) |
+| 3042 WorkCalendar.Manage | WORK_CALENDAR | NULL (module-level operator) |
+| 3072 HrmUserRoleRule.Manage | HRM_USER_ROLE_RULE | NULL (module-level operator) |
 | 2807 PublicForm.Manage | PUBLIC_FORM | F03PublicForms.Id |
 | 2808 PublicForm.SubmissionView | PUBLIC_FORM | F03PublicForms.Id |
 | 2809 PublicForm.Export | PUBLIC_FORM | F03PublicForms.Id |
@@ -25,9 +30,10 @@ It is intentionally separate from:
 ## Authorization order
 
 1. The user must have the function capability through the canonical IAuthorizationService.HasAsync RBAC path. Feature Operator Assignment never grants RBAC.
-2. When an operator assignment is configured, the user's HRM EmployeeCode must be assigned to that resource/module.
-3. Otherwise, a global assignment (ResourceId IS NULL) is checked where the resource type supports module-wide operators.
-4. If no assignment exists at either level, the feature keeps its existing RBAC + data-scope behavior for backward compatibility.
+2. For Execution Review, the request must then pass ManagedScope through `CanAccessAsync` for the target employee/department. Operator assignment does **not** bypass ManagedScope.
+3. When an operator assignment is configured, the user's HRM EmployeeCode must be assigned to that resource/module.
+4. Otherwise, a global assignment (ResourceId IS NULL) is checked where the resource type supports module-wide operators.
+5. If no assignment exists at either level, the feature keeps its existing RBAC + data-scope behavior for backward compatibility.
 5. Runtime service methods must repeat the same authorization rule; controller checks are not considered sufficient.
 6. Assignment creation is rejected when the target employee has no active user account or does not currently have the effective RBAC capability. The error is: "Nhân viên {EmployeeCode} chưa có RBAC cho {FunctionKey}. Hãy cấp capability trước khi chỉ định operator."
 
@@ -57,7 +63,7 @@ No employee name, department name, position name or email supplied by the client
 
 Feature Operator Assignment là lớp phân công người thao tác cho các cấu hình quản trị có tác động nghiệp vụ. Mô hình thống nhất:
 
-**RBAC capability + ManagedScope (nếu có) + Feature Operator Assignment (nếu feature đã được cấu hình operator).**
+**RBAC capability → ManagedScope (nếu feature dùng data scope) → Feature Operator Assignment (nếu feature đã được cấu hình operator).**
 
 Các policy/rule cấu hình cấp module và feature quản trị có phân công operator hiện dùng chung catalog:
 
@@ -92,6 +98,6 @@ Current governance:
 4. Dùng Test Rule trước khi Active.
 5. Audit actor, thời điểm, rule và trạng thái trước/sau.
 
-Security Center nên cảnh báo assignment mà nhân viên đã inactive hoặc capability RBAC hiện tại đã bị thu hồi. Assignment cũ không tự động bị xóa; phải được remediation.
+Pre-pilot hiện có script `SQL/100_Audit_FeatureOperatorAssignments.sql` để phát hiện assignment có employee/user inactive hoặc RBAC đã bị thu hồi. Security Center hiện **chưa có cảnh báo tự động** cho trạng thái này; assignment cũ không tự động bị xóa và phải được remediation.
 
 Operator Assignment không thay thế RBAC và không cấp quyền Approve/HR Resolution.
