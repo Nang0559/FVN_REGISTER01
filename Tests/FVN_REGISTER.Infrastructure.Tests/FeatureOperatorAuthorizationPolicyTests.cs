@@ -38,6 +38,39 @@ public sealed class FeatureOperatorAuthorizationPolicyTests
     }
 
     [Fact]
+    public void AssignmentCreation_RejectsMissingActiveUserOrRbac()
+    {
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(true, false, true));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(true, true, false));
+    }
+
+    [Fact]
+    public void ExecutionAppealResolution_SkipsAssignedOperatorWhoseRbacWasRevoked()
+    {
+        var selected = FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator(
+            new[]
+            {
+                (101, "E0101", false),
+                (202, "E0202", true)
+            });
+
+        Assert.Equal((202, "E0202"), selected);
+    }
+
+    [Fact]
+    public void ExecutionAppealResolution_ReturnsNoOperatorWhenAllAssignmentsAreInvalid()
+    {
+        var selected = FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator(
+            new[]
+            {
+                (101, "E0101", false),
+                (202, "E0202", false)
+            });
+
+        Assert.Null(selected);
+    }
+
+    [Fact]
     public void ExecutionAppealResolution_RejectsAssignedOperatorWhenRbacWasRevoked()
     {
         var hasCurrentRbac = false;
