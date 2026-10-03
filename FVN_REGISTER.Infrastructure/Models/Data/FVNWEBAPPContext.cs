@@ -131,6 +131,9 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03EndpointGovernancePolicyItem> EndpointGovernancePolicyItems { get; set; }
     public DbSet<F03EndpointGovernanceRequest> EndpointGovernanceRequests { get; set; }
     public DbSet<F03EndpointComplianceFinding> EndpointComplianceFindings { get; set; }
+    public DbSet<F03EndpointDeployment> EndpointDeployments { get; set; }
+    public DbSet<F03EndpointDeploymentTarget> EndpointDeploymentTargets { get; set; }
+    public DbSet<F03EndpointEnrollmentToken> EndpointEnrollmentTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -153,6 +156,9 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<F03EndpointGovernancePolicyItem>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.PolicyId, x.NormalizedName, x.ItemType }).IsUnique(); });
         modelBuilder.Entity<F03EndpointGovernanceRequest>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.RequestType).HasConversion<int>(); entity.HasIndex(x => new { x.EndpointDeviceId, x.WorkflowStatus }); entity.HasIndex(x => new { x.EmployeeCode, x.RequestStatus }); });
         modelBuilder.Entity<F03EndpointComplianceFinding>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.EndpointDeviceId, x.PolicyId, x.PolicyVersion, x.EvaluatedAtUtc }); entity.HasIndex(x => new { x.EndpointDeviceId, x.Result, x.ObservedName }); });
+        modelBuilder.Entity<F03EndpointDeployment>(entity => { entity.HasKey(x=>x.Id); entity.HasIndex(x=>x.DeploymentCode).IsUnique(); });
+        modelBuilder.Entity<F03EndpointDeploymentTarget>(entity => { entity.HasKey(x=>x.Id); entity.HasIndex(x=>new{x.DeploymentId,x.TargetKey}).IsUnique(); entity.HasIndex(x=>x.ClientId); });
+        modelBuilder.Entity<F03EndpointEnrollmentToken>(entity => { entity.HasKey(x=>x.Id); entity.HasIndex(x=>x.TokenHash).IsUnique(); entity.HasIndex(x=>new{x.TargetId,x.UsedAtUtc,x.ExpiresAtUtc}); });
         modelBuilder.Entity<F03StagingEmployee>().Property(x => x.TotalLeaveDays).HasPrecision(10, 2);
         modelBuilder.Entity<F03StagingOTType>().Property(x => x.RateMultiplier).HasPrecision(10, 2);
         modelBuilder.Entity<F03PayrollInput>(entity => { entity.Property(x => x.WorkMinutes).HasPrecision(10, 2); entity.Property(x => x.LeaveTotal).HasPrecision(10, 2); entity.Property(x => x.OTMinutes).HasPrecision(10, 2); });
