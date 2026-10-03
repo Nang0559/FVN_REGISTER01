@@ -15,6 +15,8 @@ $sourceExe = Join-Path $PSScriptRoot 'FVN_REGISTER.EndpointAgent.exe'
 if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) { throw "Không tìm thấy Agent: $sourceExe" }
 
 New-Item -ItemType Directory -Force -Path $InstallPath | Out-Null
+& icacls.exe $BootstrapFile /inheritance:r /grant:r 'SYSTEM:(F)' 'Administrators:(F)' | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Không thể đặt ACL an toàn cho bootstrap source: $BootstrapFile" }
 $targetExe = Join-Path $InstallPath 'FVN_REGISTER.EndpointAgent.exe'
 $targetBootstrap = Join-Path $InstallPath 'lanscope-bootstrap.json'
 $configPath = Join-Path $InstallPath 'appsettings.json'
@@ -29,6 +31,8 @@ $apiKeyProtected = if ($existingAgent -and $existingAgent.ApiKeyProtected) { [st
 $isAlreadyEnrolled = [bool]($deviceKey -and $apiKeyProtected)
 $bootstrapPath = if ($isAlreadyEnrolled) { '' } else { 'lanscope-bootstrap.json' }
 $lanscopeClientId = if ($existingAgent -and $existingAgent.LanscopeClientId) { [string]$existingAgent.LanscopeClientId } else { '' }
+$lanscopeOu = if ($existingAgent -and $existingAgent.LanscopeOrganizationalUnit) { [string]$existingAgent.LanscopeOrganizationalUnit } else { '' }
+$lanscopeGroup = if ($existingAgent -and $existingAgent.LanscopeGroup) { [string]$existingAgent.LanscopeGroup } else { '' }
 
 # Stop first so the running process cannot lock the executable during upgrade.
 $existing = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -55,6 +59,8 @@ $config = @{
         ApiKeyProtected = $apiKeyProtected
         BootstrapPath = $bootstrapPath
         LanscopeClientId = $lanscopeClientId
+        LanscopeOrganizationalUnit = $lanscopeOu
+        LanscopeGroup = $lanscopeGroup
         IntervalMinutes = if ($existingAgent -and $existingAgent.IntervalMinutes) { [int]$existingAgent.IntervalMinutes } else { 30 }
         CredentialRotationLeadDays = if ($existingAgent -and $existingAgent.CredentialRotationLeadDays) { [int]$existingAgent.CredentialRotationLeadDays } else { 30 }
     }

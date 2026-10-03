@@ -20,7 +20,8 @@ Superadmin/IT
 - Credential không quyết định quyền người dùng; nó chỉ xác thực machine identity.
 - DeviceKey được lấy từ credential record, không tin DeviceKey trong payload.
 - Inventory endpoint phải HTTPS.
-- Rate-limit theo credential/device.
+- Rate-limit các endpoint anonymous `enroll` và `inventory` theo path + client IP; IP forwarding chỉ tin proxy nằm trong `ForwardedHeaders:KnownProxies`.
+- Credential cũ sau rotate chỉ hợp lệ trong 10 phút grace; sau đó `ResolveDeviceKeyAsync` từ chối và background cleanup revoke.
 - Audit provision/rotate/revoke.
 - Không dùng shared secret cho toàn bộ máy.
 - Không cho agent thực thi command từ server.

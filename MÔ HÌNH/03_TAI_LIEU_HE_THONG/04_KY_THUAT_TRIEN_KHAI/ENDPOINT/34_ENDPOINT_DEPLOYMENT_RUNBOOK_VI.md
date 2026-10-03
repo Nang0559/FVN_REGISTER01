@@ -21,7 +21,7 @@ Credential xác định endpoint; DeviceKey lấy server-side; HardwareIdentity 
 
 Chạy SQL theo bộ deploy hiện tại, trong đó LANSCOPE là `69_Endpoint_LanscopeDeployment.sql`; không dùng danh sách 54–56 như checklist đầy đủ.
 
-Production yêu cầu HTTPS, rate limiting, audit provision/revoke/rotate, credential hash và inventory authentication bằng credential máy.
+Production yêu cầu HTTPS, rate limiting, audit provision/revoke/rotate, credential hash và inventory authentication bằng credential máy. `LanscopeDeployment:PublicBaseUrl` phải được cấp từ environment/config của môi trường; không commit URL production vào appsettings mặc định.
 
 ## 4. Provision
 
@@ -141,7 +141,7 @@ Topology: PC → HTTPS → LANSCOPE Client → Internet/LAN → IIS → FVN_REGI
 
 LANSCOPE is the distribution/execution engine; FVN REGISTER is the security/control plane.
 
-The Golden Package must not contain a DeviceKey, API credential or reusable enrollment secret. Each LANSCOPE target receives one short-lived bootstrap token. FVN stores only its SHA-256 hash; the token lifetime is configured by `LanscopeDeployment:EnrollmentTokenMinutes` (default 60 minutes) and is atomically consumed once. Expired/pending targets can receive a new token through the reissue endpoint.
+The Golden Package must not contain a DeviceKey, API credential or reusable enrollment secret. Each LANSCOPE target receives one one-time bootstrap token. FVN stores only its SHA-256 hash; the token lifetime defaults to 24 hours and is configurable up to 7 days. Reissue is transactional/serialized per target. A target can be reset (revoking endpoint credentials and clearing the device binding), reviewed/approved, then reissued. Bulk pending-token reissue is available for `Pending`/`Approved` targets without an EndpointDeviceId.
 
 Supported LANSCOPE fields: ClientId, ComputerName, IP, MAC, SerialNumber, WindowsUser, Domain, OU, Group, OS, Manufacturer, Model.
 
@@ -149,4 +149,14 @@ Configure LANSCOPE to copy the Golden Package plus the target bootstrap JSON, ex
 
 After enrollment the Agent receives a DeviceKey and one-year credential, protects the credential with DPAPI LocalMachine and deletes the bootstrap file. Equipment remains the business identity; DeviceKey is the technical identity. FVN does not infer Department from LANSCOPE Group/OU.
 
-Before mass rollout, pilot 2–3 PCs and verify token replay/expiry + reissue, distinct DeviceKey/credential, missing/mismatched serial → `PendingReview`, credential-only inventory authentication, NULL-safe LANSCOPE metadata retention, revoke blocking inventory, installer upgrade while service is running, bootstrap cleanup, restart-on-failure, reinstall/handover behavior, and configured HTTPS `PublicBaseUrl`.
+Before mass rollout, pilot 2–3 PCs and verify token replay/expiry + reissue, distinct DeviceKey/credential, missing/mismatched/placeholder serial → `PendingReview` and **no endpoint credential is issued**; an operator must approve the target and reissue the bootstrap token, credential-only inventory authentication, NULL-safe LANSCOPE metadata retention, revoke blocking inventory, installer upgrade while service is running, bootstrap cleanup, restart-on-failure, reinstall/handover behavior, and configured HTTPS `PublicBaseUrl`.
+
+
+### 16.1 Failure/recovery policy
+
+- Agent enrollment retries only network failures, request timeouts and HTTP 5xx. HTTP 4xx (including expired/used token, 401/404/409) stops immediately; it does not retry forever.
+- If an enrollment attempt is rejected because the serial is missing, a known placeholder or mismatched, the target is `PendingReview` and no machine credential is issued.
+- `POST .../targets/{targetId}/approve` changes `PendingReview` to `Approved`.
+- `POST .../targets/{targetId}/reset` revokes credentials linked to the target endpoint, clears the target binding and returns it to `Pending`.
+- `POST .../targets/{targetId}/reissue` and bulk `POST .../targets/reissue-pending` issue fresh bootstrap tokens.
+- `ResolveDeviceKeyAsync` accepts a credential only when it is not revoked, not expired and its grace window is still open. A background cleanup job revokes grace-expired credentials.

@@ -23,10 +23,25 @@ public sealed class EndpointAgentTests
     }
 
     [Fact]
-    public void Bootstrap_json_contains_client_id()
+    public void Serial_placeholder_is_rejected()
     {
-        var json = JsonSerializer.Serialize(new { deploymentId = 1, targetId = 2, enrollmentToken = "token", apiBaseUrl = "https://fvn.example", clientId = "CAT-001" });
-        using var document = JsonDocument.Parse(json);
-        Assert.Equal("CAT-001", document.RootElement.GetProperty("clientId").GetString());
+        Assert.False(FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.IsMeaningfulSerial("To Be Filled By O.E.M."));
+        Assert.False(FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.IsMeaningfulSerial("Default String"));
+        Assert.False(FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.IsMeaningfulSerial("00000000"));
+        Assert.True(FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.IsMeaningfulSerial("PF4ABC123"));
     }
 }
+
+
+    [Theory]
+    [InlineData(400, false)]
+    [InlineData(401, false)]
+    [InlineData(404, false)]
+    [InlineData(409, false)]
+    [InlineData(429, false)]
+    [InlineData(500, true)]
+    [InlineData(503, true)]
+    public void Enrollment_retry_policy_retries_only_server_errors(int statusCode, bool expected)
+    {
+        Assert.Equal(expected, FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.ShouldRetryEnrollmentStatus(statusCode));
+    }

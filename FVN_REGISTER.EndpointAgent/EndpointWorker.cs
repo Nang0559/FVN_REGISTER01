@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FVN_REGISTER.Contract.Dtos.Security;
+using FVN_REGISTER.Contract.Security;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.EndpointAgent;
@@ -46,10 +47,12 @@ public sealed class EndpointWorker : BackgroundService
                     ?? throw new InvalidOperationException("Bootstrap file không hợp lệ.");
                 if (!Uri.TryCreate(bootstrap.ApiBaseUrl, UriKind.Absolute, out var bootstrapUri) || bootstrapUri.Scheme != Uri.UriSchemeHttps)
                     throw new InvalidOperationException("Bootstrap ApiBaseUrl phải dùng HTTPS.");
+                _options.LanscopeOrganizationalUnit = bootstrap.OrganizationalUnit;
+                _options.LanscopeGroup = bootstrap.Group;
                 var enrolled = await EnrollWithRetryAsync(bootstrap, stoppingToken);
                 _options.DeviceKey = enrolled.DeviceKey;
                 apiKey = enrolled.ApiKey;
-                PersistConfiguration(enrolled.DeviceKey, enrolled.ApiKey, bootstrap.ApiBaseUrl, bootstrap.ClientId);
+                PersistConfiguration(enrolled.DeviceKey, enrolled.ApiKey, bootstrap.ApiBaseUrl, bootstrap.ClientId, bootstrap.OrganizationalUnit, bootstrap.Group);
                 SecureDeleteFile(bootstrapPath);
                 _logger.LogInformation("Endpoint Agent enrolled successfully through LANSCOPE bootstrap.");
             }
@@ -189,7 +192,7 @@ public sealed class EndpointWorker : BackgroundService
         }
     }
 
-    private sealed record LanscopeBootstrap(int DeploymentId, int TargetId, string EnrollmentToken, string ApiBaseUrl, string? ClientId);
+    private sealed record LanscopeBootstrap(int DeploymentId, int TargetId, string EnrollmentToken, string ApiBaseUrl, string? ClientId, string? OrganizationalUnit, string? Group);
     private sealed record EnrollmentEnvelope<T>(bool Success, T? Data, string? Message);
 
     private async Task<LanscopeEnrollmentResponseDto> EnrollAsync(LanscopeBootstrap bootstrap, CancellationToken ct)
@@ -203,12 +206,16 @@ public sealed class EndpointWorker : BackgroundService
             GetManufacturer(), GetModel(), GetHardwareIdentity(), GetAgentInstallationId(),
             typeof(EndpointWorker).Assembly.GetName().Version?.ToString());
         using var response = await client.PostAsJsonAsync("api/security/endpoints/lanscope/enroll", request, ct);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            throw new EnrollmentHttpException(response.StatusCode, body);
+        }
         var payload = await response.Content.ReadFromJsonAsync<EnrollmentEnvelope<LanscopeEnrollmentResponseDto>>(cancellationToken: ct);
         return payload?.Data ?? throw new InvalidOperationException("Enrollment API trả về response không hợp lệ.");
     }
 
-    private static void PersistConfiguration(string deviceKey, string apiKey, string apiBaseUrl, string? lanscopeClientId)
+    private static void PersistConfiguration(string deviceKey, string apiKey, string apiBaseUrl, string? lanscopeClientId, string? organizationalUnit, string? group)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         var root = JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? new JsonObject();
@@ -242,13 +249,17 @@ public sealed class EndpointWorker : BackgroundService
         return slash > 0 ? user[..slash] : null;
     }
     private static string? GetModel() => ReadWmiValue("Win32_ComputerSystem", "Model");
-    private static string? GetOrganizationalUnit() => Environment.GetEnvironmentVariable("FVN_LANSCOPE_OU");
-    private static string? GetLanscopeGroup() => Environment.GetEnvironmentVariable("FVN_LANSCOPE_GROUP");
+    private string? GetOrganizationalUnit() => _options.LanscopeOrganizationalUnit;
+    private string? GetLanscopeGroup() => _options.LanscopeGroup;
     private string? GetLanscopeClientId() => !string.IsNullOrWhiteSpace(_options.LanscopeClientId) ? _options.LanscopeClientId.Trim() : Environment.GetEnvironmentVariable("FVN_LANSCOPE_CLIENT_ID");
     private static string? GetLocalIp() { try { using var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork,System.Net.Sockets.SocketType.Dgram,System.Net.Sockets.ProtocolType.Udp); socket.Connect("1.1.1.1",53); return (socket.LocalEndPoint as System.Net.IPEndPoint)?.Address.ToString(); } catch { return null; } }
     private static string? GetMacAddress() { try { return System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Where(x=>x.OperationalStatus==System.Net.NetworkInformation.OperationalStatus.Up&&x.NetworkInterfaceType!=System.Net.NetworkInformation.NetworkInterfaceType.Loopback).OrderByDescending(x=>x.Speed).FirstOrDefault()?.GetPhysicalAddress().ToString(); } catch { return null; } }
 
-    private static string? GetSerialNumber() => ReadWmiValue("Win32_BIOS", "SerialNumber");
+    private static string? GetSerialNumber()
+    {
+        var serial = ReadWmiValue("Win32_BIOS", "SerialNumber");
+        return LanscopeSecurityPolicy.IsMeaningfulSerial(serial) ? serial : null;
+    }
 
     private static string? GetHardwareIdentity()
     {
@@ -276,15 +287,39 @@ public sealed class EndpointWorker : BackgroundService
 
     private async Task<LanscopeEnrollmentResponseDto> EnrollWithRetryAsync(LanscopeBootstrap bootstrap, CancellationToken ct)
     {
-        var attempt = 0;
-        while (!ct.IsCancellationRequested)
+        for (var attempt = 1; ; attempt++)
         {
-            attempt++;
             try { return await EnrollAsync(bootstrap, ct); }
-            catch (Exception ex) { _logger.LogWarning(ex, "LANSCOPE enrollment attempt {Attempt} failed; retrying in 60 seconds. Reissue bootstrap token if expired.", attempt); }
+            catch (EnrollmentHttpException ex) when ((int)ex.StatusCode >= 400 && (int)ex.StatusCode < 500)
+            {
+                _logger.LogError("LANSCOPE enrollment stopped on HTTP {StatusCode}. Response={Response}", (int)ex.StatusCode, ex.ResponseBody);
+                throw;
+            }
+            catch (EnrollmentHttpException ex) when ((int)ex.StatusCode >= 500)
+            {
+                _logger.LogWarning("LANSCOPE enrollment server failure HTTP {StatusCode} on attempt {Attempt}; retrying in 60 seconds.", (int)ex.StatusCode, attempt);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex, "LANSCOPE enrollment network failure on attempt {Attempt}; retrying in 60 seconds.", attempt);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                _logger.LogWarning("LANSCOPE enrollment request timed out on attempt {Attempt}; retrying in 60 seconds.", attempt);
+            }
             await Task.Delay(TimeSpan.FromSeconds(60), ct);
         }
-        throw new OperationCanceledException(ct);
+    }
+
+    private sealed class EnrollmentHttpException : Exception
+    {
+        public EnrollmentHttpException(HttpStatusCode statusCode, string responseBody) : base($"Enrollment API returned {(int)statusCode}.")
+        {
+            StatusCode = statusCode;
+            ResponseBody = responseBody;
+        }
+        public HttpStatusCode StatusCode { get; }
+        public string ResponseBody { get; }
     }
 
     private static string GetAgentInstallationId()

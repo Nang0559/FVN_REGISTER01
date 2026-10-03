@@ -85,6 +85,10 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Net;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,6 +97,8 @@ var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<stri
     "https://localhost:7264", "http://localhost:5120", "http://localhost:5017", "https://localhost:7135"
 };
 
+builder.Services.Configure<ForwardedHeadersOptions>(options=>{options.ForwardedHeaders=ForwardedHeaders.XForwardedFor|ForwardedHeaders.XForwardedProto;foreach(var value in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()??Array.Empty<string>())if(IPAddress.TryParse(value,out var ip))options.KnownProxies.Add(ip);});
+builder.Services.AddRateLimiter(options=>{options.RejectionStatusCode=StatusCodes.Status429TooManyRequests;options.OnRejected=async(context,token)=>{context.HttpContext.Response.Headers.RetryAfter="60";await context.HttpContext.Response.WriteAsJsonAsync(new{message="Quá nhiều yêu cầu. Vui lòng thử lại sau.",status=429},token);};options.AddPolicy("EndpointAnonymous",httpContext=>RateLimitPartition.GetFixedWindowLimiter($"{httpContext.Request.Path}:{httpContext.Connection.RemoteIpAddress?.ToString()??"unknown"}",_=>new FixedWindowRateLimiterOptions{PermitLimit=60,Window=TimeSpan.FromMinutes(1),QueueLimit=0,AutoReplenishment=true}));});
 builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
     .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 builder.Services.AddMemoryCache();
@@ -111,6 +117,9 @@ builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(jwtOpt
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required. For Development, set it with .NET User Secrets or the ConnectionStrings__DefaultConnection environment variable. For Production, use ConnectionStrings__DefaultConnection.");
+var lanscopePublicBaseUrl=builder.Configuration["LanscopeDeployment:PublicBaseUrl"]?.Trim();
+if(string.IsNullOrWhiteSpace(lanscopePublicBaseUrl)||!Uri.TryCreate(lanscopePublicBaseUrl,UriKind.Absolute,out var lanscopeUri)||lanscopeUri.Scheme!=Uri.UriSchemeHttps)
+    throw new InvalidOperationException("LanscopeDeployment:PublicBaseUrl is required and must be an HTTPS URL. Configure it via environment variable LanscopeDeployment__PublicBaseUrl or environment-specific appsettings.");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -228,6 +237,7 @@ builder.Services.AddScoped<IEndpointGovernanceService, EndpointGovernanceService
 builder.Services.AddScoped<IEndpointInventoryService, EndpointInventoryService>();
 builder.Services.AddScoped<IEndpointComplianceService, EndpointComplianceService>();
 builder.Services.AddScoped<IEndpointCredentialService, EndpointCredentialService>();
+builder.Services.AddHostedService<EndpointCredentialCleanupHostedService>();
 builder.Services.AddSharedExcelPlatform();
 builder.Services.AddScoped<EndpointGovernanceExcelImportService>();
 
@@ -347,7 +357,9 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     context.Response.ContentType = "application/json";
     await context.Response.WriteAsJsonAsync(new { message = feature?.Error.Message ?? "Unexpected error." });
 }));
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 app.UseCors("FccCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

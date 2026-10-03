@@ -11,6 +11,8 @@ using FVN_REGISTER.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Data;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -50,7 +52,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
         var deployment=await _db.EndpointDeployments.FirstOrDefaultAsync(x=>x.Id==deploymentId,ct);
         if(deployment==null)return NotFound(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Không tìm thấy deployment.",404));
         if(deployment.ExpiresAtUtc<=DateTime.UtcNow&&deployment.ExpiresAtUtc.HasValue)return BadRequest(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Deployment đã hết hạn."));
-        await using var tx=await _db.Database.BeginTransactionAsync(ct);
+        await using var tx=await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
         var normalized = requests.Select(x => x.TargetId?.Trim() ?? string.Empty).ToArray();
         if (normalized.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 100))
             return BadRequest(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Mỗi TargetId phải có từ 1 đến 100 ký tự."));
@@ -84,7 +86,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
         {
             var token=GenerateSecret(32);
             _db.EndpointEnrollmentTokens.Add(new F03EndpointEnrollmentToken{DeploymentId=deploymentId,TargetId=item.Entity.Id,TokenHash=Hash(token),ExpiresAtUtc=DateTime.UtcNow.AddMinutes(tokenMinutes),CreatedAtUtc=DateTime.UtcNow});
-            var bootstrap=JsonSerializer.Serialize(new{deploymentId,targetId=item.Entity.Id,enrollmentToken=token,apiBaseUrl=apiBase,clientId=item.Client.ClientId});
+            var bootstrap=JsonSerializer.Serialize(new{deploymentId,targetId=item.Entity.Id,enrollmentToken=token,apiBaseUrl=apiBase,clientId=item.Client.ClientId,organizationalUnit=item.Client.Ou,group=item.Client.Group});
             results.Add(new LanscopeDeploymentTargetResult(item.Entity.Id,item.Key,token,$"fvn-bootstrap-{SafeFile(item.Key)}.json",bootstrap));
         }
         await _db.SaveChangesAsync(ct);
@@ -109,6 +111,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("EndpointAnonymous")]
     [HttpPost("enroll")]
     public async Task<ActionResult<ApiResponse<LanscopeEnrollmentResponseDto>>> Enroll(LanscopeEnrollmentRequestDto request,CancellationToken ct)
     {
@@ -123,9 +126,19 @@ public sealed class LanscopeDeploymentController : ControllerBase
         var deployment=await _db.EndpointDeployments.FirstOrDefaultAsync(x=>x.Id==request.DeploymentId,ct);
         if(target==null||deployment==null){await tx.RollbackAsync(ct);return NotFound(ApiResponse<LanscopeEnrollmentResponseDto>.Fail("Deployment target không tồn tại.",404));}
         if(deployment.ExpiresAtUtc<=DateTime.UtcNow&&deployment.ExpiresAtUtc.HasValue){await tx.RollbackAsync(ct);return Unauthorized(ApiResponse<LanscopeEnrollmentResponseDto>.Fail("Deployment đã hết hạn.",401));}
-        var serialMatches=!string.IsNullOrWhiteSpace(target.SerialNumber)&&!string.IsNullOrWhiteSpace(request.SerialNumber)&&string.Equals(target.SerialNumber.Trim(),request.SerialNumber.Trim(),StringComparison.OrdinalIgnoreCase);
-        var identityStatus=serialMatches?"Verified":"PendingReview";
-        var device=target.EndpointDeviceId.HasValue?await _db.EndpointDevices.FirstOrDefaultAsync(x=>x.Id==target.EndpointDeviceId.Value,ct):null;
+        var serialMatches=LanscopeSecurityPolicy.IsMeaningfulSerial(target.SerialNumber) && LanscopeSecurityPolicy.IsMeaningfulSerial(request.SerialNumber) && string.Equals(target.SerialNumber!.Trim(),request.SerialNumber!.Trim(),StringComparison.OrdinalIgnoreCase);
+        if(!serialMatches)
+        {
+            target.Status="PendingReview";
+            target.EndpointDeviceId=null;
+            target.EnrolledAtUtc=null;
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return Conflict(ApiResponse<LanscopeEnrollmentResponseDto>.Fail("Endpoint chưa được xác minh: SerialNumber thiếu, placeholder hoặc không khớp target. Duyệt target rồi reissue bootstrap token.",409));
+        }
+        const string identityStatus="Verified";
+        if(target.EndpointDeviceId.HasValue)return Conflict(ApiResponse<LanscopeEnrollmentResponseDto>.Fail("Target đã enroll hoặc đã được gắn EndpointDevice. Hãy reset target trước khi enroll lại.",409));
+        var device=(FVN_REGISTER.Core.Entities.Security.F03EndpointDevice?)null;
         if(device==null){device=new F03EndpointDevice{DeviceKey="LAN-"+Guid.NewGuid().ToString("N"),CreatedAt=DateTime.UtcNow,Source="LANSCOPE"};_db.EndpointDevices.Add(device);}
         device.LanscopeClientId=Trim(request.ClientId,100) ?? target.ClientId;device.ComputerName=Trim(request.ComputerName,255) ?? target.ComputerName;device.IpAddress=Trim(request.Ip,100) ?? target.IpAddress;device.MacAddress=Trim(request.Mac,100) ?? target.MacAddress;
         device.SerialNumber=Trim(request.SerialNumber,255) ?? target.SerialNumber;device.HardwareUuid=Trim(request.HardwareUuid,255);device.AgentInstallationId=Trim(request.AgentInstallationId,100);device.WindowsUser=Trim(request.WindowsUser,255) ?? target.WindowsUser;
@@ -160,6 +173,53 @@ public sealed class LanscopeDeploymentController : ControllerBase
         return Ok(ApiResponse<LanscopeDeploymentTargetResult>.Ok(new LanscopeDeploymentTargetResult(target.Id,target.TargetKey,token,$"fvn-bootstrap-{SafeFile(target.TargetKey)}.json",bootstrap)));
     }
 
+    [HttpPost("deployments/{deploymentId:int}/targets/{targetId:int}/approve")]
+    public async Task<ActionResult<ApiResponse<object>>> ApproveTarget(int deploymentId,int targetId,CancellationToken ct)
+    {
+        if(await RequireAsync(SecurityFunctionCodes.EndpointLanscopeDeploymentManage,ct)==null)return Forbid();
+        await using var tx=await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+        var target=await _db.EndpointDeploymentTargets.FirstOrDefaultAsync(x=>x.Id==targetId&&x.DeploymentId==deploymentId,ct);
+        if(target==null)return NotFound(ApiResponse<object>.Fail("Deployment target không tồn tại.",404));
+        if(target.EndpointDeviceId.HasValue)return Conflict(ApiResponse<object>.Fail("Target đã enroll; không cần duyệt lại.",409));
+        if(!string.Equals(target.Status,"PendingReview",StringComparison.OrdinalIgnoreCase))return BadRequest(ApiResponse<object>.Fail($"Target đang ở trạng thái {target.Status}, không cần duyệt."));
+        target.Status="Approved";await _db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
+        return Ok(ApiResponse<object>.Ok(new{targetId,Status="Approved"}));
+    }
+
+    [HttpPost("deployments/{deploymentId:int}/targets/{targetId:int}/reset")]
+    public async Task<ActionResult<ApiResponse<object>>> ResetTarget(int deploymentId,int targetId,CancellationToken ct)
+    {
+        if(await RequireAsync(SecurityFunctionCodes.EndpointLanscopeDeploymentManage,ct)==null)return Forbid();
+        await using var tx=await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+        var target=await _db.EndpointDeploymentTargets.FirstOrDefaultAsync(x=>x.Id==targetId&&x.DeploymentId==deploymentId,ct);
+        if(target==null)return NotFound(ApiResponse<object>.Fail("Deployment target không tồn tại.",404));
+        if(target.EndpointDeviceId.HasValue)
+        {
+            await _db.Database.ExecuteSqlRawAsync("INSERT INTO dbo.F03EndpointCredentialAudit(EndpointCredentialId,EndpointDeviceId,ActionCode,ActorUserId,OccurredAtUtc,Detail) SELECT c.Id,c.EndpointDeviceId,N'RESET',NULL,SYSUTCDATETIME(),N'LANSCOPE target reset before reissue.' FROM dbo.F03EndpointCredentials c WHERE c.EndpointDeviceId={0} AND c.RevokedAtUtc IS NULL;",new object[]{target.EndpointDeviceId.Value},ct);
+            await _db.Database.ExecuteSqlRawAsync("UPDATE c SET RevokedAtUtc=SYSUTCDATETIME(),RevokedBy=NULL,GraceExpiresAtUtc=NULL FROM dbo.F03EndpointCredentials c WHERE c.EndpointDeviceId={0} AND c.RevokedAtUtc IS NULL;",new object[]{target.EndpointDeviceId.Value},ct);
+        }
+        await _db.EndpointEnrollmentTokens.Where(x=>x.TargetId==targetId&&x.UsedAtUtc==null).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.UsedAtUtc,DateTime.UtcNow),ct);
+        target.EndpointDeviceId=null;target.EnrolledAtUtc=null;target.Status="Pending";
+        await _db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
+        return Ok(ApiResponse<object>.Ok(new{targetId,Status="Pending",CredentialsRevoked=true}));
+    }
+
+    [HttpPost("deployments/{deploymentId:int}/targets/reissue-pending")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>>> ReissuePendingTokens(int deploymentId,CancellationToken ct)
+    {
+        if(await RequireAsync(SecurityFunctionCodes.EndpointLanscopeDeploymentManage,ct)==null)return Forbid();
+        var deployment=await _db.EndpointDeployments.FirstOrDefaultAsync(x=>x.Id==deploymentId,ct);
+        if(deployment==null)return NotFound(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Deployment không tồn tại.",404));
+        if(deployment.ExpiresAtUtc.HasValue&&deployment.ExpiresAtUtc.Value<=DateTime.UtcNow)return BadRequest(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Deployment đã hết hạn."));
+        await using var tx=await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+        var targets=await _db.EndpointDeploymentTargets.Where(x=>x.DeploymentId==deploymentId&&(x.Status=="Pending"||x.Status=="Approved")&&!x.EndpointDeviceId.HasValue).OrderBy(x=>x.Id).ToListAsync(ct);
+        await _db.EndpointEnrollmentTokens.Where(x=>x.DeploymentId==deploymentId&&x.UsedAtUtc==null).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.UsedAtUtc,DateTime.UtcNow),ct);
+        var apiBase=GetPublicBaseUrl();var now=DateTime.UtcNow;var results=new List<LanscopeDeploymentTargetResult>(targets.Count);
+        foreach(var target in targets){var token=GenerateSecret(32);var expires=now.AddMinutes(GetTokenMinutes());_db.EndpointEnrollmentTokens.Add(new F03EndpointEnrollmentToken{DeploymentId=deploymentId,TargetId=target.Id,TokenHash=Hash(token),ExpiresAtUtc=expires,CreatedAtUtc=now});results.Add(new LanscopeDeploymentTargetResult(target.Id,target.TargetKey,token,$"fvn-bootstrap-{SafeFile(target.TargetKey)}.json",JsonSerializer.Serialize(new{deploymentId,targetId=target.Id,enrollmentToken=token,apiBaseUrl=apiBase,clientId=target.ClientId,organizationalUnit=target.OrganizationalUnit,group=target.LanscopeGroup})));}
+        await _db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
+        return Ok(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Ok(results));
+    }
+
     private string GetPublicBaseUrl()
     {
         var configured=_configuration["LanscopeDeployment:PublicBaseUrl"]?.Trim();
@@ -168,7 +228,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
         return configured.TrimEnd('/');
     }
     private int GetTokenMinutes()
-        => Math.Clamp(_configuration.GetValue<int?>("LanscopeDeployment:EnrollmentTokenMinutes") ?? 60, 5, 1440);
+        => Math.Clamp(_configuration.GetValue<int?>("LanscopeDeployment:EnrollmentTokenMinutes") ?? 1440, 5, 10080);
 
     private static string GenerateSecret(int bytes){Span<byte> b=stackalloc byte[bytes];RandomNumberGenerator.Fill(b);return Convert.ToBase64String(b).Replace("+","-",StringComparison.Ordinal).Replace("/","_",StringComparison.Ordinal).TrimEnd('=');}
     private static string Hash(string value)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
