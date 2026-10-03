@@ -121,5 +121,6 @@
   "calendar.vuiLongNhapNgayVa": "日付と説明を入力してください。",
   "calendar.workHours": "勤務時間",
   "calendar.xoaNgay": "{0:dd/MM/yyyy} - {1} を削除しますか？",
-  "calendar.xoaNgayNghi": "休日を削除"
+  "calendar.xoaNgayNghi": "休日を削除",
+  "calendar.accessDenied": "勤務カレンダーを表示する権限がありません。"
 }
