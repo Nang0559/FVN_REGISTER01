@@ -983,8 +983,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             HrExecutionReviewFunctionCode,
             cancellationToken);
 
-        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, assignedOperator)
-            && !await _authorization.CanAccessAsync(
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, assignedOperator))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
+
+        if (!await _authorization.CanAccessAsync(
                 actor,
                 HrExecutionReviewFunctionCode,
                 targetEmployeeCode,
