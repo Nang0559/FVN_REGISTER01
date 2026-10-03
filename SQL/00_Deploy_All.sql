@@ -73,6 +73,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "44_SecurityAccessChange.sql"
 :r "45_EquipmentResponsibilityAndRepair.sql"
 :r "46_SecurityFunctionRegistry.sql"
+:r "55_ExecutionResolutionPolicy.sql"
 :r "47_Verify_SecurityFunctionRegistry.sql"
 :r "48_SecurityTwoFactorSuperAdminCompatibility.sql"
 :r "49_Verify_SecurityTwoFactorSuperAdmin.sql"
