@@ -87,7 +87,9 @@ public sealed class EndpointWorker : BackgroundService
         var request = new EndpointInventoryRequestDto(
             _options.DeviceKey.Trim(), Environment.MachineName, GetSerialNumber(), GetHardwareIdentity(), GetAgentInstallationId(),
             "Windows", Environment.OSVersion.VersionString, null, null, typeof(EndpointWorker).Assembly.GetName().Version?.ToString(),
-            _collector.CollectSoftware(), _collector.CollectServices(), _collector.CollectAntivirus());
+            _collector.CollectSoftware(), _collector.CollectServices(), _collector.CollectAntivirus(),
+            GetLanscopeClientId(), GetLocalIp(), GetMacAddress(), Environment.UserName, Environment.UserDomainName,
+            GetOrganizationalUnit(), GetLanscopeGroup(), GetManufacturer(), GetModel());
 
         for (var attempt = 0; attempt < 2; attempt++)
         {
