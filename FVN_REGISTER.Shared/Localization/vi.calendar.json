@@ -121,5 +121,6 @@
   "calendar.vuiLongNhapNgayVa": "Vui lòng nhập ngày và mô tả.",
   "calendar.workHours": "Giờ công",
   "calendar.xoaNgay": "Xóa ngày {0:dd/MM/yyyy} - {1}?",
-  "calendar.xoaNgayNghi": "Xóa ngày nghỉ"
+  "calendar.xoaNgayNghi": "Xóa ngày nghỉ",
+  "calendar.accessDenied": "Bạn không có quyền xem lịch làm việc."
 }
