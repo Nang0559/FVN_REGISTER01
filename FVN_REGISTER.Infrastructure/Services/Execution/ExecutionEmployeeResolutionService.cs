@@ -8,6 +8,8 @@ using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
 
@@ -18,13 +20,16 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
 
     private readonly FVNWEBAPPContext _db;
     private readonly IHrmAttendanceCalculationService _attendanceCalculation;
+    private readonly IAuthorizationService _authorization;
 
     public ExecutionEmployeeResolutionService(
         FVNWEBAPPContext db,
-        IHrmAttendanceCalculationService attendanceCalculation)
+        IHrmAttendanceCalculationService attendanceCalculation,
+        IAuthorizationService authorization)
     {
         _db = db;
         _attendanceCalculation = attendanceCalculation;
+        _authorization = authorization;
     }
 
     public async Task ProcessExpiredEmployeeDecisionAsync(
@@ -296,7 +301,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         if (existing is not null)
             return existing.ActionId;
 
-        var operatorUser = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
+        var operatorCandidates = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
             .Where(x => x.IsActive == true
                 && x.FunctionCode == SecurityFunctionCodes.ExecutionReview
                 && x.ResourceType == "EXECUTION_REVIEW"
@@ -309,20 +314,49 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 {
                     UserId = user.Id,
                     user.EmployeeCode,
+                    user.DeptCode,
+                    user.PermissionCode,
+                    user.FullName,
+                    user.LevelApprove,
                     assignment.CreatedAt,
                     AssignmentId = assignment.Id
                 })
             .OrderBy(x => x.CreatedAt)
             .ThenBy(x => x.AssignmentId)
-            .Select(x => new { Id = x.UserId, x.EmployeeCode })
-            .FirstOrDefaultAsync(ct);
+            .ToListAsync(ct);
+
+        var operatorUser = default((int Id, string EmployeeCode)?);
+        foreach (var candidate in operatorCandidates)
+        {
+            var identity = new UserIdentityDto
+            {
+                UserId = candidate.UserId,
+                EmployeeCode = candidate.EmployeeCode,
+                DeptCode = candidate.DeptCode,
+                Permission = candidate.PermissionCode,
+                FullName = candidate.FullName,
+                LevelApprove = candidate.LevelApprove,
+                IsLoggedIn = true
+            };
+
+            var hasRbac = await _authorization.HasAsync(
+                identity,
+                SecurityFunctionCodes.ExecutionReview,
+                ct);
+
+            if (FeatureOperatorAuthorizationPolicy.CanOperate(hasRbac, true))
+            {
+                operatorUser = (candidate.UserId, candidate.EmployeeCode);
+                break;
+            }
+        }
 
         if (operatorUser is null)
             throw new InvalidOperationException(
-                "Không tìm thấy nhân sự được phân công Execution Review để nhận vòng khiếu nại.");
+                "Không tìm thấy nhân sự được phân công Execution Review có RBAC Execution Review và tài khoản active để nhận vòng khiếu nại.");
 
         var operatorEmployee = await _db.Employees.AsNoTracking()
-            .Where(x => x.IsActive != false && x.EmployeeCode == operatorUser.EmployeeCode)
+            .Where(x => x.IsActive != false && x.EmployeeCode == operatorUser.Value.EmployeeCode)
             .Select(x => (int?)x.Id)
             .SingleAsync(ct);
 
@@ -335,7 +369,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             ParticipantId = r.ParticipantId,
             EmployeeId = employeeId,
             AssignedToEmployeeId = operatorEmployee,
-            AssignedToUserId = operatorUser.Id,
+            AssignedToUserId = operatorUser.Value.Id,
             WorkDate = r.WorkDate,
             ActionType = HrAppealActionType,
             Title = r.AppealRound >= 1 ? "Xử lý khiếu nại đối soát công" : "Xử lý phản hồi đối soát công",

@@ -2,6 +2,8 @@ using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Excel;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Equipment;
@@ -17,13 +19,20 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
     private readonly IAuditService _audit;
     private readonly ICurrentUserService _currentUser;
     private readonly IExcelPlatform _excel;
+    private readonly IAuthorizationService _authorization;
 
-    public FeatureOperatorAssignmentService(IUnitOfWork uow, IAuditService audit, ICurrentUserService currentUser, IExcelPlatform excel)
+    public FeatureOperatorAssignmentService(
+        IUnitOfWork uow,
+        IAuditService audit,
+        ICurrentUserService currentUser,
+        IExcelPlatform excel,
+        IAuthorizationService authorization)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
         _excel = excel;
+        _authorization = authorization;
     }
 
     public async Task<List<FeatureOperatorAssignmentDto>> GetAsync(int functionCode, string resourceType, int? resourceId, CancellationToken ct = default)
@@ -112,32 +121,38 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             .FirstOrDefaultAsync(ct);
         if (function == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không tồn tại hoặc đã inactive.");
 
-        // Operator assignment never grants RBAC. The designated employee must already
-        // have the business capability through a direct user-function grant or role grant.
-        var operatorUserId = await _uow.Repository<F03User>().Query().AsNoTracking()
+        // Operator assignment never grants RBAC. Use the canonical AuthorizationService
+        // so effective role/function/lifecycle rules stay identical to runtime authorization.
+        var operatorIdentity = await _uow.Repository<F03User>().Query().AsNoTracking()
             .Where(x => x.EmployeeCode == employeeCode && (x.IsActive ?? true))
-            .Select(x => (int?)x.Id)
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                DeptCode = x.DeptCode,
+                Permission = x.PermissionCode,
+                FullName = x.FullName,
+                LevelApprove = x.LevelApprove,
+                IsLoggedIn = true
+            })
             .FirstOrDefaultAsync(ct);
-        if (!operatorUserId.HasValue)
-            return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên được chỉ định chưa có tài khoản người dùng active.");
 
-        var hasDirectCapability = await _uow.Repository<F03UserFunction>().Query().AsNoTracking()
-            .AnyAsync(x => x.IdUser == operatorUserId.Value
-                && x.IdFunction == function.Id
-                && (x.IsActive ?? true), ct);
+        var hasActiveUser = operatorIdentity is not null;
+        var hasRbacCapability = hasActiveUser
+            && await _authorization.HasAsync(operatorIdentity!, request.FunctionCode, ct);
 
-        var hasRoleCapability = await _uow.Repository<F03UserRole>().Query().AsNoTracking()
-            .Where(x => x.IdUser == operatorUserId.Value && (x.IsActive ?? true))
-            .Join(
-                _uow.Repository<F03RoleFunction>().Query().AsNoTracking().Where(x => (x.IsActive ?? true)),
-                userRole => userRole.IdRole,
-                roleFunction => roleFunction.IdRole,
-                (userRole, roleFunction) => roleFunction.IdFunction)
-            .AnyAsync(idFunction => idFunction == function.Id, ct);
+        if (!FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+                employee is not null,
+                hasActiveUser,
+                hasRbacCapability))
+        {
+            if (!hasActiveUser)
+                return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
+                    "Nhân viên được chỉ định chưa có tài khoản người dùng active.");
 
-        if (!hasDirectCapability && !hasRoleCapability)
             return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
                 $"Nhân viên {employeeCode} chưa có RBAC cho {function.FunctionKey}. Hãy cấp capability trước khi chỉ định operator.");
+        }
         if (request.ResourceId.HasValue && request.ResourceId.Value <= 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceId không hợp lệ.");
 
         if (request.ResourceId.HasValue)

@@ -78,8 +78,22 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         var actor = await _db.Users.AsNoTracking()
             .Where(x => x.Id == userId && x.IsActive != false)
-            .Select(x => new { x.EmployeeCode, x.DeptCode })
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                DeptCode = x.DeptCode,
+                Permission = x.PermissionCode,
+                FullName = x.FullName,
+                LevelApprove = x.LevelApprove,
+                IsLoggedIn = true
+            })
             .SingleAsync(cancellationToken);
+
+        var hasExecutionReview = await _authorization.HasAsync(
+            actor,
+            HrExecutionReviewFunctionCode,
+            cancellationToken);
 
         var isAssignedOperator = await _operatorAssignments.CanOperateAsync(
             userId,
@@ -88,6 +102,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             "EXECUTION_REVIEW",
             null,
             cancellationToken);
+
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, isAssignedOperator))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
 
         var scope = await _authorization.GetScopeAsync(
             userId,
@@ -881,9 +899,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             null,
             cancellationToken);
 
-        if (!hasExecutionReview && !isAssignedOperator)
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, isAssignedOperator))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
-                "Tài khoản không có quyền Execution Review.");
+                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
 
         if (requireAllScope)
         {
@@ -960,7 +978,12 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             null,
             cancellationToken);
 
-        if (!assignedOperator
+        var hasExecutionReview = await _authorization.HasAsync(
+            actor,
+            HrExecutionReviewFunctionCode,
+            cancellationToken);
+
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, assignedOperator)
             && !await _authorization.CanAccessAsync(
                 actor,
                 HrExecutionReviewFunctionCode,

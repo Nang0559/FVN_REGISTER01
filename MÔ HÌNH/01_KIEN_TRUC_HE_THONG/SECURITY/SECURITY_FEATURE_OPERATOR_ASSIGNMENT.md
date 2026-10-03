@@ -24,12 +24,14 @@ It is intentionally separate from:
 
 ## Authorization order
 
-1. The user must have the function capability through RBAC.
-2. If resource-specific operator assignments exist, the user's HRM EmployeeCode must be assigned to that resource.
-3. Otherwise, a global assignment (ResourceId IS NULL) is checked.
-4. If no assignment exists at either level, existing RBAC + scope behavior remains effective for backward compatibility.
+1. The user must have the function capability through the canonical IAuthorizationService.HasAsync RBAC path. Feature Operator Assignment never grants RBAC.
+2. When an operator assignment is configured, the user's HRM EmployeeCode must be assigned to that resource/module.
+3. Otherwise, a global assignment (ResourceId IS NULL) is checked where the resource type supports module-wide operators.
+4. If no assignment exists at either level, the feature keeps its existing RBAC + data-scope behavior for backward compatibility.
+5. Runtime service methods must repeat the same authorization rule; controller checks are not considered sufficient.
+6. Assignment creation is rejected when the target employee has no active user account or does not currently have the effective RBAC capability. The error is: "Nhân viên {EmployeeCode} chưa có RBAC cho {FunctionKey}. Hãy cấp capability trước khi chỉ định operator."
 
-Employee identity, department and position are resolved from HRM; the assignment table stores only EmployeeCode.
+Employee identity, department and position are resolved from HRM; the assignment table stores only EmployeeCode. RBAC is resolved centrally so active-role/lifecycle rules cannot diverge between Security Center and runtime authorization.
 
 ## Examples
 
@@ -81,11 +83,15 @@ Nguyên tắc mở rộng: khi thêm một policy/rule quản trị mới, khôn
 
 `ATTENDANCE_SYMBOL_RULE` là configuration resource cấp module. Rule thay đổi cách Calendar diễn giải kết quả attendance thành symbol, nhưng không thay đổi HRM attendance calculation.
 
-Người quản trị phải:
-1. Có `WorkCalendar.SymbolRuleManage` qua RBAC.
-2. Thuộc ManagedScope phù hợp nếu hệ thống áp dụng scope cho configuration.
-3. Có Feature Operator Assignment khi feature đã được cấu hình operator.
-4. Thay đổi Rule qua UI; không sửa trực tiếp symbol trong Calendar source code.
-5. Dùng Test Rule trước khi Active.
+Current implementation note: the Symbol Rule endpoints do **not** perform a separate `F03ManagedScopes` check. Therefore this document does not claim ManagedScope enforcement for Symbol Rule. Capability authorization is centralized in the authorization layer and Feature Operator Assignment is enforced by the operator-aware service/controller path. If Symbol Rule is later made department-scoped, that change must add an explicit `CanAccessAsync`/ManagedScope check and update this section in the same change.
 
-Mọi thay đổi Rule phải được audit cùng actor, thời điểm, rule và trạng thái trước/sau. Operator Assignment không thay thế RBAC và không cấp quyền Approve/HR Resolution.
+Current governance:
+1. Có `WorkCalendar.SymbolRuleManage` qua RBAC.
+2. Khi operator assignment được cấu hình, người được chỉ định cũng phải có capability RBAC tương ứng.
+3. Thay đổi Rule qua UI; không sửa trực tiếp symbol trong Calendar source code.
+4. Dùng Test Rule trước khi Active.
+5. Audit actor, thời điểm, rule và trạng thái trước/sau.
+
+Security Center nên cảnh báo assignment mà nhân viên đã inactive hoặc capability RBAC hiện tại đã bị thu hồi. Assignment cũ không tự động bị xóa; phải được remediation.
+
+Operator Assignment không thay thế RBAC và không cấp quyền Approve/HR Resolution.

@@ -362,9 +362,9 @@ SELECT @result;
             null,
             cancellationToken);
 
-        if (!hasPermission && !assigned)
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasPermission, assigned))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
-                "Tài khoản không có quyền Execution Review.");
+                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
     }
 
     private async Task EnsureTargetScopeAsync(
@@ -388,6 +388,11 @@ SELECT @result;
             })
             .SingleAsync(cancellationToken);
 
+        var hasPermission = await _authorization.HasAsync(
+            actor,
+            SecurityFunctionCodes.ExecutionReview,
+            cancellationToken);
+
         var assigned = await _operatorAssignments.CanOperateAsync(
             userId,
             actorEmployeeCode,
@@ -396,7 +401,8 @@ SELECT @result;
             null,
             cancellationToken);
 
-        if (!assigned && !await _authorization.CanAccessAsync(
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasPermission, assigned)
+            && !await _authorization.CanAccessAsync(
                 actor,
                 SecurityFunctionCodes.ExecutionReview,
                 targetEmployeeCode,
