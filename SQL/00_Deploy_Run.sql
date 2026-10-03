@@ -84,6 +84,12 @@
 :r "60_EndpointAgentDataHardening.sql"
 :r "61_RequestModuleEmailTemplates.sql"
 :r "62_SuperAdminFullAccess.sql"
+:r "62_RuntimeSchemaCompatibility.sql"
+:r "63_CalendarAttendancePerformance.sql"
+:r "66_CalendarHolidayClassification.sql"
+:r "67_AttendanceSymbolRules.sql"
+:r "68_EndpointEquipmentAgentIntegration.sql"
+:r "69_Endpoint_LanscopeDeployment.sql"
 
 /* SECURITY SYSTEM-CRITICAL INVARIANT */
 :r "64_SecurityRoleMatrixCapability.sql"

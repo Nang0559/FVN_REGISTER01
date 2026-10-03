@@ -1,0 +1,400 @@
+@using FVN_REGISTER.Shared.Components
+@page "/ot/create"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Contract.Dtos.OTTypeDtos
+@using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto
+@using FVN_REGISTER.Contract.Requests.OT
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Requests.Approvals
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IOTClientService OTService
+@inject IApprovalRouteClientService ApprovalRouteService
+@inject ICurrentUserClientService CurrentUser
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>@Language.T("ot.taoDonOt")</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1"><MudIcon Icon="@Icons.Material.Filled.MoreTime" Class="mr-2" />@Language.T("ot.taoDonTangCaOt")</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@Language.T("ot.dangKyLamThemGio")</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+        <div>
+            <MudText Typo="Typo.subtitle1">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Class="mr-1" />
+                @Language.T("leave.sharedCalendar")
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @Language.T("ot.xemToanBoCongNghi")
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CalendarMonth"
+                   OnClick="@(() => Nav.NavigateTo("/calendar"))">
+            @Language.T("leave.openCalendar")
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="mb-4" />
+}
+else if (_form != null)
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudCard Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">@Language.T("ot.thongTinDon")</MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="4"><MudDatePicker Date="_date" DateChanged="OnDateChanged" Label="@Language.T("ot.ngayOt2")" Variant="Variant.Outlined" Required="true" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Time="_start" TimeChanged="OnStartChanged" Label="@Language.T("ot.gioBatDau")" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Time="_end" TimeChanged="OnEndChanged" Label="@Language.T("ot.gioKetThuc")" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="string" @bind-Value="_form.OTTypeCode" Label="@Language.T("ot.loaiOt2")" Variant="Variant.Outlined" Required="true">
+                            @foreach (var type in _otTypes)
+                            {
+                                <MudSelectItem Value="@type.OTTypeCode">@type.OTTypeName (@type.OTTypeCode)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.OTReasonSummary" Label="@Language.T("ot.lyDoTongQuat")" Variant="Variant.Outlined" /></MudItem>
+                </MudGrid>
+            </MudCard>
+
+            <MudCard Elevation="2" Class="mt-4 pa-4">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudText Typo="Typo.subtitle1">@Language.T("ot.nhanVienThamGia2", _employees.Count)</MudText>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">@Language.T("ot.themNhanVienPhongBan")</MudButton>
+                </MudStack>
+
+                @if (!_employees.Any())
+                {
+                    <MudAlert Severity="Severity.Info">@Language.T("ot.chuaCoNhanVienBam")</MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="_employees" Dense="true" Hover="true">
+                        <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("public.content")</MudTh><MudTh>@Language.T("ot.gio")</MudTh><MudTh></MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Label='@Language.T("public.content")' Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
+                            <MudTd>@context.OTHours.ToString("N1") h</MudTd>
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveEmployee(context))" /></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudCard>
+
+            @if (_limitPreview != null)
+            {
+                <MudCard Elevation="2" Class="mt-4 pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">@Language.T("ot.gioiHanOtSauDang")</MudText>
+                    @if (_limitPreview.Errors.Any())
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
+                            @foreach (var error in _limitPreview.Errors)
+                            {
+                                <div>@error</div>
+                            }
+                        </MudAlert>
+                    }
+
+                    <MudTable Items="_limitPreview.Employees" Dense="true" Hover="true" Bordered="true">
+                        <HeaderContent>
+                            <MudTh>@Language.T("ot.employee")</MudTh>
+                            <MudTh>@Language.T("ot.week")</MudTh>
+                            <MudTh>@Language.T("ot.month")</MudTh>
+                            <MudTh>@Language.T("ot.year")</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <b>@context.EmployeeName</b>
+                                <MudText Typo="Typo.caption">@context.EmployeeCode</MudText>
+                            </MudTd>
+                            <MudTd>@LimitText(context.UsedHoursThisWeek, context.WeeklyLimit, context.ProjectedHoursThisWeek)</MudTd>
+                            <MudTd>@LimitText(context.UsedHoursThisMonth, context.MonthlyLimit, context.ProjectedHoursThisMonth)</MudTd>
+                            <MudTd>@LimitText(context.UsedHoursThisYear, context.YearlyLimit, context.ProjectedHoursThisYear)</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+
+                    @if (_limitPreview.Department != null)
+                    {
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2">@Language.T("ot.phong", _limitPreview.Department.ScopeName)</MudText>
+                        <MudText Typo="Typo.body2">
+                            @Language.T("ot.tuanThangNam", LimitText(_limitPreview.Department.UsedHoursThisWeek, _limitPreview.Department.WeeklyLimit, _limitPreview.Department.ProjectedHoursThisWeek), LimitText(_limitPreview.Department.UsedHoursThisMonth, _limitPreview.Department.MonthlyLimit, _limitPreview.Department.ProjectedHoursThisMonth), LimitText(_limitPreview.Department.UsedHoursThisYear, _limitPreview.Department.YearlyLimit, _limitPreview.Department.ProjectedHoursThisYear))
+                        </MudText>
+                    }
+
+                    @if (_limitPreview.Block != null && (!_limitPreview.Block.IsExceeded || _limitPreview.Block.WeeklyLimit.HasValue || _limitPreview.Block.MonthlyLimit.HasValue || _limitPreview.Block.YearlyLimit.HasValue))
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">@Language.T("ot.khoi2", _limitPreview.Block.ScopeName)</MudText>
+                        <MudText Typo="Typo.body2">
+                            @Language.T("ot.tuanThangNam", LimitText(_limitPreview.Block.UsedHoursThisWeek, _limitPreview.Block.WeeklyLimit, _limitPreview.Block.ProjectedHoursThisWeek), LimitText(_limitPreview.Block.UsedHoursThisMonth, _limitPreview.Block.MonthlyLimit, _limitPreview.Block.ProjectedHoursThisMonth), LimitText(_limitPreview.Block.UsedHoursThisYear, _limitPreview.Block.YearlyLimit, _limitPreview.Block.ProjectedHoursThisYear))
+                        </MudText>
+                    }
+                </MudCard>
+            }
+
+            @if (_approvalRoute != null)
+            {
+                <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@_submitting">
+                @(_submitting ? Language.T("calendar.feedback.sending") : Language.T("ot.guiDonOt"))
+            </MudButton>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            @if (_balance != null)
+            {
+                <MudCard Elevation="2" Class="mb-4 pa-4">
+                    <MudText Typo="Typo.subtitle1">@Language.T("ot.soDuGioOt", DateTime.Now.Year)</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.namH", _balance.UsedHoursThisYear, _balance.YearlyLimit)</MudText>
+                    <MudProgressLinear Value="@_balance.YearlyUsedPercent" Color="@(_balance.IsNearYearlyLimit ? Color.Warning : Color.Primary)" Class="my-2" />
+                    <MudText Typo="Typo.body2">@Language.T("ot.thangH", _balance.UsedHoursThisMonth, _balance.MonthlyLimit)</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.conLaiNamH", _balance.RemainingYearly)</MudText>
+                </MudCard>
+            }
+
+            <MudCard Elevation="2">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("ot.donOtGanDay")</MudText></CardHeaderContent></MudCardHeader>
+                <MudList T="OTSummaryDto" Dense="true">
+                    @foreach (var request in _recent)
+                    {
+                        <MudListItem T="OTSummaryDto" OnClick="@(() => Nav.NavigateTo($"/ot/detail/{request.Id}"))">
+                            <MudText Typo="Typo.body2">@request.OTDate.ToString("dd/MM/yyyy") — @request.TotalHours.ToString("N1") h</MudText>
+                            <MudText Typo="Typo.caption">@request.Status</MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private OTRequestUpsertDto? _form;
+    private List<OTEmployeeDto> _employees = new();
+    private List<OTTypeDto> _otTypes = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
+    private List<OTSummaryDto> _recent = new();
+    private OTBalanceDto? _balance;
+    private OTLimitPreviewDto? _limitPreview;
+    private DateTime? _date = DateTime.Today;
+    private TimeSpan? _start = new(17, 30, 0);
+    private TimeSpan? _end = new(20, 30, 0);
+    private bool _loading = true;
+    [Parameter, SupplyParameterFromQuery(Name = "date")]
+    public DateTime? CalendarDate { get; set; }
+
+    private bool _submitting;
+    private readonly CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (!CurrentUser.IsLoggedIn) await CurrentUser.InitializeAsync();
+            var combined = await OTService.GetCombinedDataAsync(_cts.Token);
+            if (!combined.IsSuccess || combined.Data == null)
+            {
+                Snackbar.Add(combined.Message ?? Language.T("ot.khongTaiDuocDuLieu"), Severity.Error);
+                return;
+            }
+
+            _form = combined.Data.OTForm;
+            _recent = combined.Data.RecentOTRequests;
+            _balance = combined.Data.Balance;
+            await LoadApprovalRouteAsync();
+
+            var types = await OTService.GetActiveOTTypesAsync(_cts.Token);
+            if (types.IsSuccess && types.Data != null)
+                _otTypes = types.Data;
+            else
+                Snackbar.Add(types.Message ?? Language.T("ot.khongTaiDuocDanhMuc"), Severity.Warning);
+
+            if (CalendarDate.HasValue)
+                _date = CalendarDate.Value.Date;
+
+            if (_date.HasValue) _form.OTDate = _date.Value;
+            _form.EmployeeCode = CurrentUser.User?.EmployeeCode ?? _form.EmployeeCode;
+            _form.DeptCode = CurrentUser.User?.DeptCode ?? _form.DeptCode;
+            _form.PositionCode = CurrentUser.User?.PositionCode ?? _form.PositionCode;
+            _form.StartTime = _start ?? TimeSpan.Zero;
+            _form.EndTime = _end ?? TimeSpan.Zero;
+            if (string.IsNullOrWhiteSpace(_form.OTTypeCode))
+                _form.OTTypeCode = _otTypes.FirstOrDefault()?.OTTypeCode ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[OT_CREATE] Init error");
+            Snackbar.Add(Language.T("ot.loiTaiDuLieuOt"), Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task AddDepartmentEmployees()
+    {
+        if (_form == null) return;
+        var result = await OTService.GetDeptEmployeesAsync(_form.DeptCode, _cts.Token);
+        if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocNhanVien"), Severity.Warning); return; }
+        foreach (var source in result.Data)
+        {
+            if (_employees.Any(x => x.EmployeeCode == source.EmployeeCode)) continue;
+            _employees.Add(new OTEmployeeDto
+            {
+                EmployeeCode = source.EmployeeCode, EmployeeName = source.EmployeeName, DeptCode = source.DeptCode,
+                DeptName = source.DeptName, CvCode = source.CvCode, OTTypeCode = _form.OTTypeCode,
+                StartTime = _start ?? TimeSpan.Zero, EndTime = _end ?? TimeSpan.Zero,
+                OTHours = CalculateHours(_start, _end)
+            });
+        }
+        // Approval route depends on the requester position, not on OT participants.
+        await RefreshLimitPreviewAsync();
+    }
+
+    private async Task RemoveEmployee(OTEmployeeDto employee)
+    {
+        _employees.Remove(employee);
+        // Approval route is determined by requester position and remains unchanged.
+        await RefreshLimitPreviewAsync();
+    }
+
+    private async Task Submit()
+    {
+        if (_form == null || !_date.HasValue || !_start.HasValue || !_end.HasValue || _end <= _start || !_employees.Any())
+        {
+            Snackbar.Add(Language.T("ot.vuiLongKiemTraNgay"), Severity.Warning);
+            return;
+        }
+        _form.OTDate = _date.Value;
+        _form.StartTime = _start.Value;
+        _form.EndTime = _end.Value;
+        foreach (var employee in _employees)
+        {
+            employee.OTTypeCode = _form.OTTypeCode;
+            employee.StartTime = _start.Value;
+            employee.EndTime = _end.Value;
+            employee.OTHours = CalculateHours(_start, _end);
+        }
+        _form.Employees = _employees;
+        _form.ApprovalSelections = _approvalSelector?.GetSelections() ?? new();
+        if (_form.ApprovalSelections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+        {
+            Snackbar.Add(Language.T("common.vuiLongChonNguoiPhe"), Severity.Warning);
+            return;
+        }
+
+        // Preview + validate toàn bộ request một lần:
+        // employee + department aggregate + block aggregate.
+        var preview = await OTService.GetOTLimitPreviewAsync(_form, _cts.Token);
+        if (!preview.IsSuccess || preview.Data == null)
+        {
+            Snackbar.Add(preview.Message ?? Language.T("ot.khongKiemTraDuocGioi"), Severity.Error);
+            return;
+        }
+
+        _limitPreview = preview.Data;
+        if (!_limitPreview.IsValid)
+        {
+            Snackbar.Add(_limitPreview.Errors.FirstOrDefault() ?? Language.T("ot.donOtVuotGioiHan"), Severity.Warning);
+            return;
+        }
+
+        var validation = await OTService.ValidateOTRequestAsync(_form, _cts.Token);
+        if (!validation.IsSuccess || validation.Data == null || !validation.Data.IsValid)
+        {
+            var message = validation.Data?.Errors.FirstOrDefault()
+                ?? validation.Data?.Message
+                ?? validation.Message
+                ?? Language.T("ot.donOtKhongHopLe");
+            Snackbar.Add(message, Severity.Warning);
+            return;
+        }
+
+        _submitting = true;
+        try
+        {
+            var result = await OTService.CreateOTRequestAsync(_form, _cts.Token);
+            Snackbar.Add(result.IsSuccess ? Language.T("ot.daGuiDonOtThanh") : result.Message ?? Language.T("ot.guiDonThatBai"), result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) Nav.NavigateTo("/history/ot");
+        }
+        finally { _submitting = false; }
+    }
+
+    private async Task RefreshLimitPreviewAsync()
+    {
+        if (_form == null || !_employees.Any())
+        {
+            _limitPreview = null;
+            return;
+        }
+
+        _form.OTDate = _date ?? DateTime.Today;
+        _form.StartTime = _start ?? TimeSpan.Zero;
+        _form.EndTime = _end ?? TimeSpan.Zero;
+        foreach (var employee in _employees)
+        {
+            employee.OTHours = CalculateHours(_start, _end);
+            employee.OTTypeCode = _form.OTTypeCode;
+        }
+        _form.Employees = _employees;
+
+        var result = await OTService.GetOTLimitPreviewAsync(_form, _cts.Token);
+        if (result.IsSuccess)
+            _limitPreview = result.Data;
+    }
+
+    private async Task OnDateChanged(DateTime? value)
+    {
+        _date = value;
+        if (_form != null && value.HasValue)
+            _form.OTDate = value.Value.Date;
+        await RefreshLimitPreviewAsync();
+    }
+
+    private async Task OnStartChanged(TimeSpan? value)
+    {
+        _start = value;
+        await RefreshLimitPreviewAsync();
+    }
+
+    private async Task OnEndChanged(TimeSpan? value)
+    {
+        _end = value;
+        await RefreshLimitPreviewAsync();
+    }
+
+    private string LimitText(decimal used, decimal? limit, decimal? projected)
+    {
+        if (!limit.HasValue)
+            return Language.T("ot.hKhongApDung", used);
+        return $"{used:N1}h → {projected:N1}h / {limit:N1}h";
+    }
+
+    private async Task LoadApprovalRouteAsync()
+    {
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Overtime, _cts.Token);
+        if (result.IsSuccess) _approvalRoute = result.Data;
+        else Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocLuongPhe"), Severity.Warning);
+    }
+
+    private static decimal CalculateHours(TimeSpan? start, TimeSpan? end) =>
+        start.HasValue && end.HasValue && end > start ? (decimal)(end.Value - start.Value).TotalHours : 0m;
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+}

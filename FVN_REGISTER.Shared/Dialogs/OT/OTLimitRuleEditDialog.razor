@@ -1,0 +1,110 @@
+@using FVN_REGISTER.Contract.Dtos.LimitRuleDtos
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.OTs
+@inherits ComponentBase
+
+@inject IOTLimitRuleManagementClientService RuleService
+@inject MudBlazor.ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="OTLimitType" @bind-Value="Model.LimitType" Label="@Language.T("ot.loaiGioiHan")" Required="true" Variant="Variant.Outlined">
+                        <MudSelectItem Value="OTLimitType.Daily">@Language.T("ot.theoNgay")</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Weekly">@Language.T("ot.theoTuan")</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Monthly">@Language.T("ot.theoThang")</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Yearly">@Language.T("ot.theoNam")</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Special">@Language.T("ot.dacBiet")</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="decimal" @bind-Value="Model.LimitHours" Label="@Language.T("ot.soGioGioiHan")" Required="true" Min="0.1m" Max="999m" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentText='@Language.T("calendar.hours")' />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSelect T="OTLimitScopeType" @bind-Value="Model.ScopeType" Label="@Language.T("ot.phamViApDung")" Variant="Variant.Outlined">
+                        <MudSelectItem Value="OTLimitScopeType.Employee">@Language.T("ot.nhanVienViTriPhong")</MudSelectItem>
+                        <MudSelectItem Value="OTLimitScopeType.Department">@Language.T("ot.toanPhongBan")</MudSelectItem>
+                        <MudSelectItem Value="OTLimitScopeType.Block">@Language.T("ot.toanKhoi")</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @if (Model.ScopeType == OTLimitScopeType.Employee)
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="Model.EmployeeCode" Label='@Language.T("common.employeeCode")' Variant="Variant.Outlined" HelperText="@Language.T("ot.deTrongNeuApDung")" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="Model.DeptCode" Label='@Language.T("common.departmentCode")' Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="Model.PositionCode" Label="@Language.T("ot.maViTri")" Variant="Variant.Outlined" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="Model.ScopeCode"
+                                      Label="@Language.T("ot.maPhamVi")"
+                                      Variant="Variant.Outlined"
+                                      HelperText="@Language.T("ot.phongBanDeptcodeKhoiBlockcode")" />
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Description" Label='@Language.T("common.description")' Variant="Variant.Outlined" Lines="3" MaxLength="500" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="Model.IsActive" Color="Color.Success">@Language.T("ot.apDungNgay")</MudSwitch>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_saving" OnClick="Save">
+            @(_saving ? Language.T("common.dangLuu") : Language.T("common.save"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public OTLimitRuleUpsertDto Model { get; set; } = new();
+
+    private MudForm? _form;
+    private bool _saving;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_form != null)
+        {
+            await _form.ValidateAsync();
+            if (!_form.IsValid) return;
+        }
+
+        _saving = true;
+        try
+        {
+            var result = Model.Id == 0
+                ? await RuleService.CreateAsync(Model)
+                : await RuleService.UpdateAsync(Model.Id, Model);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? Language.T("ot.daLuuHanMucOt"), Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? Language.T("ot.khongTheLuuHanMuc"), Severity.Error);
+            }
+        }
+        finally { _saving = false; }
+    }
+}

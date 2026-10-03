@@ -1,0 +1,129 @@
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Approvals
+
+@inject IApprovalListClientService ApprovalService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudStack>
+    @if (IsLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (!Items.Any())
+    {
+        <MudPaper Elevation="0" Class="pa-8 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" Size="Size.Large" Class="mb-2" />
+            <MudText Color="Color.Secondary">@Language.T("approval.khongCoDonOtNao")</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        @foreach (var item in Items)
+        {
+            var level = Level > 0 ? Level : GetCurrentApprovalLevel(item);
+            <MudCard Elevation="2" Class="mb-2">
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.body2"><strong>@item.EmployeeName</strong></MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudText Typo="Typo.body2">@(item.FromDate?.ToString("dd/MM/yyyy") ?? "—")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.TotalUnits.ToString("N1") @GetUnitLabel(item.Kind)</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="3"><OTApprovalProgressBar Steps="@item.ApprovalSteps" /></MudItem>
+                        <MudItem xs="12" sm="2" Class="d-flex justify-end">
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => OnViewDetail.InvokeAsync(item.RequestId))">@Language.T("common.detail")</MudButton>
+                                @if (item.CanApprove)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Disabled="_busy" OnClick="@(() => Approve(item))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" Disabled="_busy" OnClick="@(() => Reject(item))" />
+                                }
+                            </MudStack>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        }
+    }
+</MudStack>
+
+@code {
+    [Parameter] public List<PendingApprovalItemDto> Items { get; set; } = new();
+    [Parameter] public int Level { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<int> OnViewDetail { get; set; }
+
+    private bool _busy;
+
+    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps
+            .OrderBy(x => x.Level)
+            .FirstOrDefault(x => x.IsApproved == null && x.IsRequired)?.Level ?? 0;
+
+    private string GetUnitLabel(RequestModule kind) => kind switch
+    {
+        RequestModule.Overtime => Language.T("calendar.hours"),
+        RequestModule.Trip => Language.T("dashboard.days"),
+        _ => Language.T("dashboard.days")
+    };
+
+    private async Task Approve(PendingApprovalItemDto item)
+    {
+        _busy = true;
+        try
+        {
+            var level = Level > 0 ? Level : GetCurrentApprovalLevel(item);
+            var result = await ApprovalService.ApproveAsync(
+                new List<int> { item.RequestId }, item.Kind, level, null);
+
+            Snackbar.Add(
+                result.IsSuccess ? Language.T("ot.daDuyetThanhCong") : result.Message ?? Language.T("access.duyetThatBai"),
+                result.IsSuccess ? Severity.Success : Severity.Error);
+
+            if (result.IsSuccess)
+                await OnRefresh.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task Reject(PendingApprovalItemDto item)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            Language.T("common.tuChoiDon"),
+            Language.T("ot.banCoChacMuonTu"),
+            yesText: Language.T("common.reject"),
+            cancelText: Language.T("common.cancel"));
+
+        if (confirmed != true)
+            return;
+
+        _busy = true;
+        try
+        {
+            var level = Level > 0 ? Level : GetCurrentApprovalLevel(item);
+            var result = await ApprovalService.RejectAsync(
+                new List<int> { item.RequestId }, item.Kind, level,
+                Language.T("ot.tuChoiTuDanhSach"));
+
+            Snackbar.Add(
+                result.IsSuccess ? Language.T("access.daTuChoi") : result.Message ?? Language.T("access.tuChoiThatBai"),
+                result.IsSuccess ? Severity.Success : Severity.Error);
+
+            if (result.IsSuccess)
+                await OnRefresh.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

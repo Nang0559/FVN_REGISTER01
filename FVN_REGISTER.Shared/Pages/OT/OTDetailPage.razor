@@ -1,0 +1,116 @@
+@page "/ot/detail/{Id:int}"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Shared.Services.Users
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IOTClientService OTService
+@inject ICurrentUserClientService CurrentUser
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>@Language.T("ot.chiTietDonOt2", Id)</PageTitle>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+}
+else if (_detail == null)
+{
+    <MudAlert Severity="Severity.Error">@Language.T("ot.khongTimThayDonOt", Id)</MudAlert>
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <div><MudText Typo="Typo.h5">@Language.T("ot.chiTietDonOt2", _detail.Id)</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("ot.nguoi", _detail.OTDate.ToString("dd/MM/yyyy"), _detail.OTTypeCode, _detail.Details.Count)</MudText></div>
+        <MudChip T="string" Color="@GetStatusColor(_detail.RequestStatus)">@_detail.StatusText</MudChip>
+    </MudStack>
+
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("ot.thongTinChung")</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent><MudSimpleTable Dense="true"><tbody>
+                    <tr><td><b>@Language.T("common.ngayDangKy")</b></td><td>@_detail.RegisterDate.ToString("dd/MM/yyyy HH:mm")</td></tr>
+                    <tr><td><b>@Language.T("ot.ngayOt")</b></td><td>@_detail.OTDate.ToString("dd/MM/yyyy")</td></tr>
+                    <tr><td><b>@Language.T("ot.loaiOt")</b></td><td>@_detail.OTTypeCode</td></tr>
+                    <tr><td><b>@Language.T("ot.nguoiDangKy")</b></td><td>@_detail.RequesterName (@_detail.RequesterCode)</td></tr>
+                    <tr><td><b>@Language.T("ot.department")</b></td><td>@_detail.DeptName (@_detail.DeptCode)</td></tr>
+                    <tr><td><b>@Language.T("ot.tongGioOt")</b></td><td>@_detail.TotalOtHours.ToString("N1") h</td></tr>
+                    <tr><td><b>@Language.T("trip.purpose")</b></td><td>@_detail.OtPurpose</td></tr>
+                    <tr><td><b>@Language.T("common.description")</b></td><td>@_detail.Description</td></tr>
+                </tbody></MudSimpleTable></MudCardContent>
+            </MudCard>
+
+            <MudCard Elevation="2">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("ot.danhSachNhanVienOt")</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent Class="pa-0"><MudTable Items="_detail.Details" Dense="true" Hover="true" Striped="true">
+                    <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("ot.gioBatDau")</MudTh><MudTh>@Language.T("ot.gioKetThuc")</MudTh><MudTh>@Language.T("payroll.otHours")</MudTh><MudTh>@Language.T("common.hangMuc")</MudTh><MudTh>@Language.T("ot.validation")</MudTh></HeaderContent>
+                    <RowTemplate>
+                        <MudTd><MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
+                        <MudTd>@context.StartTime.ToString(@"hh\:mm")</MudTd><MudTd>@context.EndTime.ToString(@"hh\:mm")</MudTd><MudTd>@context.OTHours.ToString("N1") h</MudTd>
+                        <MudTd>@context.OTReasonCategoryCode @if (!string.IsNullOrWhiteSpace(context.OTReasonCategoryName)){<span> — @context.OTReasonCategoryName</span>} @if (!string.IsNullOrWhiteSpace(context.OTReasonDetail)){<div class="mud-text-secondary">@context.OTReasonDetail</div>}</MudTd>
+                        <MudTd><MudChip T="string" Size="Size.Small" Color="@GetValidationColor(context.ValidationStatus)">@context.ValidationStatus</MudChip>@if (!string.IsNullOrWhiteSpace(context.ValidationMessage)){<MudText Typo="Typo.caption">@context.ValidationMessage</MudText>}</MudTd>
+                    </RowTemplate>
+                </MudTable></MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("ot.luongPheDuyet")</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    @foreach (var step in _detail.ApprovalSteps.OrderBy(x => x.Level))
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2" Class="mb-3">
+                            <MudIcon Icon="@(step.IsRequired ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Color="@(step.IsRequired ? Color.Primary : Color.Default)" />
+                            <div><MudText Typo="Typo.body2"><b>@Language.T("approval.levelN", step.Level)</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.ApproverName — @step.Decision</MudText></div>
+                        </MudStack>
+                    }
+                </MudCardContent>
+            </MudCard>
+
+            @if (_detail.RequesterCode == CurrentUser.User?.EmployeeCode && !_detail.IsFinished)
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="CancelOT" Disabled="_isCancelling">@(_isCancelling ? Language.T("ot.dangHuy") : Language.T("ot.huyDonOt"))</MudButton>
+            }
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private OTRequestDto? _detail;
+    private bool _isLoading = true, _isCancelling;
+    private readonly CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync() => await LoadDetail();
+
+    private async Task LoadDetail()
+    {
+        _isLoading = true;
+        try
+        {
+            if (!CurrentUser.IsLoggedIn) await CurrentUser.InitializeAsync();
+            var result = await OTService.GetDetailAsync(Id, _cts.Token);
+            if (result.IsSuccess) _detail = result.Data; else Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocDonOt"), Severity.Error);
+        }
+        catch (Exception ex) { Logger.LogError(ex, "[OT_DETAIL] Load error Id={Id}", Id); Snackbar.Add(Language.T("common.loiHeThong"), Severity.Error); }
+        finally { _isLoading = false; }
+    }
+
+    private async Task CancelOT()
+    {
+        _isCancelling = true;
+        try { var result = await OTService.CancelAsync(Id, Language.T("ot.huyTuTrangChiTiet"), _cts.Token); Snackbar.Add(result.IsSuccess ? Language.T("ot.daHuyDonOt") : result.Message ?? Language.T("ot.loiHuyDon"), result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadDetail(); }
+        finally { _isCancelling = false; }
+    }
+
+    private static Color GetStatusColor(ApprovalStatus status) => status switch { ApprovalStatus.Approved => Color.Success, ApprovalStatus.Rejected => Color.Error, ApprovalStatus.Cancelled => Color.Default, _ => Color.Warning };
+    private static Color GetValidationColor(ValidationStatus status) => status switch { ValidationStatus.Valid => Color.Success, ValidationStatus.Warning => Color.Warning, ValidationStatus.Invalid => Color.Error, _ => Color.Default };
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+}

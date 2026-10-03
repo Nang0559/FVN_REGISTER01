@@ -1,0 +1,7 @@
+@page "/leave"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+<ModuleOverview Title="@Language.T("leave.nghiPhepTongQuan")"
+                 Description="@Language.T("leave.tinhHinhSoDuDon")"
+                 CreateUrl="/leave/create" HistoryUrl="/leave/history" ModulePrefix="/leave" />

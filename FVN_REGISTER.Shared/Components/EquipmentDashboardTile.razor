@@ -1,0 +1,79 @@
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Shared.Services.Equipment
+@using FVN_REGISTER.Shared.Services.Users
+@implements IDisposable
+@inject IEquipmentClientService Equipment
+@inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService SecurityService
+@inject NavigationManager Navigation
+
+@if (_loaded && _permissions?.HasPersonal(SecurityFunctionCodes.EquipmentView) == true)
+{
+    <MudPaper Outlined="true" Class="mb-4 pa-4" Style="border-radius:18px">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <div>
+                <MudText Typo="Typo.h6">@Language.T("equipment.assigned.title")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.assigned.description")</MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/equipment"))">@Language.T("equipment.assigned.catalog")</MudButton>
+        </MudStack>
+        @if (_assets.Count == 0)
+        {
+            <MudText Typo="Typo.body2">@Language.T("equipment.assigned.none")</MudText>
+        }
+        else
+        {
+            <MudGrid>
+                @foreach (var asset in _assets)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard Outlined="true" Style="height:100%">
+                            <MudCardContent>
+                                <MudText Typo="Typo.subtitle1">@asset.EquipmentName</MudText>
+                                <MudText Typo="Typo.caption">@asset.EquipmentCode • @asset.AssetCode</MudText>
+                                <MudText Typo="Typo.body2" Class="mt-2">@Language.T("equipment.assigned.department"): @asset.DeptCode</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.assigned.location"): @asset.Location</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.assigned.role"): @(string.Equals(asset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) ? Language.T("equipment.assigned.responsible") : Language.T("equipment.assigned.operator"))</MudText>
+                                @if (CanRepair(asset))
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Filled" Class="mt-3" OnClick="@(() => Navigation.NavigateTo("/equipment"))">@Language.T("equipment.assigned.repair")</MudButton>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </MudPaper>
+}
+
+@code {
+    private List<EquipmentAssetDto> _assets = new();
+    private PermissionSnapshotDto? _permissions;
+    private bool _loaded;
+
+    protected override void OnInitialized()
+        => Language.LanguageChanged += OnLanguageChanged;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        if (permissions.IsSuccess)
+            _permissions = permissions.Data;
+
+        var r = await Equipment.GetMyAssignedAssetsAsync();
+        if (r.IsSuccess) _assets = r.Data ?? new();
+        _loaded = true;
+    }
+
+    private bool CanRepair(EquipmentAssetDto asset) =>
+        _permissions?.Has(SecurityFunctionCodes.EquipmentRepair) == true
+        || string.Equals(asset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(asset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase);
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
+}

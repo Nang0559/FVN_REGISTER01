@@ -1,0 +1,202 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using FVN_REGISTER.Contract.Dtos.Execution
+@using FVN_REGISTER.Shared.Services.Execution
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@implements IDisposable
+@inject IExecutionReconciliationClientService ExecutionService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mb-3" />
+        }
+
+        <MudStack Spacing="2">
+            <MudAlert Severity="Severity.Warning" Dense="true">
+                <b>@Day.Date.ToString("dd/MM/yyyy")</b> — @Issue.Title
+                <div class="mt-1">@Issue.Summary</div>
+            </MudAlert>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle1">@Language.T("calendar.feedback.systemData")</MudText>
+                <MudGrid Class="mt-1">
+                    <MudItem xs="6" md="3"><MudText Typo="Typo.caption">@Language.T("calendar.shiftLabel")</MudText><MudText Typo="Typo.body2"><b>@(Day.Shift?.ShiftAbbr ?? "-")</b></MudText></MudItem>
+                    <MudItem xs="6" md="3"><MudText Typo="Typo.caption">@Language.T("calendar.in")</MudText><MudText Typo="Typo.body2"><b>@(Day.Attendance?.CheckIn?.ToString("HH:mm") ?? "-")</b></MudText></MudItem>
+                    <MudItem xs="6" md="3"><MudText Typo="Typo.caption">@Language.T("calendar.out")</MudText><MudText Typo="Typo.body2"><b>@(Day.Attendance?.CheckOut?.ToString("HH:mm") ?? "-")</b></MudText></MudItem>
+                    <MudItem xs="6" md="3"><MudText Typo="Typo.caption">@Language.T("calendar.workHours")</MudText><MudText Typo="Typo.body2"><b>@(Day.Attendance?.ActualHours?.ToString("0.##") ?? "-") / @(Day.Attendance?.RequiredHours?.ToString("0.##") ?? "-") @Language.T("calendar.hours")</b></MudText></MudItem>
+                    <MudItem xs="6" md="3"><MudText Typo="Typo.caption">@Language.T("calendar.feedback.otActual")</MudText><MudText Typo="Typo.body2"><b>@FormatMinutes(Day.Attendance?.ActualOtMinutes)</b></MudText></MudItem>
+                    <MudItem xs="6" md="3"><MudText Typo="Typo.caption">@Language.T("calendar.feedback.otRecognized")</MudText><MudText Typo="Typo.body2"><b>@FormatMinutes(Day.Attendance?.RecognizedOtMinutes)</b></MudText></MudItem>
+                    <MudItem xs="12" md="6"><MudText Typo="Typo.caption">@Language.T("calendar.feedback.reconciliation")</MudText><MudText Typo="Typo.body2"><b>#@ReconciliationId</b></MudText></MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            @if (_detail?.Confirmation is not null)
+            {
+                <MudAlert Severity="Severity.Info">
+                    @Language.T("calendar.feedback.pending")
+                    @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.Comment))
+                    {
+                        <div class="mt-1"><b>@Language.T("calendar.feedback.sentComment"):</b> @_detail.Confirmation.Comment</div>
+                    }
+                </MudAlert>
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle1">@Language.T("calendar.feedback.title")</MudText>
+                <MudSelect T="string" @bind-Value="_decision" Label='@Language.T("calendar.feedback.decision")' Variant="Variant.Outlined" Required="true">
+                    <MudSelectItem Value="@("CONFIRMED")">@Language.T("calendar.feedback.confirmed")</MudSelectItem>
+                    <MudSelectItem Value="@("REJECTED")">@Language.T("calendar.feedback.rejected")</MudSelectItem>
+                </MudSelect>
+                <MudTextField @bind-Value="_comment" Label='@Language.T("calendar.feedback.comment")' Variant="Variant.Outlined" Lines="4" Required="true" MaxLength="2000" HelperText='@Language.T("calendar.feedback.commentHelp")' />
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">@Language.T("calendar.feedback.evidence")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@(Action.RequiresAttachment ? Language.T("calendar.feedback.evidenceRequired") : Language.T("calendar.feedback.evidenceOptional"))</MudText>
+                    <InputFile OnChange="OnFileSelected" class="mt-2" />
+                    @if (_file is not null)
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-2"><b>@_file.Name</b> — @FormatFileSize(_file.Size)</MudText>
+                    }
+                </MudPaper>
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <MudAlert Severity="Severity.Error">@_error</MudAlert>
+                }
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                    <MudButton OnClick="Close">@Language.T("common.cancel")</MudButton>
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(_saving || _loading || string.IsNullOrWhiteSpace(_comment) || (Action.RequiresAttachment && _file is null))" OnClick="SubmitAsync">
+                        @(_saving ? Language.T("calendar.feedback.sending") : Language.T("calendar.feedback.send"))
+                    </MudButton>
+                </MudStack>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions><MudButton OnClick="Close">@Language.T("common.close")</MudButton></DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogInstance { get; set; } = default!;
+    [Parameter] public CalendarDayDto Day { get; set; } = new();
+    [Parameter] public CalendarIssueDto Issue { get; set; } = new();
+    [Parameter] public CalendarActionOptionDto Action { get; set; } = new();
+    [Parameter] public long ReconciliationId { get; set; }
+
+    private bool _loading;
+    private bool _saving;
+    private string _decision = "CONFIRMED";
+    private string? _comment;
+    private IBrowserFile? _file;
+    private string? _error;
+    private ExecutionReconciliationDetailDto? _detail;
+
+    protected override void OnInitialized()
+        => Language.LanguageChanged += OnLanguageChanged;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await ExecutionService.GetDetailAsync(ReconciliationId);
+            if (result.IsSuccess)
+                _detail = result.Data;
+            else
+                _error = result.Message ?? Language.T("calendar.feedback.loadFailed");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs args)
+    {
+        _file = args.File;
+        _error = null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_comment))
+        {
+            _error = Language.T("calendar.feedback.commentRequired");
+            return;
+        }
+        if (Action.RequiresAttachment && _file is null)
+        {
+            _error = Language.T("calendar.feedback.attachmentRequired");
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var confirmation = await ExecutionService.SubmitConfirmationAsync(
+                ReconciliationId,
+                new ExecutionConfirmationRequest(_decision, _comment.Trim(), Action.RequiresAttachment || _file is not null));
+
+            if (!confirmation.IsSuccess || confirmation.Data is null)
+            {
+                _error = confirmation.Message ?? Language.T("calendar.feedback.submitFailed");
+                return;
+            }
+
+            if (_file is not null)
+            {
+                var upload = await ExecutionService.UploadEvidenceFileAsync(confirmation.Data.Id, _file);
+                if (!upload.IsSuccess || upload.Data <= 0)
+                {
+                    _error = upload.Message ?? Language.T("calendar.feedback.uploadFailed");
+                    return;
+                }
+
+                var evidence = await ExecutionService.AddEvidenceAsync(
+                    confirmation.Data.Id,
+                    new ExecutionEvidenceRequest("ATTENDANCE_FEEDBACK", upload.Data, null, null, Language.T("calendar.feedback.evidenceTitle", Day.Date.ToString("dd/MM/yyyy"))));
+                if (!evidence.IsSuccess)
+                {
+                    _error = evidence.Message ?? Language.T("calendar.feedback.evidenceSaveFailed");
+                    return;
+                }
+            }
+
+            Snackbar.Add(Language.T("calendar.feedback.sent"), Severity.Success);
+            DialogInstance.Close();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    private void Close() => DialogInstance.Cancel();
+
+    private string FormatMinutes(int? minutes)
+    {
+        if (!minutes.HasValue) return "-";
+        var hours = minutes.Value / 60;
+        var remainder = minutes.Value % 60;
+        return hours > 0 ? Language.T("calendar.feedback.hoursMinutes", hours, remainder) : Language.T("calendar.feedback.minutes", remainder);
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.##} KB";
+        return $"{bytes / (1024d * 1024d):0.##} MB";
+    }
+
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
+}

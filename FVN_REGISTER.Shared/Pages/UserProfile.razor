@@ -1,0 +1,123 @@
+@page "/profile"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Authentication
+@using FVN_REGISTER.Shared.Services.Users
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IAuthClientService AuthService
+@inject ICurrentUserClientService CurrentUserService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h5" Class="mb-4">@Language.T("user.hoSoCaNhan")</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudCard Elevation="2" Class="text-center pa-4">
+                <MudAvatar Style="height:150px; width:150px; font-size:2rem;" Color="Color.Primary" Variant="Variant.Filled" Class="mx-auto mb-3">
+                    @if (string.IsNullOrWhiteSpace(_avatarUrl))
+                    {
+                        @GetInitials(_model.FullName)
+                    }
+                    else
+                    {
+                        <MudImage Src="@_avatarUrl" Alt='@Language.T("user.anhDaiDien")' />
+                    }
+                </MudAvatar>
+                <MudText Typo="Typo.h6">@_model.FullName</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@_model.EmployeeCode</MudText>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="8">
+            <MudCard Elevation="2">
+                <MudCardContent>
+                    <MudTextField Label="@Language.T("user.tenDangNhap")" Value="@_model.UserName" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label='@Language.T("common.department")' Value="@_model.DeptCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label='@Language.T("equipment.location")' Value="@_model.PositionCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label="@Language.T("user.emailLienLacHrm")" Value="@_model.Email" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="@Language.T("user.emailDuocDongBoTu")" Class="mb-4" />
+                    <MudTextField Label="@Language.T("user.duongDanAnhDaiDien")" @bind-Value="_avatarUrl" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSave" Disabled="@_isSaving" StartIcon="@Icons.Material.Filled.Save">
+                        @(_isSaving ? Language.T("common.dangLuu") : Language.T("user.luuThayDoi"))
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private UserIdentityDto _model = new();
+    private string? _avatarUrl;
+    private bool _isLoading = true;
+    private bool _isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await AuthService.GetProfileAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                _model = response.Data;
+                _avatarUrl = null;
+                return;
+            }
+
+            Snackbar.Add(response.Message ?? Language.T("user.khongTheTaiHoSo"), Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnSave()
+    {
+        _isSaving = true;
+        try
+        {
+            var result = await AuthService.UpdateProfileAsync((_model.Email ?? string.Empty).Trim(), _avatarUrl);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? Language.T("user.khongTheCapNhatHo"), Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(result.Message ?? Language.T("user.daCapNhatHoSo"), Severity.Success);
+            await CurrentUserService.InitializeAsync();
+
+            var refreshed = await AuthService.GetProfileAsync();
+            if (refreshed.IsSuccess && refreshed.Data != null)
+                _model = refreshed.Data;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string GetInitials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "?";
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0][0].ToString().ToUpperInvariant();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+    }
+}

@@ -1,0 +1,310 @@
+@page "/equipment"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Shared.Services.Equipment
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IEquipmentClientService EquipmentClient
+@inject IApprovalRouteClientService ApprovalRouteClient
+@inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService Security
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+@if (!_ready)
+{
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6"><MudProgressCircular Indeterminate="true" /></MudContainer>
+}
+else if (!_access)
+{
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-6"><MudAlert Severity="Severity.Warning">@Language.T("equipment.taiKhoanChuaDuocCap")</MudAlert></MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h5">@Language.T("equipment.register")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.dangKyPheDuyetQr")</MudText>
+            </div>
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.HelpOutline" OnClick="@(() => Navigation.NavigateTo("/equipment/help"))">@Language.T("equipment.troGiup")</MudButton>
+                @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Checklist" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection"))">@Language.T("equipment.checklistCuaToi")</MudButton> }
+                @if (_actions?.Transfer == true)
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">@Language.T("equipment.handover")</MudButton> }
+                @if (_actions?.InspectionManage == true || _actions?.InspectionReport == true)
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection-management"))">@Language.T("equipment.quanLyKiemTra")</MudButton> }
+                @if (_actions?.Export == true)
+                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assessment" OnClick="@(() => Navigation.NavigateTo("/equipment/reports"))">@Language.T("report.equipment")</MudButton> }
+                @if (_actions?.Import == true)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">@Language.T("home.importExcel")</MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">Department Schema</MudButton>
+                }
+            </MudStack>
+        </MudStack>
+
+        <MudTabs Elevation="2" Rounded="true">
+            @if (_actions?.Create == true)
+            {
+                <MudTabPanel Text="@Language.T("equipment.dangKyThietBi")">
+                    <MudGrid Class="pa-4">
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label='@Language.T("equipment.name")' Required="true" /></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="@Language.T("equipment.maTaiSan")" /></MudItem>
+                        <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="@Language.T("equipment.thongSoModel")" /></MudItem>
+                        @if (_actions?.Manage == true)
+                        {
+                            <MudItem xs="12">
+                                <MudCheckBox T="bool" @bind-Value="_form.EndpointAgentEligible" Color="Color.Primary" Label="Thiết bị đủ điều kiện sử dụng Endpoint Agent" />
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Chỉ đánh dấu cho máy tính/thiết bị có hệ điều hành cần quản lý bằng Agent. Máy in, màn hình, scanner... không chọn.</MudText>
+                            </MudItem>
+                            @if (_form.EndpointAgentEligible)
+                            {
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="string" @bind-Value="_form.EndpointOsFamily" Label="Hệ điều hành dự kiến" Clearable="true">
+                                        <MudSelectItem Value="@("Windows")">Windows</MudSelectItem>
+                                        <MudSelectItem Value="@("Linux")">Linux</MudSelectItem>
+                                        <MudSelectItem Value="@("macOS")">macOS</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                            }
+                        }
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="@Language.T("equipment.serialNumber")" /></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label='@Language.T("equipment.location")' /></MudItem>
+                        <MudItem xs="12" md="4"><MudNumericField @bind-Value="_form.PurchasePrice" Label="@Language.T("equipment.giaThanh")" Min="0" /></MudItem>
+                        <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_purchase" Label="@Language.T("equipment.ngayMua")" /></MudItem>
+                        <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_depreciation" Label="@Language.T("equipment.ngayKhauHaoDuKien")" /></MudItem>
+                        <MudItem xs="12" md="6"><MudSelect T="string" @bind-Value="_form.ResponsibleEmployeeCode" Label="@Language.T("equipment.giaoChoNhanVienTuy")" Clearable="true"><MudSelectItem Value="@string.Empty">@Language.T("equipment.khongGiaoCaNhan")</MudSelectItem>@foreach(var e in _assignmentEmployees){<MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode - @e.EmployeeName</MudSelectItem>}</MudSelect></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.DeptCode" Label='@Language.T("nav.departments")' Required="true" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
+                        <MudItem xs="12"><ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" /></MudItem>
+                        <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label='@Language.T("common.note")' Lines="3" /></MudItem>
+                        <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy">@Language.T("equipment.taoDangKySinhQr")</MudButton></MudItem>
+                    </MudGrid>
+                    @if (_created != null)
+                    {
+                        <MudCard Class="ma-4 pa-4">
+                            <MudText Typo="Typo.subtitle1">@Language.T("equipment.qrThietBi")</MudText>
+                            <MudText Typo="Typo.caption">@Language.T("equipment.qrDuocSinhTruocChi")</MudText>
+                            <img src="@($"api/equipment/qr/{Uri.EscapeDataString(_created.QrToken)}/image")" style="width:220px;height:220px" />
+                            <MudText>Request #@_created.Id — @_created.RequestStatus</MudText>
+                            @if (_actions?.Edit == true) { <MudButton Color="Color.Success" OnClick="SubmitAsync" Disabled="_busy">@Language.T("common.guiDuyet")</MudButton> }
+                        </MudCard>
+                    }
+                </MudTabPanel>
+            }
+
+            @if (_actions?.QR == true)
+            {
+                <MudTabPanel Text="@Language.T("equipment.quetQr")">
+                    <MudGrid Class="pa-4" Spacing="3">
+                        <MudItem xs="12" md="6">
+                            <EquipmentQrScanner OnDetected="OnDetectedAsync" />
+                            <MudTextField @bind-Value="_token" Label="@Language.T("equipment.qrTokenDuPhong")" Variant="Variant.Outlined" Class="mt-3" />
+                            <MudButton Variant="Variant.Outlined" Class="mt-2" OnClick="ManualScanAsync" Disabled="@string.IsNullOrWhiteSpace(_token)">@Language.T("equipment.traCuuQr")</MudButton>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            @if (_scanLoading)
+                            { <MudStack AlignItems="AlignItems.Center" Class="pa-8"><MudProgressCircular Indeterminate="true" /></MudStack> }
+                            else if (_scannedAsset != null)
+                            {
+                                <MudCard Outlined="true" Class="pa-4">
+                                    <MudText Typo="Typo.h6">@_scannedAsset.EquipmentName</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.maThietBi") <b>@_scannedAsset.EquipmentCode</b></MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.maTaiSan3", _scannedAsset.AssetCode)</MudText>
+                                    <MudText Typo="Typo.body2">Serial: @_scannedAsset.SerialNumber</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.boPhan2", _scannedAsset.DeptCode)</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.viTri2", _scannedAsset.Location)</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.giaMua2", _scannedAsset.PurchasePrice.ToString("N0"))</MudText>
+                                    <MudText Typo="Typo.body2">@Language.T("equipment.ngayMua3", _scannedAsset.PurchaseDate.ToString("dd/MM/yyyy"))</MudText>
+                                    <MudDivider Class="my-3" />
+                                    <MudText Typo="Typo.subtitle2">@Language.T("equipment.lichSuSuaChuaDa")</MudText>
+                                    <MudTable Items="_scannedAsset.RepairHistory" Dense="true" Hover="true">
+                                        <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("public.content")</MudTh><MudTh>@Language.T("equipment.donVi")</MudTh><MudTh>@Language.T("common.chiPhi")</MudTh></HeaderContent>
+                                        <RowTemplate><MudTd>@context.RepairDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.RepairContent</MudTd><MudTd>@context.RepairVendor</MudTd><MudTd>@context.RepairCost?.ToString("N0")</MudTd></RowTemplate>
+                                    </MudTable>
+                                    @if (_actions?.Repair == true || string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="OpenRepairAsync">@Language.T("equipment.taoYeuCauSuaChua")</MudButton>
+                                    }
+                                    @if (string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/request-forms/{_scannedAsset.Id}"))">@Language.T("equipment.bieuMauYeuCau")</MudButton>
+                                    }
+                                    @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
+                                    { <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/inspection?equipmentId={_scannedAsset.Id}"))">@Language.T("help.EQUIPMENT_CHECKLIST.title")</MudButton> }
+                                </MudCard>
+                            }
+                            else
+                            { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">@Language.T("equipment.batCameraVaDuaQr")</MudAlert> }
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            }
+
+            <MudTabPanel Text="Tài sản thiết bị">
+                <MudTable Items="_assets" Dense="true" Hover="true" Loading="_assetsLoading" Class="pa-4">
+                    <HeaderContent>
+                        <MudTh>Thiết bị</MudTh><MudTh>Mã tài sản</MudTh><MudTh>Người phụ trách</MudTh><MudTh>Endpoint Agent</MudTh><MudTh>Thao tác</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><b>@context.EquipmentName</b><br /><MudText Typo="Typo.caption">@context.EquipmentCode · @context.SerialNumber</MudText></MudTd>
+                        <MudTd>@context.AssetCode</MudTd>
+                        <MudTd>@context.ResponsibleEmployeeCode</MudTd>
+                        <MudTd>
+                            @if (!context.EndpointAgentEligible)
+                            { <MudChip T="string" Size="Size.Small">Không áp dụng</MudChip> }
+                            else if (context.EndpointDeviceId.HasValue)
+                            { <MudChip T="string" Size="Size.Small" Color="Color.Success">@context.EndpointAgentStatus</MudChip> }
+                            else
+                            { <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chưa cài Agent</MudChip> }
+                        </MudTd>
+                        <MudTd>
+                            @if ((context.EndpointAgentEligible && CanEndpointManage) || CanEligibilityManage)
+                            { <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security" OnClick="@(() => Navigation.NavigateTo($"/equipment/{context.Id}/endpoint-agent"))">@(context.EndpointAgentEligible ? "Endpoint Agent" : "Thiết lập Agent")</MudButton> }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudTabPanel>
+
+            <MudTabPanel Text="@Language.T("equipment.yeuCauCuaToi")">
+                <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
+                    <HeaderContent><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("nav.departments")</MudTh><MudTh>@Language.T("common.status")</MudTh></HeaderContent>
+                    <RowTemplate><MudTd>@context.RequestKind</MudTd><MudTd>@context.EquipmentName</MudTd><MudTd>@context.DeptCode</MudTd><MudTd>@context.RequestStatus</MudTd></RowTemplate>
+                </MudTable>
+            </MudTabPanel>
+        </MudTabs>
+    </MudContainer>
+}
+
+@code {
+    private bool _ready;
+    private bool _access;
+    private bool _importAccess;
+    private bool _busy;
+    private bool _scanLoading;
+    private string _token = string.Empty;
+    private DateTime? _purchase = DateTime.Today;
+    private DateTime? _depreciation = DateTime.Today.AddYears(3);
+    private List<EquipmentRequestDto> _mine = new();
+    private List<EquipmentAssetDto> _assets = new();
+    private bool _assetsLoading;
+    private HashSet<int> _permissions = new();
+    private bool CanEligibilityManage => _actions?.EndpointAgentEligibilityManage == true;
+    private bool CanEndpointManage => _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialProvision) || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialRotate) || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialRevoke);
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
+    private EquipmentRequestDto? _created;
+    private EquipmentAssetDto? _scannedAsset;
+    private EquipmentActionAccessDto? _actions;
+    private CreateEquipmentRegistrationDto _form = new();
+    private List<EquipmentHandoverEmployeeOptionDto> _assignmentEmployees = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var p = await Security.GetMyPermissionsAsync();
+        _permissions = p.Data?.FunctionCodes ?? new();
+        var access = await EquipmentClient.HasAccessAsync();
+        _access = access.IsSuccess && access.Data;
+        if (!_access) { _ready = true; return; }
+        var actions = await EquipmentClient.GetActionsAsync();
+        _actions = actions.IsSuccess ? actions.Data : null;
+        var import = await EquipmentClient.HasImportAccessAsync();
+        _importAccess = import.IsSuccess && import.Data;
+        _form.DeptCode = CurrentUser.User?.DeptCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        var employees = await EquipmentClient.GetAssignmentEmployeesAsync(_form.DeptCode);
+        if (employees.IsSuccess) _assignmentEmployees = employees.Data ?? new();
+        await LoadAsync();
+        _assetsLoading = true;
+        var assets = await EquipmentClient.GetAssetsAsync();
+        if (assets.IsSuccess) _assets = assets.Data ?? new();
+        _assetsLoading = false;
+        _ready = true;
+    }
+
+    private async Task LoadAsync()
+    {
+        var route = await ApprovalRouteClient.GetPreviewAsync(FVN_REGISTER.Core.Enums.RequestModule.Equipment);
+        if (route.IsSuccess && route.Data != null) _approvalRoute = route.Data;
+        else if (_actions?.Create == true) { _approvalRoute = null; Snackbar.Add(route.Message ?? Language.T("equipment.khongTaiDuocLuongNguoi"), Severity.Error); }
+        var mine = await EquipmentClient.GetMineAsync();
+        if (mine.IsSuccess) _mine = mine.Data ?? new();
+        else Snackbar.Add(mine.Message ?? Language.T("equipment.khongTaiDuocDanhSach"), Severity.Error);
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_approvalRoute == null) { Snackbar.Add(Language.T("equipment.chuaTaiDuocLuongPhe"), Severity.Error); return; }
+        if (_approvalRoute.Levels.Count == 0) { Snackbar.Add(Language.T("equipment.chuaCauHinhCapPhe"), Severity.Error); return; }
+        _form.ApprovalSelections = _approvalSelector?.GetSelections() ?? new();
+        var requiredLevels = _approvalRoute.Levels.Where(x => x.Required).Select(x => x.Level).ToHashSet();
+        var selectedLevels = _form.ApprovalSelections.Where(x => !string.IsNullOrWhiteSpace(x.ApproverCode)).Select(x => x.Level).ToHashSet();
+        var missingLevels = requiredLevels.Where(level => !selectedLevels.Contains(level)).OrderBy(level => level).ToList();
+        if (missingLevels.Count > 0) { Snackbar.Add(Language.T("equipment.vuiLongChonNguoiPhe2", string.Join(", ", missingLevels)), Severity.Warning); return; }
+        _form.DeptCode = _form.DeptCode.Trim().ToUpperInvariant();
+        _form.PurchaseDate = _purchase ?? DateTime.Today;
+        _form.ExpectedDepreciationDate = _depreciation ?? _form.PurchaseDate.AddYears(3);
+        _busy = true;
+        try
+        {
+            var r = await EquipmentClient.CreateRegistrationAsync(_form);
+            if (r.IsSuccess && r.Data != null) { _created = r.Data; Snackbar.Add(Language.T("equipment.daTaoDraftVaSinh"), Severity.Success); await LoadAsync(); }
+            else Snackbar.Add(r.Message ?? Language.T("equipment.khongTheTaoDangKy"), Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_created == null || _actions?.Edit != true) return;
+        _busy = true;
+        try
+        {
+            var r = await EquipmentClient.SubmitRegistrationAsync(_created.Id);
+            if (r.IsSuccess) { _created = r.Data; Snackbar.Add(Language.T("equipment.daGuiDuyet"), Severity.Success); await LoadAsync(); }
+            else Snackbar.Add(r.Message ?? Language.T("equipment.khongTheGuiDuyet"), Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private Task OnDetectedAsync(string value) => ScanAsync(value);
+    private Task ManualScanAsync() => ScanAsync(_token);
+
+    private async Task ScanAsync(string rawValue)
+    {
+        var token = ExtractQrToken(rawValue);
+        if (string.IsNullOrWhiteSpace(token)) { Snackbar.Add(Language.T("equipment.qrKhongChuaTokenThiet"), Severity.Warning); return; }
+        _token = token; _scanLoading = true; _scannedAsset = null;
+        try
+        {
+            var result = await EquipmentClient.ScanAsync(token);
+            if (result.IsSuccess && result.Data != null) { _scannedAsset = result.Data; Snackbar.Add(Language.T("equipment.daTimThayThietBi"), Severity.Success); }
+            else Snackbar.Add(result.Message ?? Language.T("equipment.khongTimThayThietBi"), Severity.Warning);
+        }
+        finally { _scanLoading = false; }
+    }
+
+    private static string ExtractQrToken(string rawValue)
+    {
+        var value = rawValue.Trim();
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var scanIndex = Array.FindIndex(segments, x => string.Equals(x, "scan", StringComparison.OrdinalIgnoreCase));
+            if (scanIndex >= 0 && scanIndex + 1 < segments.Length) return Uri.UnescapeDataString(segments[scanIndex + 1]);
+        }
+        return value;
+    }
+
+    private Task OpenRepairAsync()
+    {
+        if (_scannedAsset == null) return Task.CompletedTask;
+        Navigation.NavigateTo($"/equipment/scan/{Uri.EscapeDataString(_scannedAsset.QrToken)}");
+        return Task.CompletedTask;
+    }
+}

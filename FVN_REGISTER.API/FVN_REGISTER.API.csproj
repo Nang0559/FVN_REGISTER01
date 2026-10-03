@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <UserSecretsId>FVN_REGISTER_API</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Application\FVN_REGISTER.Application.csproj" />
+    <ProjectReference Include="..\FVN_REGISTER.Infrastructure\FVN_REGISTER.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- LocalizationController edits and serves these files, so they must exist in the API's own publish folder
+         (<publish>/Localization), not only in the Web project's. -->
+    <Content Include="..\FVN_REGISTER.Shared\Localization\*.json"
+             Link="Localization\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

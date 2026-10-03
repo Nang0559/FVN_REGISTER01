@@ -1,0 +1,64 @@
+@page "/equipment/repair/{RequestId:int}"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IEquipmentClientService Equipment
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-5">
+    @if (_loading) { <MudProgressCircular Indeterminate="true" /> }
+    else if (_request == null) { <MudAlert Severity="Severity.Warning">@Language.T("equipment.khongTimThayYeuCau")</MudAlert> }
+    else
+    {
+        <MudText Typo="Typo.h5">@Language.T("equipment.xuLySuaChuaThiet")</MudText>
+        <MudPaper Outlined="true" Class="pa-4 my-4">
+            <MudText><b>@Language.T("equipment.yeuCau")</b> #@_request.Id</MudText>
+            <MudText><b>@Language.T("equipment.thietBi")</b> @_request.EquipmentName</MudText>
+            <MudText><b>@Language.T("equipment.maTaiSan2")</b> @_request.AssetCode</MudText>
+            <MudText><b>@Language.T("equipment.noiDung")</b> @_request.RepairContent</MudText>
+            <MudText><b>@Language.T("equipment.boPhanChiuTrachNhiem")</b> @_request.RepairResponsibleDeptCode</MudText>
+            <MudText><b>@Language.T("equipment.nhanVienDuocGiao")</b> @_request.RepairAssigneeEmployeeCode</MudText>
+        </MudPaper>
+        @if (_request.RepairCompletedAt.HasValue)
+        {
+            <MudAlert Severity="Severity.Success">@Language.T("equipment.daHoanThanhLucKet", _request.RepairCompletedAt.Value.ToString("dd/MM/yyyy HH:mm"), _request.RepairFeedback)</MudAlert>
+        }
+        else
+        {
+            <MudTextField @bind-Value="_feedback" Label="@Language.T("equipment.ketQuaHienTrangSau")" Lines="5" Required="true" Variant="Variant.Outlined" />
+            <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Success" OnClick="CompleteAsync" Disabled="_busy">@Language.T("equipment.hoanThanhSuaChuaPhan")</MudButton>
+        }
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int RequestId { get; set; }
+    private bool _loading = true;
+    private bool _busy;
+    private string _feedback = string.Empty;
+    private EquipmentRequestDto? _request;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var actions = await Equipment.GetActionsAsync();
+        if (!actions.IsSuccess || actions.Data?.Repair != true) { _loading = false; return; }
+        var mine = await Equipment.GetMineAsync();
+        if (mine.IsSuccess) _request = mine.Data?.FirstOrDefault(x => x.Id == RequestId && x.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.Repair);
+        _loading = false;
+    }
+
+    private async Task CompleteAsync()
+    {
+        if (_request == null || string.IsNullOrWhiteSpace(_feedback)) { Snackbar.Add(Language.T("equipment.vuiLongNhapKetQua"), Severity.Warning); return; }
+        _busy = true;
+        try
+        {
+            var result = await Equipment.CompleteRepairAsync(RequestId, _feedback.Trim());
+            Snackbar.Add(result.IsSuccess ? Language.T("equipment.daHoanThanhVaGui") : result.Message ?? Language.T("equipment.khongTheHoanThanh"), result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) Navigation.NavigateTo("/equipment");
+        }
+        finally { _busy = false; }
+    }
+}

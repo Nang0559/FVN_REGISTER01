@@ -1,0 +1,254 @@
+@using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Contract.Dtos.MasterData
+@using FVN_REGISTER.Contract.Requests.Leaves
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Shared.Services.Leaves
+@inject ILeaveCreateClientService LeaveService
+@inject IApprovalRouteClientService ApprovalRouteService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.EditCalendar" Class="mr-2" />@Language.T("leave.title")</MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_startDate"
+                                   @bind-Date:after="RebuildDetails"
+                                   Label="@Language.T("leave.tuNgay")"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_endDate"
+                                   @bind-Date:after="RebuildDetails"
+                                   Label="@Language.T("leave.denNgay")"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Value="_defaultLeaveTypeCode"
+                               ValueChanged="ChangeDefaultLeaveType"
+                               Label="@Language.T("leave.loaiNghi")"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="@(!Model.LeaveTypes.Any())">
+                        @foreach (var type in Model.LeaveTypes)
+                        {
+                            <MudSelectItem Value="@type.LeaveTypeCode">@type.LeaveTypeName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="HalfDayType"
+                               Value="@_defaultHalfDayOption"
+                               ValueChanged="ChangeDefaultHalfDay"
+                               Label="@Language.T("leave.thoiLuong")"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="@(!_details.Any())">
+                        <MudSelectItem Value="@HalfDayType.None">@Language.T("leave.caNgay")</MudSelectItem>
+                        <MudSelectItem Value="@HalfDayType.Morning">@Language.T("leave.nuaNgaySang")</MudSelectItem>
+                        <MudSelectItem Value="@HalfDayType.Afternoon">@Language.T("leave.nuaNgayChieu")</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            @if (!Model.LeaveTypes.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">
+                    @Language.T("leave.chuaCoLoaiNghiDang")
+                </MudAlert>
+            }
+
+            <MudTextField @bind-Value="_reason"
+                          Label="@Language.T("leave.lyDoNghi")"
+                          Lines="3"
+                          Required="true"
+                          RequiredError="@Language.T("leave.vuiLongNhapLyDo")"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mt-3" />
+
+            @if (_details.Any())
+            {
+                <MudPaper Class="mt-3 pa-2" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("leave.chiTietTungNgay")</MudText>
+                    <MudSimpleTable Dense="true" Striped="true">
+                        <thead><tr><th>@Language.T("dashboard.days")</th><th>@Language.T("common.loaiNghi")</th><th>@Language.T("leave.thoiLuong")</th></tr></thead>
+                        <tbody>
+                            @foreach (var detail in _details)
+                            {
+                                <tr>
+                                    <td>@detail.LeaveDate.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        @{
+                                            var detailType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == detail.LeaveTypeCode);
+                                        }
+                                        <MudText Typo="Typo.body2">
+                                            @(detailType?.LeaveTypeName ?? detail.LeaveTypeCode)
+                                        </MudText>
+                                    </td>
+                                    <td>
+                                        <MudSelect T="HalfDayType" Value="@(detail.HalfDayOption ?? HalfDayType.None)" ValueChanged="@(value => ChangeHalfDay(detail, value))" Dense="true" Margin="Margin.Dense">
+                                            <MudSelectItem Value="@HalfDayType.None">@Language.T("leave.caNgay")</MudSelectItem>
+                                            <MudSelectItem Value="@HalfDayType.Morning">@Language.T("leave.buoiSang")</MudSelectItem>
+                                            <MudSelectItem Value="@HalfDayType.Afternoon">@Language.T("leave.buoiChieu")</MudSelectItem>
+                                        </MudSelect>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+
+            @if (_approvalRoute != null)
+            {
+                <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+            }
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.close")</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">@(_saving ? Language.T("calendar.feedback.sending") : Language.T("leave.guiDon"))</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public SystemMasterDataDto Model { get; set; } = default!;
+    [Parameter] public string? DefaultStart { get; set; }
+    [Parameter] public string? DefaultEnd { get; set; }
+    [Parameter] public int SelectedYear { get; set; } = DateTime.Now.Year;
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private MudForm? _form;
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+    private string _reason = string.Empty;
+    private string? _defaultLeaveTypeCode;
+    private HalfDayType _defaultHalfDayOption = HalfDayType.None;
+    private bool _saving;
+    private readonly List<LeaveRequestDetailUpsertDto> _details = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
+
+    protected override void OnInitialized()
+    {
+        if (DateTime.TryParse(DefaultStart, out var start)) _startDate = start;
+        if (DateTime.TryParse(DefaultEnd, out var end)) _endDate = end;
+        else _endDate = _startDate;
+        RebuildDetails();
+        _ = LoadApprovalRouteAsync();
+    }
+
+    private void RebuildDetails()
+    {
+        _details.Clear();
+        if (!_startDate.HasValue || !_endDate.HasValue || _startDate > _endDate) return;
+        var defaultType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == _defaultLeaveTypeCode)
+            ?? Model.LeaveTypes.FirstOrDefault();
+        if (defaultType == null) return;
+
+        _defaultLeaveTypeCode = defaultType.LeaveTypeCode;
+
+        for (var date = _startDate.Value.Date; date <= _endDate.Value.Date; date = date.AddDays(1))
+        {
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
+            if (Model.CompanyHolidays.Any(x => x.Start.Date == date)) continue;
+            _details.Add(new LeaveRequestDetailUpsertDto
+            {
+                LeaveDate = date,
+                LeaveTypeCode = defaultType.LeaveTypeCode,
+                IsHalfDay = _defaultHalfDayOption != HalfDayType.None,
+                HalfDayOption = _defaultHalfDayOption
+            });
+        }
+    }
+
+    private void ChangeDefaultLeaveType(string? code)
+    {
+        _defaultLeaveTypeCode = code;
+        if (string.IsNullOrWhiteSpace(code))
+            return;
+
+        foreach (var detail in _details)
+            detail.LeaveTypeCode = code;
+    }
+
+    private void ChangeDefaultHalfDay(HalfDayType value)
+    {
+        _defaultHalfDayOption = value;
+        foreach (var detail in _details)
+        {
+            detail.HalfDayOption = value;
+            detail.IsHalfDay = value != HalfDayType.None;
+        }
+    }
+
+    private void ChangeHalfDay(LeaveRequestDetailUpsertDto detail, HalfDayType value)
+    {
+        detail.HalfDayOption = value;
+        detail.IsHalfDay = value != HalfDayType.None;
+    }
+
+    private async Task Submit()
+    {
+        if (_startDate == null || _endDate == null || _startDate > _endDate) { Snackbar.Add(Language.T("leave.khoangNgayNghiKhongHop"), Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_reason)) { Snackbar.Add(Language.T("leave.vuiLongNhapLyDo2"), Severity.Warning); return; }
+        if (!_details.Any()) { Snackbar.Add(Language.T("leave.khoangNgayKhongCoNgay"), Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_defaultLeaveTypeCode))
+        {
+            Snackbar.Add(Language.T("leave.vuiLongChonLoaiNghi"), Severity.Warning);
+            return;
+        }
+
+        var selections = _approvalSelector?.GetSelections() ?? new();
+        if (selections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+        {
+            Snackbar.Add(Language.T("common.vuiLongChonNguoiPhe"), Severity.Warning);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var request = new LeaveRequestUpsertDto
+            {
+                StartDate = _startDate.Value.Date,
+                EndDate = _endDate.Value.Date,
+                LeaveTypeCode = _defaultLeaveTypeCode!,
+                Reason = _reason.Trim(),
+                Details = _details.ToList(),
+                ApprovalSelections = selections
+            };
+            var result = await LeaveService.CreateLeaveAsync(request);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("leave.guiDonNghiThatBai"), Severity.Error); return; }
+            Snackbar.Add(Language.T("leave.daGuiDonNghi"), Severity.Success);
+            await OnSaved.InvokeAsync();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally { _saving = false; }
+    }
+
+
+    private async Task LoadApprovalRouteAsync()
+    {
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Leave);
+        if (result.IsSuccess) _approvalRoute = result.Data;
+        else Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocLuongPhe"), Severity.Warning);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

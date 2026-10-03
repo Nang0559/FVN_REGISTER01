@@ -1,0 +1,150 @@
+@page "/huong-dan"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inherits AppComponentBase
+@inject NavigationManager Navigation
+
+<PageTitle>@Language.T("common.huongDanChucNang")</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("common.huongDanChucNang")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("common.taiLieuThaoTacTheo")</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back">@Language.T("common.back")</MudButton>
+    </MudStack>
+
+    <MudPaper Outlined="true" Class="pa-5">
+        <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
+        <MudText Typo="Typo.h5" Class="mb-3">@Title</MudText>
+        <MudText Typo="Typo.body1" Class="mb-5">@Summary</MudText>
+
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.soDoChuan")</MudText>
+        <MudPaper Class="pa-4 mb-5" Outlined="true" Style="font-family:monospace;white-space:pre-line">@Flow</MudPaper>
+
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.quyTrinhThaoTac")</MudText>
+        <MudList T="string" Class="mb-5">
+            @foreach (var step in Steps)
+            {
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
+            }
+        </MudList>
+
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.viDuMinhHoa")</MudText>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-5">@Example</MudAlert>
+
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.quyenVaPhamVi")</MudText>
+        <MudText Typo="Typo.body1">@Security</MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _feature = "HOME_WORKSPACE";
+    private string Title = string.Empty;
+    private string Summary = string.Empty;
+    private string Flow = string.Empty;
+    private IReadOnlyList<string> Steps = Array.Empty<string>();
+    private string Example = string.Empty;
+    private string Security = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Title = Language.T("help.HOME_WORKSPACE.title");
+        Summary = Language.T("guide.trangChuGomViecCan");
+        Flow = "USER → ACTION CENTER → MY WORK → NOTIFICATION/APPROVAL → MODULE";
+        Steps = new[] { Language.T("guide.kiemTraViecCanLam"), Language.T("guide.moThongBaoHoacHo"), Language.T("guide.chonModuleCanXuLy"), Language.T("guide.xemDashboardKhiCoCapability") };
+        Example = Language.T("guide.nguoiCoLeaveviewNhungKhong");
+        Security = Language.T("guide.capabilityVaDataScopeDuoc");
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = uri.Query.TrimStart('?');
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2);
+            if (pair.Length == 2 && string.Equals(Uri.UnescapeDataString(pair[0]), "feature", StringComparison.OrdinalIgnoreCase))
+            {
+                _feature = Uri.UnescapeDataString(pair[1]);
+                break;
+            }
+        }
+
+        switch (_feature.ToUpperInvariant())
+        {
+            case "APPROVAL_INBOX":
+                Title = Language.T("help.APPROVAL_INBOX.title");
+                Summary = Language.T("guide.tapTrungLeaveOtTrip");
+                Flow = "PENDING → SCOPE CHECK → REVIEW → APPROVE/REJECT → AUDIT";
+                Steps = new[] { Language.T("guide.locModule"), Language.T("guide.moChiTiet"), Language.T("guide.chonMucCungCap"), Language.T("guide.approveRejectVaKiemTra") };
+                Example = Language.T("guide.motItemVuotScopeLam");
+                Security = Language.T("guide.approveLaCapabilityRiengKhong");
+                break;
+            case "EQUIPMENT_WORKSPACE":
+                Title = "Equipment Workspace";
+                Summary = Language.T("guide.coreDynamicFieldsTheoPhong");
+                Flow = "SCHEMA → EXCEL → STAGING → VALIDATE → REVIEW → COMMIT → AUDIT";
+                Steps = new[] { Language.T("guide.chonPhongBan"), Language.T("guide.kiemTraSchema"), "Upload Excel.", Language.T("guide.xemLoiTungDong"), Language.T("guide.commitBatchHopLe") };
+                Example = Language.T("guide.itCoIpMacHanh");
+                Security = Language.T("guide.equipmentimportYeuCau");
+                break;
+            case "PUBLIC_INFORMATION_CMS":
+                Title = Language.T("help.PUBLIC_INFORMATION_CMS.title");
+                Summary = Language.T("guide.quanTriDraftPublishedArchived");
+                Flow = "DRAFT → PREVIEW → PUBLISH → PUBLIC READ → ARCHIVE";
+                Steps = new[] { Language.T("guide.taoDraft"), Language.T("guide.nhapNoiDungVaHieu"), "Preview.", "Publish.", Language.T("guide.archiveKhiKetThuc") };
+                Example = Language.T("guide.quyDinhCoEffectivefrom01");
+                Security = Language.T("guide.publicinformationmanageLa");
+                break;
+            case "REPORTS":
+                Title = Language.T("nav.reports");
+                Summary = Language.T("guide.traCuuLeaveOtTrip");
+                Flow = "REPORT CENTER → VIEW CAPABILITY → DATA SCOPE → QUERY → TABLE/CHART → OPTIONAL EXCEL";
+                Steps = new[] { Language.T("guide.moTrungTamBaoCao"), Language.T("guide.chonNhomNghiepVuMa"), Language.T("guide.chonKhoangThoiGianVa"), Language.T("guide.xemBangBieuDoTong"), Language.T("guide.xuatExcelChiKhiCo") };
+                Example = Language.T("guide.nguoiDungChiCoLeave");
+                Security = Language.T("guide.reportdispatcherKiemTra");
+                break;
+            case "WORK_CALENDAR":
+            case "CALENDAR":
+                Title = Language.T("leave.sharedCalendar");
+                Summary = Language.T("guide.motLichThongNhatCho");
+                Flow = "COMPANY CALENDAR → WORK CALENDAR → LEAVE / OT / TRIP → MODULE VALIDATOR";
+                Steps = new[] { Language.T("guide.moLichTuLeaveOt"), Language.T("guide.dungBoLocTatCa"), Language.T("guide.clickNgayDeDuaNgay"), Language.T("guide.clickEventDeXemThong"), Language.T("guide.neuLichCanhBaoXung") };
+                Example = Language.T("guide.motNgayNghiCongTy");
+                Security = Language.T("guide.calendarApiChiTraDu");
+                break;
+            case "LEAVE":
+                Title = Language.T("leave.create");
+                Summary = Language.T("guide.chonNgayTrucTiepTu");
+                Flow = Language.T("guide.workCalendarChonNgayNhap");
+                Steps = new[] { Language.T("guide.chonNgayTrenLichHoac"), Language.T("guide.kiemTraNgayNghiCong"), Language.T("guide.chonLoaiNghiVaNhap"), Language.T("guide.kiemTraSoDuPhep"), Language.T("guide.guiDuyetVaTheoDoi") };
+                Example = Language.T("guide.ngayDaCoOtHoac");
+                Security = Language.T("guide.leavecreateLeaveedit");
+                break;
+            case "TRIP":
+                Title = Language.T("calendar.registerTrip");
+                Summary = Language.T("guide.chonNgayBatDauTu");
+                Flow = Language.T("guide.workCalendarChonNgayTrip");
+                Steps = new[] { Language.T("guide.clickNgayBatDauTren"), Language.T("guide.nhapNgayKetThucDia"), Language.T("guide.luuNhapHoacGuiDuyet"), Language.T("guide.theoDoiCongTacDa") };
+                Example = Language.T("guide.lichCoTheHienThi");
+                Security = Language.T("guide.tripcreateTripeditTripcancel");
+                break;
+            case "OT":
+                Title = Language.T("ot.create");
+                Summary = Language.T("guide.dangKyOtVoiKiem");
+                Flow = Language.T("guide.nhapOtNgayTuanThang");
+                Steps = new[] { Language.T("guide.chonNgayLoaiOtVa"), Language.T("guide.kiemTraGioiHanNgay"), Language.T("guide.kiemTraTuanThu2"), Language.T("guide.kiemTraHanMucThang"), Language.T("guide.xuLyPolicyDacBiet"), Language.T("guide.submitVaTheoDoiTien") };
+                Example = Language.T("guide.dashboardChoBietOtDa");
+                Security = Language.T("guide.serverLaNoiQuyetDinh");
+                break;
+            case "SECURITY_CENTER":
+                Title = "Security Center";
+                Summary = Language.T("guide.roleFunctionActionEffective");
+                Flow = "USER → ROLE → FUNCTION/ACTION → SCOPE → AUDIT";
+                Steps = new[] { "Xem effective permission.", Language.T("guide.kiemTraRoleFunction"), Language.T("guide.thayDoiCoKiemSoat"), Language.T("guide.kiemTraAudit") };
+                Example = Language.T("guide.leaveapproveDepartmentKhongCap");
+                Security = Language.T("guide.dbLaAuthorityIsadminKhong");
+                break;
+        }
+    }
+
+    private void Back() => Navigation.NavigateTo("/");
+}

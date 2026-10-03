@@ -1,0 +1,106 @@
+@page "/leave/department-status"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Shared.Services.Departments
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Core.Constants
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IDepartmentStatusClientService DeptStatusService
+@inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+<PageTitle>@Language.T("department.trangThaiHienDienPhong")</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
+    <div><MudText Typo="Typo.h5">@Language.T("department.trangThaiHienDien")</MudText><MudText Typo="Typo.caption">@Language.T("department.ngayCapNhat", _selectedDate.ToString("dd/MM/yyyy"), _loadedAt?.ToString("HH:mm:ss"))</MudText></div>
+    <MudStack Row="true" Spacing="2"><MudDatePicker @bind-Date="_datePicker" Label="@Language.T("department.chonNgay")" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" MaxDate="DateTime.Today" /><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton></MudStack>
+</MudStack>
+
+@if (_loading) { <MudProgressLinear Indeterminate="true" Class="mb-4" /> }
+
+@if (_canView && _allDepts != null)
+{
+    <MudGrid Class="mb-4">
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("department.tongNhanVien")</MudText><MudText Typo="Typo.h5"><b>@_allDepts.Sum(x => x.TotalEmployees)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("department.coMat")</MudText><MudText Typo="Typo.h5" Color="Color.Success"><b>@_allDepts.Sum(x => x.PresentCount)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("nav.reportLeave")</MudText><MudText Typo="Typo.h5" Color="Color.Info"><b>@_allDepts.Sum(x => x.OnLeaveCount)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">@Language.T("department.vangKlr")</MudText><MudText Typo="Typo.h5" Color="Color.Error"><b>@_allDepts.Sum(x => x.AbsentNoReasonCount)</b></MudText></MudPaper></MudItem>
+    </MudGrid>
+    <MudTable Items="_allDepts" T="DepartmentStatusDto" Hover="true" Dense="true" OnRowClick="OnDeptRowClick">
+        <HeaderContent><MudTh>@Language.T("ot.department")</MudTh><MudTh>@Language.T("department.tongNv")</MudTh><MudTh>@Language.T("department.coMat")</MudTh><MudTh>@Language.T("nav.reportLeave")</MudTh><MudTh>@Language.T("department.vangKlr")</MudTh><MudTh>@Language.T("dashboard.absenceRate")</MudTh></HeaderContent>
+        <RowTemplate><MudTd><b>@context.DeptName</b><MudText Typo="Typo.caption">@context.DeptCode</MudText></MudTd><MudTd>@context.TotalEmployees</MudTd><MudTd>@context.PresentCount</MudTd><MudTd>@context.OnLeaveCount</MudTd><MudTd>@context.AbsentNoReasonCount</MudTd><MudTd>@context.AbsenceRate.ToString("N1")%</MudTd></RowTemplate>
+        <NoRecordsContent><MudText Class="pa-6">@Language.T("common.khongCoDuLieu")</MudText></NoRecordsContent>
+    </MudTable>
+}
+
+@if (_deptDetail != null)
+{
+    <MudDivider Class="my-4" /><MudText Typo="Typo.h6" Class="mb-3">@Language.T("department.chiTiet", _deptDetail.DeptName, _deptDetail.DeptCode)</MudText>
+    <MudStack Row="true" Spacing="2" Class="mb-3"><MudTextField @bind-Value="_searchText" Placeholder="@Language.T("common.timTenMaNv")" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" /><MudSelect T="string" @bind-Value="_filterStatus" Label='@Language.T("common.status")' Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"><MudSelectItem Value="@("PRESENT")">@Language.T("department.coMat")</MudSelectItem><MudSelectItem Value="@("ON_LEAVE")">@Language.T("nav.leave")</MudSelectItem><MudSelectItem Value="@("ABSENT")">@Language.T("department.vangKlr")</MudSelectItem></MudSelect></MudStack>
+    <MudTable Items="FilteredRows" T="EmployeeStatusRow" Dense="true" Hover="true">
+        <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("department.gioVao")</MudTh><MudTh>@Language.T("common.loaiNghi")</MudTh><MudTh>@Language.T("common.reason")</MudTh></HeaderContent>
+        <RowTemplate><MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd><MudTd><MudChip T="string" Size="Size.Small" Style="@($"background:{context.StatusColor};color:white")">@context.StatusDisplay</MudChip></MudTd><MudTd>@(context.CheckInText ?? "—")</MudTd><MudTd>@(context.LeaveTypeName ?? "—")</MudTd><MudTd>@(context.LeaveReason ?? "—")</MudTd></RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private bool _loading;
+    private bool _canView;
+    private DateTime? _datePicker = DateTime.Today;
+    private DateTime _selectedDate = DateTime.Today;
+    private DateTime? _loadedAt;
+    private List<DepartmentStatusDto>? _allDepts;
+    private DepartmentStatusDto? _deptDetail;
+    private string _searchText = string.Empty;
+    private string? _filterStatus;
+    private readonly CancellationTokenSource _cts = new();
+
+    private IEnumerable<EmployeeStatusRow> FilteredRows => _deptDetail?.Employees.Where(x =>
+        (string.IsNullOrWhiteSpace(_filterStatus) || x.Status == _filterStatus) &&
+        (string.IsNullOrWhiteSpace(_searchText) || x.EmployeeName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) || x.EmployeeCode.Contains(_searchText, StringComparison.OrdinalIgnoreCase))) ?? Enumerable.Empty<EmployeeStatusRow>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        _canView = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.DepartmentStatusView) == true;
+        if (_canView) await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true; _selectedDate = _datePicker ?? DateTime.Today;
+        try
+        {
+            var result = await DeptStatusService.GetAllAsync(_selectedDate, _cts.Token);
+            if (result.IsSuccess) { _allDepts = result.Data; _deptDetail = null; }
+            else Snackbar.Add(result.Message ?? Language.T("common.loiTaiDuLieu2"), Severity.Error);
+            _loadedAt = DateTime.Now;
+        }
+        catch (Exception ex) { Logger.LogError(ex, "[DepartmentStatus] Load error"); Snackbar.Add(Language.T("common.loiTaiDuLieu"), Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task OnDeptRowClick(TableRowClickEventArgs<DepartmentStatusDto> args)
+    {
+        if (args.Item != null) await LoadDeptDetailAsync(args.Item.DeptCode);
+    }
+
+    private async Task LoadDeptDetailAsync(string deptCode)
+    {
+        _loading = true;
+        try
+        {
+            var result = await DeptStatusService.GetByDeptAsync(deptCode, _selectedDate, _cts.Token);
+            if (result.IsSuccess) _deptDetail = result.Data; else Snackbar.Add(result.Message ?? Language.T("common.loiTaiChiTiet"), Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+}

@@ -1,0 +1,7 @@
+@* /leave/history *@
+@page "/leave/history"
+@attribute [Authorize]
+@using FVN_REGISTER.Shared.Pages.Histories
+@using Microsoft.AspNetCore.Authorization
+<PageTitle>@Language.T("nav.leaveHistory")</PageTitle>
+<HistoryPage KindCode="leave" />

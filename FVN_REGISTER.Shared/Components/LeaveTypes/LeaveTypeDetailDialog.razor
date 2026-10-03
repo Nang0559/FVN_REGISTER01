@@ -1,0 +1,70 @@
+@using FVN_REGISTER.Contract.Dtos.LeaveTypes
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" />
+            <MudText Typo="Typo.h6">@Language.T("leave.chiTietHinhThucNghi")</MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        @if (Item == null)
+        {
+            <MudText Color="Color.Secondary">@Language.T("common.khongCoDuLieu")</MudText>
+        }
+        else
+        {
+            <MudGrid Spacing="3">
+                <MudItem xs="4">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.code")</MudText>
+                    <MudText Typo="Typo.body1" Style="font-weight:700; font-family:monospace">@Item.LeaveTypeCode</MudText>
+                </MudItem>
+                <MudItem xs="8">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.name")</MudText>
+                    <MudText Typo="Typo.body1" Style="font-weight:600">@Item.LeaveTypeName</MudText>
+                </MudItem>
+
+                @if (!string.IsNullOrWhiteSpace(Item.LeaveTypeName2))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("leave.tenPhu")</MudText>
+                        <MudText Typo="Typo.body2">@Item.LeaveTypeName2</MudText>
+                    </MudItem>
+                }
+
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("leave.maHrm")</MudText>
+                    <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(Item.HRMCode) ? "—" : Item.HRMCode)</MudText>
+                </MudItem>
+
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("leave.tinhPhepNam")</MudText>
+                    <MudChip T="string" Color="@(Item.IsCountedAsLeave ? Color.Warning : Color.Default)" Size="Size.Small" Class="mt-1">
+                        @(Item.IsCountedAsLeave ? Language.T("common.yes") : Language.T("common.no"))
+                    </MudChip>
+                </MudItem>
+
+                <MudItem xs="12"><MudDivider /></MudItem>
+
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.status")</MudText>
+                    <MudChip T="string" Color="@(Item.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Class="mt-1">
+                        @(Item.IsActive ? Language.T("leave.dangDung") : Language.T("leave.tamDung"))
+                    </MudChip>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">@Language.T("common.close")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public LeaveTypeDto? Item { get; set; }
+
+    private void Close() => MudDialog.Close();
+}

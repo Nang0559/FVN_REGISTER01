@@ -1,0 +1,133 @@
+@using FVN_REGISTER.Contract.Dtos.Employees
+@using FVN_REGISTER.Shared.Services.Employees
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.AccessTime" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">
+                @Language.T("ot.otChiTiet", Employee?.EmployeeName, Employee?.EmployeeCode)
+            </MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="pa-6">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                    @Language.T("employee.dangTaiDuLieuOt")
+                </MudText>
+            </MudStack>
+        }
+        else if (_summary != null)
+        {
+            <MudGrid Class="mb-4">
+                <MudItem xs="6" sm="3">
+                    <MudPaper Elevation="2" Class="pa-3 text-center" Style="border-radius:10px">
+                        <MudText Typo="Typo.h5" Style="font-weight:700" Color="Color.Warning">
+                            @_summary.TotalHours.ToString("N1")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @Language.T("ot.tongGioOt2", _summary.Year)
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudPaper Elevation="2" Class="pa-3 text-center" Style="border-radius:10px">
+                        <MudText Typo="Typo.h5" Style="font-weight:700" Color="Color.Info">
+                            @_summary.TotalDays
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @Language.T("employee.soNgayOt")
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            <MudTable Items="_summary.Monthly"
+                      Dense="true"
+                      Striped="true"
+                      Hover="true"
+                      Style="border-radius:10px; overflow:hidden">
+                <HeaderContent>
+                    <MudTh>@Language.T("ot.month")</MudTh>
+                    <MudTh Style="text-align:right">@Language.T("common.soNgay")</MudTh>
+                    <MudTh Style="text-align:right">@Language.T("ot.hours")</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@Language.T("ot.thang", context.Month)</MudTd>
+                    <MudTd Style="text-align:right">@context.Days</MudTd>
+                    <MudTd Style="text-align:right">
+                        <MudText Style="font-weight:600">@context.Hours.ToString("N1") h</MudText>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudStack AlignItems="AlignItems.Center" Class="pa-6">
+                        <MudIcon Icon="@Icons.Material.Filled.EventBusy"
+                                 Size="Size.Large" Color="Color.Secondary" />
+                        <MudText Color="Color.Secondary">
+                            @Language.T("ot.chuaCoDuLieuOt", _summary.Year)
+                        </MudText>
+                    </MudStack>
+                </NoRecordsContent>
+                <FooterContent>
+                    @if (_summary.Monthly.Any())
+                    {
+                        <MudTFootRow>
+                            <MudTd><MudText Style="font-weight:700">@Language.T("employee.tongCong")</MudText></MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudText Style="font-weight:700">@_summary.TotalDays</MudText>
+                            </MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudText Style="font-weight:700">@_summary.TotalHours.ToString("N1") h</MudText>
+                            </MudTd>
+                        </MudTFootRow>
+                    }
+                </FooterContent>
+            </MudTable>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info">@Language.T("employee.khongCoDuLieuOt")</MudAlert>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">@Language.T("common.close")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private IEmployeeManagementClientService EmployeeService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    [Parameter] public EmployeeCardDto? Employee { get; set; }
+
+    private bool _isLoading = true;
+    private EmployeeOtSummaryDto? _summary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Employee == null)
+        {
+            _isLoading = false;
+            return;
+        }
+
+        var result = await EmployeeService.GetOtSummaryAsync(
+            Employee.EmployeeCode,
+            DateTime.Now.Year);
+
+        if (result.IsSuccess)
+            _summary = result.Data;
+        else
+            Snackbar.Add(result.Message ?? Language.T("employee.loiTaiDuLieuOt"), Severity.Warning);
+
+        _isLoading = false;
+    }
+
+    private void Close() => MudDialog.Close();
+}

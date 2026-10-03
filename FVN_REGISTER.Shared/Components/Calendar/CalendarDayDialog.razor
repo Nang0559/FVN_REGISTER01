@@ -1,0 +1,376 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h6">@Language.T("calendar.day", Day.Date.ToString("dd/MM/yyyy"))</MudText>
+
+            @if (Day.Holiday is not null)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    <b>@Day.Holiday.Name</b>
+                    <div>@Language.T("calendar.companyHolidayOtOnly")</div>
+                </MudAlert>
+            }
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2">@Language.T("calendar.planAttendance")</MudText>
+
+                @if (Day.Shift is not null && !string.IsNullOrWhiteSpace(Day.Shift.ShiftAbbr))
+                {
+                    <MudText Typo="Typo.body2">
+                        <b>@Language.T("calendar.shiftLabel"):</b> @Day.Shift.ShiftAbbr
+                    </MudText>
+                }
+
+                @if (Day.Attendance is not null)
+                {
+                    @if (!string.IsNullOrWhiteSpace(WorkSymbol))
+                    {
+                        <MudText Typo="Typo.body2">
+                            <b>@Language.T("calendar.symbolWork"):</b> @WorkSymbol
+                        </MudText>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(OtSymbol))
+                    {
+                        <MudText Typo="Typo.body2">
+                            <b>@Language.T("calendar.symbolOt"):</b> @OtSymbol
+                        </MudText>
+                    }
+
+                    <MudText Typo="Typo.body2">
+                        <b>@Language.T("calendar.in"):</b> @(Day.Attendance.CheckIn?.ToString("HH:mm") ?? "-")
+                        &nbsp; <b>@Language.T("calendar.out"):</b> @(Day.Attendance.CheckOut?.ToString("HH:mm") ?? "-")
+                    </MudText>
+                    <MudText Typo="Typo.body2">
+                        <b>@Language.T("calendar.workHours"):</b>
+                        @(Day.Attendance.ActualHours?.ToString("0.##") ?? "-")
+                        / @(Day.Attendance.RequiredHours?.ToString("0.##") ?? "-") @Language.T("calendar.hours")
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("calendar.noAttendance")</MudText>
+                }
+            </MudPaper>
+
+            @if (Day.Registrations.Count > 0)
+            {
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">@Language.T("calendar.registrations")</MudText>
+                    <MudStack Spacing="1" Class="mt-2">
+                        @foreach (var registration in Day.Registrations)
+                        {
+                            <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small">
+                                <b>@registration.ModuleCode</b>&nbsp; @registration.Title
+                                @if (registration.IsHalfDay)
+                                {
+                                    <span>&nbsp;• @Language.T("calendar.halfDay")</span>
+                                }
+                            </MudChip>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+
+            @if (Day.Issues.Count > 0)
+            {
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2">@Language.T("calendar.attention")</MudText>
+
+                    @foreach (var issue in Day.Issues)
+                    {
+                        var color = issue.Severity >= 3 ? Color.Error : Color.Warning;
+
+                        <MudPaper Outlined="true"
+                                  Class="pa-3"
+                                  Style="@($"border-left:4px solid var(--mud-palette-{(issue.Severity >= 3 ? "error" : "warning")})")">
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@color"
+                                             Variant="Variant.Filled">
+                                        @issue.Marker @issue.Code
+                                    </MudChip>
+                                    <MudText Typo="Typo.body2" Style="font-weight:700">@issue.Title</MudText>
+                                </MudStack>
+
+                                @if (!string.IsNullOrWhiteSpace(issue.Summary))
+                                {
+                                    <MudText Typo="Typo.body2">@issue.Summary</MudText>
+                                }
+
+                                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                    @foreach (var action in issue.Actions)
+                                    {
+                                        <MudButton Size="Size.Small"
+                                                   Variant="Variant.Outlined"
+                                                   Color="@color"
+                                                   OnClick="@(() => ExecuteAction(issue, action))">
+                                            @action.Title
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
+            }
+
+            @if (Day.IsFuture)
+            {
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">@Language.T("calendar.newRegistration")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @Day.AvailabilityNote
+                    </MudText>
+
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Class="mt-2">
+                        @if (Day.CanRegisterLeave)
+                        {
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       StartIcon="@Icons.Material.Filled.EventAvailable"
+                                       OnClick="@(() => Register("LEAVE"))">
+                                @Language.T("calendar.filter.leave")
+                            </MudButton>
+                        }
+
+                        @if (Day.CanRegisterOT)
+                        {
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Warning"
+                                       StartIcon="@Icons.Material.Filled.MoreTime"
+                                       OnClick="@(() => Register("OT"))">
+                                @Language.T("calendar.filter.ot")
+                            </MudButton>
+                        }
+
+                        @if (Day.CanRegisterTrip)
+                        {
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Info"
+                                       StartIcon="@Icons.Material.Filled.FlightTakeoff"
+                                       OnClick="@(() => Register("TRIP"))">
+                                @Language.T("calendar.filter.trip")
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+
+            @if (_cancelAction is not null)
+            {
+                <MudPaper Outlined="true" Class="pa-3 mt-3">
+                    <MudText Typo="Typo.subtitle2">@Language.T("ot.cancel")</MudText>
+                    <MudTextField @bind-Value="_cancelReason"
+                                  Label='@Language.T("calendar.cancelReason")'
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  Lines="3"
+                                  Placeholder='@Language.T("calendar.cancelPlaceholder")' />
+
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-2">
+                        <MudButton OnClick="@(() => _cancelAction = null)">@Language.T("common.no")</MudButton>
+                        <MudButton Color="Color.Error"
+                                   Variant="Variant.Filled"
+                                   Disabled="@string.IsNullOrWhiteSpace(_cancelReason)"
+                                   OnClick="ConfirmCancelOt">
+                            @Language.T("calendar.confirmCancel")
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Close">@Language.T("common.close")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogInstance { get; set; } = default!;
+
+    [Parameter] public CalendarDayDto Day { get; set; } = new();
+    [Parameter] public EventCallback<CalendarRegistrationDto> OnRegistrationSelected { get; set; }
+    [Parameter] public EventCallback<CalendarActionRequestDto> OnActionSelected { get; set; }
+
+    private CalendarActionOptionDto? _cancelAction;
+    private CalendarIssueDto? _cancelIssue;
+    private string? _cancelReason;
+
+    private string? WorkSymbol => BuildWorkSymbol();
+    private string? OtSymbol => BuildOtSymbol();
+
+    private string? BuildWorkSymbol()
+    {
+        if (Day.Attendance is null)
+            return null;
+
+        var shift = NormalizeShift(Day.Shift?.ShiftAbbr, Day.Attendance.CheckIn);
+        var isHoliday = Day.Holiday is not null;
+        var isSaturday = Day.Date.DayOfWeek == DayOfWeek.Saturday;
+        var isSunday = Day.Date.DayOfWeek == DayOfWeek.Sunday;
+
+        if (!isHoliday && !isSaturday && !isSunday)
+            return shift;
+
+        var prefix = isHoliday ? "NL" : isSunday ? "CN" : "T";
+        var elapsed = ElapsedMinutes(Day.Attendance.CheckIn, Day.Attendance.CheckOut);
+        if (elapsed <= 0)
+            elapsed = Math.Max(0, Day.Attendance.WorkMinutes);
+        if (elapsed <= 0)
+            return null;
+
+        if (elapsed >= 11 * 60 + 45)
+            elapsed = Math.Min(8 * 60, elapsed - 4 * 60);
+
+        elapsed = RoundDown15(elapsed);
+        var hours = FormatHours(elapsed);
+
+        return shift switch
+        {
+            "C2" => prefix + (prefix == "T" ? "2" : "C2") + hours,
+            "C3" => prefix + (prefix == "T" ? "3" : "C3") + hours,
+            _ => prefix + hours
+        };
+    }
+
+    private string? BuildOtSymbol()
+    {
+        if (Day.Attendance is null)
+            return null;
+
+        var shift = NormalizeShift(Day.Shift?.ShiftAbbr, Day.Attendance.CheckIn);
+        var isHoliday = Day.Holiday is not null;
+        var isSaturday = Day.Date.DayOfWeek == DayOfWeek.Saturday;
+        var isSunday = Day.Date.DayOfWeek == DayOfWeek.Sunday;
+        var isOffDay = isHoliday || isSaturday || isSunday;
+
+        var minutes = Math.Max(Day.Attendance.ActualOtMinutes, Day.Attendance.RecognizedOtMinutes);
+        var elapsed = ElapsedMinutes(Day.Attendance.CheckIn, Day.Attendance.CheckOut);
+
+        if (isOffDay && elapsed >= 11 * 60 + 45 && minutes <= 0)
+            minutes = 4 * 60;
+
+        if (minutes <= 0)
+            return null;
+
+        minutes = Math.Min(4 * 60, RoundDown15(minutes));
+        if (minutes <= 0)
+            return null;
+
+        var hours = FormatHours(minutes);
+        if (isOffDay)
+        {
+            var prefix = isHoliday ? "NL" : isSunday ? "CN" : "T";
+            var k = shift is "C1" or "C3";
+            return k ? prefix + "K" + hours : prefix + hours;
+        }
+
+        var kNormal = shift is "C1" or "C2" or "C3";
+        if (shift == "HC")
+        {
+            var checkOutAfterNormal = Day.Attendance.CheckOut?.TimeOfDay >= new TimeSpan(16, 45, 0);
+            kNormal = checkOutAfterNormal;
+        }
+
+        return kNormal ? "K" + hours : hours;
+    }
+
+    private static string NormalizeShift(string? shiftAbbr, DateTime? checkIn)
+    {
+        var text = (shiftAbbr ?? string.Empty).Trim().ToUpperInvariant().Replace(" ", string.Empty);
+        if (text.Contains("C1") || text.Contains("CA1")) return "C1";
+        if (text.Contains("C2") || text.Contains("CA2")) return "C2";
+        if (text.Contains("C3") || text.Contains("CA3")) return "C3";
+        if (text.Contains("HC")) return "HC";
+
+        if (checkIn.HasValue)
+        {
+            var time = checkIn.Value.TimeOfDay;
+            if (time >= new TimeSpan(5, 0, 0) && time < new TimeSpan(9, 0, 0)) return "C1";
+            if (time >= new TimeSpan(13, 0, 0) && time < new TimeSpan(17, 0, 0)) return "C2";
+            if (time >= new TimeSpan(21, 0, 0) || time < new TimeSpan(2, 0, 0)) return "C3";
+            if (time >= new TimeSpan(8, 0, 0) && time < new TimeSpan(13, 0, 0)) return "HC";
+        }
+
+        return "HC";
+    }
+
+    private static int ElapsedMinutes(DateTime? checkIn, DateTime? checkOut)
+    {
+        if (!checkIn.HasValue || !checkOut.HasValue || checkOut.Value <= checkIn.Value)
+            return 0;
+        return (int)Math.Round((checkOut.Value - checkIn.Value).TotalMinutes, MidpointRounding.AwayFromZero);
+    }
+
+    private static int RoundDown15(int minutes) => Math.Max(0, minutes / 15 * 15);
+
+    private static string FormatHours(int minutes) => (minutes / 60m).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    private async Task Register(string moduleCode)
+    {
+        await OnRegistrationSelected.InvokeAsync(new CalendarRegistrationDto
+        {
+            ModuleCode = moduleCode,
+            Title = moduleCode,
+            Start = Day.Date.ToDateTime(TimeOnly.MinValue),
+            End = Day.Date.AddDays(1).ToDateTime(TimeOnly.MinValue),
+            DayValue = 1m
+        });
+
+        DialogInstance.Close();
+    }
+
+    private async Task ExecuteAction(CalendarIssueDto issue, CalendarActionOptionDto action)
+    {
+        if (action.Code == "CANCEL_OT")
+        {
+            _cancelIssue = issue;
+            _cancelAction = action;
+            _cancelReason = null;
+            return;
+        }
+
+        await OnActionSelected.InvokeAsync(new CalendarActionRequestDto
+        {
+            Date = Day.Date,
+            IssueCode = issue.Code,
+            ActionCode = action.Code,
+            RequestId = action.RequestId,
+            ReconciliationId = action.ReconciliationId,
+            DetailRoute = action.DetailRoute
+        });
+
+        DialogInstance.Close();
+    }
+
+    private async Task ConfirmCancelOt()
+    {
+        if (_cancelAction is null)
+            return;
+
+        await OnActionSelected.InvokeAsync(new CalendarActionRequestDto
+        {
+            Date = Day.Date,
+            IssueCode = _cancelIssue?.Code ?? "OT_NO_ACTUAL",
+            ActionCode = "CANCEL_OT",
+            RequestId = _cancelAction.RequestId,
+            DetailRoute = _cancelAction.DetailRoute,
+            Reason = _cancelReason
+        });
+
+        _cancelAction = null;
+        _cancelIssue = null;
+        DialogInstance.Close();
+    }
+
+    private void Close() => DialogInstance.Cancel();
+}

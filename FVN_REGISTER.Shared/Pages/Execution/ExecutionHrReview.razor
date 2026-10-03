@@ -1,0 +1,461 @@
+@page "/execution/hr"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Execution
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inject IHttpClientWithAuth Http
+@inject FVN_REGISTER.Shared.Services.Execution.IExecutionReconciliationClientService ExecutionService
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>@Language.T("execution.hrXuLyDoiSoat")</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-5">
+    <MudPaper Outlined="true" Class="pa-5">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h5">@Language.T("execution.hrXuLyDoiSoat")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    @Language.T("execution.hangChoChungChoHr")
+                </MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" Disabled="_loading" OnClick="LoadAsync">@Language.T("common.refresh")</MudButton>
+        </MudStack>
+
+        <MudGrid Class="mt-4" Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" Label="@Language.T("common.module")" @bind-Value="_module" Clearable="true">
+                        <MudSelectItem Value="@("OT")">@Language.T("nav.reportOt")</MudSelectItem>
+                    <MudSelectItem Value="@("LEAVE")">@Language.T("execution.leave")</MudSelectItem>
+                    <MudSelectItem Value="@("TRIP")">@Language.T("execution.trip")</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" Label='@Language.T("common.status")' @bind-Value="_status">
+                    <MudSelectItem Value="@("Mismatch")">@Language.T("execution.mismatch")</MudSelectItem>
+                    <MudSelectItem Value="@("AwaitingConfirmation")">AwaitingConfirmation</MudSelectItem>
+                    <MudSelectItem Value="@("AppealReviewing")">AppealReviewing</MudSelectItem>
+                    <MudSelectItem Value="@("FinalDecisionPending")">FinalDecisionPending</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">@Language.T("common.loc")</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+    }
+
+    <MudPaper Outlined="true" Class="pa-4 mt-4 payroll-no-print">
+        <MudTextField @bind-Value="_resolveReason" Label="@Language.T("execution.lyDoResolve")" Placeholder="@Language.T("execution.batBuocKhiResolve")" Variant="Variant.Outlined" Class="mb-3" />
+    </MudPaper>
+
+    <MudPaper Outlined="true" Class="pa-4 mt-4">
+        <MudTable Items="_items" Dense="true" Hover="true" Bordered="true" Loading="_loading">
+            <HeaderContent>
+                <MudTh>@Language.T("ot.date")</MudTh>
+                <MudTh>@Language.T("ot.employee")</MudTh>
+                <MudTh>@Language.T("common.module")</MudTh>
+                <MudTh>@Language.T("execution.planned")</MudTh>
+                <MudTh>@Language.T("execution.actual")</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
+                <MudTh>@Language.T("execution.evidence2")</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd><b>@context.EmployeeCode</b><br />@context.EmployeeName</MudTd>
+                <MudTd>@context.ModuleCode</MudTd>
+                <MudTd>@context.PlannedState</MudTd>
+                <MudTd>@context.ActualState</MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small">@context.ReconciliationStatus</MudChip></MudTd>
+                <MudTd>@(context.RequiresEvidence ? Language.T("common.required") : Language.T("common.no"))</MudTd>
+                <MudTd>
+                    @{
+                        var claim = GetClaim(context.Id);
+                    }
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        @if (claim.IsClaimed && !claim.IsClaimedByCurrentUser)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">
+                                🔒 @("Đang xử lý bởi " + (claim.ClaimedByName ?? claim.ClaimedByEmployeeCode ?? "người khác"))
+                            </MudChip>
+                        }
+                        else if (claim.IsClaimedByCurrentUser)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Bạn đang xử lý</MudChip>
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                       Disabled="_busy" OnClick="@(() => ReleaseAsync(context.Id))">
+                                Bỏ nhận
+                            </MudButton>
+                            <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled"
+                                       Disabled="_busy" OnClick="@(() => ResolveAsync(context, "OK"))">
+                                OK
+                            </MudButton>
+                            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                                       Disabled="_busy" OnClick="@(() => ResolveAsync(context, "NG"))">
+                                NG
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
+                                       Disabled="_busy" OnClick="@(() => ClaimAsync(context.Id))">
+                                Nhận xử lý
+                            </MudButton>
+                        }
+                        <MudButton Size="Size.Small" Variant="Variant.Text"
+                                   OnClick="@(() => OpenDetailAsync(context.Id))">
+                            @Language.T("common.detail")
+                        </MudButton>
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4">@Language.T("execution.khongConPhanHoiMismatch")</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+    @if (_detail is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h6">
+                    @Language.T("execution.chiTiet", _detail.Reconciliation.ModuleCode, _detail.Reconciliation.SourceId)
+                </MudText>
+                <MudButton Size="Size.Small" OnClick="CloseDetail">@Language.T("common.close")</MudButton>
+            </MudStack>
+            @{
+                var detailClaim = GetClaim(_detail.Reconciliation.Id);
+            }
+            @if (detailClaim.IsClaimed && !detailClaim.IsClaimedByCurrentUser)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mt-3">
+                    🔒 Yêu cầu đang được xử lý bởi
+                    <b>@(detailClaim.ClaimedByName ?? detailClaim.ClaimedByEmployeeCode ?? "người khác")</b>.
+                    Bạn chỉ có thể xem chi tiết.
+                </MudAlert>
+            }
+            else if (!detailClaim.IsClaimed)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">
+                    Yêu cầu chưa có người nhận xử lý.
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                               Disabled="_busy" OnClick="@(() => ClaimAsync(_detail.Reconciliation.Id))">
+                        Nhận xử lý
+                    </MudButton>
+                </MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-3">
+                    Bạn đang xử lý yêu cầu này.
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                               Disabled="_busy" OnClick="@(() => ReleaseAsync(_detail.Reconciliation.Id))">
+                        Bỏ nhận xử lý
+                    </MudButton>
+                </MudAlert>
+            }
+
+            @if (_detail.Evidence.Count > 0)
+            {
+                <MudTextField @bind-Value="_evidenceReviewNote"
+                              Label="@Language.T("execution.ghiChuReviewEvidence")"
+                              Variant="Variant.Outlined"
+                              Lines="2"
+                              Class="mt-3 mb-2" />
+                <MudTable Items="_detail.Evidence" Dense="true" Class="mt-3">
+                    <HeaderContent>
+                        <MudTh>@Language.T("execution.evidence2")</MudTh>
+                        <MudTh>FileId</MudTh>
+                        <MudTh>@Language.T("common.status")</MudTh>
+                        <MudTh>@Language.T("common.note")</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.EvidenceType</MudTd>
+                        <MudTd>@(context.FileId?.ToString() ?? "-")</MudTd>
+                        <MudTd>@context.ReviewStatus</MudTd>
+                        <MudTd>@(context.ReviewNote ?? "-")</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small" Color="Color.Success"
+                                           Disabled="@(!CanProcess(_detail.Reconciliation.Id) || _busy)"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "Approved"))">
+                                    @Language.T("approval.approve")
+                                </MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Warning"
+                                           Disabled="@(!CanProcess(_detail.Reconciliation.Id) || _busy)"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "NeedMoreEvidence"))">
+                                    @Language.T("execution.canBoSung")
+                                </MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Error"
+                                           Disabled="@(!CanProcess(_detail.Reconciliation.Id) || _busy)"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "Rejected"))">
+                                    @Language.T("common.reject")
+                                </MudButton>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">@Language.T("execution.chuaCoEvidence")</MudAlert>
+            }
+
+            @if (_detail.Confirmation is not null)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">
+                    Employee decision: @_detail.Confirmation.Decision —
+                    Status: @_detail.Confirmation.Status
+                </MudAlert>
+            }
+
+            @if (_detail.HrResolution is not null)
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-3">
+                    @Language.T("execution.hrDaXuLy", _detail.HrResolution.Decision, _detail.HrResolution.Reason)
+                </MudAlert>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private IReadOnlyList<ExecutionHrReviewItemDto> _items = Array.Empty<ExecutionHrReviewItemDto>();
+    private string? _module;
+    private string _status = "Mismatch";
+    private bool _loading;
+    private bool _busy;
+    private string? _error;
+    private string _resolveReason = string.Empty;
+    private string? _evidenceReviewNote;
+    private ExecutionReconciliationDetailDto? _detail;
+    private readonly Dictionary<long, ExecutionHrClaimDto> _claims = new();
+
+    [SupplyParameterFromQuery(Name = "reconciliationId")]
+    public long? ReconciliationId { get; set; }
+
+    private long? _openedQueryReconciliationId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Query-string parameters are supplied during the parameter-setting phase.
+        // Handle them here so /execution/hr?reconciliationId=4 also works when
+        // navigation reuses the existing interactive component.
+        if (ReconciliationId.HasValue
+            && ReconciliationId.Value > 0
+            && _openedQueryReconciliationId != ReconciliationId.Value)
+        {
+            _openedQueryReconciliationId = ReconciliationId.Value;
+            await OpenDetailAsync(ReconciliationId.Value);
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var query = $"api/execution/hr/reconciliations?status={Uri.EscapeDataString(_status)}";
+            if (!string.IsNullOrWhiteSpace(_module))
+                query += $"&moduleCode={Uri.EscapeDataString(_module)}";
+
+            var r = await Http.GetAsync<List<ExecutionHrReviewItemDto>>(query);
+            if (!r.IsSuccess)
+            {
+                _error = r.Message ?? Language.T("execution.khongTaiDuocHangCho");
+                return;
+            }
+
+            _items = r.Data ?? new List<ExecutionHrReviewItemDto>();
+            await LoadClaimsAsync(_items.Select(x => x.Id));
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenDetailAsync(long reconciliationId)
+    {
+        var result = await Http.GetAsync<ExecutionReconciliationDetailDto>(
+            $"api/execution/hr/reconciliations/{reconciliationId}/detail");
+        if (!result.IsSuccess || result.Data is null)
+        {
+            _error = result.Message ?? Language.T("common.khongTaiDuocChiTiet");
+            Snackbar.Add(_error, Severity.Error);
+            return;
+        }
+
+        _error = null;
+        _detail = result.Data;
+        await LoadClaimsAsync(new[] { reconciliationId });
+    }
+
+    private void CloseDetail() => _detail = null;
+
+    private ExecutionHrClaimDto GetClaim(long reconciliationId)
+        => _claims.TryGetValue(reconciliationId, out var claim)
+            ? claim
+            : new ExecutionHrClaimDto(reconciliationId, false, false, false, null, null, null, null);
+
+    private bool CanProcess(long reconciliationId)
+        => GetClaim(reconciliationId).CanProcess;
+
+    private async Task LoadClaimsAsync(IEnumerable<long> reconciliationIds)
+    {
+        var ids = reconciliationIds.Distinct().Where(x => x > 0).ToArray();
+        if (ids.Length == 0)
+            return;
+
+        var query = string.Join("&", ids.Select(x => $"ids={x}"));
+        var result = await Http.GetAsync<List<ExecutionHrClaimDto>>(
+            $"api/execution/hr/reconciliations/claims?{query}");
+
+        if (result.IsSuccess && result.Data is not null)
+        {
+            foreach (var claim in result.Data)
+                _claims[claim.ReconciliationId] = claim;
+        }
+    }
+
+    private async Task ClaimAsync(long reconciliationId)
+    {
+        _busy = true;
+        try
+        {
+            var result = await Http.PostAsync<ExecutionHrClaimDto>(
+                $"api/execution/hr/reconciliations/{reconciliationId}/claim", new { });
+
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(result.Message ?? "Yêu cầu đã được người khác nhận xử lý.", Severity.Warning);
+                await LoadClaimsAsync(new[] { reconciliationId });
+                return;
+            }
+
+            _claims[reconciliationId] = result.Data;
+            if (!result.Data.IsClaimedByCurrentUser)
+            {
+                Snackbar.Add(
+                    $"Yêu cầu đang được xử lý bởi {result.Data.ClaimedByName ?? result.Data.ClaimedByEmployeeCode ?? "người khác"}.",
+                    Severity.Warning);
+                return;
+            }
+
+            Snackbar.Add("Đã nhận xử lý yêu cầu.", Severity.Success);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ReleaseAsync(long reconciliationId)
+    {
+        _busy = true;
+        try
+        {
+            var result = await Http.PostAsync<ExecutionHrClaimDto>(
+                $"api/execution/hr/reconciliations/{reconciliationId}/release", new { });
+
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(result.Message ?? "Không thể bỏ nhận xử lý.", Severity.Warning);
+                return;
+            }
+
+            _claims[reconciliationId] = result.Data;
+            Snackbar.Add("Đã bỏ nhận xử lý.", Severity.Info);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ReviewEvidenceAsync(long evidenceId, string status)
+    {
+        if (_detail is null || !CanProcess(_detail.Reconciliation.Id))
+        {
+            Snackbar.Add("Bạn không phải người đang xử lý yêu cầu này.", Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var request = new ExecutionEvidenceReviewRequest(status, _evidenceReviewNote?.Trim());
+            var result = await Http.PostAsync<ExecutionEvidenceDto>(
+                $"api/execution/hr/evidence/{evidenceId}/review", request);
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? Language.T("execution.reviewEvidenceThatBai"), Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(Language.T("execution.evidenceDaChuyenSang", status), Severity.Success);
+            _evidenceReviewNote = null;
+            if (_detail is not null)
+                await OpenDetailAsync(_detail.Reconciliation.Id);
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResolveAsync(ExecutionHrReviewItemDto item, string decision)
+    {
+        if (!CanProcess(item.Id))
+        {
+            Snackbar.Add("Bạn không phải người đang xử lý yêu cầu này.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_resolveReason))
+        {
+            Snackbar.Add(Language.T("execution.phaiNhapLyDoXu"), Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var request = new ExecutionHrResolutionRequest(decision, _resolveReason.Trim(), "REFRESH");
+            var r = await Http.PostAsync<ExecutionHrResolutionDto>(
+                $"api/execution/hr/reconciliations/{item.Id}/resolve", request);
+
+            if (!r.IsSuccess)
+            {
+                Snackbar.Add(r.Message ?? Language.T("execution.resolveThatBai"), Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(Language.T("execution.daXuLy", item.EmployeeCode, item.ModuleCode, decision), Severity.Success);
+            _resolveReason = string.Empty;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

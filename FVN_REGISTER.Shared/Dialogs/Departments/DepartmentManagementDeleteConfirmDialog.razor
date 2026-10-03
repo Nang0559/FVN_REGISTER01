@@ -1,0 +1,33 @@
+@using FVN_REGISTER.Contract.Dtos.Depts
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Color="Color.Error">
+            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="mr-2" />
+            @Language.T("department.xacNhanXoa")
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudText>
+            @Language.T("department.banCoChacMuonXoa")
+            <strong>@Department?.DeptName</strong> (@Department?.DeptCode)?
+        </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+            @Language.T("department.hanhDongNayKhongThe")
+        </MudText>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="Confirm">@Language.T("common.delete")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public DepartmentDto? Department { get; set; }
+
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
+    private void Cancel() => MudDialog.Cancel();
+}

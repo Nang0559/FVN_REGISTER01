@@ -1,0 +1,67 @@
+@using FVN_REGISTER.Contract.Dtos.Leaves
+@using FVN_REGISTER.Core.Enums
+
+<MudText Typo="Typo.subtitle2" Class="mb-2">
+    <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />
+    @Language.T("leave.list", Items.Count)
+</MudText>
+
+@if (!Items.Any())
+{
+    <MudAlert Severity="Severity.Info" Dense="true">@Language.T("leave.noItems")</MudAlert>
+}
+else
+{
+    <MudList T="LeaveCalendarEventDto" Dense="true">
+        @foreach (var item in Items)
+        {
+            var status = ParseStatus(item.Status);
+            var color = GetStatusColor(status);
+            var statusText = GetStatusText(status);
+
+            <MudListItem T="LeaveCalendarEventDto" Dense="true" Class="pa-1" OnClick="@(() => OnView.InvokeAsync(item))">
+                <MudPaper Elevation="0" Class="pa-2 mb-1" Style="border-left:3px solid var(--mud-palette-primary);">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <div>
+                            <MudText Typo="Typo.body2">@item.StartDate.ToString("dd/MM/yyyy") → @item.EndDate.ToString("dd/MM/yyyy")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.LeaveTypeName</MudText>
+                        </div>
+                        <MudChip T="string" Size="Size.Small" Color="@color" Label="true">@statusText</MudChip>
+                    </MudStack>
+                </MudPaper>
+            </MudListItem>
+        }
+    </MudList>
+}
+
+@code {
+    [Parameter] public List<LeaveCalendarEventDto> Items { get; set; } = new();
+    [Parameter] public EventCallback<LeaveCalendarEventDto> OnView { get; set; }
+
+    private static ApprovalStatus ParseStatus(string? value)
+        => Enum.TryParse<ApprovalStatus>(value, true, out var status)
+            ? status
+            : ApprovalStatus.Pending;
+
+    private static Color GetStatusColor(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => Color.Success,
+        ApprovalStatus.Rejected => Color.Error,
+        ApprovalStatus.Cancelled => Color.Default,
+        ApprovalStatus.InProgress => Color.Info,
+        ApprovalStatus.NeedsRevision => Color.Warning,
+        ApprovalStatus.Draft => Color.Default,
+        _ => Color.Warning
+    };
+
+    private string GetStatusText(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => Language.T("leave.statusApproved"),
+        ApprovalStatus.Rejected => Language.T("leave.statusRejected"),
+        ApprovalStatus.Cancelled => Language.T("leave.statusCancelled"),
+        ApprovalStatus.InProgress => Language.T("leave.statusInProgress"),
+        ApprovalStatus.NeedsRevision => Language.T("leave.statusNeedsRevision"),
+        ApprovalStatus.Draft => Language.T("leave.statusDraft"),
+        _ => Language.T("leave.statusPending")
+    };
+}

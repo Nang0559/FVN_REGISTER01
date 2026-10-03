@@ -1,0 +1,355 @@
+@page "/security/access-change"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Shared.Services.Users
+@using Microsoft.AspNetCore.Authorization
+@inject IAccessChangeClientService AccessChangeClient
+@inject ICurrentUserClientService CurrentUser
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>@Language.T("access.title")</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-5">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h5">@Language.T("nav.accessChangeRequest")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                @Language.T("security.nguoiTiepNhanTuLap")
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/"))">@Language.T("common.back")</MudButton>
+    </MudStack>
+
+    <MudTabs Rounded="true" Elevation="2">
+        <MudTabPanel Text='@Language.T("access.create")'>
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    @Language.T("security.nguoiTiepNhanHienTai") <b>@(CurrentUser.User?.EmployeeCode ?? "...") - @(CurrentUser.User?.FullName ?? "")</b>@Language.T("security.serverSeTuChoiNeu")
+                </MudAlert>
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="RequestModule" Value="_module" ValueChanged="OnModuleChanged" Label='@Language.T("approval.module")' Variant="Variant.Outlined">
+                            <MudSelectItem Value="RequestModule.Leave">@Language.T("nav.reportLeave")</MudSelectItem>
+                            <MudSelectItem Value="RequestModule.Overtime">@Language.T("nav.reportOt")</MudSelectItem>
+                            <MudSelectItem Value="RequestModule.Trip">@Language.T("trip.title")</MudSelectItem>
+                            <MudSelectItem Value="RequestModule.Equipment">@Language.T("equipment.title")</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="8">
+                        <MudSelect T="AccessChangeEmployeeOptionDto" Value="_oldEmployee" ValueChanged="OnOldChanged" Label='@Language.T("access.oldEmployee")' Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
+                            @foreach (var e in _employees.Where(x => !string.Equals(x.EmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <MudSelectItem T="AccessChangeEmployeeOptionDto" Value="@e">@EmployeeLabel(e)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    @if (_module == RequestModule.Equipment)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudCheckBox T="bool" Value="_transferResponsible" ValueChanged="@OnTransferResponsibleChanged" Label='@Language.T("access.transferResponsible")' />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudCheckBox @bind-Value="_transferApprover" Label='@Language.T("access.transferApprover")' />
+                        </MudItem>
+                        @if (_transferResponsible || _transferApprover)
+                        {
+                            <MudItem xs="12">
+                                <MudAlert Severity="Severity.Info">@Language.T("access.chonDungCacTaiSan")</MudAlert>
+                                @if (_loadingAssets)
+                                {
+                                    <MudProgressLinear Indeterminate="true" />
+                                }
+                                else if (_equipmentCandidates.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Warning">@Language.T("access.nguoiCuHienKhongCo")</MudAlert>
+                                }
+                                else
+                                {
+                                    <MudTable Items="_equipmentCandidates" Dense="true" Hover="true">
+                                        <HeaderContent>
+                                            <MudTh>@Language.T("common.select")</MudTh><MudTh>@Language.T("common.code")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("nav.departments")</MudTh>
+                                            <MudTh>@Language.T("access.phuTrach")</MudTh><MudTh>@Language.T("nav.approvers")</MudTh><MudTh>@Language.T("equipment.location")</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd><MudCheckBox T="bool" Value="@_selectedAssetIds.Contains(context.AssetId)" ValueChanged="@(v => ToggleAsset(context.AssetId, v))" /></MudTd>
+                                            <MudTd>@context.EquipmentCode</MudTd>
+                                            <MudTd>@context.EquipmentName</MudTd>
+                                            <MudTd>@context.DeptCode</MudTd>
+                                            <MudTd>@context.ResponsibleEmployeeCode</MudTd>
+                                            <MudTd>@context.ApproverEmployeeCode</MudTd>
+                                            <MudTd>@context.Location</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                }
+                            </MudItem>
+                        }
+                        @if (_transferApprover)
+                        {
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="AccessChangeEmployeeOptionDto" @bind-Value="_oldEquipmentApprover" Label="@Language.T("access.approverThietBiCuNeu")" Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
+                                    @foreach (var e in _employees)
+                                    {
+                                        <MudSelectItem T="AccessChangeEmployeeOptionDto" Value="@e">@EmployeeLabel(e)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                        }
+                    }
+
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">@Language.T("access.functions")</MudText>
+                        @if (_loadingFunctions)
+                        {
+                            <MudProgressLinear Indeterminate="true" />
+                        }
+                        else if (_functions.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Warning">@Language.T("access.khongTimThayFunctionCua")</MudAlert>
+                        }
+                        else
+                        {
+                            <MudGrid>
+                                @foreach (var f in _functions)
+                                {
+                                    <MudItem xs="12" md="6" lg="4">
+                                        <MudCheckBox T="bool" Value="@_selectedFunctions.Contains(f.FunctionCode)" ValueChanged="@(v => ToggleFunction(f.FunctionCode, v))" Label="@($"{f.FunctionCode} - {f.FunctionName}")" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_reason" Label='@Language.T("common.reason")' Lines="3" Variant="Variant.Outlined" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_busy" OnClick="SubmitAsync">@Language.T("access.guiPhieuPheDuyet")</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudTabPanel>
+
+        <MudTabPanel Text='@Language.T("access.mine")'>
+            <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
+                <HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("approval.module")</MudTh><MudTh>@Language.T("access.nguoiCu")</MudTh><MudTh>@Language.T("access.newEmployee")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("access.preChange")</MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Id</MudTd><MudTd>@context.BusinessModuleName</MudTd><MudTd>@context.OldEmployeeCode</MudTd><MudTd>@context.NewEmployeeCode</MudTd><MudTd>@context.Status</MudTd>
+                    <MudTd>
+                        @if (!string.IsNullOrWhiteSpace(context.PreChangeSnapshotJson))
+                        {
+                            <MudExpansionPanels><MudExpansionPanel Text='@Language.T("access.preChange")'><MudText Typo="Typo.caption" Style="white-space:pre-wrap">@context.PreChangeSnapshotJson</MudText></MudExpansionPanel></MudExpansionPanels>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text='@Language.T("access.pending")'>
+            <MudTable Items="_pending" Dense="true" Hover="true" Class="pa-4">
+                <HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("approval.module")</MudTh><MudTh>@Language.T("access.thayDoi")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("access.preChange")</MudTh><MudTh></MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Id</MudTd><MudTd>@context.BusinessModuleName</MudTd><MudTd>@context.OldEmployeeCode → @context.NewEmployeeCode</MudTd><MudTd>@context.Status</MudTd>
+                    <MudTd>
+                        @{
+                            var step = context.ApprovalSteps.FirstOrDefault(x => x.Decision == "Pending");
+                        }
+                        @if (step != null)
+                        {
+                            <MudButton Size="Size.Small" Color="Color.Success" OnClick="@(() => ApproveAsync(context.Id, step.Level))">@Language.T("common.approve")</MudButton>
+                            <MudButton Size="Size.Small" Color="Color.Error" Class="ml-2" OnClick="@(() => RejectAsync(context.Id, step.Level))">@Language.T("common.reject")</MudButton>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text='@Language.T("access.itQueue")'>
+            <MudTable Items="_itQueue" Dense="true" Hover="true" Class="pa-4">
+                <HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("approval.module")</MudTh><MudTh>@Language.T("access.nguoiCu")</MudTh><MudTh>@Language.T("access.newEmployee")</MudTh><MudTh>@Language.T("common.function")</MudTh><MudTh></MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Id</MudTd><MudTd>@context.BusinessModuleName</MudTd><MudTd>@context.OldEmployeeCode</MudTd><MudTd>@context.NewEmployeeCode - @context.NewEmployeeName</MudTd><MudTd>@string.Join(", ", context.FunctionCodes)</MudTd>
+                    <MudTd><MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => ExecuteItAsync(context.Id))">@Language.T("access.execute")</MudButton></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private RequestModule _module = RequestModule.Leave;
+    private List<AccessChangeEmployeeOptionDto> _employees = new();
+    private List<AccessChangeFunctionOptionDto> _functions = new();
+    private List<AccessChangeRequestDto> _mine = new();
+    private List<AccessChangeRequestDto> _pending = new();
+    private List<AccessChangeItQueueItemDto> _itQueue = new();
+    private AccessChangeEmployeeOptionDto? _oldEmployee;
+    private AccessChangeEmployeeOptionDto? _oldEquipmentApprover;
+    private readonly HashSet<int> _selectedFunctions = new();
+    private bool _transferResponsible;
+    private bool _transferApprover;
+    private bool _loadingFunctions;
+    private bool _loadingAssets;
+    private bool _busy;
+    private List<EquipmentHandoverCandidateDto> _equipmentCandidates = new();
+    private readonly HashSet<int> _selectedAssetIds = new();
+    private string _reason = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _reason = Language.T("security.banGiaoQuyenDoNhan");
+        await CurrentUser.InitializeAsync();
+        var employees = await AccessChangeClient.GetEmployeesAsync();
+        if (employees.IsSuccess) _employees = employees.Data ?? new();
+        else Snackbar.Add(employees.Message ?? Language.T("access.khongTaiDuocDanhSach"), Severity.Error);
+        await ReloadAsync();
+    }
+
+    private async Task OnModuleChanged(RequestModule value)
+    {
+        _module = value;
+        if (_oldEmployee != null) await OnOldChanged(_oldEmployee);
+    }
+
+    private async Task OnOldChanged(AccessChangeEmployeeOptionDto? value)
+    {
+        _oldEmployee = value;
+        _oldEquipmentApprover = value;
+        _functions.Clear();
+        _selectedFunctions.Clear();
+        _equipmentCandidates.Clear();
+        _selectedAssetIds.Clear();
+        if (_oldEmployee == null) return;
+
+        _loadingFunctions = true;
+        try
+        {
+            var result = await AccessChangeClient.GetFunctionOptionsAsync(_module, _oldEmployee.EmployeeCode);
+            if (result.IsSuccess)
+            {
+                _functions = result.Data ?? new();
+                foreach (var f in _functions) _selectedFunctions.Add(f.FunctionCode);
+            }
+            else Snackbar.Add(result.Message ?? Language.T("access.khongTaiDuocQuyenCua"), Severity.Error);
+        }
+        finally { _loadingFunctions = false; }
+
+        if (_module == RequestModule.Equipment) await LoadEquipmentCandidatesAsync();
+    }
+
+    private async Task OnTransferResponsibleChanged(bool value)
+    {
+        _transferResponsible = value;
+        if (_module == RequestModule.Equipment && _oldEmployee != null) await LoadEquipmentCandidatesAsync();
+    }
+
+    private async Task LoadEquipmentCandidatesAsync()
+    {
+        if (_oldEmployee == null) return;
+        _loadingAssets = true;
+        try
+        {
+            var result = await AccessChangeClient.GetEquipmentCandidatesAsync(_oldEmployee.EmployeeCode);
+            if (result.IsSuccess)
+            {
+                _equipmentCandidates = result.Data ?? new();
+                if (!_transferResponsible && !_transferApprover) _selectedAssetIds.Clear();
+            }
+            else
+            {
+                _equipmentCandidates.Clear();
+                Snackbar.Add(result.Message ?? Language.T("access.khongTaiDuocDanhSach2"), Severity.Error);
+            }
+        }
+        finally { _loadingAssets = false; }
+    }
+
+    private void ToggleAsset(int assetId, bool selected)
+    {
+        if (selected) _selectedAssetIds.Add(assetId);
+        else _selectedAssetIds.Remove(assetId);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_oldEmployee == null || string.IsNullOrWhiteSpace(_reason))
+        {
+            Snackbar.Add(Language.T("access.vuiLongChonNhanSu"), Severity.Warning);
+            return;
+        }
+        if (_module == RequestModule.Equipment && (_transferResponsible || _transferApprover) && _selectedAssetIds.Count == 0)
+        {
+            Snackbar.Add(Language.T("access.vuiLongChonItNhat"), Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var result = await AccessChangeClient.CreateAsync(new AccessChangeRequestCreateDto
+            {
+                BusinessModule = _module,
+                OldEmployeeCode = _oldEmployee.EmployeeCode,
+                Reason = _reason,
+                FunctionCodes = _selectedFunctions.ToList(),
+                TransferEquipmentResponsible = _module == RequestModule.Equipment && _transferResponsible,
+                TransferEquipmentApprover = _module == RequestModule.Equipment && _transferApprover,
+                OldEquipmentApproverCode = _module == RequestModule.Equipment && _transferApprover ? _oldEquipmentApprover?.EmployeeCode : null,
+                EquipmentAssetIds = _module == RequestModule.Equipment && (_transferResponsible || _transferApprover) ? _selectedAssetIds.ToList() : new List<int>()
+            });
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? Language.T("access.daGuiPhieu"), Severity.Success);
+                if (result.Data != null) _mine.Insert(0, result.Data);
+            }
+            else Snackbar.Add(result.Message ?? Language.T("access.khongTheGuiPhieu"), Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private void ToggleFunction(int code, bool selected)
+    {
+        if (selected) _selectedFunctions.Add(code);
+        else _selectedFunctions.Remove(code);
+    }
+
+    private async Task ReloadAsync()
+    {
+        var mine = await AccessChangeClient.GetMineAsync();
+        if (mine.IsSuccess) _mine = mine.Data ?? new();
+        var pending = await AccessChangeClient.GetPendingAsync();
+        if (pending.IsSuccess) _pending = pending.Data ?? new();
+        var it = await AccessChangeClient.GetItQueueAsync();
+        if (it.IsSuccess) _itQueue = it.Data ?? new();
+    }
+
+    private async Task ApproveAsync(int id, int level)
+    {
+        var result = await AccessChangeClient.ApproveAsync(id, level, null);
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("access.daDuyet") : Language.T("access.duyetThatBai")), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    private async Task RejectAsync(int id, int level)
+    {
+        var result = await AccessChangeClient.RejectAsync(id, level, Language.T("security.tuChoiTheoXuLy"));
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("access.daTuChoi") : Language.T("access.tuChoiThatBai")), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    private async Task ExecuteItAsync(int id)
+    {
+        var result = await AccessChangeClient.ExecuteByItAsync(id, new AccessChangeItExecuteDto { Note = Language.T("security.itDaThietLapQuyen") });
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("access.daHoanTat") : Language.T("access.thietLapThatBai")), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    private string EmployeeLabel(AccessChangeEmployeeOptionDto? x)
+        => x == null ? string.Empty : $"{x.EmployeeCode} - {x.EmployeeName} ({x.DeptCode}) {(x.IsActive ? "" : Language.T("common.resignedTag"))}";
+}

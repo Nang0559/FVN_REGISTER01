@@ -1,0 +1,212 @@
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Contract.Dtos.Employees
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Shared.Services.Employees
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@(Model.Id == 0 ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)"
+                     Color="Color.Primary" />
+            <MudText Typo="Typo.h6">
+                @(Model.Id == 0 ? Language.T("employee.themNhanVienMoi") : Language.T("employee.chinhSuaNhanVien"))
+            </MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form" Class="pt-2">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="@Language.T("employee.maNhanVien")"
+                                  @bind-Value="Model.EmployeeCode"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="@Language.T("employee.nhapMaNhanVien")"
+                                  Disabled="@(Model.Id != 0)" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="@Language.T("employee.hoTen")"
+                                  @bind-Value="Model.EmployeeName"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="@Language.T("employee.nhapHoTen")" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Label="@Language.T("employee.boPhan")"
+                               @bind-Value="Model.DeptCode"
+                               Variant="Variant.Outlined"
+                               Disabled="LockDept"
+                               Required="true"
+                               RequiredError="@Language.T("employee.chonBoPhan")">
+                        @foreach (var dept in Departments)
+                        {
+                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Label="@Language.T("employee.chucVu")"
+                               @bind-Value="Model.PositionCode"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="@Language.T("employee.chonChucVu")">
+                        @foreach (var position in _positions)
+                        {
+                            <MudSelectItem Value="@position.PositionCode">
+                                @position.PositionCode — @position.PositionName
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="@Language.T("employee.email")"
+                                  @bind-Value="Model.EmailAddress"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="@Language.T("employee.nhapEmail")"
+                                  InputType="InputType.Email" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="@Language.T("employee.soDienThoai")"
+                                  @bind-Value="Model.PhoneNumber"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?"
+                               Label="@Language.T("employee.gioiTinh")"
+                               @bind-Value="Model.GenderCode"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        <MudSelectItem T="int?" Value="@((int?)1)">@Language.T("employee.nam")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)2)">@Language.T("employee.nu")</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker Label="@Language.T("employee.ngaySinh")"
+                                   @bind-Date="Model.BirthDate"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker Label="@Language.T("employee.ngayVaoLam")"
+                                   @bind-Date="Model.FirstWorkingDate"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker Label="@Language.T("employee.ngayNghiViec")"
+                                   @bind-Date="Model.EndWorkingDate"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="decimal"
+                                     Label="@Language.T("employee.tongPhepNamNgay")"
+                                     @bind-Value="Model.TotalLeaveDays"
+                                     Variant="Variant.Outlined"
+                                     Min="0" Max="30" Step="0.5m" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?"
+                               Label='@Language.T("approval.level")'
+                               @bind-Value="Model.LevelApprove"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        <MudSelectItem T="int?" Value="@((int?)1)">@Language.T("common.cap1")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)2)">@Language.T("common.cap2")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)3)">@Language.T("common.cap3")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)4)">@Language.T("common.cap4")</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSwitch T="bool"
+                               @bind-Value="Model.IsActive"
+                               Label="@(Model.IsActive ? Language.T("employee.dangLamViec") : Language.T("dashboard.used"))"
+                               Color="Color.Success"
+                               Class="mt-3" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="_isSaving">
+            @(_isSaving ? Language.T("common.dangLuu") : (Model.Id == 0 ? Language.T("leave.themMoi") : Language.T("user.luuThayDoi")))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Inject] private IEmployeeManagementClientService EmployeeService { get; set; } = default!;
+    [Inject] private IApprovalPolicyClientService ApprovalPolicyService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    [Parameter] public EmployeeUpsertDto Model { get; set; } = new() { IsActive = true };
+    [Parameter] public List<DepartmentDto> Departments { get; set; } = new();
+    [Parameter] public bool LockDept { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isSaving;
+    private List<ApprovalPolicyPositionDto> _positions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ApprovalPolicyService.GetPositionsAsync();
+        if (result.IsSuccess)
+            _positions = result.Data?.Where(x => x.IsActive).OrderBy(x => x.PositionCode).ToList() ?? new();
+        else
+            Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocDanhSach"), Severity.Error);
+    }
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _isSaving = true;
+        try
+        {
+            var result = Model.Id == 0
+                ? await EmployeeService.CreateAsync(Model)
+                : await EmployeeService.UpdateAsync(Model.Id, Model);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? Language.T("common.thanhCong"), Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? Language.T("common.coLoiXayRa"), Severity.Error);
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

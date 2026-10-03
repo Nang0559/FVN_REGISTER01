@@ -1,0 +1,110 @@
+@using FVN_REGISTER.Contract.Dtos.Usermanagers
+@using FVN_REGISTER.Shared.Services.Security
+@inject ISecurityClientService SecurityService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Class="mr-2" />
+            @Language.T("user.taoTaiKhoanMoi")
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Request.EmployeeCode"
+                              Label="@Language.T("user.maNhanVienTenDang")"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Request.Password"
+                              Label="@Language.T("user.matKhau")"
+                              InputType="InputType.Password"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Request.DeptCode"
+                              Label='@Language.T("common.departmentCode")'
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudStack Spacing="1" Class="mt-2">
+                <MudText Typo="Typo.subtitle2">@Language.T("user.quyenModuleThietBi")</MudText>
+                <MudCheckBox @bind-Value="_equipmentAccess">@Language.T("equipment.register")</MudCheckBox>
+                <MudCheckBox @bind-Value="_equipmentImportAccess">@Language.T("equipment.import")</MudCheckBox>
+            </MudStack>
+            <MudSelect T="int" @bind-Value="Request.PermissionCode"
+                           Label="@Language.T("user.quyen")"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    <MudSelectItem Value="2">@Language.T("user.administrator")</MudSelectItem>
+                    <MudSelectItem Value="4">@Language.T("nav.approvers")</MudSelectItem>
+                    <MudSelectItem Value="5">@Language.T("common.user2")</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
+        <MudButton OnClick="Submit"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(!IsValid)">
+            @Language.T("user.taoTaiKhoan")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public CreateUserRequest Request { get; set; } = new();
+
+    private int? _equipmentFunctionId;
+    private int? _equipmentImportFunctionId;
+    private bool _equipmentAccess;
+    private bool _equipmentImportAccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await SecurityService.GetFunctionsAsync();
+        if (!result.IsSuccess || result.Data == null) return;
+
+        _equipmentFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2301)?.IdFunction;
+        _equipmentImportFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2306)?.IdFunction;
+    }
+
+    private bool IsValid =>
+        !string.IsNullOrWhiteSpace(Request.EmployeeCode) &&
+        !string.IsNullOrWhiteSpace(Request.Password);
+
+    private void Submit()
+    {
+        var ids = Request.FunctionIds?.Distinct().ToList() ?? new List<int>();
+        SetFunction(ids, _equipmentFunctionId, _equipmentAccess);
+        SetFunction(ids, _equipmentImportFunctionId, _equipmentImportAccess);
+        Request.FunctionIds = ids;
+        MudDialog.Close(DialogResult.Ok(Request));
+    }
+
+    private static void SetFunction(List<int> ids, int? functionId, bool enabled)
+    {
+        if (!functionId.HasValue) return;
+        if (enabled)
+        {
+            if (!ids.Contains(functionId.Value)) ids.Add(functionId.Value);
+        }
+        else
+        {
+            ids.Remove(functionId.Value);
+        }
+    }
+    private void Cancel() => MudDialog.Cancel();
+}

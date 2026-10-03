@@ -1,0 +1,248 @@
+@page "/payroll/table"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Payroll
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inject IHttpClientWithAuth Http
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>@Language.T("payroll.table")</PageTitle>
+
+<style>
+    @@media print {
+        .payroll-no-print { display: none !important; }
+        .payroll-print-area { margin: 0 !important; padding: 0 !important; }
+        .mud-table-container { overflow: visible !important; }
+        body { background: white !important; }
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-5 payroll-print-area">
+    <MudPaper Outlined="true" Class="pa-5 payroll-no-print">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h5">@Language.T("payroll.table")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    @Language.T("payroll.kyLuongTheoChuKy")
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Outlined" Disabled="_busy" OnClick="LoadCurrentAsync">
+                    @Language.T("common.refresh")
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="@(!CanPrepare || _busy)" OnClick="PrepareAsync">
+                    @Language.T("payroll.chuanBiBangCong")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                           Disabled="@(!CanLock || _busy)" OnClick="LockAsync">
+                    @Language.T("payroll.lock")
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                           Disabled="@(!CanPrint || _busy)" OnClick="PrintAsync">
+                    @Language.T("payroll.print")
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mt-4" />
+    }
+    else if (_period is null)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mt-4">@(string.IsNullOrEmpty(_error) ? Language.T("payroll.khongTheTaiKyLuong") : _error)</MudAlert>
+    }
+    else
+    {
+        <MudGrid Class="mt-4 payroll-no-print" Spacing="2">
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Outlined="true" Class="pa-4">
+                    <MudText Typo="Typo.overline">@Language.T("payroll.kyLuong")</MudText>
+                    <MudText Typo="Typo.h6">@_period.PeriodCode</MudText>
+                    <MudText Typo="Typo.body2">@_period.FromDate:dd/MM/yyyy → @_period.ToDate:dd/MM/yyyy</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudPaper Outlined="true" Class="pa-4">
+                    <MudText Typo="Typo.overline">@Language.T("common.trangThai")</MudText>
+                    <MudChip T="string" Color="@StatusColor" Size="Size.Small">@_period.Status</MudChip>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Outlined="true" Class="pa-4">
+                    <MudText Typo="Typo.overline">SNAPSHOT</MudText>
+                    <MudText Typo="Typo.body2">@(_period.CalculatedAt?.ToString("dd/MM/yyyy HH:mm") ?? Language.T("payroll.chuaPrepare"))</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudAlert Severity="@(CanPrint ? Severity.Success : Severity.Warning)" Dense="true">
+                    @(CanPrint
+                        ? Language.T("payroll.duDieuKienInBang")
+                        : Language.T("payroll.chuaDuDieuKienIn"))
+                </MudAlert>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                <div>
+                    <MudText Typo="Typo.h6">@Language.T("payroll.chiTietBangCong")</MudText>
+                    <MudText Typo="Typo.caption">@Language.T("payroll.dongSnapshotPayrollInput", _inputs.Count)</MudText>
+                </div>
+            </MudStack>
+
+            @if (_inputs.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">
+                    @Language.T("payroll.chuaCoPayrollInputHay")
+                </MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_inputs" Dense="true" Hover="true" Striped="true" Bordered="true">
+                    <HeaderContent>
+                        <MudTh>@Language.T("ot.employee")</MudTh>
+                        <MudTh>@Language.T("ot.date")</MudTh>
+                        <MudTh Style="text-align:right">@Language.T("payroll.gioCongPhut")</MudTh>
+                        <MudTh Style="text-align:right">@Language.T("calendar.holiday")</MudTh>
+                        <MudTh Style="text-align:right">@Language.T("payroll.otPhut")</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel='@Language.T("common.employee")'>
+                            <b>@context.EmployeeCode</b><br />
+                            <span>@context.EmployeeName</span>
+                        </MudTd>
+                        <MudTd DataLabel='@Language.T("ot.date")'>@context.WorkDate:dd/MM/yyyy</MudTd>
+                        <MudTd DataLabel='@Language.T("payroll.gioCongPhut")' Style="text-align:right">@context.WorkMinutes</MudTd>
+                        <MudTd DataLabel='@Language.T("calendar.holiday")' Style="text-align:right">@context.LeaveTotal</MudTd>
+                        <MudTd DataLabel='@Language.T("payroll.otPhut")' Style="text-align:right">@context.OTMinutes</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private PayrollPeriodDto? _period;
+    private IReadOnlyList<PayrollInputDto> _inputs = Array.Empty<PayrollInputDto>();
+    private bool _loading = true;
+    private bool _busy;
+    private string _error = string.Empty;
+
+    private bool CanPrepare =>
+        _period is not null && (_period.Status is "Open" or "Calculated");
+
+    private bool CanLock =>
+        _period?.Status == "Calculated" && _inputs.Count > 0;
+
+    private bool CanPrint =>
+        _period?.Status is ("Calculated" or "Locked") && _inputs.Count > 0;
+
+    private Color StatusColor => _period?.Status switch
+    {
+        "Calculated" => Color.Info,
+        "Locked" => Color.Warning,
+        "Exported" => Color.Success,
+        _ => Color.Default
+    };
+
+    protected override async Task OnInitializedAsync()
+        => await LoadCurrentAsync();
+
+    private async Task LoadCurrentAsync()
+    {
+        _loading = true;
+        try
+        {
+            var current = await Http.PostAsync<PayrollPeriodDto>(
+                "api/payroll/periods/current/ensure", new { });
+
+            if (!current.IsSuccess || current.Data is null)
+            {
+                _error = current.Message ?? Language.T("payroll.khongTheXacDinhKy");
+                return;
+            }
+
+            _period = current.Data;
+            await LoadInputsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadInputsAsync()
+    {
+        if (_period is null) return;
+
+        var r = await Http.GetAsync<List<PayrollInputDto>>(
+            $"api/payroll/periods/{_period.Id}/inputs");
+
+        _inputs = r.IsSuccess && r.Data is not null
+            ? r.Data
+            : Array.Empty<PayrollInputDto>();
+    }
+
+    private async Task PrepareAsync()
+    {
+        if (_period is null) return;
+        _busy = true;
+        try
+        {
+            var r = await Http.PostAsync<PayrollPrepareDto>(
+                $"api/payroll/periods/{_period.Id}/prepare", new { });
+
+            if (!r.IsSuccess)
+            {
+                Snackbar.Add(r.Message ?? Language.T("payroll.prepareBangCongThatBai"), Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(Language.T("payroll.daSnapshotDongBangCong", r.Data?.InputRows ?? 0), Severity.Success);
+            await LoadCurrentAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task LockAsync()
+    {
+        if (_period is null) return;
+        _busy = true;
+        try
+        {
+            var r = await Http.PostAsync<PayrollPeriodDto>(
+                $"api/payroll/periods/{_period.Id}/lock", new { });
+
+            if (!r.IsSuccess)
+            {
+                Snackbar.Add(r.Message ?? Language.T("payroll.khoaKyLuongThatBai"), Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(Language.T("payroll.daKhoaKyLuong"), Severity.Success);
+            await LoadCurrentAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task PrintAsync()
+    {
+        if (_period is null) return;
+        _busy = true;
+        try
+        {
+            await JS.InvokeVoidAsync("window.print");
+        }
+        finally { _busy = false; }
+    }
+}

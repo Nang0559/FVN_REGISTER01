@@ -1,0 +1,95 @@
+using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
+using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Logging;
+using FVN_REGISTER.Contract.Dtos.HrmSync;
+using FVN_REGISTER.Contract.Requests.HrmSync;
+using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Constants;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
+
+namespace FVN_REGISTER.API.Controllers;
+
+[Authorize]
+[ApiController]
+[Route("api/hrm-role-rules")]
+public sealed class HrmUserRoleRulesController : BaseApiController
+{
+    private readonly IHrmUserRoleRuleService _service;
+    private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
+
+    public HrmUserRoleRulesController(
+        IHrmUserRoleRuleService service,
+        ICurrentUserService currentUser,
+        IUserLogService userLog,
+        IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operators,
+        ILogger<HrmUserRoleRulesController> logger,
+        IOptionsMonitor<AuthDebugOptions> options)
+        : base(currentUser, userLog, logger, options)
+    {
+        _service = service;
+        _authorization = authorization;
+        _operators = operators;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        return HandleResult(await _service.GetAllAsync(ct));
+    }
+
+    [HttpGet("departments")]
+    public async Task<IActionResult> GetDepartments(CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        return HandleResult(await _service.GetDepartmentsAsync(ct));
+    }
+
+    [HttpGet("positions")]
+    public async Task<IActionResult> GetPositions(CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        return HandleResult(await _service.GetPositionsAsync(ct));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] HrmUserRoleRuleRequest request, CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+        return HandleResult(await _service.CreateAsync(request, user.UserId, ct));
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] HrmUserRoleRuleRequest request, CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+        return HandleResult(await _service.UpdateAsync(id, request, user.UserId, ct));
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        return HandleResult(await _service.DeleteAsync(id, UserInfo!.UserId, ct));
+    }
+
+    private async Task<bool> CanManageAsync(CancellationToken ct)
+    {
+        if (UserInfo is null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.HrmUserRoleRuleManage, ct))
+            return false;
+        return await _operators.CanOperateAsync(UserInfo.UserId, UserInfo.EmployeeCode,
+            SecurityFunctionCodes.HrmUserRoleRuleManage, FeatureOperatorCatalog.HrmUserRoleRule, null, ct);
+    }
+}
