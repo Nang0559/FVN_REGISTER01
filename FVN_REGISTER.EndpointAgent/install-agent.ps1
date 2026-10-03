@@ -21,14 +21,23 @@ $targetBootstrap = Join-Path $InstallPath 'lanscope-bootstrap.json'
 Copy-Item -LiteralPath $BootstrapFile -Destination $targetBootstrap -Force
 
 $configPath = Join-Path $InstallPath 'appsettings.json'
+$existingConfig = $null
+if (Test-Path $configPath) {
+    try { $existingConfig = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json } catch { $existingConfig = $null }
+}
+$existingAgent = if ($existingConfig) { $existingConfig.FVNEndpointAgent } else { $null }
+$deviceKey = if ($existingAgent -and $existingAgent.DeviceKey) { [string]$existingAgent.DeviceKey } else { '' }
+$apiKeyProtected = if ($existingAgent -and $existingAgent.ApiKeyProtected) { [string]$existingAgent.ApiKeyProtected } else { '' }
+$bootstrapPath = if ($deviceKey -and $apiKeyProtected) { '' } else { 'lanscope-bootstrap.json' }
+
 $config = @{
     FVNEndpointAgent = @{
         ApiBaseUrl = $ApiBaseUrl
-        DeviceKey = ''
-        ApiKeyProtected = ''
-        BootstrapPath = 'lanscope-bootstrap.json'
-        IntervalMinutes = 30
-        CredentialRotationLeadDays = 30
+        DeviceKey = $deviceKey
+        ApiKeyProtected = $apiKeyProtected
+        BootstrapPath = $bootstrapPath
+        IntervalMinutes = if ($existingAgent -and $existingAgent.IntervalMinutes) { [int]$existingAgent.IntervalMinutes } else { 30 }
+        CredentialRotationLeadDays = if ($existingAgent -and $existingAgent.CredentialRotationLeadDays) { [int]$existingAgent.CredentialRotationLeadDays } else { 30 }
     }
 } | ConvertTo-Json -Depth 4
 
