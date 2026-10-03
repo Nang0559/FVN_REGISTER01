@@ -106,8 +106,38 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             }).FirstOrDefaultAsync(ct);
         if (employee == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên không tồn tại hoặc đã inactive.");
 
-        var functionExists = await _uow.Repository<F03Function>().Query().AsNoTracking().AnyAsync(x => x.FunctionCode == request.FunctionCode && (x.IsActive ?? true), ct);
-        if (!functionExists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không tồn tại hoặc đã inactive.");
+        var function = await _uow.Repository<F03Function>().Query().AsNoTracking()
+            .Where(x => x.FunctionCode == request.FunctionCode && (x.IsActive ?? true))
+            .Select(x => new { x.Id, x.FunctionCode, x.FunctionKey })
+            .FirstOrDefaultAsync(ct);
+        if (function == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không tồn tại hoặc đã inactive.");
+
+        // Operator assignment never grants RBAC. The designated employee must already
+        // have the business capability through a direct user-function grant or role grant.
+        var operatorUserId = await _uow.Repository<F03User>().Query().AsNoTracking()
+            .Where(x => x.EmployeeCode == employeeCode && (x.IsActive ?? true))
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync(ct);
+        if (!operatorUserId.HasValue)
+            return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên được chỉ định chưa có tài khoản người dùng active.");
+
+        var hasDirectCapability = await _uow.Repository<F03UserFunction>().Query().AsNoTracking()
+            .AnyAsync(x => x.IdUser == operatorUserId.Value
+                && x.IdFunction == function.Id
+                && (x.IsActive ?? true), ct);
+
+        var hasRoleCapability = await _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            .Where(x => x.IdUser == operatorUserId.Value && (x.IsActive ?? true))
+            .Join(
+                _uow.Repository<F03RoleFunction>().Query().AsNoTracking().Where(x => (x.IsActive ?? true)),
+                userRole => userRole.IdRole,
+                roleFunction => roleFunction.IdRole,
+                (userRole, roleFunction) => roleFunction.IdFunction)
+            .AnyAsync(idFunction => idFunction == function.Id, ct);
+
+        if (!hasDirectCapability && !hasRoleCapability)
+            return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
+                $"Nhân viên {employeeCode} chưa có RBAC cho {function.FunctionKey}. Hãy cấp capability trước khi chỉ định operator.");
         if (request.ResourceId.HasValue && request.ResourceId.Value <= 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceId không hợp lệ.");
 
         if (request.ResourceId.HasValue)
