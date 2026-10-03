@@ -41,6 +41,8 @@ public sealed class EquipmentController : ControllerBase
         return Ok(new EquipmentActionAccessDto
         {
             View = true,
+            Manage = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentManage, ct),
+            EndpointAgentEligibilityManage = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentManage, ct),
             Create = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.EquipmentCreate, ct),
             Edit = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.EquipmentEdit, ct),
             Assign = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentAssign, ct),
@@ -102,6 +104,22 @@ public sealed class EquipmentController : ControllerBase
         var result = await _service.SubmitRegistrationAsync(id, ct);
         var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpPut("assets/{id:int}/endpoint-agent-eligibility")]
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> SetEndpointAgentEligibility(int id, [FromBody] EndpointAgentEligibilityRequest request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.SetEndpointAgentEligibilityAsync(id, request, ct);
+        return result.IsSuccess ? Ok(ApiResponse<EquipmentAssetDto>.FromResult(result)) : BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+    }
+
+    [HttpGet("assets")]
+    public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> Assets([FromQuery] string? deptCode, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        var result = await _service.GetAssetsAsync(deptCode, ct);
+        return result.IsSuccess ? Ok(ApiResponse<List<EquipmentAssetDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentAssetDto>>.FromResult(result));
     }
 
     [HttpGet("assigned-to-me")]

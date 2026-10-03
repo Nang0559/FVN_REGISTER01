@@ -28,8 +28,118 @@ public sealed class EndpointCredentialService : IEndpointCredentialService
         return new EndpointCredentialStatusDto(normalized, true, expires.HasValue && expires.Value > DateTime.UtcNow, expires.HasValue ? new DateTimeOffset(expires.Value, TimeSpan.Zero) : null);
     }
 
+    public async Task<EndpointCredentialStatusDto> GetStatusByEquipmentAsync(int equipmentAssetId, CancellationToken cancellationToken = default)
+    {
+        if (equipmentAssetId <= 0) throw new ArgumentException("EquipmentAssetId không hợp lệ.", nameof(equipmentAssetId));
+        var connection = _db.Database.GetDbConnection();
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT TOP (1)
+    d.Id, d.DeviceKey, d.EquipmentAssetId, d.ComputerName, d.SerialNumber,
+    d.OsName, d.OsVersion, d.AgentVersion, d.AgentInstallationId, d.Status, d.LastSeenUtc,
+    c.ExpiresAtUtc
+FROM dbo.F03EndpointDevices d
+OUTER APPLY (
+    SELECT TOP (1) ExpiresAtUtc
+    FROM dbo.F03EndpointCredentials
+    WHERE EndpointDeviceId=d.Id AND RevokedAtUtc IS NULL
+      AND (GraceExpiresAtUtc IS NULL OR GraceExpiresAtUtc>SYSUTCDATETIME())
+    ORDER BY CreatedAtUtc DESC
+) c
+WHERE d.EquipmentAssetId=@equipmentAssetId
+ORDER BY d.LastSeenUtc DESC, d.Id DESC;";
+        AddParameter(command, "@equipmentAssetId", equipmentAssetId);
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            return new EndpointCredentialStatusDto(string.Empty, false, false, null, EquipmentAssetId: equipmentAssetId);
+
+        var expires = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11);
+        return new EndpointCredentialStatusDto(
+            reader.GetString(1),
+            true,
+            expires.HasValue && expires.Value > DateTime.UtcNow,
+            expires.HasValue ? new DateTimeOffset(expires.Value, TimeSpan.Zero) : null,
+            reader.GetInt64(0),
+            reader.IsDBNull(2) ? null : reader.GetInt32(2),
+            reader.IsDBNull(3) ? null : reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.IsDBNull(5) ? null : reader.GetString(5),
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7),
+            reader.IsDBNull(8) ? null : reader.GetString(8),
+            reader.IsDBNull(9) ? null : reader.GetString(9),
+            reader.IsDBNull(10) ? null : reader.GetDateTime(10));
+    }
+
+    public async Task<IReadOnlyList<EndpointCredentialHistoryDto>> GetHistoryByEquipmentAsync(int equipmentAssetId, CancellationToken cancellationToken = default)
+    {
+        if (equipmentAssetId <= 0) throw new ArgumentException("EquipmentAssetId không hợp lệ.", nameof(equipmentAssetId));
+        var connection = _db.Database.GetDbConnection();
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT c.Id,c.CreatedAtUtc,c.ExpiresAtUtc,c.RevokedAtUtc,c.CreatedBy,c.RevokedBy,
+       (SELECT TOP (1) a.ActionCode FROM dbo.F03EndpointCredentialAudit a WHERE a.EndpointCredentialId=c.Id ORDER BY a.OccurredAtUtc DESC,a.Id DESC) AS LastAction
+FROM dbo.F03EndpointCredentials c
+INNER JOIN dbo.F03EndpointDevices d ON d.Id=c.EndpointDeviceId
+WHERE d.EquipmentAssetId=@equipmentAssetId
+ORDER BY c.CreatedAtUtc DESC;";
+        AddParameter(command, "@equipmentAssetId", equipmentAssetId);
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(cancellationToken);
+        var rows = new List<EndpointCredentialHistoryDto>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new EndpointCredentialHistoryDto(
+                reader.GetInt64(0),
+                reader.GetDateTime(1),
+                reader.GetDateTime(2),
+                reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+                reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
+        }
+        return rows;
+    }
+
+    public async Task<EndpointCredentialProvisionResult> ProvisionForEquipmentAsync(int equipmentAssetId, int actorUserId, CancellationToken cancellationToken = default)
+    {
+        if (equipmentAssetId <= 0) throw new ArgumentException("EquipmentAssetId không hợp lệ.", nameof(equipmentAssetId));
+        var equipment = await _db.EquipmentAssets.AsNoTracking()
+            .Where(x => x.Id == equipmentAssetId && x.IsActive == true)
+            .Select(x => new { x.Id, x.EquipmentCode, x.EndpointAgentEligible, x.SerialNumber, x.EquipmentName })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (equipment == null) throw new ArgumentException("Equipment Asset không tồn tại hoặc đã ngừng hoạt động.", nameof(equipmentAssetId));
+        if (!equipment.EndpointAgentEligible)
+            throw new ArgumentException("Thiết bị này chưa được đánh dấu đủ điều kiện sử dụng Endpoint Agent.", nameof(equipmentAssetId));
+
+        var existing = await _db.EndpointDevices.AsNoTracking()
+            .Where(x => x.EquipmentAssetId == equipmentAssetId)
+            .OrderByDescending(x => x.LastSeenUtc).ThenByDescending(x => x.Id)
+            .Select(x => new { x.Id, x.DeviceKey })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var deviceKey = existing?.DeviceKey;
+        if (string.IsNullOrWhiteSpace(deviceKey))
+        {
+            var suffix = Guid.NewGuid().ToString("N");
+            deviceKey = $"EQP-{equipmentAssetId}-{suffix}";
+        }
+
+        return await ProvisionAsync(
+            new EndpointCredentialProvisionDto(deviceKey, null, equipmentAssetId),
+            actorUserId,
+            cancellationToken);
+    }
+
     public async Task<EndpointCredentialProvisionResult> ProvisionAsync(EndpointCredentialProvisionDto request, int actorUserId, CancellationToken cancellationToken = default)
     {
+        if (!request.EquipmentAssetId.HasValue || request.EquipmentAssetId.Value <= 0)
+            throw new ArgumentException("Credential Endpoint Agent phải được cấp từ một Equipment Asset đủ điều kiện.", nameof(request));
+        var eligible = await _db.EquipmentAssets.AsNoTracking()
+            .AnyAsync(x => x.Id == request.EquipmentAssetId.Value && x.IsActive == true && x.EndpointAgentEligible, cancellationToken);
+        if (!eligible)
+            throw new ArgumentException("Equipment Asset không tồn tại, đã ngừng hoạt động hoặc chưa đủ điều kiện Endpoint Agent.", nameof(request));
         var deviceKey = NormalizeDeviceKey(request.DeviceKey);
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
         var dbTransaction = tx.GetDbTransaction();

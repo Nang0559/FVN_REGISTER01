@@ -19,4 +19,7 @@ public sealed class CreateEquipmentRegistrationDto
     [StringLength(50)] public string? SelectedApproverCode { get; set; }
     public List<ApprovalSelectionDto> ApprovalSelections { get; set; } = new();
     [StringLength(1000)] public string? Note { get; set; }
+    /// <summary>Whether the approved asset may participate in the Endpoint Agent lifecycle.</summary>
+    public bool EndpointAgentEligible { get; set; }
+    [StringLength(30)] public string? EndpointOsFamily { get; set; }
 }

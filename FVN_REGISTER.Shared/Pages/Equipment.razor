@@ -12,6 +12,7 @@
 @inject IEquipmentClientService EquipmentClient
 @inject IApprovalRouteClientService ApprovalRouteClient
 @inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService Security
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
@@ -57,6 +58,23 @@ else
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label='@Language.T("equipment.name")' Required="true" /></MudItem>
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="@Language.T("equipment.maTaiSan")" /></MudItem>
                         <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="@Language.T("equipment.thongSoModel")" /></MudItem>
+                        @if (_actions?.Manage == true)
+                        {
+                            <MudItem xs="12">
+                                <MudCheckBox T="bool" @bind-Value="_form.EndpointAgentEligible" Color="Color.Primary" Label="Thiết bị đủ điều kiện sử dụng Endpoint Agent" />
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Chỉ đánh dấu cho máy tính/thiết bị có hệ điều hành cần quản lý bằng Agent. Máy in, màn hình, scanner... không chọn.</MudText>
+                            </MudItem>
+                            @if (_form.EndpointAgentEligible)
+                            {
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="string" @bind-Value="_form.EndpointOsFamily" Label="Hệ điều hành dự kiến" Clearable="true">
+                                        <MudSelectItem Value="@("Windows")">Windows</MudSelectItem>
+                                        <MudSelectItem Value="@("Linux")">Linux</MudSelectItem>
+                                        <MudSelectItem Value="@("macOS")">macOS</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                            }
+                        }
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="@Language.T("equipment.serialNumber")" /></MudItem>
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label='@Language.T("equipment.location")' /></MudItem>
                         <MudItem xs="12" md="4"><MudNumericField @bind-Value="_form.PurchasePrice" Label="@Language.T("equipment.giaThanh")" Min="0" /></MudItem>
@@ -129,6 +147,31 @@ else
                 </MudTabPanel>
             }
 
+            <MudTabPanel Text="Tài sản thiết bị">
+                <MudTable Items="_assets" Dense="true" Hover="true" Loading="_assetsLoading" Class="pa-4">
+                    <HeaderContent>
+                        <MudTh>Thiết bị</MudTh><MudTh>Mã tài sản</MudTh><MudTh>Người phụ trách</MudTh><MudTh>Endpoint Agent</MudTh><MudTh>Thao tác</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><b>@context.EquipmentName</b><br /><MudText Typo="Typo.caption">@context.EquipmentCode · @context.SerialNumber</MudText></MudTd>
+                        <MudTd>@context.AssetCode</MudTd>
+                        <MudTd>@context.ResponsibleEmployeeCode</MudTd>
+                        <MudTd>
+                            @if (!context.EndpointAgentEligible)
+                            { <MudChip T="string" Size="Size.Small">Không áp dụng</MudChip> }
+                            else if (context.EndpointDeviceId.HasValue)
+                            { <MudChip T="string" Size="Size.Small" Color="Color.Success">@context.EndpointAgentStatus</MudChip> }
+                            else
+                            { <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chưa cài Agent</MudChip> }
+                        </MudTd>
+                        <MudTd>
+                            @if ((context.EndpointAgentEligible && CanEndpointManage) || CanEligibilityManage)
+                            { <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security" OnClick="@(() => Navigation.NavigateTo($"/equipment/{context.Id}/endpoint-agent"))">@(context.EndpointAgentEligible ? "Endpoint Agent" : "Thiết lập Agent")</MudButton> }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudTabPanel>
+
             <MudTabPanel Text="@Language.T("equipment.yeuCauCuaToi")">
                 <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
                     <HeaderContent><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("nav.departments")</MudTh><MudTh>@Language.T("common.status")</MudTh></HeaderContent>
@@ -149,6 +192,11 @@ else
     private DateTime? _purchase = DateTime.Today;
     private DateTime? _depreciation = DateTime.Today.AddYears(3);
     private List<EquipmentRequestDto> _mine = new();
+    private List<EquipmentAssetDto> _assets = new();
+    private bool _assetsLoading;
+    private HashSet<int> _permissions = new();
+    private bool CanEligibilityManage => _actions?.EndpointAgentEligibilityManage == true;
+    private bool CanEndpointManage => _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialProvision) || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialRotate) || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialRevoke);
     private ApprovalRoutePreviewDto? _approvalRoute;
     private ApprovalRouteSelector? _approvalSelector;
     private EquipmentRequestDto? _created;
@@ -159,6 +207,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var p = await Security.GetMyPermissionsAsync();
+        _permissions = p.Data?.FunctionCodes ?? new();
         var access = await EquipmentClient.HasAccessAsync();
         _access = access.IsSuccess && access.Data;
         if (!_access) { _ready = true; return; }
@@ -170,6 +220,10 @@ else
         var employees = await EquipmentClient.GetAssignmentEmployeesAsync(_form.DeptCode);
         if (employees.IsSuccess) _assignmentEmployees = employees.Data ?? new();
         await LoadAsync();
+        _assetsLoading = true;
+        var assets = await EquipmentClient.GetAssetsAsync(_form.DeptCode);
+        if (assets.IsSuccess) _assets = assets.Data ?? new();
+        _assetsLoading = false;
         _ready = true;
     }
 
