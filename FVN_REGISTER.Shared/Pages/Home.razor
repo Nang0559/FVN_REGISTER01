@@ -6,6 +6,7 @@
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Shared.Services.Users
 @using Microsoft.AspNetCore.Authorization
@@ -59,53 +60,72 @@ else if (_model != null)
             </MudStack>
         </MudPaper>
 
-        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
-            <div>
-                <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.workCenter")</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.actionCenterDescription")</MudText>
-            </div>
-            @if (_model.ActionCount.TotalOpenCount > 0)
-            {
-                <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_work_inbox">
-                    @Language.T("dashboard.viewAll")
-                </MudButton>
-            }
-        </MudStack>
+        <MudGrid Spacing="3" Class="mb-5">
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2" Style="height:100%; border-radius:18px; overflow:hidden">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.myTasks")</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.myTasksDescription")</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            @if (_model.ActionCount.TotalOpenCount > 0)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@_model.ActionCount.TotalOpenCount</MudChip>
+                            }
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent Class="pa-0">
+                        @if (_model.Actions.Any())
+                        {
+                            <MudList T="ActionItemDto" Dense="true">
+                                @foreach (var action in _model.Actions.Take(6))
+                                {
+                                    <MudListItem T="ActionItemDto" OnClick="@(() => OpenAction(action))">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body2"><b>@action.Title</b></MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@action.Summary</MudText>
+                                            </MudStack>
+                                            <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
+                                        </MudStack>
+                                    </MudListItem>
+                                    <MudDivider />
+                                }
+                            </MudList>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="pa-4 mud-text-secondary">@Language.T("home.myTasksEmpty")</MudText>
+                        }
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_work_inbox">@Language.T("dashboard.viewAll")</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
 
-        @if (_model.Actions.Any())
-        {
-            <MudPaper Outlined="true" Class="mb-5" Style="border-radius:18px; overflow:hidden">
-                <MudList T="ActionItemDto" Dense="true">
-                    @foreach (var action in _model.Actions.Take(8))
-                    {
-                        <MudListItem T="ActionItemDto" OnClick="@(() => OpenAction(action))">
-                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>@action.Title</b></MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@action.Summary</MudText>
-                                </MudStack>
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
-                                    @if (action.Status == 0)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Error">
-                                            @Language.T("dashboard.pending")
-                                        </MudChip>
-                                    }
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                </MudList>
-                @if (_model.Actions.Count > 8)
-                {
-                    <MudButton Variant="Variant.Text" Class="ma-2" OnClick="OpenPath_work_inbox">
-                        @Language.T("dashboard.viewAll")
-                    </MudButton>
-                }
-            </MudPaper>
-        }
+            @if (CanSeeMyCalendar)
+            {
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="2" Style="height:100%; border-radius:18px; overflow:hidden">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.myCalendar")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.myCalendarDescription")</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_calendar">@Language.T("dashboard.viewAll")</MudButton>
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent Class="pa-2">
+                            <WorkCalendar ModuleContext="ALL" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
             <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.personalOverview")</MudText>
             <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.updatedAt", _loadedAt?.ToString("dd/MM/yyyy HH:mm"))</MudText>
@@ -164,6 +184,14 @@ else
     private bool Can(int functionCode) => _permissions?.Has(functionCode) == true;
     private bool CanPersonal(int functionCode) => _permissions?.HasPersonal(functionCode) == true;
     private bool CanManagement(int functionCode) => _permissions?.HasManagement(functionCode) == true;
+    private bool CanSeeMyCalendar =>
+        CanPersonal(SecurityFunctionCodes.CalendarView)
+        || CanPersonal(SecurityFunctionCodes.LeaveView)
+        || CanPersonal(SecurityFunctionCodes.LeaveCreate)
+        || CanPersonal(SecurityFunctionCodes.OTView)
+        || CanPersonal(SecurityFunctionCodes.OTCreate)
+        || CanPersonal(SecurityFunctionCodes.TripView)
+        || CanPersonal(SecurityFunctionCodes.TripCreate);
 
     protected override async Task OnInitializedAsync()
     {
