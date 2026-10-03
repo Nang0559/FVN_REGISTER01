@@ -1,69 +1,53 @@
 param(
     [Parameter(Mandatory = $true)] [string]$InstallPath,
     [Parameter(Mandatory = $true)] [string]$ApiBaseUrl,
-    [Parameter(Mandatory = $true)] [string]$DeviceKey,
-    [Parameter(Mandatory = $false)] [string]$ApiKeyProtected
+    [Parameter(Mandatory = $true)] [string]$BootstrapFile
 )
 
 $ErrorActionPreference = 'Stop'
 
 $uri = [Uri]$ApiBaseUrl
-if (-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https') {
-    throw 'ApiBaseUrl phải là HTTPS.'
-}
+if (-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https') { throw 'ApiBaseUrl phải là HTTPS.' }
 
-$exe = Join-Path $InstallPath 'FVN_REGISTER.EndpointAgent.exe'
-if (-not (Test-Path $exe)) {
-    throw "Không tìm thấy Agent: $exe"
-}
+$sourceExe = Join-Path $PSScriptRoot 'FVN_REGISTER.EndpointAgent.exe'
+if (-not (Test-Path $sourceExe)) { throw "Không tìm thấy Agent: $sourceExe" }
+if (-not (Test-Path $BootstrapFile)) { throw "Không tìm thấy bootstrap file: $BootstrapFile" }
 
 New-Item -ItemType Directory -Force -Path $InstallPath | Out-Null
+$targetExe = Join-Path $InstallPath 'FVN_REGISTER.EndpointAgent.exe'
+Copy-Item -LiteralPath $sourceExe -Destination $targetExe -Force
 
-if ([string]::IsNullOrWhiteSpace($ApiKeyProtected)) {
-    if (-not [Environment]::UserInteractive) {
-        throw 'Non-interactive installation phải cung cấp ApiKeyProtected.'
-    }
-
-    $secureApiKey = Read-Host 'Nhập API key của Endpoint (không truyền API key plaintext trên command line)' -AsSecureString
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey)
-    try {
-        $plainApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-        $protectedOutput = $plainApiKey | & $exe --protect-secret-stdin
-        if ($LASTEXITCODE -ne 0) {
-            throw "Agent không tạo được ApiKeyProtected (exit code $LASTEXITCODE)."
-        }
-        $ApiKeyProtected = ($protectedOutput | Select-Object -Last 1).ToString().Trim()
-    }
-    finally {
-        if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-        $plainApiKey = $null
-    }
-
-    if ([string]::IsNullOrWhiteSpace($ApiKeyProtected)) {
-        throw 'Không tạo được ApiKeyProtected bằng DPAPI LocalMachine.'
-    }
-}
+$targetBootstrap = Join-Path $InstallPath 'lanscope-bootstrap.json'
+Copy-Item -LiteralPath $BootstrapFile -Destination $targetBootstrap -Force
 
 $configPath = Join-Path $InstallPath 'appsettings.json'
+$existingConfig = $null
+if (Test-Path $configPath) {
+    try { $existingConfig = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json } catch { $existingConfig = $null }
+}
+$existingAgent = if ($existingConfig) { $existingConfig.FVNEndpointAgent } else { $null }
+$deviceKey = if ($existingAgent -and $existingAgent.DeviceKey) { [string]$existingAgent.DeviceKey } else { '' }
+$apiKeyProtected = if ($existingAgent -and $existingAgent.ApiKeyProtected) { [string]$existingAgent.ApiKeyProtected } else { '' }
+$bootstrapPath = if ($deviceKey -and $apiKeyProtected) { '' } else { 'lanscope-bootstrap.json' }
+
 $config = @{
     FVNEndpointAgent = @{
         ApiBaseUrl = $ApiBaseUrl
-        DeviceKey = $DeviceKey
-        ApiKeyProtected = $ApiKeyProtected
-        IntervalMinutes = 30
-        CredentialRotationLeadDays = 30
+        DeviceKey = $deviceKey
+        ApiKeyProtected = $apiKeyProtected
+        BootstrapPath = $bootstrapPath
+        IntervalMinutes = if ($existingAgent -and $existingAgent.IntervalMinutes) { [int]$existingAgent.IntervalMinutes } else { 30 }
+        CredentialRotationLeadDays = if ($existingAgent -and $existingAgent.CredentialRotationLeadDays) { [int]$existingAgent.CredentialRotationLeadDays } else { 30 }
     }
 } | ConvertTo-Json -Depth 4
 
-# Write beside the live file and replace it in one filesystem operation.
-# The live configuration is never truncated before the replacement is ready.
-$tempPath = "$configPath.$([Guid]::NewGuid().ToString('N')).tmp"
+$tempPath = $configPath + '.' + [Guid]::NewGuid().ToString('N') + '.tmp'
 try {
     [System.IO.File]::WriteAllText($tempPath, $config, [System.Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $tempPath -Destination $configPath -Force
 }
 finally {
-    if (Test-Path -LiteralPath $tempPath) { Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $tempPath) { Remove-Item $tempPath -Force -ErrorAction SilentlyContinue }
 }
 
 $serviceName = 'FVNRegisterEndpointAgent'
@@ -74,8 +58,11 @@ if ($existing) {
     Start-Sleep -Seconds 2
 }
 
-sc.exe create $serviceName binPath= "`"$exe`"" start= auto DisplayName= "FVN Register Endpoint Agent" | Out-Null
+sc.exe create $serviceName binPath= ('"' + $targetExe + '"') start= auto DisplayName= 'FVN Register Endpoint Agent' | Out-Null
 sc.exe failure $serviceName reset= 86400 actions= restart/60000/restart/60000/none/0 | Out-Null
+sc.exe config $serviceName obj= LocalSystem | Out-Null
 Start-Service -Name $serviceName
 
-Get-Service -Name $serviceName | Select-Object Name, Status, StartType
+$svc = Get-Service -Name $serviceName
+if ($svc.Status -ne 'Running') { throw ('Endpoint Agent service failed to start. Status=' + $svc.Status) }
+exit 0

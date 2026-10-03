@@ -35,19 +35,35 @@ public sealed class EndpointWorker : BackgroundService
             return;
         }
 
+        string apiKey;
         if (string.IsNullOrWhiteSpace(_options.DeviceKey) || string.IsNullOrWhiteSpace(_options.ApiKeyProtected))
         {
-            FailConfiguration("DeviceKey and ApiKeyProtected are required.");
-            return;
+            var bootstrapPath = Path.IsPathRooted(_options.BootstrapPath) ? _options.BootstrapPath : Path.Combine(AppContext.BaseDirectory, _options.BootstrapPath ?? string.Empty);
+            if (!File.Exists(bootstrapPath)) { FailConfiguration("Bootstrap file or existing DeviceKey/ApiKeyProtected is required."); return; }
+            try
+            {
+                var bootstrap = JsonSerializer.Deserialize<LanscopeBootstrap>(await File.ReadAllTextAsync(bootstrapPath, stoppingToken))
+                    ?? throw new InvalidOperationException("Bootstrap file không hợp lệ.");
+                if (!Uri.TryCreate(bootstrap.ApiBaseUrl, UriKind.Absolute, out var bootstrapUri) || bootstrapUri.Scheme != Uri.UriSchemeHttps)
+                    throw new InvalidOperationException("Bootstrap ApiBaseUrl phải dùng HTTPS.");
+                var enrolled = await EnrollAsync(bootstrap, stoppingToken);
+                _options.DeviceKey = enrolled.DeviceKey;
+                apiKey = enrolled.ApiKey;
+                PersistConfiguration(enrolled.DeviceKey, enrolled.ApiKey, bootstrap.ApiBaseUrl);
+                File.Delete(bootstrapPath);
+                _logger.LogInformation("Endpoint Agent enrolled successfully through LANSCOPE bootstrap.");
+            }
+            catch (Exception ex) { _logger.LogCritical(ex, "LANSCOPE bootstrap enrollment failed."); FailConfiguration("Bootstrap enrollment failed."); return; }
         }
-
-        string apiKey;
-        try { apiKey = WindowsSecretStore.Unprotect(_options.ApiKeyProtected); }
+        else
+        {
+            try { apiKey = WindowsSecretStore.Unprotect(_options.ApiKeyProtected); }
         catch (Exception ex)
         {
             _logger.LogCritical(ex, "Endpoint Agent credential cannot be decrypted on this Windows machine.");
             FailConfiguration("ApiKeyProtected cannot be decrypted on this Windows machine.");
             return;
+        }
         }
 
         var delay = TimeSpan.FromMinutes(Math.Clamp(_options.IntervalMinutes, 5, 1440));
@@ -72,7 +88,9 @@ public sealed class EndpointWorker : BackgroundService
         var request = new EndpointInventoryRequestDto(
             _options.DeviceKey.Trim(), Environment.MachineName, GetSerialNumber(), GetHardwareIdentity(), GetAgentInstallationId(),
             "Windows", Environment.OSVersion.VersionString, null, null, typeof(EndpointWorker).Assembly.GetName().Version?.ToString(),
-            _collector.CollectSoftware(), _collector.CollectServices(), _collector.CollectAntivirus());
+            _collector.CollectSoftware(), _collector.CollectServices(), _collector.CollectAntivirus(),
+            GetLanscopeClientId(), GetLocalIp(), GetMacAddress(), Environment.UserName, Environment.UserDomainName,
+            GetOrganizationalUnit(), GetLanscopeGroup(), GetManufacturer(), GetModel());
 
         for (var attempt = 0; attempt < 2; attempt++)
         {
@@ -170,6 +188,49 @@ public sealed class EndpointWorker : BackgroundService
             }
         }
     }
+
+    private sealed record LanscopeBootstrap(int DeploymentId, int TargetId, string EnrollmentToken, string ApiBaseUrl, string? ClientId);
+    private sealed record EnrollmentEnvelope<T>(bool Success, T? Data, string? Message);
+
+    private async Task<LanscopeEnrollmentResponseDto> EnrollAsync(LanscopeBootstrap bootstrap, CancellationToken ct)
+    {
+        using var client = _httpClientFactory.CreateClient();
+        client.BaseAddress = new Uri(bootstrap.ApiBaseUrl.TrimEnd('/') + "/");
+        var request = new LanscopeEnrollmentRequestDto(
+            bootstrap.DeploymentId, bootstrap.TargetId, bootstrap.EnrollmentToken, bootstrap.ClientId,
+            Environment.MachineName, GetLocalIp(), GetMacAddress(), GetSerialNumber(), Environment.UserName,
+            Environment.UserDomainName, GetOrganizationalUnit(), GetLanscopeGroup(), Environment.OSVersion.VersionString,
+            GetManufacturer(), GetModel(), GetHardwareIdentity(), GetAgentInstallationId(),
+            typeof(EndpointWorker).Assembly.GetName().Version?.ToString());
+        using var response = await client.PostAsJsonAsync("api/security/endpoints/lanscope/enroll", request, ct);
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<EnrollmentEnvelope<LanscopeEnrollmentResponseDto>>(cancellationToken: ct);
+        return payload?.Data ?? throw new InvalidOperationException("Enrollment API trả về response không hợp lệ.");
+    }
+
+    private static void PersistConfiguration(string deviceKey, string apiKey, string apiBaseUrl)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        var root = JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? new JsonObject();
+        var section = root["FVNEndpointAgent"]?.AsObject() ?? new JsonObject();
+        section["ApiBaseUrl"] = apiBaseUrl;
+        section["DeviceKey"] = deviceKey;
+        section["ApiKeyProtected"] = WindowsSecretStore.Protect(apiKey);
+        section["BootstrapPath"] = string.Empty;
+        root["FVNEndpointAgent"] = section;
+        var json = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try { File.WriteAllText(temp, json, new System.Text.UTF8Encoding(false)); File.Move(temp, path, true); }
+        finally { if (File.Exists(temp)) try { File.Delete(temp); } catch { } }
+    }
+
+    private static string? GetManufacturer() => ReadWmiValue("Win32_ComputerSystem", "Manufacturer");
+    private static string? GetModel() => ReadWmiValue("Win32_ComputerSystem", "Model");
+    private static string? GetOrganizationalUnit() => Environment.GetEnvironmentVariable("FVN_LANSCOPE_OU");
+    private static string? GetLanscopeGroup() => Environment.GetEnvironmentVariable("FVN_LANSCOPE_GROUP");
+    private static string? GetLanscopeClientId() => Environment.GetEnvironmentVariable("FVN_LANSCOPE_CLIENT_ID");
+    private static string? GetLocalIp() { try { using var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork,System.Net.Sockets.SocketType.Dgram,System.Net.Sockets.ProtocolType.Udp); socket.Connect("1.1.1.1",53); return (socket.LocalEndPoint as System.Net.IPEndPoint)?.Address.ToString(); } catch { return null; } }
+    private static string? GetMacAddress() { try { return System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Where(x=>x.OperationalStatus==System.Net.NetworkInformation.OperationalStatus.Up&&x.NetworkInterfaceType!=System.Net.NetworkInformation.NetworkInterfaceType.Loopback).OrderByDescending(x=>x.Speed).FirstOrDefault()?.GetPhysicalAddress().ToString(); } catch { return null; } }
 
     private static string? GetSerialNumber() => ReadWmiValue("Win32_BIOS", "SerialNumber");
 
