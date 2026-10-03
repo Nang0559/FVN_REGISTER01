@@ -129,6 +129,15 @@ public sealed class SecurityFunctionCapabilityMatrixTests
     }
 
     [Fact]
+    public void FeatureOperatorAuthorization_RequiresBothRbacAndAssignment()
+    {
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(false, false));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(false, true));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(true, false));
+        Assert.True(FeatureOperatorAuthorizationPolicy.CanOperate(true, true));
+    }
+
+    [Fact]
     public void NewCapabilities_AreUnique()
     {
         var codes = new[]
