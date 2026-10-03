@@ -6,7 +6,9 @@
 
   Remediation:
     - employee missing/inactive -> correct HRM/user mapping;
-    - RBAC missing -> grant the Function through an active Role -> RoleFunction;
+    - RBAC missing -> grant the Function through the canonical active Role -> RoleFunction path;
+    - F03UserFunction/legacy direct-user-function rows are intentionally ignored because
+      AuthorizationService.HasAsync does not treat them as effective RBAC grants;
     - do not delete assignments automatically.
 */
 USE [FVN_REGISTER];
