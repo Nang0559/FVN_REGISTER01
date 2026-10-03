@@ -116,6 +116,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
         target.EndpointDeviceId=device.Id;target.Status=identityStatus=="Verified"?"Enrolled":"PendingReview";target.EnrolledAtUtc=DateTime.UtcNow;
         var secret=GenerateSecret(48);var hash=SHA256.HashData(Encoding.UTF8.GetBytes(secret));
         await _db.Database.ExecuteSqlRawAsync("INSERT INTO dbo.F03EndpointCredentials(EndpointDeviceId,SecretHash,CreatedAtUtc,ExpiresAtUtc,CreatedBy,RevokedBy,GraceExpiresAtUtc) VALUES ({0},{1},SYSUTCDATETIME(),DATEADD(YEAR,1,SYSUTCDATETIME()),NULL,NULL,NULL);",new object[]{device.Id,hash},ct);
+        await _db.Database.ExecuteSqlRawAsync("INSERT INTO dbo.F03EndpointCredentialAudit(EndpointCredentialId,EndpointDeviceId,ActionCode,ActorUserId,OccurredAtUtc,Detail) SELECT TOP (1) Id,{0},N'Provision-LANSCOPE',NULL,SYSUTCDATETIME(),CONCAT(N'DeploymentId=',{1},N';TargetId=',{2}) FROM dbo.F03EndpointCredentials WHERE EndpointDeviceId={0} ORDER BY Id DESC;",new object[]{device.Id,request.DeploymentId,request.TargetId},ct);
         await _db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
         return Ok(ApiResponse<LanscopeEnrollmentResponseDto>.Ok(new LanscopeEnrollmentResponseDto(device.DeviceKey,secret,DateTimeOffset.UtcNow.AddYears(1),identityStatus)));
     }

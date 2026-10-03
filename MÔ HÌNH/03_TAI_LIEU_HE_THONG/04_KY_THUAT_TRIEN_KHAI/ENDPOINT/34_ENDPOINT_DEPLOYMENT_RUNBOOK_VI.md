@@ -134,3 +134,77 @@ Quay lại Equipment → Endpoint Agent để kiểm tra AgentVersion, LastSeen,
 
 ### Không dùng flow legacy
 Không provision bằng một màn hình độc lập yêu cầu người vận hành tự nhập DeviceKey như business flow. Nếu cần technical endpoint API theo DeviceKey, đó là operation dành cho security/technical compatibility.
+
+## 16. LANSCOPE Cat — bulk deployment
+
+Topology:
+
+```text
+PC
+ │ HTTPS
+ ▼
+LANSCOPE Client
+ │ Internet / LAN
+ ▼
+IIS
+ │
+ ▼
+FVN_REGISTER.API
+ │
+ ▼
+SQL Server
+```
+
+LANSCOPE is the distribution/execution engine; FVN REGISTER is the security/control plane.
+
+### Golden Package
+
+The package contains only the Endpoint Agent executable, installer and bootstrap-capable configuration. **Do not embed a DeviceKey, API credential or reusable enrollment secret in the Golden Package.**
+
+For each LANSCOPE client, FVN creates one deployment target and one one-time bootstrap token. The bootstrap token is stored as a SHA-256 hash in SQL, expires after 20 minutes and is atomically consumed once.
+
+The target inventory fields supported by FVN are:
+
+- ClientId
+- ComputerName
+- IP
+- MAC
+- SerialNumber
+- WindowsUser
+- Domain
+- OU
+- Group
+- OS
+- Manufacturer
+- Model
+
+### LANSCOPE execution
+
+Configure the LANSCOPE distribution job to:
+
+1. copy the Golden Package and that target's bootstrap JSON to the target PC;
+2. execute `install-agent.ps1` with the HTTPS FVN API URL and the bootstrap file path;
+3. run the installation under **LocalSystem**;
+4. use LANSCOPE retry/scheduling/return-code handling for the rollout.
+
+The installer creates/updates the `FVNRegisterEndpointAgent` Windows service and configures it as LocalSystem.
+
+After successful enrollment, the Agent receives a new DeviceKey and one-year credential, stores the credential using DPAPI LocalMachine and deletes the bootstrap file.
+
+### Security boundary
+
+The LANSCOPE client inventory is deployment metadata, not an authorization identity. FVN does not infer Department from LANSCOPE Group/OU. Equipment remains the business asset; DeviceKey remains the technical endpoint identity.
+
+### Production validation
+
+Before mass rollout, validate with 2–3 pilot PCs:
+
+- bootstrap token cannot be reused;
+- expired token is rejected;
+- each PC receives a distinct DeviceKey/credential;
+- serial mismatch becomes `PendingReview`;
+- inventory is accepted only with the issued endpoint credential;
+- revoking the credential blocks inventory;
+- reinstall/handover does not silently create a second business Equipment identity;
+- IIS is HTTPS and forwards the original scheme correctly.
+

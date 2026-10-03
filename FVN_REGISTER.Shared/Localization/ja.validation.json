@@ -1,6 +1,0 @@
-{
-  "validation.attachmentRequired": "証拠ファイルを添付してください。",
-  "validation.invalidDate": "日付が正しくありません。",
-  "validation.required": "必須項目を入力してください。",
-  "validation.startAfterEnd": "開始日は終了日より後にできません。"
-}
