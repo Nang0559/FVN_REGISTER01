@@ -325,7 +325,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             .ThenBy(x => x.AssignmentId)
             .ToListAsync(ct);
 
-        var operatorUser = default((int Id, string EmployeeCode)?);
+        var eligibility = new List<(int Id, string EmployeeCode, bool HasRbac)>(operatorCandidates.Count);
         foreach (var candidate in operatorCandidates)
         {
             var identity = new UserIdentityDto
@@ -344,13 +344,10 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 SecurityFunctionCodes.ExecutionReview,
                 ct);
 
-            if (FeatureOperatorAuthorizationPolicy.CanOperate(hasRbac, true))
-            {
-                operatorUser = (candidate.UserId, candidate.EmployeeCode);
-                break;
-            }
+            eligibility.Add((candidate.UserId, candidate.EmployeeCode, hasRbac));
         }
 
+        var operatorUser = FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator(eligibility);
         if (operatorUser is null)
             throw new InvalidOperationException(
                 "Không tìm thấy nhân sự được phân công Execution Review có RBAC Execution Review và tài khoản active để nhận vòng khiếu nại.");
