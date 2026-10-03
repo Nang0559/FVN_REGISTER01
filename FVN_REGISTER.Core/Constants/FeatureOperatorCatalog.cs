@@ -22,5 +22,6 @@ public static class FeatureOperatorCatalog
  public static bool TryGet(int functionCode,out FeatureOperatorDefinition definition)=>Definitions.TryGetValue(functionCode,out definition!);
  public static bool TryGetResourceType(int functionCode,out string resourceType){if(Definitions.TryGetValue(functionCode,out var definition)){resourceType=definition.ResourceType;return true;}resourceType=string.Empty;return false;}
  public static bool IsModuleWide(int functionCode)=>Definitions.TryGetValue(functionCode,out var definition)&&!definition.ResourceScoped;
+ public static bool IsModuleWideResourceType(string resourceType)=>Definitions.Values.Any(x=>!x.ResourceScoped&&string.Equals(x.ResourceType,resourceType,StringComparison.OrdinalIgnoreCase));
  public static IReadOnlyDictionary<int,string> All=>Definitions.ToDictionary(x=>x.Key,x=>x.Value.ResourceType);
 }

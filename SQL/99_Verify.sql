@@ -407,9 +407,37 @@ GO
 
 /* RBAC hardening verification. */
 DECLARE @RequiredCodes TABLE(FunctionCode int PRIMARY KEY);
-INSERT @RequiredCodes VALUES (3001),(3002),(3011),(3012),(3021),(3022),(3031),(3032),(3041),(3042),(3051),(3061),(3071),(3072);
+INSERT @RequiredCodes VALUES (3001),(3002),(3011),(3012),(3021),(3022),(3031),(3032),(3041),(3042),(3044),(3051),(3061),(3071),(3072),(3073);
 IF EXISTS (SELECT 1 FROM @RequiredCodes x WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=x.FunctionCode AND ISNULL(f.IsActive,1)=1))
     THROW 53050, N'Missing one or more P0/P1 dedicated RBAC functions.', 1;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 1
+      AND r.IsActive = 1
+      AND rf.IsActive = 1
+      AND f.FunctionCode = 3044
+      AND f.IsActive = 1
+)
+    THROW 53064, N'SuperAdmin role is missing WorkCalendar.SymbolRuleManage permission 3044.', 1;
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 7
+      AND r.IsActive = 1
+      AND rf.IsActive = 1
+      AND f.FunctionCode = 3044
+      AND f.IsActive = 1
+)
+    THROW 53065, N'HR role is missing WorkCalendar.SymbolRuleManage permission 3044.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=1 AND f.FunctionCode=3002)
     THROW 53051, N'SuperAdmin missing Department.Manage.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=2 AND f.FunctionCode=3061)

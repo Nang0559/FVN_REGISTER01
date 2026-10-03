@@ -112,13 +112,17 @@ public sealed class SecurityFunctionCapabilityMatrixTests
         Assert.Equal(FeatureOperatorCatalog.ApprovalPolicy, FeatureOperatorCatalog.All[SecurityFunctionCodes.ApprovalPolicyManage]);
         Assert.Equal(FeatureOperatorCatalog.OtLimitRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.OTLimitManage]);
         Assert.Equal(FeatureOperatorCatalog.WorkCalendar, FeatureOperatorCatalog.All[SecurityFunctionCodes.WorkCalendarManage]);
+        Assert.Equal(FeatureOperatorCatalog.AttendanceSymbolRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.WorkCalendarSymbolRuleManage]);
         Assert.Equal(FeatureOperatorCatalog.HrmUserRoleRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.HrmUserRoleRuleManage]);
 
         Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.ExecutionPolicyManage));
         Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.ApprovalPolicyManage));
         Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.OTLimitManage));
         Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.WorkCalendarManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.WorkCalendarSymbolRuleManage));
         Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.HrmUserRoleRuleManage));
+        Assert.Equal(3044, SecurityFunctionCodes.WorkCalendarSymbolRuleManage);
+        Assert.Equal(3073, SecurityFunctionCodes.ExecutionPolicyManage);
     }
 
     [Fact]

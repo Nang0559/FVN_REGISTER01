@@ -112,14 +112,18 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
 
         if (request.ResourceId.HasValue)
         {
-            var resourceExists = type switch
-            {
-                "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.Status != "Archived", ct),
-                "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
-                "EQUIPMENT_SCHEMA" => await EquipmentSchemaExistsAsync(request.ResourceId.Value, ct),
-                "EXECUTION_REVIEW" or "APPROVAL_POLICY" or "OT_LIMIT_RULE" or "WORK_CALENDAR" or "HRM_USER_ROLE_RULE" or "ENDPOINT_SOFTWARE_CATALOG" => true,
-                _ => false
-            };
+            // Module-wide operator assignments never point to a concrete resource.
+            // Derive this from the canonical function catalog so new module-wide
+            // features do not require another hard-coded ResourceType list here.
+            var resourceExists = FeatureOperatorCatalog.IsModuleWide(request.FunctionCode)
+                ? true
+                : type switch
+                {
+                    "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.Status != "Archived", ct),
+                    "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
+                    "EQUIPMENT_SCHEMA" => await EquipmentSchemaExistsAsync(request.ResourceId.Value, ct),
+                    _ => false
+                };
             if (!resourceExists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Resource không tồn tại hoặc đã inactive.");
         }
         if (FeatureOperatorCatalog.IsModuleWide(request.FunctionCode) && request.ResourceId.HasValue)
@@ -163,7 +167,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().Where(x => x.Status != "Archived").OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.Id.ToString(), Name = x.Title, Status = x.Status }).ToListAsync(ct),
             "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.FormCode, Name = x.Title, Status = x.Status }).ToListAsync(ct),
             "EQUIPMENT_SCHEMA" => await GetEquipmentSchemaResourcesAsync(ct),
-            "EXECUTION_REVIEW" or "APPROVAL_POLICY" or "OT_LIMIT_RULE" or "WORK_CALENDAR" or "HRM_USER_ROLE_RULE" or "ENDPOINT_SOFTWARE_CATALOG" => new List<FeatureOperatorResourceDto>(),
+            _ when FeatureOperatorCatalog.IsModuleWideResourceType(type) => new List<FeatureOperatorResourceDto>(),
             _ => throw new ArgumentException($"ResourceType không được hỗ trợ: {resourceType}")
         };
     }

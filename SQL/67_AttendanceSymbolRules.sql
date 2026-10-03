@@ -13,6 +13,90 @@ GO
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'UX_F03AttendanceSymbolRules_Code' AND object_id=OBJECT_ID(N'dbo.F03AttendanceSymbolRules')) CREATE UNIQUE INDEX UX_F03AttendanceSymbolRules_Code ON dbo.F03AttendanceSymbolRules(RuleCode);
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03AttendanceSymbolRules_Match' AND object_id=OBJECT_ID(N'dbo.F03AttendanceSymbolRules')) CREATE INDEX IX_F03AttendanceSymbolRules_Match ON dbo.F03AttendanceSymbolRules(IsActive,DayType,ShiftCode,ShiftId,Priority,EffectiveFrom,EffectiveTo);
 GO
+
+IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
+    THROW 53001, N'F03Functions is required before seeding WorkCalendar.SymbolRuleManage.', 1;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode = 3044)
+BEGIN
+    IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+        INSERT INTO dbo.F03Functions
+            (FunctionCode, FunctionKey, FunctionName, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
+        VALUES
+            (3044, N'WorkCalendar.SymbolRuleManage', N'WorkCalendar.SymbolRuleManage', N'WorkCalendar', N'SymbolRuleManage', N'All', N'Active', 1);
+    ELSE
+        INSERT INTO dbo.F03Functions
+            (FunctionCode, FunctionName, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
+        VALUES
+            (3044, N'WorkCalendar.SymbolRuleManage', N'WorkCalendar', N'SymbolRuleManage', N'All', N'Active', 1);
+END
+ELSE
+BEGIN
+    UPDATE dbo.F03Functions
+    SET FunctionName = N'WorkCalendar.SymbolRuleManage',
+        ModuleCode = N'WorkCalendar',
+        ActionCode = N'SymbolRuleManage',
+        ScopeCode = N'All',
+        LifecycleStatus = N'Active',
+        IsActive = 1
+    WHERE FunctionCode = 3044;
+
+    IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+        UPDATE dbo.F03Functions
+        SET FunctionKey = N'WorkCalendar.SymbolRuleManage'
+        WHERE FunctionCode = 3044;
+END;
+GO
+
+/* Symbol-rule management is module-wide. Seed the canonical SuperAdmin and HR
+   grants; Feature Operator Assignment still controls designated operators. */
+INSERT INTO dbo.F03RoleFunctions
+(
+    IdRole, IdFunction, IsActive, CreatedBy, CreatedAt
+)
+SELECT r.Id, f.Id, 1, 0, GETDATE()
+FROM dbo.F03Roles AS r
+CROSS JOIN dbo.F03Functions AS f
+WHERE r.RoleCode IN (1, 7)
+  AND r.IsActive = 1
+  AND f.FunctionCode = 3044
+  AND f.IsActive = 1
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.F03RoleFunctions AS rf
+      WHERE rf.IdRole = r.Id
+        AND rf.IdFunction = f.Id
+  );
+
+UPDATE rf
+SET rf.IsActive = 1
+FROM dbo.F03RoleFunctions AS rf
+INNER JOIN dbo.F03Roles AS r ON r.Id = rf.IdRole
+INNER JOIN dbo.F03Functions AS f ON f.Id = rf.IdFunction
+WHERE r.RoleCode IN (1, 7)
+  AND r.IsActive = 1
+  AND f.FunctionCode = 3044
+  AND f.IsActive = 1;
+GO
+
+IF OBJECT_ID(N'dbo.F03SecurityFunctionRegistry', N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM dbo.F03SecurityFunctionRegistry WHERE FunctionKey = N'WorkCalendar.SymbolRuleManage')
+BEGIN
+    INSERT INTO dbo.F03SecurityFunctionRegistry
+    (
+        FunctionKey, FunctionCode, DefinitionName, ModuleCode, ActionCode, ScopeCode,
+        LifecycleStatus, SourceType, DefinitionHash, FirstDiscoveredAt, LastSeenAt, IsIgnored
+    )
+    SELECT
+        N'WorkCalendar.SymbolRuleManage', 3044, N'WorkCalendar.SymbolRuleManage',
+        N'WorkCalendar', N'SymbolRuleManage', N'All', N'Active', N'SqlSeed',
+        CONVERT(varchar(128), HASHBYTES('SHA2_256', N'WorkCalendar.SymbolRuleManage|3044|WorkCalendar.SymbolRuleManage'), 2),
+        GETDATE(), GETDATE(), 0;
+END;
+GO
+
 DECLARE @R TABLE(Code nvarchar(100),Name nvarchar(200),DayType nvarchar(40),ShiftCode nvarchar(50),Priority int,MinActual int NULL,InFrom varchar(5) NULL,InTo varchar(5) NULL,JsonValue nvarchar(max));
 INSERT INTO @R VALUES
 (N'NORMAL-C1',N'Ngày thường - C1',N'NORMAL',N'C1',100,NULL,NULL,NULL,N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"STANDARD","segments":[{"segmentType":"WORK","start":"06:00","end":"14:00","symbolTemplate":"C1"},{"segmentType":"OT","start":"14:00","end":"18:00","symbolTemplate":"K{hours}"}]}'),
