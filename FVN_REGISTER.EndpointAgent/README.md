@@ -52,3 +52,21 @@ The server never accepts EmployeeCode or EquipmentAssetId from the trusted inven
 - Service `BinaryPathHash` is SHA-256 of the executable file content.
 - Defender and Windows Security Center antivirus providers are collected. Non-Defender providers without detailed protection flags are reported as detected/unknown, not falsely disabled.
 - Server-side `LastInventoryHash` prevents rewriting unchanged inventory every 30 minutes.
+
+
+## LANSCOPE Cat rollout
+
+The current installer is designed for the official LANSCOPE distribution/execution model:
+
+- one Golden Package for all Windows clients;
+- one bootstrap JSON per target client;
+- execute the installer as LocalSystem;
+- pass only the HTTPS API base URL and bootstrap file path;
+- use LANSCOPE return-code/retry/schedule controls for rollout;
+- never place a long-lived DeviceKey/API key in the package.
+
+FVN exposes deployment APIs under `/api/security/endpoints/lanscope`. An authorized operator creates a deployment, imports the LANSCOPE client inventory fields (ClientId, ComputerName, IP, MAC, SerialNumber, WindowsUser, Domain, OU, Group, OS, Manufacturer, Model), and receives one short-lived bootstrap token/file per target.
+
+The token is valid for 20 minutes and can be consumed only once. After enrollment the Agent deletes the bootstrap file and stores the issued API credential using DPAPI LocalMachine.
+
+LANSCOPE remains responsible for distribution/execution. FVN REGISTER remains responsible for endpoint identity, credential lifecycle, inventory, compliance and audit.
