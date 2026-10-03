@@ -34,8 +34,8 @@ It is intentionally separate from:
 3. When an operator assignment is configured, the user's HRM EmployeeCode must be assigned to that resource/module.
 4. Otherwise, a global assignment (ResourceId IS NULL) is checked where the resource type supports module-wide operators.
 5. If no assignment exists at either level, the feature keeps its existing RBAC + data-scope behavior for backward compatibility.
-5. Runtime service methods must repeat the same authorization rule; controller checks are not considered sufficient.
-6. Assignment creation is rejected when the target employee has no active user account or does not currently have the effective RBAC capability. The error is: "Nhân viên {EmployeeCode} chưa có RBAC cho {FunctionKey}. Hãy cấp capability trước khi chỉ định operator."
+6. Runtime service methods must repeat the same authorization rule; controller checks are not considered sufficient.
+7. Assignment creation is rejected when the target employee has no active user account or does not currently have the effective RBAC capability. The error is: "Nhân viên {EmployeeCode} chưa có RBAC cho {FunctionKey}. Hãy cấp capability trước khi chỉ định operator."
 
 Employee identity, department and position are resolved from HRM; the assignment table stores only EmployeeCode. RBAC is resolved centrally so active-role/lifecycle rules cannot diverge between Security Center and runtime authorization.
 
