@@ -1,5 +1,4 @@
 {
-  "home.actionCenterDescription": "通知と承認を一つのAction Centerに集約しています。設備もWorkspaceから開けます。",
   "home.approval": "承認",
   "home.approvalDescription": "アカウントの権限に応じて処理待ちのタスクを確認します。",
   "home.createLeave": "休暇申請",
@@ -17,6 +16,11 @@
   "home.myLeaveDescription": "残日数、履歴、休暇申請の状態を確認します。",
   "home.myOt": "自分の残業",
   "home.myOtDescription": "残業時間と申請履歴を確認します。",
+  "home.myTasks": "自分のタスク",
+  "home.myTasksDescription": "あなたが処理する必要のあるタスクと申請を確認します。",
+  "home.myTasksEmpty": "現在、処理するタスクはありません。",
+  "home.myCalendar": "自分のカレンダー",
+  "home.myCalendarDescription": "勤務予定、勤怠、自分の申請を確認します。",
   "home.openEquipment": "設備を開く",
   "home.openPublicInformation": "公開情報を開く",
   "home.personalOverview": "個人概要",
@@ -28,7 +32,6 @@
   "home.updatedAt": "更新 {0}",
   "home.workCalendar": "勤務カレンダー",
   "home.workCalendarDescription": "月間の勤務予定、勤怠、申請を確認します。",
-  "home.workCenter": "ワークセンター",
   "home.workspace": "個人ワークスペース",
   "home.workspaceDescription": "申請、承認、重要なお知らせをまとめて確認する個人ワークスペースです。"
 }
