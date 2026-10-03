@@ -101,5 +101,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3125 AND IsActi
     THROW 51694, N'LANSCOPE deployment manage capability 3125 is missing.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3126 AND IsActive=1)
     THROW 51695, N'LANSCOPE deployment view capability 3126 is missing.', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03EndpointEnrollmentTokens') AND name=N'IX_F03EndpointEnrollmentTokens_Target_Created')
+    CREATE INDEX IX_F03EndpointEnrollmentTokens_Target_Created ON dbo.F03EndpointEnrollmentTokens(TargetId,CreatedAtUtc DESC,UsedAtUtc,ExpiresAtUtc);
 PRINT N'Endpoint LANSCOPE deployment schema verified.';
 GO

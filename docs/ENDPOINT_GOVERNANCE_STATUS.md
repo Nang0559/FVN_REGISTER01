@@ -1,67 +1,38 @@
 # Endpoint Governance – implementation status
 
-Branch: `fix/hrm-background-workers-and-deploy-patch`
+Branch: feature/i18n-vi-ja
 
-## Current flow
+## LANSCOPE bulk flow
 
-```text
-SuperAdmin / IT
-    -> Draft Policy Version
-    -> Submit Common Approval
-    -> Approval Route (RequestModule.Endpoint)
-    -> Approved
-    -> Publish
-    -> Endpoint Agent Inventory
-    -> Automatic Compliance Evaluation
-    -> Version-pinned Finding / Exception / Installation Request
-```
+LANSCOPE CSV -> Import-LanscopeTargets.ps1 -> FVN deployment + target records -> one bootstrap JSON / target -> LANSCOPE distribution -> install-agent.ps1 (LocalSystem) -> HTTPS enrollment -> DeviceKey + credential -> inventory.
 
-## Status
+## Operational rules
 
-| Area | Status | Notes |
-|---|---|---|
-| RequestModule.Endpoint | DONE | Reuses existing RequestModule/approval abstraction. |
-| Security capability family 3101–3124 | DONE | Registered in existing Security Center; SuperAdmin receives the initial baseline only. IT must be granted the Endpoint capabilities explicitly. |
-| Software Catalog | DONE | Manual + Excel, versioned draft, submit and publish; SQL installs a deny-by-default baseline. |
-| Windows Service Catalog | DONE | Same canonical policy model; deny-by-default baseline. |
-| Catalog aliases / wildcard / regex | DONE | Alias, wildcard and regex matching are supported. |
-| Endpoint inventory | DONE | Agent ingestion and inventory summary. Same `LastInventoryHash` skips unchanged inventory writes. |
-| Equipment linkage | DONE | Agent cannot self-assign Equipment. FVN can query serial-based suggestions; the suggestion never creates a link automatically. |
-| Agent credential provisioning | DONE | Admin provision/rotate/revoke plus agent self-rotation while the current credential is still valid. Lifecycle actions are auditable. |
-| Agent DPAPI provisioning | DONE | `FVN_REGISTER.EndpointAgent.exe --protect-secret-stdin` creates `ApiKeyProtected` with DPAPI `LocalMachine`; install script can provision it locally on the target machine. |
-| Agent credential expiry / 401 | DONE | Agent rotates before expiry when the server advertises the expiry and attempts one self-rotation/retry after HTTP 401. Expired/revoked credentials require Security Center provisioning. |
-| Hardware identity | DONE | Serial from `Win32_BIOS.SerialNumber`; HardwareUuid from `Win32_ComputerSystemProduct.UUID`. |
-| Software inventory | DONE | Machine-wide + loaded user hives; update/system-component noise is filtered and versions/architectures are preserved. |
-| Service binary hash | DONE | SHA-256 is calculated from executable file contents, not the path string. |
-| Antivirus inventory | DONE | Defender plus Windows Security Center providers; unknown third-party protection state is not falsely reported as disabled. |
-| Automatic compliance evaluation | DONE | Runs after changed trusted inventory and can also be triggered manually. |
-| Finding deduplication | DONE | Compliant items do not create persistent findings; active findings are updated instead of duplicated every ingest. |
-| Finding retention | DONE | SQL cleanup retains resolved findings for 180 days and runs in logged background work, outside the ingest request. |
-| Credential audit | DONE | Provision/rotate/revoke have endpoint credential audit rows plus application audit entries; automatic rotation does not use a synthetic user id. |
-| Inventory transaction | DONE | Identity history and endpoint alerts are written inside the same database transaction as the inventory upsert. |
-| Agent configuration | DONE | Invalid/missing configuration stops the process with a non-zero exit code; `ApiBaseUrl` must use HTTPS. |
+- LanscopeDeployment:PublicBaseUrl bắt buộc cấu hình HTTPS; API không suy luận public URL từ Host/forwarded headers.
+- LanscopeDeployment:EnrollmentTokenMinutes mặc định 60 phút và có thể cấu hình 5–1440 phút.
+- TargetId trùng trong batch hoặc đã tồn tại sẽ trả 409; không còn continue âm thầm.
+- CreateTargets dùng transaction cho toàn bộ batch và chỉ SaveChanges theo batch, không SaveChanges từng target.
+- Token reissue chỉ áp dụng target Pending chưa enroll; target đã enroll không được cấp bootstrap mới.
+- Target không có serial hoặc serial không khớp sẽ vào PendingReview; không mặc định Verified.
+- Inventory không ghi đè metadata LANSCOPE hiện có bằng NULL/empty.
+- Agent lấy ClientId từ bootstrap và lưu local.
+- Agent lấy WindowsUser từ Win32_ComputerSystem.UserName; không dùng identity của LocalSystem service.
+- Installer dừng service trước khi copy EXE, bật sc failureflag, chờ enrollment thật sự và trả non-zero nếu enrollment không hoàn tất.
+- Bootstrap/config được ACL cho SYSTEM + Administrators và bootstrap source được xóa sau enrollment thành công.
+- Service binary hash cache theo mtime + size.
 
-## Agent runbook
+## SQL/deployment
 
-1. IT/SuperAdmin provisions the endpoint credential from Security Center.
-2. On the target machine, install with the plaintext API key through stdin:
+LANSCOPE schema nằm ở SQL/69_Endpoint_LanscopeDeployment.sql. Bộ deploy hiện tại phải bao gồm script 69; không dùng checklist cũ chỉ tới 54–56.
 
-```powershell
-$ApiKey | .\FVN_REGISTER.EndpointAgent.exe --protect-secret-stdin
-```
+## Bulk preparation
 
-or let `install-agent.ps1 -ApiKey $ApiKey` perform LocalMachine DPAPI protection locally. `-ApiKeyProtected` remains supported for a blob generated on that same machine.
-3. The Windows service stores only the DPAPI-protected blob in `appsettings.json`.
-4. The agent sends inventory every 30 minutes, uses the server-provided expiry to rotate before expiry, and retries once after a 401.
-5. If the key has already expired/revoked, the agent reports that Security Center must provision a new credential.
+scripts/lanscope/Import-LanscopeTargets.ps1 nhận CSV LANSCOPE với các trường ClientId, ComputerName, IP, MAC, SerialNumber, WindowsUser, Domain, OU, Group, OS, Manufacturer, Model; gọi API deployment/targets theo batch và xuất bootstrap JSON + manifest.
 
-## Architectural rules retained
+## Credential security
 
-- Equipment remains Asset/Master Data; Endpoint only references `EquipmentAssetId`.
-- Software/Service policy is Endpoint Governance, not Equipment.
-- Common Approval is reused; no `EndpointApprovalEngine`/`EquipmentSoftwareApproval` is introduced.
-- Security Center remains the only permission system.
-- Excel is an adapter only; persistence goes through the canonical Application contract.
-- Published policy versions are immutable in business meaning; a new change creates a new version.
-- Endpoint Agent cannot assign itself to an employee or Equipment Asset; ownership/linkage is an FVN-side administrative fact.
-- `DeptCode` remains textual; `HrmDeptId` is reserved for a numeric HRM identifier when HRM actually provides one.
+Một endpoint chỉ có một credential current. Khi rotate, credential cũ có grace window ngắn để tránh mất credential trong lúc agent ghi secret mới; secret plaintext không được ghi log/database.
+
+## Pilot gate
+
+Pilot 2–3 PC trước mass rollout và kiểm tra bootstrap replay, token expiry + reissue, missing/mismatched serial -> PendingReview, ClientId/OU/Group không mất sau inventory đầu tiên, WindowsUser không còn là SYSTEM khi có console user, upgrade khi service đang chạy, bootstrap source cleanup, service failure restart, revoke/expiry chặn inventory, PublicBaseUrl HTTPS, và distinct DeviceKey/credential cho từng endpoint.

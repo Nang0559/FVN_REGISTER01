@@ -22,10 +22,11 @@ public sealed class LanscopeDeploymentController : ControllerBase
     private readonly FVNWEBAPPContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService _authorization;
+    private readonly IConfiguration _configuration;
 
-    public LanscopeDeploymentController(FVNWEBAPPContext db, ICurrentUserService currentUser, FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization)
+    public LanscopeDeploymentController(FVNWEBAPPContext db, ICurrentUserService currentUser, FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization, IConfiguration configuration)
     {
-        _db=db; _currentUser=currentUser; _authorization=authorization;
+        _db=db; _currentUser=currentUser; _authorization=authorization; _configuration=configuration;
     }
 
     [HttpPost("deployments")]
@@ -49,26 +50,45 @@ public sealed class LanscopeDeploymentController : ControllerBase
         var deployment=await _db.EndpointDeployments.FirstOrDefaultAsync(x=>x.Id==deploymentId,ct);
         if(deployment==null)return NotFound(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Không tìm thấy deployment.",404));
         if(deployment.ExpiresAtUtc<=DateTime.UtcNow&&deployment.ExpiresAtUtc.HasValue)return BadRequest(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Deployment đã hết hạn."));
-        var results=new List<LanscopeDeploymentTargetResult>();
-        foreach(var item in requests)
+        await using var tx=await _db.Database.BeginTransactionAsync(ct);
+        var normalized = requests.Select(x => x.TargetId?.Trim() ?? string.Empty).ToArray();
+        if (normalized.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 100))
+            return BadRequest(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail("Mỗi TargetId phải có từ 1 đến 100 ký tự."));
+        var duplicateKeys = normalized.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
+        if (duplicateKeys.Length > 0)
+            return Conflict(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail($"TargetId trùng trong batch: {string.Join(", ", duplicateKeys)}",409));
+        var existingKeys = await _db.EndpointDeploymentTargets.AsNoTracking()
+            .Where(x => x.DeploymentId == deploymentId && normalized.Contains(x.TargetKey))
+            .Select(x => x.TargetKey).ToListAsync(ct);
+        if (existingKeys.Count > 0)
+            return Conflict(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Fail($"Target đã tồn tại: {string.Join(", ", existingKeys)}",409));
+
+        var targets = new List<(string Key, LanscopeClientInventoryDto Client, F03EndpointDeploymentTarget Entity)>();
+        for (var i = 0; i < requests.Count; i++)
         {
-            var targetKey=item.TargetId?.Trim();
-            if(string.IsNullOrWhiteSpace(targetKey)||targetKey.Length>100)continue;
-            if(await _db.EndpointDeploymentTargets.AnyAsync(x=>x.DeploymentId==deploymentId&&x.TargetKey==targetKey,ct))continue;
-            var client=item.Client;
+            var client=requests[i].Client;
             var target=new F03EndpointDeploymentTarget{
-                DeploymentId=deploymentId,TargetKey=targetKey,ClientId=Trim(client.ClientId,100),ComputerName=Trim(client.ComputerName,255),
+                DeploymentId=deploymentId,TargetKey=normalized[i],ClientId=Trim(client.ClientId,100),ComputerName=Trim(client.ComputerName,255),
                 IpAddress=Trim(client.Ip,100),MacAddress=Trim(client.Mac,100),SerialNumber=Trim(client.SerialNumber,255),WindowsUser=Trim(client.WindowsUser,255),
                 DomainName=Trim(client.Domain,255),OrganizationalUnit=Trim(client.Ou,500),LanscopeGroup=Trim(client.Group,255),OsName=Trim(client.Os,255),
                 Manufacturer=Trim(client.Manufacturer,255),Model=Trim(client.Model,255),Status="Pending",CreatedAtUtc=DateTime.UtcNow};
-            _db.EndpointDeploymentTargets.Add(target);await _db.SaveChangesAsync(ct);
-            var token=GenerateSecret(32);
-            _db.EndpointEnrollmentTokens.Add(new F03EndpointEnrollmentToken{DeploymentId=deploymentId,TargetId=target.Id,TokenHash=Hash(token),ExpiresAtUtc=DateTime.UtcNow.AddMinutes(20),CreatedAtUtc=DateTime.UtcNow});
-            await _db.SaveChangesAsync(ct);
-            var apiBase=GetPublicBaseUrl();
-            var bootstrap=JsonSerializer.Serialize(new{deploymentId,targetId=target.Id,enrollmentToken=token,apiBaseUrl=apiBase,clientId=client.ClientId});
-            results.Add(new LanscopeDeploymentTargetResult(target.Id,target.TargetKey,token,$"fvn-bootstrap-{SafeFile(target.TargetKey)}.json",bootstrap));
+            targets.Add((normalized[i],client,target));
+            _db.EndpointDeploymentTargets.Add(target);
         }
+        await _db.SaveChangesAsync(ct);
+
+        var results=new List<LanscopeDeploymentTargetResult>();
+        var apiBase=GetPublicBaseUrl();
+        var tokenMinutes=GetTokenMinutes();
+        foreach(var item in targets)
+        {
+            var token=GenerateSecret(32);
+            _db.EndpointEnrollmentTokens.Add(new F03EndpointEnrollmentToken{DeploymentId=deploymentId,TargetId=item.Entity.Id,TokenHash=Hash(token),ExpiresAtUtc=DateTime.UtcNow.AddMinutes(tokenMinutes),CreatedAtUtc=DateTime.UtcNow});
+            var bootstrap=JsonSerializer.Serialize(new{deploymentId,targetId=item.Entity.Id,enrollmentToken=token,apiBaseUrl=apiBase,clientId=item.Client.ClientId});
+            results.Add(new LanscopeDeploymentTargetResult(item.Entity.Id,item.Key,token,$"fvn-bootstrap-{SafeFile(item.Key)}.json",bootstrap));
+        }
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return Ok(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetResult>>.Ok(results));
     }
 
@@ -84,7 +104,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
     {
         if(await RequireAsync(SecurityFunctionCodes.EndpointLanscopeDeploymentView,ct)==null)return Forbid();
         var rows=await _db.EndpointDeploymentTargets.AsNoTracking().Where(x=>x.DeploymentId==deploymentId).OrderBy(x=>x.Id)
-            .Select(x=>new LanscopeDeploymentTargetViewDto(x.Id,x.TargetKey,x.ClientId,x.ComputerName,x.SerialNumber,x.Status,null,x.EnrolledAtUtc,x.EndpointDeviceId)).ToListAsync(ct);
+            .Select(x=>new LanscopeDeploymentTargetViewDto(x.Id,x.TargetKey,x.ClientId,x.ComputerName,x.SerialNumber,x.Status,_db.EndpointEnrollmentTokens.Where(t=>t.TargetId==x.Id&&t.UsedAtUtc==null).OrderByDescending(t=>t.CreatedAtUtc).Select(t=>(DateTimeOffset?)new DateTimeOffset(t.ExpiresAtUtc,TimeSpan.Zero)).FirstOrDefault(),x.EnrolledAtUtc,x.EndpointDeviceId)).ToListAsync(ct);
         return Ok(ApiResponse<IReadOnlyList<LanscopeDeploymentTargetViewDto>>.Ok(rows));
     }
 
@@ -103,14 +123,14 @@ public sealed class LanscopeDeploymentController : ControllerBase
         var deployment=await _db.EndpointDeployments.FirstOrDefaultAsync(x=>x.Id==request.DeploymentId,ct);
         if(target==null||deployment==null){await tx.RollbackAsync(ct);return NotFound(ApiResponse<LanscopeEnrollmentResponseDto>.Fail("Deployment target không tồn tại.",404));}
         if(deployment.ExpiresAtUtc<=DateTime.UtcNow&&deployment.ExpiresAtUtc.HasValue){await tx.RollbackAsync(ct);return Unauthorized(ApiResponse<LanscopeEnrollmentResponseDto>.Fail("Deployment đã hết hạn.",401));}
-        var serialMismatch=!string.IsNullOrWhiteSpace(target.SerialNumber)&&!string.IsNullOrWhiteSpace(request.SerialNumber)&&!string.Equals(target.SerialNumber.Trim(),request.SerialNumber.Trim(),StringComparison.OrdinalIgnoreCase);
-        var identityStatus=serialMismatch?"PendingReview":"Verified";
+        var serialMatches=!string.IsNullOrWhiteSpace(target.SerialNumber)&&!string.IsNullOrWhiteSpace(request.SerialNumber)&&string.Equals(target.SerialNumber.Trim(),request.SerialNumber.Trim(),StringComparison.OrdinalIgnoreCase);
+        var identityStatus=serialMatches?"Verified":"PendingReview";
         var device=target.EndpointDeviceId.HasValue?await _db.EndpointDevices.FirstOrDefaultAsync(x=>x.Id==target.EndpointDeviceId.Value,ct):null;
         if(device==null){device=new F03EndpointDevice{DeviceKey="LAN-"+Guid.NewGuid().ToString("N"),CreatedAt=DateTime.UtcNow,Source="LANSCOPE"};_db.EndpointDevices.Add(device);}
-        device.LanscopeClientId=Trim(request.ClientId,100);device.ComputerName=Trim(request.ComputerName,255);device.IpAddress=Trim(request.Ip,100);device.MacAddress=Trim(request.Mac,100);
-        device.SerialNumber=Trim(request.SerialNumber,255);device.HardwareUuid=Trim(request.HardwareUuid,255);device.AgentInstallationId=Trim(request.AgentInstallationId,100);device.WindowsUser=Trim(request.WindowsUser,255);
-        device.DomainName=Trim(request.Domain,255);device.OrganizationalUnit=Trim(request.Ou,500);device.LanscopeGroup=Trim(request.Group,255);device.OsName=Trim(request.Os,255);
-        device.Manufacturer=Trim(request.Manufacturer,255);device.Model=Trim(request.Model,255);device.AgentVersion=Trim(request.AgentVersion,50);device.LastSeenUtc=DateTime.UtcNow;
+        device.LanscopeClientId=Trim(request.ClientId,100) ?? target.ClientId;device.ComputerName=Trim(request.ComputerName,255) ?? target.ComputerName;device.IpAddress=Trim(request.Ip,100) ?? target.IpAddress;device.MacAddress=Trim(request.Mac,100) ?? target.MacAddress;
+        device.SerialNumber=Trim(request.SerialNumber,255) ?? target.SerialNumber;device.HardwareUuid=Trim(request.HardwareUuid,255);device.AgentInstallationId=Trim(request.AgentInstallationId,100);device.WindowsUser=Trim(request.WindowsUser,255) ?? target.WindowsUser;
+        device.DomainName=Trim(request.Domain,255) ?? target.DomainName;device.OrganizationalUnit=Trim(request.Ou,500) ?? target.OrganizationalUnit;device.LanscopeGroup=Trim(request.Group,255) ?? target.LanscopeGroup;device.OsName=Trim(request.Os,255) ?? target.OsName;
+        device.Manufacturer=Trim(request.Manufacturer,255) ?? target.Manufacturer;device.Model=Trim(request.Model,255) ?? target.Model;device.AgentVersion=Trim(request.AgentVersion,50);device.LastSeenUtc=DateTime.UtcNow;
         device.Status="Online";device.IdentityStatus=identityStatus;device.Source="LANSCOPE";
         await _db.SaveChangesAsync(ct);
         target.EndpointDeviceId=device.Id;target.Status=identityStatus=="Verified"?"Enrolled":"PendingReview";target.EnrolledAtUtc=DateTime.UtcNow;
@@ -123,7 +143,33 @@ public sealed class LanscopeDeploymentController : ControllerBase
 
     private async Task<F03User?> RequireAsync(int code,CancellationToken ct){var user=_currentUser.GetCurrentUser();return user!=null&&await _authorization.HasAsync(user,code,ct)?user:null;}
     private async Task<LanscopeDeploymentViewDto?> ToViewAsync(int id,CancellationToken ct){var d=await _db.EndpointDeployments.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==id,ct);if(d==null)return null;var targets=await _db.EndpointDeploymentTargets.AsNoTracking().Where(x=>x.DeploymentId==id).ToListAsync(ct);return new LanscopeDeploymentViewDto(d.Id,d.DeploymentCode,d.PackageVersion,d.Status,new DateTimeOffset(d.CreatedAtUtc,TimeSpan.Zero),d.ExpiresAtUtc.HasValue?new DateTimeOffset(d.ExpiresAtUtc.Value,TimeSpan.Zero):null,targets.Count,targets.Count(x=>x.EndpointDeviceId.HasValue));}
-    private string GetPublicBaseUrl(){var proto=Request.Headers["X-Forwarded-Proto"].FirstOrDefault();if(string.IsNullOrWhiteSpace(proto))proto=Request.Scheme;return proto+"://"+Request.Host.Value;}
+    [HttpPost("deployments/{deploymentId:int}/targets/{targetId:int}/reissue")]
+    public async Task<ActionResult<ApiResponse<LanscopeDeploymentTargetResult>>> ReissueTargetToken(int deploymentId, int targetId, CancellationToken ct)
+    {
+        if(await RequireAsync(SecurityFunctionCodes.EndpointLanscopeDeploymentManage,ct)==null)return Forbid();
+        var deployment=await _db.EndpointDeployments.FirstOrDefaultAsync(x=>x.Id==deploymentId,ct);
+        var target=await _db.EndpointDeploymentTargets.FirstOrDefaultAsync(x=>x.Id==targetId&&x.DeploymentId==deploymentId,ct);
+        if(deployment==null||target==null)return NotFound(ApiResponse<LanscopeDeploymentTargetResult>.Fail("Deployment target không tồn tại.",404));
+        if(deployment.ExpiresAtUtc.HasValue&&deployment.ExpiresAtUtc.Value<=DateTime.UtcNow)return BadRequest(ApiResponse<LanscopeDeploymentTargetResult>.Fail("Deployment đã hết hạn."));
+        if(target.Status=="Enrolled"||target.EndpointDeviceId.HasValue)return Conflict(ApiResponse<LanscopeDeploymentTargetResult>.Fail("Target đã enroll; không cấp bootstrap token mới."));
+        await _db.EndpointEnrollmentTokens.Where(x=>x.TargetId==targetId&&x.UsedAtUtc==null).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.UsedAtUtc,DateTime.UtcNow),ct);
+        var token=GenerateSecret(32); var expires=DateTime.UtcNow.AddMinutes(GetTokenMinutes());
+        _db.EndpointEnrollmentTokens.Add(new F03EndpointEnrollmentToken{DeploymentId=deploymentId,TargetId=targetId,TokenHash=Hash(token),ExpiresAtUtc=expires,CreatedAtUtc=DateTime.UtcNow});
+        await _db.SaveChangesAsync(ct);
+        var bootstrap=JsonSerializer.Serialize(new{deploymentId,targetId,enrollmentToken=token,apiBaseUrl=GetPublicBaseUrl(),clientId=target.ClientId});
+        return Ok(ApiResponse<LanscopeDeploymentTargetResult>.Ok(new LanscopeDeploymentTargetResult(target.Id,target.TargetKey,token,$"fvn-bootstrap-{SafeFile(target.TargetKey)}.json",bootstrap)));
+    }
+
+    private string GetPublicBaseUrl()
+    {
+        var configured=_configuration["LanscopeDeployment:PublicBaseUrl"]?.Trim();
+        if(string.IsNullOrWhiteSpace(configured)||!Uri.TryCreate(configured,UriKind.Absolute,out var uri)||uri.Scheme!=Uri.UriSchemeHttps)
+            throw new InvalidOperationException("LanscopeDeployment:PublicBaseUrl phải được cấu hình bằng HTTPS.");
+        return configured.TrimEnd('/');
+    }
+    private int GetTokenMinutes()
+        => Math.Clamp(_configuration.GetValue<int?>("LanscopeDeployment:EnrollmentTokenMinutes") ?? 60, 5, 1440);
+
     private static string GenerateSecret(int bytes){Span<byte> b=stackalloc byte[bytes];RandomNumberGenerator.Fill(b);return Convert.ToBase64String(b).Replace("+","-",StringComparison.Ordinal).Replace("/","_",StringComparison.Ordinal).TrimEnd('=');}
     private static string Hash(string value)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
     private static string? Trim(string? value,int max)=>string.IsNullOrWhiteSpace(value)?null:value.Trim()[..Math.Min(value.Trim().Length,max)];

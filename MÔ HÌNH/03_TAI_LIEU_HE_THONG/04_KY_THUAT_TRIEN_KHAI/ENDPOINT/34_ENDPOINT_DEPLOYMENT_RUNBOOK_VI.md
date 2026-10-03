@@ -19,7 +19,7 @@ Credential xác định endpoint; DeviceKey lấy server-side; HardwareIdentity 
 
 ## 3. Chuẩn bị server
 
-Chạy SQL theo thứ tự `54_Endpoint_Inventory_Compliance.sql`, `55_Endpoint_Credentials.sql`, `56_Endpoint_Governance.sql`.
+Chạy SQL theo bộ deploy hiện tại, trong đó LANSCOPE là `69_Endpoint_LanscopeDeployment.sql`; không dùng danh sách 54–56 như checklist đầy đủ.
 
 Production yêu cầu HTTPS, rate limiting, audit provision/revoke/rotate, credential hash và inventory authentication bằng credential máy.
 
@@ -141,7 +141,7 @@ Topology: PC → HTTPS → LANSCOPE Client → Internet/LAN → IIS → FVN_REGI
 
 LANSCOPE is the distribution/execution engine; FVN REGISTER is the security/control plane.
 
-The Golden Package must not contain a DeviceKey, API credential or reusable enrollment secret. Each LANSCOPE target receives one short-lived bootstrap token. FVN stores only its SHA-256 hash; the token expires after 20 minutes and is atomically consumed once.
+The Golden Package must not contain a DeviceKey, API credential or reusable enrollment secret. Each LANSCOPE target receives one short-lived bootstrap token. FVN stores only its SHA-256 hash; the token lifetime is configured by `LanscopeDeployment:EnrollmentTokenMinutes` (default 60 minutes) and is atomically consumed once. Expired/pending targets can receive a new token through the reissue endpoint.
 
 Supported LANSCOPE fields: ClientId, ComputerName, IP, MAC, SerialNumber, WindowsUser, Domain, OU, Group, OS, Manufacturer, Model.
 
@@ -149,4 +149,4 @@ Configure LANSCOPE to copy the Golden Package plus the target bootstrap JSON, ex
 
 After enrollment the Agent receives a DeviceKey and one-year credential, protects the credential with DPAPI LocalMachine and deletes the bootstrap file. Equipment remains the business identity; DeviceKey is the technical identity. FVN does not infer Department from LANSCOPE Group/OU.
 
-Before mass rollout, pilot 2–3 PCs and verify token replay/expiry, distinct DeviceKey/credential, serial mismatch → `PendingReview`, credential-only inventory authentication, revoke blocking inventory, reinstall/handover behavior, and HTTPS forwarded-proto configuration.
+Before mass rollout, pilot 2–3 PCs and verify token replay/expiry + reissue, distinct DeviceKey/credential, missing/mismatched serial → `PendingReview`, credential-only inventory authentication, NULL-safe LANSCOPE metadata retention, revoke blocking inventory, installer upgrade while service is running, bootstrap cleanup, restart-on-failure, reinstall/handover behavior, and configured HTTPS `PublicBaseUrl`.

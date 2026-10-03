@@ -14,8 +14,8 @@ Superadmin/IT
 
 ## Rules
 
-- Một endpoint chỉ có tối đa một credential active.
-- Rotate tạo secret mới và revoke secret cũ.
+- Một endpoint chỉ có tối đa một credential current; credential cũ chỉ có thể tồn tại trong grace window ngắn khi rotate để tránh mất credential trong lúc agent ghi local secret.
+- Rotate tạo secret mới; credential cũ được giữ grace ngắn trong transaction và tự hết hiệu lực, tránh làm mất credential nếu local persist thất bại.
 - Revoke làm endpoint không thể gửi inventory.
 - Credential không quyết định quyền người dùng; nó chỉ xác thực machine identity.
 - DeviceKey được lấy từ credential record, không tin DeviceKey trong payload.
