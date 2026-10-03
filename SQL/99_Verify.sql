@@ -450,7 +450,22 @@ IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2901 AND ScopeCode<
     THROW 53055, N'Attendance.View must be Department scoped.', 1;
 IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=5 AND f.FunctionCode=2901)
     THROW 53063, N'Normal User must not have Attendance.View Department scope.', 1;
-IF NOT EXISTS
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+BEGIN
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.F03Functions
+        WHERE FunctionCode = 3044
+          AND FunctionKey = N'WorkCalendar.SymbolRuleManage'
+          AND ModuleCode = N'WorkCalendar'
+          AND ActionCode = N'SymbolRuleManage'
+          AND ScopeCode = N'All'
+          AND ISNULL(IsActive, 1) = 1
+    )
+        THROW 53066, N'WorkCalendar.SymbolRuleManage function 3044 is missing or incorrectly seeded.', 1;
+END
+ELSE IF NOT EXISTS
 (
     SELECT 1
     FROM dbo.F03Functions
@@ -463,7 +478,22 @@ IF NOT EXISTS
 )
     THROW 53066, N'WorkCalendar.SymbolRuleManage function 3044 is missing or incorrectly seeded.', 1;
 
-IF NOT EXISTS
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+BEGIN
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.F03Functions
+        WHERE FunctionCode = 3073
+          AND FunctionKey = N'Execution.PolicyManage'
+          AND ModuleCode = N'Execution'
+          AND ActionCode = N'PolicyManage'
+          AND ScopeCode = N'All'
+          AND ISNULL(IsActive, 1) = 1
+    )
+        THROW 53067, N'Execution.PolicyManage function 3073 is missing or incorrectly seeded.', 1;
+END
+ELSE IF NOT EXISTS
 (
     SELECT 1
     FROM dbo.F03Functions
