@@ -136,7 +136,7 @@ else if (_model != null)
             <EquipmentDashboardTile />
         }
 
-        @if (Can(SecurityFunctionCodes.EquipmentView))
+        @if (CanManagement(SecurityFunctionCodes.EquipmentView))
         {
             <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
