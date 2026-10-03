@@ -83,6 +83,6 @@ GO
 IF OBJECT_ID('dbo.F03Roles','U') IS NOT NULL AND OBJECT_ID('dbo.F03RoleFunctions','U') IS NOT NULL
  INSERT INTO dbo.F03RoleFunctions(IdRole,IdFunction,IsActive,CreatedBy,CreatedAt)
  SELECT r.Id,f.Id,1,0,GETDATE() FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
- WHERE r.RoleCode=1 AND f.FunctionCode IN(3125,3126)
+ WHERE (r.RoleCode=1 OR r.RoleName=N'IT Endpoint Operator') AND f.FunctionCode IN(3125,3126)
  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
