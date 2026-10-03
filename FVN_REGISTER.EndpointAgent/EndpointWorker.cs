@@ -52,7 +52,7 @@ public sealed class EndpointWorker : BackgroundService
                 var enrolled = await EnrollWithRetryAsync(bootstrap, stoppingToken);
                 _options.DeviceKey = enrolled.DeviceKey;
                 apiKey = enrolled.ApiKey;
-                PersistConfiguration(enrolled.DeviceKey, enrolled.ApiKey, bootstrap.ApiBaseUrl, bootstrap.ClientId);
+                PersistConfiguration(enrolled.DeviceKey, enrolled.ApiKey, bootstrap.ApiBaseUrl, bootstrap.ClientId, bootstrap.OrganizationalUnit, bootstrap.Group);
                 SecureDeleteFile(bootstrapPath);
                 _logger.LogInformation("Endpoint Agent enrolled successfully through LANSCOPE bootstrap.");
             }
@@ -215,7 +215,7 @@ public sealed class EndpointWorker : BackgroundService
         return payload?.Data ?? throw new InvalidOperationException("Enrollment API trả về response không hợp lệ.");
     }
 
-    private static void PersistConfiguration(string deviceKey, string apiKey, string apiBaseUrl, string? lanscopeClientId)
+    private static void PersistConfiguration(string deviceKey, string apiKey, string apiBaseUrl, string? lanscopeClientId, string? organizationalUnit, string? group)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         var root = JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? new JsonObject();
