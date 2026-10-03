@@ -69,7 +69,7 @@ for($offset=0;$offset -lt $rows.Count;$offset+=$BatchSize){
     }
     if($targets.Count -eq 0){continue}
     $response=Post-Json "$base/api/security/endpoints/lanscope/deployments/$DeploymentId/targets" $targets
-    foreach($item in @($response.data)){ $path=Write-BootstrapFile $item; $manifest.Add([pscustomobject]@{TargetId=$item.targetId;TargetKey=$item.targetKey;BootstrapFile=$path}) }
+    foreach($item in @($response.data)){ $path=Write-Bootstrap $item; $manifest.Add([pscustomobject]@{TargetId=$item.targetId;TargetKey=$item.targetKey;BootstrapFile=$path}) }
 }
 if($ReissuePending){
     $response=Post-Json "$base/api/security/endpoints/lanscope/deployments/$DeploymentId/targets/reissue-pending" @{}
