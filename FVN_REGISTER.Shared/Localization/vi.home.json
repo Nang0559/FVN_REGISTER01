@@ -1,5 +1,4 @@
 {
-  "home.actionCenterDescription": "Thông báo và phê duyệt dùng chung một Action Center. Thiết bị cũng được mở ngay trong Workspace.",
   "home.approval": "Phê duyệt",
   "home.approvalDescription": "Tập trung các việc đang chờ xử lý theo quyền của tài khoản.",
   "home.createLeave": "Tạo Leave",
@@ -17,6 +16,11 @@
   "home.myLeaveDescription": "Xem số dư, lịch sử và trạng thái các đơn nghỉ.",
   "home.myOt": "OT của tôi",
   "home.myOtDescription": "Theo dõi giờ OT và các yêu cầu đã gửi.",
+  "home.myTasks": "Nhiệm vụ của tôi",
+  "home.myTasksDescription": "Các công việc và yêu cầu đang chờ bạn xử lý.",
+  "home.myTasksEmpty": "Hiện không có nhiệm vụ cần xử lý.",
+  "home.myCalendar": "Lịch của tôi",
+  "home.myCalendarDescription": "Xem lịch làm việc, chấm công và các đơn của bạn.",
   "home.openEquipment": "Mở Equipment",
   "home.openPublicInformation": "Mở thông tin công khai",
   "home.personalOverview": "Tổng quan cá nhân",
@@ -28,7 +32,6 @@
   "home.updatedAt": "Cập nhật {0}",
   "home.workCalendar": "Lịch làm việc",
   "home.workCalendarDescription": "Xem tổng quan lịch làm việc, chấm công và các đơn trong tháng.",
-  "home.workCenter": "Trung tâm công việc",
   "home.workspace": "Workspace cá nhân",
   "home.workspaceDescription": "Đây là trung tâm công việc cá nhân: theo dõi đơn, xử lý phê duyệt và các thông tin cần chú ý."
 }
