@@ -194,7 +194,10 @@ public sealed class LanscopeDeploymentController : ControllerBase
         var target=await _db.EndpointDeploymentTargets.FirstOrDefaultAsync(x=>x.Id==targetId&&x.DeploymentId==deploymentId,ct);
         if(target==null)return NotFound(ApiResponse<object>.Fail("Deployment target không tồn tại.",404));
         if(target.EndpointDeviceId.HasValue)
+        {
+            await _db.Database.ExecuteSqlRawAsync("INSERT INTO dbo.F03EndpointCredentialAudit(EndpointCredentialId,EndpointDeviceId,ActionCode,ActorUserId,OccurredAtUtc,Detail) SELECT c.Id,c.EndpointDeviceId,N'RESET',NULL,SYSUTCDATETIME(),N'LANSCOPE target reset before reissue.' FROM dbo.F03EndpointCredentials c WHERE c.EndpointDeviceId={0} AND c.RevokedAtUtc IS NULL;",new object[]{target.EndpointDeviceId.Value},ct);
             await _db.Database.ExecuteSqlRawAsync("UPDATE c SET RevokedAtUtc=SYSUTCDATETIME(),RevokedBy=NULL,GraceExpiresAtUtc=NULL FROM dbo.F03EndpointCredentials c WHERE c.EndpointDeviceId={0} AND c.RevokedAtUtc IS NULL;",new object[]{target.EndpointDeviceId.Value},ct);
+        }
         await _db.EndpointEnrollmentTokens.Where(x=>x.TargetId==targetId&&x.UsedAtUtc==null).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.UsedAtUtc,DateTime.UtcNow),ct);
         target.EndpointDeviceId=null;target.EnrolledAtUtc=null;target.Status="Pending";
         await _db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
