@@ -100,7 +100,10 @@ else if (_model != null)
                         }
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_work_inbox">@Language.T("dashboard.viewAll")</MudButton>
+                        @if (_model.ActionCount.TotalOpenCount > 5)
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_work_inbox">@Language.T("dashboard.viewAll")</MudButton>
+                        }
                     </MudCardActions>
                 </MudCard>
             </MudItem>
