@@ -301,6 +301,21 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         if (existing is not null)
             return existing.ActionId;
 
+        // Operator eligibility must match the same authorization chain used when
+        // the assigned action is later claimed/resolved:
+        // RBAC -> Managed Scope -> Feature Operator.
+        // Without the target employee context here, a narrow-scope operator can
+        // be assigned successfully and only discover the mismatch when opening
+        // the appeal, resulting in a late 403/Forbid.
+        var targetEmployee = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == employeeId && x.IsActive != false)
+            .Select(x => new { x.EmployeeCode, x.DeptCode })
+            .SingleOrDefaultAsync(ct);
+
+        if (targetEmployee is null)
+            throw new InvalidOperationException(
+                "Không xác định được nhân viên đích để kiểm tra scope Execution Review.");
+
         var operatorCandidates = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
             .Where(x => x.IsActive == true
                 && x.FunctionCode == SecurityFunctionCodes.ExecutionReview
@@ -344,7 +359,23 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 SecurityFunctionCodes.ExecutionReview,
                 ct);
 
-            eligibility.Add((candidate.UserId, candidate.EmployeeCode, hasRbac));
+            if (!hasRbac)
+            {
+                eligibility.Add((candidate.UserId, candidate.EmployeeCode, false));
+                continue;
+            }
+
+            var canAccessTarget = await _authorization.CanAccessAsync(
+                identity,
+                SecurityFunctionCodes.ExecutionReview,
+                targetEmployee.EmployeeCode,
+                targetEmployee.DeptCode,
+                ct);
+
+            // FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator
+            // intentionally remains a pure RBAC/assignment selector; scope is
+            // evaluated here because it depends on the reconciliation target.
+            eligibility.Add((candidate.UserId, candidate.EmployeeCode, canAccessTarget));
         }
 
         var operatorUser = FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator(eligibility);
