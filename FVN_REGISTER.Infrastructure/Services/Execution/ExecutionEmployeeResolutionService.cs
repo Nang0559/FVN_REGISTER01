@@ -308,7 +308,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         // be assigned successfully and only discover the mismatch when opening
         // the appeal, resulting in a late 403/Forbid.
         var targetEmployee = await _db.Employees.AsNoTracking()
-            .Where(x => x.Id == employeeId && x.IsActive != false)
+            .Where(x => x.Id == employeeId)
             .Select(x => new { x.EmployeeCode, x.DeptCode })
             .SingleOrDefaultAsync(ct);
 
@@ -383,7 +383,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
         var operatorUser = FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator(eligibility);
         if (operatorUser is null)
             throw new InvalidOperationException(
-                "Không tìm thấy nhân sự được phân công Execution Review có RBAC Execution Review và tài khoản active để nhận vòng khiếu nại.");
+                "Không tìm thấy nhân sự được phân công Execution Review có RBAC Execution Review, tài khoản active và scope với nhân viên đích để nhận vòng khiếu nại.");
 
         var operatorEmployee = await _db.Employees.AsNoTracking()
             .Where(x => x.IsActive != false && x.EmployeeCode == operatorUser.Value.EmployeeCode)
