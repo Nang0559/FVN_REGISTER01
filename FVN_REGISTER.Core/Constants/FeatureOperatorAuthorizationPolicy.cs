@@ -10,6 +10,15 @@ public static class FeatureOperatorAuthorizationPolicy
         => hasRbacCapability && isAssignedOperator;
 
     /// <summary>
+    /// Operator selection gate: an assigned operator must retain the RBAC
+    /// capability and have Managed Scope access to the current target employee.
+    /// </summary>
+    public static bool CanSelectOperator(
+        bool hasRbacCapability,
+        bool hasTargetScopeAccess)
+        => hasRbacCapability && hasTargetScopeAccess;
+
+    /// <summary>
     /// Assignment creation gate: employee, active user account and effective RBAC
     /// capability are all required before a Feature Operator assignment can be stored.
     /// </summary>
