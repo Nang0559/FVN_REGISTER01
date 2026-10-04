@@ -340,7 +340,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             .ThenBy(x => x.AssignmentId)
             .ToListAsync(ct);
 
-        var eligibility = new List<(int Id, string EmployeeCode, bool HasRbac)>(operatorCandidates.Count);
+        var eligibility = new List<(int Id, string EmployeeCode, bool Eligible)>(operatorCandidates.Count);
         foreach (var candidate in operatorCandidates)
         {
             var identity = new UserIdentityDto
@@ -372,9 +372,8 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
                 targetEmployee.DeptCode,
                 ct);
 
-            // FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator
-            // intentionally remains a pure RBAC/assignment selector; scope is
-            // evaluated here because it depends on the reconciliation target.
+            // Scope is evaluated here because it depends on the reconciliation target;
+            // only the combined RBAC + target-scope result reaches the selector.
             eligibility.Add((
                 candidate.UserId,
                 candidate.EmployeeCode,
