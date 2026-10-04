@@ -375,7 +375,10 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             // FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator
             // intentionally remains a pure RBAC/assignment selector; scope is
             // evaluated here because it depends on the reconciliation target.
-            eligibility.Add((candidate.UserId, candidate.EmployeeCode, canAccessTarget));
+            eligibility.Add((
+                candidate.UserId,
+                candidate.EmployeeCode,
+                FeatureOperatorAuthorizationPolicy.CanSelectOperator(hasRbac, canAccessTarget)));
         }
 
         var operatorUser = FeatureOperatorAuthorizationPolicy.SelectFirstEligibleOperator(eligibility);
