@@ -136,9 +136,15 @@ GO
       1. marks every ApprovalPositionCode referenced by an active policy as approval-capable;
       2. derives DefaultApproveLevel from the lowest configured policy level
          for that approval position;
-      3. creates/synchronizes F03Approvers for active employees whose PositionCode
-         matches an active policy's ApprovalPositionCode;
+      3. creates/synchronizes F03Approvers for active employees whose
+         F03Employees.LevelApprove > 0 AND PositionCode matches an active
+         policy's ApprovalPositionCode;
       4. deactivates stale HRM-owned approver rows when policy/employee no longer qualifies.
+
+  IMPORTANT:
+      F03Employees.LevelApprove > 0 is the HRM/F03Employee gate for appearing
+      in the Approver candidate pool. ApprovalPolicies still controls which
+      RequestType/Level/department scopes are materialized into F03Approvers.
 
   No ApprovalGroup / PositionGroup layer is used.
 */
@@ -223,6 +229,7 @@ BEGIN
     LEFT JOIN dbo.F03Departments d
         ON LTRIM(RTRIM(d.DeptCode))=LTRIM(RTRIM(e.DeptCode))
     WHERE e.IsActive=1
+      AND ISNULL(e.LevelApprove,0) > 0
       AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
 
     MERGE dbo.F03Approvers AS target
@@ -296,6 +303,7 @@ BEGIN
       AND
       (
           e.IsActive=0
+          OR ISNULL(e.LevelApprove,0) <= 0
           OR NOT EXISTS
           (
               SELECT 1
@@ -369,5 +377,6 @@ LEFT JOIN dbo.F03Approvers a
    AND a.Level=ap.Level
    AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(e.DeptCode))
 WHERE e.IsActive=1
+  AND ISNULL(e.LevelApprove,0) > 0
   AND a.Id IS NULL;
 GO
