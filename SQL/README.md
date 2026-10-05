@@ -39,7 +39,7 @@ Enable **Query -> SQLCMD Mode** before running any `00_Deploy_*.sql` file contai
 
 Every department-code column in FVN_REGISTER (`DeptCode`, `ParentDeptCode`, `SubDepartmentCode`, `ApproverDeptCode`, `ApproveForDeptCode`, `OperatingResponsibleDeptCode`, ...) is `int` and holds the HRM `tblBoPhan.BPMa` value.
 
-- `71_DepartmentCodeInt.sql` discovers every remaining text department column, maps legacy codes (`FIN`=14, `HR`=13, `PROD`=12, `QA`=10, `IT`=57), converts to `int`, rebuilds dependent indexes/FKs/`ScopeKey`, and upserts the standard HRM department master (BPMa 1..56 + 57 IT) into `F03Departments`. It runs early (after `05_Indexes.sql`) and again at the end of every runner; it is idempotent.
+- `05A_DepartmentCodeInt.sql` is the early DepartmentCode migration. It normalizes legacy codes (`FIN`=14, `HR`=13, `PROD`=12, `QA`=10, `IT`=57), converts the affected department-code columns to `int`, rebuilds dependent indexes/FKs, and ensures department 57 (IT) exists in `F03Departments`. It runs before any script that compares DeptCode with numeric HRM BPMa values. `71_DepartmentCodeInt.sql` is verification-only and runs at the end of every runner; it does not mutate data.
 - `72_HrmDepartmentITSeed.sql` runs on the **HRM** database (not part of the runners) and adds `BPMa = 57 / IT`, the department that holds management/SuperAdmin users.
 - `22_03A_DepartmentCodeCompatibility.sql` is now only a guard that fails the deployment if `usp_CalculateHrmAttendance` is not INT-canonical.
 - Code that needs the IT department compares `DeptCode = 57`, never `N'IT'`.
