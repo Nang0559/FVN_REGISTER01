@@ -189,7 +189,7 @@ SELECT u.Id, @EndpointRoleId2, 0, 1, 0, GETDATE()
 FROM dbo.F03Users u
 WHERE @EndpointRoleId2 IS NOT NULL
   AND u.IsActive = 1
-  AND UPPER(LTRIM(RTRIM(ISNULL(u.DeptCode, N'')))) = N'IT'
+  AND u.DeptCode = 57  /* HRM BPMa 57 = IT */
   AND NOT EXISTS
   (
       SELECT 1

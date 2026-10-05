@@ -147,7 +147,7 @@ BEGIN
         WorkDate date NOT NULL,
         HrmEmployeeId int NOT NULL,
         EmployeeCode nvarchar(50) NULL,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
         ActualStartTime datetime2(0) NULL,
         ActualEndTime datetime2(0) NULL,
         ActualMinutes int NOT NULL DEFAULT 0,
@@ -298,7 +298,7 @@ BEGIN
     CREATE TABLE dbo.F03HrmAttendanceCalculationRun
     (
         CalculationBatchId uniqueidentifier NOT NULL CONSTRAINT PK_F03HrmAttendanceCalculationRun PRIMARY KEY,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
         EmployeeCode nvarchar(50) NULL,
         FromDate date NOT NULL,
         ToDate date NOT NULL,

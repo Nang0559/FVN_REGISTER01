@@ -567,3 +567,25 @@ IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.
     PRINT N'Equipment.Cancel is available to business roles; handler enforces own-request ownership.';
 PRINT N'Extended RBAC/reporting verification completed.';
 GO
+
+/* Department identity: DepartmentCode must be INT (HRM BPMa) everywhere. */
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.columns c
+    JOIN sys.tables t  ON t.object_id = c.object_id
+    JOIN sys.schemas s ON s.schema_id = t.schema_id
+    JOIN sys.types ty  ON ty.user_type_id = c.user_type_id
+    WHERE s.name = N'dbo' AND t.is_ms_shipped = 0 AND c.is_computed = 0
+      AND ty.name IN (N'char',N'varchar',N'nchar',N'nvarchar')
+      AND c.name IN (N'DeptCode',N'ParentDeptCode',N'SubDepartmentCode',N'ApproverDeptCode',N'ApproveForDeptCode',
+                     N'OperatingResponsibleDeptCode',N'RepairResponsibleDeptCode',N'ResponsibleDeptCode',
+                     N'OldDeptCode',N'NewDeptCode',N'CurrentApproveForDeptCode',N'SuggestedApproveForDeptCode')
+)
+    THROW 53100, N'A department-code column is still text; DepartmentCode must be INT (HRM BPMa). Run 71_DepartmentCodeInt.sql.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Departments WHERE DeptCode = 57 AND DeptName = N'IT')
+    THROW 53101, N'Department 57 (IT) is missing from dbo.F03Departments.', 1;
+IF (SELECT COUNT(*) FROM dbo.F03Departments WHERE DeptCode BETWEEN 1 AND 57) < 50
+    THROW 53102, N'Standard HRM departments (BPMa 1..56 + 57) are not fully present in dbo.F03Departments.', 1;
+PRINT N'DepartmentCode INT verification completed.';
+GO

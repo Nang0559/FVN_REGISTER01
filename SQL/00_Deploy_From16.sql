@@ -9,6 +9,8 @@ Current SQL directory:
 */
 :on error exit
 :setvar RepoRoot "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
+/* DepartmentCode = INT (HRM BPMa) must be in place before any script compares DeptCode with numeric codes. */
+:r "71_DepartmentCodeInt.sql"
 :r "16_EquipmentFlexibleImport.sql"
 :r "Excel/001_SharedExcelPlatform.sql"
 :r "Excel/002_SharedExcelPlatform_Normalize.sql"
@@ -87,6 +89,7 @@ Current SQL directory:
 :r "55_ExecutionResolutionPolicy.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
+:r "71_DepartmentCodeInt.sql"
 
 /* Authorization schema gate for an already-established 01-15 baseline. */
 :r "14D_SecuritySchemaVerify.sql"

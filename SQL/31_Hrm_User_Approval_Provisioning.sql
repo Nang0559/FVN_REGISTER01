@@ -286,8 +286,8 @@ BEGIN
             target.PositionCode=src.PositionCode,
             target.ApproverName=src.EmployeeName,
             target.ApproverEmail=ISNULL(src.EmailAddress,N''),
-            target.ApproverDeptCode=ISNULL(src.DeptCode,N''),
-            target.ApproverDeptName=ISNULL(src.DeptName,src.DeptCode),
+            target.ApproverDeptCode=ISNULL(src.DeptCode,0),
+            target.ApproverDeptName=ISNULL(src.DeptName,CONVERT(nvarchar(20),src.DeptCode)),
             target.ApproveForDeptName=src.ApproveForDeptName,
             target.RoleName=ISNULL(src.RoleName,src.LevelName),
             target.ModifiedBy=@CreatedBy,
@@ -314,8 +314,8 @@ BEGIN
                 WHEN 3 THEN N'Equipment'
             END,
             src.EmployeeCode,src.PositionCode,src.EmployeeName,
-            ISNULL(src.EmailAddress,N''),ISNULL(src.DeptCode,N''),
-            ISNULL(src.DeptName,src.DeptCode),src.ApproveForDeptCode,
+            ISNULL(src.EmailAddress,N''),ISNULL(src.DeptCode,0),
+            ISNULL(src.DeptName,CONVERT(nvarchar(20),src.DeptCode)),src.ApproveForDeptCode,
             src.ApproveForDeptName,src.Level,ISNULL(src.RoleName,src.LevelName)
         );
 
@@ -351,7 +351,7 @@ BEGIN
                         WHEN 3 THEN N'Equipment'
                     END
                 AND a.Level=ap.Level
-                AND a.ApproveForDeptCode=LTRIM(RTRIM(ap.DeptCode))
+                AND a.ApproveForDeptCode=ap.DeptCode
           )
       );
 
@@ -408,7 +408,7 @@ LEFT JOIN dbo.F03Approvers a
        WHEN 3 THEN N'Equipment'
    END
    AND a.Level=ap.Level
-   AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(ap.DeptCode))
+   AND a.ApproveForDeptCode=ap.DeptCode
 WHERE e.IsActive=1
   AND ISNULL(e.LevelApprove,0) > 0
   AND a.Id IS NULL;

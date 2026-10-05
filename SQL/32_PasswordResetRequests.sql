@@ -15,7 +15,7 @@ BEGIN
             CONSTRAINT PK_F03PasswordResetRequests PRIMARY KEY,
         EmployeeCode nvarchar(50) NOT NULL,
         FullName nvarchar(255) NULL,
-        DeptCode nvarchar(50) NULL,
+        DeptCode int NULL,
         RequestNote nvarchar(1000) NULL,
         Status nvarchar(20) NOT NULL
             CONSTRAINT DF_F03PasswordResetRequests_Status DEFAULT(N'Pending'),

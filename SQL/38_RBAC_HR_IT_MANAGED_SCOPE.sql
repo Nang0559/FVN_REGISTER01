@@ -143,8 +143,8 @@ BEGIN
         NodeType nvarchar(30) NOT NULL,
         NodeCode nvarchar(50) NULL,
         FactoryCode nvarchar(50) NULL,
-        DeptCode nvarchar(20) NULL,
-        SubDepartmentCode nvarchar(20) NULL,
+        DeptCode int NULL,
+        SubDepartmentCode int NULL,
         IncludeChildren bit NOT NULL CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(1),
         Remark nvarchar(500) NULL,
 
@@ -260,27 +260,27 @@ WHERE r.RoleCode IN(1,2,3,5,7,8)
 IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NOT NULL
 BEGIN
     UPDATE dbo.F03HrmUserRoleRules
-    SET PermissionCode = CASE WHEN DeptCode = N'IT' THEN 8 ELSE 3 END,
+    SET PermissionCode = CASE WHEN DeptCode = 57 THEN 8 ELSE 3 END,
         LastModifiedSource = N'RBAC_APPROVER_ROLE_RETIREMENT',
         ModifiedAt = GETDATE()
     WHERE IsActive = 1 AND PermissionCode = 4;
 
     INSERT dbo.F03HrmUserRoleRules
         (IsActive,CreatedBy,DeptCode,PositionCode,PermissionCode,Priority,Note)
-    SELECT 1,0,N'HR',NULL,7,100,N'Canonical HR role'
+    SELECT 1,0,13,NULL,7,100,N'Canonical HR role'
     WHERE NOT EXISTS
     (
         SELECT 1 FROM dbo.F03HrmUserRoleRules
-        WHERE IsActive=1 AND DeptCode=N'HR' AND PositionCode IS NULL AND PermissionCode=7
+        WHERE IsActive=1 AND DeptCode=13 AND PositionCode IS NULL AND PermissionCode=7
     );
 
     INSERT dbo.F03HrmUserRoleRules
         (IsActive,CreatedBy,DeptCode,PositionCode,PermissionCode,Priority,Note)
-    SELECT 1,0,N'IT',NULL,8,100,N'Canonical IT role'
+    SELECT 1,0,57,NULL,8,100,N'Canonical IT role'
     WHERE NOT EXISTS
     (
         SELECT 1 FROM dbo.F03HrmUserRoleRules
-        WHERE IsActive=1 AND DeptCode=N'IT' AND PositionCode IS NULL AND PermissionCode=8
+        WHERE IsActive=1 AND DeptCode=57 AND PositionCode IS NULL AND PermissionCode=8
     );
 END;
 
@@ -309,7 +309,7 @@ END;
 IF OBJECT_ID(N'dbo.F03Users',N'U') IS NOT NULL
 BEGIN
     UPDATE dbo.F03Users
-    SET PermissionCode = CASE WHEN DeptCode=N'IT' THEN 8 ELSE 3 END,
+    SET PermissionCode = CASE WHEN DeptCode=57 THEN 8 ELSE 3 END,
         LastModifiedSource = N'RBAC_APPROVER_ROLE_RETIREMENT'
     WHERE PermissionCode = 4;
 END;

@@ -21,7 +21,7 @@ BEGIN
         PurchasePrice DECIMAL(18,2) NOT NULL,
         PurchaseDate DATETIME2 NOT NULL,
         ExpectedDepreciationDate DATETIME2 NOT NULL,
-        DeptCode NVARCHAR(20) NOT NULL,
+        DeptCode int NOT NULL,
         Location NVARCHAR(250) NULL,
         QrToken NVARCHAR(128) NOT NULL,
         IsQrActive BIT NOT NULL CONSTRAINT DF_F03EquipmentAssets_Qr DEFAULT(0),
@@ -53,7 +53,7 @@ BEGIN
     (
         Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03EquipmentRequests PRIMARY KEY,
         EmployeeCode NVARCHAR(50) NOT NULL,
-        DeptCode NVARCHAR(20) NOT NULL,
+        DeptCode int NOT NULL,
         RequestStatus INT NOT NULL CONSTRAINT DF_F03EquipmentRequests_Status DEFAULT(0),
         IsActive BIT NULL CONSTRAINT DF_F03EquipmentRequests_Active DEFAULT(1),
         CreatedBy INT NOT NULL,

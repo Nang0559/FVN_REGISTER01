@@ -14,6 +14,8 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "03_Tables.sql"
 :r "04_Constraints.sql"
 :r "05_Indexes.sql"
+/* DepartmentCode = INT (HRM BPMa) must be in place before any script compares DeptCode with numeric codes. */
+:r "71_DepartmentCodeInt.sql"
 -- [SEED] :r "06_Seed_All_Modules.sql"
 :r "07_Views.sql"
 :r "08_Functions.sql"

@@ -182,8 +182,8 @@ BEGIN
             AND ms.NodeType = N'Company'
             AND ISNULL(ms.NodeCode,N'') = N''
             AND ISNULL(ms.FactoryCode,N'') = N''
-            AND ISNULL(ms.DeptCode,N'') = N''
-            AND ISNULL(ms.SubDepartmentCode,N'') = N''
+            AND ms.DeptCode IS NULL
+            AND ms.SubDepartmentCode IS NULL
       );
 END;
 GO

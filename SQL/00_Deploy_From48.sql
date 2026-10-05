@@ -1,6 +1,8 @@
 ﻿/* FVN_REGISTER deployment from SQL/48 onward. */
 :on error exit
 :setvar RepoRoot "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
+/* DepartmentCode = INT (HRM BPMa) must be in place before any script compares DeptCode with numeric codes. */
+:r "71_DepartmentCodeInt.sql"
 :r "48_SecurityTwoFactorSuperAdminCompatibility.sql"
 :r "49_Verify_SecurityTwoFactorSuperAdmin.sql"
 :r "50_EquipmentManageCapability.sql"
@@ -31,6 +33,7 @@
 :r "55_ExecutionResolutionPolicy.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
+:r "71_DepartmentCodeInt.sql"
 
 /* SECURITY ROLE/FUNCTION MATRIX */
 :r "64_SecurityRoleMatrixCapability.sql"

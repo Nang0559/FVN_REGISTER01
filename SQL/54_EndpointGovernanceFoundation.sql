@@ -77,7 +77,7 @@ BEGIN
     (
         Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03EndpointGovernanceRequests PRIMARY KEY,
         EmployeeCode NVARCHAR(50) NOT NULL,
-        DeptCode NVARCHAR(20) NULL,
+        DeptCode int NULL,
         RequestStatus INT NOT NULL CONSTRAINT DF_F03EndpointGovernanceRequests_RequestStatus DEFAULT (0),
         RequestType INT NOT NULL,
         EndpointDeviceId BIGINT NULL,

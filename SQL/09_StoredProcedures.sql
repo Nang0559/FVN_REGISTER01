@@ -203,7 +203,7 @@ BEGIN
     CREATE TABLE #Employees(
         EmployeeCode nvarchar(50) NOT NULL PRIMARY KEY,
         FullName nvarchar(100) NULL,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
         ScheduleCode nvarchar(50) NULL,
         ScheduleType nvarchar(20) NULL,
         HrmScheduleCode nvarchar(50) NULL
