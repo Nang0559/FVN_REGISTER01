@@ -1,5 +1,6 @@
 using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 
 namespace FVN_REGISTER.Infrastructure.Services.Security;
 
