@@ -164,11 +164,10 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 CvCode = x.emp.PositionCode ?? "",
                 PositionName = x.Position != null ? x.Position.PositionName : string.Empty,
                 Email = x.emp.EmailAddress,
-                DefaultLevel = CvCodeRules.ResolveLevel(null, x.emp.PositionCode),
-                IsApprover = CvCodeRules.IsApprover(
-                    x.emp.PositionCode,
-                    x.Position != null && x.Position.IsApprove ? 1 : 0,
-                    x.Position != null && x.Position.IsAllowApprove ? 1 : 0)
+                // F03Employees.LevelApprove is the effective approval-capability
+                // marker used by HRM security provisioning.
+                DefaultLevel = x.emp.LevelApprove ?? 0,
+                IsApprover = (x.emp.LevelApprove ?? 0) > 0
             }).ToList();
 
             return ServiceResult<List<EmployeeSelectDto>>.Ok(employees);
