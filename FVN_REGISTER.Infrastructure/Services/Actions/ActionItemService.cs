@@ -23,8 +23,14 @@ public sealed class ActionItemService : IActionItemService
         bool includeCompleted = false,
         CancellationToken cancellationToken = default)
     {
-        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId, cancellationToken);
+        var employeeId = await ResolveEmployeeIdOrNullAsync(employeeCode, cancellationToken);
+        // Administrative/break-glass accounts created outside HRM may not have an
+        // active F03Employee record. They simply have no employee-scoped actions;
+        // this must not make the whole Dashboard fail.
+        if (!employeeId.HasValue)
+            return Array.Empty<ActionItemDto>();
+
+        await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
         var query = _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -70,8 +76,13 @@ public sealed class ActionItemService : IActionItemService
         int userId,
         CancellationToken cancellationToken = default)
     {
-        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId, cancellationToken);
+        var employeeId = await ResolveEmployeeIdOrNullAsync(employeeCode, cancellationToken);
+        // Dashboard action counts are optional for accounts without an active HRM
+        // employee identity (for example manually-created SuperAdmin accounts).
+        if (!employeeId.HasValue)
+            return new ActionCountDto();
+
+        await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
         var counts = await _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -323,6 +334,15 @@ public sealed class ActionItemService : IActionItemService
 
         if (_db.ChangeTracker.HasChanges())
             await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<int?> ResolveEmployeeIdOrNullAsync(string employeeCode, CancellationToken cancellationToken)
+    {
+        return await _db.Employees
+            .AsNoTracking()
+            .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
+            .Select(x => (int?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     private async Task<int> ResolveEmployeeIdAsync(string employeeCode, CancellationToken cancellationToken)
