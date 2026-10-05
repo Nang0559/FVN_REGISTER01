@@ -114,5 +114,7 @@
   "endpoint.versionConstraint": "Version constraint",
   "endpoint.versionRangeDuocXacDinh": "Version/range được xác định rõ và phù hợp nghiệp vụ.",
   "endpoint.windowsService": "Windows Service",
-  "endpoint.workflow": "Workflow"
+  "endpoint.workflow": "Workflow",
+  "endpoint.credentialManagedFromEquipment": "Quản lý credential Endpoint Agent hiện được thực hiện từ Sổ thiết bị để bảo đảm mỗi credential luôn gắn với đúng Equipment và Agent.",
+  "endpoint.openEquipmentRegister": "Mở Sổ thiết bị"
 }
