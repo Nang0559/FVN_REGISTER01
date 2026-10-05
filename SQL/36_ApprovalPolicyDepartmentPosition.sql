@@ -21,7 +21,7 @@ GO
 IF COL_LENGTH(N'dbo.F03ApprovalPolicies', N'DeptCode') IS NULL
 BEGIN
     ALTER TABLE dbo.F03ApprovalPolicies
-        ADD DeptCode nvarchar(20) NULL;
+        ADD DeptCode int NULL;
 END;
 GO
 
@@ -99,8 +99,7 @@ IF EXISTS
       AND name = N'PositionCode'
       AND
       (
-          system_type_id <> TYPE_ID(N'nvarchar')
-          OR max_length <> 40
+          system_type_id <> TYPE_ID(N'int')
           OR is_nullable = 0
       )
 )
@@ -155,7 +154,7 @@ END;
 GO
 
 ALTER TABLE dbo.F03ApprovalPolicies
-    ALTER COLUMN DeptCode nvarchar(20) NOT NULL;
+    ALTER COLUMN DeptCode int NOT NULL;
 GO
 
 ALTER TABLE dbo.F03ApprovalPolicies
