@@ -29,7 +29,7 @@ public class OTLimitRuleUpsertDto
     public string? PositionCode { get; set; }
 
     [MaxLength(20)]
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
 
     [MaxLength(500)]
     public string? Description { get; set; }
