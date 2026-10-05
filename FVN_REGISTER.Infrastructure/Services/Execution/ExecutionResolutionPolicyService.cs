@@ -66,7 +66,7 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
             previous.LastModifiedSource = "EXECUTION_RESOLUTION_POLICY_SUPERSEDED";
         }
 
-        var moduleCode = request.ModuleCode.Trim().ToUpperInvariant();
+        var moduleCode = request.ModuleCode?.Trim().ToUpperInvariant() ?? string.Empty;
         var nextVersion = previous is not null
             ? Math.Max(1, previous.PolicyVersion + 1)
             : (await _db.ExecutionPolicies.AsNoTracking()
