@@ -91,6 +91,7 @@
 :r "67_AttendanceSymbolRules.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
+:r "70_RequestModuleCanonicalization.sql"
 
 /* SECURITY SYSTEM-CRITICAL INVARIANT */
 :r "64_SecurityRoleMatrixCapability.sql"

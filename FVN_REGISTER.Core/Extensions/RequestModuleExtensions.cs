@@ -54,6 +54,11 @@ public static class RequestModuleExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(module), module, "RequestModule chưa được định nghĩa")
     };
 
+    /// <summary>
+    /// Converts both canonical persisted codes and known legacy enum/display values.
+    /// Canonical values are always emitted by <see cref="ToCode"/>; legacy aliases
+    /// are accepted only at the read boundary so old data cannot break EF materialization.
+    /// </summary>
     public static RequestModule ParseCode(string? code)
     {
         if (string.IsNullOrWhiteSpace(code))
@@ -62,16 +67,22 @@ public static class RequestModuleExtensions
         return code.Trim().ToUpperInvariant() switch
         {
             "LEAVE" => RequestModule.Leave,
+            "LEAVE_REQUEST" => RequestModule.Leave,
             "OT" => RequestModule.Overtime,
+            "OVERTIME" => RequestModule.Overtime,
             "TRIP" => RequestModule.Trip,
+            "TRIP_REQUEST" => RequestModule.Trip,
             "EQUIPMENT" => RequestModule.Equipment,
             "ATTENDANCE" => RequestModule.Attendance,
             "PAYROLL" => RequestModule.Payroll,
             "ACCESSCHANGE" => RequestModule.AccessChange,
+            "ACCESS_CHANGE" => RequestModule.AccessChange,
             "ENDPOINT" => RequestModule.Endpoint,
             _ => throw new ArgumentException($"RequestModule code không hợp lệ: '{code}'.", nameof(code))
         };
     }
+
+    public static string ToCanonicalCode(this string code) => ParseCode(code).ToCode();
 
     public static RequestModule ToRequestModule(this string code) => ParseCode(code);
 
@@ -80,17 +91,14 @@ public static class RequestModuleExtensions
         module = default;
         if (string.IsNullOrWhiteSpace(code)) return false;
 
-        switch (code.Trim().ToUpperInvariant())
+        try
         {
-            case "LEAVE": module = RequestModule.Leave; return true;
-            case "OT": module = RequestModule.Overtime; return true;
-            case "TRIP": module = RequestModule.Trip; return true;
-            case "EQUIPMENT": module = RequestModule.Equipment; return true;
-            case "ATTENDANCE": module = RequestModule.Attendance; return true;
-            case "PAYROLL": module = RequestModule.Payroll; return true;
-            case "ACCESSCHANGE": module = RequestModule.AccessChange; return true;
-            case "ENDPOINT": module = RequestModule.Endpoint; return true;
-            default: return false;
+            module = ParseCode(code);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
         }
     }
 }
