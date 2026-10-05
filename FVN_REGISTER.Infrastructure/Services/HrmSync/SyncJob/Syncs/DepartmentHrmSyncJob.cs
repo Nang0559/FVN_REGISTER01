@@ -24,14 +24,14 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             List<string> keys, CancellationToken ct)
         {
             var list = await Uow.Repository<F03Department>().Query()
-                .Where(x => keys.Contains(x.DeptCode))
+                .Where(x => keys.Select(int.Parse).Contains(x.DeptCode))
                 .ToListAsync(ct);
-            return list.ToDictionary(x => x.DeptCode);
+            return list.ToDictionary(x => x.DeptCode.ToString());
         }
 
         protected override F03Department MapToNewEntity(F03StagingDepartment s) => new()
         {
-            DeptCode = s.EntityKey,
+            DeptCode = int.Parse(s.EntityKey),
             DeptName = s.DeptName,
             IsActive = true,
             ParentDeptCode = s.ParentDeptCode,
@@ -120,8 +120,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             {
                 var affectedApprovers = await Uow.Repository<F03Approver>().Query()
                     .Where(a => a.IsActive == true &&
-                        (_deactivatedDeptCodes.Contains(a.ApproverDeptCode) ||
-                         _deactivatedDeptCodes.Contains(a.ApproveForDeptCode)))
+                        (_deactivatedDeptCodes.Select(int.Parse).Contains(a.ApproverDeptCode) ||
+                         _deactivatedDeptCodes.Select(int.Parse).Contains(a.ApproveForDeptCode)))
                     .ToListAsync(ct);
 
                 foreach (var approver in affectedApprovers)
