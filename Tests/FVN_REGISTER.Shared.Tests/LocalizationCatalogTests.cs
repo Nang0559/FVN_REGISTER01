@@ -52,6 +52,31 @@ public sealed class LocalizationCatalogTests
     }
 
     [Fact]
+    public void Japanese_MissingKey_FallsBackToVietnamese()
+    {
+        LocalizationStore.ClearOverrides();
+        const string key = "fallback.viOnly";
+        LocalizationStore.ApplyOverrides(1,
+            new Dictionary<string, string> { [key] = "Bản dịch VI" },
+            null);
+
+        Assert.Equal("Bản dịch VI", LocalizationStore.Get(LanguageCode.Ja, key));
+        LocalizationStore.ClearOverrides();
+    }
+
+    [Fact]
+    public void UnknownLanguagePreference_FallsBackToVietnamese()
+    {
+        Assert.Equal(LanguageCode.Vi, LanguageCodeExtensions.Parse(null));
+        Assert.Equal(LanguageCode.Vi, LanguageCodeExtensions.Parse(""));
+        Assert.Equal(LanguageCode.Vi, LanguageCodeExtensions.Parse("en-US"));
+        Assert.Equal(LanguageCode.Vi, LanguageCodeExtensions.Parse("vi"));
+        Assert.Equal(LanguageCode.Vi, LanguageCodeExtensions.Parse("VI-vn"));
+        Assert.Equal(LanguageCode.Ja, LanguageCodeExtensions.Parse("ja"));
+        Assert.Equal(LanguageCode.Ja, LanguageCodeExtensions.Parse(" JA-jp "));
+    }
+
+    [Fact]
     public void NoValue_IsEmpty()
     {
         var problems = new List<string>();
