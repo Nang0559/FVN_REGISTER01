@@ -141,10 +141,10 @@
         {
             <MudDivider Class="my-3" />
             <MudText Typo="Typo.subtitle1">Lịch sử xử lý</MudText>
-            <MudList Dense="true" Class="mt-2">
+            <MudList T="object" Dense="true" Class="mt-2">
                 @foreach (var h in _detail.History)
                 {
-                    <MudListItem>
+                    <MudListItem T="object">
                         <MudText Typo="Typo.body2">
                             <b>@h.EventType</b> — @h.FromStatus → @h.ToStatus
                         </MudText>
