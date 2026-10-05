@@ -9,9 +9,9 @@
 | # | File | Module đích (Localization/{lang}.{module}.json) | T() hiện có | Hard-code còn lại | Trạng thái |
 |---|---|---|---|---|---|
 | 1 | `FVN_REGISTER.Shared/Pages/EquipmentHelp.razor` | `equipment` | 0 | 35 | CHƯA LÀM |
-| 2 | `FVN_REGISTER.Shared/Pages/EndpointCredentials.razor` | `endpoint` | 0 | 15 | CHƯA LÀM |
+| 2 | `FVN_REGISTER.Shared/Pages/EndpointCredentials.razor` | `endpoint` | 2 | 0 | OK |
 | 3 | `FVN_REGISTER.Shared/Pages/EquipmentRepair.razor` | `equipment` | 0 | 11 | CHƯA LÀM |
-| 4 | `FVN_REGISTER.Web/Components/Pages/Error.razor` | `common` | 0 | 6 | CHƯA LÀM |
+| 4 | `FVN_REGISTER.Web/Components/Pages/Error.razor` | `common` | 0 | 6 | ĐẶC BIỆT — SSR/error scaffold |
 | 5 | `FVN_REGISTER.Shared/Pages/Reports/ReportBase.razor` | `report` | 0 | 5 | CHƯA LÀM |
 | 6 | `FVN_REGISTER.Shared/Dialogs/Approvals/RejectDialog.razor` | `approval` | 0 | 4 | CHƯA LÀM |
 | 7 | `FVN_REGISTER.Shared/Pages/NotificationBell.razor` | `common` | 0 | 4 | CHƯA LÀM |
