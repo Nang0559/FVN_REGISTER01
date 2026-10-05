@@ -355,7 +355,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 FunctionCode = x.FunctionCode,
                 ModuleCode = x.ModuleCode!,
                 ActionCode = x.ActionCode ?? string.Empty,
-                ScopeCode = x.ScopeCode,
+                ScopeCode = NormalizeScopeCode(x.ScopeCode),
                 AccessMode = x.AccessMode
             })
             .ToList();
@@ -396,6 +396,17 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             ApprovalPolicies = policies,
             BusinessStateConstraints = constraints
         };
+    }
+
+    private static string? NormalizeScopeCode(string? scope)
+    {
+        if (string.IsNullOrWhiteSpace(scope))
+            return scope;
+
+        var value = scope.Trim();
+        return string.Equals(value, "Global", StringComparison.OrdinalIgnoreCase)
+            ? AuthorizationScopeCodes.All
+            : value;
     }
 
     private static bool ManagedScopeMatches(
@@ -621,7 +632,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
             where ur.IdUser == userId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
-            select new { Function = f, EffectiveScope = rf.ScopeCode ?? f.ScopeCode, EffectiveAccessMode = rf.AccessMode ?? ((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee ? "Personal" : "Management") }
+            select new { Function = f, EffectiveScope = NormalizeScopeCode(rf.ScopeCode ?? f.ScopeCode), EffectiveAccessMode = rf.AccessMode ?? ((NormalizeScopeCode(rf.ScopeCode ?? f.ScopeCode)) == AuthorizationScopeCodes.Own || NormalizeScopeCode(rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee ? "Personal" : "Management") }
         ).ToListAsync(ct);
 
         var functions = rawFunctions
@@ -679,7 +690,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             {
                 rf.IdRole,
                 f.FunctionCode,
-                EffectiveScope = rf.ScopeCode ?? f.ScopeCode ?? AuthorizationScopeCodes.None,
+                EffectiveScope = NormalizeScopeCode(rf.ScopeCode ?? f.ScopeCode ?? AuthorizationScopeCodes.None),
                 EffectiveAccessMode = rf.AccessMode
                     ?? (((rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own
                         || (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee)
@@ -853,7 +864,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         if (roleCode == 1)
             codes = codes.Union(SecurityFunctionCodes.SystemCriticalCodes).Distinct().ToList();
 
-        var normalizedScopeOverrides = scopeOverrides ?? new Dictionary<int, string?>();
+        var normalizedScopeOverrides = (scopeOverrides ?? new Dictionary<int, string?>())
+            .ToDictionary(x => x.Key, x => NormalizeScopeCode(x.Value));
         var normalizedAccessModeOverrides = accessModeOverrides ?? new Dictionary<int, string?>();
         var allowedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
