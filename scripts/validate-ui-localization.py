@@ -156,7 +156,7 @@ audit = {
 
 print(f"Catalog keys: VI={len(all_keys['vi'])}, JA={len(all_keys['ja'])}")
 print(f"Used localization keys: {len(used)}")
-print(f"Catalog modules: VI={len(modules["vi"])}, JA={len(modules["ja"])}")
+print(f"Catalog modules: VI={len(modules['vi'])}, JA={len(modules['ja'])}")
 print(f"Potential hard-coded UI candidates: {len(raw_candidates)}")
 print(f"Unused keys: {len(unused)}")
 
