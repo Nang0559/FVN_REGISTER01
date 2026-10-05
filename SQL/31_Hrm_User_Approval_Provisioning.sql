@@ -184,6 +184,37 @@ BEGIN
       );
 
     /*
+      Keep F03Employees.LevelApprove as the effective FVN approval-capability
+      marker. It is not read from the HRM source table; it is derived from the
+      active approval-policy configuration through F03Positions.DefaultApproveLevel.
+
+      This is intentionally done BEFORE building #HrmApproverSource so that
+      an employee whose position becomes approval-capable in the same HRM
+      security sync is immediately eligible for F03Approvers.
+    */
+    UPDATE e
+       SET e.LevelApprove = ISNULL(p.DefaultApproveLevel,0),
+           e.ModifiedAt = GETDATE(),
+           e.LastModifiedSource = N'HRM'
+    FROM dbo.F03Employees e
+    INNER JOIN dbo.F03Positions p
+        ON p.PositionCode = LTRIM(RTRIM(e.PositionCode))
+    WHERE e.IsActive=1;
+
+    /*
+      F03Users mirrors the employee approval level for security/UI consumers.
+      Existing roles/permissions are NOT changed here.
+    */
+    UPDATE u
+       SET u.LevelApprove = ISNULL(e.LevelApprove,0),
+           u.ModifiedAt = GETDATE(),
+           u.LastModifiedSource = N'HRM'
+    FROM dbo.F03Users u
+    INNER JOIN dbo.F03Employees e
+        ON e.EmployeeCode = u.EmployeeCode
+    WHERE e.IsActive=1;
+
+    /*
       Positions that are no longer referenced by any active policy are no
       longer approval-capable. Do not touch positions owned by another source.
     */
