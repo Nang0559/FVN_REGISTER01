@@ -40,7 +40,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
         if(string.IsNullOrWhiteSpace(request.DeploymentCode))return BadRequest(ApiResponse<LanscopeDeploymentViewDto>.Fail("DeploymentCode là bắt buộc."));
         var code=request.DeploymentCode.Trim();
         if(await _db.EndpointDeployments.AnyAsync(x=>x.DeploymentCode==code,ct))return Conflict(ApiResponse<LanscopeDeploymentViewDto>.Fail("DeploymentCode đã tồn tại.",409));
-        var entity=new F03EndpointDeployment{DeploymentCode=code,PackageVersion=Trim(request.PackageVersion,50),Status="Ready",CreatedBy=user.Id,CreatedAtUtc=DateTime.UtcNow,ExpiresAtUtc=request.ExpiresAtUtc?.UtcDateTime};
+        var entity=new F03EndpointDeployment{DeploymentCode=code,PackageVersion=Trim(request.PackageVersion,50),Status="Ready",CreatedBy=user.UserId,CreatedAtUtc=DateTime.UtcNow,ExpiresAtUtc=request.ExpiresAtUtc?.UtcDateTime};
         _db.EndpointDeployments.Add(entity);await _db.SaveChangesAsync(ct);
         return Ok(ApiResponse<LanscopeDeploymentViewDto>.Ok(await ToViewAsync(entity.Id,ct)));
     }
