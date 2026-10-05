@@ -21,7 +21,7 @@ public class OTLimitRuleDto
         get
         {
             if (ScopeType == OTLimitScopeType.Department)
-                return $"Phòng ban: {ScopeCode ?? DeptCode}";
+                return $"Phòng ban: {ScopeCode ?? DeptCode?.ToString()}";
             if (ScopeType == OTLimitScopeType.Block)
                 return $"Khối: {ScopeCode}";
             if (!string.IsNullOrWhiteSpace(EmployeeCode))
