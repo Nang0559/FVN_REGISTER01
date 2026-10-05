@@ -114,5 +114,7 @@
   "endpoint.versionConstraint": "バージョン制約",
   "endpoint.versionRangeDuocXacDinh": "バージョン／範囲が明確で、業務に適合しています。",
   "endpoint.windowsService": "Windowsサービス",
-  "endpoint.workflow": "ワークフロー"
+  "endpoint.workflow": "ワークフロー",
+  "endpoint.credentialManagedFromEquipment": "Endpoint Agent の認証情報は、各Credentialを正しいEquipmentとAgentに確実に紐付けるため、機器台帳から管理します。",
+  "endpoint.openEquipmentRegister": "機器台帳を開く"
 }
