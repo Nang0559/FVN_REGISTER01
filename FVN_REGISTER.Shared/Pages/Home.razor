@@ -87,7 +87,13 @@ else if (_model != null)
                                                 <MudText Typo="Typo.body2"><b>@action.Title</b></MudText>
                                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">@action.Summary</MudText>
                                             </MudStack>
-                                            <MudStack Row="true" Spacing="1">\n                                                <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>\n                                                @if (action.Status == 0)\n                                                {\n                                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.pending")</MudChip>\n                                                }\n                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
+                                                @if (action.Status == 0)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.pending")</MudChip>
+                                                }
+                                            </MudStack>
                                         </MudStack>
                                     </MudListItem>
                                     <MudDivider />
@@ -194,7 +200,8 @@ else
         || CanPersonal(SecurityFunctionCodes.OTView)
         || CanPersonal(SecurityFunctionCodes.OTCreate)
         || CanPersonal(SecurityFunctionCodes.TripView)
-        || CanPersonal(SecurityFunctionCodes.TripCreate)\n        || CanPersonal(SecurityFunctionCodes.AttendanceView);
+        || CanPersonal(SecurityFunctionCodes.TripCreate)
+        || CanPersonal(SecurityFunctionCodes.AttendanceView);
 
     protected override async Task OnInitializedAsync()
     {
