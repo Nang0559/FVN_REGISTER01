@@ -246,14 +246,14 @@ BEGIN
         e.PositionCode,
         e.EmployeeName,
         e.EmailAddress,
-        LTRIM(RTRIM(e.DeptCode)) AS DeptCode,
+        e.DeptCode AS DeptCode,
         d.DeptName,
         ap.RequestType,
         ap.Level,
         ap.LevelName,
         ap.RoleName,
         ap.DeptCode AS ApproveForDeptCode,
-        ISNULL(d.DeptName,LTRIM(RTRIM(ap.DeptCode))) AS ApproveForDeptName
+        ISNULL(d.DeptName,CONVERT(nvarchar(20),ap.DeptCode)) AS ApproveForDeptName
     INTO #HrmApproverSource
     FROM dbo.F03Employees e
     INNER JOIN dbo.F03ApprovalPolicies ap
