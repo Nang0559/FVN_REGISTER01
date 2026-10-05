@@ -93,15 +93,10 @@ GO
 /* PositionCode is the optional requester-position refinement in v4. */
 IF EXISTS
 (
-    SELECT 1
-    FROM sys.columns
+    SELECT 1 FROM sys.columns
     WHERE object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
       AND name = N'PositionCode'
-      AND
-      (
-          system_type_id <> TYPE_ID(N'int')
-          OR is_nullable = 0
-      )
+      AND (system_type_id <> TYPE_ID(N'nvarchar') OR max_length <> 40 OR is_nullable = 0)
 )
 BEGIN
     ALTER TABLE dbo.F03ApprovalPolicies
