@@ -14,8 +14,15 @@ public static class LanguageCodeExtensions
         _ => "vi-VN"
     };
 
-    public static LanguageCode Parse(string? value) =>
-        string.Equals(value, "ja-JP", StringComparison.OrdinalIgnoreCase)
-            ? LanguageCode.Ja
-            : LanguageCode.Vi;
+    /// <summary>
+    /// Parses the browser preference. The persisted contract is vi-VN/ja-JP,
+    /// but short BCP-47 values are accepted as a compatibility convenience.
+    /// Unknown or empty values always fall back to Vietnamese.
+    /// </summary>
+    public static LanguageCode Parse(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "ja" or "ja-jp" => LanguageCode.Ja,
+        "vi" or "vi-vn" => LanguageCode.Vi,
+        _ => LanguageCode.Vi
+    };
 }
