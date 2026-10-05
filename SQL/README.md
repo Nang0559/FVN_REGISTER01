@@ -31,6 +31,13 @@ Run them manually, in order, only when the target database is an affected legacy
 
 Do **not** add them to the normal `00_Deploy_*.sql` chain. `06_Seed.sql` is intentionally excluded from normal deployment, so these compatibility patches must remain an explicit legacy-migration step.
 
+## Canonical security / notification schemas
+
+- `40_TwoFactorAuthentication.sql` is **active deployment SQL**, not legacy. `14A_SecurityTwoFactorColumns.sql` owns the canonical user 2FA columns, while `40_TwoFactorAuthentication.sql` also creates `F03TwoFactorChallenges`, which is consumed by the 2FA service. It is therefore included in `00_Deploy_All.sql`, `00_Deploy_Run.sql`, and `00_Deploy_From16.sql`.
+- `64_WebPushSubscriptions.sql` is **active deployment SQL** because it owns `F03PushSubscriptions`, consumed by the Web Push notification service. It is included in all runners whose baseline reaches SQL 64, including `00_Deploy_From48.sql`.
+- `38_FeatureOperatorAssignments.sql` and `38_RBAC_HR_IT_MANAGED_SCOPE.sql` are historical superseded migrations and have been moved to `SQL/Legacy/`. They are not part of any deployment runner.
+
+
 ## SSMS
 
 Enable **Query -> SQLCMD Mode** before running any `00_Deploy_*.sql` file containing `:r` directives.
