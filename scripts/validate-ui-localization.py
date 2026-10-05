@@ -31,12 +31,15 @@ args = parser.parse_args()
 
 catalogs: dict[str, dict[str, str]] = {"vi": {}, "ja": {}}
 duplicates: list[str] = []
+modules: dict[str, set[str]] = {"vi": set(), "ja": set()}
 
 # JSON is the runtime source of truth: Localization/{lang}.{module}.json.
 for path in sorted(LOCALIZATION.glob("vi.*.json")):
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict):
         raise SystemExit(f"{path.relative_to(ROOT)} must contain a JSON object")
+    module_name = path.name.split(".", 2)[1]
+    modules["vi"].add(module_name)
     for key, value in data.items():
         if not isinstance(value, str):
             raise SystemExit(f"{path.relative_to(ROOT)}: '{key}' must have a string value")
@@ -48,6 +51,8 @@ for path in sorted(LOCALIZATION.glob("ja.*.json")):
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict):
         raise SystemExit(f"{path.relative_to(ROOT)} must contain a JSON object")
+    module_name = path.name.split(".", 2)[1]
+    modules["ja"].add(module_name)
     for key, value in data.items():
         if not isinstance(value, str):
             raise SystemExit(f"{path.relative_to(ROOT)}: '{key}' must have a string value")
@@ -56,6 +61,7 @@ for path in sorted(LOCALIZATION.glob("ja.*.json")):
         catalogs["ja"][key] = value
 
 all_keys = {"vi": set(catalogs["vi"]), "ja": set(catalogs["ja"])}
+module_mismatch = sorted(modules["vi"] ^ modules["ja"])
 missing_ja = sorted(all_keys["vi"] - all_keys["ja"])
 missing_vi = sorted(all_keys["ja"] - all_keys["vi"])
 
@@ -126,6 +132,7 @@ unused = sorted(k for k in all_keys["vi"] | all_keys["ja"] if k not in used)
 
 errors: list[str] = []
 errors.extend(duplicates)
+errors.extend(f"module file missing language pair: {module}" for module in module_mismatch)
 errors.extend(f"missing JA: {key}" for key in missing_ja)
 errors.extend(f"missing VI: {key}" for key in missing_vi)
 errors.extend(f"used key missing VI: {key}" for key in missing_used_vi)
@@ -134,6 +141,8 @@ errors.extend(f"placeholder mismatch: {item['key']} VI={item['vi']} JA={item['ja
 
 audit = {
     "catalogKeys": {"vi": len(all_keys["vi"]), "ja": len(all_keys["ja"])},
+    "catalogModules": {"vi": sorted(modules["vi"]), "ja": sorted(modules["ja"])},
+    "moduleMismatches": module_mismatch,
     "usedKeys": len(used),
     "missingVi": missing_vi,
     "missingJa": missing_ja,
@@ -147,6 +156,7 @@ audit = {
 
 print(f"Catalog keys: VI={len(all_keys['vi'])}, JA={len(all_keys['ja'])}")
 print(f"Used localization keys: {len(used)}")
+print(f"Catalog modules: VI={len(modules["vi"])}, JA={len(modules["ja"])}")
 print(f"Potential hard-coded UI candidates: {len(raw_candidates)}")
 print(f"Unused keys: {len(unused)}")
 
