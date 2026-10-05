@@ -1,10 +1,19 @@
 param(
-    [string]$Root = "FVN_REGISTER.Shared",
+    [string]$Root = "",
     [switch]$Strict
 )
 
 $ErrorActionPreference = 'Stop'
-$files = Get-ChildItem -Path $Root -Recurse -File | Where-Object { $_.Extension -in '.razor','.cs' }
+$roots = if ([string]::IsNullOrWhiteSpace($Root)) {
+    @("FVN_REGISTER.Shared", "FVN_REGISTER.Web")
+} else {
+    @($Root)
+}
+$files = foreach ($rootPath in $roots) {
+    if (Test-Path -LiteralPath $rootPath) {
+        Get-ChildItem -Path $rootPath -Recurse -File | Where-Object { $_.Extension -in '.razor','.cs' }
+    }
+}
 $patterns = @(
     'MudButton[^>]*>\s*([^<@][^<]*)<',
     'Label\s*=\s*"([^"]+)"',
