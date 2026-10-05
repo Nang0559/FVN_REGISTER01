@@ -34,7 +34,7 @@ BEGIN
         EmployeeCode nvarchar(50) NULL,
         FullName nvarchar(200) NULL,
         HrmDeptId int NULL,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
         HrmPositionId int NULL,
         ShiftId int NULL,
         ShiftAbbr nvarchar(10) NULL,
