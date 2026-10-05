@@ -92,6 +92,7 @@
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
 :r "70_RequestModuleCanonicalization.sql"
+:r "71_DepartmentCodeInt.sql"
 
 /* SECURITY SYSTEM-CRITICAL INVARIANT */
 :r "64_SecurityRoleMatrixCapability.sql"
