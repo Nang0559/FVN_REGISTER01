@@ -117,11 +117,15 @@ public sealed class LocalizationCatalogTests
     public void EveryLiteralKey_UsedInSource_Exists()
     {
         var root = FindRepositoryRoot();
-        var shared = Path.Combine(root, "FVN_REGISTER.Shared");
+        var sourceRoots = new[]
+        {
+            Path.Combine(root, "FVN_REGISTER.Shared"),
+            Path.Combine(root, "FVN_REGISTER.Web")
+        }.Where(Directory.Exists).ToArray();
         var known = LocalizationStore.GetAll(LanguageCode.Vi);
 
         var problems = new List<string>();
-        var sources = Directory.EnumerateFiles(shared, "*.*", SearchOption.AllDirectories)
+        var sources = sourceRoots.SelectMany(source => Directory.EnumerateFiles(source, "*.*", SearchOption.AllDirectories))
             .Where(f => f.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") &&
                         !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"));
