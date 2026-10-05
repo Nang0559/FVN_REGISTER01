@@ -198,6 +198,17 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                     }
                     else
                     {
+                        // IMPORTANT:
+                        // Only accounts provisioned/owned by HRM may have their
+                        // active state changed by HRM sync. Accounts created outside
+                        // HRM (for example SuperAdmin/break-glass accounts) must not
+                        // be disabled merely because the HRM employee snapshot does
+                        // not contain them or marks a matching employee inactive.
+                        var hrmOwned = string.Equals(
+                            user.LastModifiedSource,
+                            SyncSourceTags.Hrm,
+                            StringComparison.OrdinalIgnoreCase);
+
                         var wasActive = user.IsActive == true;
 
                         user.FullName = employee.EmployeeName;
@@ -209,10 +220,15 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         // Existing FVN users keep their role/permissions. HRM only owns
                         // employee identity/master fields. HRM role rule is used only
                         // when provisioning a brand-new F03User.
-                        user.IsActive = employee.IsActive;
-                        user.LastModifiedSource = SyncSourceTags.Hrm;
+                        //
+                        // Preserve ownership for manually-created FVN accounts.
+                        if (hrmOwned)
+                        {
+                            user.IsActive = employee.IsActive;
+                            user.LastModifiedSource = SyncSourceTags.Hrm;
+                        }
 
-                        if (wasActive && employee.IsActive != true)
+                        if (hrmOwned && wasActive && employee.IsActive != true)
                         {
                             user.LockoutEndDate = DateTime.Now;
 
@@ -229,7 +245,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                                 {
                                     await _sessionNotifier.NotifyRevokedAsync(
                                         session.SignalRConnectionId,
-                                        "Tài khoản đã bị khóa do nhân viên nghỉ việc.",
+                                        "Tài khoản HRM đã bị khóa do nhân viên nghỉ việc.",
                                         ct);
                                 }
                             }
