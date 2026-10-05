@@ -76,6 +76,15 @@ EXEC sys.sp_executesql N'
 
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations', N'U') IS NOT NULL
 BEGIN
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyId') IS NULL
+        EXEC(N'ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicyId int NULL;');
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyVersion') IS NULL
+        EXEC(N'ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicyVersion int NULL;');
+
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicySnapshotJson') IS NULL
+        EXEC(N'ALTER TABLE dbo.F03ExecutionReconciliations ADD ResolutionPolicySnapshotJson nvarchar(max) NULL;');
+
     IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'EmployeeDecisionStatus') IS NULL
         EXEC(N'ALTER TABLE dbo.F03ExecutionReconciliations ADD EmployeeDecisionStatus nvarchar(40) NOT NULL CONSTRAINT DF_F03ExecutionReconciliations_EmployeeDecisionStatus DEFAULT N''Pending'';');
 
@@ -93,9 +102,6 @@ BEGIN
 
     IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'FinalizedAt') IS NULL
         EXEC(N'ALTER TABLE dbo.F03ExecutionReconciliations ADD FinalizedAt datetime2 NULL;');
-
-    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'FinalizedBy') IS NULL
-        EXEC(N'ALTER TABLE dbo.F03ExecutionReconciliations ADD FinalizedBy int NULL;');
 
     IF COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'FinalizedBy') IS NULL
         EXEC(N'ALTER TABLE dbo.F03ExecutionReconciliations ADD FinalizedBy int NULL;');
