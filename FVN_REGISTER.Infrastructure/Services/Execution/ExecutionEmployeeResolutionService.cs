@@ -398,7 +398,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
             SourceId = r.Id.ToString(),
             ParticipantId = r.ParticipantId,
             EmployeeId = employeeId,
-            AssignedToEmployeeId = operatorEmployee,
+            AssignedToEmployeeId = operatorEmployee ?? employeeId,
             AssignedToUserId = operatorUser.Value.Id,
             WorkDate = r.WorkDate,
             ActionType = HrAppealActionType,
@@ -585,6 +585,7 @@ public sealed class ExecutionEmployeeResolutionService : IExecutionEmployeeResol
     private sealed record ResolutionPolicySnapshot(
         byte CorrectionMode,
         int EmployeeResponseHours,
+        byte EmployeeTimeoutMode,
         int HrReviewHours,
         bool AllowEmployeeAppeal,
         byte MaxAppealRounds,
