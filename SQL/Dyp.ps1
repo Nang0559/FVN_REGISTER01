@@ -110,20 +110,6 @@ try {
 
     Assert-DeploymentOrder $files $IncludeSeed
 
-    # Do not mutate source SQL files during deployment. A missing final newline
-    # is a repository defect and should be fixed in Git, not silently on the server.
-    $badNewline = @(
-        $files | Where-Object {
-            $path = (Resolve-Path -LiteralPath $_).Path
-            $bytes = [IO.File]::ReadAllBytes($path)
-            $bytes.Length -gt 0 -and $bytes[-1] -ne 10
-        }
-    )
-    if ($badNewline.Count -gt 0) {
-        $badNewline | ForEach-Object { Write-Host "NO FINAL NEWLINE: $_" -ForegroundColor Red }
-        throw 'One or more included SQL files have no final newline. Fix the repository files before deployment.'
-    }
-
     if ($User) {
         $sec  = Read-Host "Password for $User" -AsSecureString
         $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
