@@ -11,7 +11,7 @@ public sealed class F03EquipmentRequestConfiguration : IEntityTypeConfiguration<
     {
         b.ToTable("F03EquipmentRequests"); b.HasKey(x => x.Id);
         b.Property(x => x.RequestKind).HasConversion<int>(); b.Property(x => x.RequestStatus).HasConversion<int>().HasDefaultValue(ApprovalStatus.Draft);
-        b.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired(); b.Property(x => x.DeptCode).HasMaxLength(20).IsRequired();
+        b.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired(); b.Property(x => x.DeptCode).IsRequired();
         b.Property(x => x.SelectedApproverCode).HasMaxLength(50).IsRequired(); b.Property(x => x.QrToken).HasMaxLength(128).IsRequired();
         b.Property(x => x.EquipmentName).HasMaxLength(250).IsRequired(); b.Property(x => x.Specification).HasMaxLength(1000);
         b.Property(x => x.SerialNumber).HasMaxLength(100); b.Property(x => x.AssetCode).HasMaxLength(50);
