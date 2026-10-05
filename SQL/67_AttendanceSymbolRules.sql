@@ -21,19 +21,20 @@ IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode = 3044)
 BEGIN
     IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
         INSERT INTO dbo.F03Functions
-            (FunctionCode, FunctionKey, FunctionName, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
+            (FunctionCode, FunctionKey, FunctionName, Detail, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
         VALUES
-            (3044, N'WorkCalendar.SymbolRuleManage', N'WorkCalendar.SymbolRuleManage', N'WorkCalendar', N'SymbolRuleManage', N'All', N'Active', 1);
+            (3044, N'WorkCalendar.SymbolRuleManage', N'WorkCalendar.SymbolRuleManage', N'Quản lý quy tắc ký hiệu chấm công', N'WorkCalendar', N'SymbolRuleManage', N'All', N'Active', 1);
     ELSE
         INSERT INTO dbo.F03Functions
-            (FunctionCode, FunctionName, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
+            (FunctionCode, FunctionName, Detail, ModuleCode, ActionCode, ScopeCode, LifecycleStatus, IsActive)
         VALUES
-            (3044, N'WorkCalendar.SymbolRuleManage', N'WorkCalendar', N'SymbolRuleManage', N'All', N'Active', 1);
+            (3044, N'WorkCalendar.SymbolRuleManage', N'Quản lý quy tắc ký hiệu chấm công', N'WorkCalendar', N'SymbolRuleManage', N'All', N'Active', 1);
 END
 ELSE
 BEGIN
     UPDATE dbo.F03Functions
     SET FunctionName = N'WorkCalendar.SymbolRuleManage',
+        Detail = N'Quản lý quy tắc ký hiệu chấm công',
         ModuleCode = N'WorkCalendar',
         ActionCode = N'SymbolRuleManage',
         ScopeCode = N'All',
@@ -97,7 +98,7 @@ BEGIN
 END;
 GO
 
-DECLARE @R TABLE(Code nvarchar(100),Name nvarchar(200),DayType nvarchar(40),ShiftCode nvarchar(50),Priority int,MinActual int NULL,InFrom varchar(5) NULL,InTo varchar(5) NULL,JsonValue nvarchar(max));
+DECLARE @R TABLE(Code nvarchar(100),Name nvarchar(200),DayType nvarchar(40),ShiftCode nvarchar(50),Priority int,MinActual int NULL,InFrom varchar(5) NULL,CheckInToSeed varchar(5) NULL,JsonValue nvarchar(max));
 INSERT INTO @R VALUES
 (N'NORMAL-C1',N'Ngày thường - C1',N'NORMAL',N'C1',100,NULL,NULL,NULL,N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"STANDARD","segments":[{"segmentType":"WORK","start":"06:00","end":"14:00","symbolTemplate":"C1"},{"segmentType":"OT","start":"14:00","end":"18:00","symbolTemplate":"K{hours}"}]}'),
 (N'NORMAL-C2',N'Ngày thường - C2',N'NORMAL',N'C2',100,NULL,NULL,NULL,N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"STANDARD","segments":[{"segmentType":"WORK","start":"14:00","end":"22:00","symbolTemplate":"C2"},{"segmentType":"OT","start":"10:00","end":"14:00","symbolTemplate":"{hours}"}]}'),
@@ -122,5 +123,7 @@ INSERT INTO @R VALUES
 (N'HOL-KIP10-22',N'Lễ quốc gia - Kíp 10-22',N'NATIONAL_HOLIDAY',N'C2',10,705,'09:00','11:00',N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"FIXED_OT","fixedOtMinutes":240,"segments":[{"segmentType":"WORK","start":"10:00","end":"18:00","symbolTemplate":"NLC2{hours}"},{"segmentType":"OT","start":"18:00","end":"22:00","symbolTemplate":"NL{hours}","fixedMinutes":240}]}'),
 (N'HOL-KIP18-06',N'Lễ quốc gia - Kíp 18-06',N'NATIONAL_HOLIDAY',N'C3',10,705,'17:00','19:00',N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"FIXED_OT","fixedOtMinutes":240,"segments":[{"segmentType":"WORK","start":"18:00","end":"06:00","symbolTemplate":"NLC3{hours}"},{"segmentType":"OT","start":"14:00","end":"18:00","symbolTemplate":"NLK{hours}","fixedMinutes":240}]}');
 INSERT INTO dbo.F03AttendanceSymbolRules(RuleCode,RuleName,DayType,ShiftCode,Priority,MinActualMinutes,CheckInFrom,CheckInTo,RuleJson,IsActive,CreatedBy,CreatedAt,LastModifiedSource)
-SELECT Code,Name,DayType,ShiftCode,Priority,MinActual,InFrom,InTo,JsonValue,1,0,SYSUTCDATETIME(),N'SEED' FROM @R r WHERE NOT EXISTS(SELECT 1 FROM dbo.F03AttendanceSymbolRules x WHERE x.RuleCode=r.Code);
+SELECT Code,Name,DayType,ShiftCode,Priority,MinActual,InFrom,CheckInToSeed,JsonValue,1,0,SYSUTCDATETIME(),N'SEED'
+FROM @R AS r
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03AttendanceSymbolRules AS x WHERE x.RuleCode=r.Code);
 GO
