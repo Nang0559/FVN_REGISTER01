@@ -8,7 +8,7 @@ public sealed class F03EquipmentInspectionTemplate : BaseAuditEntity
 {
     [Required, StringLength(50)] public string TemplateCode { get; set; } = string.Empty;
     [Required, StringLength(200)] public string TemplateName { get; set; } = string.Empty;
-    public int DeptCode { get; set; }
+    [Required, StringLength(20)] public string DeptCode { get; set; } = string.Empty;
     [Required, StringLength(20)] public string Frequency { get; set; } = "Daily";
     public int Version { get; set; } = 1;
     [Required, StringLength(20)] public string Status { get; set; } = "Draft";
