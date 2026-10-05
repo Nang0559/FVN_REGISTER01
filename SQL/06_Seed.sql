@@ -323,9 +323,11 @@ WHERE e.IsActive = 1
 -- FunctionCode is the stable authorization key used by SecurityFunctionCodes.cs.
 -- Keep this seed aligned with the application authorization matrix.
 INSERT dbo.F03Functions
-    (IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+    (IsActive,CreatedBy,FunctionCode,FunctionKey,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
 SELECT
-    1,0,v.FunctionCode,v.FunctionName,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.DisplayOrder
+    1,0,v.FunctionCode,
+    N'Legacy.' + CONVERT(nvarchar(20),v.FunctionCode),
+    v.FunctionName,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.DisplayOrder
 FROM (VALUES
 (1001,N'Leave Register (Legacy)',N'Legacy leave register grant',N'Leave',N'LegacyRegister',N'Own',1001),
 (1002,N'Leave Approval (Legacy)',N'Legacy leave approval grant',N'Leave',N'LegacyApprove',N'Department',1002),
