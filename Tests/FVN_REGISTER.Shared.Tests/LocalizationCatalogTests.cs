@@ -56,12 +56,18 @@ public sealed class LocalizationCatalogTests
     {
         LocalizationStore.ClearOverrides();
         const string key = "fallback.viOnly";
-        LocalizationStore.ApplyOverrides(1,
-            new Dictionary<string, string> { [key] = "Bản dịch VI" },
-            null);
+        try
+        {
+            LocalizationStore.ApplyOverrides(1,
+                new Dictionary<string, string> { [key] = "Bản dịch VI" },
+                null);
 
-        Assert.Equal("Bản dịch VI", LocalizationStore.Get(LanguageCode.Ja, key));
-        LocalizationStore.ClearOverrides();
+            Assert.Equal("Bản dịch VI", LocalizationStore.Get(LanguageCode.Ja, key));
+        }
+        finally
+        {
+            LocalizationStore.ClearOverrides();
+        }
     }
 
     [Fact]
