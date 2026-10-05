@@ -131,6 +131,6 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         private async Task<bool> CanAsync(int code, CancellationToken ct) =>
-            UserInfo != null && await _authorization.HasAsync(UserInfo, code, ct);
+            UserInfo != null && await _authorization.HasManagementAsync(UserInfo, code, ct);
     }
 }
