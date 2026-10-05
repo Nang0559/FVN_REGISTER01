@@ -183,7 +183,7 @@ WHERE r.RoleCode IN (1, 2)
 UPDATE rf
 SET rf.IsActive = 1
 FROM dbo.F03RoleFunctions AS rf
-INNER JOIN dbo.F03Roles AS r ON r.Id = rf.Id
+INNER JOIN dbo.F03Roles AS r ON r.Id = rf.IdRole
 INNER JOIN dbo.F03Functions AS f ON f.Id = rf.IdFunction
 WHERE r.RoleCode IN (1, 2)
   AND r.IsActive = 1
