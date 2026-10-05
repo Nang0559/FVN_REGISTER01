@@ -90,7 +90,15 @@
         </MudPaper>
     }
 
-    @if (!_canViewCalendar)\n    {\n        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">\n            @Language.T("calendar.accessDenied")\n        </MudAlert>\n    }\n    else\n    {\n    <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
+    @if (!_canViewCalendar)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">
+            @Language.T("calendar.accessDenied")
+        </MudAlert>
+    }
+    else
+    {
+    <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
         <WorkCalendar @ref="_calendar"
                       @key="_selectedEmployeeCode"
                       EmployeeCode="@_selectedEmployeeCode"
@@ -104,7 +112,8 @@
     private readonly List<ManagedEmployeeDto> _managedEmployees = new();
     private WorkCalendar? _calendar;
     private string? _selectedEmployeeCode;
-    private string? _currentEmployeeCode;\n    private bool _canViewCalendar;
+    private string? _currentEmployeeCode;
+    private bool _canViewCalendar;
 
     private bool IsCurrentEmployee =>
         !string.IsNullOrWhiteSpace(_currentEmployeeCode)
@@ -120,7 +129,18 @@
             _currentEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
             _selectedEmployeeCode = _currentEmployeeCode;
 
-            var permissions = await SecurityService.GetMyPermissionsAsync();\n            _canViewCalendar = permissions.IsSuccess && permissions.Data != null\n                && (permissions.Data.HasPersonal(SecurityFunctionCodes.CalendarView)\n                    || permissions.Data.HasManagement(SecurityFunctionCodes.CalendarView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.OTView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.LeaveView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.TripView)\n                    || permissions.Data.HasPersonal(SecurityFunctionCodes.AttendanceView));\n\n            if (!_canViewCalendar) return;\n\n            var managed = await SecurityService.GetMyManagedEmployeesAsync();
+            var permissions = await SecurityService.GetMyPermissionsAsync();
+            _canViewCalendar = permissions.IsSuccess && permissions.Data != null
+                && (permissions.Data.HasPersonal(SecurityFunctionCodes.CalendarView)
+                    || permissions.Data.HasManagement(SecurityFunctionCodes.CalendarView)
+                    || permissions.Data.HasPersonal(SecurityFunctionCodes.OTView)
+                    || permissions.Data.HasPersonal(SecurityFunctionCodes.LeaveView)
+                    || permissions.Data.HasPersonal(SecurityFunctionCodes.TripView)
+                    || permissions.Data.HasPersonal(SecurityFunctionCodes.AttendanceView));
+
+            if (!_canViewCalendar) return;
+
+            var managed = await SecurityService.GetMyManagedEmployeesAsync();
             if (managed.IsSuccess && managed.Data != null)
                 _managedEmployees.AddRange(managed.Data);
 
