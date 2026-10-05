@@ -3,19 +3,27 @@
 @using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Contract.Dtos.Security
 @using FVN_REGISTER.Contract.Dtos.Actions
+@using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Calendar
+@using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Shared.Services.Execution
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
 @inject IDashboardClientService DashboardService
 @inject ICurrentUserClientService CurrentUserService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject ISecurityClientService SecurityService
+@inject IOTClientService OTClient
+@inject IExecutionReconciliationClientService ExecutionService
+@inject IWorkCalendarClientService CalendarService
 @inject NavigationManager Navigation
 
 <PageTitle>@Language.T("home.title")</PageTitle>
@@ -128,7 +136,7 @@ else if (_model != null)
                             </CardHeaderActions>
                         </MudCardHeader>
                         <MudCardContent Class="pa-2">
-                            <WorkCalendar ModuleContext="ALL" />
+                            <WorkCalendar ModuleContext="ALL" OnDaySelected="HandleCalendarDaySelected" />
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -212,8 +220,6 @@ else
             await CurrentUserService.InitializeAsync();
             if (!CurrentUserService.IsLoggedIn) { _errorMessage = Language.T("home.sessionInvalid"); return; }
 
-            // Use the same effective Role -> Function/Action snapshot as the API.
-            // Do not infer UI visibility from PermissionCode/IsAdmin.
             var permissionResult = await SecurityService.GetMyPermissionsAsync(_cts.Token);
             if (permissionResult.IsSuccess)
                 _permissions = permissionResult.Data;
@@ -231,6 +237,127 @@ else
         catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
         catch (Exception ex) { _errorMessage = Language.T("home.loadError", ex.Message); Snackbar.Add(_errorMessage, Severity.Error); }
         finally { _isLoading = false; }
+    }
+
+    private async Task HandleCalendarDaySelected(CalendarDayDto day)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarDayDialog.Day)] = day,
+            [nameof(CalendarDayDialog.OnRegistrationSelected)] = EventCallback.Factory.Create<CalendarRegistrationDto>(this, registration =>
+            {
+                OpenRegistration(registration.ModuleCode, day.Date);
+                return Task.CompletedTask;
+            }),
+            [nameof(CalendarDayDialog.OnActionSelected)] = EventCallback.Factory.Create<CalendarActionRequestDto>(this, HandleCalendarActionAsync)
+        };
+
+        await DialogService.ShowAsync<CalendarDayDialog>(
+            Language.T("calendar.dayTitle", day.Date.ToString("dd/MM/yyyy")),
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+    }
+
+    private void OpenRegistration(string moduleCode, DateOnly date)
+    {
+        var route = moduleCode switch
+        {
+            "LEAVE" => $"/leave/create?date={date:yyyy-MM-dd}",
+            "OT" => $"/ot/create?date={date:yyyy-MM-dd}",
+            "TRIP" => $"/trip/create?date={date:yyyy-MM-dd}",
+            _ => "/calendar"
+        };
+        Navigation.NavigateTo(route);
+    }
+
+    private async Task HandleCalendarActionAsync(CalendarActionRequestDto request)
+    {
+        switch (request.ActionCode)
+        {
+            case "OPEN_OT":
+                Navigation.NavigateTo($"/ot/create?date={request.Date:yyyy-MM-dd}");
+                return;
+
+            case "OPEN_HR_FEEDBACK":
+                await OpenHrFeedbackAsync(request);
+                return;
+
+            case "CANCEL_OT":
+                if (request.RequestId is not int requestId)
+                {
+                    Snackbar.Add(Language.T("calendar.cancelOtUnknown"), Severity.Error);
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(request.Reason))
+                {
+                    Snackbar.Add(Language.T("calendar.cancelOtReasonRequired"), Severity.Warning);
+                    return;
+                }
+
+                var result = await OTClient.CancelAsync(requestId, request.Reason);
+                Snackbar.Add(
+                    result.Message ?? (result.IsSuccess ? Language.T("calendar.otCancelled") : Language.T("calendar.otCancelFailed")),
+                    result.IsSuccess ? Severity.Success : Severity.Error);
+                return;
+        }
+    }
+
+    private async Task OpenHrFeedbackAsync(CalendarActionRequestDto request)
+    {
+        var employeeCode = CurrentUserService.User?.EmployeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(employeeCode))
+        {
+            Snackbar.Add(Language.T("calendar.employeeUnknown"), Severity.Error);
+            return;
+        }
+
+        long reconciliationId;
+        if (request.ReconciliationId is long existingReconciliationId)
+        {
+            reconciliationId = existingReconciliationId;
+        }
+        else
+        {
+            var ensure = await ExecutionService.EnsureAttendanceFeedbackAsync(request.Date);
+            if (!ensure.IsSuccess || ensure.Data is null)
+            {
+                Snackbar.Add(ensure.Message ?? Language.T("calendar.feedbackCreateFailed"), Severity.Error);
+                return;
+            }
+            reconciliationId = ensure.Data.Id;
+        }
+
+        var result = await CalendarService.GetForEmployeeAsync(
+            employeeCode,
+            request.Date.ToDateTime(TimeOnly.MinValue),
+            request.Date.ToDateTime(TimeOnly.MinValue));
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Snackbar.Add(result.Message ?? Language.T("calendar.attendanceLoadFailed"), Severity.Error);
+            return;
+        }
+
+        var selectedDay = result.Data.Days.FirstOrDefault(x => x.Date == request.Date);
+        var issue = selectedDay?.Issues.FirstOrDefault(x => x.Code == request.IssueCode);
+        var action = issue?.Actions.FirstOrDefault(x => x.Code == request.ActionCode);
+        if (selectedDay is null || issue is null || action is null)
+        {
+            Snackbar.Add(Language.T("calendar.issueNotFound"), Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarAttendanceFeedbackDialog.Day)] = selectedDay,
+            [nameof(CalendarAttendanceFeedbackDialog.Issue)] = issue,
+            [nameof(CalendarAttendanceFeedbackDialog.Action)] = action,
+            [nameof(CalendarAttendanceFeedbackDialog.ReconciliationId)] = reconciliationId
+        };
+
+        await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(
+            Language.T("calendar.feedbackTitle"),
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
     }
 
     private void OpenPath_thong_tin_cong_khai() => Navigation.NavigateTo("/thong-tin-cong-khai");
