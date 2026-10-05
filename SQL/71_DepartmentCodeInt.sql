@@ -62,6 +62,8 @@ GO
 /* Canonical lookup indexes are recreated after the type conversion. */
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03Department_Code' AND object_id=OBJECT_ID(N'dbo.F03Departments'))
     DROP INDEX IX_F03Department_Code ON dbo.F03Departments;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03Departments_DeptCode' AND object_id=OBJECT_ID(N'dbo.F03Departments'))
+    DROP INDEX UX_F03Departments_DeptCode ON dbo.F03Departments;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_Approver_Lookup' AND object_id=OBJECT_ID(N'dbo.F03Approvers'))
     DROP INDEX IX_Approver_Lookup ON dbo.F03Approvers;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ApprovalPolicies_Request_Dept_Position_Level' AND object_id=OBJECT_ID(N'dbo.F03ApprovalPolicies'))
@@ -108,7 +110,7 @@ IF OBJECT_ID(N'dbo.F03EscalationRules',N'U') IS NOT NULL
     ALTER TABLE dbo.F03EscalationRules ALTER COLUMN DeptCode int NULL;
 GO
 
-CREATE UNIQUE INDEX IX_F03Department_Code ON dbo.F03Departments(DeptCode);
+CREATE UNIQUE INDEX UX_F03Departments_DeptCode ON dbo.F03Departments(DeptCode);
 CREATE INDEX IX_Approver_Lookup ON dbo.F03Approvers(RequestType,ApproveForDeptCode);
 IF OBJECT_ID(N'dbo.F03ApprovalPolicies',N'U') IS NOT NULL
 BEGIN
