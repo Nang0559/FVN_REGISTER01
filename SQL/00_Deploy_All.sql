@@ -98,6 +98,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "62_SuperAdminFullAccess.sql"
 :r "62_RuntimeSchemaCompatibility.sql"
 :r "63_CalendarAttendancePerformance.sql"
+:r "64_WebPushSubscriptions.sql"
 :r "64_SecurityRoleMatrixCapability.sql"
 :r "65_SecuritySystemCriticalInvariant.sql"
 :r "66_CalendarHolidayClassification.sql"
