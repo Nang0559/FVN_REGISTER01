@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Application\FVN_REGISTER.Application.csproj" />
+    <ProjectReference Include="..\FVN_REGISTER.Application\FVN_REGISTER.Application.csproj" />
     <ProjectReference Include="..\FVN_REGISTER.Infrastructure\FVN_REGISTER.Infrastructure.csproj" />
   </ItemGroup>
 
