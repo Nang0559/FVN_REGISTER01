@@ -90,6 +90,7 @@
 :r "62_SuperAdminFullAccess.sql"
 :r "62_RuntimeSchemaCompatibility.sql"
 :r "63_CalendarAttendancePerformance.sql"
+:r "64_WebPushSubscriptions.sql"
 :r "66_CalendarHolidayClassification.sql"
 :r "67_AttendanceSymbolRules.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
