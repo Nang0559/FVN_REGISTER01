@@ -30,8 +30,6 @@ public sealed class EndpointAgentTests
         Assert.False(FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.IsMeaningfulSerial("00000000"));
         Assert.True(FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.IsMeaningfulSerial("PF4ABC123"));
     }
-}
-
 
     [Theory]
     [InlineData(400, false)]
@@ -45,3 +43,4 @@ public sealed class EndpointAgentTests
     {
         Assert.Equal(expected, FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.ShouldRetryEnrollmentStatus(statusCode));
     }
+
