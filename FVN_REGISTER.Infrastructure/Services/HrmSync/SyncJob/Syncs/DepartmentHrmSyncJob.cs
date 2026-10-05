@@ -9,10 +9,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 {
     public class DepartmentHrmSyncJob : HrmSyncJob<F03StagingDepartment, F03Department>
     {
-        private readonly List<string> _deactivatedDeptCodes = new();
+        private readonly List<int> _deactivatedDeptCodes = new();
         // ★ MỚI — track để AfterBatchAsync ghi F03SyncReviewFlag
-        private readonly List<string> _overwrittenManualEdits = new();          // đổi tên bị Hrm ghi đè
-        private readonly List<string> _overwrittenManualDeactivations = new();  // Admin từng tắt tay, Hrm bật lại
+        private readonly List<int> _overwrittenManualEdits = new();          // đổi tên bị Hrm ghi đè
+        private readonly List<int> _overwrittenManualDeactivations = new();  // Admin từng tắt tay, Hrm bật lại
 
         public DepartmentHrmSyncJob(IUnitOfWork uow) : base(uow) { }
 
@@ -97,7 +97,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 await flagRepo.AddAsync(new F03SyncReviewFlag
                 {
                     EntityType = "Department",
-                    EntityKey = code,
+                    EntityKey = code.ToString(),
                     FlagType = "ManualEditOverwrittenByHrm",
                     Message = $"Tên phòng ban {code} do Admin sửa tay đã bị HRM ghi đè lại — cần review."
                 }, ct);
@@ -120,8 +120,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             {
                 var affectedApprovers = await Uow.Repository<F03Approver>().Query()
                     .Where(a => a.IsActive == true &&
-                        (_deactivatedDeptCodes.Select(int.Parse).Contains(a.ApproverDeptCode) ||
-                         _deactivatedDeptCodes.Select(int.Parse).Contains(a.ApproveForDeptCode)))
+                        (_deactivatedDeptCodes.Contains(a.ApproverDeptCode) ||
+                         _deactivatedDeptCodes.Contains(a.ApproveForDeptCode)))
                     .ToListAsync(ct);
 
                 foreach (var approver in affectedApprovers)
@@ -129,7 +129,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                     await flagRepo.AddAsync(new F03SyncReviewFlag
                     {
                         EntityType = "Department",
-                        EntityKey = approver.ApproveForDeptCode,
+                        EntityKey = approver.ApproveForDeptCode.ToString(),
                         FlagType = "DeptDeactivated_ApproverMayBeStale",
                         Message = $"Phòng ban {approver.ApproveForDeptCode} vừa bị vô hiệu hóa từ HRM, " +
                                   $"nhưng approver {approver.ApproverCode} Level {approver.Level} " +
