@@ -90,6 +90,9 @@
 :r "62_SuperAdminFullAccess.sql"
 :r "62_RuntimeSchemaCompatibility.sql"
 :r "63_CalendarAttendancePerformance.sql"
+/* SECURITY SYSTEM-CRITICAL INVARIANT */
+:r "64_SecurityRoleMatrixCapability.sql"
+:r "65_SecuritySystemCriticalInvariant.sql"
 :r "64_WebPushSubscriptions.sql"
 :r "66_CalendarHolidayClassification.sql"
 :r "67_AttendanceSymbolRules.sql"
@@ -98,9 +101,6 @@
 :r "70_RequestModuleCanonicalization.sql"
 :r "71_DepartmentCodeInt.sql"
 
-/* SECURITY SYSTEM-CRITICAL INVARIANT */
-:r "64_SecurityRoleMatrixCapability.sql"
-:r "65_SecuritySystemCriticalInvariant.sql"
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
