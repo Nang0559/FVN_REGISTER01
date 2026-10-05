@@ -137,7 +137,7 @@ public class LeaveApprovalProvider
         var deptName = string.IsNullOrEmpty(subject.DeptCode)
             ? null
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
-                .Where(d => d.DeptCode == subject.DeptCode)
+                .Where(d => d.DeptCode.ToString() == subject.DeptCode)
                 .Select(d => d.DeptName)
                 .FirstOrDefaultAsync(ct);
 
@@ -165,7 +165,7 @@ public class LeaveApprovalProvider
             .Select(e => new { e.EmployeeName, e.DeptCode, e.PositionCode })
             .FirstOrDefaultAsync(ct);
 
-        return emp == null ? null : (emp.EmployeeName, emp.DeptCode, emp.PositionCode);
+        return emp == null ? null : (emp.EmployeeName, emp.DeptCode?.ToString(), emp.PositionCode);
     }
 
     private Task<string?> GetEmployeeEmailAsync(string employeeCode, CancellationToken ct)

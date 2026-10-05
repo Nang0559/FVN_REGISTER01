@@ -15,7 +15,7 @@ public sealed class F03AccessChangeRequestConfiguration : IEntityTypeConfigurati
         builder.Property(x => x.RequesterEmployeeCode).HasMaxLength(50).IsRequired();
         builder.Property(x => x.OldEmployeeCode).HasMaxLength(50).IsRequired();
         builder.Property(x => x.NewEmployeeCode).HasMaxLength(50).IsRequired();
-        builder.Property(x => x.DeptCode).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.DeptCode).IsRequired();
         builder.Property(x => x.NewPositionCode).HasMaxLength(20);
         builder.Property(x => x.Reason).HasMaxLength(500).IsRequired();
         builder.Property(x => x.RequestedFunctionCodesJson).HasColumnType("nvarchar(max)");

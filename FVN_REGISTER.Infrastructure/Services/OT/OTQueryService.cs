@@ -1,3 +1,4 @@
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Histories;
@@ -55,7 +56,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 return null;
 
             var user = _currentUser.GetCurrentUser();
-            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, entity.EmployeeCode, entity.DeptCode, ct))
+            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, entity.EmployeeCode, entity.DeptCode?.ToString(), ct))
                 return null;
 
             var requester = await Uow.Repository<VF03employee>().Query()
@@ -63,11 +64,11 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
 
             F03Department? department = null;
-            if (!string.IsNullOrEmpty(entity.DeptCode))
+            if (entity.DeptCode.HasValue)
             {
                 department = await Uow.Repository<F03Department>().Query()
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
+                    .FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode.Value?.ToString(), ct);
             }
 
             return OTMapper.ToDto(entity, requester, department);
@@ -153,13 +154,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                     query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode ?? ""));
                 else if (scope == AuthorizationScopeCodes.Department)
-                    query = query.Where(x => x.DeptCode == user.DeptCode || managedDeptCodes.Contains(x.DeptCode));
+                    query = query.Where(x => x.DeptCode.ToString() == user.DeptCode || managedDeptCodes.Contains(x.DeptCode.ToString()));
                 else
                     query = query.Where(x => false);
             }
 
             if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All)
-                query = query.Where(x => x.DeptCode == deptCode);
+                query = query.Where(x => x.DeptCode.ToString() == deptCode);
             if (status.HasValue)
                 query = query.Where(x => x.RequestStatus == status.Value);
             if (fromDate.HasValue)
@@ -203,7 +204,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var data = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
-                    && x.DeptCode == deptCode
+                    && x.DeptCode.ToString() == deptCode
                     && (scope == AuthorizationScopeCodes.All
                         || scope == AuthorizationScopeCodes.Department
                         || managedEmployeeCodes.Contains(x.EmployeeCode ?? "")
@@ -234,7 +235,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var todayOT = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
-                    && x.DeptCode == deptCode
+                    && x.DeptCode.ToString() == deptCode
                     && x.OTDate.Date == today
                     && x.RequestStatus != ApprovalStatus.Cancelled
                     && x.RequestStatus != ApprovalStatus.Rejected)
@@ -269,7 +270,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     LimitType = r.LimitType,
                     LimitValue = r.LimitValue,
                     PositionCode = r.PositionCode,
-                    DeptCode = r.DeptCode,
+                    DeptCode = r.DeptCode?.ToString(),
                     Description = r.Description,
                     LimitHours = r.LimitHours
                 }).ToList(),
@@ -413,10 +414,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .Where(r => r.IsActive == true)
                 .ToListAsync(ct);
 
-            var dailyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Daily);
-            var weeklyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Weekly);
-            var monthlyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Monthly);
-            var yearlyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Yearly);
+            var dailyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode?.ToString(), OTLimitType.Daily);
+            var weeklyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode?.ToString(), OTLimitType.Weekly);
+            var monthlyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode?.ToString(), OTLimitType.Monthly);
+            var yearlyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode?.ToString(), OTLimitType.Yearly);
 
             dto.DailyLimit = dailyRule?.LimitHours ?? 0m;
             dto.WeeklyLimit = weeklyRule?.LimitHours;
@@ -466,7 +467,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var deptCode = deptCodes.FirstOrDefault() ?? model.DeptCode ?? string.Empty;
             var blockCode = await Uow.Repository<F03Department>().Query()
                 .AsNoTracking()
-                .Where(d => d.DeptCode == deptCode && d.IsActive == true)
+                .Where(d => d.DeptCode == DepartmentCodeParser.ParseRequired(deptCode) && d.IsActive == true)
                 .Select(d => d.BlockCode)
                 .FirstOrDefaultAsync(ct);
 
@@ -494,8 +495,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && e.OTRequest.RequestStatus != ApprovalStatus.Cancelled
                     && (e.OTRequest.OTDate >= yearStart && e.OTRequest.OTDate < yearEnd)
                     && (codes.Contains(e.EmployeeCode)
-                        || (deptCode != string.Empty && e.OTRequest.DeptCode == deptCode)
-                        || blockDeptCodes.Contains(e.OTRequest.DeptCode ?? string.Empty)))
+                        || (deptCode != string.Empty && e.OTRequest.DeptCode == DepartmentCodeParser.ParseNullable(deptCode))
+                        || blockDeptCodes.Contains(e.OTRequest.DeptCode?.ToString() ?? string.Empty)))
                 .Select(e => new
                 {
                     e.EmployeeCode,
@@ -523,16 +524,16 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 {
                     EmployeeCode = emp.EmployeeCode,
                     EmployeeName = emp.EmployeeName,
-                    DeptCode = emp.DeptCode,
+                    DeptCode = emp.DeptCode?.ToString(),
                     RequestedHours = requested,
                     UsedHoursThisWeek = empUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                     UsedHoursThisMonth = empUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
                     UsedHoursThisYear = empUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours)
                 };
 
-                row.WeeklyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Weekly)?.LimitHours;
-                row.MonthlyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Monthly)?.LimitHours;
-                row.YearlyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Yearly)?.LimitHours;
+                row.WeeklyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(), OTLimitType.Weekly)?.LimitHours;
+                row.MonthlyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(), OTLimitType.Monthly)?.LimitHours;
+                row.YearlyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(), OTLimitType.Yearly)?.LimitHours;
 
                 preview.Employees.Add(row);
                 AddPreviewMessages(preview, row);
@@ -540,15 +541,15 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
             if (!string.IsNullOrWhiteSpace(deptCode))
             {
-                var deptUsed = used.Where(x => x.DeptCode == deptCode).ToList();
+                var deptUsed = used.Where(x => x.DeptCode.ToString() == deptCode).ToList();
                 var deptName = await Uow.Repository<F03Department>().Query()
                     .AsNoTracking()
-                    .Where(d => d.DeptCode == deptCode)
+                    .Where(d => d.DeptCode == DepartmentCodeParser.ParseRequired(deptCode))
                     .Select(d => d.DeptName)
                     .FirstOrDefaultAsync(ct) ?? deptCode;
 
                 var deptRequest = model.Employees
-                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && e.DeptCode == deptCode))
+                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && e.DeptCode.ToString() == deptCode))
                     .Sum(x => x.OTHours);
 
                 var deptPreview = new OTLimitScopePreviewDto
@@ -600,14 +601,14 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         {
             var employees = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
-                .Where(e => e.DeptCode == deptCode && e.IsActive == true)
+                .Where(e => e.DeptCode.ToString() == deptCode && e.IsActive == true)
                 .ToListAsync(ct);
 
             return employees.Select(e => new OTEmployeeDto
             {
                 EmployeeCode = e.EmployeeCode,
                 EmployeeName = e.EmployeeName,
-                DeptCode = e.DeptCode,
+                DeptCode = e.DeptCode?.ToString(),
                 CvCode = e.PositionCode
             }).ToList();
         }
@@ -638,7 +639,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var today = DateTime.Today;
             var employees = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
-                .Where(e => e.DeptCode == deptCode && e.IsActive == true)
+                .Where(e => e.DeptCode.ToString() == deptCode && e.IsActive == true)
                 .Select(e => new { e.EmployeeCode, e.EmployeeName, e.PositionCode })
                 .ToListAsync(ct);
 
@@ -659,7 +660,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var rules = await Uow.Repository<F03OTLimitRule>().Query()
                 .AsNoTracking()
                 .Where(r => r.IsActive == true
-                    && (positionCodes.Contains(r.PositionCode??string.Empty) || r.DeptCode == deptCode
+                    && (positionCodes.Contains(r.PositionCode??string.Empty) || r.DeptCode == DepartmentCodeParser.ParseNullable(deptCode)
                         || (r.PositionCode == null && r.DeptCode == null)))
                 .ToListAsync(ct);
 
@@ -704,7 +705,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .Where(r => r.ScopeType == OTLimitScopeType.Employee
                     && r.LimitType == type
                     && (string.IsNullOrWhiteSpace(r.EmployeeCode) || r.EmployeeCode == employeeCode)
-                    && (r.DeptCode == null || r.DeptCode == deptCode)
+                    && (r.DeptCode == null || r.DeptCode == DepartmentCodeParser.ParseNullable(deptCode))
                     && (r.PositionCode == null || r.PositionCode == positionCode))
                 .OrderByDescending(r => !string.IsNullOrWhiteSpace(r.EmployeeCode))
                 .ThenByDescending(r => r.PositionCode != null && r.DeptCode != null)

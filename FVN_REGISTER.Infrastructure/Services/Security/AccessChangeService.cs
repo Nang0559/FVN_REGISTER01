@@ -62,7 +62,7 @@ public sealed class AccessChangeService : IAccessChangeService
                 {
                     EmployeeCode = x.EmployeeCode,
                     EmployeeName = x.EmployeeName,
-                    DeptCode = x.DeptCode,
+                    DeptCode = x.DeptCode.ToString(),
                     PositionCode = x.PositionCode,
                     IsActive = x.IsActive == true
                 })

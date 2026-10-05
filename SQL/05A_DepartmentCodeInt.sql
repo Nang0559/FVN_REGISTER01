@@ -290,6 +290,8 @@ BEGIN TRY
     CLOSE dept_cursor;
     DEALLOCATE dept_cursor;
 
+    IF OBJECT_ID(N'dbo.F03Approvers',N'U') IS NOT NULL UPDATE dbo.F03Approvers SET ApproveForDeptCode=N'0' WHERE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(20),ApproveForDeptCode))))=N'ALL';
+
     /* Fail closed if any non-numeric legacy department code remains. */
     DECLARE @Bad nvarchar(max) = N'';
 

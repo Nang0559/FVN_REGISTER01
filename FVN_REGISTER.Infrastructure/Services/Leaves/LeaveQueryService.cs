@@ -50,12 +50,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var entity = await Uow.Repository<F03LeaveDay>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
             if (entity == null) return null;
             var user = _currentUser.GetCurrentUser();
-            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.LeaveView, entity.EmployeeCode, entity.DeptCode, ct))
+            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.LeaveView, entity.EmployeeCode, entity.DeptCode?.ToString(), ct))
                 return null;
             var requester = await Uow.Repository<VF03employee>().Query().AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
             F03Department? department = null;
-            if (!string.IsNullOrEmpty(entity.DeptCode))
-                department = await Uow.Repository<F03Department>().Query().AsNoTracking().FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
+            if (entity.DeptCode.HasValue)
+                department = await Uow.Repository<F03Department>().Query().AsNoTracking().FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode.Value?.ToString(), ct);
             return LeaveMapper.ToDto(entity, requester, department);
         }
 
@@ -167,10 +167,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                 query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
             else if (scope == AuthorizationScopeCodes.Department)
-                query = query.Where(x => x.DeptCode == user.DeptCode);
+                query = query.Where(x => x.DeptCode.ToString() == user.DeptCode);
             else if (scope != AuthorizationScopeCodes.All)
                 query = query.Where(x => false);
-            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All) query = query.Where(x => x.DeptCode == deptCode);
+            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All) query = query.Where(x => x.DeptCode.ToString() == deptCode);
             if (status.HasValue) query = query.Where(x => x.RequestStatus == status.Value);
             if (fromDate.HasValue) query = query.Where(x => x.StartDate >= fromDate.Value.Date);
             if (toDate.HasValue) query = query.Where(x => x.EndDate <= toDate.Value.Date);
@@ -186,13 +186,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.LeaveView, ct);
             var query = Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.IsActive == true
                 && (scope == AuthorizationScopeCodes.All
-                    ? x.DeptCode == deptCode
+                    ? x.DeptCode.ToString() == deptCode
                     : scope == AuthorizationScopeCodes.Department
-                        ? x.DeptCode == user.DeptCode
+                        ? x.DeptCode.ToString() == user.DeptCode
                         : (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                             ? x.EmployeeCode == user.EmployeeCode
                             : false)
-                && x.DeptCode == deptCode && x.StartDate <= date.Date && x.EndDate >= date.Date && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected);
+                && x.DeptCode.ToString() == deptCode && x.StartDate <= date.Date && x.EndDate >= date.Date && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected);
             var data = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
             return data.Select(LeaveMapper.ToDtoFromView).ToList();
         }

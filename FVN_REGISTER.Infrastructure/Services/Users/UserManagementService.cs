@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Usermanagers;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -150,7 +151,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 {
                     EmployeeCode = request.EmployeeCode,
                     Password = EncryptUtils.MD5(request.Password),
-                    DeptCode = request.DeptCode,
+                    DeptCode = DepartmentCodeParser.ParseNullable(request.DeptCode),
                     PermissionCode = request.PermissionCode,
                     IsActive = true,
                     LockoutEnable = true,
@@ -202,7 +203,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 bool permissionChanged = user.PermissionCode != request.PermissionCode;
 
                 // EmployeeCode CỐ Ý KHÔNG cập nhật — đã chốt: chỉ set 1 lần lúc Create.
-                user.DeptCode = request.DeptCode;
+                user.DeptCode = DepartmentCodeParser.ParseNullable(request.DeptCode);
                 user.PermissionCode = request.PermissionCode;
                 user.ModifiedBy = currentUserId;
                 user.ModifiedAt = DateTime.Now;
@@ -403,9 +404,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
         // ===== HELPER =====
         private UserAccountDto MapToDto(
             F03User user, string? permissionName,
-            Dictionary<string, string> deptNames, Dictionary<int, List<int>> functionMap)
+            Dictionary<int, string> deptNames, Dictionary<int, List<int>> functionMap)
         {
-            deptNames.TryGetValue(user.DeptCode ?? "", out var deptName);
+            var deptName = user.DeptCode.HasValue ? deptNames.GetValueOrDefault(user.DeptCode.Value) : null;
             functionMap.TryGetValue(user.Id, out var functionIds);
 
             return new UserAccountDto

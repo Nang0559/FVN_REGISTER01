@@ -20,7 +20,6 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Views
                 entity.Property(e => e.EmployeeCode).HasMaxLength(50);
                 entity.Property(e => e.EmployeeName).HasMaxLength(50);
 
-                entity.Property(e => e.DeptCode).HasMaxLength(30);
                 entity.Property(e => e.DeptName).HasMaxLength(64);
 
                 entity.Property(e => e.GenderName).HasMaxLength(50);

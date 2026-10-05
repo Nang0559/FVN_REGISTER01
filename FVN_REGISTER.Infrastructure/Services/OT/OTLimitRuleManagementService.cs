@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.LimitRuleDtos;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Utils;
 
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -196,7 +197,7 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
                 x.ScopeType == OTLimitScopeType.Employee
                 && (string.IsNullOrWhiteSpace(x.EmployeeCode)
                     || x.EmployeeCode == null)
-                && (x.DeptCode == null || x.DeptCode == deptCode)
+                && (x.DeptCode == null || x.DeptCode == DepartmentCodeParser.ParseRequired(deptCode))
                 && (x.PositionCode == null || x.PositionCode == positionCode))
             .OrderBy(x => x.EmployeeCode == null ? 2 : 1)
             .ThenByDescending(x => x.DeptCode != null && x.PositionCode != null)
@@ -225,7 +226,7 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
 
         model.ScopeCode = Clean(model.ScopeCode);
         model.EmployeeCode = Clean(model.EmployeeCode);
-        model.DeptCode = Clean(model.DeptCode);
+        model.DeptCode = null;
         model.PositionCode = Clean(model.PositionCode);
         model.Description = Clean(model.Description);
 
@@ -246,11 +247,11 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
                     return "Phạm vi Phòng ban phải có mã phòng ban.";
 
                 var deptExists = await _uow.Repository<F03Department>().Query()
-                    .AnyAsync(x => x.IsActive == true && x.DeptCode == model.ScopeCode, ct);
+                    .AnyAsync(x => x.IsActive == true && x.DeptCode == DepartmentCodeParser.ParseRequired(model.ScopeCode), ct);
                 if (!deptExists) return $"Phòng ban '{model.ScopeCode}' không tồn tại hoặc đã ngừng hoạt động.";
 
                 model.EmployeeCode = null;
-                model.DeptCode = model.ScopeCode;
+                model.DeptCode = DepartmentCodeParser.ParseRequired(model.ScopeCode);
                 model.PositionCode = null;
                 break;
 

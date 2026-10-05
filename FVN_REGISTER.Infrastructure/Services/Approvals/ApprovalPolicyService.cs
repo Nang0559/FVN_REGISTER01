@@ -3,6 +3,7 @@ using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -34,7 +35,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 IsActive = x.IsActive == true,
                 RequestType = (int)x.RequestType,
                 RequestTypeName = RequestTypeName(x.RequestType),
-                DeptCode = x.DeptCode ?? string.Empty,
+                DeptCode = x.DeptCode.ToString(),
                 PositionCode = x.PositionCode,
                 ApprovalPositionCode = x.ApprovalPositionCode ?? string.Empty,
                 Level = x.Level,
@@ -47,7 +48,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
 
         var departments = await _uow.Repository<F03Department>().Query()
             .AsNoTracking()
-            .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
+            .ToDictionaryAsync(x => x.DeptCode.ToString(), x => x.DeptName, ct);
 
         var positions = await _uow.Repository<F03Position>().Query()
             .AsNoTracking()
@@ -123,7 +124,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         var entity = new F03ApprovalPolicy
         {
             RequestType = (RequestModule)request.RequestType,
-            DeptCode = request.DeptCode.Trim(),
+            DeptCode = DepartmentCodeParser.ParseRequired(request.DeptCode),
             PositionCode = Normalize(request.PositionCode),
             ApprovalPositionCode = request.ApprovalPositionCode.Trim(),
             Level = request.Level,
@@ -164,7 +165,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         request.RoleName = RoleNameFromPosition(request.Level);
 
         entity.RequestType = (RequestModule)request.RequestType;
-        entity.DeptCode = request.DeptCode.Trim();
+        entity.DeptCode = DepartmentCodeParser.ParseRequired(request.DeptCode);
         entity.PositionCode = Normalize(request.PositionCode);
         entity.ApprovalPositionCode = request.ApprovalPositionCode.Trim();
         entity.Level = request.Level;
@@ -212,7 +213,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             return "Phòng ban là bắt buộc.";
 
         if (!await _uow.Repository<F03Department>().Query()
-            .AnyAsync(x => x.IsActive == true && x.DeptCode == deptCode, ct))
+            .AnyAsync(x => x.IsActive == true && x.DeptCode == DepartmentCodeParser.ParseRequired(deptCode), ct))
             return $"Phòng ban '{deptCode}' không tồn tại hoặc đã inactive.";
 
         var positionCode = Normalize(request.PositionCode);

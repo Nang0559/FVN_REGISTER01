@@ -26,9 +26,9 @@ public class OTLimitRuleDto
                 return $"Khối: {ScopeCode}";
             if (!string.IsNullOrWhiteSpace(EmployeeCode))
                 return $"Nhân viên: {EmployeeCode}";
-            if (!string.IsNullOrWhiteSpace(DeptCode) && !string.IsNullOrWhiteSpace(PositionCode))
+            if (DeptCode.HasValue && !string.IsNullOrWhiteSpace(PositionCode))
                 return $"Phòng {DeptCode} - Vị trí {PositionCode}";
-            if (!string.IsNullOrWhiteSpace(DeptCode))
+            if (DeptCode.HasValue)
                 return $"Phòng ban: {DeptCode}";
             if (!string.IsNullOrWhiteSpace(PositionCode))
                 return $"Vị trí: {PositionCode}";

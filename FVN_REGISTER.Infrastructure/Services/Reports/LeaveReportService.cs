@@ -68,7 +68,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .Where(x => x.IsActive && x.WorkYear == year);
 
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode == query.DeptCode);
+                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -80,7 +80,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName ?? x.EmployeeCode,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["TotalEntitledLeave"] = x.TotalEntitledLeave,
                 ["LeaveDaysUsed"] = x.LeaveDaysUsed,
                 ["TotalDaysOff"] = x.TotalDaysOff,
@@ -132,7 +132,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             if (string.IsNullOrWhiteSpace(query.DeptCode) && string.IsNullOrWhiteSpace(query.EmployeeCode))
                 return ServiceResult<ReportResultDto>.Fail("Thiếu phạm vi dữ liệu báo cáo nghỉ phép.");
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode == query.DeptCode);
+                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -150,7 +150,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
             var rows = data.Select(x => new Dictionary<string, object?>
             {
-                ["DeptCode"] = x.DeptCode,
+                ["DeptCode"] = x.DeptCode?.ToString(),
                 ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
                 ["EmployeeCount"] = x.EmployeeCount,
                 ["TotalUsed"] = x.TotalUsed,
@@ -206,13 +206,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             if (string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
             {
                 if (!string.IsNullOrEmpty(query.DeptCode))
-                    q = q.Where(x => x.DeptCode == query.DeptCode);
+                    q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
                 if (!string.IsNullOrEmpty(query.EmployeeCode))
                     q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
             }
             else if (string.Equals(reportScope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             {
-                q = q.Where(x => x.DeptCode == user.DeptCode);
+                q = q.Where(x => x.DeptCode.ToString() == user.DeptCode);
                 if (!string.IsNullOrEmpty(query.EmployeeCode))
                     q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
             }
@@ -295,7 +295,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.StartDate <= toDate);
 
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode == query.DeptCode);
+                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -370,7 +370,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.RegisterDate <= toDate);
 
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode == query.DeptCode);
+                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
 
             var data = await q
                 .GroupBy(x => x.RequestStatus)

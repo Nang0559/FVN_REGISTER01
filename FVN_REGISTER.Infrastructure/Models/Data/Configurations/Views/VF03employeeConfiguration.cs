@@ -16,7 +16,6 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Views
             entity.Property(e => e.CreatedAt).HasColumnType("datetime");
             entity.Property(e => e.Cvcode).HasMaxLength(30).HasColumnName("CVCode");
             entity.Property(e => e.Cvname).HasMaxLength(64).HasColumnName("CVName");
-            entity.Property(e => e.DeptCode).HasMaxLength(30);
             entity.Property(e => e.DeptName).HasMaxLength(64);
             entity.Property(e => e.EmailAddress).HasMaxLength(100);
             entity.Property(e => e.EmployeeCode).HasMaxLength(30);

@@ -7,6 +7,7 @@ using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities.Equipment;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
@@ -64,7 +65,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         {
             Id=x.Id, EquipmentCode=x.EquipmentCode, EquipmentName=x.EquipmentName, Specification=x.Specification,
             SerialNumber=x.SerialNumber, AssetCode=x.AssetCode, PurchasePrice=x.PurchasePrice, PurchaseDate=x.PurchaseDate,
-            ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode, Location=x.Location,
+            ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode.ToString(), Location=x.Location,
             QrToken=x.QrToken, IsQrActive=x.IsQrActive, Note=x.Note
         }).ToList());
     }
@@ -77,7 +78,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentInspectionTemplateDto>>.Fail("Bạn không có quyền xem cấu hình checklist.");
 
         var query = _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking().Where(x => x.IsActive != false);
-        if (!string.IsNullOrWhiteSpace(deptCode)) query = query.Where(x => x.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (!string.IsNullOrWhiteSpace(deptCode)) query = query.Where(x => x.DeptCode.ToString() == deptCode.Trim());
 
         var rows = await query.Include(x => x.Items).OrderBy(x => x.DeptCode).ThenBy(x => x.TemplateName).ThenByDescending(x => x.Version).ToListAsync(ct);
         return ServiceResult<List<EquipmentInspectionTemplateDto>>.Ok(rows.Select(MapTemplate).ToList());
@@ -145,7 +146,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             string V(Dictionary<string,string?> d, params string[] keys) => keys.Select(NormalizeInspectionExcelKey).Select(k => d.TryGetValue(k, out var v) ? v : null).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? "";
             var templateCode = V(rows[0], "TemplateCode", "Mã checklist").Trim().ToUpperInvariant();
             var templateName = V(rows[0], "TemplateName", "Tên checklist");
-            var deptCode = V(rows[0], "DeptCode", "Bộ phận", "DepartmentCode").Trim().ToUpperInvariant();
+            var deptCode = V(rows[0], "DeptCode", "Bộ phận", "DepartmentCode").Trim();
             var frequency = V(rows[0], "Frequency", "Chu kỳ").Trim();
             var description = V(rows[0], "Description", "Mô tả");
             var errors = new List<string>();
@@ -154,7 +155,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             if (string.IsNullOrWhiteSpace(deptCode)) errors.Add("Thiếu DeptCode.");
             if (string.IsNullOrWhiteSpace(frequency) || !new[] {"Daily","Weekly","Monthly","Quarterly","Yearly"}.Contains(frequency,StringComparer.OrdinalIgnoreCase))
                 errors.Add("Frequency không hợp lệ: Daily/Weekly/Monthly/Quarterly/Yearly.");
-            if (string.IsNullOrWhiteSpace(deptCode) || !await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == deptCode && e.IsActive != false, ct))
+            if (string.IsNullOrWhiteSpace(deptCode) || !await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode.ToString() == deptCode && e.IsActive != false, ct))
                 errors.Add($"Bộ phận '{deptCode}' không tồn tại hoặc không có nhân viên hoạt động.");
             var items = new List<EquipmentInspectionItemDto>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -225,7 +226,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             entity.Description = request.Description?.Trim();
             entity.Frequency = request.Frequency;
             entity.Status = request.Status;
-            entity.DeptCode = dept;
+            entity.DeptCode = DepartmentCodeParser.ParseRequired(dept);
             entity.ModifiedBy = user.UserId;
             entity.ModifiedAt = DateTime.Now;
             entity.LastModifiedSource = "EQUIPMENT_INSPECTION_TEMPLATE";
@@ -303,7 +304,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         {
             TemplateCode = source.TemplateCode,
             TemplateName = string.IsNullOrWhiteSpace(name) ? $"{source.TemplateName} v{nextVersion}" : name.Trim(),
-            DeptCode = source.DeptCode,
+            DeptCode = source.DeptCode.ToString(),
             Frequency = source.Frequency,
             Version = nextVersion,
             Status = "Draft",
@@ -335,7 +336,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         var template = await _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == request.TemplateId && x.IsActive != false && x.Status == "Active", ct);
         if (template == null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Checklist phải là version Active.");
-        if (!string.Equals(template.DeptCode, asset.DeptCode, StringComparison.OrdinalIgnoreCase))
+        if (!template.DeptCode != asset.DeptCode)
             return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("DepartmentCode của checklist không khớp DepartmentCode của thiết bị.");
 
         var inspector = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == request.InspectorEmployeeCode && x.IsActive != false, ct);
@@ -556,7 +557,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
 
         var q = _db.Set<F03EquipmentInspectionTask>().AsNoTracking().Include(x => x.Equipment).Include(x => x.Template)
             .Where(x => x.IsActive != false && x.ScheduledDate >= from.Date && x.ScheduledDate <= to.Date);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.Equipment!.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.Equipment!.DeptCode.ToString() == deptCode.Trim());
         var rows = await q.OrderByDescending(x => x.ScheduledDate).ThenBy(x => x.Equipment!.EquipmentCode).Take(5000).ToListAsync(ct);
         var total = rows.Count;
         var completed = rows.Count(x => x.Status == "Approved");
@@ -573,7 +574,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             Rows = rows.Select(x => new EquipmentInspectionReportRowDto
             {
                 TaskId = x.Id,
-                DeptCode = x.Equipment?.DeptCode ?? "", EquipmentCode = x.Equipment?.EquipmentCode ?? "",
+                DeptCode = x.Equipment?.DeptCode.ToString() ?? "", EquipmentCode = x.Equipment?.EquipmentCode ?? "",
                 EquipmentName = x.Equipment?.EquipmentName ?? "", TemplateName = x.Template?.TemplateName ?? "",
                 InspectorEmployeeCode = x.InspectorEmployeeCode, Status = x.Status, Result = x.Result,
                 ScheduledDate = x.ScheduledDate, DueAt = x.DueAt, SubmittedAt = x.SubmittedAt, ApprovedAt = x.ApprovedAt
@@ -869,7 +870,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
 
     private static EquipmentInspectionTemplateDto MapTemplate(F03EquipmentInspectionTemplate x) => new()
     {
-        Id=x.Id, TemplateCode=x.TemplateCode, TemplateName=x.TemplateName, DeptCode=x.DeptCode, Frequency=x.Frequency,
+        Id=x.Id, TemplateCode=x.TemplateCode, TemplateName=x.TemplateName, DeptCode=x.DeptCode.ToString(), Frequency=x.Frequency,
         Version=x.Version, Status=x.Status, Description=x.Description,
         Items=x.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>new EquipmentInspectionItemDto
         {
@@ -890,7 +891,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     private static EquipmentInspectionTaskDto MapTask(F03EquipmentInspectionTask x) => new()
     {
         Id=x.Id, EquipmentId=x.EquipmentId, EquipmentCode=x.Equipment?.EquipmentCode ?? "", EquipmentName=x.Equipment?.EquipmentName ?? "",
-        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? "", TemplateId=x.TemplateId,
+        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode.ToString() ?? "", TemplateId=x.TemplateId,
         TemplateName=x.Template?.TemplateName ?? "", TemplateVersion=x.Template?.Version ?? 0, Status=x.Status, Result=x.Result,
         ScheduledDate=x.ScheduledDate, DueAt=x.DueAt, InspectorEmployeeCode=x.InspectorEmployeeCode, ApproverEmployeeCode=x.ApproverEmployeeCode,
         Items=x.Template?.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>{
