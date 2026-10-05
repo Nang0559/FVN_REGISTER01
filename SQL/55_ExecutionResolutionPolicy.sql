@@ -60,25 +60,16 @@ IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'EffectiveFrom') IS NULL
 IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'EffectiveTo') IS NULL
     EXEC(N'ALTER TABLE dbo.F03ExecutionPolicies ADD EffectiveTo datetime2 NULL;');
 
--- These columns are added by earlier lifecycle migrations. Keep this script
--- idempotent when it is executed against an older database by only backfilling
--- when the required snapshot columns already exist.
-IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'PolicyName') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionPolicies', N'PolicyVersion') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionPolicies', N'EmployeeResponseHours') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionPolicies', N'HrReviewHours') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionPolicies', N'AppealReviewHours') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionPolicies', N'MaxAppealRounds') IS NOT NULL
-BEGIN
-    EXEC sys.sp_executesql N'
-        UPDATE dbo.F03ExecutionPolicies
-        SET PolicyName = CASE WHEN NULLIF(LTRIM(RTRIM(PolicyName)), N'''''''') IS NULL THEN N''Execution Reconciliation'' ELSE PolicyName END,
-            PolicyVersion = CASE WHEN PolicyVersion < 1 THEN 1 ELSE PolicyVersion END,
-            EmployeeResponseHours = CASE WHEN EmployeeResponseHours <= 0 THEN 48 ELSE EmployeeResponseHours END,
-            HrReviewHours = CASE WHEN HrReviewHours <= 0 THEN 48 ELSE HrReviewHours END,
-            AppealReviewHours = CASE WHEN AppealReviewHours <= 0 THEN 48 ELSE AppealReviewHours END,
-            MaxAppealRounds = CASE WHEN AllowEmployeeAppeal = 1 AND MaxAppealRounds = 0 THEN 1 ELSE MaxAppealRounds END;';
-END;
+-- SQL Server cannot compile references to columns added by conditional ALTER TABLE
+-- earlier in the same batch. Run the backfill only after the columns exist.
+EXEC sys.sp_executesql N'
+    UPDATE dbo.F03ExecutionPolicies
+    SET PolicyName = CASE WHEN LEN(LTRIM(RTRIM(PolicyName))) = 0 THEN N''Execution Reconciliation'' ELSE PolicyName END,
+        PolicyVersion = CASE WHEN PolicyVersion < 1 THEN 1 ELSE PolicyVersion END,
+        EmployeeResponseHours = CASE WHEN EmployeeResponseHours <= 0 THEN 48 ELSE EmployeeResponseHours END,
+        HrReviewHours = CASE WHEN HrReviewHours <= 0 THEN 48 ELSE HrReviewHours END,
+        AppealReviewHours = CASE WHEN AppealReviewHours <= 0 THEN 48 ELSE AppealReviewHours END,
+        MaxAppealRounds = CASE WHEN AllowEmployeeAppeal = 1 AND MaxAppealRounds = 0 THEN 1 ELSE MaxAppealRounds END;';
 
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations', N'U') IS NOT NULL
 BEGIN
@@ -106,9 +97,8 @@ END;
 
 -- Backfill legacy reconciliation rows once. From this point onward runtime requires
 -- a snapshot so editing a policy can never change an existing case.
--- Dynamic SQL is intentional: ResolutionPolicyId / ResolutionPolicyVersion /
--- ResolutionPolicySnapshotJson may have been introduced by a prior migration in
--- the same deployment sequence.
+-- Dynamic SQL is intentional because the resolution-policy snapshot columns may
+-- have been introduced by a prior migration in the same deployment sequence.
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations', N'U') IS NOT NULL
 AND COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyId') IS NOT NULL
 AND COL_LENGTH(N'dbo.F03ExecutionReconciliations', N'ResolutionPolicyVersion') IS NOT NULL
@@ -193,7 +183,7 @@ WHERE r.RoleCode IN (1, 2)
 UPDATE rf
 SET rf.IsActive = 1
 FROM dbo.F03RoleFunctions AS rf
-INNER JOIN dbo.F03Roles AS r ON r.IdRole = rf.IdRole
+INNER JOIN dbo.F03Roles AS r ON r.Id = rf.Id
 INNER JOIN dbo.F03Functions AS f ON f.Id = rf.IdFunction
 WHERE r.RoleCode IN (1, 2)
   AND r.IsActive = 1
