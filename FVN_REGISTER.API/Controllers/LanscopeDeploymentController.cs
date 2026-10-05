@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Data;
+using FVN_REGISTER.Contract.Security;
 
 namespace FVN_REGISTER.API.Controllers;
 
