@@ -214,6 +214,90 @@ h1:focus {
 }
 
 
+
+/* Work Calendar — responsive header */
+.fc .fc-header-toolbar {
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.fc .fc-toolbar-chunk {
+    min-width: 0;
+}
+
+.fc .fc-toolbar-title {
+    margin: 0;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.fc .fc-button {
+    font-weight: 650;
+}
+
+@media (max-width: 700px) {
+    .fc .fc-header-toolbar {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 7px;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+
+    /* Keep the month/year title on its own row so navigation never overlaps it. */
+    .fc .fc-toolbar-chunk:nth-child(2) {
+        order: 1;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(1) {
+        order: 2;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(3) {
+        order: 3;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 1.08rem;
+        line-height: 1.25;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .fc .fc-toolbar-chunk .fc-button {
+        min-height: 34px;
+        padding: 5px 10px;
+        font-size: .78rem;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(1) .fc-button {
+        min-width: 42px;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(3) .fc-button {
+        min-width: 74px;
+    }
+}
+
+@media (max-width: 360px) {
+    .fc .fc-toolbar-title {
+        font-size: 1rem;
+    }
+
+    .fc .fc-toolbar-chunk .fc-button {
+        padding: 5px 8px;
+        font-size: .75rem;
+    }
+}
+
 /* Global application loading state */
 .fcc-global-loading {
     position: fixed;
