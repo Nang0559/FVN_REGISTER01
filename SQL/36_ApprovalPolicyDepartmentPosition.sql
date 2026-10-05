@@ -33,12 +33,31 @@ END;
 GO
 
 /*
-    SQL Server will not ALTER COLUMN while ANY index depends on PositionCode.
-    Discover every ordinary index that actually contains PositionCode instead
-    of relying only on historical index names.
+    DeptCode is being standardized to INT because HRM NVMaBP/BPMa is numeric.
 
-    Primary keys / unique constraints are intentionally preserved. If one
-    unexpectedly depends on PositionCode, fail explicitly and safely.
+    IMPORTANT:
+    F03ApprovalPolicies may already have FK_F03ApprovalPolicies_F03Departments
+    from an earlier deployment. SQL Server does not allow ALTER COLUMN while
+    that FK references DeptCode, so the FK must be removed BEFORE conversion and
+    recreated AFTER conversion.
+*/
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_F03ApprovalPolicies_F03Departments'
+      AND parent_object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+)
+BEGIN
+    ALTER TABLE dbo.F03ApprovalPolicies
+        DROP CONSTRAINT FK_F03ApprovalPolicies_F03Departments;
+END;
+GO
+
+/*
+    PositionCode is the optional requester-position refinement in v4.
+    Drop only ordinary indexes that depend on PositionCode. Primary/unique
+    constraints are preserved and cause an explicit safe failure.
 */
 DECLARE @IndexName sysname;
 DECLARE @Sql nvarchar(max);
@@ -90,7 +109,6 @@ BEGIN
 END;
 GO
 
-/* PositionCode is the optional requester-position refinement in v4. */
 IF EXISTS
 (
     SELECT 1 FROM sys.columns
@@ -104,20 +122,36 @@ BEGIN
 END;
 GO
 
-/* Retire legacy policies that cannot be mapped safely to the v4 scope. */
+/*
+    Retire legacy policies that cannot be mapped safely to the v4 scope.
+    TRY_CONVERT works whether the historical DeptCode column is still textual
+    or has already been converted to INT.
+*/
 DELETE p
 FROM dbo.F03ApprovalPolicies AS p
-WHERE p.DeptCode IS NULL
-   OR LTRIM(RTRIM(p.DeptCode)) = N''
+WHERE TRY_CONVERT(int, p.DeptCode) IS NULL
    OR p.ApprovalPositionCode IS NULL
    OR LTRIM(RTRIM(p.ApprovalPositionCode)) = N'';
 GO
 
 /*
-    Do not use IF/ELSE here. Separate IF NOT EXISTS statements are deliberately
-    used because this migration is executed through SQLCMD/Deploy.ps1 against
-    databases with different historical FK states.
+    Convert DeptCode to the canonical INT representation. This is intentionally
+    done before recreating the department FK.
 */
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+      AND name = N'DeptCode'
+      AND system_type_id <> TYPE_ID(N'int')
+)
+BEGIN
+    ALTER TABLE dbo.F03ApprovalPolicies
+        ALTER COLUMN DeptCode int NULL;
+END;
+GO
+
 IF NOT EXISTS
 (
     SELECT 1
