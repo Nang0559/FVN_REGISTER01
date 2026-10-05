@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FVN_REGISTER.Application\FVN_REGISTER.Application.csproj" />
     <ProjectReference Include="..\FVN_REGISTER.Shared\FVN_REGISTER.Shared.csproj" />
     <ProjectReference Include="..\Application\FVN_REGISTER.Application.csproj" />
   </ItemGroup>
@@ -18,10 +19,7 @@
   <ItemGroup>
     <Folder Include="Utils\" />
     <!-- The Language Center needs the JSON catalog as physical publish content. -->
-    <Content Include="..\FVN_REGISTER.Shared\Localization\*.json"
-             Link="Localization\%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\FVN_REGISTER.Shared\Localization\*.json" Link="Localization\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

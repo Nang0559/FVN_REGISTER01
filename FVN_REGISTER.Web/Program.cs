@@ -1,5 +1,4 @@
 ﻿using Blazored.LocalStorage;
-using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Approvals;
 using FVN_REGISTER.Shared.Services.Calendar;
@@ -26,6 +25,7 @@ using FVN_REGISTER.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor;
 using MudBlazor.Services;
+using FVN_REGISTER.Application.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
