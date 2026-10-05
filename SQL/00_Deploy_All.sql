@@ -102,6 +102,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
 :r "70_RequestModuleCanonicalization.sql"
+:r "71_DepartmentCodeInt.sql"
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
