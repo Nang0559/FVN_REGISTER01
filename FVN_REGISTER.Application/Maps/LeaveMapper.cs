@@ -29,7 +29,7 @@ namespace FVN_REGISTER.Application.Maps
                 Description = l.LeaveReason,
                 RequesterCode = l.EmployeeCode,
                 RequesterName = requester?.EmployeeName ?? string.Empty,
-                DeptCode = l.DeptCode ?? string.Empty,          // ⚠️ giả định BaseRequestEntity có DeptCode, giống F03OTRequest
+                DeptCode = l.DeptCode?.ToString() ?? string.Empty,          // ⚠️ giả định BaseRequestEntity có DeptCode, giống F03OTRequest
                 DeptName = department?.DeptName ?? string.Empty,
                 WorkYear = l.WorkYear,
                 RegisterDate = l.CreatedAt,                      // ⚠️ TODO: F03LeaveDay không thấy field RegisterDate rõ ràng,

@@ -31,7 +31,7 @@ namespace FVN_REGISTER.Application.Models.Subjects
             RequestId = x.Id,
             EmployeeCode = x.EmployeeCode,
             EmployeeName = employeeName,
-            DeptCode = x.DeptCode,
+            DeptCode = x.DeptCode?.ToString(),
             PositionCode = PositionCode,
             OverallStatus = x.RequestStatus,
 

@@ -197,6 +197,99 @@ BEGIN TRY
         FROM dbo.F03EscalationRules E
         INNER JOIN @Map M ON M.LegacyCode = CONVERT(nvarchar(20), E.DeptCode);
 
+    /*
+      Normalize additional module department-code columns introduced by later
+      module migrations. Only textual legacy columns are altered; canonical INT
+      columns are left untouched. Unknown values fail closed.
+    */
+    DECLARE @DeptTargets TABLE
+    (
+        TableName sysname NOT NULL,
+        ColumnName sysname NOT NULL,
+        PRIMARY KEY (TableName, ColumnName)
+    );
+
+    INSERT INTO @DeptTargets(TableName, ColumnName)
+    VALUES
+        (N'F03AccessChangeRequests', N'DeptCode'),
+        (N'F03PasswordResetRequests', N'DeptCode'),
+        (N'F03OTEmployees', N'DeptCode'),
+        (N'F03EquipmentInspectionTemplates', N'DeptCode'),
+        (N'F03EquipmentRepairHistory', N'ResponsibleDeptCode'),
+        (N'F03EquipmentRequests', N'DeptCode'),
+        (N'F03EquipmentRequests', N'RepairResponsibleDeptCode'),
+        (N'F03AttendanceStaging', N'DeptCode'),
+        (N'F03HrmAttendanceCalculated', N'DeptCode'),
+        (N'F03SyncReviewFlag', N'OldDeptCode'),
+        (N'F03SyncReviewFlag', N'NewDeptCode'),
+        (N'F03SyncReviewFlag', N'CurrentApproveForDeptCode'),
+        (N'F03SyncReviewFlag', N'SuggestedApproveForDeptCode');
+
+    DECLARE @TargetTable sysname, @TargetColumn sysname, @Sql nvarchar(max), @Nullable nvarchar(10);
+
+    DECLARE dept_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT TableName, ColumnName
+        FROM @DeptTargets
+        ORDER BY TableName, ColumnName;
+
+    OPEN dept_cursor;
+    FETCH NEXT FROM dept_cursor INTO @TargetTable, @TargetColumn;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        IF OBJECT_ID(N'dbo.' + @TargetTable, N'U') IS NOT NULL
+           AND COL_LENGTH(N'dbo.' + @TargetTable, @TargetColumn) IS NOT NULL
+           AND EXISTS
+           (
+               SELECT 1
+               FROM sys.columns c
+               JOIN sys.types t ON t.user_type_id = c.user_type_id
+               WHERE c.object_id = OBJECT_ID(N'dbo.' + @TargetTable)
+                 AND c.name = @TargetColumn
+                 AND t.name IN (N'varchar',N'char',N'nvarchar',N'nchar')
+           )
+        BEGIN
+            SET @Sql = N'
+                UPDATE T
+                SET ' + QUOTENAME(@TargetColumn) + N' =
+                    CASE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(20), T.' + QUOTENAME(@TargetColumn) + N')))
+                        WHEN N''FIN''  THEN N''14''
+                        WHEN N''HR''   THEN N''13''
+                        WHEN N''PROD'' THEN N''12''
+                        WHEN N''QA''   THEN N''10''
+                        WHEN N''IT''   THEN N''57''
+                        ELSE T.' + QUOTENAME(@TargetColumn) + N'
+                    END
+                FROM dbo.' + QUOTENAME(@TargetTable) + N' AS T;
+
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.' + QUOTENAME(@TargetTable) + N'
+                    WHERE ' + QUOTENAME(@TargetColumn) + N' IS NOT NULL
+                      AND TRY_CONVERT(int, ' + QUOTENAME(@TargetColumn) + N') IS NULL
+                )
+                    THROW 51405, N''Unmapped textual DepartmentCode remains in ' + REPLACE(@TargetTable,'''','''''') + N'.' + REPLACE(@TargetColumn,'''','''''') + N'.'', 1;';
+            EXEC sp_executesql @Sql;
+
+            SELECT @Nullable =
+                CASE WHEN c.is_nullable = 1 THEN N'NULL' ELSE N'NOT NULL' END
+            FROM sys.columns c
+            WHERE c.object_id = OBJECT_ID(N'dbo.' + @TargetTable)
+              AND c.name = @TargetColumn;
+
+            SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@TargetTable)
+                     + N' ALTER COLUMN ' + QUOTENAME(@TargetColumn)
+                     + N' int ' + @Nullable + N';';
+            EXEC sp_executesql @Sql;
+        END;
+
+        FETCH NEXT FROM dept_cursor INTO @TargetTable, @TargetColumn;
+    END;
+
+    CLOSE dept_cursor;
+    DEALLOCATE dept_cursor;
+
     /* Fail closed if any non-numeric legacy department code remains. */
     DECLARE @Bad nvarchar(max) = N'';
 

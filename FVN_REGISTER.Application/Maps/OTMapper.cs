@@ -24,7 +24,7 @@ namespace FVN_REGISTER.Application.Maps
                 Description = r.OTReasonSummary ?? string.Empty,
                 RequesterCode = r.EmployeeCode ?? string.Empty,
                 RequesterName = requester?.EmployeeName ?? string.Empty,
-                DeptCode = r.DeptCode ?? "",
+                DeptCode = r.DeptCode?.ToString() ?? "",
                 DeptName = department?.DeptName ?? string.Empty,
                 WorkYear = r.OTDate.Year,
                 OTDate = r.OTDate,
@@ -64,7 +64,7 @@ namespace FVN_REGISTER.Application.Maps
         {
             EmployeeCode = e.EmployeeCode ?? string.Empty,
             EmployeeName = e.EmployeeName ?? string.Empty,
-            DeptCode = e.DeptCode ?? string.Empty,
+            DeptCode = e.DeptCode?.ToString() ?? string.Empty,
             DeptName = e.DeptName ?? string.Empty,
             CvCode = e.CvCode ?? string.Empty,
             OTTypeCode = e.OTTypeCode ?? string.Empty,

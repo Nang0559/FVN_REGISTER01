@@ -19,7 +19,6 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Views
             entity.Property(e => e.EmployeeName).HasMaxLength(50);
             entity.Property(e => e.CreatedByEmail).HasMaxLength(100);
 
-            entity.Property(e => e.DeptCode).HasMaxLength(30);
             entity.Property(e => e.DeptName).HasMaxLength(64);
 
             entity.Property(e => e.OTDate).HasColumnType("smalldatetime");
