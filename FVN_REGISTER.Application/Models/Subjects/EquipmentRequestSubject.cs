@@ -29,7 +29,7 @@ public sealed class EquipmentRequestSubject : IApprovalSubject
         RequestId = x.Id,
         EmployeeCode = x.EmployeeCode,
         EmployeeName = employeeName,
-        DeptCode = x.DeptCode,
+        DeptCode = x.DeptCode?.ToString(),
         PositionCode = positionCode,
         OverallStatus = x.RequestStatus,
         RequestKind = x.RequestKind,

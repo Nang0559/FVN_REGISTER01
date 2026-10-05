@@ -34,7 +34,7 @@ public sealed class EndpointGovernanceRequestSubject : IApprovalSubject
         RequestId = entity.Id,
         EmployeeCode = entity.EmployeeCode,
         EmployeeName = employeeName,
-        DeptCode = entity.DeptCode,
+        DeptCode = entity.DeptCode?.ToString(),
         PositionCode = positionCode,
         OverallStatus = entity.RequestStatus,
         RequestType = entity.RequestType,
