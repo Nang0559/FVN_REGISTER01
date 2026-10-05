@@ -13,10 +13,9 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "02C_TablePrerequisites.sql"
 :r "03_Tables.sql"
 :r "04_Constraints.sql"
-:r "05_Indexes.sql"
 /* DepartmentCode = INT (HRM BPMa) must be in place before any script compares DeptCode with numeric codes. */
 :r "05A_DepartmentCodeInt.sql"
--- [SEED] :r "06_Seed_All_Modules.sql"
+:r "05_Indexes.sql"
 :r "07_Views.sql"
 :r "08_Functions.sql"
 :r "09_StoredProcedures.sql"
@@ -31,10 +30,11 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "14C_SecurityFeatureOperatorAssignments.sql"
 :r "14E_AttendanceCalculateCapability.sql"
 :r "15_PublicInformation.sql"
-:r "16_EquipmentFlexibleImport.sql"
+/* Shared Excel Platform is canonical infrastructure for Equipment Excel import. */
 :r "Excel/001_SharedExcelPlatform.sql"
 :r "Excel/002_SharedExcelPlatform_Normalize.sql"
 :r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
+:r "16_EquipmentFlexibleImport.sql"
 :r "16_EquipmentFlexibleImport_LegacyCleanup.sql"
 :r "16A_EquipmentCapabilities.sql"
 :r "17_ApprovalRouteSelection.sql"
@@ -105,6 +105,8 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "69_Endpoint_LanscopeDeployment.sql"
 :r "70_RequestModuleCanonicalization.sql"
 :r "71_DepartmentCodeInt.sql"
+/* [SEED] is intentionally late: all schema/module tables must exist before the complete seed pack runs. */
+-- [SEED] :r "06_Seed_All_Modules.sql"
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"
 :r "99_Verify.sql"
