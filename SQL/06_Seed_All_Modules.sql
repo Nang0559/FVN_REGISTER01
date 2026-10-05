@@ -189,6 +189,24 @@ BEGIN
 END;
 GO
 
+/* Shared Excel Platform is schema/configuration, not demo row data. Verify that
+   the canonical Excel tables are present before reporting the seed as complete. */
+IF OBJECT_ID(N'dbo.F03ExcelSchemas',N'U') IS NULL
+    THROW 51090, N'Seed pack requires canonical F03ExcelSchemas.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelSchemaVersions',N'U') IS NULL
+    THROW 51091, N'Seed pack requires canonical F03ExcelSchemaVersions.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelSchemaFields',N'U') IS NULL
+    THROW 51092, N'Seed pack requires canonical F03ExcelSchemaFields.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelImportBatches',N'U') IS NULL
+    THROW 51093, N'Seed pack requires canonical F03ExcelImportBatches.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelImportRows',N'U') IS NULL
+    THROW 51094, N'Seed pack requires canonical F03ExcelImportRows.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelImportErrors',N'U') IS NULL
+    THROW 51095, N'Seed pack requires canonical F03ExcelImportErrors.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelExportTemplates',N'U') IS NULL
+    THROW 51096, N'Seed pack requires canonical F03ExcelExportTemplates.', 1;
+GO
+
 /* Final seed report. */
 SELECT N'F03Employees' AS TableName, COUNT_BIG(*) AS SeededRows FROM dbo.F03Employees WHERE EmployeeCode IN (N'E0001',N'E0002',N'E0003',N'E0004',N'E0005')
 UNION ALL
