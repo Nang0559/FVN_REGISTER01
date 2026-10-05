@@ -12,7 +12,8 @@ public partial class F03AttendanceStaging
     [Required, StringLength(50)]
     public string EmployeeCode { get; set; } = string.Empty;
 
-    public int? DeptCode { get; set; }
+    [StringLength(20)]
+    public string? DeptCode { get; set; }
     [StringLength(100)]
     public string? DeptName { get; set; }
     [StringLength(100)]
