@@ -114,6 +114,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
                 PositionName = _uow.Repository<F03Position>().Query().Where(p => p.PositionCode == x.PositionCode && p.IsActive == true).Select(p => p.PositionName).FirstOrDefault()
             }).FirstOrDefaultAsync(ct);
         if (employee == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên không tồn tại hoặc đã inactive.");
+        var selectedEmployee = employee;
 
         var function = await _uow.Repository<F03Function>().Query().AsNoTracking()
             .Where(x => x.FunctionCode == request.FunctionCode && (x.IsActive ?? true))
@@ -179,7 +180,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         var entity = new F03FeatureOperatorAssignment { FunctionCode = request.FunctionCode, ResourceType = type, ResourceId = request.ResourceId, EmployeeCode = employeeCode, Remark = request.Remark?.Trim(), CreatedBy = actorUserId };
         await _uow.Repository<F03FeatureOperatorAssignment>().AddAsync(entity, ct); await _uow.SaveChangesAsync(ct);
         await _audit.LogAction("SECURITY_FEATURE_OPERATOR_ADDED", actorUserId, $"Id={entity.Id}; Function={entity.FunctionCode}; Resource={entity.ResourceType}:{entity.ResourceId}; Employee={entity.EmployeeCode}", ct: ct);
-        return ServiceResult<FeatureOperatorAssignmentDto>.Ok(new FeatureOperatorAssignmentDto { Id = entity.Id, FunctionCode = entity.FunctionCode, ResourceType = entity.ResourceType, ResourceId = entity.ResourceId, EmployeeCode = employee.EmployeeCode, EmployeeName = employee.EmployeeName ?? employee.EmployeeCode, DeptCode = employee.DeptCode, DeptName = employee.DeptName, PositionCode = employee.PositionCode, PositionName = employee.PositionName, Remark = entity.Remark });
+        return ServiceResult<FeatureOperatorAssignmentDto>.Ok(new FeatureOperatorAssignmentDto { Id = entity.Id, FunctionCode = entity.FunctionCode, ResourceType = entity.ResourceType, ResourceId = entity.ResourceId, EmployeeCode = selectedEmployee.EmployeeCode, EmployeeName = selectedEmployee.EmployeeName ?? selectedEmployee.EmployeeCode, DeptCode = selectedEmployee.DeptCode, DeptName = selectedEmployee.DeptName, PositionCode = selectedEmployee.PositionCode, PositionName = selectedEmployee.PositionName, Remark = entity.Remark });
     }
 
     public async Task<ServiceResult> RemoveAsync(int id, int actorUserId, CancellationToken ct = default)
