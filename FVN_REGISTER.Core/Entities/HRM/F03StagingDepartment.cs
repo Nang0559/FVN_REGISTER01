@@ -9,14 +9,14 @@ namespace FVN_REGISTER.Core.Entities.HRM
     public class F03StagingDepartment : IHrmStagingEntity
     {
         public int Id { get; set; }
-        public string EntityKey { get; set; } = string.Empty;   // = DeptCode
+        public string EntityKey { get; set; } = string.Empty;   // = DeptCode (string staging key)
         public HrmChangeAction Action { get; set; }
         public bool IsProcessed { get; set; }
         public string? ErrorMessage { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? CreatedBy { get; set; }
         public string DeptName { get; set; } = string.Empty;
-        public string? ParentDeptCode { get; set; }
+        public int? ParentDeptCode { get; set; }
                 public int? DisplayPriority { get; set; }
                 public bool ShowInReport { get; set; } = true;
     }
