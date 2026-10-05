@@ -252,7 +252,7 @@ BEGIN
         ap.Level,
         ap.LevelName,
         ap.RoleName,
-        LTRIM(RTRIM(ap.DeptCode)) AS ApproveForDeptCode,
+        ap.DeptCode AS ApproveForDeptCode,
         ISNULL(d.DeptName,LTRIM(RTRIM(ap.DeptCode))) AS ApproveForDeptName
     INTO #HrmApproverSource
     FROM dbo.F03Employees e
@@ -260,7 +260,7 @@ BEGIN
         ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
        AND ap.IsActive=1
     LEFT JOIN dbo.F03Departments d
-        ON LTRIM(RTRIM(d.DeptCode))=LTRIM(RTRIM(ap.DeptCode))
+        ON d.DeptCode=ap.DeptCode
     WHERE e.IsActive=1
       AND ISNULL(e.LevelApprove,0) > 0
       AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
@@ -276,7 +276,7 @@ BEGIN
              WHEN 3 THEN N'Equipment'
          END
      AND target.Level=src.Level
-     AND LTRIM(RTRIM(target.ApproveForDeptCode))=src.ApproveForDeptCode
+     AND target.ApproveForDeptCode=src.ApproveForDeptCode
     WHEN MATCHED
          AND ISNULL(target.LastModifiedSource,N'')=N'HRM'
     THEN
@@ -351,7 +351,7 @@ BEGIN
                         WHEN 3 THEN N'Equipment'
                     END
                 AND a.Level=ap.Level
-                AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(ap.DeptCode))
+                AND a.ApproveForDeptCode=LTRIM(RTRIM(ap.DeptCode))
           )
       );
 
