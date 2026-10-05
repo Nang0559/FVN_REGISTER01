@@ -67,6 +67,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "37_PublicRegistrationForms.sql"
 :r "16B_EquipmentSpecificRequestForms.sql"
 :r "39_AuditBaseCompatibility.sql"
+:r "40_TwoFactorAuthentication.sql"
 :r "40_EmailCenter.sql"
 :r "41_EmailCenter_ProfileCompatibility.sql"
 :r "41_SecurityFunctionCleanup.sql"
