@@ -9,8 +9,8 @@ public partial class F03Department : BaseAuditEntity
 {
 
 
-    [Required, StringLength(20)]
-    public string DeptCode { get; set; } = string.Empty;
+    [Required]
+    public int DeptCode { get; set; }
 
     [Required, StringLength(100)]
     public string DeptName { get; set; } = string.Empty;
