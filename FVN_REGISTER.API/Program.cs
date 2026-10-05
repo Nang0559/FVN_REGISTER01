@@ -134,6 +134,7 @@ builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
 builder.Services.AddScoped<IWorkCalendarService, WorkCalendarService>();
+builder.Services.AddScoped<IAttendanceSymbolRuleService, AttendanceSymbolRuleService>();
 builder.Services.AddScoped<ISharedWorkCalendarService, SharedWorkCalendarService>();
 builder.Services.AddScoped<ICalendarDayRuleEngine, CalendarDayRuleEngine>();
 builder.Services.AddScoped<ICalendarDayRule, AttendanceNumericVarianceRule>();
