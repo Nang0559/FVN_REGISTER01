@@ -663,17 +663,19 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         // Personal permissions are effective only when the account has an
         // active HRM employee subject. Keep management/system permissions intact
         // for manually-created or break-glass accounts without an employee row.
-        var hasActiveEmployee = await _uow.Repository<F03Employee>().Query()
+        var snapshotEmployeeCode = await _uow.Repository<F03User>().Query()
             .AsNoTracking()
-            .AnyAsync(x =>
-                x.IsActive == true &&
-                x.EmployeeCode == (
-                    await _uow.Repository<F03User>().Query()
-                        .AsNoTracking()
-                        .Where(u => u.Id == userId)
-                        .Select(u => u.EmployeeCode)
-                        .FirstOrDefaultAsync(ct)),
-                ct);
+            .Where(u => u.Id == userId)
+            .Select(u => u.EmployeeCode)
+            .FirstOrDefaultAsync(ct);
+
+        var hasActiveEmployee = !string.IsNullOrWhiteSpace(snapshotEmployeeCode)
+            && await _uow.Repository<F03Employee>().Query()
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.IsActive == true &&
+                    x.EmployeeCode == snapshotEmployeeCode,
+                    ct);
 
         if (!hasActiveEmployee)
         {
