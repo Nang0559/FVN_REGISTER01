@@ -75,6 +75,25 @@ function Assert-DeploymentOrder([string[]]$Files, [bool]$SeedEnabled) {
         if (-not $index.ContainsKey('06_Seed_All_Modules.sql')) {
             throw 'Seed was requested but 06_Seed_All_Modules.sql is not enabled in the deployment manifest.'
         }
+
+        # Validate the seed pack's nested :r includes too. The canonical pack
+        # currently includes 06_Seed.sql, but this guard prevents a future
+        # nested seed include from bypassing the preflight file/order checks.
+        $seedPack = Join-Path $PSScriptRoot '06_Seed_All_Modules.sql'
+        $nestedSeedFiles = Get-IncludeFiles $seedPack
+        if ($nestedSeedFiles.Count -eq 0) {
+            throw '06_Seed_All_Modules.sql contains no SQLCMD includes.'
+        }
+        $nestedMissing = @($nestedSeedFiles | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path $PSScriptRoot $_))
+        })
+        if ($nestedMissing.Count -gt 0) {
+            $nestedMissing | ForEach-Object { Write-Host "MISSING nested seed include: $_" -ForegroundColor Red }
+            throw 'The seed pack contains missing nested SQL files. Nothing was executed.'
+        }
+        if ($nestedSeedFiles -notcontains '06_Seed.sql') {
+            throw '06_Seed_All_Modules.sql must include canonical 06_Seed.sql.'
+        }
         if ($index['71_DepartmentCodeInt.sql'] -ge $index['06_Seed_All_Modules.sql']) {
             throw 'Seed must run after the complete schema/module migration set and DepartmentCode verification.'
         }
