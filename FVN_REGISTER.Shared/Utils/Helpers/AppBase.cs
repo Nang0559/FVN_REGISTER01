@@ -13,7 +13,7 @@ namespace FVN_REGISTER.Shared.Utils.Helpers
     {
         [Inject] protected ILoggerFactory LoggerFactory { get; set; } = default!;
         [Inject] protected IConfiguration Configuration { get; set; } = default!;
-        [Inject] protected ILanguageService Language { get; set; } = default!;
+        [Inject] protected ILanguageService LanguageService { get; set; } = default!;
 
         protected ILogger Logger = default!;
         protected bool Debug => Configuration.GetValue<bool>("AuthDebug:Enabled");
@@ -22,12 +22,12 @@ namespace FVN_REGISTER.Shared.Utils.Helpers
         protected override void OnInitialized()
         {
             Logger = LoggerFactory.CreateLogger(GetType());
-            Language.LanguageChanged += OnLanguageChanged;
+            LanguageService.LanguageChanged += OnLanguageChanged;
         }
 
         protected virtual void OnLanguageChanged(object? sender, EventArgs e) =>
             _ = InvokeAsync(StateHasChanged);
 
-        public virtual void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
+        public virtual void Dispose() => LanguageService.LanguageChanged -= OnLanguageChanged;
     }
 }
