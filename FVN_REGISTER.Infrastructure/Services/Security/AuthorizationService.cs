@@ -800,7 +800,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var deptCodes = users.Select(x => x.DeptCode)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => x.HasValue)
             .Distinct()
             .ToList();
         var positionCodes = users.Select(x => x.Cvcode)
@@ -824,7 +824,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             EmployeeCode = x.EmployeeCode,
             FullName = x.FullName,
             DeptCode = x.DeptCode,
-            DeptName = x.DeptCode != null ? deptNames.GetValueOrDefault(x.DeptCode) : null,
+            DeptName = x.DeptCode.HasValue ? deptNames.GetValueOrDefault(x.DeptCode.Value) : null,
             PositionCode = x.Cvcode,
             PositionName = x.Cvcode != null ? positionNames.GetValueOrDefault(x.Cvcode) : null,
             IsActive = x.IsActive == true,
