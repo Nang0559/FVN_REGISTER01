@@ -20,7 +20,7 @@ public partial class F03Department : BaseAuditEntity
     public string? BlockCode { get; set; }
     [StringLength(50)]
   
-    public string? ParentDeptCode { get; set; }   // từ BPMaCha
+    public int? ParentDeptCode { get; set; }   // từ BPMaCha
 
     public int? DisplayPriority { get; set; }     // từ BPUuTien
     public bool ShowInReport { get; set; } = true; // từ BPHienThiBC
