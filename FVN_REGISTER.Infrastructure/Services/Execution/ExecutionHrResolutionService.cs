@@ -515,7 +515,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         var now = DateTime.Now;
         var employee = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
-            .Select(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode })
+            .Select(x => new { x.Id, x.EmployeeCode, x.EmployeeName, x.DeptCode })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của phản hồi.");
 
