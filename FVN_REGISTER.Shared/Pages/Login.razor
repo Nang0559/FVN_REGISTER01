@@ -8,7 +8,6 @@
 
 @layout EmptyLayout
 @inherits AppComponentBase
-@implements IDisposable
 @inject ICurrentUserClientService CurrentUserService
 @inject CustomAuthStateProvider AuthStateProvider
 @inject IAuthClientService AuthService
@@ -79,10 +78,8 @@
     private string _forgotEmployeeCode = string.Empty; private string? _forgotRequestNote; private bool _sendingResetRequest;
     private InputType _passwordInput = InputType.Password; private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
     private bool _twoFactorPending; private string _twoFactorChallenge = string.Empty; private string _twoFactorCode = string.Empty; private TwoFactorSetupDto? _twoFactorSetup;
-    protected override async Task OnInitializedAsync() { Language.LanguageChanged += OnLanguageChanged; await Language.InitializeAsync(); await base.OnInitializedAsync(); }
-    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    protected override async Task OnInitializedAsync() { await Language.InitializeAsync(); await base.OnInitializedAsync(); }
     private Task SetLanguageAsync(LanguageCode language) => Language.SetLanguageAsync(language);
-    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
     private void ToggleForgotPassword() => _showForgotPassword = !_showForgotPassword;
     private void TogglePasswordVisibility() { _passwordVisibility = !_passwordVisibility; _passwordInput = _passwordVisibility ? InputType.Text : InputType.Password; _passwordInputIcon = _passwordVisibility ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff; }
     private async Task SubmitForgotPasswordRequestAsync() { var employeeCode = _forgotEmployeeCode.Trim(); if (string.IsNullOrWhiteSpace(employeeCode)) return; _sendingResetRequest = true; try { var result = await PasswordResetRequestService.SubmitAsync(new FVN_REGISTER.Contract.Requests.Users.PasswordResetRequestCreateDto { EmployeeCode = employeeCode, RequestNote = string.IsNullOrWhiteSpace(_forgotRequestNote) ? null : _forgotRequestNote.Trim() }); if (result.IsSuccess) { Snackbar.Add(Language.T("login.requestSent"), Severity.Success); _forgotEmployeeCode = string.Empty; _forgotRequestNote = null; _showForgotPassword = false; } else Snackbar.Add(result.Message ?? Language.T("login.requestFailed"), Severity.Error); } catch (Exception ex) { Logger.LogError(ex, "[Login] Forgot password request failed"); Snackbar.Add(Language.T("login.requestFailed"), Severity.Error); } finally { _sendingResetRequest = false; } }
