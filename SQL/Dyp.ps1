@@ -74,10 +74,9 @@ function Assert-DeploymentOrder([string[]]$Files, [bool]$SeedEnabled) {
             throw 'Seed must run after the complete schema/module migration set and DepartmentCode verification.'
         }
         if ($index['06_Seed_All_Modules.sql'] -ge $index['14D_SecuritySchemaVerify.sql']) {
-            # 14D is the first final verification gate; seed must precede it.
-            return
+            throw 'Seed must run before the final security verification gate 14D_SecuritySchemaVerify.sql.'
         }
-        throw 'Seed must run before the final security verification gate 14D_SecuritySchemaVerify.sql.'
+        return
     }
 }
 
