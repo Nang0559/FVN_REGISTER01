@@ -70,15 +70,40 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
     public async Task<bool> HasPersonalAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default)
     {
-        if (user.UserId <= 0) return false;
+        if (user.UserId <= 0)
+            return false;
+
+        // Personal capability is meaningful only when the account resolves to
+        // an active HRM employee. A manually-created account may still have a
+        // Personal RoleFunction grant, but without F03Employees identity there
+        // is no safe "của tôi" subject for Leave/OT/Trip/Equipment/Calendar.
+        var hasActiveEmployee = await _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive == true &&
+                x.EmployeeCode == user.EmployeeCode,
+                ct);
+
+        if (!hasActiveEmployee)
+            return false;
+
         return await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
-            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
-            join r in _uow.Repository<F03Role>().Query().AsNoTracking() on ur.IdRole equals r.Id
-            join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
-            where ur.IdUser == user.UserId && ur.IsActive == true && rf.IsActive == true && r.IsActive == true && (f.IsActive ?? true)
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
+                on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking()
+                on ur.IdRole equals r.Id
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId
+                && ur.IsActive == true
+                && rf.IsActive == true
+                && r.IsActive == true
+                && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
-                && (rf.AccessMode == "Personal" || (rf.AccessMode == null && (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own))
+                && (rf.AccessMode == "Personal"
+                    || (rf.AccessMode == null
+                        && (rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Own))
             select f.Id
         ).AnyAsync(ct);
     }
