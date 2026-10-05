@@ -70,7 +70,7 @@ public sealed class HrmSyncService : IHrmSyncService
                        WHEN 3 THEN N'Equipment'
                    END
                    AND a.Level=ap.Level
-                   AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(e.DeptCode))
+                   AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(ap.DeptCode))
                 WHERE e.IsActive=1
                   AND ISNULL(e.LevelApprove,0) > 0
                   AND a.Id IS NULL;
