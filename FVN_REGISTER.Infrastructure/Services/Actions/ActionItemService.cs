@@ -315,7 +315,7 @@ public sealed class ActionItemService : IActionItemService
                     ConfirmationId = item.ConfirmationId,
                     EmployeeCode = item.EmployeeCode
                 }),
-                CreatedBy = item.ConfirmationCreatedBy ?? userId,
+                CreatedBy = item.ConfirmationCreatedBy,
                 CreatedAt = DateTime.Now,
                 LastModifiedSource = "EXECUTION_OPERATOR_BACKFILL"
             });
