@@ -370,9 +370,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
             decimal GetLimit(string? deptCode)
             {
+                int? parsedDeptCode = int.TryParse(deptCode, out var value) ? value : null;
+
                 return limits
-                    .Where(r => r.DeptCode == deptCode || r.DeptCode == "ALL" || r.DeptCode == null)
-                    .OrderByDescending(r => r.DeptCode == deptCode)
+                    .Where(r => r.DeptCode == parsedDeptCode || r.DeptCode == null)
+                    .OrderByDescending(r => r.DeptCode == parsedDeptCode)
                     .Select(r => r.LimitValue)
                     .FirstOrDefault(200m);
             }
