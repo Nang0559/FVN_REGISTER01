@@ -568,6 +568,45 @@ IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.
 PRINT N'Extended RBAC/reporting verification completed.';
 GO
 
+/* ===========================================================================
+   SHARED EXCEL PLATFORM VERIFICATION
+   =========================================================================== */
+IF OBJECT_ID(N'dbo.F03ExcelSchemas',N'U') IS NULL
+    THROW 53110, N'Missing canonical Excel table F03ExcelSchemas.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelSchemaVersions',N'U') IS NULL
+    THROW 53111, N'Missing canonical Excel table F03ExcelSchemaVersions.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelSchemaFields',N'U') IS NULL
+    THROW 53112, N'Missing canonical Excel table F03ExcelSchemaFields.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelImportBatches',N'U') IS NULL
+    THROW 53113, N'Missing canonical Excel table F03ExcelImportBatches.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelImportRows',N'U') IS NULL
+    THROW 53114, N'Missing canonical Excel table F03ExcelImportRows.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelImportErrors',N'U') IS NULL
+    THROW 53115, N'Missing canonical Excel table F03ExcelImportErrors.', 1;
+IF OBJECT_ID(N'dbo.F03ExcelExportTemplates',N'U') IS NULL
+    THROW 53116, N'Missing canonical Excel table F03ExcelExportTemplates.', 1;
+IF EXISTS
+(
+    SELECT 1 FROM sys.tables
+    WHERE name IN
+    (
+        N'F03EquipmentSchemas',
+        N'F03EquipmentFieldDefinitions',
+        N'F03EquipmentImportBatches',
+        N'F03EquipmentImportErrors'
+    )
+)
+    THROW 53117, N'Legacy Equipment-specific Excel metadata tables must not remain.', 1;
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE name=N'UX_F03ExcelSchemas_Module_Entity_Code'
+      AND object_id=OBJECT_ID(N'dbo.F03ExcelSchemas')
+)
+    THROW 53118, N'Missing canonical unique index UX_F03ExcelSchemas_Module_Entity_Code.', 1;
+PRINT N'Shared Excel Platform verification completed.';
+GO
+
 /* Department identity: DepartmentCode must be INT (HRM BPMa) everywhere. */
 IF EXISTS
 (
@@ -585,7 +624,9 @@ IF EXISTS
     THROW 53100, N'A department-code column is still text; DepartmentCode must be INT (HRM BPMa). Run 71_DepartmentCodeInt.sql.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03Departments WHERE DeptCode = 57 AND DeptName = N'IT')
     THROW 53101, N'Department 57 (IT) is missing from dbo.F03Departments.', 1;
-IF (SELECT COUNT(*) FROM dbo.F03Departments WHERE DeptCode BETWEEN 1 AND 57) < 50
-    THROW 53102, N'Standard HRM departments (BPMa 1..56 + 57) are not fully present in dbo.F03Departments.', 1;
+/* HRM is the source of truth for the complete BPMa department master.
+   The SQL seed intentionally contains only deterministic demo departments,
+   so deployment verification must not require all 1..56 HRM codes to exist
+   before the first HRM synchronization. IT=57 is the canonical local guard. */
 PRINT N'DepartmentCode INT verification completed.';
 GO
