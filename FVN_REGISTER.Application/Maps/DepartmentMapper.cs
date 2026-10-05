@@ -31,7 +31,7 @@ namespace FVN_REGISTER.Application.Maps
         /// <summary>Áp Upsert Dto lên entity đã có sẵn (dùng cho Update).</summary>
         public static void ApplyTo(this DepartmentUpsertDto model, F03Department entity, int currentUserId)
         {
-            entity.DeptCode = model.DeptCode.Trim();
+            entity.DeptCode = model.DeptCode;
             entity.DeptName = model.DeptName.Trim();
             entity.IsActive = model.IsActive;
             entity.ModifiedBy = currentUserId;
