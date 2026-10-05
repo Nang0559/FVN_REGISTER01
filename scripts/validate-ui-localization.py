@@ -20,6 +20,7 @@ SNACKBAR_RE = re.compile(r'Snackbar\.Add\(\s*"(?P<value>[^"]+)"')
 PLACEHOLDER_RE = re.compile(r"\{(\d+)\}")
 
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", default="", help="Optional JSON audit output path.")
 args = parser.parse_args()
