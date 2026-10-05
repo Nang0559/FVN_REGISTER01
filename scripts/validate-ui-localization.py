@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARED = ROOT / "FVN_REGISTER.Shared"
+WEB = ROOT / "FVN_REGISTER.Web"
+SOURCES = [SHARED, WEB]
 LOCALIZATION = SHARED / "Localization"
 
 PAIR_RE = re.compile(r'\["(?P<key>[^"]+)"\]\s*=\s*"(?P<value>(?:\\.|[^"\\])*)"')
@@ -16,13 +18,6 @@ ATTR_RE = re.compile(r'\b(?:Label|Text|Title|Placeholder|HelperText|ToolTip|Tool
 TEXT_RE = re.compile(r'>(?P<text>[^<>@\r\n]+)<')
 SNACKBAR_RE = re.compile(r'Snackbar\.Add\(\s*"(?P<value>[^"]+)"')
 PLACEHOLDER_RE = re.compile(r"\{(\d+)\}")
-
-def looks_like_ui_text(value: str) -> bool:
-    if not value or value.startswith("@") or "://" in value:
-        return False
-    if re.fullmatch(r"[A-Za-z0-9_./:%+\-–—→•()\[\]{}]+", value):
-        return False
-    return bool(re.search(r"[A-Za-zÀ-ỹぁ-んァ-ヶ一-龯]", value))
 
 
 parser = argparse.ArgumentParser()
@@ -68,55 +63,57 @@ missing_vi = sorted(all_keys["ja"] - all_keys["vi"])
 used: set[str] = set()
 raw_candidates: list[dict[str, object]] = []
 
-for path in sorted(SHARED.rglob("*.razor")):
-    if any(part in {"bin", "obj"} for part in path.parts):
-        continue
+for source in SOURCES:
+    for path in sorted(source.rglob("*.razor")):
+        if any(part in {"bin", "obj"} for part in path.parts):
+            continue
 
-    text = path.read_text(encoding="utf-8-sig")
-    used.update(LANGUAGE_KEY_RE.findall(text))
-    used.update(STORE_KEY_RE.findall(text))
+        text = path.read_text(encoding="utf-8-sig")
+        used.update(LANGUAGE_KEY_RE.findall(text))
+        used.update(STORE_KEY_RE.findall(text))
 
-    for line_no, line in enumerate(text.splitlines(), 1):
-        if "Language.T(" in line:
-            # Keys are handled above; only inspect literal UI attributes/text here.
-            pass
+        for line_no, line in enumerate(text.splitlines(), 1):
+            if "Language.T(" in line:
+                # Keys are handled above; only inspect literal UI attributes/text here.
+                pass
 
-        for match in ATTR_RE.finditer(line):
-            value = match.group("value").strip()
-            if looks_like_ui_text(value):
-                raw_candidates.append({
-                    "file": str(path.relative_to(ROOT)),
-                    "line": line_no,
-                    "kind": "attribute",
-                    "text": value,
-                })
+            for match in ATTR_RE.finditer(line):
+                value = match.group("value").strip()
+                if looks_like_ui_text(value):
+                    raw_candidates.append({
+                        "file": str(path.relative_to(ROOT)),
+                        "line": line_no,
+                        "kind": "attribute",
+                        "text": value,
+                    })
 
-        for match in TEXT_RE.finditer(line):
-            value = match.group("text").strip()
-            if looks_like_ui_text(value):
-                raw_candidates.append({
-                    "file": str(path.relative_to(ROOT)),
-                    "line": line_no,
-                    "kind": "text",
-                    "text": value,
-                })
+            for match in TEXT_RE.finditer(line):
+                value = match.group("text").strip()
+                if looks_like_ui_text(value):
+                    raw_candidates.append({
+                        "file": str(path.relative_to(ROOT)),
+                        "line": line_no,
+                        "kind": "text",
+                        "text": value,
+                    })
 
-        for match in SNACKBAR_RE.finditer(line):
-            value = match.group("value").strip()
-            if looks_like_ui_text(value):
-                raw_candidates.append({
-                    "file": str(path.relative_to(ROOT)),
-                    "line": line_no,
-                    "kind": "snackbar",
-                    "text": value,
-                })
+            for match in SNACKBAR_RE.finditer(line):
+                value = match.group("value").strip()
+                if looks_like_ui_text(value):
+                    raw_candidates.append({
+                        "file": str(path.relative_to(ROOT)),
+                        "line": line_no,
+                        "kind": "snackbar",
+                        "text": value,
+                    })
 
-for path in sorted(SHARED.rglob("*.cs")):
-    if any(part in {"bin", "obj"} for part in path.parts):
-        continue
-    text = path.read_text(encoding="utf-8-sig")
-    used.update(LANGUAGE_KEY_RE.findall(text))
-    used.update(STORE_KEY_RE.findall(text))
+for source in SOURCES:
+    for path in sorted(source.rglob("*.cs")):
+        if any(part in {"bin", "obj"} for part in path.parts):
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        used.update(LANGUAGE_KEY_RE.findall(text))
+        used.update(STORE_KEY_RE.findall(text))
 
 missing_used_vi = sorted(k for k in used if k not in all_keys["vi"])
 missing_used_ja = sorted(k for k in used if k not in all_keys["ja"])
