@@ -44,12 +44,3 @@ public interface IFeatureOperatorAssignmentService
         CancellationToken ct = default);
 }
 
-public sealed class FeatureOperatorEmployeeDto
-{
-    public string EmployeeCode { get; set; } = string.Empty;
-    public string EmployeeName { get; set; } = string.Empty;
-    public string? DeptCode { get; set; }
-    public string? DeptName { get; set; }
-    public string? PositionCode { get; set; }
-    public string? PositionName { get; set; }
-}
