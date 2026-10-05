@@ -261,11 +261,7 @@ BEGIN TRY
 
     IF OBJECT_ID(N'dbo.F03ApprovalPolicies',N'U') IS NOT NULL
         ALTER TABLE dbo.F03ApprovalPolicies ALTER COLUMN DeptCode int NOT NULL;
-    IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NULL
-    BEGIN
-        /* No-op: table is optional on old databases. */
-    END
-    ELSE
+    IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NOT NULL
         ALTER TABLE dbo.F03HrmUserRoleRules ALTER COLUMN DeptCode int NULL;
 
     IF OBJECT_ID(N'dbo.F03ManagedScopes',N'U') IS NOT NULL
