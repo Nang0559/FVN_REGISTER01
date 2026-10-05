@@ -15,10 +15,10 @@
 | 5 | `FVN_REGISTER.Shared/Pages/Reports/ReportBase.razor` | `report` | 0 | 5 | CHƯA LÀM |
 | 6 | `FVN_REGISTER.Shared/Dialogs/Approvals/RejectDialog.razor` | `approval` | 0 | 4 | CHƯA LÀM |
 | 7 | `FVN_REGISTER.Shared/Pages/NotificationBell.razor` | `common` | 0 | 4 | CHƯA LÀM |
-| 8 | `FVN_REGISTER.Shared/Pages/LeaveOverview.razor` | `leave` | 0 | 2 | CHƯA LÀM |
-| 9 | `FVN_REGISTER.Shared/Pages/OT/OTOverview.razor` | `ot` | 0 | 2 | CHƯA LÀM |
-| 10 | `FVN_REGISTER.Shared/Pages/Public.razor` | `public` | 0 | 2 | CHƯA LÀM |
-| 11 | `FVN_REGISTER.Shared/Pages/TripOverview.razor` | `trip` | 0 | 2 | CHƯA LÀM |
+| 8 | `FVN_REGISTER.Shared/Pages/LeaveOverview.razor` | `leave` | 2 | 0 | OK |
+| 9 | `FVN_REGISTER.Shared/Pages/OT/OTOverview.razor` | `ot` | 2 | 0 | OK |
+| 10 | `FVN_REGISTER.Shared/Pages/Public.razor` | `public` | 5 | 0 | OK |
+| 11 | `FVN_REGISTER.Shared/Pages/TripOverview.razor` | `trip` | 2 | 0 | OK |
 | 12 | `FVN_REGISTER.Shared/Pages/EquipmentSchemaManagement.razor` | `equipment` | 5 | 61 | LÀM DỞ |
 | 13 | `FVN_REGISTER.Shared/Pages/EquipmentInspectionManagement.razor` | `equipment` | 14 | 57 | LÀM DỞ |
 | 14 | `FVN_REGISTER.Shared/Pages/Emails/EmailTemplates.razor` | `common` | 5 | 56 | LÀM DỞ |
