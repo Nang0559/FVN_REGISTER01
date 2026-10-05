@@ -2,7 +2,7 @@
 :on error exit
 :setvar RepoRoot "H:\95 - Project\19. FVN_RESITER\FVN_REGISTER_907\SQL"
 /* DepartmentCode = INT (HRM BPMa) must be in place before any script compares DeptCode with numeric codes. */
-:r "71_DepartmentCodeInt.sql"
+:r "05A_DepartmentCodeInt.sql"
 :r "48_SecurityTwoFactorSuperAdminCompatibility.sql"
 :r "49_Verify_SecurityTwoFactorSuperAdmin.sql"
 :r "50_EquipmentManageCapability.sql"
