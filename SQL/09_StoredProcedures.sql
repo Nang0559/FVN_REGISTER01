@@ -516,11 +516,11 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT
-        DeptCode = CONVERT(nvarchar(20), BP.BPMa),
+        DeptCode = CONVERT(int, BP.BPMa),
         DeptName = BP.BPTen,
         ParentDeptCode =
             CASE WHEN ISNULL(BP.BPMaCha, 0) = 0 THEN NULL
-                 ELSE CONVERT(nvarchar(50), BP.BPMaCha) END,
+                 ELSE CONVERT(int, BP.BPMaCha) END,
         DisplayPriority =
             CASE WHEN BP.BPUuTien IS NULL THEN NULL
                  WHEN BP.BPUuTien > 2147483647 OR BP.BPUuTien < -2147483648 THEN NULL
@@ -555,9 +555,7 @@ BEGIN
     SELECT
         EmployeeCode = LTRIM(RTRIM(NV.NVMaNV)),
         EmployeeName = COALESCE(NULLIF(LTRIM(RTRIM(NV.NVHoTen)), N''), LTRIM(RTRIM(NV.NVMaNV))),
-        DeptCode =
-            CASE WHEN ISNULL(NV.NVMaBP, 0) = 0 THEN NULL
-                 ELSE CONVERT(nvarchar(20), NV.NVMaBP) END,
+        DeptCode = NULLIF(CONVERT(int, NV.NVMaBP), 0),
         PositionCode = NULLIF(LEFT(LTRIM(RTRIM(NV.NVMaCV)), 20), N''),
         BirthDate = NV.NVNgaySinh,
         GenderCode = CONVERT(int, NV.NVGioiTinh),
