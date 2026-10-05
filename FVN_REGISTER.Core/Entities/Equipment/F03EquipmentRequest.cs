@@ -31,7 +31,7 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
     [Column(TypeName = "decimal(18,2)")] public decimal? RepairCost { get; set; }
     [StringLength(1000)] public string? RepairResult { get; set; }
 
-    public int? RepairResponsibleDeptCode { get; set; }
+    [StringLength(20)] public string? RepairResponsibleDeptCode { get; set; }
     [StringLength(50)] public string? RepairAssigneeEmployeeCode { get; set; }
     public int? RepairAssigneeUserId { get; set; }
     [StringLength(1000)] public string? RepairFeedback { get; set; }
