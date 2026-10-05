@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE dbo.usp_CalculateHrmAttendance
- @DeptCode nvarchar(20)=NULL,@EmployeeCode nvarchar(50)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
+ @DeptCode int=NULL,@EmployeeCode nvarchar(50)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
 AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
@@ -9,7 +9,7 @@ BEGIN
  --   1) background: @DeptCode = NULL => whole company
  --   2) manual:     @DeptCode + date range => selected department/date
  -- The per-staff calculation remains dbo.usp_HrmCompatibleTimeKeepingForStaff.
- DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=TRY_CONVERT(int,NULLIF(@DeptCode,N'')),@HrmEmployeeId int=NULL;
+ DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=@DeptCode,@HrmEmployeeId int=NULL;
  SET @EmployeeCode=NULLIF(LTRIM(RTRIM(@EmployeeCode)),N'');
  IF @EmployeeCode IS NOT NULL
  BEGIN
@@ -90,7 +90,7 @@ BEGIN
     LeaveCompensatory,LeaveOther,LeaveTypeCode,LeaveReason,Note,HrmType,HrmHoliday,HrmEmployeeHoliday,IsLocked,
     HrmBCGhiChu,HrmBCLyDoNghi,HrmBCNghiTotal,HrmBCNghiPhep,HrmBCNghiH100,HrmBCNghiH70,HrmBCNghiKL,HrmBCNghiBH100,HrmBCNghiBH70,HrmBCNghiCongTac,HrmBCNghiBu,HrmBCNghiKhac,
     HrmBCDaXacNhanLamThem,HrmBCLoaiLamThem,HrmBCTinhLamThem,HrmBCNgayLe,HrmBCNgayLeNV,HrmShiftDayType,AttendanceDisplayValue,OtDisplayValue,CalculatedAt,CalculatedBy)
-   SELECT @BatchId,@CalculationVersion,CAST(r.BCNgay AS date),r.BCMaNV,RTRIM(nv.NVMaNV),RTRIM(nv.NVHoTen),r.BCMaBP,CONVERT(nvarchar(20),r.BCMaBP),r.BCMaCV,r.BCMaCa,ca.CVietTat,
+   SELECT @BatchId,@CalculationVersion,CAST(r.BCNgay AS date),r.BCMaNV,RTRIM(nv.NVMaNV),RTRIM(nv.NVHoTen),r.BCMaBP,r.BCMaBP,r.BCMaCV,r.BCMaCa,ca.CVietTat,
     r.BCCuaDen,CASE WHEN r.BCTGDen <= '19000101' THEN NULL ELSE r.BCTGDen END,r.BCCuaVe,CASE WHEN r.BCTGVe <= '19000101' THEN NULL ELSE r.BCTGVe END,r.BCCuaRa,CASE WHEN r.BCTGRa <= '19000101' THEN NULL ELSE r.BCTGRa END,r.BCCuaVao,CASE WHEN r.BCTGVao <= '19000101' THEN NULL ELSE r.BCTGVao END,ISNULL(r.BCTGLamNgay,0),ISNULL(r.BCTGLamToi,0),
     ISNULL(r.BCTGQuaGioNgay,0),ISNULL(r.BCTGQuaGioToi,0),ISNULL(r.BCTGQuaGioNgayTC,0),ISNULL(r.BCTGQuaGioToiTC,0),ISNULL(r.BCTGThemNgay,0),ISNULL(r.BCTGThemToi,0),
     ISNULL(r.BCTGDiMuonNgay,0),ISNULL(r.BCTGDiMuonToi,0),ISNULL(r.BCTGVeSomNgay,0),ISNULL(r.BCTGVeSomToi,0),ISNULL(r.BCTGQuyDinh,0),
