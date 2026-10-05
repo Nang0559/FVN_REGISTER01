@@ -17,7 +17,8 @@ namespace FVN_REGISTER.Core.Entities.OT
         [StringLength(100)]
         public string? EmployeeName { get; set; }
 
-        public int? DeptCode { get; set; }
+        [StringLength(20)]
+        public string? DeptCode { get; set; }
 
         [StringLength(100)]
         public string? DeptName { get; set; }
