@@ -155,7 +155,7 @@ public sealed class LanscopeDeploymentController : ControllerBase
         return Ok(ApiResponse<LanscopeEnrollmentResponseDto>.Ok(new LanscopeEnrollmentResponseDto(device.DeviceKey,secret,DateTimeOffset.UtcNow.AddYears(1),identityStatus)));
     }
 
-    private async Task<F03User?> RequireAsync(int code,CancellationToken ct){var user=_currentUser.GetCurrentUser();return user!=null&&await _authorization.HasAsync(user,code,ct)?user:null;}
+    private async Task<FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto?> RequireAsync(int code,CancellationToken ct){var user=_currentUser.GetCurrentUser();return user!=null&&await _authorization.HasAsync(user,code,ct)?user:null;}
     private async Task<LanscopeDeploymentViewDto?> ToViewAsync(int id,CancellationToken ct){var d=await _db.EndpointDeployments.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==id,ct);if(d==null)return null;var targets=await _db.EndpointDeploymentTargets.AsNoTracking().Where(x=>x.DeploymentId==id).ToListAsync(ct);return new LanscopeDeploymentViewDto(d.Id,d.DeploymentCode,d.PackageVersion,d.Status,new DateTimeOffset(d.CreatedAtUtc,TimeSpan.Zero),d.ExpiresAtUtc.HasValue?new DateTimeOffset(d.ExpiresAtUtc.Value,TimeSpan.Zero):null,targets.Count,targets.Count(x=>x.EndpointDeviceId.HasValue));}
     [HttpPost("deployments/{deploymentId:int}/targets/{targetId:int}/reissue")]
     public async Task<ActionResult<ApiResponse<LanscopeDeploymentTargetResult>>> ReissueTargetToken(int deploymentId, int targetId, CancellationToken ct)
