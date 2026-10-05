@@ -10,6 +10,16 @@ GO
   Security.ManageFunctions.
 */
 
+/* Canonicalize the retired legacy alias Global -> All before the role matrix is loaded. */
+UPDATE dbo.F03Functions
+SET ScopeCode = N'All'
+WHERE ScopeCode = N'Global';
+
+UPDATE dbo.F03RoleFunctions
+SET ScopeCode = N'All'
+WHERE ScopeCode = N'Global';
+GO
+
 IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode = 2602)
 BEGIN
     INSERT INTO dbo.F03Functions
