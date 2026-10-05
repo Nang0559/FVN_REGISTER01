@@ -8,7 +8,7 @@
 :r "04_Constraints.sql"
 :r "05_Indexes.sql"
 /* DepartmentCode = INT (HRM BPMa) must be in place before any script compares DeptCode with numeric codes. */
-:r "71_DepartmentCodeInt.sql"
+:r "05A_DepartmentCodeInt.sql"
 :r "07_Views.sql"
 :r "08_Functions.sql"
 :r "09_StoredProcedures.sql"
