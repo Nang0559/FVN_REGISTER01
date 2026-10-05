@@ -660,6 +660,31 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             select new { Function = f, EffectiveScope = NormalizeScopeCode(rf.ScopeCode ?? f.ScopeCode), EffectiveAccessMode = rf.AccessMode ?? ((NormalizeScopeCode(rf.ScopeCode ?? f.ScopeCode)) == AuthorizationScopeCodes.Own || NormalizeScopeCode(rf.ScopeCode ?? f.ScopeCode) == AuthorizationScopeCodes.Employee ? "Personal" : "Management") }
         ).ToListAsync(ct);
 
+        // Personal permissions are effective only when the account has an
+        // active HRM employee subject. Keep management/system permissions intact
+        // for manually-created or break-glass accounts without an employee row.
+        var hasActiveEmployee = await _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive == true &&
+                x.EmployeeCode == (
+                    await _uow.Repository<F03User>().Query()
+                        .AsNoTracking()
+                        .Where(u => u.Id == userId)
+                        .Select(u => u.EmployeeCode)
+                        .FirstOrDefaultAsync(ct)),
+                ct);
+
+        if (!hasActiveEmployee)
+        {
+            rawFunctions = rawFunctions
+                .Where(x => !string.Equals(
+                    x.EffectiveAccessMode,
+                    "Personal",
+                    StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         var functions = rawFunctions
             .GroupBy(x => new { x.Function.FunctionCode, Scope = x.EffectiveScope ?? AuthorizationScopeCodes.None, Mode = x.EffectiveAccessMode })
             .Select(g => g.OrderBy(x => x.Function.DisplayOrder).First())
