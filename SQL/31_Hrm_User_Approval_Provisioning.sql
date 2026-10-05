@@ -138,7 +138,9 @@ GO
          for that approval position;
       3. creates/synchronizes F03Approvers for active employees whose
          F03Employees.LevelApprove > 0 AND PositionCode matches an active
-         policy's ApprovalPositionCode;
+         policy's ApprovalPositionCode. The ApproveForDeptCode is the
+         REQUESTER department from F03ApprovalPolicies.DeptCode, not the
+         approver employee's own department;
       4. deactivates stale HRM-owned approver rows when policy/employee no longer qualifies.
 
   IMPORTANT:
@@ -250,15 +252,15 @@ BEGIN
         ap.Level,
         ap.LevelName,
         ap.RoleName,
-        LTRIM(RTRIM(e.DeptCode)) AS ApproveForDeptCode,
-        ISNULL(d.DeptName,LTRIM(RTRIM(e.DeptCode))) AS ApproveForDeptName
+        LTRIM(RTRIM(ap.DeptCode)) AS ApproveForDeptCode,
+        ISNULL(d.DeptName,LTRIM(RTRIM(ap.DeptCode))) AS ApproveForDeptName
     INTO #HrmApproverSource
     FROM dbo.F03Employees e
     INNER JOIN dbo.F03ApprovalPolicies ap
         ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
        AND ap.IsActive=1
     LEFT JOIN dbo.F03Departments d
-        ON LTRIM(RTRIM(d.DeptCode))=LTRIM(RTRIM(e.DeptCode))
+        ON LTRIM(RTRIM(d.DeptCode))=LTRIM(RTRIM(ap.DeptCode))
     WHERE e.IsActive=1
       AND ISNULL(e.LevelApprove,0) > 0
       AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
@@ -349,7 +351,7 @@ BEGIN
                         WHEN 3 THEN N'Equipment'
                     END
                 AND a.Level=ap.Level
-                AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(e.DeptCode))
+                AND LTRIM(RTRIM(a.ApproveForDeptCode))=LTRIM(RTRIM(ap.DeptCode))
           )
       );
 
