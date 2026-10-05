@@ -23,40 +23,23 @@
 <PageTitle>@Language.T("calendar.title")</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
-    <MudPaper Elevation="0" Class="pa-6 mb-4"
-              Style="border-radius:24px; background:linear-gradient(135deg, rgba(25,118,210,.12), rgba(0,150,136,.08)); border:1px solid rgba(25,118,210,.10)">
+    <MudPaper Elevation="0" Class="pa-6 mb-4" Style="border-radius:24px; background:linear-gradient(135deg, rgba(25,118,210,.12), rgba(0,150,136,.08)); border:1px solid rgba(25,118,210,.10)">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="3">
             <div>
                 <MudText Typo="Typo.overline" Color="Color.Primary">@Language.T("calendar.fvnRegisterCalendar")</MudText>
-                <MudText Typo="Typo.h4" Style="font-weight:850">
-                    @(IsCurrentEmployee ? Language.T("calendar.title") : Language.T("calendar.managerTitle"))
-                </MudText>
+                <MudText Typo="Typo.h4" Style="font-weight:850">@(IsCurrentEmployee ? Language.T("calendar.title") : Language.T("calendar.managerTitle"))</MudText>
                 <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">@Language.T("calendar.description")</MudText>
             </div>
-
             @if (_managedEmployees.Count > 0)
             {
-                <MudSelect T="string"
-                           Value="@_selectedEmployeeCode"
-                           ValueChanged="OnEmployeeChanged"
-                           Label="@Language.T("calendar.scope")"
-                           Variant="Variant.Outlined"
-                           Dense="true"
-                           Style="min-width:280px">
+                <MudSelect T="string" Value="@_selectedEmployeeCode" ValueChanged="OnEmployeeChanged" Label="@Language.T("calendar.scope")" Variant="Variant.Outlined" Dense="true" Style="min-width:280px">
                     @foreach (var employee in _managedEmployees)
                     {
-                        <MudSelectItem Value="@employee.EmployeeCode">
-                            @employee.EmployeeCode · @employee.EmployeeName
-                        </MudSelectItem>
+                        <MudSelectItem Value="@employee.EmployeeCode">@employee.EmployeeCode · @employee.EmployeeName</MudSelectItem>
                     }
                 </MudSelect>
             }
-
-            <MudButton Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.Home"
-                       OnClick="@(() => NavigationManager.NavigateTo("/"))">
-                @Language.T("calendar.home")
-            </MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Home" OnClick="@GoHome">@Language.T("calendar.home")</MudButton>
         </MudStack>
     </MudPaper>
 
@@ -69,7 +52,6 @@
                     <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("calendar.actionRequired")</MudText>
                     <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@_alerts.Count</MudChip>
                 </MudStack>
-
                 @foreach (var alert in _alerts)
                 {
                     <MudPaper Outlined="true" Class="pa-3" Style="border-radius:12px; border-left:4px solid var(--mud-palette-warning);">
@@ -78,7 +60,6 @@
                                 <MudText Typo="Typo.body2" Style="font-weight:700">@alert.WorkDate.ToString("dd/MM/yyyy") · @alert.ModuleCode</MudText>
                                 <MudText Typo="Typo.body2">@alert.Summary</MudText>
                             </div>
-
                             @if (alert.RequiresAction && !string.IsNullOrWhiteSpace(alert.DetailRoute))
                             {
                                 <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => OpenRoute(alert.DetailRoute))">@Language.T("calendar.handle")</MudButton>
@@ -92,19 +73,14 @@
 
     @if (!_canViewCalendar)
     {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">
-            @Language.T("calendar.accessDenied")
-        </MudAlert>
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">@Language.T("calendar.accessDenied")</MudAlert>
     }
     else
     {
-    <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
-        <WorkCalendar @ref="_calendar"
-                      @key="_selectedEmployeeCode"
-                      EmployeeCode="@_selectedEmployeeCode"
-                      ModuleContext="ALL"
-                      OnDaySelected="HandleDaySelected" />
-    </MudPaper>
+        <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
+            <WorkCalendar @ref="_calendar" @key="_selectedEmployeeCode" EmployeeCode="@_selectedEmployeeCode" ModuleContext="ALL" OnDaySelected="HandleDaySelected" />
+        </MudPaper>
+    }
 </MudContainer>
 
 @code {
@@ -125,7 +101,6 @@
         try
         {
             await CurrentUser.InitializeAsync();
-
             _currentEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
             _selectedEmployeeCode = _currentEmployeeCode;
 
@@ -158,7 +133,6 @@
         }
         catch
         {
-            // Calendar itself should remain usable if the alert list is temporarily unavailable.
         }
     }
 
@@ -166,7 +140,6 @@
     {
         _alerts.Clear();
         if (string.IsNullOrWhiteSpace(_selectedEmployeeCode)) return;
-
         var today = DateTime.Today;
         var from = new DateTime(today.Year, today.Month, 1);
         var to = from.AddMonths(1).AddDays(-1);
@@ -192,10 +165,7 @@
             }),
             [nameof(CalendarDayDialog.OnActionSelected)] = EventCallback.Factory.Create<CalendarActionRequestDto>(this, HandleCalendarActionAsync)
         };
-
-        await DialogService.ShowAsync<CalendarDayDialog>(
-            Language.T("calendar.dayTitle", day.Date.ToString("dd/MM/yyyy")),
-            parameters,
+        await DialogService.ShowAsync<CalendarDayDialog>(Language.T("calendar.dayTitle", day.Date.ToString("dd/MM/yyyy")), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
     }
 
@@ -218,11 +188,9 @@
             case "OPEN_OT":
                 NavigationManager.NavigateTo($"/ot/create?date={request.Date:yyyy-MM-dd}");
                 return;
-
             case "OPEN_HR_FEEDBACK":
                 await OpenHrFeedbackAsync(request);
                 return;
-
             case "CANCEL_OT":
                 if (request.RequestId is not int requestId)
                 {
@@ -234,10 +202,8 @@
                     Snackbar.Add(Language.T("calendar.cancelOtReasonRequired"), Severity.Warning);
                     return;
                 }
-
                 var result = await OTClient.CancelAsync(requestId, request.Reason);
                 Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("calendar.otCancelled") : Language.T("calendar.otCancelFailed")), result.IsSuccess ? Severity.Success : Severity.Error);
-
                 if (result.IsSuccess)
                 {
                     if (_calendar is not null) await _calendar.RefreshAsync();
@@ -302,10 +268,7 @@
             [nameof(CalendarAttendanceFeedbackDialog.Action)] = action,
             [nameof(CalendarAttendanceFeedbackDialog.ReconciliationId)] = reconciliationId
         };
-
-        await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(
-            Language.T("calendar.feedbackTitle"),
-            parameters,
+        await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(Language.T("calendar.feedbackTitle"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
 
         if (_calendar is not null) await _calendar.RefreshAsync();
@@ -318,6 +281,7 @@
         if (!string.IsNullOrWhiteSpace(route)) NavigationManager.NavigateTo(route);
     }
 
+    private void GoHome() => NavigationManager.NavigateTo("/");
     private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
     public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }
