@@ -19,7 +19,7 @@ namespace FVN_REGISTER.Application.Maps
         /// <summary>Tạo entity mới từ Upsert Dto (dùng cho Create).</summary>
         public static F03Department ToEntity(this DepartmentUpsertDto model, int currentUserId) => new()
         {
-            DeptCode = model.DeptCode.Trim(),
+            DeptCode = model.DeptCode,
             DeptName = model.DeptName.Trim(),
             IsActive = model.IsActive,
             CreatedBy = currentUserId,
