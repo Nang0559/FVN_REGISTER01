@@ -1,4 +1,5 @@
 ﻿using FVN_REGISTER.Core.Entities.HR;
+using FVN_REGISTER.Core.Utils;
 
 
 namespace FVN_REGISTER.Infrastructure.Services.Companies
@@ -11,6 +12,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
 
         public static IQueryable<F03Department> WhereDeptCode(
             this IQueryable<F03Department> query, string? deptCode)
-            => string.IsNullOrEmpty(deptCode) ? query : query.Where(x => x.DeptCode == deptCode);
+            => string.IsNullOrEmpty(deptCode) ? query : query.Where(x => x.DeptCode == DepartmentCodeParser.ParseRequired(deptCode));
     }
 }

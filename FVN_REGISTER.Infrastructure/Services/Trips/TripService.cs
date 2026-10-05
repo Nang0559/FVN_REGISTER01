@@ -10,6 +10,7 @@ using FVN_REGISTER.Contract.Dtos.Trips;
 using FVN_REGISTER.Core.Entities.Trips;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,7 +53,7 @@ public sealed class TripService : ITripService
         var entity = new F03TripRequest
         {
             EmployeeCode = employeeCode,
-            DeptCode = user.DeptCode,
+            DeptCode = DepartmentCodeParser.ParseRequired(user.DeptCode),
             CreatedBy = user.UserId,
             TripCode = $"TRIP-{Guid.NewGuid():N}"[..30],
             StartDate = request.StartDate,
@@ -112,7 +113,7 @@ public sealed class TripService : ITripService
         var context = ApprovalBuildContext.ForTrip(
             entity.Id,
             entity.EmployeeCode,
-            entity.DeptCode ?? employee?.DeptCode ?? string.Empty,
+            entity.DeptCode?.ToString() ?? employee?.DeptCode?.ToString() ?? string.Empty,
             employee?.PositionCode ?? string.Empty);
 
         var approvalResult = await _workflow.InitApprovalAsync(entity.Id, context, ct);
@@ -222,7 +223,7 @@ public sealed class TripService : ITripService
         TripCode = x.TripCode,
         EmployeeCode = x.EmployeeCode,
         EmployeeName = employeeName,
-        DeptCode = x.DeptCode,
+        DeptCode = x.DeptCode?.ToString() ?? string.Empty,
         RequestStatus = x.RequestStatus,
         StartDate = x.StartDate,
         EndDate = x.EndDate,

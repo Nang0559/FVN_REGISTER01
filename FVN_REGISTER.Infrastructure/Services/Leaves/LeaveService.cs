@@ -8,6 +8,7 @@ using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +74,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 var entity = new F03LeaveDay
                 {
                     EmployeeCode = user.EmployeeCode ?? "",
-                    DeptCode = user.DeptCode,
+                    DeptCode = DepartmentCodeParser.ParseRequired(user.DeptCode),
                     RequestStatus = ApprovalStatus.Draft,
                     WorkYear = model.StartDate.Year,
                     LeaveReason = model.Reason ?? "",

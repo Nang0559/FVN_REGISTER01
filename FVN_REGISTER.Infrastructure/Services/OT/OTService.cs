@@ -10,6 +10,7 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -55,7 +56,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var entity = new F03OTRequest
                 {
                     EmployeeCode = user.EmployeeCode ?? "",
-                    DeptCode = model.DeptCode,
+                    DeptCode = DepartmentCodeParser.ParseRequired(model.DeptCode),
                     RequestStatus = ApprovalStatus.Draft,
                     OTDate = model.OTDate,
                     OTTypeCode = model.OTTypeCode,
@@ -91,7 +92,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var context = ApprovalBuildContext.ForOT(
                     requestId: entity.Id,
                     employeeCode: user.EmployeeCode ?? "",
-                    deptCode: entity.DeptCode ?? "",
+                    deptCode: entity.DeptCode?.ToString() ?? "",
                     positionCode: user.PositionCode ?? "",
                     totalOTHours: totalHours,
                     otTypeCode: model.OTTypeCode);

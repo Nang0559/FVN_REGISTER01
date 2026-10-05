@@ -58,7 +58,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentAssetDto>>.Fail("Bạn không có quyền xem danh sách thiết bị phục vụ checklist.");
 
         var q = _db.EquipmentAssets.AsNoTracking().Where(x => x.IsActive == true);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.DeptCode.ToString() == deptCode.Trim());
         var rows = await q.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentCode).Take(2000).ToListAsync(ct);
         return ServiceResult<List<EquipmentAssetDto>>.Ok(rows.Select(x => new EquipmentAssetDto
         {

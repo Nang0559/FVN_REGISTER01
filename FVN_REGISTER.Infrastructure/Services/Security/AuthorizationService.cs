@@ -1,3 +1,4 @@
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
@@ -170,8 +171,6 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             deptCode))
             return true;
 
-        // ManagedScope is an additional data-scope grant. It never grants the
-        // capability itself and therefore cannot bypass HasAsync/RoleFunction.
         if (string.Equals(scope, AuthorizationScopeCodes.None, StringComparison.OrdinalIgnoreCase))
             return false;
 
@@ -181,6 +180,19 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
         return await IsWithinManagedScopeAsync(managed, employeeCode, deptCode, ct);
     }
+
+    public Task<bool> CanAccessAsync(
+        UserIdentityDto user,
+        int functionCode,
+        string? employeeCode,
+        int? deptCode,
+        CancellationToken ct = default)
+        => CanAccessAsync(
+            user,
+            functionCode,
+            employeeCode,
+            DepartmentCodeParser.Format(deptCode),
+            ct);
 
     public async Task<List<ManagedScopeDto>> GetManagedScopesAsync(
         int userId,
@@ -239,14 +251,10 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var departmentMap = departments
-            .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
-            .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => x.DeptCode)
             .ToDictionary(
                 g => g.Key,
-                g => (
-                    g.First().ParentDeptCode,
-                    g.First().BlockCode),
-                StringComparer.OrdinalIgnoreCase);
+                g => (g.First().ParentDeptCode, g.First().BlockCode));
 
         return employees
             .Where(x => ManagedScopeMatches(scopes, x.DeptCode, departmentMap))
@@ -256,7 +264,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             {
                 EmployeeCode = x.EmployeeCode,
                 EmployeeName = x.EmployeeName ?? x.EmployeeCode,
-                DeptCode = x.DeptCode
+                DeptCode = x.DeptCode.ToString()
             })
             .ToList();
     }
@@ -436,57 +444,47 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
     private static bool ManagedScopeMatches(
         IReadOnlyCollection<ManagedScopeDto> scopes,
-        string? targetDept,
-        IReadOnlyDictionary<string, (string? ParentDeptCode, string? BlockCode)> departments)
+        int? targetDept,
+        IReadOnlyDictionary<int, (int? ParentDeptCode, string? BlockCode)> departments)
     {
-        if (string.IsNullOrWhiteSpace(targetDept))
+        if (!targetDept.HasValue)
             return scopes.Any(x => string.Equals(x.NodeType, "Company", StringComparison.OrdinalIgnoreCase));
-
-        if (!departments.TryGetValue(targetDept.Trim(), out var target))
-            target = (null, null);
 
         foreach (var scope in scopes)
         {
             var nodeType = (scope.NodeType ?? string.Empty).Trim();
-
             if (nodeType.Equals("Company", StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            string? node = nodeType switch
+            var node = nodeType switch
             {
-                "Factory" => scope.FactoryCode ?? scope.NodeCode,
-                "Department" => scope.DeptCode ?? scope.NodeCode,
-                "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
+                "Department" => scope.DeptCode?.ToString() ?? scope.NodeCode,
+                "SubDepartment" => scope.SubDepartmentCode?.ToString() ?? scope.NodeCode,
                 _ => scope.NodeCode
             };
 
-            node = node?.Trim();
-            if (string.IsNullOrWhiteSpace(node))
-                continue;
-
-            // Factory has no FactoryCode on F03Department. Support both models:
-            // 1) factory represented by a department ancestor, and
-            // 2) factory represented by the HR BlockCode field.
             if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(target.BlockCode, node, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(targetDept.HasValue && departments.TryGetValue(targetDept.Value, out var td) ? td.BlockCode : null,
+                    node,
+                    StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            if (string.Equals(targetDept, node, StringComparison.OrdinalIgnoreCase))
+            if (int.TryParse(node, out var nodeDept) && nodeDept == targetDept.Value)
                 return true;
 
             if (!scope.IncludeChildren)
                 continue;
 
-            var cursor = targetDept.Trim();
-            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var cursor = targetDept.Value;
+            var visited = new HashSet<int>();
 
             while (departments.TryGetValue(cursor, out var current)
-                   && !string.IsNullOrWhiteSpace(current.ParentDeptCode)
+                   && current.ParentDeptCode.HasValue
                    && visited.Add(cursor))
             {
-                var parent = current.ParentDeptCode!.Trim();
+                var parent = current.ParentDeptCode.Value;
 
-                if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
+                if (int.TryParse(node, out nodeDept) && parent == nodeDept)
                     return true;
 
                 if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
@@ -510,16 +508,17 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         if (string.IsNullOrWhiteSpace(employeeCode) && string.IsNullOrWhiteSpace(deptCode))
             return false;
 
+        var requestedDept = DepartmentCodeParser.ParseNullable(deptCode);
         var target = await _uow.Repository<F03Employee>().Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
                         ((employeeCode != null && x.EmployeeCode == employeeCode) ||
-                         (employeeCode == null && deptCode != null && x.DeptCode == deptCode)))
+                         (employeeCode == null && requestedDept.HasValue && x.DeptCode == requestedDept.Value)))
             .Select(x => new { x.EmployeeCode, x.DeptCode })
             .FirstOrDefaultAsync(ct);
 
-        var targetDept = target?.DeptCode ?? deptCode;
-        if (string.IsNullOrWhiteSpace(targetDept))
+        var targetDept = target?.DeptCode ?? requestedDept;
+        if (!targetDept.HasValue)
             return false;
 
         var departments = await _uow.Repository<F03Department>().Query()
@@ -529,14 +528,10 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var departmentMap = departments
-            .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
-            .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => x.DeptCode)
             .ToDictionary(
                 g => g.Key,
-                g => (
-                    g.First().ParentDeptCode,
-                    g.First().BlockCode),
-                StringComparer.OrdinalIgnoreCase);
+                g => (g.First().ParentDeptCode, g.First().BlockCode));
 
         return ManagedScopeMatches(scopes, targetDept, departmentMap);
     }

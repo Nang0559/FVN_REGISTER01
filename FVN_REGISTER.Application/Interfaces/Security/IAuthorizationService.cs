@@ -12,6 +12,7 @@ public interface IAuthorizationService
     Task<bool> HasManagementAsync(UserIdentityDto user, int functionCode, CancellationToken ct = default);
     Task<string> GetScopeAsync(int userId, int functionCode, CancellationToken ct = default);
     Task<bool> CanAccessAsync(UserIdentityDto user, int functionCode, string? employeeCode, string? deptCode, CancellationToken ct = default);
+    Task<bool> CanAccessAsync(UserIdentityDto user, int functionCode, string? employeeCode, int? deptCode, CancellationToken ct = default);
     Task<List<ManagedScopeDto>> GetManagedScopesAsync(int userId, CancellationToken ct = default);
     Task<List<ManagedEmployeeDto>> GetManagedEmployeesAsync(int userId, CancellationToken ct = default);
     Task<PermissionSnapshotDto> ReplaceManagedScopesAsync(int userId, IReadOnlyCollection<ManagedScopeRequest> scopes, int actorUserId, CancellationToken ct = default);

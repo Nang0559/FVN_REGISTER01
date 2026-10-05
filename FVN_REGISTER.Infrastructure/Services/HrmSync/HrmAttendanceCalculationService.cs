@@ -5,6 +5,7 @@ using FVN_REGISTER.Core.Repositories;
 using Microsoft.Data.SqlClient;
 using FVN_REGISTER.Infrastructure.Models.Data;
 using Microsoft.EntityFrameworkCore;
+using FVN_REGISTER.Core.Utils;
 using Microsoft.Extensions.Logging;
 using System.Data;
 
@@ -25,7 +26,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   if(request.FromDate.Date>request.ToDate.Date)
    return ServiceResult<HrmAttendanceCalculationResultDto>.Fail("FromDate không được lớn hơn ToDate.");
 
-  var dept=string.IsNullOrWhiteSpace(request.DeptCode)?null:request.DeptCode.Trim();
+  var dept=DepartmentCodeParser.ParseNullable(request.DeptCode);
   var employeeCode=string.IsNullOrWhiteSpace(request.EmployeeCode)?null:request.EmployeeCode.Trim();
 
   if(employeeCode is not null)
@@ -36,7 +37,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     return ServiceResult<HrmAttendanceCalculationResultDto>.Fail($"Không tìm thấy nhân viên '{employeeCode}'.");
   }
 
-  var pDept=new SqlParameter("@DeptCode",SqlDbType.NVarChar,20){Value=(object?)dept??DBNull.Value};
+  var pDept=new SqlParameter("@DeptCode",SqlDbType.Int){Value=(object?)dept??DBNull.Value};
   var pEmployee=new SqlParameter("@EmployeeCode",SqlDbType.NVarChar,50){Value=(object?)employeeCode??DBNull.Value};
   var pFrom=new SqlParameter("@FromDate",SqlDbType.Date){Value=request.FromDate.Date};
   var pTo=new SqlParameter("@ToDate",SqlDbType.Date){Value=request.ToDate.Date};
@@ -197,6 +198,6 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   return result;
  }
 
- private sealed record CoverageRun(DateOnly FromDate,DateOnly ToDate,string? DeptCode,string? EmployeeCode,string Status);
+ private sealed record CoverageRun(DateOnly FromDate,DateOnly ToDate,int? DeptCode,string? EmployeeCode,string Status);
  private sealed record DateRange(DateOnly From,DateOnly To);
 }
