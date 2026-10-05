@@ -43,4 +43,5 @@ public sealed class EndpointAgentTests
     {
         Assert.Equal(expected, FVN_REGISTER.Contract.Security.LanscopeSecurityPolicy.ShouldRetryEnrollmentStatus(statusCode));
     }
+}
 
