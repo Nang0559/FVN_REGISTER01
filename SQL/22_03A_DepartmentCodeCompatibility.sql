@@ -23,6 +23,14 @@ DECLARE @Definition nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_Calcul
 IF @Definition IS NULL
     THROW 51332, N'Cannot read definition of dbo.usp_CalculateHrmAttendance.', 1;
 
+/* Current canonical procedure already uses HRM NVMaBP as INT. */
+IF CHARINDEX(N'@DeptCode int', @Definition) > 0
+   AND CHARINDEX(N'@HrmDeptId int=@DeptCode', @Definition) > 0
+BEGIN
+    PRINT N'DepartmentCode compatibility patch skipped: procedure is already INT-canonical.';
+    RETURN;
+END;
+
 /* Replace the unsafe DeptCode -> int conversion with a normalized textual code. */
 SET @Definition = REPLACE(
     @Definition,
