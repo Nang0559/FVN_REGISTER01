@@ -20,33 +20,17 @@ public sealed class ExecutionEmployeeResolutionController : BaseApiController
     private readonly IExecutionEmployeeResolutionService _service;
     private readonly FvnAuthorizationService _authorization;
 
-    public ExecutionEmployeeResolutionController(
-        ICurrentUserService currentUser,
-        IUserLogService userLog,
-        ILogger<ExecutionEmployeeResolutionController> logger,
-        IOptionsMonitor<AuthDebugOptions> options,
-        IExecutionEmployeeResolutionService service,
-        FvnAuthorizationService authorization)
-        : base(currentUser, userLog, logger, options)
-    {
-        _service = service;
-        _authorization = authorization;
-    }
+    public ExecutionEmployeeResolutionController(ICurrentUserService currentUser,IUserLogService userLog,ILogger<ExecutionEmployeeResolutionController> logger,IOptionsMonitor<AuthDebugOptions> options,IExecutionEmployeeResolutionService service,FvnAuthorizationService authorization)
+        : base(currentUser,userLog,logger,options){_service=service;_authorization=authorization;}
 
     [HttpPost("me/{reconciliationId:long}/resolution")]
-    public async Task<IActionResult> Decide(
-        long reconciliationId,
-        [FromBody] ExecutionEmployeeDecisionRequest request,
-        CancellationToken ct)
+    public async Task<IActionResult> Decide(long reconciliationId,[FromBody] ExecutionEmployeeDecisionRequest request,CancellationToken ct)
     {
-        if (UserInfo == null
-            || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
+        if (UserInfo == null || !await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.AttendanceFeedback, ct))
             return Forbid();
-
-        if (UserInfo.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+        var userId = UserInfo.UserId;
+        if (userId <= 0 || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ."));
-
-        return HandleResult(await _service.DecideAsync(
-            userId, UserInfo.EmployeeCode, reconciliationId, request, ct));
+        return HandleResult(await _service.DecideAsync(userId, UserInfo.EmployeeCode, reconciliationId, request, ct));
     }
 }
