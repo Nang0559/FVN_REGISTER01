@@ -14,7 +14,7 @@ public sealed class F03HrmAttendanceCalculated
     public int HrmEmployeeId { get; set; }
     public string? EmployeeCode { get; set; }
     public string? FullName { get; set; }
-    public int? DeptCode { get; set; }
+    public string? DeptCode { get; set; }
     public string? ShiftAbbr { get; set; }
     public DateTime? CheckInTime { get; set; }
     public DateTime? CheckOutTime { get; set; }
