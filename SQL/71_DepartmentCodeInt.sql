@@ -49,7 +49,23 @@ IF OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun',N'U') IS NOT NULL
     SET @Bad += N'F03HrmAttendanceCalculationRun.DeptCode; ';
 
 IF @Bad <> N''
-    THROW 51401, N'Cannot convert DepartmentCode to INT; non-numeric existing values found: ' + @Bad, 1;
+BEGIN
+    DECLARE @Message nvarchar(2048);
+    SET @Message = N'Cannot convert DepartmentCode to INT; non-numeric existing values found: ' + @Bad;
+
+    SELECT N'F03Departments' AS TableName, DeptCode AS LegacyDeptCode
+    FROM dbo.F03Departments
+    WHERE TRY_CONVERT(int, DeptCode) IS NULL;
+
+    IF OBJECT_ID(N'dbo.F03ApprovalPolicies',N'U') IS NOT NULL
+    BEGIN
+        SELECT N'F03ApprovalPolicies' AS TableName, DeptCode AS LegacyDeptCode
+        FROM dbo.F03ApprovalPolicies
+        WHERE TRY_CONVERT(int, DeptCode) IS NULL;
+    END;
+
+    THROW 51401, @Message, 1;
+END;
 GO
 
 /* Foreign keys whose dependent columns are being converted. */
@@ -78,7 +94,7 @@ IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_EscalationRule_Lookup' AND 
     DROP INDEX IX_EscalationRule_Lookup ON dbo.F03EscalationRules;
 GO
 
-ALTER TABLE dbo.F03Departments ALTER COLUMN DeptCode int NOT NULL;
+-- F03Departments must be converted before any dependent FK is recreated.\nALTER TABLE dbo.F03Departments ALTER COLUMN DeptCode int NOT NULL;
 ALTER TABLE dbo.F03Departments ALTER COLUMN ParentDeptCode int NULL;
 ALTER TABLE dbo.F03Employees ALTER COLUMN DeptCode int NOT NULL;
 ALTER TABLE dbo.F03Users ALTER COLUMN DeptCode int NULL;
