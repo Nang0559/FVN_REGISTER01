@@ -12,7 +12,7 @@ public class OTLimitRuleDto
     public string? EmployeeCode { get; set; }
     public decimal LimitValue { get; set; }
     public string? PositionCode { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public decimal LimitHours { get; set; }
     public string? Description { get; set; }
 
