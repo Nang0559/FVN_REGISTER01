@@ -59,7 +59,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             positions.TryGetValue(policy.PositionCode ?? string.Empty, out var requesterPosition);
             positions.TryGetValue(policy.ApprovalPositionCode, out var approvalPosition);
 
-            policy.DeptName = departments.GetValueOrDefault(policy.DeptCode, policy.DeptCode);
+            policy.DeptName = departments.GetValueOrDefault(policy.DeptCode, policy.DeptCode.ToString());
             policy.PositionName = requesterPosition?.PositionName ?? "(Tất cả vị trí)";
             policy.ApprovalPositionName = approvalPosition?.PositionName ?? policy.ApprovalPositionCode;
         }

@@ -242,13 +242,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 }
 
                 var deptUsed = usedData.Where(x => x.DeptCode == deptCode).ToList();
-                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Weekly,
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), OTLimitType.Weekly,
                     deptUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                     model.Employees.Sum(x => x.OTHours));
-                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Monthly,
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), OTLimitType.Monthly,
                     deptUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
                     model.Employees.Sum(x => x.OTHours));
-                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Yearly,
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), OTLimitType.Yearly,
                     deptUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours),
                     model.Employees.Sum(x => x.OTHours));
 

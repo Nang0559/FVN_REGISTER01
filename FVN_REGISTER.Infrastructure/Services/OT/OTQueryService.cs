@@ -463,7 +463,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 return preview;
             }
 
-            var deptCode = deptCodes.FirstOrDefault() ?? model.DeptCode;
+            var deptCode = deptCodes.Count > 0 ? deptCodes[0] : model.DeptCode;
             var deptScopeCode = deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var blockCode = await Uow.Repository<F03Department>().Query()
                 .AsNoTracking()
@@ -573,7 +573,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             {
                 var blockUsed = used.Where(x => (x.DeptCode.HasValue && blockDeptCodes.Contains(x.DeptCode.Value))).ToList();
                 var blockRequest = model.Employees
-                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && (e.DeptCode.HasValue && blockDeptCodes.Contains(e.DeptCode.Value))))
+                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && blockDeptCodes.Contains(e.DeptCode)))
                     .Sum(x => x.OTHours);
 
                 var blockPreview = new OTLimitScopePreviewDto

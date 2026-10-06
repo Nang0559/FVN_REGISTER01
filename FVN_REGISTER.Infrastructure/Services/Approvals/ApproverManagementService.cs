@@ -68,7 +68,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                                 .OrderBy(x => x.RequestType).ToList()
                         }).ToList()
                 })
-                .OrderBy(x => x.DeptCode == ApproveForDept.All ? "ZZZ" : x.DeptCode)
+                .OrderBy(x => x.DeptCode == ApproveForDept.All ? int.MaxValue : x.DeptCode)
                 .ToList();
 
             Logger.LogDebugIf(Debug, "[APPROVER-MGT] Tree: {DeptCount} groups", tree.Count);
