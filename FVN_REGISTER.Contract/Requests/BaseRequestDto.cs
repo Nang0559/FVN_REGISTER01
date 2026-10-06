@@ -1,10 +1,7 @@
-﻿
-using FVN_REGISTER.Contract.Dtos.Approvals;
+﻿using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Interfaces;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Extensions;
-
-
 
 namespace FVN_REGISTER.Contract.Requests
 {
@@ -16,7 +13,7 @@ namespace FVN_REGISTER.Contract.Requests
         public string Description { get; set; } = string.Empty;
 
         public string RequesterCode { get; set; } = string.Empty;
-        public string DeptCode { get; set; } = string.Empty;
+        public int? DeptCode { get; set; }
 
         public List<ApprovalStepDto> ApprovalSteps { get; set; } = new();
         public List<AttachmentDto> Attachments { get; set; } = new();
@@ -28,9 +25,9 @@ namespace FVN_REGISTER.Contract.Requests
         public ApprovalStatus RequestStatus { get; set; } = ApprovalStatus.Draft;
 
         // Không còn UIStyle ở đây
-        public string StatusText => RequestStatus.ToDisplayName();   
-        public bool CanEdit => RequestStatus.CanBeEdited();          
-        public bool IsFinished => RequestStatus.IsFinished();        
+        public string StatusText => RequestStatus.ToDisplayName();
+        public bool CanEdit => RequestStatus.CanBeEdited();
+        public bool IsFinished => RequestStatus.IsFinished();
 
         public string? GlobalWarning { get; set; }
     }
