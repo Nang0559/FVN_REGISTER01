@@ -476,7 +476,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 return ServiceResult.Fail($"Cấp duyệt {model.Level} không hợp lệ cho {model.RequestType}.");
         }
 
-        if (!!string.IsNullOrWhiteSpace(model.ApproveForDeptCode) || model.ApproveForDeptCode <= 0)
+        if (string.IsNullOrWhiteSpace(model.ApproveForDeptCode))
             return ServiceResult.Fail("Chưa chọn phòng ban được duyệt.");
 
         return ServiceResult.Ok();
