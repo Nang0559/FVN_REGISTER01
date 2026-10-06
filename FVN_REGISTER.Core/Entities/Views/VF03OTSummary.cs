@@ -22,7 +22,7 @@ namespace FVN_REGISTER.Core.Entities.Views
 
         public string? EmployeeName { get; set; }
 
-        public int? DeptCode { get; set; }
+        [StringLength(20)] public string? DeptCode { get; set; }
 
         public string? DeptName { get; set; }
 
