@@ -9,7 +9,7 @@ namespace FVN_REGISTER.Contract.Requests.OT
     {
         public int Id { get; }
         public string EmployeeCode { get; set; } = string.Empty;
-        public int DeptCode { get; set; }
+        public string DeptCode { get; set; } = string.Empty;
         public string PositionCode { get; set; } = string.Empty;
         public DateTime OTDate { get; set; } = DateTime.Today;
 
