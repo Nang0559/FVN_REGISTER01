@@ -30,7 +30,7 @@ public sealed class TripRequestSubject : IApprovalSubject
         RequestId = x.Id,
         EmployeeCode = x.EmployeeCode,
         EmployeeName = employeeName,
-        DeptCode = x.DeptCode,
+        DeptCode = int.TryParse(x.DeptCode, out var deptCode) ? deptCode : null,
         PositionCode = positionCode,
         OverallStatus = x.RequestStatus,
         TripCode = x.TripCode,
