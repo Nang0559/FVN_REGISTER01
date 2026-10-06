@@ -88,15 +88,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
 
         protected abstract Task<TBalance> GetSimpleBalanceCoreAsync(string employeeCode, int year, CancellationToken ct = default);
 
-        public Task<ServiceResult<PaginationResult<TSummary>>> GetPagedAsync(string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
+        public Task<ServiceResult<PaginationResult<TSummary>>> GetPagedAsync(int? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
             => GuardAsync(() => GetPagedCoreAsync(deptCode, status, fromDate, toDate, page, pageSize, ct));
 
-        protected abstract Task<PaginationResult<TSummary>> GetPagedCoreAsync(string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default);
+        protected abstract Task<PaginationResult<TSummary>> GetPagedCoreAsync(int? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default);
 
-        public Task<ServiceResult<List<TDto>>> GetDeptByDateAsync(string deptCode, DateTime date, CancellationToken ct = default)
+        public Task<ServiceResult<List<TDto>>> GetDeptByDateAsync(int deptCode, DateTime date, CancellationToken ct = default)
             => GuardAsync(() => GetDeptByDateCoreAsync(deptCode, date, ct));
 
-        protected abstract Task<List<TDto>> GetDeptByDateCoreAsync(string deptCode, DateTime date, CancellationToken ct = default);
+        protected abstract Task<List<TDto>> GetDeptByDateCoreAsync(int deptCode, DateTime date, CancellationToken ct = default);
         private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> operation)
         {
             try

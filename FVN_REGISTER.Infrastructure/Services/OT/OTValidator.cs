@@ -171,7 +171,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 var deptCode = deptCodes[0];
                 var blockCode = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
-                    .Where(d => d.DeptCode == DepartmentCodeParser.ParseRequired(deptCode) && d.IsActive == true)
+                    .Where(d => d.DeptCode == deptCode && d.IsActive == true)
                     .Select(d => d.BlockCode)
                     .FirstOrDefaultAsync(ct);
 
@@ -189,7 +189,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 var monthEnd = monthStart.AddMonths(1);
 
                 var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
-                    ? new List<string>()
+                    ? new List<int>()
                     : await _uow.Repository<F03Department>().Query()
                         .AsNoTracking()
                         .Where(d => d.IsActive == true && d.BlockCode == blockCode)
@@ -205,11 +205,11 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         e.OTRequest.RequestStatus != ApprovalStatus.Cancelled &&
                         e.OTRequest.OTDate >= yearStart &&
                         e.OTRequest.OTDate < yearEnd &&
-                        (e.EmployeeCode != null || e.OTRequest.DeptCode == DepartmentCodeParser.ParseNullable(deptCode) || blockDeptCodes.Contains(e.OTRequest.DeptCode?.ToString() ?? string.Empty)))
+                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || e.OTRequest.DeptCode.HasValue && blockDeptCodes.Contains(e.OTRequest.DeptCode.Value)))
                     .Select(e => new
                     {
                         e.EmployeeCode,
-                        DeptCode = e.OTRequest.DeptCode,
+                        e.OTRequest.DeptCode,
                         EffectiveHours = (e.ActualHours.HasValue && e.ActualHours.Value > 0)
                             ? e.ActualHours.Value : e.OTHours,
                         e.OTRequest.OTDate
@@ -224,19 +224,19 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
                     var empUsed = usedData.Where(x => x.EmployeeCode == emp.EmployeeCode).ToList();
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
                         OTLimitType.Daily, empUsed.Where(x => x.OTDate.Date == model.OTDate.Date).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
                         OTLimitType.Weekly, empUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
                         OTLimitType.Monthly, empUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
                         OTLimitType.Yearly, empUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
                 }

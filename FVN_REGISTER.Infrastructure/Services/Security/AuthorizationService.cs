@@ -156,7 +156,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         UserIdentityDto user,
         int functionCode,
         string? employeeCode,
-        string? deptCode,
+        int? deptCode,
         CancellationToken ct = default)
     {
         if (user.UserId <= 0)
@@ -180,6 +180,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
         return await IsWithinManagedScopeAsync(managed, employeeCode, deptCode, ct);
     }
+
 
     public async Task<List<ManagedScopeDto>> GetManagedScopesAsync(
         int userId,
@@ -251,7 +252,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             {
                 EmployeeCode = x.EmployeeCode,
                 EmployeeName = x.EmployeeName ?? x.EmployeeCode,
-                DeptCode = x.DeptCode.ToString()
+                DeptCode = x.DeptCode
             })
             .ToList();
     }
@@ -281,8 +282,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
             if (nodeType != "Company" &&
                 string.IsNullOrWhiteSpace(scope.NodeCode) &&
-                string.IsNullOrWhiteSpace(scope.DeptCode) &&
-                string.IsNullOrWhiteSpace(scope.SubDepartmentCode) &&
+                !scope.DeptCode.HasValue &&
+                !scope.SubDepartmentCode.HasValue &&
                 string.IsNullOrWhiteSpace(scope.FactoryCode))
                 throw new InvalidOperationException($"ManagedScope {nodeType} phải có NodeCode hoặc mã node tổ chức.");
         }
@@ -308,8 +309,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 NodeType = scope.NodeType.Trim(),
                 NodeCode = scope.NodeCode?.Trim(),
                 FactoryCode = scope.FactoryCode?.Trim(),
-                DeptCode = scope.DeptCode?.Trim(),
-                SubDepartmentCode = scope.SubDepartmentCode?.Trim(),
+                DeptCode = scope.DeptCode,
+                SubDepartmentCode = scope.SubDepartmentCode,
                 IncludeChildren = scope.IncludeChildren,
                 Remark = scope.Remark?.Trim(),
                 CreatedBy = actorUserId,
@@ -489,13 +490,13 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     private async Task<bool> IsWithinManagedScopeAsync(
         IReadOnlyCollection<ManagedScopeDto> scopes,
         string? employeeCode,
-        string? deptCode,
+        int? deptCode,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(employeeCode) && string.IsNullOrWhiteSpace(deptCode))
+        if (string.IsNullOrWhiteSpace(employeeCode) && !deptCode.HasValue)
             return false;
 
-        var requestedDept = DepartmentCodeParser.ParseNullable(deptCode);
+        var requestedDept = deptCode;
         var target = await _uow.Repository<F03Employee>().Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true &&

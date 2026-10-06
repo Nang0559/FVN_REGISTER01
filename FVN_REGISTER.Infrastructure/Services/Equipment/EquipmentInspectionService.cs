@@ -50,7 +50,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         _logger = logger;
     }
 
-    public async Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         var canManage = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct);
@@ -59,18 +59,18 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentAssetDto>>.Fail("Bạn không có quyền xem danh sách thiết bị phục vụ checklist.");
 
         var q = _db.EquipmentAssets.AsNoTracking().Where(x => x.IsActive == true);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.DeptCode.ToString() == deptCode.Trim());
+        if (deptCode.HasValue) q = q.Where(x => x.DeptCode == deptCode.Value);
         var rows = await q.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentCode).Take(2000).ToListAsync(ct);
         return ServiceResult<List<EquipmentAssetDto>>.Ok(rows.Select(x => new EquipmentAssetDto
         {
             Id=x.Id, EquipmentCode=x.EquipmentCode, EquipmentName=x.EquipmentName, Specification=x.Specification,
             SerialNumber=x.SerialNumber, AssetCode=x.AssetCode, PurchasePrice=x.PurchasePrice, PurchaseDate=x.PurchaseDate,
-            ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode.ToString(), Location=x.Location,
+            ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode, Location=x.Location,
             QrToken=x.QrToken, IsQrActive=x.IsQrActive, Note=x.Note
         }).ToList());
     }
 
-    public async Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct) &&
@@ -78,7 +78,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentInspectionTemplateDto>>.Fail("Bạn không có quyền xem cấu hình checklist.");
 
         var query = _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking().Where(x => x.IsActive != false);
-        if (!string.IsNullOrWhiteSpace(deptCode)) query = query.Where(x => x.DeptCode.ToString() == deptCode.Trim());
+        if (deptCode.HasValue) query = query.Where(x => x.DeptCode == deptCode.Value);
 
         var rows = await query.Include(x => x.Items).OrderBy(x => x.DeptCode).ThenBy(x => x.TemplateName).ThenByDescending(x => x.Version).ToListAsync(ct);
         return ServiceResult<List<EquipmentInspectionTemplateDto>>.Ok(rows.Select(MapTemplate).ToList());
@@ -203,7 +203,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct))
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("Bạn không có quyền quản lý checklist.");
 
-        var dept = request.DeptCode.Trim().ToUpperInvariant();
+        var dept = request.DeptCode;
         if (string.IsNullOrWhiteSpace(dept) || string.IsNullOrWhiteSpace(request.TemplateName))
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("DepartmentCode và tên checklist là bắt buộc.");
 
@@ -226,7 +226,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             entity.Description = request.Description?.Trim();
             entity.Frequency = request.Frequency;
             entity.Status = request.Status;
-            entity.DeptCode = DepartmentCodeParser.ParseRequired(dept);
+            entity.DeptCode = dept;
             entity.ModifiedBy = user.UserId;
             entity.ModifiedAt = DateTime.Now;
             entity.LastModifiedSource = "EQUIPMENT_INSPECTION_TEMPLATE";
@@ -336,7 +336,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         var template = await _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == request.TemplateId && x.IsActive != false && x.Status == "Active", ct);
         if (template == null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Checklist phải là version Active.");
-        if (!string.Equals(template.DeptCode, asset.DeptCode, StringComparison.OrdinalIgnoreCase))
+        if (template.DeptCode != asset.DeptCode)
             return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("DepartmentCode của checklist không khớp DepartmentCode của thiết bị.");
 
         var inspector = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == request.InspectorEmployeeCode && x.IsActive != false, ct);
@@ -549,7 +549,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         return ServiceResult<EquipmentInspectionTaskDto>.Ok(MapTask(task), "Đã từ chối checklist.");
     }
 
-    public async Task<ServiceResult<EquipmentInspectionDashboardDto>> DashboardAsync(DateTime from, DateTime to, string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<EquipmentInspectionDashboardDto>> DashboardAsync(DateTime from, DateTime to, int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionReport, ct))
@@ -557,7 +557,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
 
         var q = _db.Set<F03EquipmentInspectionTask>().AsNoTracking().Include(x => x.Equipment).Include(x => x.Template)
             .Where(x => x.IsActive != false && x.ScheduledDate >= from.Date && x.ScheduledDate <= to.Date);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.Equipment!.DeptCode.ToString() == deptCode.Trim());
+        if (deptCode.HasValue) q = q.Where(x => x.Equipment!.DeptCode == deptCode.Value);
         var rows = await q.OrderByDescending(x => x.ScheduledDate).ThenBy(x => x.Equipment!.EquipmentCode).Take(5000).ToListAsync(ct);
         var total = rows.Count;
         var completed = rows.Count(x => x.Status == "Approved");
@@ -574,7 +574,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             Rows = rows.Select(x => new EquipmentInspectionReportRowDto
             {
                 TaskId = x.Id,
-                DeptCode = x.Equipment?.DeptCode.ToString() ?? "", EquipmentCode = x.Equipment?.EquipmentCode ?? "",
+                DeptCode = x.Equipment?.DeptCode ?? 0, EquipmentCode = x.Equipment?.EquipmentCode ?? "",
                 EquipmentName = x.Equipment?.EquipmentName ?? "", TemplateName = x.Template?.TemplateName ?? "",
                 InspectorEmployeeCode = x.InspectorEmployeeCode, Status = x.Status, Result = x.Result,
                 ScheduledDate = x.ScheduledDate, DueAt = x.DueAt, SubmittedAt = x.SubmittedAt, ApprovedAt = x.ApprovedAt
@@ -870,7 +870,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
 
     private static EquipmentInspectionTemplateDto MapTemplate(F03EquipmentInspectionTemplate x) => new()
     {
-        Id=x.Id, TemplateCode=x.TemplateCode, TemplateName=x.TemplateName, DeptCode=x.DeptCode.ToString(), Frequency=x.Frequency,
+        Id=x.Id, TemplateCode=x.TemplateCode, TemplateName=x.TemplateName, DeptCode=x.DeptCode, Frequency=x.Frequency,
         Version=x.Version, Status=x.Status, Description=x.Description,
         Items=x.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>new EquipmentInspectionItemDto
         {
@@ -891,7 +891,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     private static EquipmentInspectionTaskDto MapTask(F03EquipmentInspectionTask x) => new()
     {
         Id=x.Id, EquipmentId=x.EquipmentId, EquipmentCode=x.Equipment?.EquipmentCode ?? "", EquipmentName=x.Equipment?.EquipmentName ?? "",
-        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode.ToString() ?? "", TemplateId=x.TemplateId,
+        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? 0, TemplateId=x.TemplateId,
         TemplateName=x.Template?.TemplateName ?? "", TemplateVersion=x.Template?.Version ?? 0, Status=x.Status, Result=x.Result,
         ScheduledDate=x.ScheduledDate, DueAt=x.DueAt, InspectorEmployeeCode=x.InspectorEmployeeCode, ApproverEmployeeCode=x.ApproverEmployeeCode,
         Items=x.Template?.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>{

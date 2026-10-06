@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Application.Interfaces.OT
 
         Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(string deptCode, CancellationToken ct = default);
 
-        Task<string> GetEmployeeDeptCodeAsync(string employeeCode, CancellationToken ct = default);
+        Task<int?> GetEmployeeDeptCodeAsync(string employeeCode, CancellationToken ct = default);
 
         Task<List<OTBalanceDto>> GetDeptNearLimitAsync(
             string deptCode, int year, int month, CancellationToken ct = default);

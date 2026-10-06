@@ -246,12 +246,13 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
                 if (string.IsNullOrWhiteSpace(model.ScopeCode))
                     return "Phạm vi Phòng ban phải có mã phòng ban.";
 
+                var parsedDeptCode = DepartmentCodeParser.ParseRequired(model.ScopeCode);
                 var deptExists = await _uow.Repository<F03Department>().Query()
-                    .AnyAsync(x => x.IsActive == true && x.DeptCode == DepartmentCodeParser.ParseRequired(model.ScopeCode), ct);
+                    .AnyAsync(x => x.IsActive == true && x.DeptCode == parsedDeptCode, ct);
                 if (!deptExists) return $"Phòng ban '{model.ScopeCode}' không tồn tại hoặc đã ngừng hoạt động.";
 
                 model.EmployeeCode = null;
-                model.DeptCode = DepartmentCodeParser.ParseRequired(model.ScopeCode);
+                model.DeptCode = parsedDeptCode;
                 model.PositionCode = null;
                 break;
 

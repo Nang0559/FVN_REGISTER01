@@ -6,8 +6,8 @@ namespace FVN_REGISTER.Application.Interfaces.Equipment;
 public interface IEquipmentService
 {
     Task<ServiceResult<bool>> HasModuleAccessAsync(CancellationToken ct = default);
-    Task<ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>> GetAssignmentEmployeesAsync(string? deptCode = null, CancellationToken ct = default);
-    Task<ServiceResult<List<EquipmentApproverDto>>> GetApproversAsync(string deptCode, CancellationToken ct = default);
+    Task<ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>> GetAssignmentEmployeesAsync(int? deptCode = null, CancellationToken ct = default);
+    Task<ServiceResult<List<EquipmentApproverDto>>> GetApproversAsync(int deptCode, CancellationToken ct = default);
     Task<ServiceResult<EquipmentRequestDto>> CreateRegistrationDraftAsync(CreateEquipmentRegistrationDto request, CancellationToken ct = default);
     Task<ServiceResult<EquipmentRequestDto>> SubmitRegistrationAsync(int requestId, CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentRequestDto>>> GetMineAsync(CancellationToken ct = default);

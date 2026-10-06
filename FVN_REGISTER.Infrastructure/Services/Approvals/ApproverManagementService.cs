@@ -82,15 +82,15 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
     }
 
     public async Task<ServiceResult<List<ApproverDto>>> GetListAsync(
-        string? deptCode, int? level, RequestModule? requestType, CancellationToken ct)
+        int? deptCode, int? level, RequestModule? requestType, CancellationToken ct)
     {
         try
         {
             var q = _uow.Repository<F03Approver>().Query().AsNoTracking()
                 .Where(x => x.IsActive == true);
 
-            if (!string.IsNullOrEmpty(deptCode))
-                q = q.Where(x => x.ApproveForDeptCode == DepartmentCodeParser.ParseRequired(deptCode) || x.ApproveForDeptCode == ApproveForDept.All);
+            if (deptCode.HasValue)
+                q = q.Where(x => x.ApproveForDeptCode == deptCode.Value || x.ApproveForDeptCode == ApproveForDept.All);
             if (level.HasValue)
                 q = q.Where(x => x.Level == level.Value);
             if (requestType.HasValue)
@@ -134,13 +134,13 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
     }
 
     public async Task<ServiceResult<List<EmployeeSelectDto>>> GetEmployeesAsync(
-        string? deptCode, CancellationToken ct)
+        int? deptCode, CancellationToken ct)
     {
         try
         {
             var q = _uow.Repository<F03Employee>().Query().AsNoTracking();
-            if (!string.IsNullOrEmpty(deptCode) && deptCode != ApproveForDept.All)
-                q = q.Where(x => x.DeptCode == DepartmentCodeParser.ParseRequired(deptCode));
+            if (deptCode.HasValue && deptCode.Value != ApproveForDept.All)
+                q = q.Where(x => x.DeptCode == deptCode.Value);
 
             var deptQuery = _uow.Repository<F03Department>().Query().AsNoTracking();
             var posQuery = _uow.Repository<F03Position>().Query().AsNoTracking();
@@ -232,7 +232,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             if (!await HasActiveApprovalPolicyAsync(
                     model.RequestType,
-                    model.ApproveForDeptCode!,
+                    model.ApproveForDeptCode ?? 0,
                     model.Level,
                     employee.PositionCode,
                     ct))
@@ -307,7 +307,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             if (!await HasActiveApprovalPolicyAsync(
                     model.RequestType,
-                    model.ApproveForDeptCode!,
+                    model.ApproveForDeptCode ?? 0,
                     model.Level,
                     employee.PositionCode,
                     ct))
@@ -317,7 +317,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             }
 
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
-            model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
+            model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? ApproveForDept.All, ct);
             model.DeptCode = employee.DeptCode ?? entity.ApproverDeptCode;
             model.DeptName = employee.DeptName ?? entity.ApproverDeptName;
             model.ApproverName = employee.EmployeeName ?? entity.ApproverName;
@@ -396,8 +396,8 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 .Select(x=>new ApproverSyncProposalDto {
                     Id=x.Id, EmployeeCode=x.EntityKey, Message=x.Message,
                     ChangeType=x.OldDeptCode!=x.NewDeptCode&&x.OldPositionCode!=x.NewPositionCode?"Phòng ban + Chức vụ":x.OldDeptCode!=x.NewDeptCode?"Phòng ban":"Chức vụ",
-                    OldDeptCode=x.OldDeptCode??"",OldPositionCode=x.OldPositionCode??"",NewDeptCode=x.NewDeptCode??"",NewPositionCode=x.NewPositionCode??"",
-                    CurrentApproverId=x.CurrentApproverId,CurrentApproverCode=x.CurrentApproverCode??"",CurrentLevel=x.CurrentLevel,CurrentRoleName=x.CurrentRoleName??"",CurrentApproveForDeptCode=x.CurrentApproveForDeptCode??"",
+                    OldDeptCode=x.OldDeptCode ?? 0,OldPositionCode=x.OldPositionCode??"",NewDeptCode=x.NewDeptCode ?? 0,NewPositionCode=x.NewPositionCode??"",
+                    CurrentApproverId=x.CurrentApproverId,CurrentApproverCode=x.CurrentApproverCode??"",CurrentLevel=x.CurrentLevel,CurrentRoleName=x.CurrentRoleName??"",CurrentApproveForDeptCode=x.CurrentApproveForDeptCode ?? 0,
                     SuggestedApproverCode=x.SuggestedApproverCode,SuggestedLevel=x.SuggestedLevel,SuggestedRoleName=x.SuggestedRoleName,SuggestedApproveForDeptCode=x.SuggestedApproveForDeptCode,DetectedAt=x.DetectedAt
                 }).ToListAsync(ct);
             return ServiceResult<List<ApproverSyncProposalDto>>.Ok(rows);
@@ -414,7 +414,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         var e=await GetEmployeeWithPositionAsync(flag.SuggestedApproverCode,ct);
         if(e==null) return ServiceResult.Fail("Người duyệt đề xuất không còn hoạt động.");
         a.ApproverCode=flag.SuggestedApproverCode;a.ApproverName=e.EmployeeName;a.ApproverEmail=e.EmailAddress;a.PositionCode=e.PositionCode;a.ApproverDeptCode=e.DeptCode;a.ApproverDeptName=e.DeptName;a.Level=flag.SuggestedLevel.Value;a.RoleName=flag.SuggestedRoleName??RoleNameFromLevel(a.Level,a.RequestType);
-        if(a.ApproveForDeptCode!=ApproveForDept.All&&!string.IsNullOrWhiteSpace(flag.SuggestedApproveForDeptCode)){a.ApproveForDeptCode=DepartmentCodeParser.ParseRequired(flag.SuggestedApproveForDeptCode);a.ApproveForDeptName=await GetDeptNameAsync(a.ApproveForDeptCode,ct);}
+        if(a.ApproveForDeptCode!=ApproveForDept.All&&flag.SuggestedApproveForDeptCode.HasValue){a.ApproveForDeptCode=flag.SuggestedApproveForDeptCode.Value;a.ApproveForDeptName=await GetDeptNameAsync(a.ApproveForDeptCode,ct);}
         a.ModifiedBy=currentUserId;a.ModifiedAt=DateTime.Now;flag.IsResolved=true;flag.ResolvedAt=DateTime.Now;flag.ResolvedBy=currentUserId.ToString();flag.Decision="AcceptedHrmProposal";
         await _uow.SaveChangesAsync(ct);return ServiceResult.Ok("Đã áp dụng đề xuất HRM vào cấu hình Approver.");
     }
@@ -430,7 +430,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
     private async Task<bool> HasActiveApprovalPolicyAsync(
         RequestModule requestType,
-        string approveForDeptCode,
+        int approveForDeptCode,
         int level,
         string positionCode,
         CancellationToken ct)
@@ -476,7 +476,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 return ServiceResult.Fail($"Cấp duyệt {model.Level} không hợp lệ cho {model.RequestType}.");
         }
 
-        if (string.IsNullOrWhiteSpace(model.ApproveForDeptCode))
+        if (!model.ApproveForDeptCode.HasValue || model.ApproveForDeptCode.Value <= 0)
             return ServiceResult.Fail("Chưa chọn phòng ban được duyệt.");
 
         return ServiceResult.Ok();
@@ -506,12 +506,12 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         _ => $"Cấp {level}"
     };
 
-    private async Task<string> GetDeptNameAsync(string deptCode, CancellationToken ct)
+    private async Task<string> GetDeptNameAsync(int deptCode, CancellationToken ct)
     {
         if (deptCode == ApproveForDept.All) return "Toàn công ty";
         return await _uow.Repository<F03Department>().Query()
             .Where(x => x.DeptCode == deptCode).Select(x => x.DeptName)
-            .FirstOrDefaultAsync(ct) ?? deptCode;
+            .FirstOrDefaultAsync(ct) ?? deptCode.ToString();
     }
 
     private async Task<EmployeeWithPositionInfo?> GetEmployeeWithPositionAsync(
@@ -546,7 +546,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
     private class EmployeeWithPositionInfo
     {
         public string EmployeeName { get; set; } = "";
-        public string DeptCode { get; set; } = "";
+        public int DeptCode { get; set; }
         public string DeptName { get; set; } = "";
         public string PositionCode { get; set; } = "";
         public string EmailAddress { get; set; } = "";

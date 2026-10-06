@@ -25,7 +25,7 @@ public sealed class EquipmentInspectionsController : ControllerBase
     }
 
     [HttpGet("registered-assets")]
-    public async Task<IActionResult> RegisteredAssets([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<IActionResult> RegisteredAssets([FromQuery] int? deptCode, CancellationToken ct)
         => From(await _service.GetRegisteredAssetsAsync(deptCode, ct));
 
     [HttpGet("templates")]
