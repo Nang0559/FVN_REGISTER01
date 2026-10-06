@@ -13,7 +13,7 @@ namespace FVN_REGISTER.Contract.Dtos.Reports
         public DateTime? FromDate { get; set; } 
         public DateTime? ToDate { get; set; }
 
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? EmployeeCode { get; set; }
         public int? WorkYear { get; set; }
         public int PageNumber { get; set; } = 1;
