@@ -36,7 +36,7 @@ public sealed class ApprovalBuildContext
         Extra = new Dictionary<string, object?> { ["Year"] = year ?? DateTime.Today.Year, ["LeaveTypeCode"] = leaveTypeCode ?? "" }
     };
 
-    public static ApprovalBuildContext ForTrip(int requestId, string employeeCode, string deptCode, string positionCode) => new()
+    public static ApprovalBuildContext ForTrip(int requestId, string employeeCode, int deptCode, string positionCode) => new()
     {
         RequestId = requestId,
         EmployeeCode = employeeCode,
@@ -44,7 +44,7 @@ public sealed class ApprovalBuildContext
         PositionCode = positionCode
     };
 
-    public static ApprovalBuildContext ForEquipment(int requestId, string employeeCode, string deptCode, string positionCode) => new()
+    public static ApprovalBuildContext ForEquipment(int requestId, string employeeCode, int deptCode, string positionCode) => new()
     {
         RequestId = requestId,
         EmployeeCode = employeeCode,
@@ -52,7 +52,7 @@ public sealed class ApprovalBuildContext
         PositionCode = positionCode
     };
 
-    public static ApprovalBuildContext ForEndpoint(int requestId, string employeeCode, string deptCode, string positionCode, string requestType, string? itemName = null) => new()
+    public static ApprovalBuildContext ForEndpoint(int requestId, string employeeCode, int deptCode, string positionCode, string requestType, string? itemName = null) => new()
     {
         RequestId = requestId,
         EmployeeCode = employeeCode,
@@ -70,7 +70,7 @@ public sealed class ApprovalBuildContext
     /// route. The employee is the operator who created/finalized the period; the period itself
     /// remains the approval subject. This avoids inventing a second routing mechanism.
     /// </summary>
-    public static ApprovalBuildContext ForPayrollPeriod(int periodId, string employeeCode, string deptCode, string positionCode) => new()
+    public static ApprovalBuildContext ForPayrollPeriod(int periodId, string employeeCode, int deptCode, string positionCode) => new()
     {
         RequestId = periodId,
         EmployeeCode = employeeCode,
