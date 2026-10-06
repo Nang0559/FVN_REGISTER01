@@ -1,8 +1,4 @@
-﻿
-
-
-
-using FVN_REGISTER.Contract.Dtos.Approvals;
+﻿using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Core.Entities.Common;
@@ -29,14 +25,13 @@ namespace FVN_REGISTER.Application.Maps
                 Description = l.LeaveReason,
                 RequesterCode = l.EmployeeCode,
                 RequesterName = requester?.EmployeeName ?? string.Empty,
-                DeptCode = l.DeptCode?.ToString() ?? string.Empty,          // ⚠️ giả định BaseRequestEntity có DeptCode, giống F03OTRequest
+                DeptCode = l.DeptCode,
                 DeptName = department?.DeptName ?? string.Empty,
                 WorkYear = l.WorkYear,
-                RegisterDate = l.CreatedAt,                      // ⚠️ TODO: F03LeaveDay không thấy field RegisterDate rõ ràng,
-                                                                 // tạm dùng CreatedAt — xác nhận lại nếu có field khác đúng hơn
+                RegisterDate = l.CreatedAt,
                 ApprovalSteps = new List<ApprovalStepDto>(),
                 Attachments = AttachmentMapper.ToDtoList(attachments),
-                Details = new List<LeaveRequestDetailDto>()      // gắn sau qua AttachDetails
+                Details = new List<LeaveRequestDetailDto>()
             };
         }
 
@@ -64,7 +59,7 @@ namespace FVN_REGISTER.Application.Maps
                 Description = v.LeaveReason ?? string.Empty,
                 RequesterCode = v.EmployeeCode,
                 RequesterName = v.EmployeeName,
-                DeptCode = v.DeptCode?.ToString() ?? string.Empty,
+                DeptCode = v.DeptCode,
                 DeptName = v.DeptName ?? string.Empty,
                 WorkYear = v.WorkYear ?? DateTime.Now.Year,
                 RegisterDate = v.RegisterDate,
