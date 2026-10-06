@@ -43,11 +43,16 @@ public static class AuthorizationScopePolicy
                 Same(actorDeptCode, targetDeptCode),
             var s when string.Equals(s, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(s, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase) =>
-                Same(actorEmployeeCode, targetEmployeeCode),
+                SameEmployee(actorEmployeeCode, targetEmployeeCode),
             _ => false
         };
     }
 
     private static bool Same(int? left, int? right) =>
         left.HasValue && right.HasValue && left.Value == right.Value;
+
+    private static bool SameEmployee(string? left, string? right) =>
+        !string.IsNullOrWhiteSpace(left)
+        && !string.IsNullOrWhiteSpace(right)
+        && string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
 }
