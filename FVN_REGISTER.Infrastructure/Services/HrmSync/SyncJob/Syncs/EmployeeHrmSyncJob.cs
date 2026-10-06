@@ -474,6 +474,7 @@ ORDER BY
             public int PermissionCode { get; set; }
         }
 
+        private static string? NormalizeCode(string? value)
+            => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
-    private static string? NormalizeCode(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
