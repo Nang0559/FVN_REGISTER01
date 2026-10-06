@@ -185,7 +185,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         UserIdentityDto user,
         int functionCode,
         string? employeeCode,
-        int? deptCode,
+        string? deptCode,
         CancellationToken ct = default)
         => CanAccessAsync(
             user,
