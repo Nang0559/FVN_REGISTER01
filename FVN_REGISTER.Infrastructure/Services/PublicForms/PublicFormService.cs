@@ -15,7 +15,7 @@ namespace FVN_REGISTER.Infrastructure.Services.PublicForms;
 public sealed class PublicFormService : IPublicFormService
 {
     public Task<ServiceResult<List<PublicFormDto>>> GetManageListAsync(CancellationToken ct=default)=>GuardAsync(()=>GetManageListAsyncCoreAsync(ct));
-    public Task<ServiceResult<List<PublicFormDto>>> GetAvailableAsync(string e,string? d,string? p,CancellationToken ct=default)=>GuardAsync(()=>GetAvailableAsyncCoreAsync(e,d,p,ct));
+    public Task<ServiceResult<List<PublicFormDto>>> GetAvailableAsync(string e,int? d,string? p,CancellationToken ct=default)=>GuardAsync(()=>GetAvailableAsyncCoreAsync(e,d,p,ct));
     public Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudienceDepartmentsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetAudienceDepartmentsAsyncCoreAsync(ct));
     public Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudiencePositionsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetAudiencePositionsAsyncCoreAsync(ct));
     public Task<ServiceResult<PublicFormAudienceEmployeePageDto>> SearchAudienceEmployeesAsync(string? s,int page,int size,CancellationToken ct=default)=>GuardAsync(()=>SearchAudienceEmployeesAsyncCoreAsync(s,page,size,ct));
@@ -24,8 +24,8 @@ public sealed class PublicFormService : IPublicFormService
     public Task<ServiceResult<PublicFormDto>> UpdateAsync(int id,SavePublicFormRequest q,int actor,CancellationToken ct=default)=>GuardAsync(()=>UpdateAsyncCoreAsync(id,q,actor,ct));
     public Task<ServiceResult> PublishAsync(int id,int actor,CancellationToken ct=default)=>GuardAsync(()=>PublishAsyncCoreAsync(id,actor,ct));
     public Task<ServiceResult> CloseAsync(int id,int actor,CancellationToken ct=default)=>GuardAsync(()=>CloseAsyncCoreAsync(id,actor,ct));
-    public Task<ServiceResult<int>> SubmitAsync(int id,string e,string? d,string? p,IReadOnlyCollection<PublicFormAnswerRequest> a,CancellationToken ct=default)=>GuardAsync(()=>SubmitAsyncCoreAsync(id,e,d,p,a,ct));
-    public Task<ServiceResult<int>> SubmitFeedbackAsync(int id,string e,string? d,string? p,PublicFormFeedbackRequest q,CancellationToken ct=default)=>GuardAsync(()=>SubmitFeedbackAsyncCoreAsync(id,e,d,p,q,ct));
+    public Task<ServiceResult<int>> SubmitAsync(int id,string e,int? d,string? p,IReadOnlyCollection<PublicFormAnswerRequest> a,CancellationToken ct=default)=>GuardAsync(()=>SubmitAsyncCoreAsync(id,e,d,p,a,ct));
+    public Task<ServiceResult<int>> SubmitFeedbackAsync(int id,string e,int? d,string? p,PublicFormFeedbackRequest q,CancellationToken ct=default)=>GuardAsync(()=>SubmitFeedbackAsyncCoreAsync(id,e,d,p,q,ct));
     public Task<ServiceResult<List<PublicFormDto>>> GetSubmissionFormsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionFormsAsyncCoreAsync(ct));
     public Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsync(int id,PublicFormSubmissionQueryDto q,string scope,CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionsAsyncCoreAsync(id,q,scope,ct));
     public Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsync(int id,PublicFormSubmissionQueryDto q,string scope,CancellationToken ct=default)=>GuardAsync(()=>GetSubmissionSummaryAsyncCoreAsync(id,q,scope,ct));
@@ -50,7 +50,7 @@ public sealed class PublicFormService : IPublicFormService
     private async Task<List<PublicFormDto>> GetAvailableAsyncCoreAsync(string employeeCode, int? deptCode, string? positionCode, CancellationToken ct = default)
     {
         var normalizedEmployeeCode = employeeCode.Trim();
-        var normalizedDeptCode = deptCode;
+        var normalizedDeptCode = deptCode?.ToString();
         var normalizedPositionCode = positionCode?.Trim();
 
         if (normalizedEmployeeCode.Length == 0)
@@ -95,7 +95,7 @@ public sealed class PublicFormService : IPublicFormService
             .ThenBy(x => x.DeptCode)
             .Select(x => new PublicFormAudienceLookupDto
             {
-                Code = x.DeptCode,
+                Code = x.DeptCode.ToString(),
                 Name = x.DeptName
             })
             .ToListAsync(ct);
@@ -135,7 +135,7 @@ public sealed class PublicFormService : IPublicFormService
             q = q.Where(x =>
                 x.EmployeeCode.Contains(term) ||
                 x.EmployeeName.Contains(term) ||
-                x.DeptCode.Contains(term) ||
+                x.DeptCode.ToString().Contains(term) ||
                 x.PositionCode.Contains(term));
         }
 
@@ -337,7 +337,7 @@ public sealed class PublicFormService : IPublicFormService
     private static bool Matches(F03PublicForm x,string employeeCode,int? deptCode,string? positionCode)
         => x.Audiences.Any(a => a.IsActive == true && a.ScopeType=="AllCompany"
             || a.IsActive==true && a.ScopeType=="Employee" && string.Equals(a.ScopeValue,employeeCode,StringComparison.OrdinalIgnoreCase)
-            || a.IsActive==true && a.ScopeType=="Department" && deptCode != null && string.Equals(a.ScopeValue,deptCode,StringComparison.OrdinalIgnoreCase)
+            || a.IsActive==true && a.ScopeType=="Department" && deptCode != null && string.Equals(a.ScopeValue,deptCode.ToString(),StringComparison.OrdinalIgnoreCase)
             || a.IsActive==true && a.ScopeType=="Position" && !string.IsNullOrWhiteSpace(positionCode) && string.Equals(a.ScopeValue,positionCode,StringComparison.OrdinalIgnoreCase));
 
     private async Task ValidateAsync(SavePublicFormRequest r, CancellationToken ct)

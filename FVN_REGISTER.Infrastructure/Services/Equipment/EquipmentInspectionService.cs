@@ -336,7 +336,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         var template = await _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == request.TemplateId && x.IsActive != false && x.Status == "Active", ct);
         if (template == null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Checklist phải là version Active.");
-        if (!template.DeptCode == asset.DeptCode)
+        if (template.DeptCode != asset.DeptCode)
             return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("DepartmentCode của checklist không khớp DepartmentCode của thiết bị.");
 
         var inspector = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == request.InspectorEmployeeCode && x.IsActive != false, ct);

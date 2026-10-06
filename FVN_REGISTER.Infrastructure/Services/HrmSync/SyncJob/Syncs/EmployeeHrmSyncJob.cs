@@ -76,7 +76,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             var normalizedDeptCode = NormalizeCode(s.DeptCode);
             var normalizedPositionCode = NormalizeCode(s.PositionCode);
 
-            bool deptChanged = !e.DeptCode == normalizedDeptCode;
+            bool deptChanged = e.DeptCode != normalizedDeptCode;
             bool positionChanged = !string.Equals(e.PositionCode, normalizedPositionCode, StringComparison.Ordinal);
 
             if (e.EmployeeName != s.EmployeeName) { e.EmployeeName = s.EmployeeName; changed = true; }
