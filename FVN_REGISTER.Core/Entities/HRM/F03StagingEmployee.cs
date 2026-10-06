@@ -1,5 +1,6 @@
 ﻿using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Interfaces;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 

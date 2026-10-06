@@ -41,7 +41,7 @@ namespace FVN_REGISTER.Core.Entities.Approvers
         [StringLength(100)]
         public string ApproverEmail { get; set; } = string.Empty;
 
-        [Required]
+        
         [Required, StringLength(20)]
         public string ApproverDeptCode { get; set; } = string.Empty;
 
@@ -49,7 +49,7 @@ namespace FVN_REGISTER.Core.Entities.Approvers
         public string ApproverDeptName { get; set; } = string.Empty;
 
         // ── Phạm vi được phép duyệt ───────────────────
-        [Required]
+       
         [Required, StringLength(20)]
         public string ApproveForDeptCode { get; set; } = string.Empty;
 

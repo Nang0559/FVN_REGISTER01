@@ -1,4 +1,5 @@
 ﻿using FVN_REGISTER.Core.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace FVN_REGISTER.Core.Entities.Views
 {
