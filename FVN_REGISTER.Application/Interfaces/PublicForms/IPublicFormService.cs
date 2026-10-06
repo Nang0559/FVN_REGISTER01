@@ -7,7 +7,7 @@ namespace FVN_REGISTER.Application.Interfaces.PublicForms;
 public interface IPublicFormService
 {
     Task<ServiceResult<List<PublicFormDto>>> GetManageListAsync(CancellationToken ct = default);
-    Task<ServiceResult<List<PublicFormDto>>> GetAvailableAsync(string employeeCode, string? deptCode, string? positionCode, CancellationToken ct = default);
+    Task<ServiceResult<List<PublicFormDto>>> GetAvailableAsync(string employeeCode, int? deptCode, string? positionCode, CancellationToken ct = default);
     Task<ServiceResult<PublicFormDto>> GetAsync(int id, CancellationToken ct = default);
     Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudienceDepartmentsAsync(CancellationToken ct = default);
     Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudiencePositionsAsync(CancellationToken ct = default);
@@ -16,8 +16,8 @@ public interface IPublicFormService
     Task<ServiceResult<PublicFormDto>> UpdateAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult> PublishAsync(int id, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult> CloseAsync(int id, int actorUserId, CancellationToken ct = default);
-    Task<ServiceResult<int>> SubmitAsync(int formId, string employeeCode, string? deptCode, string? positionCode, IReadOnlyCollection<PublicFormAnswerRequest> answers, CancellationToken ct = default);
-    Task<ServiceResult<int>> SubmitFeedbackAsync(int formId, string employeeCode, string? deptCode, string? positionCode, PublicFormFeedbackRequest request, CancellationToken ct = default);
+    Task<ServiceResult<int>> SubmitAsync(int formId, string employeeCode, int? deptCode, string? positionCode, IReadOnlyCollection<PublicFormAnswerRequest> answers, CancellationToken ct = default);
+    Task<ServiceResult<int>> SubmitFeedbackAsync(int formId, string employeeCode, int? deptCode, string? positionCode, PublicFormFeedbackRequest request, CancellationToken ct = default);
     Task<ServiceResult<List<PublicFormDto>>> GetSubmissionFormsAsync(CancellationToken ct = default);
     Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default);
     Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default);

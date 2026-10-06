@@ -122,8 +122,8 @@ else
         {
             "Company" => true,
             "Factory" => !string.IsNullOrWhiteSpace(factoryCode) || !string.IsNullOrWhiteSpace(nodeCode),
-            "Department" => !string.IsNullOrWhiteSpace(deptCode) || !string.IsNullOrWhiteSpace(nodeCode),
-            "SubDepartment" => !string.IsNullOrWhiteSpace(subDepartmentCode) || !string.IsNullOrWhiteSpace(nodeCode),
+            "Department" => deptCode != null || !string.IsNullOrWhiteSpace(nodeCode),
+            "SubDepartment" => subDepartmentCode != null || !string.IsNullOrWhiteSpace(nodeCode),
             _ => false
         };
 

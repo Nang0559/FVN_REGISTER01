@@ -65,12 +65,12 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("dept-employees")]
-        public async Task<IActionResult> GetDeptEmployees([FromQuery] string? deptCode, CancellationToken ct)
+        public async Task<IActionResult> GetDeptEmployees([FromQuery] int? deptCode, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            var dept = string.IsNullOrWhiteSpace(deptCode) ? UserInfo.DeptCode : deptCode;
+            var dept = deptCode == null ? UserInfo.DeptCode : deptCode;
             if (!string.Equals(dept, UserInfo.DeptCode, StringComparison.OrdinalIgnoreCase) && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
             if (string.IsNullOrWhiteSpace(dept)) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
             if (string.IsNullOrWhiteSpace(dept)) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
@@ -143,14 +143,14 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> GetPaged([FromQuery] string? deptCode, [FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        public async Task<IActionResult> GetPaged([FromQuery] int? deptCode, [FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn."));
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
-            if (!string.IsNullOrWhiteSpace(deptCode) && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, deptCode, ct)) return Forbid();
+            if (deptCode != null && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, deptCode, ct)) return Forbid();
             var data = await _queryService.GetPagedAsync(deptCode, parsedStatus, fromDate, toDate, page, pageSize, ct);
             return HandleResult(data);
         }

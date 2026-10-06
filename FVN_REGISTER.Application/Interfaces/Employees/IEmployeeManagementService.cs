@@ -15,7 +15,7 @@ namespace FVN_REGISTER.Application.Interfaces.Employees
             /// <summary>Cây nhân viên theo phòng ban, kèm phép tồn + OT năm hiện tại.</summary>
             Task<ServiceResult<List<EmployeeDeptTreeDto>>> GetTreeAsync(
                 string? searchTerm = null,
-                string? deptCode = null,
+                int? deptCode = null,
                 CancellationToken ct = default);
 
             Task<ServiceResult<EmployeeCardDto>> GetByIdAsync(

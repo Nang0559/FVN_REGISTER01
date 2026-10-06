@@ -7,7 +7,7 @@ public interface IWorkCalendarService
 {
     Task<ServiceResult<WorkCalendarDto>> GetAsync(
         string employeeCode,
-        string? deptCode,
+        int? deptCode,
         string? positionCode,
         DateTime from,
         DateTime to,

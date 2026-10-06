@@ -134,7 +134,7 @@ public class LeaveApprovalProvider
         bool canApprove,
         CancellationToken ct)
     {
-        var deptName = string.IsNullOrEmpty(subject.DeptCode)
+        var deptName = subject.DeptCode == null
             ? null
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
                 .Where(d => d.DeptCode == subject.DeptCode)
@@ -157,7 +157,7 @@ public class LeaveApprovalProvider
         };
     }
 
-    private async Task<(string? EmployeeName, string? DeptCode, string? PositionCode)?> GetEmployeeInfoAsync(
+    private async Task<(string? EmployeeName, int? DeptCode, string? PositionCode)?> GetEmployeeInfoAsync(
         string employeeCode, CancellationToken ct)
     {
         var emp = await _uow.Repository<F03Employee>().Query().AsNoTracking()

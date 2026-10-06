@@ -371,7 +371,7 @@ SELECT @result;
         int userId,
         string actorEmployeeCode,
         string targetEmployeeCode,
-        string? targetDeptCode,
+        int? targetDeptCode,
         CancellationToken cancellationToken)
     {
         var actor = await _db.Users.AsNoTracking()

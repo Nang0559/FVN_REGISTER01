@@ -182,7 +182,7 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
     }
 
     public async Task<List<OTLimitRuleDto>> GetApplicableRulesAsync(
-        string deptCode,
+        int deptCode,
         string positionCode,
         OTLimitType limitType,
         CancellationToken ct = default)

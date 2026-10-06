@@ -47,10 +47,10 @@ public sealed class PublicFormService : IPublicFormService
         return rows.Select(Map).ToList();
     }
 
-    private async Task<List<PublicFormDto>> GetAvailableAsyncCoreAsync(string employeeCode, string? deptCode, string? positionCode, CancellationToken ct = default)
+    private async Task<List<PublicFormDto>> GetAvailableAsyncCoreAsync(string employeeCode, int? deptCode, string? positionCode, CancellationToken ct = default)
     {
         var normalizedEmployeeCode = employeeCode.Trim();
-        var normalizedDeptCode = deptCode?.Trim();
+        var normalizedDeptCode = deptCode;
         var normalizedPositionCode = positionCode?.Trim();
 
         if (normalizedEmployeeCode.Length == 0)
@@ -70,7 +70,7 @@ public sealed class PublicFormService : IPublicFormService
                     && (a.ScopeType == "AllCompany"
                         || (a.ScopeType == "Employee" && a.ScopeValue == normalizedEmployeeCode)
                         || (a.ScopeType == "Department"
-                            && !string.IsNullOrWhiteSpace(normalizedDeptCode)
+                            && normalizedDeptCode != null
                             && a.ScopeValue == normalizedDeptCode)
                         || (a.ScopeType == "Position"
                             && !string.IsNullOrWhiteSpace(normalizedPositionCode)
@@ -217,7 +217,7 @@ public sealed class PublicFormService : IPublicFormService
         e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);await AddAuditAsync(e.Id,"Close",actorUserId,before,Map(e),ct);
     }
 
-    private async Task<int> SubmitAsyncCoreAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<PublicFormAnswerRequest> answers,CancellationToken ct=default)
+    private async Task<int> SubmitAsyncCoreAsync(int formId,string employeeCode,int? deptCode,string? positionCode,IReadOnlyCollection<PublicFormAnswerRequest> answers,CancellationToken ct=default)
     {
         var now=DateTime.Now;
         var form=await _uow.Repository<F03PublicForm>().Query()
@@ -253,7 +253,7 @@ public sealed class PublicFormService : IPublicFormService
         return sub.Id;
     }
 
-    private async Task<int> SubmitFeedbackAsyncCoreAsync(int formId, string employeeCode, string? deptCode, string? positionCode, PublicFormFeedbackRequest request, CancellationToken ct = default)
+    private async Task<int> SubmitFeedbackAsyncCoreAsync(int formId, string employeeCode, int? deptCode, string? positionCode, PublicFormFeedbackRequest request, CancellationToken ct = default)
     {
         var formExists = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .AnyAsync(x => x.Id == formId && x.IsActive == true, ct);
@@ -334,10 +334,10 @@ public sealed class PublicFormService : IPublicFormService
     private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult<T>.Fail(ex.Message);}}
     private static async Task<ServiceResult> GuardAsync(Func<Task> op){try{await op();return ServiceResult.Ok();}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException){return ServiceResult.Fail(ex.Message);}}
 
-    private static bool Matches(F03PublicForm x,string employeeCode,string? deptCode,string? positionCode)
+    private static bool Matches(F03PublicForm x,string employeeCode,int? deptCode,string? positionCode)
         => x.Audiences.Any(a => a.IsActive == true && a.ScopeType=="AllCompany"
             || a.IsActive==true && a.ScopeType=="Employee" && string.Equals(a.ScopeValue,employeeCode,StringComparison.OrdinalIgnoreCase)
-            || a.IsActive==true && a.ScopeType=="Department" && !string.IsNullOrWhiteSpace(deptCode) && string.Equals(a.ScopeValue,deptCode,StringComparison.OrdinalIgnoreCase)
+            || a.IsActive==true && a.ScopeType=="Department" && deptCode != null && string.Equals(a.ScopeValue,deptCode,StringComparison.OrdinalIgnoreCase)
             || a.IsActive==true && a.ScopeType=="Position" && !string.IsNullOrWhiteSpace(positionCode) && string.Equals(a.ScopeValue,positionCode,StringComparison.OrdinalIgnoreCase));
 
     private async Task ValidateAsync(SavePublicFormRequest r, CancellationToken ct)
@@ -600,14 +600,14 @@ public sealed class PublicFormService : IPublicFormService
 
         var isAll = string.Equals(scopeCode, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase);
         var isDepartment = string.Equals(scopeCode, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase);
-        if (!isAll && !(isDepartment && !string.IsNullOrWhiteSpace(query.DepartmentCode)))
+        if (!isAll && !(isDepartment && query.DepartmentCode != null))
             return q.Where(_ => false);
 
         if (!string.IsNullOrWhiteSpace(query.Status)) q = q.Where(x => x.Status == query.Status);
         if (query.FromDate.HasValue) q = q.Where(x => x.SubmittedAt >= query.FromDate.Value);
         if (query.ToDate.HasValue) q = q.Where(x => x.SubmittedAt < query.ToDate.Value.Date.AddDays(1));
 
-        if (!string.IsNullOrWhiteSpace(query.DepartmentCode))
+        if (query.DepartmentCode != null)
         {
             var employeeCodes = _uow.Repository<F03Employee>().Query()
                 .Where(x => x.DeptCode == query.DepartmentCode).Select(x => x.EmployeeCode);

@@ -280,7 +280,7 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         public DateTime WorkDate { get; set; }
         public string? EmployeeCode { get; set; }
         public string? FullName { get; set; }
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? ShiftAbbr { get; set; }
         public int WorkMinutesDay { get; set; }
         public int WorkMinutesNight { get; set; }
@@ -300,7 +300,7 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         public DateTime WorkDate { get; set; }
         public string? EmployeeCode { get; set; }
         public string? FullName { get; set; }
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? ShiftAbbr { get; set; }
         public int OTRecognizedMinutesDay { get; set; }
         public int OTRecognizedMinutesNight { get; set; }

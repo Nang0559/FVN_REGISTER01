@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Contract.Dtos.Approvals
 {
     public class ApproverTreeNodeDto
     {
-        public string DeptCode { get; set; } = "";
+        public int DeptCode { get; set; }
         public string DeptName { get; set; } = "";
         public List<ApproverTreeLevelGroupDto> Levels { get; set; } = new();
     }

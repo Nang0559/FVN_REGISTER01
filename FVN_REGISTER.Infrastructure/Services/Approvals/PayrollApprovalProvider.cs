@@ -151,7 +151,7 @@ public sealed class PayrollApprovalProvider
         bool canApprove,
         CancellationToken ct)
     {
-        var deptName = string.IsNullOrWhiteSpace(subject.DeptCode)
+        var deptName = subject.DeptCode == null
             ? string.Empty
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
                 .Where(x => x.DeptCode == subject.DeptCode)

@@ -29,6 +29,6 @@ namespace FVN_REGISTER.Application.Interfaces.Reports
 
         Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(
             string filterText, UserIdentityDto user,
-            string? deptCode = null, CancellationToken ct = default);
+            int? deptCode = null, CancellationToken ct = default);
     }
 }

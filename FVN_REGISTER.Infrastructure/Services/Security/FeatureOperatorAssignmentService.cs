@@ -252,7 +252,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
     {
         public string EmployeeCode { get; set; } = string.Empty;
         public string? EmployeeName { get; set; }
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? DeptName { get; set; }
         public string? PositionCode { get; set; }
         public string? PositionName { get; set; }

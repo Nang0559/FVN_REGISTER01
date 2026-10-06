@@ -45,7 +45,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 : new List<OTSummaryDto>();
 
             List<OTBalanceDto> nearLimitEmployees = new();
-            if (!string.IsNullOrEmpty(user.DeptCode)
+            if (user.DeptCode != null
                 && await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, null, user.DeptCode, ct))
             {
                 nearLimitEmployees = await _otQuery.GetDeptNearLimitAsync(user.DeptCode, year, month, ct) ?? new List<OTBalanceDto>();

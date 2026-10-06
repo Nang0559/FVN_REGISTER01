@@ -5,7 +5,7 @@ public sealed class EquipmentInspectionTemplateDto
     public int Id { get; set; }
     public string TemplateCode { get; set; } = "";
     public string TemplateName { get; set; } = "";
-    public string DeptCode { get; set; } = "";
+    public int DeptCode { get; set; }
     public string Frequency { get; set; } = "Daily";
     public int Version { get; set; }
     public string Status { get; set; } = "Draft";
@@ -33,7 +33,7 @@ public sealed class EquipmentInspectionTemplateUpsertRequest
     public int? Id { get; set; }
     public string TemplateCode { get; set; } = "";
     public string TemplateName { get; set; } = "";
-    public string DeptCode { get; set; } = "";
+    public int DeptCode { get; set; }
     public string Frequency { get; set; } = "Daily";
     public string Status { get; set; } = "Draft";
     public string? Description { get; set; }
@@ -84,7 +84,7 @@ public sealed class EquipmentInspectionTaskDto
     public string EquipmentCode { get; set; } = "";
     public string EquipmentName { get; set; } = "";
     public string AssetCode { get; set; } = "";
-    public string DeptCode { get; set; } = "";
+    public int DeptCode { get; set; }
     public int TemplateId { get; set; }
     public string TemplateName { get; set; } = "";
     public int TemplateVersion { get; set; }
@@ -147,7 +147,7 @@ public sealed class EquipmentInspectionDashboardDto
 public sealed class EquipmentInspectionReportRowDto
 {
     public int TaskId { get; set; }
-    public string DeptCode { get; set; } = "";
+    public int DeptCode { get; set; }
     public string EquipmentCode { get; set; } = "";
     public string EquipmentName { get; set; } = "";
     public string TemplateName { get; set; } = "";

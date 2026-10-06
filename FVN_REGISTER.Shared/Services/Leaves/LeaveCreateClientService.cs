@@ -21,7 +21,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
 
         public async Task<ApiResponse<LeaveCalendarDataDto>> GetCombinedDataAsync(
             string empCode,
-            string deptCode,
+            int deptCode,
             string cvCode,
             int year,
             CancellationToken ct = default)
@@ -29,7 +29,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             try
             {
                 var url = $"api/leavecalendar/data?empCode={Uri.EscapeDataString(empCode)}" +
-                          $"&deptCode={Uri.EscapeDataString(deptCode)}" +
+                          $"&deptCode={deptCode}" +
                           $"&cvCode={Uri.EscapeDataString(cvCode)}" +
                           $"&year={year}";
 

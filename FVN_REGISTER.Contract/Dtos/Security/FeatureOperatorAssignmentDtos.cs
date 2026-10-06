@@ -9,7 +9,7 @@ public sealed class FeatureOperatorAssignmentDto
     public int? ResourceId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? DeptName { get; set; }
     public string? PositionCode { get; set; }
     public string? PositionName { get; set; }
@@ -29,7 +29,7 @@ public sealed class FeatureOperatorEmployeeDto
 {
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? DeptName { get; set; }
     public string? PositionCode { get; set; }
     public string? PositionName { get; set; }

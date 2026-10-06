@@ -13,9 +13,7 @@ public partial class F03Employee : BaseAuditEntity
     [Required, StringLength(100)]
     public string EmployeeName { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(20)]
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
 
     [Required, StringLength(20)]
     public string PositionCode { get; set; } = string.Empty;

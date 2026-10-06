@@ -217,7 +217,7 @@ else
         _actions = actions.IsSuccess ? actions.Data : null;
         var import = await EquipmentClient.HasImportAccessAsync();
         _importAccess = import.IsSuccess && import.Data;
-        _form.DeptCode = CurrentUser.User?.DeptCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        _form.DeptCode = CurrentUser.User?.DeptCode ?? string.Empty;
         var employees = await EquipmentClient.GetAssignmentEmployeesAsync(_form.DeptCode);
         if (employees.IsSuccess) _assignmentEmployees = employees.Data ?? new();
         await LoadAsync();
@@ -247,7 +247,7 @@ else
         var selectedLevels = _form.ApprovalSelections.Where(x => !string.IsNullOrWhiteSpace(x.ApproverCode)).Select(x => x.Level).ToHashSet();
         var missingLevels = requiredLevels.Where(level => !selectedLevels.Contains(level)).OrderBy(level => level).ToList();
         if (missingLevels.Count > 0) { Snackbar.Add(Language.T("equipment.vuiLongChonNguoiPhe2", string.Join(", ", missingLevels)), Severity.Warning); return; }
-        _form.DeptCode = _form.DeptCode.Trim().ToUpperInvariant();
+        _form.DeptCode = _form.DeptCode;
         _form.PurchaseDate = _purchase ?? DateTime.Today;
         _form.ExpectedDepreciationDate = _depreciation ?? _form.PurchaseDate.AddYears(3);
         _busy = true;

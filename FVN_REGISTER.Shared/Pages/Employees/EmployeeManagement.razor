@@ -225,7 +225,7 @@ else
     }
 
     private Task OpenCreateDialog() => ShowEditDialog(new EmployeeUpsertDto { IsActive = true }, false);
-    private Task OpenCreateDialogForDept(string deptCode, string deptName) => ShowEditDialog(new EmployeeUpsertDto { DeptCode = deptCode, IsActive = true }, true);
+    private Task OpenCreateDialogForDept(int deptCode, string deptName) => ShowEditDialog(new EmployeeUpsertDto { DeptCode = deptCode, IsActive = true }, true);
 
     private Task OpenEditDialog(EmployeeCardDto employee) => ShowEditDialog(new EmployeeUpsertDto
     {

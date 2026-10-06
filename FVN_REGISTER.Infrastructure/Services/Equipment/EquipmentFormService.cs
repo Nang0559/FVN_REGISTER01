@@ -161,7 +161,7 @@ public sealed class EquipmentFormService : IEquipmentFormService
 
         var employee = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(x => x.EmployeeCode == user.EmployeeCode && x.IsActive == true && x.EndWorkingDate == null)
             .Select(x => new { x.EmployeeCode, x.DeptCode, x.PositionCode }).FirstOrDefaultAsync(ct);
-        if (employee == null || string.IsNullOrWhiteSpace(employee.DeptCode) || string.IsNullOrWhiteSpace(employee.PositionCode)) return ServiceResult<EquipmentFormSubmissionDto>.Fail("Không xác định được bộ phận/chức vụ của người yêu cầu để khởi tạo phê duyệt.");
+        if (employee == null || employee.DeptCode == null || string.IsNullOrWhiteSpace(employee.PositionCode)) return ServiceResult<EquipmentFormSubmissionDto>.Fail("Không xác định được bộ phận/chức vụ của người yêu cầu để khởi tạo phê duyệt.");
 
         var equipmentRequest = new F03EquipmentRequest
         {

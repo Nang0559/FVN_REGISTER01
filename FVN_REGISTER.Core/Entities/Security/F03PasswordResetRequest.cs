@@ -13,8 +13,7 @@ public sealed class F03PasswordResetRequest : BaseAuditEntity
     [StringLength(255)]
     public string? FullName { get; set; }
 
-    [StringLength(50)]
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
 
     [StringLength(1000)]
     public string? RequestNote { get; set; }

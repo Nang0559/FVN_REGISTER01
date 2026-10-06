@@ -19,7 +19,7 @@ public sealed partial class EquipmentClientService
             ct);
 
     public async Task<ApiResponse<ExcelWorkbookDto>> InspectExcelAsync(
-        string deptCode,
+        int deptCode,
         IBrowserFile file,
         CancellationToken ct = default)
     {
@@ -30,7 +30,7 @@ public sealed partial class EquipmentClientService
             using var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             content.Add(fileContent, "file", file.Name);
-            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
+            var query = $"deptCode={deptCode}";
             return await _http.PostMultipartAsync<ExcelWorkbookDto>(
                 $"api/equipment/schemas/inspect-excel?{query}", content, ct);
         }
@@ -42,11 +42,11 @@ public sealed partial class EquipmentClientService
         }
     }
 
-    public Task<ApiResponse<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(string deptCode, IBrowserFile file, CancellationToken ct)
+    public Task<ApiResponse<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(int deptCode, IBrowserFile file, CancellationToken ct)
         => PreviewSchemaFromExcelAsync(deptCode, file, 0, ct);
 
     public async Task<ApiResponse<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelAsync(
-        string deptCode,
+        int deptCode,
         IBrowserFile file,
         int sheetIndex = 0,
         CancellationToken ct = default)
@@ -59,8 +59,7 @@ public sealed partial class EquipmentClientService
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             content.Add(fileContent, "file", file.Name);
 
-            var normalizedDeptCode = Uri.EscapeDataString(
-                deptCode.Trim().ToUpperInvariant());
+            var normalizedDeptCode = deptCode;
 
             return await _http.PostMultipartAsync<ExcelSchemaFromExcelDto>(
                 $"api/equipment/schemas/preview-excel?deptCode={normalizedDeptCode}&sheetIndex={sheetIndex}",
@@ -85,11 +84,11 @@ public sealed partial class EquipmentClientService
         }
     }
 
-    public Task<ApiResponse<ExcelSchemaDto>> CreateSchemaFromExcelAsync(string deptCode, IBrowserFile file, string? schemaName, CancellationToken ct)
+    public Task<ApiResponse<ExcelSchemaDto>> CreateSchemaFromExcelAsync(int deptCode, IBrowserFile file, string? schemaName, CancellationToken ct)
         => CreateSchemaFromExcelAsync(deptCode, file, schemaName, 0, ct);
 
     public async Task<ApiResponse<ExcelSchemaDto>> CreateSchemaFromExcelAsync(
-        string deptCode,
+        int deptCode,
         IBrowserFile file,
         string? schemaName = null,
         int sheetIndex = 0,
@@ -104,7 +103,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var query =
-                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
+                $"deptCode={deptCode}" +
                 $"&sheetIndex={sheetIndex}";
 
             if (!string.IsNullOrWhiteSpace(schemaName))
@@ -137,7 +136,7 @@ public sealed partial class EquipmentClientService
     }
 
     public async Task<ApiResponse<ExcelGridDto>> GetExcelGridAsync(
-        string deptCode,
+        int deptCode,
         IBrowserFile file,
         int sheetIndex,
         int maxRows = 200,
@@ -152,7 +151,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var query =
-                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
+                $"deptCode={deptCode}" +
                 $"&sheetIndex={sheetIndex}" +
                 $"&maxRows={maxRows}";
 
@@ -181,7 +180,7 @@ public sealed partial class EquipmentClientService
     }
 
     public async Task<ApiResponse<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelRangeAsync(
-        string deptCode,
+        int deptCode,
         IBrowserFile file,
         ExcelRangeRequest range,
         CancellationToken ct = default)
@@ -195,7 +194,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
             content.Add(new StringContent(System.Text.Json.JsonSerializer.Serialize(range)), "range");
 
-            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
+            var query = $"deptCode={deptCode}";
 
             return await _http.PostMultipartAsync<ExcelSchemaFromExcelDto>(
                 $"api/equipment/schemas/preview-excel-range?{query}",
@@ -221,7 +220,7 @@ public sealed partial class EquipmentClientService
     }
 
     public async Task<ApiResponse<ExcelSchemaDto>> CreateSchemaFromExcelRangeAsync(
-        string deptCode,
+        int deptCode,
         IBrowserFile file,
         ExcelRangeRequest range,
         string? schemaName = null,
@@ -236,7 +235,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
             content.Add(new StringContent(System.Text.Json.JsonSerializer.Serialize(range)), "range");
 
-            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
+            var query = $"deptCode={deptCode}";
             if (!string.IsNullOrWhiteSpace(schemaName))
             {
                 query += $"&schemaName={Uri.EscapeDataString(schemaName.Trim())}";
@@ -266,11 +265,11 @@ public sealed partial class EquipmentClientService
         }
     }
 
-    public Task<ApiResponse<ExcelImportBatchDto>> StageImportAsync(string deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee, CancellationToken ct)
+    public Task<ApiResponse<ExcelImportBatchDto>> StageImportAsync(int deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee, CancellationToken ct)
         => StageImportAsync(deptCode, schemaId, file, assignToEmployee, 0, ct);
 
     public async Task<ApiResponse<ExcelImportBatchDto>> StageImportAsync(
-        string deptCode,
+        int deptCode,
         int? schemaId,
         IBrowserFile file,
         bool assignToEmployee = false,
@@ -286,7 +285,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var query =
-                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
+                $"deptCode={deptCode}" +
                 $"&assignToEmployee={assignToEmployee}" +
                 $"&sheetIndex={sheetIndex}";
 

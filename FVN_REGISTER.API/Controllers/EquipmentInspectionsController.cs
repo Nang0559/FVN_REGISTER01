@@ -25,11 +25,11 @@ public sealed class EquipmentInspectionsController : ControllerBase
     }
 
     [HttpGet("registered-assets")]
-    public async Task<IActionResult> RegisteredAssets([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<IActionResult> RegisteredAssets([FromQuery] int? deptCode, CancellationToken ct)
         => From(await _service.GetRegisteredAssetsAsync(deptCode, ct));
 
     [HttpGet("templates")]
-    public async Task<IActionResult> Templates([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<IActionResult> Templates([FromQuery] int? deptCode, CancellationToken ct)
         => From(await _service.GetTemplatesAsync(deptCode, ct));
 
     [HttpGet("templates/{id:int}")]
@@ -82,7 +82,7 @@ public sealed class EquipmentInspectionsController : ControllerBase
         => From(await _service.RejectAsync(id, reason, ct));
 
     [HttpGet("dashboard")]
-    public async Task<IActionResult> Dashboard([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<IActionResult> Dashboard([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int? deptCode, CancellationToken ct)
         => From(await _service.DashboardAsync(from?.Date ?? DateTime.Today.AddDays(-30), to?.Date ?? DateTime.Today, deptCode, ct));
 
     [HttpPost("tasks/{taskId:int}/evidence")]

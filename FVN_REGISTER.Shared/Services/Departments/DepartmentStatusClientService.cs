@@ -48,15 +48,15 @@ namespace FVN_REGISTER.Shared.Services.Departments
         }
 
         public async Task<ApiResponse<DepartmentStatusDto>> GetByDeptAsync(
-            string deptCode,
+            int deptCode,
             DateTime? date = null,
             CancellationToken ct = default)
         {
             try
             {
                 var url = date.HasValue
-                    ? $"api/department-status/{Uri.EscapeDataString(deptCode)}?date={date.Value:yyyy-MM-dd}"
-                    : $"api/department-status/{Uri.EscapeDataString(deptCode)}";
+                    ? $"api/department-status/{deptCode}?date={date.Value:yyyy-MM-dd}"
+                    : $"api/department-status/{deptCode}";
 
                 var result = await _http.GetAsync<DepartmentStatusDto>(url, ct);
                 if (!result.IsSuccess)

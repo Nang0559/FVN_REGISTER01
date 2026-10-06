@@ -27,7 +27,7 @@
                 <MudPaper Outlined="true" Class="pa-4 mb-3">
                     <MudText Typo="Typo.h6">@Language.T("ot.department")</MudText>
                     <MudSelect T="string" Label='@Language.T("common.department")' @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true" Class="mt-3">@foreach(var dept in _departments){<MudSelectItem Value="@dept.DeptCode">@dept.DeptCode – @dept.DeptName</MudSelectItem>}</MudSelect>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@string.IsNullOrWhiteSpace(_deptCode)">@Language.T("equipment.taiMauDuLieu")</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@_deptCode == null">@Language.T("equipment.taiMauDuLieu")</MudButton>
                 </MudPaper>
                 <MudPaper Outlined="true" Class="pa-4 mb-3">
                     <MudText Typo="Typo.h6">@Language.T("equipment.taoMauDuLieu")</MudText><MudText Typo="body2" Class="mud-text-secondary mt-1">@Language.T("equipment.coHaiCachLayCau")</MudText>
@@ -115,13 +115,13 @@
     private bool _ready,_access,_readingExcel,_creatingFromExcel,_loadingSheets,_loadingGrid; private string _deptCode=string.Empty,_newSchemaName="Mẫu thiết bị"; private List<DepartmentDto> _departments=new(); private List<ExcelSchemaSummaryDto> _schemas=new(); private ExcelSchemaDto? _schema; private IBrowserFile? _schemaFile; private ExcelSchemaFromExcelDto? _excelPreview; private SaveExcelSchemaFieldRequest _newField=new(){DataType="Text",DisplayOrder=1};
     private List<ExcelSheetDto> _sheets=new(); private int _selectedSheetIndex; private ExcelGridDto? _grid; private int? _headerRowIndex; private readonly HashSet<int> _selectedColumns=new(); private int? _dataStartRowIndex; private int? _dataEndRowIndex;
     protected override async Task OnInitializedAsync(){var access=await EquipmentClient.HasImportAccessAsync();_access=access.IsSuccess&&access.Data;if(_access){var departments=await EquipmentClient.GetEquipmentDepartmentsAsync();if(departments.IsSuccess)_departments=departments.Data??new();if(_departments.Count>0)_deptCode=_departments[0].DeptCode;await LoadSchemasAsync();}_ready=true;}
-    private async Task LoadSchemasAsync(){if(string.IsNullOrWhiteSpace(_deptCode))return;var result=await EquipmentClient.GetSchemasAsync(_deptCode);if(result.IsSuccess)_schemas=result.Data??new();else Snackbar.Add(result.Message??Language.T("equipment.khongTaiDuocMauDu"),Severity.Error);_schema=null;}
+    private async Task LoadSchemasAsync(){if(_deptCode == null)return;var result=await EquipmentClient.GetSchemasAsync(_deptCode);if(result.IsSuccess)_schemas=result.Data??new();else Snackbar.Add(result.Message??Language.T("equipment.khongTaiDuocMauDu"),Severity.Error);_schema=null;}
     private async Task SelectSchemaAsync(int id){var result=await EquipmentClient.GetSchemaAsync(id);if(result.IsSuccess)_schema=result.Data;else Snackbar.Add(result.Message??Language.T("equipment.khongTaiDuocMauDu"),Severity.Error);}
     private void OnSchemaFileChanged(IBrowserFile? file){_schemaFile=file;_excelPreview=null;_sheets=new();_grid=null;_headerRowIndex=null;_selectedColumns.Clear();_dataStartRowIndex=null;_dataEndRowIndex=null;}
 
     private async Task LoadExcelPreviewAsync()
     {
-        if(_schemaFile==null||string.IsNullOrWhiteSpace(_deptCode)) return;
+        if(_schemaFile==null||_deptCode == null) return;
         _loadingSheets=true; _sheets=new(); _grid=null; _excelPreview=null; _headerRowIndex=null; _selectedColumns.Clear(); _dataStartRowIndex=null; _dataEndRowIndex=null;
         try
         {
@@ -209,7 +209,7 @@
         }
         finally{_creatingFromExcel=false;}
     }
-    private async Task CreateManualSchemaAsync(){if(string.IsNullOrWhiteSpace(_deptCode)||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{DepartmentCode=_deptCode,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu2"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu2"),Severity.Error);}
+    private async Task CreateManualSchemaAsync(){if(_deptCode == null||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{DepartmentCode=_deptCode,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu2"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu2"),Severity.Error);}
     private async Task CloneSchemaAsync(int schemaId){var result=await EquipmentClient.CloneSchemaAsync(schemaId,new ExcelSchemaCloneRequest());if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daNhanBanMauThanh"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongNhanBanDuocMau"),Severity.Error);}
     private async Task CreateVersionAsync(int schemaId){var result=await EquipmentClient.CreateSchemaVersionAsync(schemaId);if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoPhienBanV", result.Data?.Version),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocPhienBan"),Severity.Error);}
     private async Task ActivateCurrentAsync(){if(_schema==null)return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{Id=_schema.Id,DepartmentCode=_schema.DepartmentCode,SchemaName=_schema.SchemaName,Status="Active"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daDuaMauDuLieu"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTheDuaMauDu"),Severity.Error);}

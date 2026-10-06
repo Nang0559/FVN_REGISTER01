@@ -952,7 +952,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     private async Task EnsureHrTargetScopeAsync(
         int userId,
         string targetEmployeeCode,
-        string? targetDeptCode,
+        int? targetDeptCode,
         CancellationToken cancellationToken)
     {
         var actor = await _db.Users.AsNoTracking()

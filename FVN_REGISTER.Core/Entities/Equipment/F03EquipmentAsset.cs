@@ -14,7 +14,7 @@ public sealed class F03EquipmentAsset : BaseAuditEntity
     [Column(TypeName = "decimal(18,2)")] public decimal PurchasePrice { get; set; }
     public DateTime PurchaseDate { get; set; }
     public DateTime ExpectedDepreciationDate { get; set; }
-    [Required, StringLength(20)] public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     [StringLength(250)] public string? Location { get; set; }
     [Required, StringLength(128)] public string QrToken { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
@@ -23,7 +23,7 @@ public sealed class F03EquipmentAsset : BaseAuditEntity
     [StringLength(50)] public string? ResponsibleApproverEmployeeCode { get; set; }
     public DateTime? ResponsibleAssignedAt { get; set; }
 
-    [StringLength(20)] public string? OperatingResponsibleDeptCode { get; set; }
+    public int? OperatingResponsibleDeptCode { get; set; }
     [StringLength(50)] public string? OperatingResponsibleEmployeeCode { get; set; }
     public DateTime? OperatingResponsibleAssignedAt { get; set; }
 

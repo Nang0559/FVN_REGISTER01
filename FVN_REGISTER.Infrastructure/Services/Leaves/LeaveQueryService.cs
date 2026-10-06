@@ -54,7 +54,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 return null;
             var requester = await Uow.Repository<VF03employee>().Query().AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
             F03Department? department = null;
-            if (!string.IsNullOrEmpty(entity.DeptCode))
+            if (entity.DeptCode != null)
                 department = await Uow.Repository<F03Department>().Query().AsNoTracking().FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
             return LeaveMapper.ToDto(entity, requester, department);
         }
@@ -158,7 +158,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             };
         }
 
-        protected override async Task<PaginationResult<LeaveSummaryDto>> GetPagedCoreAsync(string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
+        protected override async Task<PaginationResult<LeaveSummaryDto>> GetPagedCoreAsync(int? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
         {
             var query = Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.IsActive == true);
             var user = _currentUser.GetCurrentUser();
@@ -170,7 +170,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 query = query.Where(x => x.DeptCode == user.DeptCode);
             else if (scope != AuthorizationScopeCodes.All)
                 query = query.Where(x => false);
-            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All) query = query.Where(x => x.DeptCode == deptCode);
+            if (deptCode != null && scope == AuthorizationScopeCodes.All) query = query.Where(x => x.DeptCode == deptCode);
             if (status.HasValue) query = query.Where(x => x.RequestStatus == status.Value);
             if (fromDate.HasValue) query = query.Where(x => x.StartDate >= fromDate.Value.Date);
             if (toDate.HasValue) query = query.Where(x => x.EndDate <= toDate.Value.Date);
@@ -179,7 +179,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             return new PaginationResult<LeaveSummaryDto>(items.Select(MapToSummary).ToList(), totalCount, page, pageSize);
         }
 
-        protected override async Task<List<LeaveRequestDto>> GetDeptByDateCoreAsync(string deptCode, DateTime date, CancellationToken ct = default)
+        protected override async Task<List<LeaveRequestDto>> GetDeptByDateCoreAsync(int deptCode, DateTime date, CancellationToken ct = default)
         {
             var user = _currentUser.GetCurrentUser();
             if (user == null) return new List<LeaveRequestDto>();
@@ -197,7 +197,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             return data.Select(LeaveMapper.ToDtoFromView).ToList();
         }
 
-        public async Task<SystemMasterDataDto> GetCombinedDataAsync(string empCode, string deptCode, string positionCode, int year, CancellationToken ct = default)
+        public async Task<SystemMasterDataDto> GetCombinedDataAsync(string empCode, int deptCode, string positionCode, int year, CancellationToken ct = default)
         {
             var holidays = await Uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(h => h.Year == year).ToListAsync(ct);
             var holidaysNotCount = holidays.Where(h => !h.TinhPhep).Select(h => h.HolidayDate.ToString("yyyy-MM-dd")).ToList();

@@ -113,7 +113,7 @@ else
     {
         if (_asset == null || !_canRepair) return;
         if (_repair.RepairAssignmentType != "Department" && _repair.RepairAssignmentType != "Employee") { Snackbar.Add(Language.T("equipment.phaiChonBoPhanHoac"), Severity.Warning); return; }
-        if (_repair.RepairAssignmentType == "Department" && string.IsNullOrWhiteSpace(_repair.RepairResponsibleDeptCode)) { Snackbar.Add(Language.T("equipment.vuiLongChonBoPhan"), Severity.Warning); return; }
+        if (_repair.RepairAssignmentType == "Department" && _repair.RepairResponsibleDeptCode == null) { Snackbar.Add(Language.T("equipment.vuiLongChonBoPhan"), Severity.Warning); return; }
         if (_repair.RepairAssignmentType == "Employee" && string.IsNullOrWhiteSpace(_repair.RepairAssigneeEmployeeCode)) { Snackbar.Add(Language.T("equipment.vuiLongChonNhanVien"), Severity.Warning); return; }
         if (_approvalRoute == null || _approvalRoute.Levels.Count == 0)
         {

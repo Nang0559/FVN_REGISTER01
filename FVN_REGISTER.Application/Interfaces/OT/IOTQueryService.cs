@@ -9,18 +9,18 @@ namespace FVN_REGISTER.Application.Interfaces.OT
         : IRequestQueryService<OTSummaryDto, OTBalanceDto, OTRequestDto>
     {
         Task<OTCombinedDataDto> GetCombinedDataAsync(
-            string employeeCode, string deptCode, int year, int month, CancellationToken ct = default);
+            string employeeCode, int deptCode, int year, int month, CancellationToken ct = default);
         Task<OTValidationResultDto> ValidateHoursAsync(OTRequestUpsertDto model, CancellationToken ct = default);
 
         Task<OTLimitPreviewDto> GetLimitPreviewAsync(OTRequestUpsertDto model, CancellationToken ct = default);
 
         Task<OTBalanceDto> GetBalanceAsync(string employeeCode, int year, int month, CancellationToken ct = default);
 
-        Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(string deptCode, CancellationToken ct = default);
+        Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(int deptCode, CancellationToken ct = default);
 
         Task<string> GetEmployeeDeptCodeAsync(string employeeCode, CancellationToken ct = default);
 
         Task<List<OTBalanceDto>> GetDeptNearLimitAsync(
-            string deptCode, int year, int month, CancellationToken ct = default);
+            int deptCode, int year, int month, CancellationToken ct = default);
     }
 }

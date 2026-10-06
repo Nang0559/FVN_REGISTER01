@@ -307,7 +307,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             List<F03OTLimitRule> rules,
             string employeeCode,
             string positionCode,
-            string deptCode,
+            int deptCode,
             OTLimitType type,
             decimal used,
             decimal requested,
@@ -348,7 +348,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             List<F03OTLimitRule> rules,
             string employeeCode,
             string? positionCode,
-            string deptCode,
+            int deptCode,
             OTLimitType type)
         {
             return rules

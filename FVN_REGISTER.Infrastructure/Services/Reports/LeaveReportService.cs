@@ -67,7 +67,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .AsNoTracking()
                 .Where(x => x.IsActive && x.WorkYear == year);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -129,9 +129,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.LeaveDate <= DateOnly.FromDateTime(toDate)
                          && x.IsCountedAsLeave);
 
-            if (string.IsNullOrWhiteSpace(query.DeptCode) && string.IsNullOrWhiteSpace(query.EmployeeCode))
+            if (query.DeptCode == null && string.IsNullOrWhiteSpace(query.EmployeeCode))
                 return ServiceResult<ReportResultDto>.Fail("Thiếu phạm vi dữ liệu báo cáo nghỉ phép.");
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -205,7 +205,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
             if (string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrEmpty(query.DeptCode))
+                if (query.DeptCode != null)
                     q = q.Where(x => x.DeptCode == query.DeptCode);
                 if (!string.IsNullOrEmpty(query.EmployeeCode))
                     q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -294,7 +294,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.StartDate >= fromDate
                          && x.StartDate <= toDate);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -369,7 +369,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.RegisterDate >= fromDate
                          && x.RegisterDate <= toDate);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
 
             var data = await q

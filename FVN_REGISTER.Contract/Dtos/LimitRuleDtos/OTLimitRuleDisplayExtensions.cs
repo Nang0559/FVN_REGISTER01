@@ -14,9 +14,9 @@ namespace FVN_REGISTER.Contract.Dtos.LimitRuleDtos
                 FVN_REGISTER.Core.Enums.OTLimitScopeType.Department => $"Tổng phòng {dto.ScopeCode ?? dto.DeptCode}",
                 FVN_REGISTER.Core.Enums.OTLimitScopeType.Block => $"Tổng khối {dto.ScopeCode}",
                 _ when !string.IsNullOrWhiteSpace(dto.EmployeeCode) => $"Nhân viên {dto.EmployeeCode}",
-                _ when !string.IsNullOrWhiteSpace(dto.DeptCode) && !string.IsNullOrWhiteSpace(dto.PositionCode)
+                _ when dto.DeptCode != null && !string.IsNullOrWhiteSpace(dto.PositionCode)
                     => $"Phòng {dto.DeptCode} - Vị trí {dto.PositionCode}",
-                _ when !string.IsNullOrWhiteSpace(dto.DeptCode) => $"Phòng {dto.DeptCode}",
+                _ when dto.DeptCode != null => $"Phòng {dto.DeptCode}",
                 _ when !string.IsNullOrWhiteSpace(dto.PositionCode) => $"Vị trí {dto.PositionCode}",
                 _ => "Toàn công ty"
             };

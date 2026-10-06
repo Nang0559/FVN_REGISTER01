@@ -10,7 +10,7 @@ public partial class VwCurrentlyPresentEmployee
 
     public string FullName { get; set; } = null!;
 
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
 
     public string? DeptName { get; set; }
 

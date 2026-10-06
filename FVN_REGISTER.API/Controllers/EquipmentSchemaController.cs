@@ -35,12 +35,12 @@ public sealed class EquipmentSchemaController : ControllerBase
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Unauthorized();
         var query = _db.Departments.AsNoTracking().Where(x => x.IsActive == true);
-        if (!user.IsAdmin && !string.IsNullOrWhiteSpace(user.DeptCode)) query = query.Where(x => x.DeptCode == user.DeptCode);
+        if (!user.IsAdmin && user.DeptCode != null) query = query.Where(x => x.DeptCode == user.DeptCode);
         return Ok(await query.OrderBy(x => x.DeptCode).Select(x => new DepartmentDto { Id=x.Id, DeptCode=x.DeptCode, DeptName=x.DeptName, IsActive=x.IsActive == true, CreatedAt=x.CreatedAt }).ToListAsync(ct));
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<ExcelSchemaSummaryDto>>> List([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<ActionResult<List<ExcelSchemaSummaryDto>>> List([FromQuery] int? deptCode, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
         return Ok(await _service.GetSchemasAsync(deptCode, ct));
@@ -104,7 +104,7 @@ public sealed class EquipmentSchemaController : ControllerBase
 
     [HttpPost("inspect-excel")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<ExcelWorkbookDto>>> InspectExcel([FromForm] IFormFile? file, [FromQuery] string deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<ExcelWorkbookDto>>> InspectExcel([FromForm] IFormFile? file, [FromQuery] int deptCode, CancellationToken ct)
     {
         if (!await CanAsync(ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelWorkbookDto>.Fail("File Excel rỗng."));
@@ -117,7 +117,7 @@ public sealed class EquipmentSchemaController : ControllerBase
 
     [HttpPost("preview-excel")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<ExcelSchemaFromExcelDto>>> PreviewExcel([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int sheetIndex = 0, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelSchemaFromExcelDto>>> PreviewExcel([FromForm] IFormFile? file, [FromQuery] int deptCode, [FromQuery] int sheetIndex = 0, CancellationToken ct = default)
     {
         if (!await CanAsync(ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelSchemaFromExcelDto>.Fail("File Excel rỗng."));
@@ -131,7 +131,7 @@ public sealed class EquipmentSchemaController : ControllerBase
 
     [HttpPost("from-excel")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<ExcelSchemaDto>>> FromExcel([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int sheetIndex = 0, [FromQuery] string? schemaName = null, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelSchemaDto>>> FromExcel([FromForm] IFormFile? file, [FromQuery] int deptCode, [FromQuery] int sheetIndex = 0, [FromQuery] string? schemaName = null, CancellationToken ct = default)
     {
         if (!await CanAsync(ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelSchemaDto>.Fail("File Excel rỗng."));
@@ -146,7 +146,7 @@ public sealed class EquipmentSchemaController : ControllerBase
     /// <summary>Trả về lưới ô thô của một sheet để người dùng preview và tự chọn dòng tiêu đề/cột/vùng dữ liệu trước khi lấy schema.</summary>
     [HttpPost("excel-grid")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<ExcelGridDto>>> ExcelGrid([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int sheetIndex = 0, [FromQuery] int maxRows = 200, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelGridDto>>> ExcelGrid([FromForm] IFormFile? file, [FromQuery] int deptCode, [FromQuery] int sheetIndex = 0, [FromQuery] int maxRows = 200, CancellationToken ct = default)
     {
         if (!await CanAsync(ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelGridDto>.Fail("File Excel rỗng."));
@@ -161,7 +161,7 @@ public sealed class EquipmentSchemaController : ControllerBase
     /// <summary>Suy luận schema đúng theo vùng (dòng tiêu đề + cột + vùng dữ liệu) người dùng đã chọn trên preview.</summary>
     [HttpPost("preview-excel-range")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<ExcelSchemaFromExcelDto>>> PreviewExcelRange([FromForm] IFormFile? file, [FromForm] string range, [FromQuery] string deptCode, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelSchemaFromExcelDto>>> PreviewExcelRange([FromForm] IFormFile? file, [FromForm] string range, [FromQuery] int deptCode, CancellationToken ct = default)
     {
         if (!await CanAsync(ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelSchemaFromExcelDto>.Fail("File Excel rỗng."));
@@ -177,7 +177,7 @@ public sealed class EquipmentSchemaController : ControllerBase
     /// <summary>Tạo mẫu dữ liệu (Draft) đúng theo vùng người dùng đã chọn trên preview.</summary>
     [HttpPost("from-excel-range")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<ExcelSchemaDto>>> FromExcelRange([FromForm] IFormFile? file, [FromForm] string range, [FromQuery] string deptCode, [FromQuery] string? schemaName = null, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelSchemaDto>>> FromExcelRange([FromForm] IFormFile? file, [FromForm] string range, [FromQuery] int deptCode, [FromQuery] string? schemaName = null, CancellationToken ct = default)
     {
         if (!await CanAsync(ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelSchemaDto>.Fail("File Excel rỗng."));

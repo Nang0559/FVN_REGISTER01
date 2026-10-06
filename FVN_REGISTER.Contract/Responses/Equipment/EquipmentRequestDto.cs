@@ -11,7 +11,7 @@ public sealed class EquipmentRequestDto
     public string EmployeeCode { get; set; } = string.Empty;
     public string? ResponsibleEmployeeCode { get; set; }
     public string? EmployeeName { get; set; }
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public string EquipmentName { get; set; } = string.Empty;
     public string? AssetCode { get; set; }
     public decimal PurchasePrice { get; set; }
@@ -23,7 +23,7 @@ public sealed class EquipmentRequestDto
     public string QrToken { get; set; } = string.Empty;
     public string QrUrl { get; set; } = string.Empty;
     public string SelectedApproverCode { get; set; } = string.Empty;
-    public string? RepairResponsibleDeptCode { get; set; }
+    public int? RepairResponsibleDeptCode { get; set; }
     public string? RepairAssigneeEmployeeCode { get; set; }
     public string? RepairFeedback { get; set; }
     public DateTime? RepairCompletedAt { get; set; }

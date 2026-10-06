@@ -26,7 +26,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   if(request.FromDate.Date>request.ToDate.Date)
    return ServiceResult<HrmAttendanceCalculationResultDto>.Fail("FromDate không được lớn hơn ToDate.");
 
-  var dept=string.IsNullOrWhiteSpace(request.DeptCode)?null:request.DeptCode.Trim();
+  var dept=request.DeptCode == null?null:request.DeptCode;
   var employeeCode=string.IsNullOrWhiteSpace(request.EmployeeCode)?null:request.EmployeeCode.Trim();
 
   if(employeeCode is not null)
@@ -82,7 +82,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
  }
 
  public async Task<ServiceResult> EnsureEmployeeRangeAsync(
-  string employeeCode,string? deptCode,DateOnly from,DateOnly to,CancellationToken ct=default)
+  string employeeCode,int? deptCode,DateOnly from,DateOnly to,CancellationToken ct=default)
  {
   if(from>to) return ServiceResult.Fail("Khoảng ngày chấm công không hợp lệ.");
   employeeCode=employeeCode.Trim();
@@ -198,6 +198,6 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   return result;
  }
 
- private sealed record CoverageRun(DateOnly FromDate,DateOnly ToDate,string? DeptCode,string? EmployeeCode,string Status);
+ private sealed record CoverageRun(DateOnly FromDate,DateOnly ToDate,int? DeptCode,string? EmployeeCode,string Status);
  private sealed record DateRange(DateOnly From,DateOnly To);
 }

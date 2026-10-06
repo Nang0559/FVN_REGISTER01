@@ -10,7 +10,7 @@ public sealed class TripRequestSubject : IApprovalSubject
     public RequestModule Module => RequestModule.Trip;
     public string EmployeeCode { get; set; } = string.Empty;
     public string? EmployeeName { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? PositionCode { get; set; }
     public ApprovalStatus OverallStatus { get; set; }
     public string TripCode { get; set; } = string.Empty;

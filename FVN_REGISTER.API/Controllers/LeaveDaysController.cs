@@ -160,7 +160,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
-            if (string.IsNullOrWhiteSpace(UserInfo.DeptCode))
+            if (UserInfo.DeptCode == null)
                 return BadRequest(ApiResponse<object>.Fail("Tài khoản chưa được gán phòng ban."));
 
             ApprovalStatus? parsedStatus = null;

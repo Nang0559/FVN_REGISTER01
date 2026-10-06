@@ -14,7 +14,7 @@ public sealed class PayrollPeriodSubject : IApprovalSubject
     public RequestModule Module => RequestModule.Payroll;
     public string EmployeeCode { get; set; } = string.Empty;
     public string? EmployeeName { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? PositionCode { get; set; }
     public ApprovalStatus OverallStatus { get; set; }
     public string PeriodCode { get; set; } = string.Empty;

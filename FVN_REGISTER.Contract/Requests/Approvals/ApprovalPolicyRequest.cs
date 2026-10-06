@@ -7,8 +7,7 @@ public sealed class ApprovalPolicyRequest
     [Required]
     public int RequestType { get; set; }
 
-    [Required, StringLength(20)]
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
 
     /// <summary>Optional requester PositionCode. Null/empty means all positions in the department.</summary>
     [StringLength(20)]

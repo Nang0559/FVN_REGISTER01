@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Application.Maps
             Level = a.Level,
             RoleName = a.RoleName ?? string.Empty,
             PositionCode = a.PositionCode ?? string.Empty,
-            DeptCode = a.ApproverDeptCode ?? string.Empty,
+            DeptCode = a.ApproverDeptCode,
             DeptName = a.ApproverDeptName ?? string.Empty,
             ApproveForDeptCode = a.ApproveForDeptCode ?? string.Empty,
             ApproveForDeptName = a.ApproveForDeptName ?? string.Empty,

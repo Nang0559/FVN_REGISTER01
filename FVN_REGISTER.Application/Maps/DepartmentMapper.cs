@@ -19,7 +19,7 @@ namespace FVN_REGISTER.Application.Maps
         /// <summary>Tạo entity mới từ Upsert Dto (dùng cho Create).</summary>
         public static F03Department ToEntity(this DepartmentUpsertDto model, int currentUserId) => new()
         {
-            DeptCode = model.DeptCode.Trim(),
+            DeptCode = model.DeptCode,
             DeptName = model.DeptName.Trim(),
             IsActive = model.IsActive,
             CreatedBy = currentUserId,
@@ -31,7 +31,7 @@ namespace FVN_REGISTER.Application.Maps
         /// <summary>Áp Upsert Dto lên entity đã có sẵn (dùng cho Update).</summary>
         public static void ApplyTo(this DepartmentUpsertDto model, F03Department entity, int currentUserId)
         {
-            entity.DeptCode = model.DeptCode.Trim();
+            entity.DeptCode = model.DeptCode;
             entity.DeptName = model.DeptName.Trim();
             entity.IsActive = model.IsActive;
             entity.ModifiedBy = currentUserId;

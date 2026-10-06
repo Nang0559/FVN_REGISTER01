@@ -16,7 +16,7 @@ namespace FVN_REGISTER.Contract.Dtos.Histories
         // Chung
         public string EmployeeCode { get; set; } = string.Empty;
         public string EmployeeName { get; set; } = string.Empty;
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public DateTime SubmittedAt { get; set; }
         public string RequestStatus { get; set; } = string.Empty;
         public string StatusDisplay { get; set; } = string.Empty;

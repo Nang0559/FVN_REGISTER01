@@ -61,7 +61,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         private async Task<ServiceResult<ReportResultDto>> GetOTSummaryByDeptAsync(
             ReportQueryDto query, UserIdentityDto user, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(query.DeptCode) && string.IsNullOrWhiteSpace(query.EmployeeCode))
+            if (query.DeptCode == null && string.IsNullOrWhiteSpace(query.EmployeeCode))
                 return ServiceResult<ReportResultDto>.Fail("Thiếu phạm vi dữ liệu báo cáo OT.");
 
             var fromDate = query.FromDate ?? DateTime.Today.AddMonths(-1);
@@ -74,7 +74,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate <= DateOnly.FromDateTime(toDate)
                          && ActiveOrApprovedStatuses.Contains(x.RequestStatus));
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -146,7 +146,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate >= DateOnly.FromDateTime(fromDate)
                          && x.OTDate <= DateOnly.FromDateTime(toDate));
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -216,7 +216,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate >= query.FromDate
                          && x.OTDate <= query.ToDate);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -286,7 +286,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate >= query.FromDate
                          && x.OTDate <= query.ToDate);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
 
             var data = await q
@@ -347,7 +347,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate.Year == year
                          && x.RequestStatus == ApprovalStatus.Approved);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -369,10 +369,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Yearly)
                 .ToListAsync(ct);
 
-            decimal GetLimit(string? deptCode)
+            decimal GetLimit(int? deptCode)
             {
                 return limits
-                    .Where(r => r.DeptCode == deptCode || r.DeptCode == "ALL" || r.DeptCode == null)
+                    .Where(r => r.DeptCode == deptCode  || r.DeptCode == null)
                     .OrderByDescending(r => r.DeptCode == deptCode)
                     .Select(r => r.LimitValue)
                     .FirstOrDefault(200m);

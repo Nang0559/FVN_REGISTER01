@@ -155,7 +155,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         UserIdentityDto user,
         int functionCode,
         string? employeeCode,
-        string? deptCode,
+        int? deptCode,
         CancellationToken ct = default)
     {
         if (user.UserId <= 0)
@@ -239,8 +239,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var departmentMap = departments
-            .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
-            .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.DeptCode != null)
+            .GroupBy(x => x.DeptCode, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 g => g.Key,
                 g => (
@@ -286,8 +286,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
             if (nodeType != "Company" &&
                 string.IsNullOrWhiteSpace(scope.NodeCode) &&
-                string.IsNullOrWhiteSpace(scope.DeptCode) &&
-                string.IsNullOrWhiteSpace(scope.SubDepartmentCode) &&
+                scope.DeptCode == null &&
+                scope.SubDepartmentCode == null &&
                 string.IsNullOrWhiteSpace(scope.FactoryCode))
                 throw new InvalidOperationException($"ManagedScope {nodeType} phải có NodeCode hoặc mã node tổ chức.");
         }
@@ -313,8 +313,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 NodeType = scope.NodeType.Trim(),
                 NodeCode = scope.NodeCode?.Trim(),
                 FactoryCode = scope.FactoryCode?.Trim(),
-                DeptCode = scope.DeptCode?.Trim(),
-                SubDepartmentCode = scope.SubDepartmentCode?.Trim(),
+                DeptCode = scope.DeptCode,
+                SubDepartmentCode = scope.SubDepartmentCode,
                 IncludeChildren = scope.IncludeChildren,
                 Remark = scope.Remark?.Trim(),
                 CreatedBy = actorUserId,
@@ -437,7 +437,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     private static bool ManagedScopeMatches(
         IReadOnlyCollection<ManagedScopeDto> scopes,
         string? targetDept,
-        IReadOnlyDictionary<string, (string? ParentDeptCode, string? BlockCode)> departments)
+        IReadOnlyDictionary<string, (int? ParentDeptCode, string? BlockCode)> departments)
     {
         if (string.IsNullOrWhiteSpace(targetDept))
             return scopes.Any(x => string.Equals(x.NodeType, "Company", StringComparison.OrdinalIgnoreCase));
@@ -481,10 +481,10 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             while (departments.TryGetValue(cursor, out var current)
-                   && !string.IsNullOrWhiteSpace(current.ParentDeptCode)
+                   && current.ParentDeptCode != null
                    && visited.Add(cursor))
             {
-                var parent = current.ParentDeptCode!.Trim();
+                var parent = current.ParentDeptCode;
 
                 if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
                     return true;
@@ -504,10 +504,10 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     private async Task<bool> IsWithinManagedScopeAsync(
         IReadOnlyCollection<ManagedScopeDto> scopes,
         string? employeeCode,
-        string? deptCode,
+        int? deptCode,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(employeeCode) && string.IsNullOrWhiteSpace(deptCode))
+        if (string.IsNullOrWhiteSpace(employeeCode) && deptCode == null)
             return false;
 
         var target = await _uow.Repository<F03Employee>().Query()
@@ -529,8 +529,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var departmentMap = departments
-            .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
-            .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.DeptCode != null)
+            .GroupBy(x => x.DeptCode, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 g => g.Key,
                 g => (

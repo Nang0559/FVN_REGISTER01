@@ -14,7 +14,7 @@ public interface IOTLimitRuleManagementService
     Task<ServiceResult> DeleteAsync(int id, CancellationToken ct = default);
 
     Task<List<OTLimitRuleDto>> GetApplicableRulesAsync(
-        string deptCode,
+        int deptCode,
         string positionCode,
         OTLimitType limitType,
         CancellationToken ct = default);

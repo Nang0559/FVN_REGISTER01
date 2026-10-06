@@ -91,7 +91,7 @@
         if (args.Item != null) await LoadDeptDetailAsync(args.Item.DeptCode);
     }
 
-    private async Task LoadDeptDetailAsync(string deptCode)
+    private async Task LoadDeptDetailAsync(int deptCode)
     {
         _loading = true;
         try

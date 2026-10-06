@@ -11,7 +11,7 @@
             <MudGrid>
                 <MudItem xs="12">
                     <MudSelect T="string" Label="@Language.T("approval.boPhanCuaApprover")" Value="Model.DeptCode" ValueChanged="OnDeptChanged" Variant="Variant.Outlined" Disabled="LockDept" Required="true">
-                        @foreach (var dept in Departments.Where(x => x.DeptCode != "ALL"))
+                        @foreach (var dept in Departments.Where(x => x.DeptCode != ApproveForDept.All))
                         { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
@@ -67,7 +67,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!string.IsNullOrWhiteSpace(Model.DeptCode)) await LoadEmployees(Model.DeptCode);
+        if (Model.DeptCode != null) await LoadEmployees(Model.DeptCode);
     }
 
     private async Task OnDeptChanged(string value)
@@ -79,10 +79,10 @@
         await LoadEmployees(value);
     }
 
-    private async Task LoadEmployees(string? deptCode)
+    private async Task LoadEmployees(int? deptCode)
     {
         _employees = new();
-        if (string.IsNullOrWhiteSpace(deptCode)) return;
+        if (deptCode == null) return;
         var result = await ApproverService.GetEmployeesAsync(deptCode);
         if (result.IsSuccess && result.Data != null) _employees = result.Data;
     }

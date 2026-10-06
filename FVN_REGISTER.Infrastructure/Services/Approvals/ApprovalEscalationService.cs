@@ -140,7 +140,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             int requestId,
             F03ApprovalStepSnapshot step,
             DateTime baseTime,
-            string deptCode,
+            int deptCode,
             CancellationToken ct)
         {
             var now = DateTime.Now;

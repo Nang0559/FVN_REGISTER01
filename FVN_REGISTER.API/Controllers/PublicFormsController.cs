@@ -311,10 +311,7 @@ public sealed class PublicFormsController : BaseApiController
             !await _authorization.HasManagementAsync(UserInfo, functionCode, ct))
             return false;
 
-        return string.Equals(
-            UserInfo.DeptCode?.Trim(),
-            AdministrationDepartmentCode,
-            StringComparison.OrdinalIgnoreCase);
+        return UserInfo.DeptCode == AdministrationDepartmentCode;
     }
 
     private async Task<bool> CanAnyManagementAsync(CancellationToken ct, params int[] functionCodes)

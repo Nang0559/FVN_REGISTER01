@@ -124,7 +124,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         var entity = new F03ApprovalPolicy
         {
             RequestType = (RequestModule)request.RequestType,
-            DeptCode = request.DeptCode.Trim(),
+            DeptCode = request.DeptCode,
             PositionCode = Normalize(request.PositionCode),
             ApprovalPositionCode = request.ApprovalPositionCode.Trim(),
             Level = request.Level,
@@ -165,7 +165,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         request.RoleName = RoleNameFromPosition(request.Level);
 
         entity.RequestType = (RequestModule)request.RequestType;
-        entity.DeptCode = request.DeptCode.Trim();
+        entity.DeptCode = request.DeptCode;
         entity.PositionCode = Normalize(request.PositionCode);
         entity.ApprovalPositionCode = request.ApprovalPositionCode.Trim();
         entity.Level = request.Level;
@@ -208,8 +208,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         if (!Enum.IsDefined(typeof(RequestModule), request.RequestType))
             return "RequestType không hợp lệ.";
 
-        var deptCode = request.DeptCode.Trim();
-        if (string.IsNullOrWhiteSpace(deptCode))
+        var deptCode = request.DeptCode;
+        if (deptCode == null)
             return "Phòng ban là bắt buộc.";
 
         if (!await _uow.Repository<F03Department>().Query()

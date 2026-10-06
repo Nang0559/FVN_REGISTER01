@@ -30,7 +30,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         _currentUser = currentUser;
     }
 
-    private async Task<WorkCalendarDto> GetCoreAsync(string employeeCode,string? deptCode,string? positionCode,DateTime from,DateTime to,CancellationToken ct=default)
+    private async Task<WorkCalendarDto> GetCoreAsync(string employeeCode,int? deptCode,string? positionCode,DateTime from,DateTime to,CancellationToken ct=default)
     {
         var start=from.Date;var end=to.Date<start?start:to.Date;
         var user=_currentUser.GetCurrentUser();
@@ -71,7 +71,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
     private static string GetHolidayTypeCode(byte? holidayType)=>holidayType switch{2=>"NATIONAL",3=>"COMPENSATORY",4=>"OTHER",_=>"COMPANY"};
     private static string GetHolidayTypeLabel(byte holidayType)=>holidayType switch{2=>"lễ quốc gia",3=>"nghỉ bù",4=>"nghỉ khác",_=>"công ty"};
 
-    public async Task<ServiceResult<WorkCalendarDto>> GetAsync(string employeeCode,string? deptCode,string? positionCode,DateTime from,DateTime to,CancellationToken ct=default){try{return ServiceResult<WorkCalendarDto>.Ok(await GetCoreAsync(employeeCode,deptCode,positionCode,from,to,ct));}catch(Exception ex) when(ex is UnauthorizedAccessException or ArgumentException or KeyNotFoundException or InvalidOperationException){return ServiceResult<WorkCalendarDto>.Fail(ex.Message);}}
+    public async Task<ServiceResult<WorkCalendarDto>> GetAsync(string employeeCode,int? deptCode,string? positionCode,DateTime from,DateTime to,CancellationToken ct=default){try{return ServiceResult<WorkCalendarDto>.Ok(await GetCoreAsync(employeeCode,deptCode,positionCode,from,to,ct));}catch(Exception ex) when(ex is UnauthorizedAccessException or ArgumentException or KeyNotFoundException or InvalidOperationException){return ServiceResult<WorkCalendarDto>.Fail(ex.Message);}}
 
     private async Task ApplyApprovalInfoAsync(List<WorkCalendarEventDto> events,CancellationToken ct){
         var requestGroups=events.Where(x=>x.RequestId.HasValue&&(x.ModuleCode is "LEAVE" or "OT" or "TRIP")).Select(x=>new{x.RequestId,Module=x.ModuleCode switch{"LEAVE"=>RequestModule.Leave,"OT"=>RequestModule.Overtime,"TRIP"=>RequestModule.Trip,_=>(RequestModule?)null}}).Where(x=>x.Module.HasValue).GroupBy(x=>x.Module!.Value);

@@ -54,7 +54,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             AbsenceWarningDto? deptWarning = null;
             var departmentStatistics = new List<LeaveStatisticsDto>();
 
-            var canManageDepartment = !string.IsNullOrWhiteSpace(user.DeptCode)
+            var canManageDepartment = user.DeptCode != null
                 && await _authorization.CanAccessAsync(
                     user, SecurityFunctionCodes.LeaveView, null, user.DeptCode, ct);
 

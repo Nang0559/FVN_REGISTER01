@@ -7,7 +7,7 @@ public static class EquipmentImportServiceCompatibilityExtensions
 {
     public static async Task<ExcelImportBatchDto> StageExcelAsync(
         this IEquipmentImportService service,
-        string departmentCode,
+        int departmentCode,
         int? schemaId,
         string fileName,
         Stream content,

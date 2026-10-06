@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Application.Interfaces.OT
         /// cho ngày chỉ định (mặc định hôm nay)
         /// </summary>
         Task<DepartmentStatusDto> GetDeptStatusAsync(
-            string deptCode,
+            int deptCode,
             DateTime? date = null,
             CancellationToken ct = default);
 

@@ -155,10 +155,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .ToListAsync(ct);
 
             var departmentCandidates = candidates
-                .Where(x => string.Equals(
-                    x.ApproveForDeptCode,
-                    resolvedDeptCode,
-                    StringComparison.OrdinalIgnoreCase))
+                .Where(x => x.ApproveForDeptCode == resolvedDeptCode)
                 .ToList();
 
             if (departmentCandidates.Count > 0)

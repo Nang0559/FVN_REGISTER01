@@ -16,7 +16,7 @@ namespace FVN_REGISTER.Core.Entities.Views
         public string? EmployeeCode { get; set; }
         public string? EmployeeName { get; set; }
         public string? CreatedByEmail { get; set; }
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? DeptName { get; set; }
         public DateTime OTDate { get; set; }
         public TimeSpan StartTime { get; set; }

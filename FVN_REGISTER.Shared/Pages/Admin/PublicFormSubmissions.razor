@@ -225,7 +225,7 @@
     private PublicFormSubmissionQueryDto BuildQuery()
         => new()
         {
-            DepartmentCode = string.IsNullOrWhiteSpace(_departmentCode) ? null : _departmentCode.Trim(),
+            DepartmentCode = _departmentCode == null ? null : _departmentCode,
             Status = string.IsNullOrWhiteSpace(_status) ? null : _status,
             FromDate = _fromDate,
             ToDate = _toDate,
@@ -237,8 +237,8 @@
     {
         var values = new List<string>();
 
-        if (!string.IsNullOrWhiteSpace(query.DepartmentCode))
-            values.Add("DepartmentCode=" + Uri.EscapeDataString(query.DepartmentCode));
+        if (query.DepartmentCode != null)
+            values.Add("DepartmentCode=" + query.DepartmentCode);
 
         if (!string.IsNullOrWhiteSpace(query.Status))
             values.Add("Status=" + Uri.EscapeDataString(query.Status));

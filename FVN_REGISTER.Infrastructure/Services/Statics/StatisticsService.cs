@@ -77,7 +77,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
         // ================= DEPARTMENT (1 phòng - có chi tiết đơn) =================
         public async Task<LeaveStatisticsDto> GetDepartmentStatisticsAsync(
-            string deptCode, CancellationToken ct = default)
+            int deptCode, CancellationToken ct = default)
         {
             var summary = (await GetLeaveStatisticsAsync(false, ct))
                 .FirstOrDefault(x => x.DepartmentId == deptCode) ?? new LeaveStatisticsDto
@@ -103,7 +103,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
         // Helper riêng: load đơn nghỉ + chi tiết cho 1 phòng ban
         private async Task<List<LeaveRequestDto>> LoadEmployeeLeavesForDeptAsync(
-            string deptCode, CancellationToken ct)
+            int deptCode, CancellationToken ct)
         {
             var empCodes = await _uow.Repository<F03Employee>().Query()
                 .Where(e => e.DeptCode == deptCode && e.IsActive == true)
@@ -277,7 +277,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
         // ================= ABSENCE WARNING =================
         public async Task<AbsenceWarningDto> GetAbsenceWarningAsync(
-            string deptCode, CancellationToken ct = default)
+            int deptCode, CancellationToken ct = default)
         {
             const double threshold = 10.0;
             var today = DateOnly.FromDateTime(DateTime.Today);
@@ -330,11 +330,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
             => BuildWidgetsAsync(deptCode: null, totalTitle: "Tổng nhân viên", ct);
 
         public Task<List<WidgetCounterDto>> GetDeptDashboardWidgetsAsync(
-            string deptCode, CancellationToken ct = default)
+            int deptCode, CancellationToken ct = default)
             => BuildWidgetsAsync(deptCode, totalTitle: "Nhân viên bộ phận", ct);
 
         private async Task<List<WidgetCounterDto>> BuildWidgetsAsync(
-            string? deptCode, string totalTitle, CancellationToken ct)
+            int? deptCode, string totalTitle, CancellationToken ct)
         {
             var today = DateTime.Today;
             var todayOnly = DateOnly.FromDateTime(today);

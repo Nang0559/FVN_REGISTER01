@@ -123,7 +123,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         protected static IQueryable<T> ApplyAccessFilter<T>(
             IQueryable<T> query,
             UserIdentityDto user,
-            string? queryDeptCode,
+            int? queryDeptCode,
             Func<T, string?> getDeptCode)
         {
             return query; // placeholder — giữ nguyên như bạn đã ghi chú, không dùng trực tiếp
@@ -179,7 +179,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
         public async Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(
         string filterText, UserIdentityDto user,
-        string? deptCode = null, CancellationToken ct = default)
+        int? deptCode = null, CancellationToken ct = default)
         {
             var scope = await GetEffectiveReportScopeAsync(
                 user, ct,
@@ -196,7 +196,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             else if (string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                   || string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
                 q = q.Where(e => e.EmployeeCode == user.EmployeeCode);
-            else if (!string.IsNullOrWhiteSpace(deptCode))
+            else if (deptCode != null)
                 q = q.Where(e => e.DeptCode == deptCode);
 
             if (!string.IsNullOrEmpty(filterText))

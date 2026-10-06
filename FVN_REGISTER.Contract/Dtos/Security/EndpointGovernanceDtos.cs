@@ -61,7 +61,7 @@ public sealed record EndpointGovernanceRequestDto(
     int? PolicyItemId,
     EndpointGovernanceItemType? PolicyItemType,
     string? EmployeeCode,
-    string? DeptCode,
+    int? DeptCode,
     string? ItemName,
     string? Publisher,
     string? RequestedVersion,

@@ -951,7 +951,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .Where(x => x.Scopes.Any(scope =>
                 string.Equals(scope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase)
                 || (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(x.Key.DeptCode, employee.DeptCode, StringComparison.OrdinalIgnoreCase))
+                    && x.Key.DeptCode == employee.DeptCode)
                 || ((string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                      || string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
                     && string.Equals(x.Key.EmployeeCode, employee.EmployeeCode, StringComparison.OrdinalIgnoreCase))))

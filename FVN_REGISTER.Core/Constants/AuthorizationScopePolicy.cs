@@ -32,9 +32,9 @@ public static class AuthorizationScopePolicy
     public static bool CanAccess(
         string scope,
         string? actorEmployeeCode,
-        string? actorDeptCode,
+        int? actorDeptCode,
         string? targetEmployeeCode,
-        string? targetDeptCode)
+        int? targetDeptCode)
     {
         return scope switch
         {

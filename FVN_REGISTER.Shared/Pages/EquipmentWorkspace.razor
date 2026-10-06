@@ -40,7 +40,7 @@
                     <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode – @dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@string.IsNullOrWhiteSpace(_deptCode)">@Language.T("equipment.taiMauDuLieu")</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@_deptCode == null">@Language.T("equipment.taiMauDuLieu")</MudButton>
 
             @if (_schemas.Count > 0)
             {
@@ -57,7 +57,7 @@
                     </MudAlert>
                 }
             }
-            else if (!string.IsNullOrWhiteSpace(_deptCode))
+            else if (_deptCode != null)
             {
                 <MudAlert Severity="Severity.Warning" Class="mt-3">@Language.T("equipment.phong") <b>@_deptCode</b> @Language.T("equipment.chuaCoMauDuLieu")</MudAlert>
             }
@@ -147,7 +147,7 @@
         _schema = null;
         _schemaId = null;
         _batch = null;
-        if (string.IsNullOrWhiteSpace(_deptCode)) return;
+        if (_deptCode == null) return;
         var list = await EquipmentClient.GetSchemasAsync(_deptCode);
         if (!list.IsSuccess)
         {
@@ -174,7 +174,7 @@
 
     private async Task StageAsync()
     {
-        if (_file == null || string.IsNullOrWhiteSpace(_deptCode) || !_schemaId.HasValue) return;
+        if (_file == null || _deptCode == null || !_schemaId.HasValue) return;
         _uploading = true;
         try
         {

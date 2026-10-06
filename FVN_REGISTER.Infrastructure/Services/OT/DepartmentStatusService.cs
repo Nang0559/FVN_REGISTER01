@@ -25,7 +25,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
         }
 
         public async Task<DepartmentStatusDto> GetDeptStatusAsync(
-            string deptCode, DateTime? date = null, CancellationToken ct = default)
+            int deptCode, DateTime? date = null, CancellationToken ct = default)
         {
             var targetDate = (date ?? DateTime.Today).Date;
             var targetDateOnly = DateOnly.FromDateTime(targetDate);

@@ -203,13 +203,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 }
                 else
                 {
-                    if (!string.IsNullOrWhiteSpace(user.DeptCode))
+                    if (user.DeptCode != null)
                         allowedCodes.Add(user.DeptCode);
 
                     var managed = await _authorization.GetManagedScopesAsync(user.UserId, ct);
                     var departmentMap = departments
-                        .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
-                        .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                        .Where(x => x.DeptCode != null)
+                        .GroupBy(x => x.DeptCode, StringComparer.OrdinalIgnoreCase)
                         .ToDictionary(
                             g => g.Key,
                             g => g.First(),
@@ -258,7 +258,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                                 if (allowedCodes.Contains(department.DeptCode))
                                     continue;
 
-                                if (!string.IsNullOrWhiteSpace(department.ParentDeptCode)
+                                if (department.ParentDeptCode != null
                                     && allowedCodes.Contains(department.ParentDeptCode))
                                     changed = true;
                                 else if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
@@ -293,7 +293,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         // ════════════════════════════════════════════════════════════
         public async Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(
             string filterText, UserIdentityDto user,
-            string? deptCode = null, CancellationToken ct = default)
+            int? deptCode = null, CancellationToken ct = default)
         {
             try
             {
@@ -303,7 +303,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     .AsNoTracking()
                     .Where(x => x.IsActive);
 
-                var requestedDept = deptCode?.Trim();
+                var requestedDept = deptCode;
                 if (!string.IsNullOrWhiteSpace(requestedDept))
                 {
                     if (!await _authorization.CanAccessAsync(
