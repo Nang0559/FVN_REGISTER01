@@ -115,7 +115,7 @@ public sealed class PayrollInputService : IPayrollInputService
             ApprovalBuildContext.ForPayrollPeriod(
                 periodId,
                 identity.EmployeeCode!,
-                identity.DeptCode ?? 0,
+                identity.DeptCode,
                 identity.PositionCode ?? string.Empty),
             ct);
 
