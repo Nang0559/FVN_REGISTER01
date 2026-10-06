@@ -8,9 +8,10 @@ namespace FVN_REGISTER.Contract.Dtos.Depts
     {
         public int Id { get; set; } // 0 = Tạo mới
 
-        [Range(1, int.MaxValue, ErrorMessage = "Mã bộ phận phải là số nguyên dương")]
+        [Required(ErrorMessage = "Mã bộ phận là bắt buộc")]
+        [StringLength(20, ErrorMessage = "Mã bộ phận không quá 20 ký tự")]
         [Display(Name = "Mã bộ phận (*)")]
-        public int DeptCode { get; set; }
+        public string DeptCode { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Nhập tên bộ phận")]
         [MaxLength(64, ErrorMessage = "Độ dài không quá 64 ký tự")]
