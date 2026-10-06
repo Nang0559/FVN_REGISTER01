@@ -9,6 +9,7 @@ using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.Payroll;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -60,7 +61,7 @@ public sealed class PayrollApprovalProvider
             RequestId = period.Id,
             EmployeeCode = employee?.EmployeeCode ?? employeeCode,
             EmployeeName = employee?.EmployeeName,
-            DeptCode = employee?.DeptCode,
+            DeptCode = employee?.DeptCode.ToString(),
             PositionCode = employee?.PositionCode,
             OverallStatus = status,
             PeriodCode = period.PeriodCode,
@@ -109,7 +110,7 @@ public sealed class PayrollApprovalProvider
                 RequestId = period.Id,
                 EmployeeCode = employee?.EmployeeCode ?? code ?? string.Empty,
                 EmployeeName = employee?.EmployeeName,
-                DeptCode = employee?.DeptCode,
+                DeptCode = employee?.DeptCode.ToString(),
                 PositionCode = employee?.PositionCode,
                 OverallStatus = status,
                 PeriodCode = period.PeriodCode,
@@ -153,7 +154,7 @@ public sealed class PayrollApprovalProvider
         var deptName = string.IsNullOrWhiteSpace(subject.DeptCode)
             ? string.Empty
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
-                .Where(x => x.DeptCode == subject.DeptCode)
+                .Where(x => x.DeptCode == DepartmentCodeParser.ParseRequired(subject.DeptCode, nameof(subject.DeptCode)))
                 .Select(x => x.DeptName)
                 .FirstOrDefaultAsync(ct) ?? string.Empty;
 
