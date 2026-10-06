@@ -36,7 +36,7 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudSelect T="string"
+                    <MudSelect T="int"
                                Label="@Language.T("employee.boPhan")"
                                @bind-Value="Model.DeptCode"
                                Variant="Variant.Outlined"
@@ -45,7 +45,7 @@
                                RequiredError="@Language.T("employee.chonBoPhan")">
                         @foreach (var dept in Departments)
                         {
-                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                            <MudSelectItem T="int" Value="@ToDeptValue(dept.DeptCode)">@dept.DeptCode — @dept.DeptName</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -165,6 +165,7 @@
 
     [Parameter] public EmployeeUpsertDto Model { get; set; } = new() { IsActive = true };
     [Parameter] public List<DepartmentDto> Departments { get; set; } = new();
+    private static int ToDeptValue(string? code) => int.TryParse(code, out var v) ? v : 0;
     [Parameter] public bool LockDept { get; set; }
 
     private MudForm _form = default!;

@@ -83,7 +83,7 @@
     {
         _employees = new();
         if (string.IsNullOrWhiteSpace(deptCode)) return;
-        var result = await ApproverService.GetEmployeesAsync(deptCode);
+        var result = await ApproverService.GetEmployeesAsync(int.TryParse(deptCode, out var deptValue) ? deptValue : (int?)null);
         if (result.IsSuccess && result.Data != null) _employees = result.Data;
     }
 

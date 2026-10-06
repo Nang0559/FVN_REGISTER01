@@ -28,11 +28,11 @@
         @if (_activeTab == 0 || _activeTab == 1 || _activeTab == 3)
         {
             <MudItem xs="12" sm="3">
-                <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                    <MudSelectItem T="string" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
+                <MudSelect T="int?" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="int?" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
                     @foreach (var dept in _departments ?? new())
                     {
-                        <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@ToDeptValue(dept.Key)">@dept.Value</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -61,11 +61,11 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="3">
-                <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                    <MudSelectItem T="string" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
+                <MudSelect T="int?" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="int?" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
                     @foreach (var dept in _departments ?? new())
                     {
-                        <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@ToDeptValue(dept.Key)">@dept.Value</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -83,6 +83,7 @@
     };
     private int _activeTab;
     private List<KeyValuePair<string, string>>? _departments;
+    private static int? ToDeptValue(string? code) => int.TryParse(code, out var v) ? v : null;
     private KeyValuePair<string, string> _selectedEmployee;
 
     private ReportType _currentType => _activeTab switch

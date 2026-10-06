@@ -613,14 +613,15 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             }).ToList();
         }
 
-        public async Task<int?> GetEmployeeDeptCodeAsync(
+        public async Task<string?> GetEmployeeDeptCodeAsync(
             string employeeCode, CancellationToken ct = default)
         {
-            return await Uow.Repository<F03Employee>().Query()
+            var deptCode = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
                 .Where(e => e.EmployeeCode == employeeCode)
-                .Select(e => e.DeptCode)
-                .FirstOrDefaultAsync(ct) ?? string.Empty;
+                .Select(e => (int?)e.DeptCode)
+                .FirstOrDefaultAsync(ct);
+            return deptCode?.ToString() ?? string.Empty;
         }
 
         private async Task<string?> GetEmployeePositionCodeAsync(
