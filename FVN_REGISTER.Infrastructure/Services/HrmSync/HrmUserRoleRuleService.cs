@@ -231,4 +231,5 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
     }
 
     
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
