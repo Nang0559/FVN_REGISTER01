@@ -7,7 +7,7 @@ public sealed class ManagedScopeDto
     public string NodeType { get; set; } = string.Empty;
     public string? NodeCode { get; set; }
     public string? FactoryCode { get; set; }
-    public int? DeptCode { get; set; }
+    public string? DeptCode { get; set; }
     public int? SubDepartmentCode { get; set; }
     public bool IncludeChildren { get; set; }
     public string? Remark { get; set; }
