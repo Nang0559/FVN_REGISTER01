@@ -1,6 +1,7 @@
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Constants;
 
 namespace FVN_REGISTER.Application.Maps
 {
@@ -35,7 +36,7 @@ namespace FVN_REGISTER.Application.Maps
             PositionCode = dto.PositionCode ?? string.Empty,
             ApproverDeptCode = dto.DeptCode,
             ApproverDeptName = dto.DeptName ?? string.Empty,
-            ApproveForDeptCode = dto.ApproveForDeptCode ?? 0,
+            ApproveForDeptCode = dto.ApproveForDeptCode ?? ApproveForDept.All,
             ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty,
             IsActive = true,
             CreatedBy = currentUserId
