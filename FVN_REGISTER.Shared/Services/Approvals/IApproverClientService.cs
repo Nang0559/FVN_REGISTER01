@@ -9,7 +9,7 @@ namespace FVN_REGISTER.Shared.Services.Approvals
     {
         Task<ApiResponse<List<ApproverTreeNodeDto>>> GetTreeAsync(CancellationToken ct = default);
         Task<ApiResponse<List<ApproverDto>>> GetListAsync(
-            int? deptCode,
+            string? deptCode,
             int? level,
             string? requestType,
             CancellationToken ct = default);
