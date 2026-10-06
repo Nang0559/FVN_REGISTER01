@@ -289,7 +289,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         // ════════════════════════════════════════════════════════════
         public async Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(
             string filterText, UserIdentityDto user,
-            string? deptCode = null, CancellationToken ct = default)
+            int? deptCode = null, CancellationToken ct = default)
         {
             try
             {
@@ -299,8 +299,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     .AsNoTracking()
                     .Where(x => x.IsActive);
 
-                var requestedDept = deptCode?.Trim();
-                if (!string.IsNullOrWhiteSpace(requestedDept))
+                var requestedDept = deptCode;
+                if (requestedDept.HasValue)
                 {
                     if (!await _authorization.CanAccessAsync(
                         user, SecurityFunctionCodes.LeaveView, null, requestedDept, ct)
@@ -317,7 +317,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                             "Bạn không có quyền truy cập phòng ban được chọn.");
                     }
 
-                    q = q.Where(x => x.DeptCode == requestedDept);
+                    q = q.Where(x => x.DeptCode == requestedDept.Value);
                 }
 
                 if (!string.IsNullOrWhiteSpace(filterText))
