@@ -113,7 +113,7 @@ public sealed class TripService : ITripService
         var context = ApprovalBuildContext.ForTrip(
             entity.Id,
             entity.EmployeeCode,
-            entity.DeptCode?.ToString() ?? employee?.DeptCode?.ToString() ?? string.Empty,
+            entity.DeptCode ?? employee?.DeptCode ?? 0,
             employee?.PositionCode ?? string.Empty);
 
         var approvalResult = await _workflow.InitApprovalAsync(entity.Id, context, ct);
@@ -223,7 +223,7 @@ public sealed class TripService : ITripService
         TripCode = x.TripCode,
         EmployeeCode = x.EmployeeCode,
         EmployeeName = employeeName,
-        DeptCode = x.DeptCode?.ToString() ?? string.Empty,
+        DeptCode = x.DeptCode ?? 0,
         RequestStatus = x.RequestStatus,
         StartDate = x.StartDate,
         EndDate = x.EndDate,
