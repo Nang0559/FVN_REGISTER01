@@ -891,7 +891,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     private static EquipmentInspectionTaskDto MapTask(F03EquipmentInspectionTask x) => new()
     {
         Id=x.Id, EquipmentId=x.EquipmentId, EquipmentCode=x.Equipment?.EquipmentCode ?? "", EquipmentName=x.Equipment?.EquipmentName ?? "",
-        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? 0, TemplateId=x.TemplateId,
+        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? string.Empty, TemplateId=x.TemplateId,
         TemplateName=x.Template?.TemplateName ?? "", TemplateVersion=x.Template?.Version ?? 0, Status=x.Status, Result=x.Result,
         ScheduledDate=x.ScheduledDate, DueAt=x.DueAt, InspectorEmployeeCode=x.InspectorEmployeeCode, ApproverEmployeeCode=x.ApproverEmployeeCode,
         Items=x.Template?.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>{
