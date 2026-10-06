@@ -282,7 +282,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
             if (nodeType != "Company" &&
                 string.IsNullOrWhiteSpace(scope.NodeCode) &&
-                !scope.DeptCode.HasValue &&
+                string.IsNullOrWhiteSpace(scope.DeptCode) &&
                 !scope.SubDepartmentCode.HasValue &&
                 string.IsNullOrWhiteSpace(scope.FactoryCode))
                 throw new InvalidOperationException($"ManagedScope {nodeType} phải có NodeCode hoặc mã node tổ chức.");
@@ -447,7 +447,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             var node = nodeType switch
             {
                 "Department" => scope.DeptCode ?? scope.NodeCode,
-                "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
+                "SubDepartment" => scope.SubDepartmentCode?.ToString() ?? scope.NodeCode,
                 _ => scope.NodeCode
             };
 

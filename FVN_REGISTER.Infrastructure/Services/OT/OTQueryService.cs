@@ -64,11 +64,11 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
 
             F03Department? department = null;
-            if (entity.DeptCode.HasValue)
+            if (!string.IsNullOrWhiteSpace(entity.DeptCode))
             {
                 department = await Uow.Repository<F03Department>().Query()
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode.Value, ct);
+                    .FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
             }
 
             return OTMapper.ToDto(entity, requester, department);
@@ -127,7 +127,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             => await GetBalanceAsync(employeeCode, year, DateTime.Now.Month, ct);
 
         protected override async Task<PaginationResult<OTSummaryDto>> GetPagedCoreAsync(
-            int? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
+            string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
             int page, int pageSize, CancellationToken ct = default)
         {
             var query = Uow.Repository<VF03OTRequest>().Query()
@@ -159,7 +159,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     query = query.Where(x => false);
             }
 
-            if (deptCode.HasValue && scope == AuthorizationScopeCodes.All)
+            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All)
                 query = query.Where(x => x.DeptCode == deptCode);
             if (status.HasValue)
                 query = query.Where(x => x.RequestStatus == status.Value);
@@ -181,7 +181,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         }
 
         protected override async Task<List<OTRequestDto>> GetDeptByDateCoreAsync(
-            int deptCode, DateTime date, CancellationToken ct = default)
+            string deptCode, DateTime date, CancellationToken ct = default)
         {
             var user = _currentUser.GetCurrentUser();
             if (user == null)
@@ -219,7 +219,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         }
 
         public async Task<OTCombinedDataDto> GetCombinedDataAsync(
-            string employeeCode, int deptCode, int year, int month, CancellationToken ct = default)
+            string employeeCode, string deptCode, int year, int month, CancellationToken ct = default)
         {
             var deptEmployees = await GetDeptEmployeesAsync(deptCode, ct);
             var balance = await GetBalanceAsync(employeeCode, year, month, ct);
@@ -495,8 +495,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && e.OTRequest.RequestStatus != ApprovalStatus.Cancelled
                     && (e.OTRequest.OTDate >= yearStart && e.OTRequest.OTDate < yearEnd)
                     && (codes.Contains(e.EmployeeCode)
-                        || (deptCode.HasValue && e.OTRequest.DeptCode == deptCode)
-                        || e.OTRequest.DeptCode.HasValue && blockDeptCodes.Contains(e.OTRequest.DeptCode.Value)))
+                        || (!string.IsNullOrWhiteSpace(deptCode) && e.OTRequest.DeptCode == deptCode)
+                        || !string.IsNullOrWhiteSpace(e.OTRequest.DeptCode) && blockDeptCodes.Contains(e.OTRequest.DeptCode)))
                 .Select(e => new
                 {
                     e.EmployeeCode,
@@ -539,14 +539,14 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 AddPreviewMessages(preview, row);
             }
 
-            if (deptCode.HasValue)
+            if (!string.IsNullOrWhiteSpace(deptCode))
             {
                 var deptUsed = used.Where(x => x.DeptCode == deptCode).ToList();
                 var deptName = await Uow.Repository<F03Department>().Query()
                     .AsNoTracking()
                     .Where(d => d.DeptCode == deptCode)
                     .Select(d => d.DeptName)
-                    .FirstOrDefaultAsync(ct) ?? deptCode.ToString();
+                    .FirstOrDefaultAsync(ct) ?? deptCode;
 
                 var deptRequest = model.Employees
                     .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && e.DeptCode == deptCode))
@@ -555,7 +555,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 var deptPreview = new OTLimitScopePreviewDto
                 {
                     ScopeType = OTLimitScopeType.Department,
-                    ScopeCode = deptCode?.ToString(),
+                    ScopeCode = deptCode,
                     ScopeName = deptName,
                     RequestedHours = deptRequest,
                     UsedHoursThisWeek = deptUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
@@ -571,9 +571,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
             if (!string.IsNullOrWhiteSpace(blockCode))
             {
-                var blockUsed = used.Where(x => x.DeptCode.HasValue && blockDeptCodes.Contains(x.DeptCode.Value)).ToList();
+                var blockUsed = used.Where(x => !string.IsNullOrWhiteSpace(x.DeptCode) && blockDeptCodes.Contains(x.DeptCode)).ToList();
                 var blockRequest = model.Employees
-                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && e.DeptCode.HasValue && blockDeptCodes.Contains(e.DeptCode.Value)))
+                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && !string.IsNullOrWhiteSpace(e.DeptCode) && blockDeptCodes.Contains(e.DeptCode)))
                     .Sum(x => x.OTHours);
 
                 var blockPreview = new OTLimitScopePreviewDto
@@ -597,7 +597,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         }
 
         public async Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(
-            int deptCode, CancellationToken ct = default)
+            string deptCode, CancellationToken ct = default)
         {
             var employees = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
@@ -634,7 +634,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         }
 
         public async Task<List<OTBalanceDto>> GetDeptNearLimitAsync(
-            int deptCode, int year, int month, CancellationToken ct = default)
+            string deptCode, int year, int month, CancellationToken ct = default)
         {
             var today = DateTime.Today;
             var employees = await Uow.Repository<F03Employee>().Query()
@@ -698,7 +698,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             List<F03OTLimitRule> rules,
             string employeeCode,
             string? positionCode,
-            int deptCode,
+            string deptCode,
             OTLimitType type)
         {
             return rules

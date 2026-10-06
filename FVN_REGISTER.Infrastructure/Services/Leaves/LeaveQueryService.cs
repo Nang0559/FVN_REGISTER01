@@ -54,8 +54,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 return null;
             var requester = await Uow.Repository<VF03employee>().Query().AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
             F03Department? department = null;
-            if (entity.DeptCode.HasValue)
-                department = await Uow.Repository<F03Department>().Query().AsNoTracking().FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode.Value, ct);
+            if (!string.IsNullOrWhiteSpace(entity.DeptCode))
+                department = await Uow.Repository<F03Department>().Query().AsNoTracking().FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
             return LeaveMapper.ToDto(entity, requester, department);
         }
 
@@ -170,7 +170,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 query = query.Where(x => x.DeptCode == user.DeptCode);
             else if (scope != AuthorizationScopeCodes.All)
                 query = query.Where(x => false);
-            if (deptCode.HasValue && scope == AuthorizationScopeCodes.All) query = query.Where(x => x.DeptCode == deptCode);
+            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All) query = query.Where(x => x.DeptCode == deptCode);
             if (status.HasValue) query = query.Where(x => x.RequestStatus == status.Value);
             if (fromDate.HasValue) query = query.Where(x => x.StartDate >= fromDate.Value.Date);
             if (toDate.HasValue) query = query.Where(x => x.EndDate <= toDate.Value.Date);
