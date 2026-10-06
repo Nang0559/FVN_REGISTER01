@@ -30,7 +30,7 @@ namespace FVN_REGISTER.Application.Models.Subjects
             RequestId = x.Id,
             EmployeeCode = x.EmployeeCode,
             EmployeeName = employeeName,
-            DeptCode = deptCode ?? x.DeptCode,   // giữ tương thích nếu sau này F03LeaveDay có DeptCode
+            DeptCode = deptCode ?? (int.TryParse(x.DeptCode, out var parsedDeptCode) ? parsedDeptCode : null),   // giữ tương thích nếu sau này F03LeaveDay có DeptCode
             PositionCode = null, // Leave thường không dùng CvCode để duyệt
             OverallStatus = x.RequestStatus,
             WorkYear = x.WorkYear,
