@@ -7,7 +7,7 @@ public sealed class ApprovalBuildContext
 {
     public int RequestId { get; init; }
     public string EmployeeCode { get; init; } = "";
-    public string DeptCode { get; init; } = "";
+    public int DeptCode { get; init; }
     public string PositionCode { get; init; } = "";
     public Dictionary<string, object?> Extra { get; init; } = new();
 
@@ -18,7 +18,7 @@ public sealed class ApprovalBuildContext
     public string EndpointRequestType => Extra.TryGetValue("EndpointRequestType", out var v) && v is string s ? s : "";
     public string EndpointItemName => Extra.TryGetValue("EndpointItemName", out var v) && v is string s ? s : "";
 
-    public static ApprovalBuildContext ForOT(int requestId, string employeeCode, string deptCode, string positionCode, decimal totalOTHours, string otTypeCode) => new()
+    public static ApprovalBuildContext ForOT(int requestId, string employeeCode, int deptCode, string positionCode, decimal totalOTHours, string otTypeCode) => new()
     {
         RequestId = requestId,
         EmployeeCode = employeeCode,
