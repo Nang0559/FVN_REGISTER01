@@ -156,7 +156,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         UserIdentityDto user,
         int functionCode,
         string? employeeCode,
-        int? deptCode,
+        string? deptCode,
         CancellationToken ct = default)
     {
         if (user.UserId <= 0)
@@ -432,10 +432,10 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
     private static bool ManagedScopeMatches(
         IReadOnlyCollection<ManagedScopeDto> scopes,
-        int? targetDept,
-        IReadOnlyDictionary<int, (int? ParentDeptCode, string? BlockCode)> departments)
+        string? targetDept,
+        IReadOnlyDictionary<string, (string? ParentDeptCode, string? BlockCode)> departments)
     {
-        if (!targetDept.HasValue)
+        if (string.IsNullOrWhiteSpace(targetDept))
             return scopes.Any(x => string.Equals(x.NodeType, "Company", StringComparison.OrdinalIgnoreCase));
 
         foreach (var scope in scopes)
@@ -446,33 +446,34 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
             var node = nodeType switch
             {
-                "Department" => scope.DeptCode?.ToString() ?? scope.NodeCode,
-                "SubDepartment" => scope.SubDepartmentCode?.ToString() ?? scope.NodeCode,
+                "Department" => scope.DeptCode ?? scope.NodeCode,
+                "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
                 _ => scope.NodeCode
             };
 
             if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(targetDept.HasValue && departments.TryGetValue(targetDept.Value, out var td) ? td.BlockCode : null,
+                && string.Equals(
+                    departments.TryGetValue(targetDept, out var td) ? td.BlockCode : null,
                     node,
                     StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            if (int.TryParse(node, out var nodeDept) && nodeDept == targetDept.Value)
+            if (string.Equals(node, targetDept, StringComparison.OrdinalIgnoreCase))
                 return true;
 
             if (!scope.IncludeChildren)
                 continue;
 
-            var cursor = targetDept.Value;
-            var visited = new HashSet<int>();
+            var cursor = targetDept;
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             while (departments.TryGetValue(cursor, out var current)
-                   && current.ParentDeptCode.HasValue
+                   && !string.IsNullOrWhiteSpace(current.ParentDeptCode)
                    && visited.Add(cursor))
             {
-                var parent = current.ParentDeptCode.Value;
+                var parent = current.ParentDeptCode!;
 
-                if (int.TryParse(node, out nodeDept) && parent == nodeDept)
+                if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
                     return true;
 
                 if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
@@ -490,10 +491,10 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     private async Task<bool> IsWithinManagedScopeAsync(
         IReadOnlyCollection<ManagedScopeDto> scopes,
         string? employeeCode,
-        int? deptCode,
+        string? deptCode,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(employeeCode) && !deptCode.HasValue)
+        if (string.IsNullOrWhiteSpace(employeeCode) && string.IsNullOrWhiteSpace(deptCode))
             return false;
 
         var requestedDept = deptCode;
@@ -501,12 +502,12 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
                         ((employeeCode != null && x.EmployeeCode == employeeCode) ||
-                         (employeeCode == null && requestedDept.HasValue && x.DeptCode == requestedDept.Value)))
+                         (employeeCode == null && !string.IsNullOrWhiteSpace(requestedDept) && x.DeptCode == requestedDept)))
             .Select(x => new { x.EmployeeCode, x.DeptCode })
             .FirstOrDefaultAsync(ct);
 
         var targetDept = target?.DeptCode ?? requestedDept;
-        if (!targetDept.HasValue)
+        if (string.IsNullOrWhiteSpace(targetDept))
             return false;
 
         var departments = await _uow.Repository<F03Department>().Query()
@@ -783,8 +784,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var deptCodes = users.Select(x => x.DeptCode)
-            .Where(x => x.HasValue)
-            .Distinct()
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var positionCodes = users.Select(x => x.Cvcode)
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -807,7 +808,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             EmployeeCode = x.EmployeeCode,
             FullName = x.FullName,
             DeptCode = x.DeptCode,
-            DeptName = x.DeptCode.HasValue ? deptNames.GetValueOrDefault(x.DeptCode.Value) : null,
+            DeptName = !string.IsNullOrWhiteSpace(x.DeptCode) ? deptNames.GetValueOrDefault(x.DeptCode) : null,
             PositionCode = x.Cvcode,
             PositionName = x.Cvcode != null ? positionNames.GetValueOrDefault(x.Cvcode) : null,
             IsActive = x.IsActive == true,
