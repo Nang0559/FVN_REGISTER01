@@ -12,7 +12,7 @@ namespace FVN_REGISTER.Application.Models.Subjects
         public RequestModule Module => RequestModule.Leave;
         public string EmployeeCode { get; set; } = "";
         public string? EmployeeName { get; set; }        // ← THÊM
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? PositionCode { get; set; }
         public ApprovalStatus OverallStatus { get; set; }
 
@@ -30,7 +30,7 @@ namespace FVN_REGISTER.Application.Models.Subjects
             RequestId = x.Id,
             EmployeeCode = x.EmployeeCode,
             EmployeeName = employeeName,
-            DeptCode = deptCode ?? x.DeptCode?.ToString(),   // giữ tương thích nếu sau này F03LeaveDay có DeptCode
+            DeptCode = deptCode ?? x.DeptCode,   // giữ tương thích nếu sau này F03LeaveDay có DeptCode
             PositionCode = null, // Leave thường không dùng CvCode để duyệt
             OverallStatus = x.RequestStatus,
             WorkYear = x.WorkYear,
