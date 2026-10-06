@@ -18,6 +18,6 @@ namespace FVN_REGISTER.Application.Interfaces.Reports
             UserIdentityDto user, CancellationToken ct = default);
         Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(
             string filterText, UserIdentityDto user,
-            string? deptCode = null, CancellationToken ct = default);
+            int? deptCode = null, CancellationToken ct = default);
     }
 }
