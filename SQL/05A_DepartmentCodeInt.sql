@@ -185,10 +185,9 @@ BEGIN TRY
         FROM dbo.F03EquipmentAssets E
         INNER JOIN @Map M ON M.LegacyCode = CONVERT(nvarchar(20), E.DeptCode);
 
-        UPDATE E
-        SET E.OperatingResponsibleDeptCode = CONVERT(nvarchar(20), M.HrmDeptCode)
-        FROM dbo.F03EquipmentAssets E
-        INNER JOIN @Map M ON M.LegacyCode = CONVERT(nvarchar(20), E.OperatingResponsibleDeptCode);
+        /* OperatingResponsibleDeptCode is added later by 45_EquipmentResponsibilityAndRepair.sql.
+           Never reference it statically here (Msg 207 at batch compile); it is handled
+           dynamically through @DeptTargets below when it already exists as text. */
     END;
 
     IF OBJECT_ID(N'dbo.F03EscalationRules',N'U') IS NOT NULL
@@ -211,6 +210,8 @@ BEGIN TRY
 
     INSERT INTO @DeptTargets(TableName, ColumnName)
     VALUES
+        (N'F03Departments', N'ParentDeptCode'),
+        (N'F03EquipmentAssets', N'OperatingResponsibleDeptCode'),
         (N'F03AccessChangeRequests', N'DeptCode'),
         (N'F03PasswordResetRequests', N'DeptCode'),
         (N'F03OTEmployees', N'DeptCode'),
@@ -347,39 +348,70 @@ BEGIN TRY
     IF EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_EscalationRule_Lookup' AND object_id=OBJECT_ID(N'dbo.F03EscalationRules'))
         DROP INDEX IX_EscalationRule_Lookup ON dbo.F03EscalationRules;
 
-    ALTER TABLE dbo.F03Departments ALTER COLUMN DeptCode int NOT NULL;
-    ALTER TABLE dbo.F03Departments ALTER COLUMN ParentDeptCode int NULL;
-    ALTER TABLE dbo.F03Employees ALTER COLUMN DeptCode int NOT NULL;
-    ALTER TABLE dbo.F03Users ALTER COLUMN DeptCode int NULL;
-    ALTER TABLE dbo.F03Approvers ALTER COLUMN ApproverDeptCode int NOT NULL;
-    ALTER TABLE dbo.F03Approvers ALTER COLUMN ApproveForDeptCode int NOT NULL;
+    /* Convert to INT only where the column exists and is not already INT/nullability-correct.
+       Dynamic SQL keeps columns that are created by later scripts out of this batch's
+       compile-time name resolution (avoids Msg 207). */
+    DECLARE @IntTargets TABLE
+    (
+        TableName  sysname NOT NULL,
+        ColumnName sysname NOT NULL,
+        IsNullable bit     NOT NULL,
+        PRIMARY KEY (TableName, ColumnName)
+    );
 
-    IF OBJECT_ID(N'dbo.F03ApprovalPolicies',N'U') IS NOT NULL
-        ALTER TABLE dbo.F03ApprovalPolicies ALTER COLUMN DeptCode int NOT NULL;
-    IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NOT NULL
-        ALTER TABLE dbo.F03HrmUserRoleRules ALTER COLUMN DeptCode int NULL;
+    INSERT INTO @IntTargets (TableName, ColumnName, IsNullable)
+    VALUES
+        (N'F03Departments',                N'DeptCode',                      0),
+        (N'F03Departments',                N'ParentDeptCode',                1),
+        (N'F03Employees',                  N'DeptCode',                      0),
+        (N'F03Users',                      N'DeptCode',                      1),
+        (N'F03Approvers',                  N'ApproverDeptCode',              0),
+        (N'F03Approvers',                  N'ApproveForDeptCode',            0),
+        (N'F03ApprovalPolicies',           N'DeptCode',                      0),
+        (N'F03HrmUserRoleRules',           N'DeptCode',                      1),
+        (N'F03ManagedScopes',              N'DeptCode',                      1),
+        (N'F03ManagedScopes',              N'SubDepartmentCode',             1),
+        (N'F03HrmAttendanceCalculated',    N'DeptCode',                      1),
+        (N'F03HrmOTActual',                N'DeptCode',                      1),
+        (N'F03HrmAttendanceCalculationRun',N'DeptCode',                      1),
+        (N'F03OTLimitRules',               N'DeptCode',                      1),
+        (N'F03EquipmentAssets',            N'DeptCode',                      0),
+        (N'F03EquipmentAssets',            N'OperatingResponsibleDeptCode',  1),
+        (N'F03EscalationRules',            N'DeptCode',                      1);
 
-    IF OBJECT_ID(N'dbo.F03ManagedScopes',N'U') IS NOT NULL
+    DECLARE @IntNullable bit;
+
+    DECLARE int_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT TableName, ColumnName, IsNullable
+        FROM @IntTargets
+        ORDER BY TableName, ColumnName;
+
+    OPEN int_cursor;
+    FETCH NEXT FROM int_cursor INTO @TargetTable, @TargetColumn, @IntNullable;
+
+    WHILE @@FETCH_STATUS = 0
     BEGIN
-        ALTER TABLE dbo.F03ManagedScopes ALTER COLUMN DeptCode int NULL;
-        ALTER TABLE dbo.F03ManagedScopes ALTER COLUMN SubDepartmentCode int NULL;
+        IF EXISTS
+        (
+            SELECT 1
+            FROM sys.columns c
+            JOIN sys.types t ON t.user_type_id = c.user_type_id
+            WHERE c.object_id = OBJECT_ID(N'dbo.' + @TargetTable)
+              AND c.name = @TargetColumn
+              AND (t.name <> N'int' OR c.is_nullable <> @IntNullable)
+        )
+        BEGIN
+            SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@TargetTable)
+                     + N' ALTER COLUMN ' + QUOTENAME(@TargetColumn)
+                     + N' int ' + CASE WHEN @IntNullable = 1 THEN N'NULL' ELSE N'NOT NULL' END + N';';
+            EXEC sp_executesql @Sql;
+        END;
+
+        FETCH NEXT FROM int_cursor INTO @TargetTable, @TargetColumn, @IntNullable;
     END;
 
-    IF OBJECT_ID(N'dbo.F03HrmAttendanceCalculated',N'U') IS NOT NULL
-        ALTER TABLE dbo.F03HrmAttendanceCalculated ALTER COLUMN DeptCode int NULL;
-    IF OBJECT_ID(N'dbo.F03HrmOTActual',N'U') IS NOT NULL
-        ALTER TABLE dbo.F03HrmOTActual ALTER COLUMN DeptCode int NULL;
-    IF OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun',N'U') IS NOT NULL
-        ALTER TABLE dbo.F03HrmAttendanceCalculationRun ALTER COLUMN DeptCode int NULL;
-    IF OBJECT_ID(N'dbo.F03OTLimitRules',N'U') IS NOT NULL
-        ALTER TABLE dbo.F03OTLimitRules ALTER COLUMN DeptCode int NULL;
-    IF OBJECT_ID(N'dbo.F03EquipmentAssets',N'U') IS NOT NULL
-    BEGIN
-        ALTER TABLE dbo.F03EquipmentAssets ALTER COLUMN DeptCode int NOT NULL;
-        ALTER TABLE dbo.F03EquipmentAssets ALTER COLUMN OperatingResponsibleDeptCode int NULL;
-    END;
-    IF OBJECT_ID(N'dbo.F03EscalationRules',N'U') IS NOT NULL
-        ALTER TABLE dbo.F03EscalationRules ALTER COLUMN DeptCode int NULL;
+    CLOSE int_cursor;
+    DEALLOCATE int_cursor;
 
     CREATE UNIQUE INDEX UX_F03Departments_DeptCode ON dbo.F03Departments(DeptCode);
     CREATE INDEX IX_Approver_Lookup ON dbo.F03Approvers(RequestType,ApproveForDeptCode);

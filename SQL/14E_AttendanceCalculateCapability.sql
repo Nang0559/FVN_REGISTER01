@@ -13,13 +13,17 @@ SET XACT_ABORT ON;
 IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
     THROW 53070, N'F03Functions is required before Attendance.Calculate can be seeded.', 1;
 
-/* FunctionKey is canonical and is NOT nullable on current F03Functions. */
-IF NOT EXISTS
+/* FunctionKey is created later by 46_SecurityFunctionRegistry.sql (which also backfills
+   'Attendance.Calculate' for code 2911). It must NOT be referenced statically here:
+   on a fresh database the column does not exist yet (Msg 207 at batch compile). */
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+BEGIN
+    EXEC sys.sp_executesql N'IF NOT EXISTS
 (
     SELECT 1
     FROM dbo.F03Functions
     WHERE FunctionCode = 2911
-       OR FunctionKey = N'Attendance.Calculate'
+       OR FunctionKey = N''Attendance.Calculate''
 )
 BEGIN
     INSERT dbo.F03Functions
@@ -37,7 +41,57 @@ BEGIN
     )
     VALUES
     (
-        N'Attendance.Calculate',
+        N''Attendance.Calculate'',
+        2911,
+        N''Attendance.Calculate'',
+        N''Tính và đồng bộ dữ liệu chấm công HRM'',
+        N''Attendance'',
+        N''Calculate'',
+        N''All'',
+        1,
+        0,
+        290
+    );
+END
+ELSE
+BEGIN
+    /* Repair an older/incomplete row instead of creating a duplicate. */
+    UPDATE f
+       SET FunctionKey = N''Attendance.Calculate'',
+           FunctionName = N''Attendance.Calculate'',
+           Detail = N''Tính và đồng bộ dữ liệu chấm công HRM'',
+           ModuleCode = N''Attendance'',
+           ActionCode = N''Calculate'',
+           ScopeCode = N''All'',
+           IsActive = 1
+    FROM dbo.F03Functions AS f
+    WHERE f.FunctionCode = 2911
+       OR f.FunctionKey = N''Attendance.Calculate'';
+END;';
+END
+ELSE
+BEGIN
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03Functions
+    WHERE FunctionCode = 2911
+)
+BEGIN
+    INSERT dbo.F03Functions
+    (
+        FunctionCode,
+        FunctionName,
+        Detail,
+        ModuleCode,
+        ActionCode,
+        ScopeCode,
+        IsActive,
+        CreatedBy,
+        DisplayOrder
+    )
+    VALUES
+    (
         2911,
         N'Attendance.Calculate',
         N'Tính và đồng bộ dữ liệu chấm công HRM',
@@ -53,16 +107,15 @@ ELSE
 BEGIN
     /* Repair an older/incomplete row instead of creating a duplicate. */
     UPDATE f
-       SET FunctionKey = N'Attendance.Calculate',
-           FunctionName = N'Attendance.Calculate',
+       SET FunctionName = N'Attendance.Calculate',
            Detail = N'Tính và đồng bộ dữ liệu chấm công HRM',
            ModuleCode = N'Attendance',
            ActionCode = N'Calculate',
            ScopeCode = N'All',
            IsActive = 1
     FROM dbo.F03Functions AS f
-    WHERE f.FunctionCode = 2911
-       OR f.FunctionKey = N'Attendance.Calculate';
+    WHERE f.FunctionCode = 2911;
+END;
 END;
 
 /* SuperAdmin and Admin receive the server capability. */
@@ -111,12 +164,28 @@ JOIN dbo.F03Functions AS f ON f.Id = rf.IdFunction
 WHERE r.RoleCode = 5
   AND f.FunctionCode = 2911;
 
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
+BEGIN
+    EXEC sys.sp_executesql N'IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03Functions
+    WHERE FunctionCode = 2911
+      AND FunctionKey = N''Attendance.Calculate''
+      AND FunctionName = N''Attendance.Calculate''
+      AND ModuleCode = N''Attendance''
+      AND ActionCode = N''Calculate''
+      AND ScopeCode = N''All''
+      AND ISNULL(IsActive, 1) = 1
+)
+    THROW 53074, N''Attendance.Calculate capability 2911 is not canonical after deployment.'', 1;';
+END
+ELSE
 IF NOT EXISTS
 (
     SELECT 1
     FROM dbo.F03Functions
     WHERE FunctionCode = 2911
-      AND FunctionKey = N'Attendance.Calculate'
       AND FunctionName = N'Attendance.Calculate'
       AND ModuleCode = N'Attendance'
       AND ActionCode = N'Calculate'

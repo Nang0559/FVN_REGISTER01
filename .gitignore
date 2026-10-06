@@ -15,3 +15,6 @@
 patches/
 *.private.xml
 private.xml
+*.log
+/SQL-changed-files/SQL
+/SQL-changed-files.zip

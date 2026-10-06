@@ -167,6 +167,12 @@ IF EXISTS (SELECT 1 FROM dbo.F03Functions GROUP BY FunctionKey HAVING COUNT(*) >
     THROW 51460, N'F03Functions có FunctionKey trùng; cần xử lý trước khi tạo unique index.', 1;
 GO
 
+/* An older deployment may already own UX_F03Functions_FunctionKey; a column that is part of an
+   index cannot change nullability, so drop it here and recreate it right below. */
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.F03Functions') AND name = N'UX_F03Functions_FunctionKey')
+    DROP INDEX UX_F03Functions_FunctionKey ON dbo.F03Functions;
+GO
+
 ALTER TABLE dbo.F03Functions ALTER COLUMN FunctionKey nvarchar(150) NOT NULL;
 GO
 

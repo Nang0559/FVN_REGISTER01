@@ -234,20 +234,21 @@ GO
 /* Normalize FunctionKey for the seeded PublicForm capabilities and any pre-existing blank legacy keys. */
 IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03Functions',N'FunctionKey') IS NOT NULL
 BEGIN
-    UPDATE f SET FunctionKey = CONCAT(N'PublicForm.', f.FunctionCode)
+    /* Dynamic: FunctionKey does not exist on a fresh database until 46_SecurityFunctionRegistry.sql. */
+    EXEC sys.sp_executesql N'    UPDATE f SET FunctionKey = CONCAT(N''PublicForm.'', f.FunctionCode)
     FROM dbo.F03Functions f
     WHERE f.FunctionCode BETWEEN 2807 AND 2818;
 
     UPDATE f
     SET FunctionKey = CONCAT(
-        COALESCE(NULLIF(LTRIM(RTRIM(f.ModuleCode)),N''),N'Legacy'),N'.',
-        COALESCE(NULLIF(LTRIM(RTRIM(f.ActionCode)),N''),N'Function'),N'.',
-        f.FunctionCode,N'.',f.Id)
+        COALESCE(NULLIF(LTRIM(RTRIM(f.ModuleCode)),N''''),N''Legacy''),N''.'',
+        COALESCE(NULLIF(LTRIM(RTRIM(f.ActionCode)),N''''),N''Function''),N''.'',
+        f.FunctionCode,N''.'',f.Id)
     FROM dbo.F03Functions f
-    WHERE f.FunctionKey IS NULL OR LTRIM(RTRIM(f.FunctionKey))=N'';
+    WHERE f.FunctionKey IS NULL OR LTRIM(RTRIM(f.FunctionKey))=N'''';
 
-    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03Functions_FunctionKey' AND object_id=OBJECT_ID(N'dbo.F03Functions'))
-        CREATE UNIQUE INDEX UX_F03Functions_FunctionKey ON dbo.F03Functions(FunctionKey);
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N''UX_F03Functions_FunctionKey'' AND object_id=OBJECT_ID(N''dbo.F03Functions''))
+        CREATE UNIQUE INDEX UX_F03Functions_FunctionKey ON dbo.F03Functions(FunctionKey);';
 END;
 GO
 
