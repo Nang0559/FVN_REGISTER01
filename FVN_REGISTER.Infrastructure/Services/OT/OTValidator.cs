@@ -189,7 +189,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 var monthEnd = monthStart.AddMonths(1);
 
                 var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
-                    ? new List<int>()
+                    ? new List<string>()
                     : await _uow.Repository<F03Department>().Query()
                         .AsNoTracking()
                         .Where(d => d.IsActive == true && d.BlockCode == blockCode)
@@ -205,7 +205,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         e.OTRequest.RequestStatus != ApprovalStatus.Cancelled &&
                         e.OTRequest.OTDate >= yearStart &&
                         e.OTRequest.OTDate < yearEnd &&
-                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || !string.IsNullOrWhiteSpace(e.OTRequest.DeptCode) && blockDeptCodes.Contains(e.OTRequest.DeptCode)))
+                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || blockDeptCodes.Contains(e.OTRequest.DeptCode ?? string.Empty)))
                     .Select(e => new
                     {
                         e.EmployeeCode,
@@ -224,24 +224,24 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
                     var empUsed = usedData.Where(x => x.EmployeeCode == emp.EmployeeCode).ToList();
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
                         OTLimitType.Daily, empUsed.Where(x => x.OTDate.Date == model.OTDate.Date).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
                         OTLimitType.Weekly, empUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
                         OTLimitType.Monthly, empUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
 
-                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode?.ToString(),
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
                         OTLimitType.Yearly, empUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours),
                         requested, model.OTDate, emp.EmployeeName);
                 }
 
-                var deptUsed = usedData.Where(x => x.DeptCode.ToString() == deptCode).ToList();
+                var deptUsed = usedData.Where(x => x.DeptCode == deptCode).ToList();
                 ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Weekly,
                     deptUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                     model.Employees.Sum(x => x.OTHours));
@@ -254,7 +254,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
                 if (!string.IsNullOrWhiteSpace(blockCode))
                 {
-                    var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode?.ToString() ?? string.Empty)).ToList();
+                    var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode ?? string.Empty)).ToList();
                     ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Weekly,
                         blockUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                         model.Employees.Sum(x => x.OTHours));

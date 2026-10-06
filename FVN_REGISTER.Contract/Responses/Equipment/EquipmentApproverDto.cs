@@ -7,5 +7,5 @@ public sealed class EquipmentApproverDto
     public string ApproverEmail { get; set; } = string.Empty;
     public int Level { get; set; }
     public string RoleName { get; set; } = string.Empty;
-    public int ApproveForDeptCode { get; set; }
+    public string ApproveForDeptCode { get; set; } = string.Empty;
 }

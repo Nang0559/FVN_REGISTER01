@@ -12,7 +12,7 @@ public sealed class CreateEquipmentRegistrationDto
     [Range(0, 999999999999)] public decimal PurchasePrice { get; set; }
     [Required] public DateTime PurchaseDate { get; set; }
     [Required] public DateTime ExpectedDepreciationDate { get; set; }
-    [Range(1, int.MaxValue)] public string DeptCode { get; set; } = string.Empty;
+    [Required, StringLength(20)] public string DeptCode { get; set; } = string.Empty;
     [StringLength(250)] public string? Location { get; set; }
     /// <summary>Optional initial asset custodian. Must resolve to an active HR employee when supplied.</summary>
     [StringLength(50)] public string? ResponsibleEmployeeCode { get; set; }

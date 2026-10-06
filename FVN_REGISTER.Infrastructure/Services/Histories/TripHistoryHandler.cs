@@ -53,8 +53,8 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             Kind = RequestModule.Trip,
             EmployeeCode = x.request.EmployeeCode,
             EmployeeName = x.employee?.EmployeeName ?? string.Empty,
-            DeptCode = x.employee?.DeptCode.ToString(),
-            SubmittedAt = x.request.CreatedAt,
+            DeptCode = x.employee?.DeptCode,
+            SubmittedAt = x.request.CreatedAt ,
             RequestStatus = x.request.RequestStatus.ToString(),
             StatusDisplay = x.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(x.request.RequestStatus),
@@ -97,7 +97,7 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             Trip = new TripDetailPayload
             {
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode.ToString(),
+                DeptName = row.employee?.DeptCode,
                 TripCode = row.request.TripCode,
                 StartDate = row.request.StartDate,
                 EndDate = row.request.EndDate,

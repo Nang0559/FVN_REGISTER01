@@ -15,7 +15,7 @@ namespace FVN_REGISTER.Shared.Services.Approvals
             CancellationToken ct = default);
         Task<ApiResponse<List<DepartmentDto>>> GetDepartmentsAsync(CancellationToken ct = default);
         Task<ApiResponse<List<EmployeeSelectDto>>> GetEmployeesAsync(
-            int? deptCode,
+            string? deptCode,
             CancellationToken ct = default);
         Task<ApiResponse<object>> CreateAsync(ApproverDto model, CancellationToken ct = default);
         Task<ApiResponse<object>> UpdateAsync(int id, ApproverDto model, CancellationToken ct = default);

@@ -30,7 +30,7 @@ public sealed partial class EquipmentClientService
             using var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             content.Add(fileContent, "file", file.Name);
-            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim())}";
+            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
             return await _http.PostMultipartAsync<ExcelWorkbookDto>(
                 $"api/equipment/schemas/inspect-excel?{query}", content, ct);
         }
@@ -60,7 +60,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var normalizedDeptCode = Uri.EscapeDataString(
-                deptCode.Trim());
+                deptCode.Trim().ToUpperInvariant());
 
             return await _http.PostMultipartAsync<ExcelSchemaFromExcelDto>(
                 $"api/equipment/schemas/preview-excel?deptCode={normalizedDeptCode}&sheetIndex={sheetIndex}",
@@ -104,7 +104,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var query =
-                $"deptCode={Uri.EscapeDataString(deptCode.Trim())}" +
+                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
                 $"&sheetIndex={sheetIndex}";
 
             if (!string.IsNullOrWhiteSpace(schemaName))
@@ -152,7 +152,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var query =
-                $"deptCode={Uri.EscapeDataString(deptCode.Trim())}" +
+                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
                 $"&sheetIndex={sheetIndex}" +
                 $"&maxRows={maxRows}";
 
@@ -195,7 +195,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
             content.Add(new StringContent(System.Text.Json.JsonSerializer.Serialize(range)), "range");
 
-            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim())}";
+            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
 
             return await _http.PostMultipartAsync<ExcelSchemaFromExcelDto>(
                 $"api/equipment/schemas/preview-excel-range?{query}",
@@ -236,7 +236,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
             content.Add(new StringContent(System.Text.Json.JsonSerializer.Serialize(range)), "range");
 
-            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim())}";
+            var query = $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}";
             if (!string.IsNullOrWhiteSpace(schemaName))
             {
                 query += $"&schemaName={Uri.EscapeDataString(schemaName.Trim())}";
@@ -286,7 +286,7 @@ public sealed partial class EquipmentClientService
             content.Add(fileContent, "file", file.Name);
 
             var query =
-                $"deptCode={Uri.EscapeDataString(deptCode.Trim())}" +
+                $"deptCode={Uri.EscapeDataString(deptCode.Trim().ToUpperInvariant())}" +
                 $"&assignToEmployee={assignToEmployee}" +
                 $"&sheetIndex={sheetIndex}";
 

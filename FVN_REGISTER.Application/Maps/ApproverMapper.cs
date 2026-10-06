@@ -18,9 +18,9 @@ namespace FVN_REGISTER.Application.Maps
             Level = a.Level,
             RoleName = a.RoleName ?? string.Empty,
             PositionCode = a.PositionCode ?? string.Empty,
-            DeptCode = a.ApproverDeptCode,
+            DeptCode = a.ApproverDeptCode ?? string.Empty,
             DeptName = a.ApproverDeptName ?? string.Empty,
-            ApproveForDeptCode = a.ApproveForDeptCode,
+            ApproveForDeptCode = a.ApproveForDeptCode ?? string.Empty,
             ApproveForDeptName = a.ApproveForDeptName ?? string.Empty,
             IsActive = a.IsActive ?? true
         };
@@ -34,9 +34,9 @@ namespace FVN_REGISTER.Application.Maps
             Level = dto.Level,
             RoleName = dto.RoleName ?? string.Empty,
             PositionCode = dto.PositionCode ?? string.Empty,
-            ApproverDeptCode = dto.DeptCode,
+            ApproverDeptCode = dto.DeptCode ?? string.Empty,
             ApproverDeptName = dto.DeptName ?? string.Empty,
-            ApproveForDeptCode = dto.ApproveForDeptCode ?? ApproveForDept.All,
+            ApproveForDeptCode = dto.ApproveForDeptCode ?? string.Empty,
             ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty,
             IsActive = true,
             CreatedBy = currentUserId
@@ -59,10 +59,10 @@ namespace FVN_REGISTER.Application.Maps
             entity.ApproverEmail = dto.ApproverEmail ?? string.Empty;
             entity.Level = dto.Level;
             entity.PositionCode = dto.PositionCode ?? string.Empty;
-            entity.ApproverDeptCode = dto.DeptCode;
+            entity.ApproverDeptCode = dto.DeptCode ?? entity.ApproverDeptCode;
             entity.ApproverDeptName = dto.DeptName ?? entity.ApproverDeptName;
             entity.RoleName = dto.RoleName ?? string.Empty;
-            entity.ApproveForDeptCode = dto.ApproveForDeptCode ?? entity.ApproveForDeptCode;
+            entity.ApproveForDeptCode = dto.ApproveForDeptCode ?? string.Empty;
             entity.ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty;
             entity.IsActive = dto.IsActive;
             entity.ModifiedBy = userId;

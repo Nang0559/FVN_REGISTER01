@@ -89,7 +89,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             var q = _uow.Repository<F03Approver>().Query().AsNoTracking()
                 .Where(x => x.IsActive == true);
 
-            if (!string.IsNullOrWhiteSpace(deptCode))
+            if (!string.IsNullOrEmpty(deptCode))
                 q = q.Where(x => x.ApproveForDeptCode == deptCode || x.ApproveForDeptCode == ApproveForDept.All);
             if (level.HasValue)
                 q = q.Where(x => x.Level == level.Value);
@@ -139,7 +139,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         try
         {
             var q = _uow.Repository<F03Employee>().Query().AsNoTracking();
-            if (!string.IsNullOrWhiteSpace(deptCode) && deptCode != ApproveForDept.All)
+            if (!string.IsNullOrEmpty(deptCode) && deptCode != ApproveForDept.All)
                 q = q.Where(x => x.DeptCode == deptCode);
 
             var deptQuery = _uow.Repository<F03Department>().Query().AsNoTracking();
@@ -232,7 +232,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             if (!await HasActiveApprovalPolicyAsync(
                     model.RequestType,
-                    model.ApproveForDeptCode ?? string.Empty,
+                    model.ApproveForDeptCode!,
                     model.Level,
                     employee.PositionCode,
                     ct))
@@ -242,8 +242,8 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             }
 
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
-            model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? ApproveForDept.All, ct);
-            model.DeptCode = employee.DeptCode;
+            model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
+            model.DeptCode = employee.DeptCode ?? "";
             model.DeptName = employee.DeptName ?? "";
             model.ApproverName = employee.EmployeeName ?? "";
             model.ApproverEmail = employee.EmailAddress ?? "";
@@ -307,7 +307,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             if (!await HasActiveApprovalPolicyAsync(
                     model.RequestType,
-                    model.ApproveForDeptCode ?? string.Empty,
+                    model.ApproveForDeptCode!,
                     model.Level,
                     employee.PositionCode,
                     ct))
@@ -317,7 +317,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             }
 
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
-            model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? ApproveForDept.All, ct);
+            model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
             model.DeptCode = employee.DeptCode ?? entity.ApproverDeptCode;
             model.DeptName = employee.DeptName ?? entity.ApproverDeptName;
             model.ApproverName = employee.EmployeeName ?? entity.ApproverName;
@@ -396,8 +396,8 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 .Select(x=>new ApproverSyncProposalDto {
                     Id=x.Id, EmployeeCode=x.EntityKey, Message=x.Message,
                     ChangeType=x.OldDeptCode!=x.NewDeptCode&&x.OldPositionCode!=x.NewPositionCode?"Phòng ban + Chức vụ":x.OldDeptCode!=x.NewDeptCode?"Phòng ban":"Chức vụ",
-                    OldDeptCode=x.OldDeptCode ?? string.Empty,OldPositionCode=x.OldPositionCode??"",NewDeptCode=x.NewDeptCode ?? string.Empty,NewPositionCode=x.NewPositionCode??"",
-                    CurrentApproverId=x.CurrentApproverId,CurrentApproverCode=x.CurrentApproverCode??"",CurrentLevel=x.CurrentLevel,CurrentRoleName=x.CurrentRoleName??"",CurrentApproveForDeptCode=x.CurrentApproveForDeptCode ?? string.Empty,
+                    OldDeptCode=x.OldDeptCode??"",OldPositionCode=x.OldPositionCode??"",NewDeptCode=x.NewDeptCode??"",NewPositionCode=x.NewPositionCode??"",
+                    CurrentApproverId=x.CurrentApproverId,CurrentApproverCode=x.CurrentApproverCode??"",CurrentLevel=x.CurrentLevel,CurrentRoleName=x.CurrentRoleName??"",CurrentApproveForDeptCode=x.CurrentApproveForDeptCode??"",
                     SuggestedApproverCode=x.SuggestedApproverCode,SuggestedLevel=x.SuggestedLevel,SuggestedRoleName=x.SuggestedRoleName,SuggestedApproveForDeptCode=x.SuggestedApproveForDeptCode,DetectedAt=x.DetectedAt
                 }).ToListAsync(ct);
             return ServiceResult<List<ApproverSyncProposalDto>>.Ok(rows);
@@ -435,7 +435,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         string positionCode,
         CancellationToken ct)
     {
-        var deptCode = approveForDeptCode;
+        var deptCode = approveForDeptCode.Trim();
         var posCode = positionCode.Trim();
 
         return await _uow.Repository<F03ApprovalPolicy>().Query()
@@ -546,7 +546,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
     private class EmployeeWithPositionInfo
     {
         public string EmployeeName { get; set; } = "";
-        public string DeptCode { get; set; } = string.Empty;
+        public string DeptCode { get; set; } = "";
         public string DeptName { get; set; } = "";
         public string PositionCode { get; set; } = "";
         public string EmailAddress { get; set; } = "";

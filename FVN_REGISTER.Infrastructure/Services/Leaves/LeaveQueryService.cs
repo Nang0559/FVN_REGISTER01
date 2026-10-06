@@ -54,7 +54,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 return null;
             var requester = await Uow.Repository<VF03employee>().Query().AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
             F03Department? department = null;
-            if (!string.IsNullOrWhiteSpace(entity.DeptCode))
+            if (!string.IsNullOrEmpty(entity.DeptCode))
                 department = await Uow.Repository<F03Department>().Query().AsNoTracking().FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
             return LeaveMapper.ToDto(entity, requester, department);
         }

@@ -83,7 +83,7 @@ public sealed class EquipmentController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
-        var result = await _service.GetApproversAsync(deptCode, ct);
+        var result = await _service.GetApproversAsync(deptCode.Trim().ToUpperInvariant(), ct);
         var response = ApiResponse<List<EquipmentApproverDto>>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
@@ -115,7 +115,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("assets")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> Assets([FromQuery] int? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> Assets([FromQuery] string? deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetAssetsAsync(deptCode, ct);
@@ -141,7 +141,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("repairs/assignees")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> RepairAssignees([FromQuery] int? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> RepairAssignees([FromQuery] string? deptCode, CancellationToken ct)
     {
         var canRepair = await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct);
         var user = _currentUser.GetCurrentUser();
@@ -179,7 +179,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("handover/employees")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> HandoverEmployees([FromQuery] int? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> HandoverEmployees([FromQuery] string? deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentTransfer, ct)) return Forbid();
         var result = await _service.GetHandoverEmployeesAsync(deptCode, ct);
@@ -188,7 +188,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("handover/candidates")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverCandidateDto>>>> HandoverCandidates([FromQuery] string oldEmployeeCode, [FromQuery] int? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverCandidateDto>>>> HandoverCandidates([FromQuery] string oldEmployeeCode, [FromQuery] string? deptCode, CancellationToken ct)
     {
         var canTransfer = await CanAsync(SecurityFunctionCodes.EquipmentTransfer, ct);
         var canCreateAccessChange = await CanAsync(SecurityFunctionCodes.SecurityAccessChangeCreate, ct);
@@ -264,12 +264,12 @@ public sealed class EquipmentController : ControllerBase
 
     [HttpPost("import")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<ExcelImportBatchDto>>> Import([FromForm] IFormFile? file, [FromQuery] int deptCode, [FromQuery] int? schemaId = null, [FromQuery] int sheetIndex = 0, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelImportBatchDto>>> Import([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int? schemaId = null, [FromQuery] int sheetIndex = 0, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("File Excel rỗng."));
         if (sheetIndex < 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("Sheet Excel không hợp lệ."));
-        deptCode = deptCode;
+        deptCode = deptCode.Trim().ToUpperInvariant();
         await using var stream = file.OpenReadStream();
         var result = await _import.StageExcelSheetAsync(deptCode, schemaId, file.FileName, stream, sheetIndex, assignToEmployee, ct);
         return result.IsSuccess

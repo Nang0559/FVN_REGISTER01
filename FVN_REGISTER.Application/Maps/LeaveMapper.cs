@@ -25,7 +25,7 @@ namespace FVN_REGISTER.Application.Maps
                 Description = l.LeaveReason,
                 RequesterCode = l.EmployeeCode,
                 RequesterName = requester?.EmployeeName ?? string.Empty,
-                DeptCode = l.DeptCode,
+                DeptCode = l.DeptCode ?? string.Empty,          // ⚠️ giả định BaseRequestEntity có DeptCode, giống F03OTRequest
                 DeptName = department?.DeptName ?? string.Empty,
                 WorkYear = l.WorkYear,
                 RegisterDate = l.CreatedAt,
@@ -59,7 +59,7 @@ namespace FVN_REGISTER.Application.Maps
                 Description = v.LeaveReason ?? string.Empty,
                 RequesterCode = v.EmployeeCode,
                 RequesterName = v.EmployeeName,
-                DeptCode = v.DeptCode?? string.Empty,
+                DeptCode = v.DeptCode ?? string.Empty,
                 DeptName = v.DeptName ?? string.Empty,
                 WorkYear = v.WorkYear ?? DateTime.Now.Year,
                 RegisterDate = v.RegisterDate,

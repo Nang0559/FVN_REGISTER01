@@ -74,7 +74,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 var entity = new F03LeaveDay
                 {
                     EmployeeCode = user.EmployeeCode ?? "",
-                    DeptCode = DepartmentCodeParser.ParseRequired(user.DeptCode),
+                    DeptCode = user.DeptCode,
                     RequestStatus = ApprovalStatus.Draft,
                     WorkYear = model.StartDate.Year,
                     LeaveReason = model.Reason ?? "",
@@ -124,7 +124,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 var context = ApprovalBuildContext.ForLeave(
                     requestId: entity.Id,
                     employeeCode: user.EmployeeCode ?? "",
-                    deptCode: user.DeptCode,
+                    deptCode: user.DeptCode ?? "",
                     positionCode: user.PositionCode ?? "",
                     year: entity.WorkYear,
                     leaveTypeCode: model.LeaveTypeCode);

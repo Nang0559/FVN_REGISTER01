@@ -6,7 +6,7 @@ public sealed class AccessChangeEmployeeOptionDto
 {
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public int DeptCode { get; set; }
+    public string DeptCode { get; set; } = string.Empty;
     public string PositionCode { get; set; } = string.Empty;
     public bool IsActive { get; set; }
 }
@@ -31,7 +31,7 @@ public sealed class AccessChangeRequestDto
     public string RequesterEmployeeCode { get; set; } = string.Empty;
     public string OldEmployeeCode { get; set; } = string.Empty;
     public string NewEmployeeCode { get; set; } = string.Empty;
-    public int DeptCode { get; set; }
+    public string DeptCode { get; set; } = string.Empty;
     public string? NewPositionCode { get; set; }
     public string Reason { get; set; } = string.Empty;
     public List<int> FunctionCodes { get; set; } = new();
@@ -74,7 +74,7 @@ public sealed class AccessChangeItQueueItemDto
     public string OldEmployeeCode { get; set; } = string.Empty;
     public string NewEmployeeCode { get; set; } = string.Empty;
     public string NewEmployeeName { get; set; } = string.Empty;
-    public int DeptCode { get; set; }
+    public string DeptCode { get; set; } = string.Empty;
     public List<int> FunctionCodes { get; set; } = new();
     public bool TransferEquipmentResponsible { get; set; }
     public bool TransferEquipmentApprover { get; set; }

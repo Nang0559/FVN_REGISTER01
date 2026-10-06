@@ -4,7 +4,7 @@ public sealed class HrmUserRoleRuleDto
 {
     public int Id { get; set; }
     public bool IsActive { get; set; }
-    public int? DeptCode { get; set; }
+    public string? DeptCode { get; set; }
     public string? DeptName { get; set; }
     public string? PositionCode { get; set; }
     public string? PositionName { get; set; }

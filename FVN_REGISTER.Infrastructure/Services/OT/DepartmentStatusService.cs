@@ -29,14 +29,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
         {
             var targetDate = (date ?? DateTime.Today).Date;
             var targetDateOnly = DateOnly.FromDateTime(targetDate);
-            var normalizedDeptCode = DepartmentCodeParser.ParseRequired(deptCode, nameof(deptCode));
 
             Logger.LogDebugIf(Debug, "[DEPT_STATUS] DeptCode={Dept} Date={Date}",
                 deptCode, targetDate.ToString("dd/MM/yyyy"));
 
             var employees = await _uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
-                .Where(e => e.DeptCode == normalizedDeptCode && e.IsActive == true)
+                .Where(e => e.DeptCode == deptCode && e.IsActive == true)
                 .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode })
                 .ToListAsync(ct);
 
@@ -47,7 +46,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
 
             var attendanceRaw = await _uow.Repository<VwCurrentlyPresentEmployee>().Query()
                 .AsNoTracking()
-                .Where(a => a.DeptCode == normalizedDeptCode && a.Date == targetDateOnly)
+                .Where(a => a.DeptCode == deptCode && a.Date == targetDateOnly)
                 .Select(a => new { a.EmployeeId, CheckIn = a.CheckInTime })
                 .ToListAsync(ct);
 
@@ -72,7 +71,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
 
             var deptName = await _uow.Repository<F03Department>().Query()
                 .AsNoTracking()
-                .Where(d => d.DeptCode == normalizedDeptCode)
+                .Where(d => d.DeptCode == deptCode)
                 .Select(d => d.DeptName)
                 .FirstOrDefaultAsync(ct) ?? deptCode;
 
@@ -114,7 +113,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                 {
                     EmployeeCode = emp.EmployeeCode,
                     EmployeeName = emp.EmployeeName,
-                    DeptCode = emp.DeptCode.ToString(),
+                    DeptCode = emp.DeptCode,
                     DeptName = deptName,
                     Status = status,
                     StatusDisplay = EmployeeStatusConst.GetDisplay(status),
@@ -174,7 +173,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                 .ToDictionary(d => d.DeptCode, d => d.DeptName);
 
             var result = employees
-                 .GroupBy(e => e.DeptCode)
+                .GroupBy(e => e.DeptCode)
                 .Select(g =>
                 {
                     var codes = g.Select(e => e.EmployeeCode).ToList();
@@ -185,8 +184,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
 
                     return new DepartmentStatusDto
                     {
-                        DeptCode = g.Key.ToString(),
-                        DeptName = deptMap.GetValueOrDefault(g.Key, g.Key.ToString()),
+                        DeptCode = g.Key,
+                        DeptName = deptMap.GetValueOrDefault(g.Key, g.Key),
                         ReportDate = targetDate,
                         TotalEmployees = total,
                         PresentCount = presentCount,

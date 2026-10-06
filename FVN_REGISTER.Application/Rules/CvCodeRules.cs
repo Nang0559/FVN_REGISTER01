@@ -91,7 +91,7 @@ namespace FVN_REGISTER.Application.Rules
         /// </summary>
         public static string GetEffectiveDept(string role, string deptCode)
         {
-            return role == ApproverRole.GM ? ApproveForDept.All.ToString() : deptCode;
+            return role == ApproverRole.GM ? ApproveForDept.All : deptCode;
         }
     }
 }

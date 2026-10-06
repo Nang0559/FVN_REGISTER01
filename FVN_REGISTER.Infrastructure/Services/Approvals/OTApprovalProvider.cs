@@ -129,7 +129,7 @@ public class OTApprovalProvider
         var deptName = string.IsNullOrEmpty(subject.DeptCode)
             ? null
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
-                .Where(d => d.DeptCode.ToString() == subject.DeptCode)
+                .Where(d => d.DeptCode == subject.DeptCode)
                 .Select(d => d.DeptName)
                 .FirstOrDefaultAsync(ct);
 

@@ -58,7 +58,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("employees")]
-        public async Task<IActionResult> GetEmployees([FromQuery] int? deptCode, CancellationToken ct)
+        public async Task<IActionResult> GetEmployees([FromQuery] string? deptCode, CancellationToken ct)
         {
             if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
             return HandleResult(await _approverService.GetEmployeesAsync(deptCode, ct));

@@ -160,7 +160,7 @@ else
     private bool _activeOnly = true;
 
     private IEnumerable<EmployeeCardDto> FilteredEmployees => _tree.SelectMany(x => x.Employees)
-        .Where(x => string.IsNullOrWhiteSpace(_filterDept) || x.DeptCode.ToString() == _filterDept)
+        .Where(x => string.IsNullOrWhiteSpace(_filterDept) || x.DeptCode == _filterDept)
         .Where(x => string.IsNullOrWhiteSpace(_search) || x.EmployeeCode.Contains(_search, StringComparison.OrdinalIgnoreCase) || x.EmployeeName.Contains(_search, StringComparison.OrdinalIgnoreCase) || x.DeptName.Contains(_search, StringComparison.OrdinalIgnoreCase))
         .Where(x => !_activeOnly || x.IsActive);
 
@@ -174,12 +174,11 @@ else
         _isLoading = true;
         try
         {
-            var deptFilter = int.TryParse(_filterDept, out var deptFilterValue) ? deptFilterValue : (int?)null;
-            var result = await EmployeeService.GetTreeAsync(_search, deptFilter);
+            var result = await EmployeeService.GetTreeAsync(_search, _filterDept);
             if (result.IsSuccess && result.Data != null)
             {
                 _tree = result.Data;
-                _departments = _tree.Select(x => new DepartmentDto { DeptCode = x.DeptCode.ToString(), DeptName = x.DeptName })
+                _departments = _tree.Select(x => new DepartmentDto { DeptCode = x.DeptCode, DeptName = x.DeptName })
                     .GroupBy(x => x.DeptCode).Select(x => x.First()).OrderBy(x => x.DeptName).ToList();
             }
             else Snackbar.Add(result.Message ?? Language.T("common.loiTaiDuLieu2"), Severity.Error);
@@ -226,7 +225,7 @@ else
     }
 
     private Task OpenCreateDialog() => ShowEditDialog(new EmployeeUpsertDto { IsActive = true }, false);
-    private Task OpenCreateDialogForDept(int deptCode, string deptName) => ShowEditDialog(new EmployeeUpsertDto { DeptCode = deptCode, IsActive = true }, true);
+    private Task OpenCreateDialogForDept(string deptCode, string deptName) => ShowEditDialog(new EmployeeUpsertDto { DeptCode = deptCode, IsActive = true }, true);
 
     private Task OpenEditDialog(EmployeeCardDto employee) => ShowEditDialog(new EmployeeUpsertDto
     {

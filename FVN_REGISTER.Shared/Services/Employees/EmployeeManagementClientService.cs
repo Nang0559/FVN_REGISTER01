@@ -16,14 +16,14 @@ namespace FVN_REGISTER.Shared.Services.Employees
 
         public Task<ApiResponse<List<EmployeeDeptTreeDto>>> GetTreeAsync(
             string? searchTerm = null,
-            int? deptCode = null,
+            string? deptCode = null,
             CancellationToken ct = default)
         {
             var query = new List<string>();
             if (!string.IsNullOrWhiteSpace(searchTerm))
                 query.Add($"searchTerm={Uri.EscapeDataString(searchTerm)}");
-            if (deptCode.HasValue)
-                query.Add($"deptCode={deptCode.Value}");
+            if (!string.IsNullOrWhiteSpace(deptCode))
+                query.Add($"deptCode={Uri.EscapeDataString(deptCode)}");
 
             var url = query.Count == 0
                 ? $"{Base}/tree"

@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Application.Maps
                 Id = e.Id,
                 EmployeeCode = e.EmployeeCode,
                 EmployeeName = e.EmployeeName,
-                DeptCode = int.TryParse(e.DeptCode, out var deptCode) ? deptCode : 0,
+                DeptCode = e.DeptCode ?? "",
                 DeptName = e.DeptName ?? "",
                 PositionCode = e.Cvcode,
                 PositionName = e.Cvname,

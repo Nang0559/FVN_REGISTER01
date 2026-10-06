@@ -58,8 +58,8 @@ else
                         <MudDatePicker @bind-Date="_query.ToDate" Label='@Language.T("trip.toDate")' Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="int?" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
-                            @foreach(var d in _departments ?? new()) { <MudSelectItem T="int?" Value="@ToDeptValue(d.Key)">@d.Value</MudSelectItem> }
+                        <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="3" Class="d-flex align-end">
@@ -76,9 +76,9 @@ else
         <ReportBase @ref="_base" ReportType="_type" Query="_query">
             <AdditionalFilters>
                 <MudItem xs="12" sm="3">
-                    <MudSelect T="int?" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
-                        <MudSelectItem T="int?" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
-                        @foreach(var d in _departments ?? new()) { <MudSelectItem T="int?" Value="@ToDeptValue(d.Key)">@d.Value</MudSelectItem> }
+                    <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelectItem T="string" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
+                        @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 @if (_type is ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.AttendanceDetail)
@@ -104,7 +104,6 @@ else
     private int _tab;
     private ReportBase? _base;
     private List<KeyValuePair<string,string>>? _departments;
-    private static int? ToDeptValue(string? code) => int.TryParse(code, out var v) ? v : null;
     private KeyValuePair<string,string> _employee;
     private ReportQueryDto _query=new(){FromDate=new DateTime(DateTime.Now.Year,1,1),ToDate=DateTime.Today,IncludeChart=true};
     private List<EquipmentAssetDto> _inspectionAssets = new();
@@ -149,12 +148,12 @@ else
     private async Task LoadInspectionTreeAsync()
     {
         if (!CanEquipmentInspectionReport) { _inspectionAssets = new(); _inspectionTasks = new(); return; }
-        var assets = await EquipmentClient.GetRegisteredInspectionAssetsAsync(_query.DeptCode?.ToString());
+        var assets = await EquipmentClient.GetRegisteredInspectionAssetsAsync(_query.DeptCode);
         if (assets.IsSuccess) _inspectionAssets = assets.Data ?? new();
         var report = await EquipmentClient.GetInspectionDashboardAsync(
             _query.FromDate ?? DateTime.Today.AddMonths(-1),
             _query.ToDate ?? DateTime.Today,
-            _query.DeptCode?.ToString());
+            _query.DeptCode);
         if (report.IsSuccess) _inspectionTasks = report.Data?.Rows ?? new();
         else Snackbar.Add(report.Message ?? Language.T("report.khongTaiDuocChecklistThiet"), Severity.Error);
     }

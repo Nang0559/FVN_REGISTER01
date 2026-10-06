@@ -44,7 +44,7 @@ public partial class VF03employee
 
     public string Cvcode { get; set; } = null!;
 
-    [StringLength(20)] public string? DeptCode { get; set; }
+    public string? DeptCode { get; set; }
 
     public bool IsActive { get; set; }
 }

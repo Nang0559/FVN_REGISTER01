@@ -151,7 +151,7 @@ public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
             Leave = new LeaveDetailPayload
             {
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode.ToString(),
+                DeptName = row.employee?.DeptCode,
                 StartDate = row.request.StartDate,
                 EndDate = row.request.EndDate,
                 TotalDay = row.request.TotalDay,

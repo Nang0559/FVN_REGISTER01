@@ -7,7 +7,7 @@ namespace FVN_REGISTER.Shared.Services.Employees
     {
         Task<ApiResponse<List<EmployeeDeptTreeDto>>> GetTreeAsync(
             string? searchTerm = null,
-            int? deptCode = null,
+            string? deptCode = null,
             CancellationToken ct = default);
 
         Task<ApiResponse<EmployeeCardDto>> GetByIdAsync(

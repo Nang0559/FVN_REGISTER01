@@ -72,7 +72,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 $"Không tìm thấy chức vụ HRM {employee.PositionCode} trong F03Positions.");
         }
 
-        var resolvedDeptCode = employee.DeptCode;
+        var resolvedDeptCode = (employee.DeptCode ?? string.Empty).Trim();
 
         // Policy precedence:
         // 1) exact requester Department + Position
@@ -155,7 +155,10 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .ToListAsync(ct);
 
             var departmentCandidates = candidates
-                .Where(x => x.ApproveForDeptCode == resolvedDeptCode)
+                .Where(x => string.Equals(
+                    x.ApproveForDeptCode,
+                    resolvedDeptCode,
+                    StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (departmentCandidates.Count > 0)
@@ -205,7 +208,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         {
             RequestType = requestType,
             EmployeeCode = employeeCode,
-            DepartmentCode = resolvedDeptCode.ToString(),
+            DepartmentCode = resolvedDeptCode,
             PositionCode = position.PositionCode,
             Levels = levels
         };

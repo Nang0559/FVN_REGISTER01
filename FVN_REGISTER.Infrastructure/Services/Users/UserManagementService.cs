@@ -151,7 +151,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 {
                     EmployeeCode = request.EmployeeCode,
                     Password = EncryptUtils.MD5(request.Password),
-                    DeptCode = DepartmentCodeParser.ParseNullable(request.DeptCode),
+                    DeptCode = request.DeptCode,
                     PermissionCode = request.PermissionCode,
                     IsActive = true,
                     LockoutEnable = true,
@@ -203,7 +203,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 bool permissionChanged = user.PermissionCode != request.PermissionCode;
 
                 // EmployeeCode CỐ Ý KHÔNG cập nhật — đã chốt: chỉ set 1 lần lúc Create.
-                user.DeptCode = DepartmentCodeParser.ParseNullable(request.DeptCode);
+                user.DeptCode = request.DeptCode;
                 user.PermissionCode = request.PermissionCode;
                 user.ModifiedBy = currentUserId;
                 user.ModifiedAt = DateTime.Now;
@@ -404,9 +404,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
         // ===== HELPER =====
         private UserAccountDto MapToDto(
             F03User user, string? permissionName,
-            Dictionary<int, string> deptNames, Dictionary<int, List<int>> functionMap)
+            Dictionary<string, string> deptNames, Dictionary<int, List<int>> functionMap)
         {
-            var deptName = user.DeptCode.HasValue ? deptNames.GetValueOrDefault(user.DeptCode.Value) : null;
+            deptNames.TryGetValue(user.DeptCode ?? "", out var deptName);
             functionMap.TryGetValue(user.Id, out var functionIds);
 
             return new UserAccountDto

@@ -14,7 +14,7 @@ namespace FVN_REGISTER.Application.Interfaces.Leaves
         Task<EscalationRuleDto?> GetRuleAsync(
             RequestModule requestType,   // string → RequestModule
             int level,
-            int deptCode,
+            string deptCode,
             CancellationToken ct = default);
 
         /// <summary>

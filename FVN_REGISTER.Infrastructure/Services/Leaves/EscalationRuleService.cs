@@ -37,7 +37,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
         }
 
         public async Task<EscalationRuleDto?> GetRuleAsync(
-            RequestModule requestType, int level, int deptCode, CancellationToken ct = default)
+            RequestModule requestType, int level, string deptCode, CancellationToken ct = default)
         {
             var rules = await _cache.GetOrCreateAsync(RULE_CACHE_KEY, async entry =>
             {
@@ -51,8 +51,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
 
             var matchedRule = rules?
                 .Where(x => x.Level == level && x.RequestModule == requestType)
-                .OrderByDescending(x => x.DeptCode == deptCode)
-                .ThenByDescending(x => !x.DeptCode.HasValue || x.DeptCode == ApproveForDept.All)
+                .OrderByDescending(x => string.Equals(x.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase))
+                .ThenByDescending(x => string.IsNullOrEmpty(x.DeptCode) || string.Equals(x.DeptCode, ApproveForDept.All, StringComparison.OrdinalIgnoreCase))
                 .FirstOrDefault();
 
             if (matchedRule != null)

@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
     {
         private readonly List<string> _changedApproverRelevantCodes = new();
         private readonly Dictionary<string, int?> _positionLevelCache = new();
-        private readonly Dictionary<string, (int Dept, string Position)> _approverChangeSnapshot = new();
+        private readonly Dictionary<string, (string Dept, string Position)> _approverChangeSnapshot = new();
         private readonly ISessionTerminationNotifier _sessionNotifier;
 
         public EmployeeHrmSyncJob(IUnitOfWork uow, ISessionTerminationNotifier sessionNotifier) : base(uow)
@@ -52,7 +52,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         {
             EmployeeCode = s.EntityKey,
             EmployeeName = s.EmployeeName,
-            DeptCode = s.DeptCode ?? string.Empty,
+            DeptCode = NormalizeCode(s.DeptCode),
             PositionCode = NormalizeCode(s.PositionCode),
             EmailAddress = s.EmailAddress,
             PhoneNumber = s.PhoneNumber,
@@ -73,10 +73,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             var oldDeptCode = e.DeptCode;
             var oldPositionCode = e.PositionCode;
 
-            var normalizedDeptCode = s.DeptCode ?? string.Empty;
+            var normalizedDeptCode = NormalizeCode(s.DeptCode);
             var normalizedPositionCode = NormalizeCode(s.PositionCode);
 
-            bool deptChanged = e.DeptCode != normalizedDeptCode;
+            bool deptChanged = !string.Equals(e.DeptCode, normalizedDeptCode, StringComparison.Ordinal);
             bool positionChanged = !string.Equals(e.PositionCode, normalizedPositionCode, StringComparison.Ordinal);
 
             if (e.EmployeeName != s.EmployeeName) { e.EmployeeName = s.EmployeeName; changed = true; }
@@ -464,7 +464,10 @@ ORDER BY
             _ => $"Level{level}"
         };
 
-                private int? GetSuggestedLevel(string? positionCode)
+        private static string NormalizeCode(string? value)
+            => (value ?? string.Empty).Trim();
+
+        private int? GetSuggestedLevel(string? positionCode)
             => positionCode != null && _positionLevelCache.TryGetValue(positionCode, out var level)
                 ? level
                 : null;
@@ -474,7 +477,5 @@ ORDER BY
             public int PermissionCode { get; set; }
         }
 
-        private static string? NormalizeCode(string? value)
-            => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

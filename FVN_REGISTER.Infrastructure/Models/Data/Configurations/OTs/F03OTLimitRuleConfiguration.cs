@@ -51,7 +51,7 @@ public sealed class F03OTLimitRuleConfiguration
         entity.Property(e => e.PositionCode)
             .HasMaxLength(20);
 
-        entity.Property(e => e.DeptCode).HasMaxLength(20)
+        entity.Property(e => e.DeptCode)
             .HasMaxLength(20);
 
         entity.Property(e => e.Description)

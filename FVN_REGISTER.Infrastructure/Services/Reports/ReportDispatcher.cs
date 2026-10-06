@@ -196,20 +196,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     .ToListAsync(ct);
 
                 var reportScope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.LeaveView, ct);
-                var allowedCodes = new HashSet<int>();
+                var allowedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
                 {
                     allowedCodes.UnionWith(departments.Select(x => x.DeptCode));
                 }
                 else
                 {
-                    if (user.DeptCode.HasValue)
-                        allowedCodes.Add(user.DeptCode.Value);
+                    if (!string.IsNullOrWhiteSpace(user.DeptCode))
+                        allowedCodes.Add(user.DeptCode);
 
                     var managed = await _authorization.GetManagedScopesAsync(user.UserId, ct);
                     var departmentMap = departments
-                        .GroupBy(x => x.DeptCode)
-                        .ToDictionary(g => g.Key, g => g.First());
+                        .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
+                        .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.First(),
+                            StringComparer.OrdinalIgnoreCase);
 
                     foreach (var scope in managed)
                     {
@@ -238,8 +242,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                             }
                         }
 
-                        if (int.TryParse(node, out var nodeDeptCode))
-                            allowedCodes.Add(nodeDeptCode);
+                        if (departmentMap.ContainsKey(node))
+                            allowedCodes.Add(node);
 
                         if (!scope.IncludeChildren)
                             continue;
@@ -254,8 +258,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                                 if (allowedCodes.Contains(department.DeptCode))
                                     continue;
 
-                                if (department.ParentDeptCode.HasValue
-                                    && allowedCodes.Contains(department.ParentDeptCode.Value))
+                                if (!string.IsNullOrWhiteSpace(department.ParentDeptCode)
+                                    && allowedCodes.Contains(department.ParentDeptCode))
                                     changed = true;
                                 else if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
                                     && !string.IsNullOrWhiteSpace(department.BlockCode)
@@ -271,7 +275,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
                 var list = departments
                     .Where(x => allowedCodes.Contains(x.DeptCode))
-                    .Select(x => new KeyValuePair<string, string>(x.DeptCode.ToString(), x.DeptName))
+                    .Select(x => new KeyValuePair<string, string>(x.DeptCode, x.DeptName))
                     .ToList();
 
                 Logger.LogDebugIf(Debug, "[REPORT] Lookup Departments: {Count}", list.Count);
@@ -289,7 +293,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         // ════════════════════════════════════════════════════════════
         public async Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(
             string filterText, UserIdentityDto user,
-            int? deptCode = null, CancellationToken ct = default)
+            string? deptCode = null, CancellationToken ct = default)
         {
             try
             {
@@ -299,8 +303,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     .AsNoTracking()
                     .Where(x => x.IsActive);
 
-                var requestedDept = deptCode;
-                if (requestedDept.HasValue)
+                var requestedDept = deptCode?.Trim();
+                if (!string.IsNullOrWhiteSpace(requestedDept))
                 {
                     if (!await _authorization.CanAccessAsync(
                         user, SecurityFunctionCodes.LeaveView, null, requestedDept, ct)
@@ -317,7 +321,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                             "Bạn không có quyền truy cập phòng ban được chọn.");
                     }
 
-                    q = q.Where(x => x.DeptCode == requestedDept.Value);
+                    q = q.Where(x => x.DeptCode == requestedDept);
                 }
 
                 if (!string.IsNullOrWhiteSpace(filterText))

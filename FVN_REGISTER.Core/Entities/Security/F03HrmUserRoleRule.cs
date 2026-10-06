@@ -16,7 +16,8 @@ public sealed class F03HrmUserRoleRule
     public int? ModifiedBy { get; set; }
     public DateTime? ModifiedAt { get; set; }
 
-    [StringLength(20)] public string? DeptCode { get; set; }
+    [StringLength(20)]
+    public string? DeptCode { get; set; }
 
     [StringLength(20)]
     public string? PositionCode { get; set; }

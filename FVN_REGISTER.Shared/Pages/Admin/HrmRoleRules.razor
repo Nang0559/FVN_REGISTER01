@@ -29,11 +29,11 @@
     <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? Language.T("hrm.suaRule") : Language.T("hrm.themRule"))</MudText>
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="int?" @bind-Value="_form.DeptCode" Label='@Language.T("ot.department")' Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="int?" Value="@null">@Language.T("hrm.tatCaPhongBan")</MudSelectItem>
+            <MudSelect T="string" @bind-Value="_form.DeptCode" Label='@Language.T("ot.department")' Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="string" Value="@null">@Language.T("hrm.tatCaPhongBan")</MudSelectItem>
                 @foreach (var dept in _departments)
                 {
-                    <MudSelectItem T="int?" Value="@ToDeptValue(dept.DeptCode)">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                    <MudSelectItem T="string" Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>
@@ -111,7 +111,6 @@
     private int? _editingId;
     private bool _loading;
     private List<DepartmentDto> _departments = new();
-    private static int? ToDeptValue(string? code) => int.TryParse(code, out var v) ? v : null;
     private List<PositionDto> _positions = new();
 
     private readonly (int Code, string Name)[] _roles =

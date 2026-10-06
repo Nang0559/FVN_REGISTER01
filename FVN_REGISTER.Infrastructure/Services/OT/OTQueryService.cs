@@ -1,4 +1,3 @@
-using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Histories;
@@ -64,7 +63,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
 
             F03Department? department = null;
-            if (!string.IsNullOrWhiteSpace(entity.DeptCode))
+            if (!string.IsNullOrEmpty(entity.DeptCode))
             {
                 department = await Uow.Repository<F03Department>().Query()
                     .AsNoTracking()
@@ -195,8 +194,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var canSeeRequestedDepartment = scope == AuthorizationScopeCodes.All
-                || user.DeptCode == deptCode
-                || managedEmployees.Any(x => x.DeptCode == deptCode);
+                || string.Equals(user.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase)
+                || managedEmployees.Any(x => string.Equals(x.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase));
 
             if (!canSeeRequestedDepartment)
                 return new List<OTRequestDto>();
@@ -247,7 +246,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode)
                 .Select(x => x.PositionCode)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(ct) ?? string.Empty;
 
             var approvalContext = ApprovalBuildContext.ForOT(
                 requestId: 0,
@@ -464,7 +463,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 return preview;
             }
 
-            var deptCode = deptCodes.FirstOrDefault() ?? model.DeptCode;
+            var deptCode = deptCodes.FirstOrDefault() ?? model.DeptCode ?? string.Empty;
             var blockCode = await Uow.Repository<F03Department>().Query()
                 .AsNoTracking()
                 .Where(d => d.DeptCode == deptCode && d.IsActive == true)
@@ -480,7 +479,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var yearEnd = yearStart.AddYears(1);
 
             var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
-                ? new List<int>()
+                ? new List<string>()
                 : await Uow.Repository<F03Department>().Query()
                     .AsNoTracking()
                     .Where(d => d.IsActive == true && d.BlockCode == blockCode)
@@ -495,8 +494,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && e.OTRequest.RequestStatus != ApprovalStatus.Cancelled
                     && (e.OTRequest.OTDate >= yearStart && e.OTRequest.OTDate < yearEnd)
                     && (codes.Contains(e.EmployeeCode)
-                        || (!string.IsNullOrWhiteSpace(deptCode) && e.OTRequest.DeptCode == deptCode)
-                        || !string.IsNullOrWhiteSpace(e.OTRequest.DeptCode) && blockDeptCodes.Contains(e.OTRequest.DeptCode)))
+                        || (deptCode != string.Empty && e.OTRequest.DeptCode == deptCode)
+                        || blockDeptCodes.Contains(e.OTRequest.DeptCode ?? string.Empty)))
                 .Select(e => new
                 {
                     e.EmployeeCode,
@@ -571,9 +570,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
             if (!string.IsNullOrWhiteSpace(blockCode))
             {
-                var blockUsed = used.Where(x => !string.IsNullOrWhiteSpace(x.DeptCode) && blockDeptCodes.Contains(x.DeptCode)).ToList();
+                var blockUsed = used.Where(x => blockDeptCodes.Contains(x.DeptCode ?? string.Empty)).ToList();
                 var blockRequest = model.Employees
-                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && !string.IsNullOrWhiteSpace(e.DeptCode) && blockDeptCodes.Contains(e.DeptCode)))
+                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && blockDeptCodes.Contains(e.DeptCode ?? string.Empty)))
                     .Sum(x => x.OTHours);
 
                 var blockPreview = new OTLimitScopePreviewDto
@@ -613,15 +612,14 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             }).ToList();
         }
 
-        public async Task<string?> GetEmployeeDeptCodeAsync(
+        public async Task<string> GetEmployeeDeptCodeAsync(
             string employeeCode, CancellationToken ct = default)
         {
-            var deptCode = await Uow.Repository<F03Employee>().Query()
+            return await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
                 .Where(e => e.EmployeeCode == employeeCode)
-                .Select(e => (int?)e.DeptCode)
-                .FirstOrDefaultAsync(ct);
-            return deptCode?.ToString() ?? string.Empty;
+                .Select(e => e.DeptCode)
+                .FirstOrDefaultAsync(ct) ?? string.Empty;
         }
 
         private async Task<string?> GetEmployeePositionCodeAsync(

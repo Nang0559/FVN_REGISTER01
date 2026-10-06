@@ -7,7 +7,6 @@ public sealed class F03UserConfiguration : IEntityTypeConfiguration<F03User>
 {
     public void Configure(EntityTypeBuilder<F03User> entity)
     {
-        entity.Property(e => e.DeptCode).HasMaxLength(20);
         entity.ToTable("F03Users");
         entity.HasKey(e => e.Id);
 

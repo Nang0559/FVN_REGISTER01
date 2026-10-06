@@ -61,7 +61,7 @@ public sealed class PayrollApprovalProvider
             RequestId = period.Id,
             EmployeeCode = employee?.EmployeeCode ?? employeeCode,
             EmployeeName = employee?.EmployeeName,
-            DeptCode = employee?.DeptCode.ToString(),
+            DeptCode = employee?.DeptCode,
             PositionCode = employee?.PositionCode,
             OverallStatus = status,
             PeriodCode = period.PeriodCode,
@@ -110,7 +110,7 @@ public sealed class PayrollApprovalProvider
                 RequestId = period.Id,
                 EmployeeCode = employee?.EmployeeCode ?? code ?? string.Empty,
                 EmployeeName = employee?.EmployeeName,
-                DeptCode = employee?.DeptCode.ToString(),
+                DeptCode = employee?.DeptCode,
                 PositionCode = employee?.PositionCode,
                 OverallStatus = status,
                 PeriodCode = period.PeriodCode,
@@ -154,7 +154,7 @@ public sealed class PayrollApprovalProvider
         var deptName = string.IsNullOrWhiteSpace(subject.DeptCode)
             ? string.Empty
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
-                .Where(x => x.DeptCode == DepartmentCodeParser.ParseRequired(subject.DeptCode, nameof(subject.DeptCode)))
+                .Where(x => x.DeptCode == subject.DeptCode)
                 .Select(x => x.DeptName)
                 .FirstOrDefaultAsync(ct) ?? string.Empty;
 

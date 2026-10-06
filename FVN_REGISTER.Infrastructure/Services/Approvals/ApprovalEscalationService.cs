@@ -115,7 +115,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     var baseTime = GetBaseTime(currentStep, stepsOfRequest, historiesOfRequest, regDate);
 
                     if (await ProcessStepAsync(
-                        requestId, currentStep, baseTime, deptCode ?? DepartmentCodeParser.Format(ApproveForDept.All), ct))
+                        requestId, currentStep, baseTime, deptCode ?? ApproveForDept.All, ct))
                         anyChanged = true;
                 }
 

@@ -101,7 +101,7 @@
   _running=true; _result=null;
   try
   {
-   var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto{DeptCode=int.TryParse(_deptCode,out var deptValue)?deptValue:(int?)null,FromDate=_fromDate.Value,ToDate=_toDate.Value});
+   var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto{DeptCode=_deptCode,FromDate=_fromDate.Value,ToDate=_toDate.Value});
    if(r.IsSuccess&&r.Data is not null){_result=r.Data;Snackbar.Add(Language.T("hrm.daTinhGioXong"),Severity.Success);}
    else Snackbar.Add(r.Message??Language.T("hrm.tinhGioThatBai"),Severity.Error);
   }

@@ -38,13 +38,13 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var normalizedEmployeeCode=employeeCode.Trim();
         if(normalizedEmployeeCode.Length==0)throw new ArgumentException("Mã nhân viên là bắt buộc.",nameof(employeeCode));
         var sameEmployee=string.Equals(user.EmployeeCode.Trim(),normalizedEmployeeCode,StringComparison.OrdinalIgnoreCase);
-        if(!sameEmployee&&!await _authorization.CanAccessAsync(user,SecurityFunctionCodes.CalendarView,normalizedEmployeeCode,(string?)null,ct))throw new UnauthorizedAccessException("Bạn không có Calendar.View hoặc ManagedScope tới nhân viên này.");
+        if(!sameEmployee&&!await _authorization.CanAccessAsync(user,SecurityFunctionCodes.CalendarView,normalizedEmployeeCode,null,ct))throw new UnauthorizedAccessException("Bạn không có Calendar.View hoặc ManagedScope tới nhân viên này.");
         var canViewLeave=await _authorization.HasAsync(user,SecurityFunctionCodes.LeaveView,ct);
         var canViewOt=await _authorization.HasAsync(user,SecurityFunctionCodes.OTView,ct);
         var canViewTrip=await _authorization.HasAsync(user,SecurityFunctionCodes.TripView,ct);
-        var canCreateLeave=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.LeaveCreate,normalizedEmployeeCode,(string?)null,ct);
-        var canCreateOt=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.OTCreate,normalizedEmployeeCode,(string?)null,ct);
-        var canCreateTrip=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.TripCreate,normalizedEmployeeCode,(string?)null,ct);
+        var canCreateLeave=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.LeaveCreate,normalizedEmployeeCode,null,ct);
+        var canCreateOt=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.OTCreate,normalizedEmployeeCode,null,ct);
+        var canCreateTrip=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.TripCreate,normalizedEmployeeCode,null,ct);
         var workYears=await _uow.Repository<F03WorkYear>().Query().AsNoTracking().Where(x=>x.IsActive==true&&x.StartDate<=end&&x.EndDate>=start).OrderBy(x=>x.WorkYear).ToListAsync(ct);
         var holidays=await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(x=>x.HolidayDate>=start&&x.HolidayDate<=end).OrderBy(x=>x.HolidayDate).ToListAsync(ct);
         var leave=canViewLeave?await _uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x=>x.EmployeeCode==normalizedEmployeeCode&&x.IsActive==true&&x.EndDate>=start&&x.StartDate<=end&&x.RequestStatus!=ApprovalStatus.Cancelled&&x.RequestStatus!=ApprovalStatus.Rejected).ToListAsync(ct):new List<VF03LeaveRequest>();

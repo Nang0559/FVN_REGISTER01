@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Application.Builders
             _query.ToDate = DateTime.Now;
         }
 
-        public ReportQueryBuilder ForDept(int? deptCode)
+        public ReportQueryBuilder ForDept(string deptCode)
         {
             _query.DeptCode = deptCode;
             return this;

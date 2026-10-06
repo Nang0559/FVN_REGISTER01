@@ -40,12 +40,12 @@ namespace FVN_REGISTER.Shared.Services.Approvals
             => _http.GetAsync<List<DepartmentDto>>("api/Approver/departments", ct);
 
         public Task<ApiResponse<List<EmployeeSelectDto>>> GetEmployeesAsync(
-            int? deptCode,
+            string? deptCode,
             CancellationToken ct = default)
         {
             var query = BuildQuery(new Dictionary<string, string?>
             {
-                ["deptCode"] = deptCode?.ToString()
+                ["deptCode"] = deptCode
             });
 
             return _http.GetAsync<List<EmployeeSelectDto>>(

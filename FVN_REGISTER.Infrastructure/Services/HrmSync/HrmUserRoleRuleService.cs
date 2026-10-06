@@ -95,7 +95,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
 
         var entity = new F03HrmUserRoleRule
         {
-            DeptCode = request.DeptCode,
+            DeptCode = Normalize(request.DeptCode),
             PositionCode = Normalize(request.PositionCode),
             PermissionCode = request.PermissionCode,
             Priority = request.Priority,
@@ -119,7 +119,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
         var validation = await ValidateAsync(request, id, ct);
         if (validation != null) return ServiceResult<HrmUserRoleRuleDto>.Fail(validation);
 
-        entity.DeptCode = request.DeptCode;
+        entity.DeptCode = Normalize(request.DeptCode);
         entity.PositionCode = Normalize(request.PositionCode);
         entity.PermissionCode = request.PermissionCode;
         entity.Priority = request.Priority;
@@ -193,7 +193,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
         if (request.PermissionCode is < 1 or > 6) return "PermissionCode không hợp lệ.";
         if (request.Priority < 0) return "Priority phải >= 0.";
 
-        var dept = request.DeptCode;
+        var dept = Normalize(request.DeptCode);
         var position = Normalize(request.PositionCode);
 
         if (dept != null &&

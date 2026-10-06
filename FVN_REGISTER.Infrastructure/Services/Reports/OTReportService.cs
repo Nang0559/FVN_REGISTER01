@@ -74,7 +74,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate <= DateOnly.FromDateTime(toDate)
                          && ActiveOrApprovedStatuses.Contains(x.RequestStatus));
 
-            if (query.DeptCode.HasValue)
+            if (!string.IsNullOrEmpty(query.DeptCode))
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -94,8 +94,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
             var rows = data.Select(x => new Dictionary<string, object?>
             {
-                ["DeptCode"] = x.DeptCode?.ToString(),
-                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
+                ["DeptCode"] = x.DeptCode,
+                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
                 ["EmployeeCount"] = x.EmployeeCount,
                 ["RequestCount"] = x.RequestCount,
                 ["TotalOTHours"] = x.TotalOTHours,
@@ -147,7 +147,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate <= DateOnly.FromDateTime(toDate));
 
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
+                q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -217,7 +217,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate <= query.ToDate);
 
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
+                q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -287,7 +287,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate <= query.ToDate);
 
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
+                q = q.Where(x => x.DeptCode == query.DeptCode);
 
             var data = await q
                 .GroupBy(x => x.RequestStatus)
@@ -348,7 +348,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.RequestStatus == ApprovalStatus.Approved);
 
             if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
+                q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -369,10 +369,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Yearly)
                 .ToListAsync(ct);
 
-            decimal GetLimit(int? deptCode)
+            decimal GetLimit(string? deptCode)
             {
                 return limits
-                    .Where(r => r.DeptCode == deptCode || r.DeptCode == null)
+                    .Where(r => r.DeptCode == deptCode || r.DeptCode == "ALL" || r.DeptCode == null)
                     .OrderByDescending(r => r.DeptCode == deptCode)
                     .Select(r => r.LimitValue)
                     .FirstOrDefault(200m);

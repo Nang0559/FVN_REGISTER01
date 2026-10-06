@@ -56,7 +56,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var entity = new F03OTRequest
                 {
                     EmployeeCode = user.EmployeeCode ?? "",
-                    DeptCode = DepartmentCodeParser.ParseRequired(model.DeptCode),
+                    DeptCode = model.DeptCode,
                     RequestStatus = ApprovalStatus.Draft,
                     OTDate = model.OTDate,
                     OTTypeCode = model.OTTypeCode,
@@ -92,7 +92,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var context = ApprovalBuildContext.ForOT(
                     requestId: entity.Id,
                     employeeCode: user.EmployeeCode ?? "",
-                    deptCode: entity.DeptCode?.ToString() ?? "",
+                    deptCode: entity.DeptCode ?? "",
                     positionCode: user.PositionCode ?? "",
                     totalOTHours: totalHours,
                     otTypeCode: model.OTTypeCode);

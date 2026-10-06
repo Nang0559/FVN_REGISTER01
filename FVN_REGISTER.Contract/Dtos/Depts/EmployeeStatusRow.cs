@@ -10,7 +10,7 @@ namespace FVN_REGISTER.Contract.Dtos.Depts
     {
         public string EmployeeCode { get; set; } = string.Empty;
         public string EmployeeName { get; set; } = string.Empty;
-        public int DeptCode { get; set; }
+        public string DeptCode { get; set; } = string.Empty;
         public string DeptName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty; // PRESENT | ON_LEAVE | ABSENT
         public string StatusDisplay { get; set; } = string.Empty;

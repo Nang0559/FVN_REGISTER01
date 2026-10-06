@@ -136,7 +136,7 @@ public sealed class TripApprovalProvider
         var deptName = string.IsNullOrWhiteSpace(subject.DeptCode)
             ? null
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
-                .Where(x => x.DeptCode.ToString() == subject.DeptCode)
+                .Where(x => x.DeptCode == subject.DeptCode)
                 .Select(x => x.DeptName)
                 .FirstOrDefaultAsync(ct);
 

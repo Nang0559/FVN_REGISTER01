@@ -70,7 +70,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
                 Kind = RequestModule.Overtime,
                 EmployeeCode = x.EmployeeCode ?? string.Empty,
                 EmployeeName = x.EmployeeName ?? string.Empty,
-                DeptCode = x.DeptCode?.ToString(),
+                DeptCode = x.DeptCode,
                 SubmittedAt = x.CreatedAt ?? DateTime.Now,
                 RequestStatus = statusValue.ToString(),
                 StatusDisplay = statusValue.ToDisplayName(),
@@ -185,7 +185,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
             {
                 OTCode = row.request.OTCode,
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode.ToString(),
+                DeptName = row.employee?.DeptCode,
                 OTDate = DateOnly.FromDateTime(row.request.OTDate),
                 StartTime = row.request.StartTime.TimeOfDay,
                 EndTime = row.request.EndTime.TimeOfDay,

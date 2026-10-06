@@ -53,7 +53,7 @@ public sealed class TripService : ITripService
         var entity = new F03TripRequest
         {
             EmployeeCode = employeeCode,
-            DeptCode = DepartmentCodeParser.ParseRequired(user.DeptCode),
+            DeptCode = user.DeptCode,
             CreatedBy = user.UserId,
             TripCode = $"TRIP-{Guid.NewGuid():N}"[..30],
             StartDate = request.StartDate,
@@ -113,7 +113,7 @@ public sealed class TripService : ITripService
         var context = ApprovalBuildContext.ForTrip(
             entity.Id,
             entity.EmployeeCode,
-            entity.DeptCode ?? employee?.DeptCode,
+            entity.DeptCode ?? employee?.DeptCode ?? string.Empty,
             employee?.PositionCode ?? string.Empty);
 
         var approvalResult = await _workflow.InitApprovalAsync(entity.Id, context, ct);

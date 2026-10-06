@@ -35,7 +35,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 IsActive = x.IsActive == true,
                 RequestType = (int)x.RequestType,
                 RequestTypeName = RequestTypeName(x.RequestType),
-                DeptCode = x.DeptCode,
+                DeptCode = x.DeptCode ?? string.Empty,
                 PositionCode = x.PositionCode,
                 ApprovalPositionCode = x.ApprovalPositionCode ?? string.Empty,
                 Level = x.Level,
@@ -48,7 +48,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
 
         var departments = await _uow.Repository<F03Department>().Query()
             .AsNoTracking()
-             .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
+            .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
 
         var positions = await _uow.Repository<F03Position>().Query()
             .AsNoTracking()
@@ -124,7 +124,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         var entity = new F03ApprovalPolicy
         {
             RequestType = (RequestModule)request.RequestType,
-            DeptCode = request.DeptCode,
+            DeptCode = request.DeptCode.Trim(),
             PositionCode = Normalize(request.PositionCode),
             ApprovalPositionCode = request.ApprovalPositionCode.Trim(),
             Level = request.Level,
@@ -165,7 +165,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         request.RoleName = RoleNameFromPosition(request.Level);
 
         entity.RequestType = (RequestModule)request.RequestType;
-        entity.DeptCode = request.DeptCode;
+        entity.DeptCode = request.DeptCode.Trim();
         entity.PositionCode = Normalize(request.PositionCode);
         entity.ApprovalPositionCode = request.ApprovalPositionCode.Trim();
         entity.Level = request.Level;
@@ -208,8 +208,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         if (!Enum.IsDefined(typeof(RequestModule), request.RequestType))
             return "RequestType không hợp lệ.";
 
-        var deptCode = request.DeptCode;
-        if (deptCode <= 0)
+        var deptCode = request.DeptCode.Trim();
+        if (string.IsNullOrWhiteSpace(deptCode))
             return "Phòng ban là bắt buộc.";
 
         if (!await _uow.Repository<F03Department>().Query()
@@ -308,7 +308,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             RequestType = (int)x.RequestType,
             RequestTypeName = RequestTypeName(x.RequestType),
             DeptCode = x.DeptCode,
-            DeptName = deptName ?? x.DeptCode.ToString(),
+            DeptName = deptName ?? x.DeptCode,
             PositionCode = x.PositionCode,
             PositionName = requester?.PositionName ?? "(Tất cả vị trí)",
             ApprovalPositionCode = x.ApprovalPositionCode,

@@ -74,7 +74,7 @@ public sealed class PasswordResetRequestsController : BaseApiController
                     {
                         EmployeeCode = employeeCode,
                         FullName = employee.EmployeeName,
-                        DeptCode = employee.DeptCode.ToString(),
+                        DeptCode = employee.DeptCode,
                         RequestNote = request.RequestNote?.Trim(),
                         Status = "Pending",
                         RequestedAt = DateTime.Now,
@@ -108,7 +108,7 @@ public sealed class PasswordResetRequestsController : BaseApiController
                 Id = x.Id,
                 EmployeeCode = x.EmployeeCode,
                 FullName = x.FullName,
-                DeptCode = x.DeptCode?.ToString(),
+                DeptCode = x.DeptCode,
                 RequestNote = x.RequestNote,
                 Status = x.Status,
                 RequestedAt = x.RequestedAt,

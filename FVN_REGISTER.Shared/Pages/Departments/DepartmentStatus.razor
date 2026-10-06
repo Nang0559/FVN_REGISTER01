@@ -88,7 +88,7 @@
 
     private async Task OnDeptRowClick(TableRowClickEventArgs<DepartmentStatusDto> args)
     {
-        if (args.Item != null) await LoadDeptDetailAsync(args.Item.DeptCode.ToString());
+        if (args.Item != null) await LoadDeptDetailAsync(args.Item.DeptCode);
     }
 
     private async Task LoadDeptDetailAsync(string deptCode)
