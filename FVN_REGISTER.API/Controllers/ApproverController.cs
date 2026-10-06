@@ -44,7 +44,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> GetList([FromQuery] int? deptCode, [FromQuery] int? level, [FromQuery] RequestModule? requestType, CancellationToken ct)
+        public async Task<IActionResult> GetList([FromQuery] string? deptCode, [FromQuery] int? level, [FromQuery] RequestModule? requestType, CancellationToken ct)
         {
             if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
             return HandleResult(await _approverService.GetListAsync(deptCode, level, requestType, ct));
