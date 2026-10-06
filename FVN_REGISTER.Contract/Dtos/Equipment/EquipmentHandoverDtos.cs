@@ -6,7 +6,7 @@ public sealed class EquipmentHandoverRequest
     public string NewResponsibleEmployeeCode { get; set; } = string.Empty;
     public string? OldApproverEmployeeCode { get; set; }
     public string? NewApproverEmployeeCode { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public List<int> AssetIds { get; set; } = new();
     public string Reason { get; set; } = string.Empty;
 }
@@ -15,7 +15,7 @@ public sealed class EquipmentHandoverEmployeeOptionDto
 {
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public string PositionCode { get; set; } = string.Empty;
 }
 
