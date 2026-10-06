@@ -10,7 +10,8 @@ public partial class F03Department : BaseAuditEntity
 
 
     [Required]
-    public int DeptCode { get; set; }
+    [StringLength(20)]
+    public string DeptCode { get; set; } = string.Empty;
 
     [Required, StringLength(100)]
     public string DeptName { get; set; } = string.Empty;
@@ -20,7 +21,7 @@ public partial class F03Department : BaseAuditEntity
     public string? BlockCode { get; set; }
     [StringLength(50)]
   
-    public int? ParentDeptCode { get; set; }   // từ BPMaCha
+    public string? ParentDeptCode { get; set; }   // từ BPMaCha
 
     public int? DisplayPriority { get; set; }     // từ BPUuTien
     public bool ShowInReport { get; set; } = true; // từ BPHienThiBC
