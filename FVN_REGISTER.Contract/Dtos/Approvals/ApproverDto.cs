@@ -19,10 +19,10 @@ namespace FVN_REGISTER.Contract.Dtos.Approvals
         public string? RoleName { get; set; }
         public string? PositionCode { get; set; }
 
-        public int DeptCode { get; set; }
+        public string DeptCode { get; set; } = string.Empty;
         public string DeptName { get; set; } = string.Empty;
 
-        public int? ApproveForDeptCode { get; set; }
+        public string? ApproveForDeptCode { get; set; }
         public string? ApproveForDeptName { get; set; }
 
         public bool IsActive { get; set; } = true;
