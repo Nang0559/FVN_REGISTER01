@@ -3,7 +3,6 @@ using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Extensions;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Histories;
@@ -29,9 +28,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
 
         if (!string.IsNullOrWhiteSpace(filter.Status) &&
             Enum.TryParse<ApprovalStatus>(filter.Status, true, out var status))
-        {
             q = q.Where(x => x.RequestStatus == status);
-        }
 
         if (filter.FromDate.HasValue)
             q = q.Where(x => x.OTDate >= filter.FromDate.Value);
@@ -73,7 +70,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
                 Kind = RequestModule.Overtime,
                 EmployeeCode = x.EmployeeCode ?? string.Empty,
                 EmployeeName = x.EmployeeName ?? string.Empty,
-                DeptCode = x.DeptCode,
+                DeptCode = x.DeptCode?.ToString(),
                 SubmittedAt = x.CreatedAt ?? DateTime.Now,
                 RequestStatus = statusValue.ToString(),
                 StatusDisplay = statusValue.ToDisplayName(),
@@ -182,13 +179,13 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
             RequestStatus = row.request.RequestStatus.ToString(),
             StatusDisplay = row.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(row.request.RequestStatus),
-            SubmittedAt = row.request.CreatedAt ,
+            SubmittedAt = row.request.CreatedAt,
             CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
             OT = new OTDetailPayload
             {
                 OTCode = row.request.OTCode,
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode,
+                DeptName = row.employee?.DeptCode.ToString(),
                 OTDate = DateOnly.FromDateTime(row.request.OTDate),
                 StartTime = row.request.StartTime.TimeOfDay,
                 EndTime = row.request.EndTime.TimeOfDay,
