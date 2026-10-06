@@ -129,7 +129,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                     await flagRepo.AddAsync(new F03SyncReviewFlag
                     {
                         EntityType = "Department",
-                        EntityKey = approver.ApproveForDeptCode.ToString(),
+                        EntityKey = approver.ApproveForDeptCode,
                         FlagType = "DeptDeactivated_ApproverMayBeStale",
                         Message = $"Phòng ban {approver.ApproveForDeptCode} vừa bị vô hiệu hóa từ HRM, " +
                                   $"nhưng approver {approver.ApproverCode} Level {approver.Level} " +
