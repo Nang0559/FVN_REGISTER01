@@ -12,7 +12,7 @@ public class OTLimitRuleDto
     public string? EmployeeCode { get; set; }
     public decimal LimitValue { get; set; }
     public string? PositionCode { get; set; }
-    public int? DeptCode { get; set; }
+    public string? DeptCode { get; set; }
     public decimal LimitHours { get; set; }
     public string? Description { get; set; }
 
@@ -21,14 +21,14 @@ public class OTLimitRuleDto
         get
         {
             if (ScopeType == OTLimitScopeType.Department)
-                return $"Phòng ban: {ScopeCode ?? DeptCode?.ToString()}";
+                return $"Phòng ban: {ScopeCode ?? DeptCode}";
             if (ScopeType == OTLimitScopeType.Block)
                 return $"Khối: {ScopeCode}";
             if (!string.IsNullOrWhiteSpace(EmployeeCode))
                 return $"Nhân viên: {EmployeeCode}";
-            if (DeptCode.HasValue && !string.IsNullOrWhiteSpace(PositionCode))
+            if (!string.IsNullOrWhiteSpace(DeptCode) && !string.IsNullOrWhiteSpace(PositionCode))
                 return $"Phòng {DeptCode} - Vị trí {PositionCode}";
-            if (DeptCode.HasValue)
+            if (!string.IsNullOrWhiteSpace(DeptCode))
                 return $"Phòng ban: {DeptCode}";
             if (!string.IsNullOrWhiteSpace(PositionCode))
                 return $"Vị trí: {PositionCode}";
