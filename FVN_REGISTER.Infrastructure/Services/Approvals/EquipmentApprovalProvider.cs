@@ -249,7 +249,7 @@ public sealed class EquipmentApprovalProvider
             Kind = subject.Module,
             EmployeeCode = subject.EmployeeCode,
             EmployeeName = subject.EmployeeName ?? string.Empty,
-            DeptCode = subject.DeptCode ?? string.Empty,
+            DeptCode = subject.DeptCode ?? 0,
             DeptName = deptName ?? string.Empty,
             FromDate = subject.RepairDate ?? DateTime.Now,
             ToDate = subject.RepairDate ?? DateTime.Now,

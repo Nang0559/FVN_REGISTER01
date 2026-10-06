@@ -167,7 +167,7 @@ public sealed class PayrollApprovalProvider
             Kind = RequestType,
             EmployeeCode = subject.EmployeeCode,
             EmployeeName = $"Kỳ lương {subject.PeriodCode}",
-            DeptCode = subject.DeptCode ?? string.Empty,
+            DeptCode = subject.DeptCode ?? 0,
             DeptName = deptName,
             FromDate = subject.FromDate.ToDateTime(TimeOnly.MinValue),
             ToDate = subject.ToDate.ToDateTime(TimeOnly.MinValue),

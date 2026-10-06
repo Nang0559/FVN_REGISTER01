@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Contract.Dtos.LimitRuleDtos
         {
             return dto.ScopeType switch
             {
-                FVN_REGISTER.Core.Enums.OTLimitScopeType.Department => $"Tổng phòng {dto.ScopeCode ?? dto.DeptCode}",
+                FVN_REGISTER.Core.Enums.OTLimitScopeType.Department => $"Tổng phòng {dto.ScopeCode ?? dto.DeptCode?.ToString()}",
                 FVN_REGISTER.Core.Enums.OTLimitScopeType.Block => $"Tổng khối {dto.ScopeCode}",
                 _ when !string.IsNullOrWhiteSpace(dto.EmployeeCode) => $"Nhân viên {dto.EmployeeCode}",
                 _ when dto.DeptCode != null && !string.IsNullOrWhiteSpace(dto.PositionCode)

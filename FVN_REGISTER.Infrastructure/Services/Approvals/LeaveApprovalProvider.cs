@@ -147,7 +147,7 @@ public class LeaveApprovalProvider
             Kind = subject.Module,
             EmployeeCode = subject.EmployeeCode,
             EmployeeName = subject.EmployeeName ?? string.Empty,
-            DeptCode = subject.DeptCode ?? string.Empty,
+            DeptCode = subject.DeptCode ?? 0,
             DeptName = deptName ?? string.Empty,
             FromDate = subject.StartDate,
             ToDate = subject.EndDate,
