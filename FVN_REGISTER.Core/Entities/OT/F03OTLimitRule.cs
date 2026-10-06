@@ -25,7 +25,7 @@ namespace FVN_REGISTER.Core.Entities.OT
         [StringLength(20)]
         public string? PositionCode { get; set; }
 
-        public int? DeptCode { get; set; }
+        [StringLength(20)] public string? DeptCode { get; set; }
 
         [Column(TypeName = "decimal(5,2)")]
         public decimal LimitHours { get; set; }
