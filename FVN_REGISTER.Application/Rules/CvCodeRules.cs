@@ -89,7 +89,7 @@ namespace FVN_REGISTER.Application.Rules
         /// <summary>
         /// Trả về DeptCode duyệt (xử lý trường hợp GM duyệt toàn bộ).
         /// </summary>
-        public static string GetEffectiveDept(string role, int deptCode)
+        public static int GetEffectiveDept(string role, int deptCode)
         {
             return role == ApproverRole.GM ? ApproveForDept.All : deptCode;
         }
