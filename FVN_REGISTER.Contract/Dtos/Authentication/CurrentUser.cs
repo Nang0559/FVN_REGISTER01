@@ -8,7 +8,7 @@ public sealed class CurrentUser
 {
     public int UserId { get; init; }
     public string? EmployeeCode { get; init; }
-    public int? DeptCode { get; init; }
+    public string? DeptCode { get; init; }
     public string? PositionCode { get; init; }
 
     public static implicit operator CurrentUser?(UserIdentityDto? user)
