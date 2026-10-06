@@ -13,7 +13,7 @@ namespace FVN_REGISTER.Application.Models.Subjects
         public RequestModule Module => RequestModule.Overtime;
         public string EmployeeCode { get; set; } = "";
         public string? EmployeeName { get; set; }        // ← THÊM
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? PositionCode { get; set; }
         public ApprovalStatus OverallStatus { get; set; }
         public string OTCode { get; set; } = "";
@@ -31,7 +31,7 @@ namespace FVN_REGISTER.Application.Models.Subjects
             RequestId = x.Id,
             EmployeeCode = x.EmployeeCode,
             EmployeeName = employeeName,
-            DeptCode = x.DeptCode?.ToString(),
+            DeptCode = x.DeptCode,
             PositionCode = PositionCode,
             OverallStatus = x.RequestStatus,
 
