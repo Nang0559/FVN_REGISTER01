@@ -20,7 +20,7 @@ namespace FVN_REGISTER.Shared.Services.Approvals
             => _http.GetAsync<List<ApproverTreeNodeDto>>("api/Approver/tree", ct);
 
         public Task<ApiResponse<List<ApproverDto>>> GetListAsync(
-            int? deptCode,
+            string? deptCode,
             int? level,
             string? requestType,
             CancellationToken ct = default)
