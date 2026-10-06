@@ -48,9 +48,8 @@ public static class AuthorizationScopePolicy
         };
     }
 
-    private static bool Same(string? left, string? right) =>
-        !string.IsNullOrWhiteSpace(left) && !string.IsNullOrWhiteSpace(right)
-        && string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
+    private static bool Same(int? left, int? right) =>
+        left.HasValue && right.HasValue && left.Value == right.Value;
 
     private static bool SameEmployee(string? left, string? right) =>
         !string.IsNullOrWhiteSpace(left)
