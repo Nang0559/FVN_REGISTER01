@@ -33,7 +33,7 @@ public sealed class EquipmentInspectionTemplateUpsertRequest
     public int? Id { get; set; }
     public string TemplateCode { get; set; } = "";
     public string TemplateName { get; set; } = "";
-    public string DeptCode { get; set; } = "";
+    public int DeptCode { get; set; }
     public string Frequency { get; set; } = "Daily";
     public string Status { get; set; } = "Draft";
     public string? Description { get; set; }
