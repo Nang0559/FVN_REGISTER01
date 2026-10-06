@@ -11,7 +11,7 @@ public sealed class EquipmentAssetDto
     public decimal PurchasePrice { get; set; }
     public DateTime PurchaseDate { get; set; }
     public DateTime ExpectedDepreciationDate { get; set; }
-    public int DeptCode { get; set; }
+    public string DeptCode { get; set; } = string.Empty;
     public string? Location { get; set; }
     public string QrToken { get; set; } = string.Empty;
     public string QrUrl { get; set; } = string.Empty;
@@ -26,13 +26,13 @@ public sealed class EquipmentAssetDto
     public DateTime? EndpointLastSeenUtc { get; set; }
     public bool EndpointHasActiveCredential { get; set; }
     public DateTimeOffset? EndpointCredentialExpiresAtUtc { get; set; }
-    public int? ResponsibleDeptCode { get; set; }
+    public string? ResponsibleDeptCode { get; set; }
     public string? ResponsibleEmployeeCode { get; set; }
     public string? ResponsibleEmployeeName { get; set; }
     public string? ResponsibleApproverEmployeeCode { get; set; }
     public string? ResponsibleApproverEmployeeName { get; set; }
     public DateTime? ResponsibleAssignedAt { get; set; }
-    public int? OperatingResponsibleDeptCode { get; set; }
+    public string? OperatingResponsibleDeptCode { get; set; }
     public string? OperatingResponsibleDeptName { get; set; }
     public string? OperatingResponsibleEmployeeCode { get; set; }
     public string? OperatingResponsibleEmployeeName { get; set; }
@@ -52,7 +52,7 @@ public sealed class EquipmentRepairHistoryDto
     public string? RepairVendor { get; set; }
     public string? RepairResult { get; set; }
     public string? Note { get; set; }
-    public int? ResponsibleDeptCode { get; set; }
+    public string? ResponsibleDeptCode { get; set; }
     public string? RepairerEmployeeCode { get; set; }
     public string? RepairFeedback { get; set; }
     public DateTime? CompletedAt { get; set; }
