@@ -11,12 +11,12 @@ namespace FVN_REGISTER.Contract.Dtos.LimitRuleDtos
         {
             return dto.ScopeType switch
             {
-                FVN_REGISTER.Core.Enums.OTLimitScopeType.Department => $"Tổng phòng {dto.ScopeCode ?? dto.DeptCode?.ToString()}",
+                FVN_REGISTER.Core.Enums.OTLimitScopeType.Department => $"Tổng phòng {dto.ScopeCode ?? dto.DeptCode}",
                 FVN_REGISTER.Core.Enums.OTLimitScopeType.Block => $"Tổng khối {dto.ScopeCode}",
                 _ when !string.IsNullOrWhiteSpace(dto.EmployeeCode) => $"Nhân viên {dto.EmployeeCode}",
-                _ when dto.DeptCode.HasValue && !string.IsNullOrWhiteSpace(dto.PositionCode)
+                _ when !string.IsNullOrWhiteSpace(dto.DeptCode) && !string.IsNullOrWhiteSpace(dto.PositionCode)
                     => $"Phòng {dto.DeptCode} - Vị trí {dto.PositionCode}",
-                _ when dto.DeptCode.HasValue => $"Phòng {dto.DeptCode}",
+                _ when !string.IsNullOrWhiteSpace(dto.DeptCode) => $"Phòng {dto.DeptCode}",
                 _ when !string.IsNullOrWhiteSpace(dto.PositionCode) => $"Vị trí {dto.PositionCode}",
                 _ => "Toàn công ty"
             };
