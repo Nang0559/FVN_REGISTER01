@@ -23,7 +23,7 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
             CancellationToken ct);
 
         Task<ServiceResult<List<ApproverDto>>> GetListAsync(
-            int? deptCode,
+            string? deptCode,
             int? level,
             RequestModule? requestType,
             CancellationToken ct);
