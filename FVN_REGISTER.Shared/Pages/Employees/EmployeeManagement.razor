@@ -28,10 +28,10 @@
 <MudPaper Elevation="1" Class="pa-3 mb-4" Style="border-radius:12px">
     <MudGrid>
         <MudItem xs="12" sm="4">
-            <MudSelect T="string" Label="@Language.T("employee.locTheoBoPhan")" Value="_filterDept" ValueChanged="OnDeptFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            <MudSelect T="int?" Label="@Language.T("employee.locTheoBoPhan")" Value="_filterDept" ValueChanged="OnDeptFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                 @foreach (var dept in _departments)
                 {
-                    <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@((int?)dept.DeptCode)">@dept.DeptCode — @dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>
@@ -155,12 +155,12 @@ else
     private List<DepartmentDto> _departments = new();
     private bool _isLoading = true;
     private bool _isFiltered;
-    private string? _filterDept;
+    private int? _filterDept;
     private string _search = string.Empty;
     private bool _activeOnly = true;
 
     private IEnumerable<EmployeeCardDto> FilteredEmployees => _tree.SelectMany(x => x.Employees)
-        .Where(x => string.IsNullOrWhiteSpace(_filterDept) || x.DeptCode == _filterDept)
+        .Where(x => !_filterDept.HasValue || x.DeptCode == _filterDept.Value)
         .Where(x => string.IsNullOrWhiteSpace(_search) || x.EmployeeCode.Contains(_search, StringComparison.OrdinalIgnoreCase) || x.EmployeeName.Contains(_search, StringComparison.OrdinalIgnoreCase) || x.DeptName.Contains(_search, StringComparison.OrdinalIgnoreCase))
         .Where(x => !_activeOnly || x.IsActive);
 
@@ -186,17 +186,17 @@ else
         finally { _isLoading = false; }
     }
 
-    private async Task OnDeptFilterChanged(string? value)
+    private async Task OnDeptFilterChanged(int? value)
     {
         _filterDept = value;
-        _isFiltered = !string.IsNullOrWhiteSpace(_filterDept) || !string.IsNullOrWhiteSpace(_search);
+        _isFiltered = _filterDept.HasValue || !string.IsNullOrWhiteSpace(_search);
         await LoadTreeAsync();
     }
 
     private async Task OnSearchChanged(string value)
     {
         _search = value;
-        _isFiltered = !string.IsNullOrWhiteSpace(_filterDept) || !string.IsNullOrWhiteSpace(_search);
+        _isFiltered = _filterDept.HasValue || !string.IsNullOrWhiteSpace(_search);
         await LoadTreeAsync();
     }
 

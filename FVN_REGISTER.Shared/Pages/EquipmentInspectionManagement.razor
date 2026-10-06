@@ -43,10 +43,10 @@
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-4" Outlined="true">
                         <MudText Typo="Typo.h6">@Language.T("equipment.thongTinChecklist")</MudText>
-                        <MudSelect T="string" Label="@Language.T("common.department2")" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
+                        <MudSelect T="int?" Label="@Language.T("common.department2")" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
                             @foreach (var d in _departments)
                             {
-                                <MudSelectItem Value="@d.DeptCode">@d.DeptCode – @d.DeptName</MudSelectItem>
+                                <MudSelectItem T="int?" Value="@((int?)d.DeptCode)">@d.DeptCode – @d.DeptName</MudSelectItem>
                             }
                         </MudSelect>
                         <MudTextField @bind-Value="_template.TemplateCode" Label="@Language.T("equipment.templateCode")" Variant="Variant.Outlined" Class="mt-3" />
@@ -217,7 +217,7 @@
         else Snackbar.Add(result.Message ?? Language.T("equipment.importChecklistThatBai"), Severity.Error);
     }
     private EquipmentInspectionTemplateImportResultDto? _importResult;
-    private string _deptCode = "";
+    private int? _deptCode;
     private List<DepartmentDto> _departments = new();
     private List<EquipmentInspectionTemplateDto> _templates = new();
     private List<EquipmentAssetDto> _assets = new();
@@ -263,7 +263,7 @@
     private void EditTemplate(EquipmentInspectionTemplateDto x) => _template = new EquipmentInspectionTemplateUpsertRequest { Id=x.Id, TemplateCode=x.TemplateCode, TemplateName=x.TemplateName, DeptCode=x.DeptCode, Frequency=x.Frequency, Status=x.Status, Description=x.Description, Items=x.Items.Select(i=>new EquipmentInspectionItemDto { Id=i.Id, ItemCode=i.ItemCode, ItemLabel=i.ItemLabel, InputType=i.InputType, IsRequired=i.IsRequired, RequireImage=i.RequireImage, MinImages=i.MinImages, MaxImages=i.MaxImages, MinValue=i.MinValue, MaxValue=i.MaxValue, Unit=i.Unit, OptionsJson=i.OptionsJson, DisplayOrder=i.DisplayOrder }).ToList() };
     private async Task SaveTemplateAsync()
     {
-        _template.DeptCode = _deptCode;
+        _template.DeptCode = _deptCode.GetValueOrDefault();
         if (string.IsNullOrWhiteSpace(_template.TemplateName)) { Snackbar.Add(Language.T("equipment.tenChecklistLaBatBuoc"), Severity.Warning); return; }
         var r = await EquipmentClient.SaveInspectionTemplateAsync(_template);
         Snackbar.Add(r.IsSuccess ? Language.T("equipment.daLuuChecklist") : (r.Message ?? Language.T("equipment.khongTheLuuChecklist")), r.IsSuccess ? Severity.Success : Severity.Error);

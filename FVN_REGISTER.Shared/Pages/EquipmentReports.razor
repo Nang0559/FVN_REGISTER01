@@ -29,7 +29,7 @@
             <MudTd><b>@context.EquipmentCode</b><br/>@context.EquipmentName</MudTd>
             <MudTd>@context.DeptCode</MudTd>
             <MudTd>@context.ResponsibleEmployeeCode - @context.ResponsibleEmployeeName</MudTd>
-            <MudTd>@(context.OperatingResponsibleDeptCode ?? context.OperatingResponsibleEmployeeCode)</MudTd>
+            <MudTd>@(context.OperatingResponsibleDeptCode?.ToString() ?? context.OperatingResponsibleEmployeeCode)</MudTd>
             <MudTd>@context.RepairCount<br/><small>@context.LastRepairAt?.ToString("dd/MM/yyyy")</small></MudTd>
             <MudTd>@context.HandoverCount<br/><small>@context.LastHandoverAt?.ToString("dd/MM/yyyy")</small></MudTd>
         </RowTemplate>

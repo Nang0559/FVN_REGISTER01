@@ -58,8 +58,8 @@ else
                         <MudDatePicker @bind-Date="_query.ToDate" Label='@Language.T("trip.toDate")' Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
-                            @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
+                        <MudSelect T="int?" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach(var d in _departments ?? new()) { <MudSelectItem T="int?" Value="@((int?)d.Key)">@d.Value</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="3" Class="d-flex align-end">
@@ -76,9 +76,9 @@ else
         <ReportBase @ref="_base" ReportType="_type" Query="_query">
             <AdditionalFilters>
                 <MudItem xs="12" sm="3">
-                    <MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelect T="int?" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
                         <MudSelectItem T="string" Value="@(null)">@Language.T("report.tatCa")</MudSelectItem>
-                        @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
+                        @foreach(var d in _departments ?? new()) { <MudSelectItem T="int?" Value="@((int?)d.Key)">@d.Value</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 @if (_type is ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.AttendanceDetail)
@@ -103,7 +103,7 @@ else
     private bool _permissionLoading=true;
     private int _tab;
     private ReportBase? _base;
-    private List<KeyValuePair<string,string>>? _departments;
+    private List<KeyValuePair<int,string>>? _departments;
     private KeyValuePair<string,string> _employee;
     private ReportQueryDto _query=new(){FromDate=new DateTime(DateTime.Now.Year,1,1),ToDate=DateTime.Today,IncludeChart=true};
     private List<EquipmentAssetDto> _inspectionAssets = new();
@@ -128,7 +128,7 @@ else
         var r=await Security.GetMyPermissionsAsync();
         if(r.IsSuccess) _permission=r.Data;
         var d=await ReportService.GetLookupDepartmentsAsync();
-        if(d.IsSuccess) _departments=d.Data;
+        if(d.IsSuccess) _departments=d.Data?.Where(x => int.TryParse(x.Key, out _)).Select(x => new KeyValuePair<int, string>(int.Parse(x.Key), x.Value)).ToList();
         _permissionLoading=false;
         if (ModuleKey == "equipment" && CanEquipmentInspectionReport)
             await LoadInspectionTreeAsync();

@@ -41,7 +41,7 @@ else
         <MudPaper Class="pa-4" Elevation="1">
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.employee")</MudText><MudText>@(_item.EmployeeName ?? _item.EmployeeCode)</MudText></MudItem>
-                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("nav.departments")</MudText><MudText>@(_item.DeptCode ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("nav.departments")</MudText><MudText>@(_item.DeptCode?.ToString() ?? "—")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.startDate")</MudText><MudText>@_item.StartDate.ToString("dd/MM/yyyy")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("common.endDate")</MudText><MudText>@_item.EndDate.ToString("dd/MM/yyyy")</MudText></MudItem>
                 <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">@Language.T("trip.diaDiem")</MudText><MudText>@_item.Destination</MudText></MudItem>

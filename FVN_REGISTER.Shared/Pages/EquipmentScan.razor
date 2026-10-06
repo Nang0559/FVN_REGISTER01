@@ -59,7 +59,7 @@ else
             <MudItem xs="12" md="4"><MudSelect T="string" @bind-Value="_repair.RepairAssignmentType" Label="@Language.T("equipment.doiTuongChiuTrachNhiem")" Required="true"><MudSelectItem Value="@("Department")">@Language.T("nav.departments")</MudSelectItem><MudSelectItem Value="@("Employee")">@Language.T("ot.employee")</MudSelectItem></MudSelect></MudItem>
             @if (_repair.RepairAssignmentType == "Department")
             {
-                <MudItem xs="12" md="4"><MudSelect T="string" @bind-Value="_repair.RepairResponsibleDeptCode" Label="@Language.T("equipment.boPhanSuaChua")" Required="true"><MudSelectItem Value="@string.Empty">@Language.T("equipment.chonBoPhan")</MudSelectItem>@foreach (var d in _repairAssignees.Select(x => x.DeptCode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x)){<MudSelectItem Value="@d">@d</MudSelectItem>}</MudSelect></MudItem>
+                <MudItem xs="12" md="4"><MudSelect T="int?" @bind-Value="_repair.RepairResponsibleDeptCode" Label="@Language.T("equipment.boPhanSuaChua")" Required="true"><MudSelectItem T="int?" Value="@((int?)null)">@Language.T("equipment.chonBoPhan")</MudSelectItem>@foreach (var d in _repairAssignees.Select(x => x.DeptCode).Distinct().OrderBy(x => x)){<MudSelectItem T="int?" Value="@((int?)d)">@d</MudSelectItem>}</MudSelect></MudItem>
             }
             else if (_repair.RepairAssignmentType == "Employee")
             {

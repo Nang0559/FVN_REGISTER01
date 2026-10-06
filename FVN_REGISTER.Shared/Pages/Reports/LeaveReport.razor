@@ -26,9 +26,9 @@
         }
         else if (_activeTab == 1 || _activeTab == 4)
         {
-            <MudItem xs="12" sm="3"><MudSelect T="string" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="string" Value="@(null)">@Language.T("leave.tatCaPhongBan")</MudSelectItem>
-                @foreach (var dept in _departments ?? new()) { <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem> }
+            <MudItem xs="12" sm="3"><MudSelect T="int?" Label='@Language.T("ot.department")' @bind-Value="_query.DeptCode" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">@Language.T("leave.tatCaPhongBan")</MudSelectItem>
+                @foreach (var dept in _departments ?? new()) { <MudSelectItem T="int?" Value="@((int?)dept.Key)">@dept.Value</MudSelectItem> }
             </MudSelect></MudItem>
         }
         else if (_activeTab == 2 || _activeTab == 3)
@@ -42,7 +42,7 @@
     private ReportBase? _baseRef;
     private ReportQueryDto _query = new() { WorkYear = DateTime.Now.Year, IncludeChart = true };
     private int _activeTab;
-    private List<KeyValuePair<string, string>>? _departments;
+    private List<KeyValuePair<int, string>>? _departments;
     private KeyValuePair<string, string> _selectedEmployee;
 
     private ReportType _currentType => _activeTab switch
@@ -58,7 +58,7 @@
     protected override async Task OnInitializedAsync()
     {
         var res = await ReportService.GetLookupDepartmentsAsync();
-        if (res.IsSuccess) _departments = res.Data;
+        if (res.IsSuccess) _departments = res.Data?.Where(x => int.TryParse(x.Key, out _)).Select(x => new KeyValuePair<int, string>(int.Parse(x.Key), x.Value)).ToList();
     }
 
     private async Task<IEnumerable<KeyValuePair<string, string>>> SearchEmployees(string value, CancellationToken token)

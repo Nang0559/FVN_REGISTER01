@@ -29,11 +29,11 @@
     <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? Language.T("hrm.suaRule") : Language.T("hrm.themRule"))</MudText>
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string" @bind-Value="_form.DeptCode" Label='@Language.T("ot.department")' Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="string" Value="@null">@Language.T("hrm.tatCaPhongBan")</MudSelectItem>
+            <MudSelect T="int?" @bind-Value="_form.DeptCode" Label='@Language.T("ot.department")' Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">@Language.T("hrm.tatCaPhongBan")</MudSelectItem>
                 @foreach (var dept in _departments)
                 {
-                    <MudSelectItem T="string" Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@((int?)dept.DeptCode)">@dept.DeptCode — @dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>

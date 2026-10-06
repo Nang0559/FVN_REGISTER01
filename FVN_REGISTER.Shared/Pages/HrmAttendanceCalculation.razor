@@ -20,8 +20,8 @@
  <MudText Typo="Typo.body2" Class="mb-4">@Language.T("hrm.fvnDocDuLieuHrm")</MudText>
  <MudGrid>
   <MudItem xs="12" md="4">
-   <MudSelect T="string" Label='@Language.T("nav.departments")' @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
-    @foreach(var d in _departments){<MudSelectItem Value="@d.DeptCode">@d.DeptCode - @d.DeptName</MudSelectItem>}
+   <MudSelect T="int?" Label='@Language.T("nav.departments")' @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
+    @foreach(var d in _departments){<MudSelectItem T="int?" Value="@((int?)d.DeptCode)">@d.DeptCode - @d.DeptName</MudSelectItem>}
    </MudSelect>
   </MudItem>
   <MudItem xs="12" md="3"><MudDatePicker Label='@Language.T("common.startDate")' @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
@@ -46,7 +46,7 @@
 
 @code {
  private List<DepartmentDto> _departments=new();
- private string? _deptCode;
+ private int? _deptCode;
  private DateTime? _fromDate=DateTime.Today;
  private DateTime? _toDate=DateTime.Today;
  private bool _running;

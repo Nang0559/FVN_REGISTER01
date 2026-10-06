@@ -45,8 +45,8 @@
 }
 <MudPaper Elevation="1" Class="pa-3 mb-4">
     <MudGrid>
-        <MudItem xs="12" sm="4"><MudSelect T="string" Label='@Language.T("nav.departments")' @bind-Value="_filterDept" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            @foreach (var dept in _departments) { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
+        <MudItem xs="12" sm="4"><MudSelect T="int?" Label='@Language.T("nav.departments")' @bind-Value="_filterDept" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            @foreach (var dept in _departments) { <MudSelectItem T="int?" Value="@((int?)dept.DeptCode)">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
         </MudSelect></MudItem>
         <MudItem xs="12" sm="3"><MudSelect T="int?" Label='@Language.T("approval.level")' @bind-Value="_filterLevel" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             @for (var level = 1; level <= 7; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">@Language.T("approval.levelN", l)</MudSelectItem> }
@@ -86,7 +86,7 @@ else
     private List<ApproverDto> _items = new();
     private List<DepartmentDto> _departments = new();
     private bool _loading;
-    private string? _filterDept;
+    private int? _filterDept;
     private int? _filterLevel;
     private RequestModule? _filterType;
     private List<ApproverSyncProposalDto> _proposals = new();

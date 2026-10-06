@@ -27,7 +27,7 @@ namespace FVN_REGISTER.Shared.Services.Approvals
         {
             var query = BuildQuery(new Dictionary<string, string?>
             {
-                ["deptCode"] = deptCode,
+                ["deptCode"] = deptCode?.ToString(),
                 ["level"] = level?.ToString(),
                 ["requestType"] = requestType
             });
@@ -45,7 +45,7 @@ namespace FVN_REGISTER.Shared.Services.Approvals
         {
             var query = BuildQuery(new Dictionary<string, string?>
             {
-                ["deptCode"] = deptCode
+                ["deptCode"] = deptCode?.ToString()
             });
 
             return _http.GetAsync<List<EmployeeSelectDto>>(

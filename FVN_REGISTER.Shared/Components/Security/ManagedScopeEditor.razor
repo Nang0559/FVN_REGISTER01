@@ -25,8 +25,8 @@ else
                 </MudSelect>
                 <MudTextField Class="mt-2" Label="NodeCode" @bind-Value="_nodeCode" Variant="Variant.Outlined" />
                 <MudTextField Class="mt-2" Label="FactoryCode" @bind-Value="_factoryCode" Variant="Variant.Outlined" />
-                <MudTextField Class="mt-2" Label="DeptCode" @bind-Value="_deptCode" Variant="Variant.Outlined" />
-                <MudTextField Class="mt-2" Label="SubDepartmentCode" @bind-Value="_subDepartmentCode" Variant="Variant.Outlined" />
+                <MudNumericField T="int?" Class="mt-2" Label="DeptCode" @bind-Value="_deptCode" HideSpinButtons="true" Variant="Variant.Outlined" />
+                <MudNumericField T="int?" Class="mt-2" Label="SubDepartmentCode" @bind-Value="_subDepartmentCode" HideSpinButtons="true" Variant="Variant.Outlined" />
                 <MudSwitch Class="mt-2" T="bool" @bind-Value="_includeChildren" Color="Color.Primary">@Language.T("security.baoPhuNodeCon")</MudSwitch>
                 <MudTextField Class="mt-2" Label='@Language.T("common.note")' @bind-Value="_remark" Variant="Variant.Outlined" />
                 <MudStack Row="true" Class="mt-3" Spacing="1">
@@ -55,8 +55,8 @@ else
                     <MudPaper Class="pa-2 mt-2" Outlined="true">
                         <MudStack Row="true" AlignItems="AlignItems.Center">
                             <div>
-                                <MudText Typo="Typo.subtitle2">@scope.NodeType · @(scope.NodeCode ?? scope.DeptCode ?? scope.SubDepartmentCode ?? scope.FactoryCode ?? "-")</MudText>
-                                <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode ?? "-") · Sub=@(scope.SubDepartmentCode ?? "-")</MudText>
+                                <MudText Typo="Typo.subtitle2">@scope.NodeType · @(scope.NodeCode ?? scope.DeptCode?.ToString() ?? scope.SubDepartmentCode?.ToString() ?? scope.FactoryCode ?? "-")</MudText>
+                                <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode?.ToString() ?? "-") · Sub=@(scope.SubDepartmentCode?.ToString() ?? "-")</MudText>
                             </div>
                             <MudSpacer />
                             <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? Language.T("security.baoPhuNodeCon") : Language.T("security.chiNode"))</MudChip>
@@ -76,8 +76,8 @@ else
     private string _nodeType = "Department";
     private string _nodeCode = string.Empty;
     private string _factoryCode = string.Empty;
-    private string _deptCode = string.Empty;
-    private string _subDepartmentCode = string.Empty;
+    private int? _deptCode;
+    private int? _subDepartmentCode;
     private string _remark = string.Empty;
     private bool _includeChildren = true;
     private bool _saving;
@@ -115,8 +115,8 @@ else
         var nodeType = (_nodeType ?? string.Empty).Trim();
         var nodeCode = NullIfWhite(_nodeCode);
         var factoryCode = NullIfWhite(_factoryCode);
-        var deptCode = NullIfWhite(_deptCode);
-        var subDepartmentCode = NullIfWhite(_subDepartmentCode);
+        var deptCode = _deptCode;
+        var subDepartmentCode = _subDepartmentCode;
 
         var valid = nodeType switch
         {
@@ -154,7 +154,8 @@ else
         });
 
         _dirty = true;
-        _nodeCode = _factoryCode = _deptCode = _subDepartmentCode = _remark = string.Empty;
+        _nodeCode = _factoryCode = _remark = string.Empty;
+        _deptCode = _subDepartmentCode = null;
     }
 
     private void Remove(ManagedScopeDto scope)

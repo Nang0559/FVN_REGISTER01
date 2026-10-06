@@ -70,7 +70,7 @@
             <MudText Typo="Typo.body2">@(context.FullName ?? "—")</MudText>
         </MudTd>
         <MudTd>
-            <MudText Typo="Typo.body2">@(context.DeptName ?? context.DeptCode ?? "—")</MudText>
+            <MudText Typo="Typo.body2">@(context.DeptName ?? context.DeptCode?.ToString() ?? "—")</MudText>
         </MudTd>
         <MudTd>
             <MudChip T="string" Size="Size.Small" Style="@GetPermChipStyle(context.PermissionCode)">
@@ -131,7 +131,7 @@
                 (u.EmployeeCode?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.FullName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.DeptName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (u.DeptCode?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
+                (u.DeptCode?.ToString().Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 

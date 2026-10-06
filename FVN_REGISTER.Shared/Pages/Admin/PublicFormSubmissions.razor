@@ -33,7 +33,7 @@
         </MudItem>
 
         <MudItem xs="12" sm="3">
-            <MudTextField @bind-Value="_departmentCode"
+            <MudNumericField T="int?" HideSpinButtons="true" @bind-Value="_departmentCode"
                           Label='@Language.T("ot.department")'
                           Variant="Variant.Outlined" />
         </MudItem>
@@ -188,7 +188,7 @@
 @code {
     private readonly List<PublicFormDto> _forms = new();
     private int? _formId;
-    private string? _departmentCode;
+    private int? _departmentCode;
     private string _status = string.Empty;
     private DateTime? _fromDate;
     private DateTime? _toDate;
@@ -225,7 +225,7 @@
     private PublicFormSubmissionQueryDto BuildQuery()
         => new()
         {
-            DepartmentCode = _departmentCode == null ? null : _departmentCode,
+            DepartmentCode = _departmentCode,
             Status = string.IsNullOrWhiteSpace(_status) ? null : _status,
             FromDate = _fromDate,
             ToDate = _toDate,
