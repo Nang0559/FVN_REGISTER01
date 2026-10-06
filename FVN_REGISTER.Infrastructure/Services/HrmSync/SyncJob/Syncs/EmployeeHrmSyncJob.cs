@@ -52,7 +52,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         {
             EmployeeCode = s.EntityKey,
             EmployeeName = s.EmployeeName,
-            DeptCode = s.DeptCode ?? 0,
+            DeptCode = s.DeptCode ?? string.Empty,
             PositionCode = NormalizeCode(s.PositionCode),
             EmailAddress = s.EmailAddress,
             PhoneNumber = s.PhoneNumber,
@@ -73,7 +73,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             var oldDeptCode = e.DeptCode;
             var oldPositionCode = e.PositionCode;
 
-            var normalizedDeptCode = s.DeptCode ?? 0;
+            var normalizedDeptCode = s.DeptCode ?? string.Empty;
             var normalizedPositionCode = NormalizeCode(s.PositionCode);
 
             bool deptChanged = e.DeptCode != normalizedDeptCode;
@@ -475,4 +475,5 @@ ORDER BY
         }
 
     }
+    private static string? NormalizeCode(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
