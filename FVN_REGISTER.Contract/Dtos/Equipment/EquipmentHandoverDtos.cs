@@ -24,7 +24,7 @@ public sealed class EquipmentHandoverCandidateDto
     public int AssetId { get; set; }
     public string EquipmentCode { get; set; } = string.Empty;
     public string EquipmentName { get; set; } = string.Empty;
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public string? ResponsibleEmployeeCode { get; set; }
     public string? ResponsibleEmployeeName { get; set; }
     public string? ApproverEmployeeCode { get; set; }
