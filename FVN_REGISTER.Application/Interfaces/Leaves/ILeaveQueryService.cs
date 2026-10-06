@@ -13,6 +13,6 @@ namespace FVN_REGISTER.Application.Interfaces.Leaves
     {
         /// Dữ liệu tổng hợp cho trang đăng ký nghỉ phép (loại nghỉ, số dư phép, cấp duyệt...).
         Task<SystemMasterDataDto> GetCombinedDataAsync(
-            string empCode, string deptCode, string cvCode, int year, CancellationToken ct = default);
+            string empCode, int deptCode, string cvCode, int year, CancellationToken ct = default);
     }
 }
