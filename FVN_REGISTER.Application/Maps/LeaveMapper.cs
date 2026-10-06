@@ -59,7 +59,7 @@ namespace FVN_REGISTER.Application.Maps
                 Description = v.LeaveReason ?? string.Empty,
                 RequesterCode = v.EmployeeCode,
                 RequesterName = v.EmployeeName,
-                DeptCode = v.DeptCode,
+                DeptCode = v.DeptCode?? string.Empty,
                 DeptName = v.DeptName ?? string.Empty,
                 WorkYear = v.WorkYear ?? DateTime.Now.Year,
                 RegisterDate = v.RegisterDate,

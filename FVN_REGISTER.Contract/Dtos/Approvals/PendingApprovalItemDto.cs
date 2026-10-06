@@ -11,7 +11,7 @@ public sealed class PendingApprovalItemDto
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
 
-    public int? DeptCode { get; set; }
+    public string DeptCode { get; set; } = string.Empty;
     public string DeptName { get; set; } = string.Empty;
 
     public DateTime? FromDate { get; set; }

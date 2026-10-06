@@ -13,7 +13,7 @@ namespace FVN_REGISTER.Contract.Requests
         public string Description { get; set; } = string.Empty;
 
         public string RequesterCode { get; set; } = string.Empty;
-        public int? DeptCode { get; set; }
+        public string DeptCode { get; set; }= string.Empty;
 
         public List<ApprovalStepDto> ApprovalSteps { get; set; } = new();
         public List<AttachmentDto> Attachments { get; set; } = new();
