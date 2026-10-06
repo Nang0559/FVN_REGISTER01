@@ -12,7 +12,8 @@ public sealed class F03ApprovalPolicy : BaseAuditEntity
 
     /// <summary>Mandatory requester department scope.</summary>
     [Required]
-    public int DeptCode { get; set; }
+    [StringLength(20)]
+    public string DeptCode { get; set; } = string.Empty;
 
     /// <summary>Optional requester position scope. Empty means all positions in DeptCode.</summary>
     [StringLength(20)]
