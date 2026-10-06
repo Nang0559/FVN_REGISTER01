@@ -32,9 +32,9 @@ public static class AuthorizationScopePolicy
     public static bool CanAccess(
         string scope,
         string? actorEmployeeCode,
-        string? actorDeptCode,
+        int? actorDeptCode,
         string? targetEmployeeCode,
-        string? targetDeptCode)
+        int? targetDeptCode)
     {
         return scope switch
         {
@@ -48,8 +48,6 @@ public static class AuthorizationScopePolicy
         };
     }
 
-    private static bool Same(string? left, string? right) =>
-        !string.IsNullOrWhiteSpace(left)
-        && !string.IsNullOrWhiteSpace(right)
-        && string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    private static bool Same(int? left, int? right) =>
+        left.HasValue && right.HasValue && left.Value == right.Value;
 }
