@@ -5,7 +5,7 @@ public sealed class EquipmentInspectionTemplateDto
     public int Id { get; set; }
     public string TemplateCode { get; set; } = "";
     public string TemplateName { get; set; } = "";
-    public string DeptCode { get; set; } = "";
+    public int DeptCode { get; set; }
     public string Frequency { get; set; } = "Daily";
     public int Version { get; set; }
     public string Status { get; set; } = "Draft";
