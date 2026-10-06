@@ -72,7 +72,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("assignment-employees")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> AssignmentEmployees([FromQuery] int? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> AssignmentEmployees([FromQuery] string? deptCode, CancellationToken ct)
     {
         if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
         var result = await _service.GetAssignmentEmployeesAsync(deptCode, ct);
@@ -80,7 +80,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("approvers")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>>> Approvers([FromQuery] int deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetApproversAsync(deptCode, ct);
