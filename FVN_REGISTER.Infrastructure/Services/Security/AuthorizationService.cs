@@ -181,19 +181,6 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         return await IsWithinManagedScopeAsync(managed, employeeCode, deptCode, ct);
     }
 
-    public Task<bool> CanAccessAsync(
-        UserIdentityDto user,
-        int functionCode,
-        string? employeeCode,
-        string? deptCode,
-        CancellationToken ct = default)
-        => CanAccessAsync(
-            user,
-            functionCode,
-            employeeCode,
-            DepartmentCodeParser.Format(deptCode),
-            ct);
-
     public async Task<List<ManagedScopeDto>> GetManagedScopesAsync(
         int userId,
         CancellationToken ct = default)
