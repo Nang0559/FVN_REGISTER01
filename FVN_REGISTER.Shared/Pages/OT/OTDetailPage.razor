@@ -112,5 +112,5 @@ else
 
     private static Color GetStatusColor(ApprovalStatus status) => status switch { ApprovalStatus.Approved => Color.Success, ApprovalStatus.Rejected => Color.Error, ApprovalStatus.Cancelled => Color.Default, _ => Color.Warning };
     private static Color GetValidationColor(ValidationStatus status) => status switch { ValidationStatus.Valid => Color.Success, ValidationStatus.Warning => Color.Warning, ValidationStatus.Invalid => Color.Error, _ => Color.Default };
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
 }

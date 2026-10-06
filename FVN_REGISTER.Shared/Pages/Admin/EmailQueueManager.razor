@@ -110,5 +110,5 @@
     private void CloseDialog() => _view = null;
     private static Color StatusColor(string? s) => s switch { "Sent" => Color.Success, "Failed" => Color.Error, "Retry" => Color.Warning, "Pending" => Color.Info, _ => Color.Default };
     private string StatusText(string? s) => s switch { "Sent" => Language.T("email.daGui"), "Failed" => Language.T("email.thatBai"), "Retry" => "Retry", "Pending" => Language.T("email.choGui"), "Cancelled" => Language.T("leave.statusCancelled"), _ => s ?? "—" };
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
 }

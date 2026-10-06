@@ -396,5 +396,5 @@ else if (_form != null)
     private static decimal CalculateHours(TimeSpan? start, TimeSpan? end) =>
         start.HasValue && end.HasValue && end > start ? (decimal)(end.Value - start.Value).TotalHours : 0m;
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
 }

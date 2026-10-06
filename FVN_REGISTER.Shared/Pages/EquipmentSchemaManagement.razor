@@ -125,7 +125,7 @@
         _loadingSheets=true; _sheets=new(); _grid=null; _excelPreview=null; _headerRowIndex=null; _selectedColumns.Clear(); _dataStartRowIndex=null; _dataEndRowIndex=null;
         try
         {
-            var result=await EquipmentClient.InspectExcelAsync(_deptCode.Value,_schemaFile);
+            var result=await EquipmentClient.InspectExcelAsync(_deptCode!.Value,_schemaFile);
             if(result.IsSuccess)
             {
                 _sheets=result.Data?.Sheets??new();
@@ -144,7 +144,7 @@
         _loadingGrid=true; _grid=null; _headerRowIndex=null; _selectedColumns.Clear(); _dataStartRowIndex=null; _dataEndRowIndex=null; _excelPreview=null;
         try
         {
-            var result=await EquipmentClient.GetExcelGridAsync(_deptCode.Value,_schemaFile,_selectedSheetIndex,200);
+            var result=await EquipmentClient.GetExcelGridAsync(_deptCode!.Value,_schemaFile,_selectedSheetIndex,200);
             if(result.IsSuccess)
             {
                 _grid=result.Data;
@@ -189,7 +189,7 @@
         _readingExcel=true;
         try
         {
-            var result=await EquipmentClient.PreviewSchemaFromExcelRangeAsync(_deptCode.Value,_schemaFile,range);
+            var result=await EquipmentClient.PreviewSchemaFromExcelRangeAsync(_deptCode!.Value,_schemaFile,range);
             if(result.IsSuccess){_excelPreview=result.Data;if(!string.IsNullOrWhiteSpace(_excelPreview?.SuggestedSchemaName))_newSchemaName=_excelPreview.SuggestedSchemaName;}
             else Snackbar.Add(result.Message??Language.T("equipment.khongDocDuocCauTruc"),Severity.Error);
         }
@@ -203,13 +203,13 @@
         _creatingFromExcel=true;
         try
         {
-            var result=await EquipmentClient.CreateSchemaFromExcelRangeAsync(_deptCode.Value,_schemaFile,range,_newSchemaName);
+            var result=await EquipmentClient.CreateSchemaFromExcelRangeAsync(_deptCode!.Value,_schemaFile,range,_newSchemaName);
             if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu"),Severity.Success);}
             else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu"),Severity.Error);
         }
         finally{_creatingFromExcel=false;}
     }
-    private async Task CreateManualSchemaAsync(){if(_deptCode == null||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{DepartmentCode=_deptCode.Value,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu2"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu2"),Severity.Error);}
+    private async Task CreateManualSchemaAsync(){if(_deptCode == null||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{DepartmentCode=_deptCode!.Value,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu2"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu2"),Severity.Error);}
     private async Task CloneSchemaAsync(int schemaId){var result=await EquipmentClient.CloneSchemaAsync(schemaId,new ExcelSchemaCloneRequest());if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daNhanBanMauThanh"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongNhanBanDuocMau"),Severity.Error);}
     private async Task CreateVersionAsync(int schemaId){var result=await EquipmentClient.CreateSchemaVersionAsync(schemaId);if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoPhienBanV", result.Data?.Version),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocPhienBan"),Severity.Error);}
     private async Task ActivateCurrentAsync(){if(_schema==null)return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{Id=_schema.Id,DepartmentCode=_schema.DepartmentCode,SchemaName=_schema.SchemaName,Status="Active"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daDuaMauDuLieu"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTheDuaMauDu"),Severity.Error);}

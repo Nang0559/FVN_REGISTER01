@@ -98,7 +98,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Language.LanguageChanged += OnLanguageChanged;
         try
         {
             await CurrentUser.InitializeAsync();
@@ -283,6 +282,4 @@
     }
 
     private void GoHome() => NavigationManager.NavigateTo("/");
-    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
-    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }

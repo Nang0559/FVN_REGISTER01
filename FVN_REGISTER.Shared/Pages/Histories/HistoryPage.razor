@@ -150,5 +150,5 @@
         if (result.IsSuccess && _table != null) await _table.ReloadServerData();
     }
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
 }

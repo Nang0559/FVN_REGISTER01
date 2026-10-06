@@ -93,8 +93,9 @@
 
     private void ViewDetail(int id) => Nav.NavigateTo($"/ot/detail/{id}");
 
-    public void Dispose()
+    public override void Dispose()
     {
+        base.Dispose();
         _cts.Cancel();
         _cts.Dispose();
     }

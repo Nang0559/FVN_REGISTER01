@@ -196,8 +196,9 @@
         _ => Color.Warning
     };
 
-    public void Dispose()
+    public override void Dispose()
     {
+        base.Dispose();
         _cts.Cancel();
         _cts.Dispose();
     }
