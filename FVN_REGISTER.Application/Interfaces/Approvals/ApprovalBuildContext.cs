@@ -27,7 +27,7 @@ public sealed class ApprovalBuildContext
         Extra = new Dictionary<string, object?> { ["TotalOTHours"] = totalOTHours, ["OTTypeCode"] = otTypeCode }
     };
 
-    public static ApprovalBuildContext ForLeave(int requestId, string employeeCode, string deptCode, string positionCode, int? year = null, string? leaveTypeCode = null) => new()
+    public static ApprovalBuildContext ForLeave(int requestId, string employeeCode, int deptCode, string positionCode, int? year = null, string? leaveTypeCode = null) => new()
     {
         RequestId = requestId,
         EmployeeCode = employeeCode,
