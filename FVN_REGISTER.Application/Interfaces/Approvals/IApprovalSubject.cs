@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
         RequestModule Module { get; } // ĐÃ THÊM
         string EmployeeCode { get; }
         string? EmployeeName { get; }
-        int? DeptCode { get; }
+        string? DeptCode { get; }
         string? PositionCode { get; }
         // Bổ sung thêm nếu cần:
         ApprovalStatus OverallStatus { get; }
