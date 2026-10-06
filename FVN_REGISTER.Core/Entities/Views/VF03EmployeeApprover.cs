@@ -7,7 +7,7 @@ public partial class VF03EmployeeApprover
 {
     public int Id { get; set; }
 
-    public int DeptCode { get; set; }
+    [StringLength(20)] public string DeptCode { get; set; } = string.Empty;
 
     public string DeptName { get; set; } = null!;
 
