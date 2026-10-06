@@ -181,6 +181,8 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<F03Role>(entity => entity.HasIndex(x => x.RoleCode).IsUnique());
         modelBuilder.Entity<F03FeatureOperatorAssignment>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired(); entity.Property(x => x.ResourceType).HasMaxLength(50).IsRequired(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.EmployeeCode }).IsUnique(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.IsActive }); });
         modelBuilder.Entity<F03EmailDispatchPolicy>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.TemplateCode, x.Priority }).IsUnique(); entity.Property(x => x.DispatchMode).HasConversion<string>().HasMaxLength(30); });
+        // Department codes are INT in SQL; convert to/from the text used by the application layer.
+        FVN_REGISTER.Infrastructure.Models.Data.Converters.DepartmentCodeStorage.Apply(modelBuilder);
     }
 
     public override int SaveChanges() { ApplyAuditInfo(); return base.SaveChanges(); }
