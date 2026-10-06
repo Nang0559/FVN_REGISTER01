@@ -74,7 +74,7 @@ public sealed class AccessChangeItQueueItemDto
     public string OldEmployeeCode { get; set; } = string.Empty;
     public string NewEmployeeCode { get; set; } = string.Empty;
     public string NewEmployeeName { get; set; } = string.Empty;
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public List<int> FunctionCodes { get; set; } = new();
     public bool TransferEquipmentResponsible { get; set; }
     public bool TransferEquipmentApprover { get; set; }
