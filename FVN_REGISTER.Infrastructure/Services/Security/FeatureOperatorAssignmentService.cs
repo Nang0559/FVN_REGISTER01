@@ -51,11 +51,11 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         var positions = await _uow.Repository<F03Position>().Query().AsNoTracking().Where(x => x.IsActive == true).Select(x => new { x.PositionCode, x.PositionName }).ToListAsync(ct);
         var functions = await _uow.Repository<F03Function>().Query().AsNoTracking().Where(x => x.FunctionCode == rows.First().FunctionCode).Select(x => new { x.FunctionCode, x.FunctionName }).FirstOrDefaultAsync(ct);
         var em = employees.ToDictionary(x => x.EmployeeCode, StringComparer.OrdinalIgnoreCase);
-        var dm = departments.ToDictionary(x => x.DeptCode, x => x.DeptName, StringComparer.OrdinalIgnoreCase);
+        var dm = departments.ToDictionary(x => x.DeptCode, x => x.DeptName);
         var pm = positions.ToDictionary(x => x.PositionCode, x => x.PositionName, StringComparer.OrdinalIgnoreCase);
         return rows.Select(x =>
         {
-            em.TryGetValue(x.EmployeeCode, out var e); dm.TryGetValue(e?.DeptCode ?? string.Empty, out var dn); pm.TryGetValue(e?.PositionCode ?? string.Empty, out var pn);
+            em.TryGetValue(x.EmployeeCode, out var e); dm.TryGetValue(e?.DeptCode ?? 0, out var dn); pm.TryGetValue(e?.PositionCode ?? string.Empty, out var pn);
             return new FeatureOperatorAssignmentDto { Id = x.Id, FunctionCode = x.FunctionCode, FunctionName = functions?.FunctionName ?? string.Empty, ResourceType = x.ResourceType, ResourceId = x.ResourceId, EmployeeCode = x.EmployeeCode, EmployeeName = e?.EmployeeName ?? x.EmployeeCode, DeptCode = e?.DeptCode, DeptName = dn, PositionCode = e?.PositionCode, PositionName = pn, Remark = x.Remark };
         }).ToList();
     }
@@ -201,7 +201,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
     public async Task<List<FeatureOperatorEmployeeDto>> GetEmployeesAsync(string? search, CancellationToken ct = default)
     {
         var term = search?.Trim(); var q = _uow.Repository<F03Employee>().Query().AsNoTracking().Where(x => x.IsActive == true && (!x.EndWorkingDate.HasValue || x.EndWorkingDate.Value.Date >= DateTime.Today));
-        if (!string.IsNullOrWhiteSpace(term)) q = q.Where(x => x.EmployeeCode.Contains(term) || x.EmployeeName.Contains(term) || x.DeptCode.Contains(term) || x.PositionCode.Contains(term));
+        if (!string.IsNullOrWhiteSpace(term)) q = q.Where(x => x.EmployeeCode.Contains(term) || x.EmployeeName.Contains(term) || x.DeptCode.ToString().Contains(term) || x.PositionCode.Contains(term));
         return await q.OrderBy(x => x.EmployeeCode).Take(500).Select(x => new FeatureOperatorEmployeeDto { EmployeeCode = x.EmployeeCode, EmployeeName = x.EmployeeName ?? x.EmployeeCode, DeptCode = x.DeptCode, DeptName = _uow.Repository<F03Department>().Query().Where(d => d.DeptCode == x.DeptCode && d.IsActive == true).Select(d => d.DeptName).FirstOrDefault(), PositionCode = x.PositionCode, PositionName = _uow.Repository<F03Position>().Query().Where(p => p.PositionCode == x.PositionCode && p.IsActive == true).Select(p => p.PositionName).FirstOrDefault() }).ToListAsync(ct);
     }
 

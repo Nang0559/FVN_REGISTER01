@@ -154,7 +154,7 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
             };
             await _uow.Repository<F03EndpointGovernanceRequest>().AddAsync(approvalRequest, ct);
             await _uow.SaveChangesAsync(ct);
-            var context = ApprovalBuildContext.ForEndpoint(approvalRequest.Id, employee.EmployeeCode, employee.DeptCode ?? string.Empty, employee.PositionCode, requestType.ToString(), policy.PolicyName);
+            var context = ApprovalBuildContext.ForEndpoint(approvalRequest.Id, employee.EmployeeCode, employee.DeptCode, employee.PositionCode, requestType.ToString(), policy.PolicyName);
             var init = await _workflow.InitApprovalAsync(approvalRequest.Id, context, ct);
             if (!init.IsSuccess) return ServiceResult<EndpointGovernancePolicyDto>.Fail(init.Message ?? "Không thể khởi tạo Common Approval cho catalog.");
             approvalRequest.RequestStatus = ApprovalStatus.Pending;
@@ -295,7 +295,7 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
                 var steps = await _workflow.GetStepsAsync(entity.Id, ct);
                 if (steps.Count == 0)
                 {
-                    var context = ApprovalBuildContext.ForEndpoint(entity.Id, entity.EmployeeCode, employee.DeptCode ?? string.Empty, employee.PositionCode, entity.RequestType.ToString(), entity.ItemName);
+                    var context = ApprovalBuildContext.ForEndpoint(entity.Id, entity.EmployeeCode, employee.DeptCode, employee.PositionCode, entity.RequestType.ToString(), entity.ItemName);
                     var init = await _workflow.InitApprovalAsync(entity.Id, context, ct);
                     if (!init.IsSuccess) return ServiceResult<EndpointGovernanceRequestDto>.Fail(init.Message ?? "Không thể khởi tạo Common Approval.");
                 }

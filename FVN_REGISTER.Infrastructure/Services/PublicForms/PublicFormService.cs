@@ -411,13 +411,18 @@ public sealed class PublicFormService : IPublicFormService
 
             if (group.Key.Equals("Department", StringComparison.OrdinalIgnoreCase))
             {
+                var deptCodeValues = values
+                    .Select(v => int.TryParse(v?.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var dc) ? (int?)dc : null)
+                    .Where(dc => dc.HasValue)
+                    .Select(dc => dc!.Value)
+                    .ToList();
                 var found = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
-                    .Where(x => x.IsActive == true && values.Contains(x.DeptCode))
+                    .Where(x => x.IsActive == true && deptCodeValues.Contains(x.DeptCode))
                     .Select(x => x.DeptCode)
                     .ToListAsync(ct);
 
-                var missing = values.Where(v => !found.Contains(v, StringComparer.OrdinalIgnoreCase)).ToList();
+                var missing = values.Where(v => !int.TryParse(v?.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var c) || !found.Contains(c)).ToList();
                 if (missing.Count > 0)
                     throw new ArgumentException($"Phòng ban không tồn tại hoặc đã ngừng hoạt động: {string.Join(", ", missing)}");
             }
@@ -512,10 +517,10 @@ public sealed class PublicFormService : IPublicFormService
         {
             FormId = formId,
             TotalSubmissions = rows.Count,
-            ByDepartment = rows.GroupBy(x => employees.TryGetValue(x.EmployeeCode, out var e) ? e.DeptCode : string.Empty)
+            ByDepartment = rows.GroupBy(x => employees.TryGetValue(x.EmployeeCode, out var e) ? (int?)e.DeptCode : null)
                 .OrderByDescending(x => x.Count()).Select(x => new PublicFormDepartmentSummaryDto
                 {
-                    DeptCode = string.IsNullOrWhiteSpace(x.Key) ? "(Không xác định)" : x.Key, Count = x.Count()
+                    DeptCode = x.Key ?? 0, Count = x.Count()
                 }).ToList()
         };
 
@@ -573,7 +578,7 @@ public sealed class PublicFormService : IPublicFormService
             employees.TryGetValue(submission.EmployeeCode, out var employee);
             sheet.Cell(r + 2, 1).Value = submission.EmployeeCode;
             sheet.Cell(r + 2, 2).Value = employee?.EmployeeName ?? string.Empty;
-            sheet.Cell(r + 2, 3).Value = employee?.DeptCode ?? string.Empty;
+            sheet.Cell(r + 2, 3).Value = employee?.DeptCode.ToString() ?? string.Empty;
             sheet.Cell(r + 2, 4).Value = submission.SubmittedAt;
             sheet.Cell(r + 2, 4).Style.DateFormat.Format = "dd/MM/yyyy HH:mm";
             sheet.Cell(r + 2, 5).Value = submission.Status;
@@ -633,7 +638,7 @@ public sealed class PublicFormService : IPublicFormService
         return new PublicFormSubmissionRowDto
         {
             SubmissionId = submission.Id, EmployeeCode = submission.EmployeeCode, EmployeeName = employee?.EmployeeName ?? string.Empty,
-            DeptCode = employee?.DeptCode ?? string.Empty, SubmittedAt = submission.SubmittedAt, Status = submission.Status,
+            DeptCode = employee?.DeptCode ?? 0, SubmittedAt = submission.SubmittedAt, Status = submission.Status,
             Answers = questions.Where(x => x.IsActive == true).OrderBy(x => x.Sequence).Select(q => new PublicFormSubmissionAnswerDto
             {
                 QuestionId = q.Id, QuestionCode = q.QuestionCode, QuestionText = q.QuestionText, QuestionType = q.QuestionType,

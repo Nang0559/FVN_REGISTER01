@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Application.Interfaces.Statics
     public interface IStatisticsService
     {
         Task<LeaveStatisticsDto> GetDepartmentStatisticsAsync(int deptCode, CancellationToken ct = default);
-        Task<List<LeaveStatisticsDto>> GetStatisticsByTimeRangeAsync(string[]? departments, TimeRange timeRange, CancellationToken ct = default);
+        Task<List<LeaveStatisticsDto>> GetStatisticsByTimeRangeAsync(int[]? departments, TimeRange timeRange, CancellationToken ct = default);
         Task<AbsenceWarningDto> GetAbsenceWarningAsync(int deptCode, CancellationToken ct = default);
         Task<List<WidgetCounterDto>> GetCompanyDashboardWidgetsAsync(CancellationToken ct = default);
         Task<List<WidgetCounterDto>> GetDeptDashboardWidgetsAsync(int deptCode, CancellationToken ct = default);

@@ -95,7 +95,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var rows = data.Select(x => new Dictionary<string, object?>
             {
                 ["DeptCode"] = x.DeptCode,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["EmployeeCount"] = x.EmployeeCount,
                 ["RequestCount"] = x.RequestCount,
                 ["TotalOTHours"] = x.TotalOTHours,
@@ -173,7 +173,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName ?? x.EmployeeCode,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["RequestCount"] = x.RequestCount,
                 ["TotalPlanned"] = x.TotalPlanned,
                 ["TotalActual"] = x.TotalActual,
@@ -388,7 +388,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 {
                     ["EmployeeCode"] = x.EmployeeCode,
                     ["EmployeeName"] = x.EmployeeName ?? x.EmployeeCode,
-                    ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                    ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                     ["UsedHours"] = x.UsedHours,
                     ["LimitHours"] = limit,
                     ["RemainHours"] = remain,

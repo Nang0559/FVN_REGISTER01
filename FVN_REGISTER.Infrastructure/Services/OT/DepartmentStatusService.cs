@@ -73,7 +73,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                 .AsNoTracking()
                 .Where(d => d.DeptCode == deptCode)
                 .Select(d => d.DeptName)
-                .FirstOrDefaultAsync(ct) ?? deptCode;
+                .FirstOrDefaultAsync(ct) ?? deptCode.ToString();
 
             var leaveTypeCodes = leaveRaw.Select(l => l.LeaveTypeCode).Where(c => c != null).Distinct().ToList();
 
@@ -185,7 +185,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                     return new DepartmentStatusDto
                     {
                         DeptCode = g.Key,
-                        DeptName = deptMap.GetValueOrDefault(g.Key, g.Key),
+                        DeptName = deptMap.GetValueOrDefault(g.Key, g.Key.ToString()),
                         ReportDate = targetDate,
                         TotalEmployees = total,
                         PresentCount = presentCount,

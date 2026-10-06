@@ -146,7 +146,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             string V(Dictionary<string,string?> d, params string[] keys) => keys.Select(NormalizeInspectionExcelKey).Select(k => d.TryGetValue(k, out var v) ? v : null).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? "";
             var templateCode = V(rows[0], "TemplateCode", "Mã checklist").Trim().ToUpperInvariant();
             var templateName = V(rows[0], "TemplateName", "Tên checklist");
-            var deptCode = V(rows[0], "DeptCode", "Bộ phận", "DepartmentCode").Trim().ToUpperInvariant();
+            var deptCode = int.TryParse(V(rows[0], "DeptCode", "Bộ phận", "DepartmentCode").Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsedDeptCode) ? parsedDeptCode : (int?)null;
             var frequency = V(rows[0], "Frequency", "Chu kỳ").Trim();
             var description = V(rows[0], "Description", "Mô tả");
             var errors = new List<string>();
@@ -182,7 +182,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             }
             if (errors.Count > 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(string.Join(" ", errors.Take(20)));
 
-            var saved=await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest { TemplateCode=templateCode,TemplateName=templateName,DeptCode=deptCode,Frequency=frequency,Status="Draft",Description=description,Items=items },ct);
+            var saved=await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest { TemplateCode=templateCode,TemplateName=templateName,DeptCode=deptCode!.Value,Frequency=frequency,Status="Draft",Description=description,Items=items },ct);
             if (!saved.IsSuccess || saved.Data == null) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(saved.Message ?? "Không thể lưu checklist từ Excel.");
             return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Ok(new EquipmentInspectionTemplateImportResultDto { TemplateId=saved.Data.Id,TemplateCode=saved.Data.TemplateCode,TemplateName=saved.Data.TemplateName,ItemCount=items.Count }, "Đã kiểm tra và import checklist Excel thành công ở trạng thái Draft.");
         }
@@ -204,7 +204,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("Bạn không có quyền quản lý checklist.");
 
         var dept = request.DeptCode;
-        if (string.IsNullOrWhiteSpace(dept) || string.IsNullOrWhiteSpace(request.TemplateName))
+        if (dept <= 0 || string.IsNullOrWhiteSpace(request.TemplateName))
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("DepartmentCode và tên checklist là bắt buộc.");
 
         var frequencies = new[] { "Daily", "Weekly", "Monthly", "Quarterly", "Yearly" };
@@ -574,7 +574,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             Rows = rows.Select(x => new EquipmentInspectionReportRowDto
             {
                 TaskId = x.Id,
-                DeptCode = x.Equipment?.DeptCode ?? "", EquipmentCode = x.Equipment?.EquipmentCode ?? "",
+                DeptCode = x.Equipment?.DeptCode ?? 0, EquipmentCode = x.Equipment?.EquipmentCode ?? "",
                 EquipmentName = x.Equipment?.EquipmentName ?? "", TemplateName = x.Template?.TemplateName ?? "",
                 InspectorEmployeeCode = x.InspectorEmployeeCode, Status = x.Status, Result = x.Result,
                 ScheduledDate = x.ScheduledDate, DueAt = x.DueAt, SubmittedAt = x.SubmittedAt, ApprovedAt = x.ApprovedAt
@@ -891,7 +891,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     private static EquipmentInspectionTaskDto MapTask(F03EquipmentInspectionTask x) => new()
     {
         Id=x.Id, EquipmentId=x.EquipmentId, EquipmentCode=x.Equipment?.EquipmentCode ?? "", EquipmentName=x.Equipment?.EquipmentName ?? "",
-        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? "", TemplateId=x.TemplateId,
+        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? 0, TemplateId=x.TemplateId,
         TemplateName=x.Template?.TemplateName ?? "", TemplateVersion=x.Template?.Version ?? 0, Status=x.Status, Result=x.Result,
         ScheduledDate=x.ScheduledDate, DueAt=x.DueAt, InspectorEmployeeCode=x.InspectorEmployeeCode, ApproverEmployeeCode=x.ApproverEmployeeCode,
         Items=x.Template?.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>{

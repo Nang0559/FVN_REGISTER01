@@ -35,7 +35,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 IsActive = x.IsActive == true,
                 RequestType = (int)x.RequestType,
                 RequestTypeName = RequestTypeName(x.RequestType),
-                DeptCode = x.DeptCode ?? string.Empty,
+                DeptCode = x.DeptCode,
                 PositionCode = x.PositionCode,
                 ApprovalPositionCode = x.ApprovalPositionCode ?? string.Empty,
                 Level = x.Level,
@@ -209,7 +209,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             return "RequestType không hợp lệ.";
 
         var deptCode = request.DeptCode;
-        if (deptCode == null)
+        if (deptCode <= 0)
             return "Phòng ban là bắt buộc.";
 
         if (!await _uow.Repository<F03Department>().Query()
@@ -308,7 +308,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             RequestType = (int)x.RequestType,
             RequestTypeName = RequestTypeName(x.RequestType),
             DeptCode = x.DeptCode,
-            DeptName = deptName ?? x.DeptCode,
+            DeptName = deptName ?? x.DeptCode.ToString(),
             PositionCode = x.PositionCode,
             PositionName = requester?.PositionName ?? "(Tất cả vị trí)",
             ApprovalPositionCode = x.ApprovalPositionCode,

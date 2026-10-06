@@ -113,7 +113,7 @@ public sealed class TripService : ITripService
         var context = ApprovalBuildContext.ForTrip(
             entity.Id,
             entity.EmployeeCode,
-            entity.DeptCode ?? employee?.DeptCode ?? string.Empty,
+            entity.DeptCode ?? employee?.DeptCode ?? 0,
             employee?.PositionCode ?? string.Empty);
 
         var approvalResult = await _workflow.InitApprovalAsync(entity.Id, context, ct);
@@ -181,8 +181,8 @@ public sealed class TripService : ITripService
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var managedDeptCodes = managedEmployees
                 .Select(x => x.DeptCode)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .Where(x => x.HasValue)
+                .ToHashSet();
 
             if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                 query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode));

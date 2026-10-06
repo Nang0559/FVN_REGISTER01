@@ -159,7 +159,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 var ctx = ApprovalBuildContext.ForLeave(
                     requestId: 0,
                     employeeCode: user.EmployeeCode ?? "",
-                    deptCode: emp.DeptCode ?? "",
+                    deptCode: emp.DeptCode ?? 0,
                     positionCode: emp.PositionCode ?? "",
                     year: workYear,
                     leaveTypeCode: model.LeaveTypeCode);

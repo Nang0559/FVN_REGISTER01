@@ -92,7 +92,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var context = ApprovalBuildContext.ForOT(
                     requestId: entity.Id,
                     employeeCode: user.EmployeeCode ?? "",
-                    deptCode: entity.DeptCode ?? "",
+                    deptCode: entity.DeptCode ?? 0,
                     positionCode: user.PositionCode ?? "",
                     totalOTHours: totalHours,
                     otTypeCode: model.OTTypeCode);

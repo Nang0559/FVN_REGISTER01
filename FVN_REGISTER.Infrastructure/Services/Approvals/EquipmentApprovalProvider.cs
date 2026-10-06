@@ -146,7 +146,7 @@ public sealed class EquipmentApprovalProvider
                         PurchasePrice = entity.PurchasePrice,
                         PurchaseDate = entity.PurchaseDate.Value,
                         ExpectedDepreciationDate = entity.ExpectedDepreciationDate.Value,
-                        DeptCode = entity.DeptCode!,
+                        DeptCode = entity.DeptCode!.Value,
                         Location = entity.Location,
                         QrToken = entity.QrToken,
                         IsQrActive = true,

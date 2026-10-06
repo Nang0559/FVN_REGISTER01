@@ -196,33 +196,30 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     .ToListAsync(ct);
 
                 var reportScope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.LeaveView, ct);
-                var allowedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var allowedCodes = new HashSet<int>();
                 if (string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
                 {
                     allowedCodes.UnionWith(departments.Select(x => x.DeptCode));
                 }
                 else
                 {
-                    if (user.DeptCode != null)
-                        allowedCodes.Add(user.DeptCode);
+                    if (user.DeptCode.HasValue)
+                        allowedCodes.Add(user.DeptCode.Value);
 
                     var managed = await _authorization.GetManagedScopesAsync(user.UserId, ct);
                     var departmentMap = departments
-                        .Where(x => x.DeptCode != null)
-                        .GroupBy(x => x.DeptCode, StringComparer.OrdinalIgnoreCase)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.First(),
-                            StringComparer.OrdinalIgnoreCase);
+                        .GroupBy(x => x.DeptCode)
+                        .ToDictionary(g => g.Key, g => g.First());
 
                     foreach (var scope in managed)
                     {
                         var nodeType = (scope.NodeType ?? string.Empty).Trim();
-                        var node = nodeType switch
+                        // Factory/Block là mã text; Department/SubDepartment là INT.
+                        string? node = nodeType switch
                         {
                             "Factory" => scope.FactoryCode ?? scope.NodeCode,
-                            "Department" => scope.DeptCode ?? scope.NodeCode,
-                            "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
+                            "Department" => scope.DeptCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? scope.NodeCode,
+                            "SubDepartment" => scope.SubDepartmentCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? scope.NodeCode,
                             _ => scope.NodeCode
                         };
 
@@ -242,8 +239,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                             }
                         }
 
-                        if (departmentMap.ContainsKey(node))
-                            allowedCodes.Add(node);
+                        if (int.TryParse(node, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var nodeDeptCode)
+                            && departmentMap.ContainsKey(nodeDeptCode))
+                            allowedCodes.Add(nodeDeptCode);
 
                         if (!scope.IncludeChildren)
                             continue;
@@ -259,7 +257,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                                     continue;
 
                                 if (department.ParentDeptCode != null
-                                    && allowedCodes.Contains(department.ParentDeptCode))
+                                    && allowedCodes.Contains(department.ParentDeptCode.Value))
                                     changed = true;
                                 else if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
                                     && !string.IsNullOrWhiteSpace(department.BlockCode)
@@ -275,7 +273,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
                 var list = departments
                     .Where(x => allowedCodes.Contains(x.DeptCode))
-                    .Select(x => new KeyValuePair<string, string>(x.DeptCode, x.DeptName))
+                    .Select(x => new KeyValuePair<string, string>(x.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), x.DeptName))
                     .ToList();
 
                 Logger.LogDebugIf(Debug, "[REPORT] Lookup Departments: {Count}", list.Count);
@@ -304,7 +302,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     .Where(x => x.IsActive);
 
                 var requestedDept = deptCode;
-                if (!string.IsNullOrWhiteSpace(requestedDept))
+                if (requestedDept.HasValue)
                 {
                     if (!await _authorization.CanAccessAsync(
                         user, SecurityFunctionCodes.LeaveView, null, requestedDept, ct)

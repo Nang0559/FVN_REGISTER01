@@ -52,10 +52,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         // SHARED HELPERS — dùng tự do trong subclass (không đổi)
         // ════════════════════════════════════════════════════════════════
 
-        protected async Task<Dictionary<string, string>> LoadDeptMapAsync(
-        IEnumerable<string?> deptCodes, CancellationToken ct)
+        protected async Task<Dictionary<int, string>> LoadDeptMapAsync(
+        IEnumerable<int?> deptCodes, CancellationToken ct)
         {
-            var codes = deptCodes.Where(x => x != null).Select(x => x!).Distinct().ToList();
+            var codes = deptCodes.Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
             if (codes.Count == 0) return new();
 
             return await _uow.Repository<F03Department>().Query()
@@ -174,7 +174,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .ToListAsync(ct);
 
             return ServiceResult<List<KeyValuePair<string, string>>>.Ok(
-                depts.Select(d => new KeyValuePair<string, string>(d.DeptCode, d.DeptName)).ToList());
+                depts.Select(d => new KeyValuePair<string, string>(d.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), d.DeptName)).ToList());
         }
 
         public async Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(

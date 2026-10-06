@@ -39,7 +39,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
             Id = x.Id,
             IsActive = x.IsActive,
             DeptCode = x.DeptCode,
-            DeptName = x.DeptCode == null ? "Tất cả phòng ban" : deptMap.GetValueOrDefault(x.DeptCode),
+            DeptName = x.DeptCode.HasValue ? deptMap.GetValueOrDefault(x.DeptCode.Value) : "Tất cả phòng ban",
             PositionCode = x.PositionCode,
             PositionName = x.PositionCode == null ? "Tất cả chức vụ" : positionMap.GetValueOrDefault(x.PositionCode),
             PermissionCode = x.PermissionCode,
@@ -95,7 +95,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
 
         var entity = new F03HrmUserRoleRule
         {
-            DeptCode = Normalize(request.DeptCode),
+            DeptCode = NormalizeDept(request.DeptCode),
             PositionCode = Normalize(request.PositionCode),
             PermissionCode = request.PermissionCode,
             Priority = request.Priority,
@@ -119,7 +119,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
         var validation = await ValidateAsync(request, id, ct);
         if (validation != null) return ServiceResult<HrmUserRoleRuleDto>.Fail(validation);
 
-        entity.DeptCode = Normalize(request.DeptCode);
+        entity.DeptCode = NormalizeDept(request.DeptCode);
         entity.PositionCode = Normalize(request.PositionCode);
         entity.PermissionCode = request.PermissionCode;
         entity.Priority = request.Priority;
@@ -193,7 +193,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
         if (request.PermissionCode is < 1 or > 6) return "PermissionCode không hợp lệ.";
         if (request.Priority < 0) return "Priority phải >= 0.";
 
-        var dept = Normalize(request.DeptCode);
+        var dept = NormalizeDept(request.DeptCode);
         var position = Normalize(request.PositionCode);
 
         if (dept != null &&
@@ -232,4 +232,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
 
     
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>null hoặc &lt;= 0 nghĩa là "tất cả phòng ban".</summary>
+    private static int? NormalizeDept(int? value) => value is > 0 ? value : null;
 }

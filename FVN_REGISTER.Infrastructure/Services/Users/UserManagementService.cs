@@ -404,9 +404,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
         // ===== HELPER =====
         private UserAccountDto MapToDto(
             F03User user, string? permissionName,
-            Dictionary<string, string> deptNames, Dictionary<int, List<int>> functionMap)
+            Dictionary<int, string> deptNames, Dictionary<int, List<int>> functionMap)
         {
-            deptNames.TryGetValue(user.DeptCode ?? "", out var deptName);
+            string? deptName = null;
+            if (user.DeptCode.HasValue)
+                deptNames.TryGetValue(user.DeptCode.Value, out deptName);
             functionMap.TryGetValue(user.Id, out var functionIds);
 
             return new UserAccountDto

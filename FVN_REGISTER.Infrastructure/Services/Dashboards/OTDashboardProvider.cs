@@ -48,7 +48,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             if (user.DeptCode != null
                 && await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, null, user.DeptCode, ct))
             {
-                nearLimitEmployees = await _otQuery.GetDeptNearLimitAsync(user.DeptCode, year, month, ct) ?? new List<OTBalanceDto>();
+                nearLimitEmployees = await _otQuery.GetDeptNearLimitAsync(user.DeptCode.Value, year, month, ct) ?? new List<OTBalanceDto>();
 
                 // MỚI: thêm widget đếm số để hiện ngay trên dashboard tổng quan,
                 // đối xứng với cách LeaveDashboardProvider thêm dept-widgets vào Widgets list.

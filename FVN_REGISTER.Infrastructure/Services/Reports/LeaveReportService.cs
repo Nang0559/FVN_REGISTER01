@@ -80,7 +80,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName ?? x.EmployeeCode,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["TotalEntitledLeave"] = x.TotalEntitledLeave,
                 ["LeaveDaysUsed"] = x.LeaveDaysUsed,
                 ["TotalDaysOff"] = x.TotalDaysOff,
@@ -151,7 +151,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var rows = data.Select(x => new Dictionary<string, object?>
             {
                 ["DeptCode"] = x.DeptCode,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["EmployeeCount"] = x.EmployeeCount,
                 ["TotalUsed"] = x.TotalUsed,
             }).ToList();
@@ -177,7 +177,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 Chart = new()
                 {
                     ChartType = "bar",
-                    Labels = data.Select(x => x.DeptName ?? x.DeptCode ?? "").ToList(),
+                    Labels = data.Select(x => x.DeptName ?? x.DeptCode?.ToString() ?? "").ToList(),
                     Series = new()
                     {
                         new() { Name = "Số ngày đã nghỉ", Data = data.Select(x => x.TotalUsed).ToList() }
@@ -245,7 +245,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["TotalRequests"] = x.TotalRequests,
                 ["TotalDays"] = x.TotalDays,
                 ["ApprovedDays"] = x.ApprovedDays,
@@ -315,7 +315,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 ["Id"] = x.Id,
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["RegisterDate"] = x.RegisterDate,
                 ["StartDate"] = x.StartDate,
                 ["EndDate"] = x.EndDate,

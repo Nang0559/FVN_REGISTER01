@@ -189,7 +189,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 var monthEnd = monthStart.AddMonths(1);
 
                 var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
-                    ? new List<string>()
+                    ? new List<int>()
                     : await _uow.Repository<F03Department>().Query()
                         .AsNoTracking()
                         .Where(d => d.IsActive == true && d.BlockCode == blockCode)
@@ -205,7 +205,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         e.OTRequest.RequestStatus != ApprovalStatus.Cancelled &&
                         e.OTRequest.OTDate >= yearStart &&
                         e.OTRequest.OTDate < yearEnd &&
-                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || blockDeptCodes.Contains(e.OTRequest.DeptCode ?? string.Empty)))
+                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || (e.OTRequest.DeptCode.HasValue && blockDeptCodes.Contains(e.OTRequest.DeptCode.Value))))
                     .Select(e => new
                     {
                         e.EmployeeCode,
@@ -254,7 +254,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
                 if (!string.IsNullOrWhiteSpace(blockCode))
                 {
-                    var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode ?? string.Empty)).ToList();
+                    var blockUsed = usedData.Where(x => (x.DeptCode.HasValue && blockDeptCodes.Contains(x.DeptCode.Value))).ToList();
                     ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Weekly,
                         blockUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                         model.Employees.Sum(x => x.OTHours));

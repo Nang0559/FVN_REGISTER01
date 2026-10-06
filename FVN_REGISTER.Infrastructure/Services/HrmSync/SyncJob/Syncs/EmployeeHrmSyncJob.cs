@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
     {
         private readonly List<string> _changedApproverRelevantCodes = new();
         private readonly Dictionary<string, int?> _positionLevelCache = new();
-        private readonly Dictionary<string, (string Dept, string Position)> _approverChangeSnapshot = new();
+        private readonly Dictionary<string, (int Dept, string Position)> _approverChangeSnapshot = new();
         private readonly ISessionTerminationNotifier _sessionNotifier;
 
         public EmployeeHrmSyncJob(IUnitOfWork uow, ISessionTerminationNotifier sessionNotifier) : base(uow)
@@ -52,7 +52,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         {
             EmployeeCode = s.EntityKey,
             EmployeeName = s.EmployeeName,
-            DeptCode = NormalizeCode(s.DeptCode),
+            DeptCode = s.DeptCode ?? 0,
             PositionCode = NormalizeCode(s.PositionCode),
             EmailAddress = s.EmailAddress,
             PhoneNumber = s.PhoneNumber,
@@ -73,7 +73,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             var oldDeptCode = e.DeptCode;
             var oldPositionCode = e.PositionCode;
 
-            var normalizedDeptCode = NormalizeCode(s.DeptCode);
+            var normalizedDeptCode = s.DeptCode ?? 0;
             var normalizedPositionCode = NormalizeCode(s.PositionCode);
 
             bool deptChanged = e.DeptCode != normalizedDeptCode;

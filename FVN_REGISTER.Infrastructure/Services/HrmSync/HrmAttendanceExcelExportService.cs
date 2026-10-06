@@ -108,7 +108,7 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
             SetText(row, 1, item.Key.EmployeeCode);
             SetText(row, 2, item.Key.FullName?.Trim());
             SetText(row, 5, GetPosition(item));
-            SetText(row, 6, item.Key.DeptCode);
+            SetText(row, 6, item.Key.DeptCode?.ToString());
 
             var byDate = item.ToDictionary(x => x.WorkDate.Date);
             for (var day = 0; day < 31; day++)
@@ -149,7 +149,7 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
             SetText(row, 0, (i + 1).ToString());
             SetText(row, 1, item.Key.EmployeeCode);
             SetText(row, 2, item.Key.FullName?.Trim());
-            SetText(row, 3, item.Key.DeptCode);
+            SetText(row, 3, item.Key.DeptCode?.ToString());
 
             var byDate = item.ToDictionary(x => x.WorkDate.Date);
             for (var day = 0; day < 31; day++)

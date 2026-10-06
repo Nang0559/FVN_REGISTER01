@@ -61,7 +61,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            return HandleResult(await _queryService.GetDeptByDateAsync(UserInfo.DeptCode ?? "", date, ct));
+            return HandleResult(await _queryService.GetDeptByDateAsync(UserInfo.DeptCode ?? 0, date, ct));
         }
 
         [HttpGet("dept-employees")]
@@ -70,11 +70,11 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            var dept = deptCode == null ? UserInfo.DeptCode : deptCode;
-            if (!string.Equals(dept, UserInfo.DeptCode, StringComparison.OrdinalIgnoreCase) && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
-            if (string.IsNullOrWhiteSpace(dept)) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
-            if (string.IsNullOrWhiteSpace(dept)) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
-            return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept, ct)));
+            var dept = deptCode ?? UserInfo.DeptCode;
+            if (dept != UserInfo.DeptCode && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
+            if (dept == null) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
+            if (dept == null) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
+            return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept.Value, ct)));
         }
 
         [HttpGet("recent")]

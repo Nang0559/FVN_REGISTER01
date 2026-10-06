@@ -239,14 +239,12 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var departmentMap = departments
-            .Where(x => x.DeptCode != null)
-            .GroupBy(x => x.DeptCode, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => x.DeptCode)
             .ToDictionary(
                 g => g.Key,
                 g => (
                     g.First().ParentDeptCode,
-                    g.First().BlockCode),
-                StringComparer.OrdinalIgnoreCase);
+                    g.First().BlockCode));
 
         return employees
             .Where(x => ManagedScopeMatches(scopes, x.DeptCode, departmentMap))
@@ -436,13 +434,13 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
     private static bool ManagedScopeMatches(
         IReadOnlyCollection<ManagedScopeDto> scopes,
-        string? targetDept,
-        IReadOnlyDictionary<string, (int? ParentDeptCode, string? BlockCode)> departments)
+        int? targetDept,
+        IReadOnlyDictionary<int, (int? ParentDeptCode, string? BlockCode)> departments)
     {
-        if (string.IsNullOrWhiteSpace(targetDept))
+        if (!targetDept.HasValue)
             return scopes.Any(x => string.Equals(x.NodeType, "Company", StringComparison.OrdinalIgnoreCase));
 
-        if (!departments.TryGetValue(targetDept.Trim(), out var target))
+        if (!departments.TryGetValue(targetDept.Value, out var target))
             target = (null, null);
 
         foreach (var scope in scopes)
@@ -455,8 +453,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             string? node = nodeType switch
             {
                 "Factory" => scope.FactoryCode ?? scope.NodeCode,
-                "Department" => scope.DeptCode ?? scope.NodeCode,
-                "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
+                "Department" => scope.DeptCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? scope.NodeCode,
+                "SubDepartment" => scope.SubDepartmentCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? scope.NodeCode,
                 _ => scope.NodeCode
             };
 
@@ -471,22 +469,22 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 && string.Equals(target.BlockCode, node, StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            if (string.Equals(targetDept, node, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(targetDept.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), node, StringComparison.OrdinalIgnoreCase))
                 return true;
 
             if (!scope.IncludeChildren)
                 continue;
 
-            var cursor = targetDept.Trim();
-            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var cursor = targetDept.Value;
+            var visited = new HashSet<int>();
 
             while (departments.TryGetValue(cursor, out var current)
                    && current.ParentDeptCode != null
                    && visited.Add(cursor))
             {
-                var parent = current.ParentDeptCode;
+                var parent = current.ParentDeptCode.Value;
 
-                if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(parent.ToString(System.Globalization.CultureInfo.InvariantCulture), node, StringComparison.OrdinalIgnoreCase))
                     return true;
 
                 if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
@@ -519,7 +517,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .FirstOrDefaultAsync(ct);
 
         var targetDept = target?.DeptCode ?? deptCode;
-        if (string.IsNullOrWhiteSpace(targetDept))
+        if (!targetDept.HasValue)
             return false;
 
         var departments = await _uow.Repository<F03Department>().Query()
@@ -529,14 +527,12 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var departmentMap = departments
-            .Where(x => x.DeptCode != null)
-            .GroupBy(x => x.DeptCode, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => x.DeptCode)
             .ToDictionary(
                 g => g.Key,
                 g => (
                     g.First().ParentDeptCode,
-                    g.First().BlockCode),
-                StringComparer.OrdinalIgnoreCase);
+                    g.First().BlockCode));
 
         return ManagedScopeMatches(scopes, targetDept, departmentMap);
     }
@@ -800,7 +796,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var deptCodes = users.Select(x => x.DeptCode)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
             .Distinct()
             .ToList();
         var positionCodes = users.Select(x => x.Cvcode)
@@ -824,7 +821,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             EmployeeCode = x.EmployeeCode,
             FullName = x.FullName,
             DeptCode = x.DeptCode,
-            DeptName = x.DeptCode != null ? deptNames.GetValueOrDefault(x.DeptCode) : null,
+            DeptName = x.DeptCode.HasValue ? deptNames.GetValueOrDefault(x.DeptCode.Value) : null,
             PositionCode = x.Cvcode,
             PositionName = x.Cvcode != null ? positionNames.GetValueOrDefault(x.Cvcode) : null,
             IsActive = x.IsActive == true,

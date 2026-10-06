@@ -97,7 +97,7 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             Trip = new TripDetailPayload
             {
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode,
+                DeptName = row.employee?.DeptCode.ToString(),
                 TripCode = row.request.TripCode,
                 StartDate = row.request.StartDate,
                 EndDate = row.request.EndDate,

@@ -303,7 +303,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
 
         protected abstract Task<List<int>> GetActiveRequestIdsAsync(CancellationToken ct);
         protected abstract Task<Dictionary<int, DateTime>> GetRegisterDateMapAsync(List<int> ids, CancellationToken ct);
-        protected abstract Task<Dictionary<int, string?>> GetDeptCodeMapAsync(List<int> ids, CancellationToken ct);
+        protected abstract Task<Dictionary<int, int?>> GetDeptCodeMapAsync(List<int> ids, CancellationToken ct);
 
         private static (F03ApprovalStepSnapshot Step, ApprovalStepDto Calculated)? GetCurrentPendingStep(
             List<F03ApprovalStepSnapshot> steps,

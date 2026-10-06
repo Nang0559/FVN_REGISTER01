@@ -61,7 +61,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             if (canManageDepartment)
             {
                 deptWarning = await _statistics.GetAbsenceWarningAsync(
-                    user.DeptCode!, ct);
+                    user.DeptCode!.Value, ct);
 
                 var scope = await _authorization.GetScopeAsync(
                     user.UserId, SecurityFunctionCodes.LeaveView, ct);
@@ -75,7 +75,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 {
                     departmentStatistics.Add(
                         await _statistics.GetDepartmentStatisticsAsync(
-                            user.DeptCode!, ct));
+                            user.DeptCode!.Value, ct));
                 }
             }
 

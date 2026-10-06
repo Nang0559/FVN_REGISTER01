@@ -185,7 +185,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
             {
                 OTCode = row.request.OTCode,
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode,
+                DeptName = row.employee?.DeptCode.ToString(),
                 OTDate = DateOnly.FromDateTime(row.request.OTDate),
                 StartTime = row.request.StartTime.TimeOfDay,
                 EndTime = row.request.EndTime.TimeOfDay,

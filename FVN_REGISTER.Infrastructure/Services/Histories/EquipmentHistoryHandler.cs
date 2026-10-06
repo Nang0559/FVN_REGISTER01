@@ -98,7 +98,7 @@ public sealed class EquipmentHistoryHandler : BaseHistoryHandler<F03EquipmentReq
             Equipment = new EquipmentDetailPayload
             {
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode,
+                DeptName = row.employee?.DeptCode.ToString(),
                 RequestKind = row.request.RequestKind,
                 EquipmentName = row.request.EquipmentName,
                 AssetCode = row.request.AssetCode,
