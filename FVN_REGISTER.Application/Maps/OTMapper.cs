@@ -10,7 +10,6 @@ namespace FVN_REGISTER.Application.Maps
 {
     public static class OTMapper
     {
-        // Entity -> DTO (dùng khi đã có đủ header + requester + department)
         public static OTRequestDto ToDto(
             F03OTRequest r,
             VF03employee? requester = null,
@@ -52,7 +51,7 @@ namespace FVN_REGISTER.Application.Maps
                 DeptName = v.DeptName ?? string.Empty,
                 WorkYear = v.OTDate.Year,
                 OTDate = v.OTDate,
-                OTTypeCode = v.OTTypeCode??string.Empty,
+                OTTypeCode = v.OTTypeCode ?? string.Empty,
                 OtPurpose = v.OTReasonSummary ?? string.Empty,
                 ApprovalSteps = new List<ApprovalStepDto>(),
                 Attachments = new List<AttachmentDto>(),
