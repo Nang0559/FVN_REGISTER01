@@ -2,9 +2,9 @@ namespace FVN_REGISTER.Contract.Dtos.Equipment;
 
 public sealed class EquipmentReportFilterDto
 {
-    public int? DeptCode { get; set; }
+    public string? DeptCode { get; set; }
     public string? ResponsibleEmployeeCode { get; set; }
-    public int? RepairResponsibleDeptCode { get; set; }
+    public string? RepairResponsibleDeptCode { get; set; }
     public DateTime? From { get; set; }
     public DateTime? To { get; set; }
 }
@@ -15,12 +15,12 @@ public sealed class EquipmentReportRowDto
     public string EquipmentCode { get; set; } = string.Empty;
     public string? AssetCode { get; set; }
     public string EquipmentName { get; set; } = string.Empty;
-    public int DeptCode { get; set; }
+    public string DeptCode { get; set; } = string.Empty;
     public string? Location { get; set; }
     public decimal PurchasePrice { get; set; }
     public string? ResponsibleEmployeeCode { get; set; }
     public string? ResponsibleEmployeeName { get; set; }
-    public int? OperatingResponsibleDeptCode { get; set; }
+    public string? OperatingResponsibleDeptCode { get; set; }
     public string? OperatingResponsibleEmployeeCode { get; set; }
     public string? OperatingResponsibleEmployeeName { get; set; }
     public DateTime? ResponsibleAssignedAt { get; set; }
