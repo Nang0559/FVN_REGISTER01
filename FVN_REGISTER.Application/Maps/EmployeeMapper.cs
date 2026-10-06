@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Application.Maps
                 Id = e.Id,
                 EmployeeCode = e.EmployeeCode,
                 EmployeeName = e.EmployeeName,
-                DeptCode = e.DeptCode?.ToString() ?? "",
+                DeptCode = e.DeptCode,
                 DeptName = e.DeptName ?? "",
                 PositionCode = e.Cvcode,
                 PositionName = e.Cvname,
