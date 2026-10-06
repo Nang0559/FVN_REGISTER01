@@ -30,6 +30,7 @@ public sealed class F03ApproverConfiguration : IEntityTypeConfiguration<F03Appro
             .HasMaxLength(20);
 
         entity.Property(e => e.ApproverCode).IsRequired().HasMaxLength(50);
+        entity.Property(e => e.ApproverDeptCode).IsRequired().HasMaxLength(20);
         entity.Property(e => e.ApproveForDeptCode).IsRequired().HasMaxLength(20);
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
         entity.Property(e => e.IsActive).HasDefaultValue(true);
