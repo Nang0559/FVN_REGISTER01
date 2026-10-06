@@ -9,10 +9,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 {
     public class DepartmentHrmSyncJob : HrmSyncJob<F03StagingDepartment, F03Department>
     {
-        private readonly List<int> _deactivatedDeptCodes = new();
+        private readonly List<string> _deactivatedDeptCodes = new();
         // ★ MỚI — track để AfterBatchAsync ghi F03SyncReviewFlag
-        private readonly List<int> _overwrittenManualEdits = new();          // đổi tên bị Hrm ghi đè
-        private readonly List<int> _overwrittenManualDeactivations = new();  // Admin từng tắt tay, Hrm bật lại
+        private readonly List<string> _overwrittenManualEdits = new();          // đổi tên bị Hrm ghi đè
+        private readonly List<string> _overwrittenManualDeactivations = new();  // Admin từng tắt tay, Hrm bật lại
 
         public DepartmentHrmSyncJob(IUnitOfWork uow) : base(uow) { }
 
@@ -24,14 +24,14 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             List<string> keys, CancellationToken ct)
         {
             var list = await Uow.Repository<F03Department>().Query()
-                .Where(x => keys.Select(int.Parse).Contains(x.DeptCode))
+                .Where(x => keys.Contains(x.DeptCode))
                 .ToListAsync(ct);
-            return list.ToDictionary(x => x.DeptCode.ToString());
+            return list.ToDictionary(x => x.DeptCode);
         }
 
         protected override F03Department MapToNewEntity(F03StagingDepartment s) => new()
         {
-            DeptCode = int.Parse(s.EntityKey),
+            DeptCode = s.EntityKey,
             DeptName = s.DeptName,
             IsActive = true,
             ParentDeptCode = s.ParentDeptCode,
@@ -97,7 +97,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 await flagRepo.AddAsync(new F03SyncReviewFlag
                 {
                     EntityType = "Department",
-                    EntityKey = code.ToString(),
+                    EntityKey = code,
                     FlagType = "ManualEditOverwrittenByHrm",
                     Message = $"Tên phòng ban {code} do Admin sửa tay đã bị HRM ghi đè lại — cần review."
                 }, ct);
