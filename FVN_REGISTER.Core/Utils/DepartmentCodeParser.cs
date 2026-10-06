@@ -23,6 +23,8 @@ public static class DepartmentCodeParser
     public static string? ParseNullable(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    public static string? Format(int? value) => value?.ToString();
+
     public static string? Format(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
