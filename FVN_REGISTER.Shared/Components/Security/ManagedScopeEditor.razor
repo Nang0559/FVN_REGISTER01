@@ -55,8 +55,8 @@ else
                     <MudPaper Class="pa-2 mt-2" Outlined="true">
                         <MudStack Row="true" AlignItems="AlignItems.Center">
                             <div>
-                                <MudText Typo="Typo.subtitle2">@scope.NodeType · @(scope.NodeCode ?? scope.DeptCode ?? scope.SubDepartmentCode ?? scope.FactoryCode ?? "-")</MudText>
-                                <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode ?? "-") · Sub=@(scope.SubDepartmentCode ?? "-")</MudText>
+                                <MudText Typo="Typo.subtitle2">@scope.NodeType · @(scope.NodeCode ?? scope.DeptCode ?? scope.SubDepartmentCode?.ToString() ?? scope.FactoryCode ?? "-")</MudText>
+                                <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode ?? "-") · Sub=@(scope.SubDepartmentCode?.ToString() ?? "-")</MudText>
                             </div>
                             <MudSpacer />
                             <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? Language.T("security.baoPhuNodeCon") : Language.T("security.chiNode"))</MudChip>
@@ -148,7 +148,7 @@ else
             NodeCode = nodeCode,
             FactoryCode = factoryCode,
             DeptCode = deptCode,
-            SubDepartmentCode = subDepartmentCode,
+            SubDepartmentCode = int.TryParse(subDepartmentCode, out var parsedSubDepartmentCode) ? parsedSubDepartmentCode : null,
             IncludeChildren = _includeChildren,
             Remark = NullIfWhite(_remark)
         });
