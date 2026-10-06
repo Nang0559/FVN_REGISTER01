@@ -205,7 +205,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         e.OTRequest.RequestStatus != ApprovalStatus.Cancelled &&
                         e.OTRequest.OTDate >= yearStart &&
                         e.OTRequest.OTDate < yearEnd &&
-                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || e.OTRequest.DeptCode.HasValue && blockDeptCodes.Contains(e.OTRequest.DeptCode.Value)))
+                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || !string.IsNullOrWhiteSpace(e.OTRequest.DeptCode) && blockDeptCodes.Contains(e.OTRequest.DeptCode)))
                     .Select(e => new
                     {
                         e.EmployeeCode,
