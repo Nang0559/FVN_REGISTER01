@@ -53,7 +53,7 @@ public sealed class EffectiveApprovalPolicyDto
 {
     public int RequestType { get; set; }
     public string RequestTypeName { get; set; } = string.Empty;
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? PositionCode { get; set; }
     public string ApprovalPositionCode { get; set; } = string.Empty;
     public int Level { get; set; }
