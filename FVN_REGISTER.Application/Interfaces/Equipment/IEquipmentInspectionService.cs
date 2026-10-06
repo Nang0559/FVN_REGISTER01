@@ -5,7 +5,7 @@ namespace FVN_REGISTER.Application.Interfaces.Equipment;
 
 public interface IEquipmentInspectionService
 {
-    Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(string? deptCode, CancellationToken ct = default);
+    Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(int? deptCode, CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(string? deptCode, CancellationToken ct = default);
     Task<ServiceResult<EquipmentInspectionTemplateDto>> GetTemplateAsync(int id, CancellationToken ct = default);
     Task<ServiceResult<EquipmentInspectionTemplateImportResultDto>> ImportTemplateExcelAsync(string fileName, Stream content, CancellationToken ct = default);
