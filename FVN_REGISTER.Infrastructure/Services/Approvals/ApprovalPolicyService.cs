@@ -124,7 +124,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         var entity = new F03ApprovalPolicy
         {
             RequestType = (RequestModule)request.RequestType,
-            DeptCode = DepartmentCodeParser.ParseRequired(request.DeptCode),
+            DeptCode = request.DeptCode,
             PositionCode = Normalize(request.PositionCode),
             ApprovalPositionCode = request.ApprovalPositionCode.Trim(),
             Level = request.Level,
@@ -165,7 +165,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         request.RoleName = RoleNameFromPosition(request.Level);
 
         entity.RequestType = (RequestModule)request.RequestType;
-        entity.DeptCode = DepartmentCodeParser.ParseRequired(request.DeptCode);
+        entity.DeptCode = request.DeptCode;
         entity.PositionCode = Normalize(request.PositionCode);
         entity.ApprovalPositionCode = request.ApprovalPositionCode.Trim();
         entity.Level = request.Level;
