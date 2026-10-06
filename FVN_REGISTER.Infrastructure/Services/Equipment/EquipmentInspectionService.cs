@@ -65,7 +65,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         {
             Id=x.Id, EquipmentCode=x.EquipmentCode, EquipmentName=x.EquipmentName, Specification=x.Specification,
             SerialNumber=x.SerialNumber, AssetCode=x.AssetCode, PurchasePrice=x.PurchasePrice, PurchaseDate=x.PurchaseDate,
-            ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode.ToString(), Location=x.Location,
+            ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode, Location=x.Location,
             QrToken=x.QrToken, IsQrActive=x.IsQrActive, Note=x.Note
         }).ToList());
     }
