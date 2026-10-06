@@ -29,7 +29,7 @@ public sealed class EffectivePermissionPreviewDto
     public int UserId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
     public string? EmployeeName { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? PositionCode { get; set; }
     public List<int> RoleCodes { get; set; } = new();
     public List<string> RoleNames { get; set; } = new();
