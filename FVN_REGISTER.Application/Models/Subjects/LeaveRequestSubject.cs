@@ -25,7 +25,7 @@ namespace FVN_REGISTER.Application.Models.Subjects
 
         // employeeName là tham số bắt buộc vì F03LeaveDay không lưu tên nhân viên trên entity —
         // Provider (GetSubjectAsync) phải join F03Employee/F03Department rồi truyền vào đây.
-        public static LeaveRequestSubject From(F03LeaveDay x, string? employeeName = null, string? deptCode = null) => new()
+        public static LeaveRequestSubject From(F03LeaveDay x, string? employeeName = null, int? deptCode = null) => new()
         {
             RequestId = x.Id,
             EmployeeCode = x.EmployeeCode,
