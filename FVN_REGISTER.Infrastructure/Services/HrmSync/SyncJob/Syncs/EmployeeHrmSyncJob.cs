@@ -307,7 +307,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         }
 
         private async Task<int> ResolvePermissionCodeAsync(
-            int? deptCode,
+            string? deptCode,
             string? positionCode,
             CancellationToken ct)
         {
