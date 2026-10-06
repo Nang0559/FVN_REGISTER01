@@ -25,13 +25,13 @@ namespace FVN_REGISTER.Application.Interfaces.Common
 
         /// Danh sách đầy đủ có phân trang, dùng cho trang lịch sử/danh sách.
         Task<ServiceResult<PaginationResult<TSummary>>> GetPagedAsync(
-            int? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
+            string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
             int page, int pageSize, CancellationToken ct = default);
 
         /// Chi tiết đầy đủ 1 đơn — kèm Details + ApprovalSteps (đã có sẵn qua BaseRequestQueryService).
         Task<ServiceResult<TDto>> GetFullDetailsAsync(int requestId, CancellationToken ct = default);
 
         /// Danh sách đầy đủ của cả PHÒNG BAN trong 1 ngày cụ thể — vd: "ai đang nghỉ/OT hôm nay".
-        Task<ServiceResult<List<TDto>>> GetDeptByDateAsync(int deptCode, DateTime date, CancellationToken ct = default);
+        Task<ServiceResult<List<TDto>>> GetDeptByDateAsync(string deptCode, DateTime date, CancellationToken ct = default);
     }
 }
