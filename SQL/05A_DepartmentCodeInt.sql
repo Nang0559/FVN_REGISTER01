@@ -304,18 +304,25 @@ BEGIN TRY
         SET @Bad += N'F03Users.DeptCode; ';
     IF EXISTS (SELECT 1 FROM dbo.F03Approvers WHERE TRY_CONVERT(int, ApproverDeptCode) IS NULL OR TRY_CONVERT(int, ApproveForDeptCode) IS NULL)
         SET @Bad += N'F03Approvers.ApproverDeptCode/ApproveForDeptCode; ';
+    /* Nested IFs on purpose: "IF OBJECT_ID(..) IS NOT NULL AND EXISTS (SELECT .. FROM <table>)" is ONE
+       statement and fails with Msg 208 at compile time when the table does not exist yet. */
     IF OBJECT_ID(N'dbo.F03ApprovalPolicies',N'U') IS NOT NULL
-       AND EXISTS (SELECT 1 FROM dbo.F03ApprovalPolicies WHERE TRY_CONVERT(int, DeptCode) IS NULL)
-        SET @Bad += N'F03ApprovalPolicies.DeptCode; ';
+    BEGIN
+        IF EXISTS (SELECT 1 FROM dbo.F03ApprovalPolicies WHERE TRY_CONVERT(int, DeptCode) IS NULL)
+            SET @Bad += N'F03ApprovalPolicies.DeptCode; ';
+    END;
     IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NOT NULL
-       AND EXISTS (SELECT 1 FROM dbo.F03HrmUserRoleRules WHERE DeptCode IS NOT NULL AND TRY_CONVERT(int, DeptCode) IS NULL)
-        SET @Bad += N'F03HrmUserRoleRules.DeptCode; ';
+    BEGIN
+        IF EXISTS (SELECT 1 FROM dbo.F03HrmUserRoleRules WHERE DeptCode IS NOT NULL AND TRY_CONVERT(int, DeptCode) IS NULL)
+            SET @Bad += N'F03HrmUserRoleRules.DeptCode; ';
+    END;
     IF OBJECT_ID(N'dbo.F03ManagedScopes',N'U') IS NOT NULL
-       AND EXISTS (SELECT 1 FROM dbo.F03ManagedScopes WHERE DeptCode IS NOT NULL AND TRY_CONVERT(int, DeptCode) IS NULL)
-        SET @Bad += N'F03ManagedScopes.DeptCode; ';
-    IF OBJECT_ID(N'dbo.F03ManagedScopes',N'U') IS NOT NULL
-       AND EXISTS (SELECT 1 FROM dbo.F03ManagedScopes WHERE SubDepartmentCode IS NOT NULL AND TRY_CONVERT(int, SubDepartmentCode) IS NULL)
-        SET @Bad += N'F03ManagedScopes.SubDepartmentCode; ';
+    BEGIN
+        IF EXISTS (SELECT 1 FROM dbo.F03ManagedScopes WHERE DeptCode IS NOT NULL AND TRY_CONVERT(int, DeptCode) IS NULL)
+            SET @Bad += N'F03ManagedScopes.DeptCode; ';
+        IF EXISTS (SELECT 1 FROM dbo.F03ManagedScopes WHERE SubDepartmentCode IS NOT NULL AND TRY_CONVERT(int, SubDepartmentCode) IS NULL)
+            SET @Bad += N'F03ManagedScopes.SubDepartmentCode; ';
+    END;
 
     IF @Bad <> N''
     BEGIN

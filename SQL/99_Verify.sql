@@ -448,7 +448,19 @@ IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2107 AND ScopeCode<
     THROW 53054, N'OT.Export must remain Department scoped.', 1;
 IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2901 AND ScopeCode<>N'Department')
     THROW 53055, N'Attendance.View must be Department scoped.', 1;
-IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=5 AND f.FunctionCode=2901)
+/* 14_SecurityAuthorization.sql intentionally grants Normal User (role 5) Attendance.View as Own/Personal
+   (own attendance only). Only a Department/Management mapping is forbidden for that role. */
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+    JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+    WHERE r.RoleCode=5
+      AND f.FunctionCode=2901
+      AND rf.IsActive=1
+      AND (ISNULL(rf.ScopeCode,N'')<>N'Own' OR ISNULL(rf.AccessMode,N'')<>N'Personal')
+)
     THROW 53063, N'Normal User must not have Attendance.View Department scope.', 1;
 IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NOT NULL
 BEGIN

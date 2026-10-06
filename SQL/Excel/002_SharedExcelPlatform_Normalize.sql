@@ -25,8 +25,10 @@ IF COL_LENGTH(N'dbo.F03ExcelSchemas', N'UpdatedBy') IS NULL ALTER TABLE dbo.F03E
 IF COL_LENGTH(N'dbo.F03ExcelSchemas', N'UpdatedAt') IS NULL ALTER TABLE dbo.F03ExcelSchemas ADD UpdatedAt DATETIME2(0) NULL;
 GO
 
+/* SchemaKey exists only on the legacy table shape. A statement that names a missing column of an
+   EXISTING table fails at batch compile time (Msg 207) even inside a false IF, so it must be dynamic SQL. */
 IF COL_LENGTH(N'dbo.F03ExcelSchemas', N'SchemaCode') IS NOT NULL AND COL_LENGTH(N'dbo.F03ExcelSchemas', N'SchemaKey') IS NOT NULL
-    UPDATE dbo.F03ExcelSchemas SET SchemaCode=COALESCE(NULLIF(SchemaCode,N''),SchemaKey,CONCAT(N'LEGACY-',Id)) WHERE SchemaCode IS NULL OR SchemaCode=N'';
+    EXEC sys.sp_executesql N'UPDATE dbo.F03ExcelSchemas SET SchemaCode=COALESCE(NULLIF(SchemaCode,N''''),SchemaKey,CONCAT(N''LEGACY-'',Id)) WHERE SchemaCode IS NULL OR SchemaCode=N'''';';
 GO
 
 IF OBJECT_ID(N'dbo.F03ExcelSchemaVersions', N'U') IS NULL
