@@ -8,7 +8,7 @@ public partial class VF03LeaveBalance
     public int Id { get; set; }
     public string EmployeeCode { get; set; } = null!;
     public string? EmployeeName { get; set; }
-    public int? DeptCode { get; set; }
+    [StringLength(20)] public string? DeptCode { get; set; }
     public string? DeptName { get; set; }
     public int? GenderCode { get; set; }
     public string? GenderName { get; set; }
