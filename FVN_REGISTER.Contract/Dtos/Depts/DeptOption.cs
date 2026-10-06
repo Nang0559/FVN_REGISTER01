@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Contract.Dtos.Depts
 {
     public class DeptOption
     {
-        public int DeptCode { get; set; }
+        public string DeptCode { get; set; } = string.Empty;
         public string DeptName { get; set; } = "";
     }
 }
