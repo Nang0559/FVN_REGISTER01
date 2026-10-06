@@ -447,7 +447,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             var node = nodeType switch
             {
                 "Department" => scope.DeptCode ?? scope.NodeCode,
-                "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
+                "SubDepartment" => scope.SubDepartmentCode?.ToString() ?? scope.NodeCode,
                 _ => scope.NodeCode
             };
 
