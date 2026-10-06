@@ -18,7 +18,7 @@ namespace FVN_REGISTER.API.Controllers;
 [Authorize]
 public sealed class PublicFormsController : BaseApiController
 {
-    private const string AdministrationDepartmentCode = "13";
+    private const int AdministrationDepartmentCode = 13;
 
     private readonly IPublicFormService _service;
     private readonly IAuthorizationService _authorization;

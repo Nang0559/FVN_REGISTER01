@@ -269,7 +269,6 @@ public sealed class EquipmentController : ControllerBase
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("File Excel rỗng."));
         if (sheetIndex < 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("Sheet Excel không hợp lệ."));
-        deptCode = deptCode;
         await using var stream = file.OpenReadStream();
         var result = await _import.StageExcelSheetAsync(deptCode, schemaId, file.FileName, stream, sheetIndex, assignToEmployee, ct);
         return result.IsSuccess

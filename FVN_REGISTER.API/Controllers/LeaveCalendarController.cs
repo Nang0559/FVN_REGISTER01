@@ -50,9 +50,7 @@ public class LeaveCalendarController : BaseApiController
         var effectiveEmpCode = string.IsNullOrWhiteSpace(empCode)
             ? UserInfo.EmployeeCode ?? string.Empty
             : empCode;
-        var effectiveDeptCode = deptCode == null
-            ? UserInfo.DeptCode ?? string.Empty
-            : deptCode;
+        var effectiveDeptCode = deptCode ?? UserInfo.DeptCode ?? 0;
         var effectiveCvCode = string.IsNullOrWhiteSpace(cvCode)
             ? UserInfo.PositionCode ?? string.Empty
             : cvCode;
