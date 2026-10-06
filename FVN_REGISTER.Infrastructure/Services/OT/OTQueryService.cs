@@ -247,7 +247,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode)
                 .Select(x => x.PositionCode)
-                .FirstOrDefaultAsync(ct) ?? string.Empty;
+                .FirstOrDefaultAsync(ct);
 
             var approvalContext = ApprovalBuildContext.ForOT(
                 requestId: 0,
@@ -480,7 +480,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var yearEnd = yearStart.AddYears(1);
 
             var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
-                ? new List<string>()
+                ? new List<int>()
                 : await Uow.Repository<F03Department>().Query()
                     .AsNoTracking()
                     .Where(d => d.IsActive == true && d.BlockCode == blockCode)
@@ -546,7 +546,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     .AsNoTracking()
                     .Where(d => d.DeptCode == deptCode)
                     .Select(d => d.DeptName)
-                    .FirstOrDefaultAsync(ct) ?? deptCode;
+                    .FirstOrDefaultAsync(ct) ?? deptCode.ToString();
 
                 var deptRequest = model.Employees
                     .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && e.DeptCode == deptCode))
@@ -613,7 +613,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             }).ToList();
         }
 
-        public async Task<string> GetEmployeeDeptCodeAsync(
+        public async Task<int?> GetEmployeeDeptCodeAsync(
             string employeeCode, CancellationToken ct = default)
         {
             return await Uow.Repository<F03Employee>().Query()
