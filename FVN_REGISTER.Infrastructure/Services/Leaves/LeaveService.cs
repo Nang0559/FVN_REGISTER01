@@ -124,7 +124,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 var context = ApprovalBuildContext.ForLeave(
                     requestId: entity.Id,
                     employeeCode: user.EmployeeCode ?? "",
-                    deptCode: user.DeptCode ?? 0,
+                    deptCode: user.DeptCode,
                     positionCode: user.PositionCode ?? "",
                     year: entity.WorkYear,
                     leaveTypeCode: model.LeaveTypeCode);
