@@ -50,7 +50,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var entity = await Uow.Repository<F03LeaveDay>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
             if (entity == null) return null;
             var user = _currentUser.GetCurrentUser();
-            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.LeaveView, entity.EmployeeCode, entity.DeptCode?.ToString(), ct))
+            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.LeaveView, entity.EmployeeCode, entity.DeptCode, ct))
                 return null;
             var requester = await Uow.Repository<VF03employee>().Query().AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
             F03Department? department = null;
