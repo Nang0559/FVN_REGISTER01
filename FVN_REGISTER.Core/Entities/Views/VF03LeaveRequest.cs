@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Core.Entities.Views
         public string EmployeeCode { get; set; } = null!;
         public string EmployeeName { get; set; } = null!;
         public string? GenderName { get; set; }
-        public int? DeptCode { get; set; }
+        [StringLength(20)] public string? DeptCode { get; set; }
         public string? DeptName { get; set; }
         public string? EmailAddress { get; set; }
 
