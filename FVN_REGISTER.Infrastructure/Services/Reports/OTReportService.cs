@@ -74,8 +74,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate <= DateOnly.FromDateTime(toDate)
                          && ActiveOrApprovedStatuses.Contains(x.RequestStatus));
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode.ToString() == query.DeptCode);
+            if (query.DeptCode.HasValue)
+                q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -369,20 +369,18 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Yearly)
                 .ToListAsync(ct);
 
-            decimal GetLimit(string? deptCode)
+            decimal GetLimit(int? deptCode)
             {
-                int? parsedDeptCode = int.TryParse(deptCode, out var value) ? value : null;
-
                 return limits
-                    .Where(r => r.DeptCode == parsedDeptCode || r.DeptCode == null)
-                    .OrderByDescending(r => r.DeptCode == parsedDeptCode)
+                    .Where(r => r.DeptCode == deptCode || r.DeptCode == null)
+                    .OrderByDescending(r => r.DeptCode == deptCode)
                     .Select(r => r.LimitValue)
                     .FirstOrDefault(200m);
             }
 
             var rows = accumulated.Select(x =>
             {
-                var limit = GetLimit(x.DeptCode?.ToString());
+                var limit = GetLimit(x.DeptCode);
                 var remain = Math.Max(limit - x.UsedHours, 0);
                 var percent = limit > 0 ? Math.Round(x.UsedHours / limit * 100, 1) : 0;
 
