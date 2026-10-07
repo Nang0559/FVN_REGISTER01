@@ -3,6 +3,7 @@ using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Repositories;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync;
@@ -17,13 +18,20 @@ public sealed class HrmSyncService : IHrmSyncService
     private readonly IHrmSyncJobResolver _jobs;
     private readonly ILogger<HrmSyncService> _logger;
     private readonly IUnitOfWork _uow;
+    private readonly IConfiguration _configuration;
 
-    public HrmSyncService(IHrmStagingImporterResolver importers, IHrmSyncJobResolver jobs, ILogger<HrmSyncService> logger, IUnitOfWork uow)
+    public HrmSyncService(
+        IHrmStagingImporterResolver importers,
+        IHrmSyncJobResolver jobs,
+        ILogger<HrmSyncService> logger,
+        IUnitOfWork uow,
+        IConfiguration configuration)
     {
         _importers = importers;
         _jobs = jobs;
         _logger = logger;
         _uow = uow;
+        _configuration = configuration;
     }
 
     // ------------------------------------------------------------------
@@ -37,7 +45,6 @@ public sealed class HrmSyncService : IHrmSyncService
         if (!await Gate.WaitAsync(0, ct))
             return ServiceResult<HrmSyncRunResultDto>.Fail("Đang có một phiên đồng bộ HRM khác chạy. Vui lòng chờ phiên hiện tại hoàn tất.");
 
-        // Lấy phiên HRM gần nhất TRƯỚC khi SetRunning xóa LastRun
         HrmSyncRunResultDto? previous;
         lock (StateLock) previous = _status.LastRun == null ? null : CloneRun(_status.LastRun);
 
@@ -60,8 +67,8 @@ public sealed class HrmSyncService : IHrmSyncService
             run.FinishedAt = DateTime.Now;
             run.Summary = string.Join(" | ", run.Jobs.Select(j => j.Summary));
 
-            SetFinished(MergeForStatus(run, previous));          // trạng thái lưu = HRM + Security
-            return ServiceResult<HrmSyncRunResultDto>.Ok(run);   // client nhận bản Security
+            SetFinished(MergeForStatus(run, previous));
+            return ServiceResult<HrmSyncRunResultDto>.Ok(run);
         }
         catch (OperationCanceledException)
         {
@@ -96,7 +103,6 @@ public sealed class HrmSyncService : IHrmSyncService
         }
     }
 
-    // Giữ job HRM của phiên trước + job User/Approver mới, để F5/Làm mới không mất kết quả
     private static HrmSyncRunResultDto MergeForStatus(HrmSyncRunResultDto security, HrmSyncRunResultDto? previous)
     {
         if (previous == null) return security;
@@ -131,8 +137,6 @@ public sealed class HrmSyncService : IHrmSyncService
             return Task.FromResult(ServiceResult<HrmSyncRunResultDto>.Fail("EntityType không được để trống."));
 
         var type = entityType.Trim();
-
-        // User/Approver/SecurityProvisioning không có importer/job riêng -> chạy bước Security
         if (SecurityEntityTypes.Contains(type))
             return ReconcileSecurityAsync(triggeredBy, ct);
 
@@ -203,9 +207,14 @@ public sealed class HrmSyncService : IHrmSyncService
                 AddJobResult(run, job, result);
             }
 
-            // Chỉ khi chạy TẤT CẢ (entityType == null) mới provision User/Approver.
-            // Chạy cả khi một job HRM lỗi/blocked để tự-heal từ dữ liệu F03* hiện có.
-            if (entityType == null)
+            // Security provisioning is expensive because it reconciles all User/Approver
+            // rows. Keep it out of the frequent automatic polling loop. Manual RunAll and
+            // explicit Security reconciliation still execute it. Production can opt back
+            // in with HrmSync:SecurityProvisioningOnAutomatic=true.
+            var provisionSecurity = entityType == null &&
+                (manual || _configuration.GetValue<bool>("HrmSync:SecurityProvisioningOnAutomatic"));
+
+            if (provisionSecurity)
             {
                 try
                 {
@@ -213,7 +222,7 @@ public sealed class HrmSyncService : IHrmSyncService
                 }
                 catch (OperationCanceledException)
                 {
-                    throw; // để catch bên ngoài xử lý hủy phiên
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -256,10 +265,6 @@ public sealed class HrmSyncService : IHrmSyncService
         finally { Gate.Release(); }
     }
 
-    // ------------------------------------------------------------------
-    // Security provisioning: SQL dùng chung cho trước/sau (một nguồn duy nhất)
-    // ------------------------------------------------------------------
-
     private static readonly HashSet<string> SecurityEntityTypes =
         new(StringComparer.OrdinalIgnoreCase) { "User", "Approver", "SecurityProvisioning" };
 
@@ -270,9 +275,7 @@ public sealed class HrmSyncService : IHrmSyncService
         WHERE e.IsActive = 1 AND ISNULL(e.LevelApprove,0) > 0
         """;
 
-    // Điều kiện "chưa có bản ghi F03Approvers tương ứng".
-    // LƯU Ý: đang so theo ap.DeptCode (như đoạn 'before' cũ). Đối chiếu với usp_ReconcileHrmSecurity;
-    // nếu SP dùng e.DeptCode thì chỉ cần đổi ở ĐÂY.
+    // DepartmentCode is canonical int/int?. Do not trim/cast it in SQL.
     private const string ApproverMissing = """
         AND NOT EXISTS (
             SELECT 1 FROM dbo.F03Approvers a
@@ -282,7 +285,7 @@ public sealed class HrmSyncService : IHrmSyncService
                     WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime'
                     WHEN 2 THEN N'Trip'  WHEN 3 THEN N'Equipment' END
               AND a.Level = ap.Level
-              AND LTRIM(RTRIM(a.ApproveForDeptCode)) = LTRIM(RTRIM(ap.DeptCode)))
+              AND a.ApproveForDeptCode = ap.DeptCode)
         """;
 
     private const string SecurityStatsSql =
@@ -317,7 +320,6 @@ public sealed class HrmSyncService : IHrmSyncService
         public int EmployeeScheduleCount { get; set; }
     }
 
-    // Không giữ Gate: chỉ được gọi từ code đã giữ Gate (ExecuteAsync / ReconcileSecurityAsync)
     private async Task<List<HrmSyncJobRunDto>> RunSecurityProvisioningAsync(CancellationToken ct)
     {
         var before = (await _uow.SqlQueryRawAsync<SecurityStats>(SecurityStatsSql, ct)).FirstOrDefault()
@@ -330,7 +332,7 @@ public sealed class HrmSyncService : IHrmSyncService
                 @CreatedBy={0};
             """,
             ct,
-            0); // TODO: kiểm tra kiểu @CreatedBy trong SP; nếu là tên người dùng thì truyền triggeredBy
+            0);
 
         var after = (await _uow.SqlQueryRawAsync<SecurityStats>(SecurityStatsSql, ct)).FirstOrDefault()
                     ?? new SecurityStats();
@@ -338,7 +340,6 @@ public sealed class HrmSyncService : IHrmSyncService
         var usersFixed = Math.Max(0, before.MissingUsers - after.MissingUsers);
         var approversFixed = Math.Max(0, before.MissingApprovers - after.MissingApprovers);
 
-        // ---- Job User ----
         var userJob = new HrmSyncJobRunDto
         {
             EntityType = "User",
@@ -357,18 +358,14 @@ public sealed class HrmSyncService : IHrmSyncService
         if (after.MissingUsers > 0)
             userJob.Errors.Add($"Sau provision vẫn còn {after.MissingUsers} nhân viên active chưa có F03Users.");
 
-        // ---- Job Approver ----
         string approverSummary =
             after.ApproverCandidates == 0
-                ? $"Không có nhân viên nào LevelApprove > 0 (đang có {after.ActiveEmployees} nhân viên active). " +
-                  "Kiểm tra job Employee có map LevelApprove từ HRM chưa."
+                ? $"Không có nhân viên nào LevelApprove > 0 (đang có {after.ActiveEmployees} nhân viên active). Kiểm tra job Employee có map LevelApprove từ HRM chưa."
             : after.ActivePolicies == 0
                 ? "F03ApprovalPolicies chưa có policy nào đang active."
             : after.ExpectedApprovers == 0
-                ? $"Có {after.ApproverCandidates} nhân viên LevelApprove > 0 nhưng không khớp " +
-                  $"ApprovalPositionCode của {after.ActivePolicies} policy (so PositionCode)."
-            : $"Approver: kỳ vọng {after.ExpectedApprovers} phân quyền (từ {after.ApproverCandidates} ứng viên); " +
-              $"đang active {after.ActiveApprovers}; tạo mới {approversFixed}; còn thiếu {after.MissingApprovers}.";
+                ? $"Có {after.ApproverCandidates} nhân viên LevelApprove > 0 nhưng không khớp ApprovalPositionCode của {after.ActivePolicies} policy (so PositionCode)."
+            : $"Approver: kỳ vọng {after.ExpectedApprovers} phân quyền (từ {after.ApproverCandidates} ứng viên); đang active {after.ActiveApprovers}; tạo mới {approversFixed}; còn thiếu {after.MissingApprovers}.";
 
         var approverJob = new HrmSyncJobRunDto
         {
@@ -385,18 +382,13 @@ public sealed class HrmSyncService : IHrmSyncService
             Errors = new List<string>()
         };
         if (after.MissingApprovers > 0)
-            approverJob.Errors.Add($"Sau provision vẫn còn {after.MissingApprovers} phân quyền approver chưa được tạo. " +
-                                   "Kiểm tra usp_ReconcileHrmSecurity (điều kiện DeptCode/Level/RequestType).");
+            approverJob.Errors.Add($"Sau provision vẫn còn {after.MissingApprovers} phân quyền approver chưa được tạo. Kiểm tra usp_ReconcileHrmSecurity (điều kiện DeptCode/Level/RequestType).");
 
         if (after.ExpectedApprovers == 0)
             _logger.LogWarning("[HRM-SYNC] Approver provisioning: {Summary}", approverSummary);
 
         return new List<HrmSyncJobRunDto> { userJob, approverJob };
     }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
 
     private static void AddJobResult(HrmSyncRunResultDto run, IHrmSyncJob job, HrmSyncResult result)
         => run.Jobs.Add(new HrmSyncJobRunDto
@@ -418,25 +410,36 @@ public sealed class HrmSyncService : IHrmSyncService
     private static void SetRunning(HrmSyncRunResultDto run)
     {
         lock (StateLock)
-            _status = new HrmSyncRuntimeStatusDto { IsRunning = true, CurrentRunId = run.RunId, StartedAt = run.StartedAt, TriggeredBy = run.TriggeredBy };
+        {
+            _status = new HrmSyncRuntimeStatusDto
+            {
+                IsRunning = true,
+                LastRun = null,
+                CurrentRun = CloneRun(run)
+            };
+        }
     }
 
     private static void SetFinished(HrmSyncRunResultDto run)
     {
         lock (StateLock)
-            _status = new HrmSyncRuntimeStatusDto { IsRunning = false, CurrentRunId = null, StartedAt = run.StartedAt, TriggeredBy = run.TriggeredBy, LastRun = CloneRun(run) };
+        {
+            _status = new HrmSyncRuntimeStatusDto
+            {
+                IsRunning = false,
+                LastRun = CloneRun(run),
+                CurrentRun = null
+            };
+        }
     }
-
-    private static HrmSyncRuntimeStatusDto CloneStatus(HrmSyncRuntimeStatusDto source)
-        => new() { IsRunning = source.IsRunning, CurrentRunId = source.CurrentRunId, StartedAt = source.StartedAt, TriggeredBy = source.TriggeredBy, LastRun = source.LastRun == null ? null : CloneRun(source.LastRun) };
 
     private static HrmSyncRunResultDto CloneRun(HrmSyncRunResultDto source)
         => new()
         {
             RunId = source.RunId,
-            Success = source.Success,
             Manual = source.Manual,
             Running = source.Running,
+            Success = source.Success,
             StartedAt = source.StartedAt,
             FinishedAt = source.FinishedAt,
             TriggeredBy = source.TriggeredBy,
@@ -456,5 +459,13 @@ public sealed class HrmSyncService : IHrmSyncService
                 Summary = x.Summary,
                 Errors = x.Errors.ToList()
             }).ToList()
+        };
+
+    private static HrmSyncRuntimeStatusDto CloneStatus(HrmSyncRuntimeStatusDto source)
+        => new()
+        {
+            IsRunning = source.IsRunning,
+            LastRun = source.LastRun == null ? null : CloneRun(source.LastRun),
+            CurrentRun = source.CurrentRun == null ? null : CloneRun(source.CurrentRun)
         };
 }
