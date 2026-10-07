@@ -70,6 +70,7 @@ builder.Services.AddScoped<IHistoryClientService, HistoryClientService>();
 builder.Services.AddScoped<IDepartmentStatusClientService, DepartmentStatusClientService>();
 builder.Services.AddScoped<IEmailTemplateClientService, EmailTemplateClientService>();
 builder.Services.AddScoped<IEmailQueueClientService, EmailQueueClientService>();
+builder.Services.AddScoped<IEmailAdminClientService, EmailAdminClientService>();
 builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementClientService>();
 builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>();
 builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();

@@ -130,6 +130,7 @@
             @if(Can(SecurityFunctionCodes.SecurityView)){<MudNavLink href="/admin/security" Icon="@Icons.Material.Filled.Security">@Language.T("nav.securityCenter")</MudNavLink><MudNavLink href="/admin/sessions" Icon="@Icons.Material.Filled.Devices">@Language.T("common.sessions")</MudNavLink>}
             @if(Can(SecurityFunctionCodes.SecurityManageFunctions)){<MudNavLink href="/admin/security/function-registry" Icon="@Icons.Material.Filled.AppRegistration">@Language.T("nav.functionRegistry")</MudNavLink>}
             @if(Can(SecurityFunctionCodes.EmailTemplateManage)){<MudNavLink href="/admin/email-templates" Icon="@Icons.Material.Filled.Email">@Language.T("nav.emailTemplates")</MudNavLink>}
+            @if(Can(SecurityFunctionCodes.EmailTemplateManage)){<MudNavLink href="/admin/email-profiles" Icon="@Icons.Material.Filled.Dns">@Language.T("nav.emailProfiles")</MudNavLink>}
             @if(Can(SecurityFunctionCodes.LanguageView)){<MudNavLink href="/admin/localization" Icon="@Icons.Material.Filled.Translate">@Language.T("nav.localization")</MudNavLink>}
             @if(Can(SecurityFunctionCodes.EmailQueueManage)){<MudNavLink href="/admin/email-queue" Icon="@Icons.Material.Filled.MarkEmailRead">@Language.T("nav.emailQueue")</MudNavLink>}
             @if(CanManagement(SecurityFunctionCodes.WorkCalendarView)){<MudNavLink href="/admin/work-calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendarManagement")</MudNavLink>}

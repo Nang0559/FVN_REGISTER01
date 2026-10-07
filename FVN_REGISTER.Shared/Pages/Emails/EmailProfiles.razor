@@ -1,0 +1,545 @@
+@* FVN_REGISTER.Shared/Pages/Emails/EmailProfiles.razor *@
+@page "/admin/email-profiles"
+@attribute [Authorize]
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Contract.Dtos.EmailTemplates
+@using FVN_REGISTER.Shared.Services.Emails
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Shared.Utils
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IEmailAdminClientService EmailAdmin
+@inject IEmailTemplateClientService TemplateService
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+<PageTitle>@Language.T("email.smtpTitle")</PageTitle>
+
+@if (!CanManage)
+{
+    <MudAlert Severity="Severity.Error">@Language.T("email.banKhongCoQuyenTruy")</MudAlert>
+    return;
+}
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5">
+            <MudIcon Icon="@Icons.Material.Filled.Dns" Class="mr-2" />
+            @Language.T("email.smtpTitle")
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("email.smtpSubtitle")</MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAllAsync">
+        @Language.T("common.refresh")
+    </MudButton>
+</MudStack>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+
+        @* ───────────── Tab 1: Email Profiles ───────────── *@
+        <MudTabPanel Text="@Language.T("email.tabProfiles")" Icon="@Icons.Material.Filled.Dns">
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@(() => OpenProfileEditor(null))">
+                    @Language.T("email.themProfile")
+                </MudButton>
+            </MudStack>
+
+            @if (_profiles.Count == 0)
+            {
+                <MudAlert Severity="Severity.Warning">@Language.T("email.chuaCoProfile")</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_profiles" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>@Language.T("email.profileCode")</MudTh>
+                        <MudTh>@Language.T("email.smtpServer")</MudTh>
+                        <MudTh>@Language.T("email.smtpAccount")</MudTh>
+                        <MudTh>@Language.T("email.smtpFromAddress")</MudTh>
+                        <MudTh>@Language.T("common.status")</MudTh>
+                        <MudTh>@Language.T("security.actions")</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Label="true">@context.Code</MudChip>
+                                @if (context.IsDefault)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Label="true">@Language.T("email.macDinh")</MudChip>
+                                }
+                            </MudStack>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Name</MudText>
+                        </MudTd>
+                        <MudTd>
+                            @context.EmailServerName:@context.EmailServerPort
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @(context.EmailServerEnableSsl ? "SSL/TLS" : "—") · @context.SecurityMode
+                            </MudText>
+                        </MudTd>
+                        <MudTd>
+                            @context.EmailAccountName
+                            <MudText Typo="Typo.caption" Color="@(context.HasPassword ? Color.Success : Color.Warning)">
+                                @(context.HasPassword ? Language.T("email.matKhauDaLuu") : Language.T("email.matKhauChuaCo"))
+                            </MudText>
+                        </MudTd>
+                        <MudTd>
+                            @context.EmailAddress
+                            @if (!string.IsNullOrWhiteSpace(context.FromName))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.FromName</MudText>
+                            }
+                        </MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Label="true"
+                                     Color="@(context.IsActive ? Color.Success : Color.Default)">
+                                @(context.IsActive ? Language.T("common.enabled") : Language.T("common.disabled"))
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudTooltip Text="@Language.T("common.edit")">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                               OnClick="@(() => OpenProfileEditor(context))" />
+                            </MudTooltip>
+                            <MudTooltip Text="@Language.T("email.guiThu")">
+                                <MudIconButton Icon="@Icons.Material.Filled.Send" Size="Size.Small" Color="Color.Info"
+                                               OnClick="@(() => OpenTest(context))" />
+                            </MudTooltip>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudTabPanel>
+
+        @* ───────────── Tab 2: Dispatch Policies ───────────── *@
+        <MudTabPanel Text="@Language.T("email.tabPolicies")" Icon="@Icons.Material.Filled.Rule">
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Disabled="@(_profiles.Count == 0)"
+                           OnClick="@(() => OpenPolicyEditor(null))">
+                    @Language.T("email.themChinhSach")
+                </MudButton>
+            </MudStack>
+
+            @if (_policies.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">@Language.T("email.chuaCoChinhSach")</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_policies" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>@Language.T("email.templateCode")</MudTh>
+                        <MudTh>@Language.T("email.profileChon")</MudTh>
+                        <MudTh>@Language.T("email.cheDoGui")</MudTh>
+                        <MudTh>@Language.T("email.doUuTien")</MudTh>
+                        <MudTh>@Language.T("common.status")</MudTh>
+                        <MudTh>@Language.T("security.actions")</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Label="true">@context.TemplateCode</MudChip>
+                            @if (!string.IsNullOrWhiteSpace(context.Description))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                            }
+                        </MudTd>
+                        <MudTd>@context.EmailProfileCode</MudTd>
+                        <MudTd>@ModeLabel(context.DispatchMode)</MudTd>
+                        <MudTd>@context.Priority</MudTd>
+                        <MudTd>
+                            <MudSwitch T="bool" Value="context.IsActive" Color="Color.Success" Size="Size.Small"
+                                       ValueChanged="@(_ => TogglePolicy(context))" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTooltip Text="@Language.T("common.edit")">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                               OnClick="@(() => OpenPolicyEditor(context))" />
+                            </MudTooltip>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@* ═════════ Profile editor ═════════ *@
+<MudDialog @bind-Visible="_showProfile"
+           Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true, BackdropClick = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(_profile.Id == 0 ? Language.T("email.themProfileMoi") : Language.T("email.suaProfile", _profile.Code))
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudTextField Label="@Language.T("email.profileCode")" @bind-Value="_profile.Code"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Required="true"
+                              Disabled="@(_profile.Id > 0)" />
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField Label="@Language.T("email.profileName")" @bind-Value="_profile.Name"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField Label="@Language.T("email.smtpServer")" @bind-Value="_profile.EmailServerName"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Required="true"
+                              Placeholder="smtp.example.com" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" Label="@Language.T("email.smtpPort")" @bind-Value="_profile.EmailServerPort"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="65535" HideSpinButtons="true" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" Label="@Language.T("email.smtpSecurityMode")" @bind-Value="_profile.SecurityMode"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="string" Value="@("STARTTLS")">STARTTLS</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("SSL")">SSL</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("NONE")">NONE</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" Label="@Language.T("email.smtpAuthType")" @bind-Value="_profile.AuthenticationType"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="string" Value="@("Basic")">Basic</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("None")">None</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-center">
+                <MudSwitch T="bool" @bind-Value="_profile.EmailServerEnableSsl" Color="Color.Primary"
+                           Label="@Language.T("email.smtpSsl")" />
+            </MudItem>
+
+            @if (!string.Equals(_profile.AuthenticationType, "None", StringComparison.OrdinalIgnoreCase))
+            {
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="@Language.T("email.smtpAccount")" @bind-Value="_profile.EmailAccountName"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="@Language.T("email.smtpPassword")" @bind-Value="_profile.Password"
+                                  InputType="InputType.Password" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Immediate="false" autocomplete="new-password"
+                                  HelperText="@(_profile.HasPassword ? Language.T("email.smtpPasswordKeep") : null)" />
+                </MudItem>
+            }
+
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="@Language.T("email.smtpFromAddress")" @bind-Value="_profile.EmailAddress"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="@Language.T("email.smtpFromName")" @bind-Value="_profile.FromName"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="@Language.T("email.smtpReplyTo")" @bind-Value="_profile.ReplyTo"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="@Language.T("email.smtpSiteUrl")" @bind-Value="_profile.SiteUrl"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="https://" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" Label="@Language.T("email.smtpTimeout")" @bind-Value="_profile.TimeoutSeconds"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="5" Max="300" HideSpinButtons="true" />
+            </MudItem>
+            <MudItem xs="6" sm="4" Class="d-flex align-center">
+                <MudSwitch T="bool" @bind-Value="_profile.IsDefault" Color="Color.Info" Label="@Language.T("email.macDinh")" />
+            </MudItem>
+            <MudItem xs="6" sm="4" Class="d-flex align-center">
+                <MudSwitch T="bool" @bind-Value="_profile.IsActive" Color="Color.Success" Label="@Language.T("email.kichHoat")" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showProfile = false)" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
+        <MudSpacer />
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="_isSaving" OnClick="SaveProfile">
+            @(_isSaving ? Language.T("common.dangLuu") : Language.T("email.luuProfile"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* ═════════ Test send ═════════ *@
+<MudDialog @bind-Visible="_showTest"
+           Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, BackdropClick = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Language.T("email.guiThuTieuDe", _testProfile?.Code ?? "")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField Label="@Language.T("email.emailNhanThu")" @bind-Value="_testTo"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" InputType="InputType.Email" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showTest = false)" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
+        <MudSpacer />
+        <MudButton Color="Color.Info" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Send"
+                   Disabled="_isTesting" OnClick="SendTest">
+            @(_isTesting ? Language.T("email.dangGuiThu") : Language.T("email.guiThu"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* ═════════ Policy editor ═════════ *@
+<MudDialog @bind-Visible="_showPolicy"
+           Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, BackdropClick = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(_policy.Id == 0 ? Language.T("email.themChinhSachMoi") : Language.T("email.suaChinhSach"))
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudSelect T="string" Label="@Language.T("email.templateCode")" @bind-Value="_policy.TemplateCode"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" Disabled="@(_policy.Id > 0)">
+                    @foreach (var t in _templates)
+                    {
+                        <MudSelectItem T="string" Value="@t.Code">@t.Code</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect T="string" Label="@Language.T("email.profileChon")" @bind-Value="_policy.EmailProfileCode"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Required="true">
+                    @foreach (var p in _profiles.Where(x => x.IsActive || x.Code == _policy.EmailProfileCode))
+                    {
+                        <MudSelectItem T="string" Value="@p.Code">@p.Code — @p.EmailServerName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudSelect T="string" Label="@Language.T("email.cheDoGui")" @bind-Value="_policy.DispatchMode"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="string" Value="@("AutoSend")">@Language.T("email.modeAutoSend")</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("QueueForApproval")">@Language.T("email.modeQueueForApproval")</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Disabled")">@Language.T("email.modeDisabled")</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" Label="@Language.T("email.doUuTien")" @bind-Value="_policy.Priority"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField Label="@Language.T("email.moTa")" @bind-Value="_policy.Description"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch T="bool" @bind-Value="_policy.IsActive" Color="Color.Success" Label="@Language.T("email.kichHoat")" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showPolicy = false)" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
+        <MudSpacer />
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="_isSaving" OnClick="SavePolicy">
+            @(_isSaving ? Language.T("common.dangLuu") : Language.T("email.luuChinhSach"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<EmailProfileDto> _profiles = new();
+    private List<EmailDispatchPolicyDto> _policies = new();
+    private List<EmailTemplateDto> _templates = new();
+
+    private EmailProfileDto _profile = new();
+    private EmailDispatchPolicyDto _policy = new();
+    private EmailProfileDto? _testProfile;
+    private string _testTo = string.Empty;
+
+    private bool CanManage;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isTesting;
+    private bool _showProfile;
+    private bool _showPolicy;
+    private bool _showTest;
+    private readonly CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        CanManage = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.EmailTemplateManage) == true;
+        if (!CanManage) { _isLoading = false; return; }
+        await LoadAllAsync();
+    }
+
+    private async Task LoadAllAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var profiles = await EmailAdmin.GetProfilesAsync(_cts.Token);
+            var policies = await EmailAdmin.GetPoliciesAsync(_cts.Token);
+            var templates = await TemplateService.GetAllAsync(_cts.Token);
+
+            if (profiles.IsSuccess) _profiles = profiles.Data ?? new();
+            else Snackbar.Add(profiles.Message ?? Language.T("common.loi"), Severity.Error);
+
+            if (policies.IsSuccess) _policies = policies.Data ?? new();
+            else Snackbar.Add(policies.Message ?? Language.T("common.loi"), Severity.Error);
+
+            if (templates.IsSuccess)
+                _templates = (templates.Data ?? new()).Where(x => x.IsActive).OrderBy(x => x.Code).ToList();
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            Snackbar.Add(Language.T("common.loiHeThong"), Severity.Error);
+        }
+        finally { _isLoading = false; }
+    }
+
+    // ── Profiles ───────────────────────────────────────────────────────
+    private void OpenProfileEditor(EmailProfileDto? item)
+    {
+        _profile = item is null
+            ? new EmailProfileDto { IsActive = true, IsDefault = _profiles.Count == 0 }
+            : new EmailProfileDto
+            {
+                Id = item.Id, Code = item.Code, Name = item.Name,
+                EmailServerName = item.EmailServerName, EmailServerType = item.EmailServerType,
+                EmailServerPort = item.EmailServerPort, EmailServerEnableSsl = item.EmailServerEnableSsl,
+                SecurityMode = item.SecurityMode, AuthenticationType = item.AuthenticationType,
+                EmailAccountName = item.EmailAccountName, EmailAddress = item.EmailAddress,
+                FromName = item.FromName, ReplyTo = item.ReplyTo, SiteUrl = item.SiteUrl,
+                IsDefault = item.IsDefault, IsActive = item.IsActive,
+                TimeoutSeconds = item.TimeoutSeconds, HasPassword = item.HasPassword,
+                Password = null // blank = keep the stored password
+            };
+        _showProfile = true;
+    }
+
+    private async Task SaveProfile()
+    {
+        if (string.IsNullOrWhiteSpace(_profile.Code)
+            || string.IsNullOrWhiteSpace(_profile.EmailServerName)
+            || string.IsNullOrWhiteSpace(_profile.EmailAddress))
+        {
+            Snackbar.Add(Language.T("email.vuiLongNhapProfile"), Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var result = await EmailAdmin.SaveProfileAsync(_profile, _cts.Token);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? Language.T("email.daLuu"), Severity.Success);
+                _showProfile = false;
+                _profile.Password = null;
+                await LoadAllAsync();
+            }
+            else Snackbar.Add(result.Message ?? Language.T("common.loi"), Severity.Error);
+        }
+        finally { _isSaving = false; }
+    }
+
+    private void OpenTest(EmailProfileDto item)
+    {
+        _testProfile = item;
+        _showTest = true;
+    }
+
+    private async Task SendTest()
+    {
+        if (_testProfile is null || string.IsNullOrWhiteSpace(_testTo))
+        {
+            Snackbar.Add(Language.T("email.vuiLongNhapEmailNhan"), Severity.Warning);
+            return;
+        }
+
+        _isTesting = true;
+        try
+        {
+            var result = await EmailAdmin.TestProfileAsync(_testProfile.Id, _testTo.Trim(), _cts.Token);
+            Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("common.daCapNhat") : Language.T("common.loi")),
+                result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) _showTest = false;
+        }
+        finally { _isTesting = false; }
+    }
+
+    // ── Policies ───────────────────────────────────────────────────────
+    private void OpenPolicyEditor(EmailDispatchPolicyDto? item)
+    {
+        _policy = item is null
+            ? new EmailDispatchPolicyDto
+            {
+                IsActive = true,
+                DispatchMode = "AutoSend",
+                Priority = 100,
+                EmailProfileCode = (_profiles.FirstOrDefault(x => x.IsDefault && x.IsActive) ?? _profiles.FirstOrDefault(x => x.IsActive))?.Code ?? string.Empty
+            }
+            : new EmailDispatchPolicyDto
+            {
+                Id = item.Id, TemplateCode = item.TemplateCode, EmailProfileCode = item.EmailProfileCode,
+                DispatchMode = item.DispatchMode, Priority = item.Priority,
+                IsActive = item.IsActive, Description = item.Description
+            };
+        _showPolicy = true;
+    }
+
+    private async Task SavePolicy()
+    {
+        if (string.IsNullOrWhiteSpace(_policy.TemplateCode) || string.IsNullOrWhiteSpace(_policy.EmailProfileCode))
+        {
+            Snackbar.Add(Language.T("email.vuiLongChonTemplateProfile"), Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var result = await EmailAdmin.SavePolicyAsync(_policy, _cts.Token);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? Language.T("email.daLuu"), Severity.Success);
+                _showPolicy = false;
+                await LoadAllAsync();
+            }
+            else Snackbar.Add(result.Message ?? Language.T("common.loi"), Severity.Error);
+        }
+        finally { _isSaving = false; }
+    }
+
+    private async Task TogglePolicy(EmailDispatchPolicyDto item)
+    {
+        var result = await EmailAdmin.TogglePolicyAsync(item.Id, _cts.Token);
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("common.daCapNhat") : Language.T("common.loi")),
+            result.IsSuccess ? Severity.Success : Severity.Error);
+        await LoadAllAsync();
+    }
+
+    private string ModeLabel(string mode) => mode switch
+    {
+        "AutoSend" => Language.T("email.modeAutoSend"),
+        "QueueForApproval" => Language.T("email.modeQueueForApproval"),
+        "Disabled" => Language.T("email.modeDisabled"),
+        _ => mode
+    };
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

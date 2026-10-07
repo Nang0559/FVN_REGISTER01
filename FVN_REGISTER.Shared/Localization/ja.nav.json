@@ -72,5 +72,6 @@
   "nav.tripOverview": "概要",
   "nav.workCalendar": "勤務カレンダー",
   "nav.workCalendarManagement": "年度・休日",
-  "nav.workInbox": "ワークセンター"
+  "nav.workInbox": "ワークセンター",
+  "nav.emailProfiles": "SMTP設定"
 }

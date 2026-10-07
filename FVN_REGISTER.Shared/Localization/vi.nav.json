@@ -72,5 +72,6 @@
   "nav.tripOverview": "Tổng quan",
   "nav.workCalendar": "Lịch làm việc",
   "nav.workCalendarManagement": "Năm & ngày nghỉ",
-  "nav.workInbox": "Trung tâm công việc"
+  "nav.workInbox": "Trung tâm công việc",
+  "nav.emailProfiles": "Cấu hình SMTP"
 }
