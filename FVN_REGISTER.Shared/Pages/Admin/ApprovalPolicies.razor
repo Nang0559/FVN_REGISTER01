@@ -83,15 +83,10 @@
             </MudSelect>
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="1">
-            <MudNumericField T="int" @bind-Value="_form.Level" Label="@Language.T("common.level")"
-                             Variant="Variant.Outlined" Min="1" Max="7" ReadOnly="true" />
-        </MudItem>
-
         <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
             <MudText Typo="Typo.body2">
                 <b>@Language.T("approval.capPheDuyet"):</b>
-                @(_form.Level > 0 ? $"Level {_form.Level}" : "—")
+                @(_form.Level > 0 ? _form.Level.ToString() : "—")
             </MudText>
         </MudItem>
 
@@ -170,7 +165,6 @@ else
                             <MudTh>@Language.T("approval.positionNguoiYeuCau")</MudTh>
                             <MudTh>@Language.T("approval.capPheDuyet")</MudTh>
                             <MudTh>@Language.T("common.level")</MudTh>
-                            <MudTh>@Language.T("common.thuTu")</MudTh>
                             <MudTh>@Language.T("common.required")</MudTh>
                             <MudTh>@Language.T("common.active2")</MudTh>
                             <MudTh />
@@ -191,7 +185,6 @@ else
                                     @($"Level {context.Level}")
                                 </MudChip>
                             </MudTd>
-                            <MudTd>@context.Sequence</MudTd>
                             <MudTd>@(context.Required ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small"
@@ -224,7 +217,6 @@ else
         Department,
         Position,
         RequestType,
-        Role
     }
 
     private List<ApprovalPolicyDto> _policies = new();
