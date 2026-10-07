@@ -78,7 +78,6 @@
                 {
                     <MudSelectItem Value="@position.PositionCode">
                         @position.PositionCode — @position.PositionName
-                        @($" | Level {position.DefaultApproveLevel} | {position.RoleName}")
                     </MudSelectItem>
                 }
             </MudSelect>
@@ -89,19 +88,11 @@
                              Variant="Variant.Outlined" Min="1" Max="7" ReadOnly="true" />
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="1">
-            <MudNumericField T="int" @bind-Value="_form.Sequence" Label="@Language.T("common.thuTu")"
-                             Variant="Variant.Outlined" Min="1" />
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudTextField @bind-Value="_form.LevelName" Label="@Language.T("approval.tenCapDuyet")"
-                          Variant="Variant.Outlined" ReadOnly="true" />
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudTextField @bind-Value="_form.RoleName" Label="RoleName"
-                          Variant="Variant.Outlined" ReadOnly="true" />
+        <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
+            <MudText Typo="Typo.body2">
+                <b>@Language.T("approval.capPheDuyet"):</b>
+                @(_form.Level > 0 ? $"Level {_form.Level}" : "—")
+            </MudText>
         </MudItem>
 
         <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
@@ -133,7 +124,6 @@
             <MudSelectItem Value="@PolicyGroupMode.Department">@Language.T("ot.department")</MudSelectItem>
             <MudSelectItem Value="@PolicyGroupMode.Position">@Language.T("approval.positionNguoiYeuCau")</MudSelectItem>
             <MudSelectItem Value="@PolicyGroupMode.RequestType">@Language.T("approval.loaiYeuCau2")</MudSelectItem>
-            <MudSelectItem Value="@PolicyGroupMode.Role">@Language.T("security.role")</MudSelectItem>
         </MudSelect>
         <MudSpacer />
         <MudTextField @bind-Value="_searchText"
@@ -195,9 +185,6 @@ else
                             </MudTd>
                             <MudTd>
                                 <b>@context.ApprovalPositionCode — @context.ApprovalPositionName</b>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @context.RoleName
-                                </MudText>
                             </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
@@ -266,10 +253,6 @@ else
                 .GroupBy(x => x.RequestTypeName)
                 .OrderBy(x => x.Key)
                 .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Sequence).ToList())),
-            PolicyGroupMode.Role => FilteredPolicies
-                .GroupBy(x => string.IsNullOrWhiteSpace(x.RoleName) ? Language.T("approval.chuaCauHinhRole") : x.RoleName)
-                .OrderBy(x => x.Key)
-                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Level).ToList())),
             _ => FilteredPolicies
                 .GroupBy(x => $"{x.DeptCode} — {x.DeptName}")
                 .OrderBy(x => x.Key)
@@ -289,7 +272,7 @@ else
             || (x.ApprovalPositionCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
             || (x.ApprovalPositionName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
             || (x.RequestTypeName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
-            || (x.RoleName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true);
+;
     }
 
     private sealed record PolicyGroup(string Key, List<ApprovalPolicyDto> Items);
@@ -314,7 +297,7 @@ else
             {
                 _positions = positions.Data?.Where(x => x.IsActive).ToList() ?? new();
                 _approvalPositions = _positions
-                    .Where(x => x.DefaultApproveLevel.HasValue)
+                    .Where(x => x.DefaultApproveLevel is >= 1 and <= 7)
                     .ToList();
             }
             else
@@ -339,8 +322,6 @@ else
         if (position == null) return;
 
         _form.Level = position.DefaultApproveLevel ?? 0;
-        _form.LevelName = position.PositionName;
-        _form.RoleName = position.RoleName;
     }
 
     private async Task SaveAsync()
@@ -382,8 +363,6 @@ else
             ApprovalPositionCode = row.ApprovalPositionCode,
             Level = row.Level,
             Sequence = row.Sequence,
-            LevelName = row.LevelName,
-            RoleName = row.RoleName,
             Required = row.Required,
             IsActive = row.IsActive
         };
@@ -412,8 +391,6 @@ else
         ApprovalPositionCode = string.Empty,
         Level = 1,
         Sequence = 1,
-        LevelName = string.Empty,
-        RoleName = string.Empty,
         Required = true,
         IsActive = true
     };
