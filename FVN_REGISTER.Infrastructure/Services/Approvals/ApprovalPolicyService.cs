@@ -46,22 +46,57 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             })
             .ToListAsync(ct);
 
-        var departments = await _uow.Repository<F03Department>().Query()
-            .AsNoTracking()
-            .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
-
-        var positions = await _uow.Repository<F03Position>().Query()
-            .AsNoTracking()
-            .ToDictionaryAsync(x => x.PositionCode, ct);
-
-        foreach (var policy in policies)
+        // Policy data is the source of truth for this screen. Master-data enrichment
+        // must not make the whole policy list fail (e.g. an old/mismatched F03Positions row).
+        // Fall back to codes when department/position names cannot be resolved.
+        try
         {
-            positions.TryGetValue(policy.PositionCode ?? string.Empty, out var requesterPosition);
-            positions.TryGetValue(policy.ApprovalPositionCode, out var approvalPosition);
+            var departments = await _uow.Repository<F03Department>().Query()
+                .AsNoTracking()
+                .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
 
-            policy.DeptName = departments.GetValueOrDefault(policy.DeptCode, policy.DeptCode.ToString());
-            policy.PositionName = requesterPosition?.PositionName ?? "(Tất cả vị trí)";
-            policy.ApprovalPositionName = approvalPosition?.PositionName ?? policy.ApprovalPositionCode;
+            foreach (var policy in policies)
+                policy.DeptName = departments.GetValueOrDefault(policy.DeptCode, policy.DeptCode.ToString());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[APPROVAL-POLICY] Department-name enrichment failed; keeping DeptCode.");
+            foreach (var policy in policies)
+                policy.DeptName = policy.DeptCode.ToString();
+        }
+
+        try
+        {
+            // Convert PositionCode explicitly to text in SQL so legacy numeric PositionCode
+            // storage cannot break the policy-list endpoint with Int32 -> String materialization.
+            var positions = await _uow.Repository<F03Position>().Query()
+                .AsNoTracking()
+                .Select(x => new
+                {
+                    PositionCode = x.PositionCode.ToString(),
+                    x.PositionName
+                })
+                .ToDictionaryAsync(x => x.PositionCode, x => x, ct);
+
+            foreach (var policy in policies)
+            {
+                positions.TryGetValue(policy.PositionCode ?? string.Empty, out var requesterPosition);
+                positions.TryGetValue(policy.ApprovalPositionCode, out var approvalPosition);
+
+                policy.PositionName = requesterPosition?.PositionName ?? "(Tất cả vị trí)";
+                policy.ApprovalPositionName = approvalPosition?.PositionName ?? policy.ApprovalPositionCode;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[APPROVAL-POLICY] Position-name enrichment failed; keeping PositionCode.");
+            foreach (var policy in policies)
+            {
+                policy.PositionName = string.IsNullOrWhiteSpace(policy.PositionCode)
+                    ? "(Tất cả vị trí)"
+                    : policy.PositionCode;
+                policy.ApprovalPositionName = policy.ApprovalPositionCode;
+            }
         }
 
         return ServiceResult<List<ApprovalPolicyDto>>.Ok(policies);
