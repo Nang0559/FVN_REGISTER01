@@ -77,7 +77,7 @@ else
     @foreach (var master in _masters)
     {
         var job = _status?.LastRun?.Jobs.FirstOrDefault(x => x.EntityType.Equals(master.EntityType, StringComparison.OrdinalIgnoreCase));
-        <MudItem xs="12" sm="6" md="3">
+        <MudItem xs="12" sm="6" md="4" lg="2">
             <MudPaper Elevation="1" Class="pa-4" Style="border-radius:12px; height:100%">
                 <MudStack Spacing="1">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
@@ -91,8 +91,10 @@ else
                     }
                     else
                     {
-                        <MudChip T="string" Size="Size.Small" Color="@(job.Success ? Color.Success : Color.Error)">
-                            @(job.Success ? Language.T("common.success") : Language.T("hrm.coLoi"))
+                        <MudChip T="string" Size="Size.Small"
+                                  Color="@(!job.Success ? Color.Error : job.TotalSource == 0 ? Color.Warning : Color.Success)">
+                                    @(!job.Success ? Language.T("hrm.coLoi") : job.TotalSource == 0 ? "Không có dữ liệu nguồn" : Language.T("common.success"))
+                            
                         </MudChip>
                         <MudText Typo="Typo.caption">@Language.T("hrm.nguon", job.TotalSource)</MudText>
                         <MudText Typo="Typo.caption">
@@ -106,7 +108,7 @@ else
 
                     <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
                                Disabled="@(_loading || _status?.IsRunning == true)"
-                               OnClick="@(() => RunEntityAsync(master.EntityType))">
+                               OnClick="@(() => RunCardAsync(master.EntityType))">
                         @Language.T("hrm.dongBoRieng")
                     </MudButton>
                 </MudStack>
@@ -144,8 +146,10 @@ else
             <RowTemplate>
                 <MudTd><b>@context.EntityType</b></MudTd>
                 <MudTd>
-                    <MudChip T="string" Size="Size.Small" Color="@(context.Success ? Color.Success : Color.Error)">
-                        @(context.Success ? "OK" : Language.T("common.error"))
+                    <MudChip T="string" Size="Size.Small"
+                              Color="@(!context.Success ? Color.Error : context.TotalSource == 0 ? Color.Warning : Color.Success)">
+                           @(!context.Success ? Language.T("common.error") : context.TotalSource == 0 ? "EMPTY" : "OK")
+                        
                     </MudChip>
                 </MudTd>
                 <MudTd Style="text-align:right">@context.TotalSource</MudTd>
@@ -173,9 +177,12 @@ else
         new("LeaveType", Language.T("common.loaiNghi"), Icons.Material.Filled.EventBusy),
         new("Department", Language.T("equipment.assigned.department"), Icons.Material.Filled.Business),
         new("Position", Language.T("common.position"), Icons.Material.Filled.Badge),
-        new("Employee", Language.T("common.employee"), Icons.Material.Filled.People)
+        new("Employee", Language.T("common.employee"), Icons.Material.Filled.People),
+        new("User",       "User", Icons.Material.Filled.Person),
+        new("Approver",   "Approver", Icons.Material.Filled.VerifiedUser)
     ];
-
+    private static readonly HashSet<string> SecurityEntities =
+     new(StringComparer.OrdinalIgnoreCase) { "User", "Approver" };
     private HrmSyncRuntimeStatusDto? _status;
     private int _conflictCount;
     private bool _loading;
@@ -202,7 +209,56 @@ else
             _loading = false;
         }
     }
+    private Task RunCardAsync(string entityType)
+    => SecurityEntities.Contains(entityType)
+        ? ReconcileSecurityOnlyAsync()
+        : RunEntityAsync(entityType);
 
+    // Chạy riêng bước User/Approver, giữ nguyên các job HRM của phiên đang hiển thị
+    private async Task ReconcileSecurityOnlyAsync()
+    {
+        _loading = true;
+        try
+        {
+            var security = await SyncService.ReconcileSecurityAsync();
+            if (!security.IsSuccess || security.Data == null)
+            {
+                Snackbar.Add(security.Message ?? "Không thể đồng bộ User/Approver.", Severity.Error);
+                return;
+            }
+
+            var run = security.Data;
+
+            // giữ lại job HRM cũ (không thuộc User/Approver) của phiên hiện tại
+            var keep = _status?.LastRun?.Jobs
+                .Where(j => !SecurityEntities.Contains(j.EntityType))
+                .ToList();
+            if (keep is { Count: > 0 })
+            {
+                run.Jobs.RemoveAll(j => keep.Any(k =>
+                    k.EntityType.Equals(j.EntityType, StringComparison.OrdinalIgnoreCase)));
+                run.Jobs.InsertRange(0, keep);
+            }
+
+            _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = run };
+            Snackbar.Add(BuildSecurityMessage(run.Jobs, run.Summary),
+                run.Success ? Severity.Success : Severity.Warning);
+        }
+        finally { _loading = false; }
+    }
+
+    // Thông báo có số lượng cụ thể cho User/Approver
+    private static string BuildSecurityMessage(IEnumerable<dynamic> jobs, string? fallback)
+    {
+        var parts = new List<string>();
+        foreach (var j in jobs)
+        {
+            string type = j.EntityType;
+            if (!SecurityEntities.Contains(type)) continue;
+            parts.Add($"{type}: nguồn {j.TotalSource}, +{j.Added} ↻{j.Updated} −{j.Deactivated} ={j.Unchanged}");
+        }
+        return parts.Count > 0 ? string.Join(" | ", parts) : (fallback ?? "Đã chạy, không có job User/Approver.");
+    }
     private async Task RunAllAsync()
     {
         _loading = true;
