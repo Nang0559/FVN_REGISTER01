@@ -241,7 +241,7 @@ FROM (VALUES
 (2602,N'Security.ManageRoles',N'Quản lý role',N'Security',N'ManageRoles',N'All',620),
 (2603,N'Security.ManageFunctions',N'Quản lý function/action',N'Security',N'ManageFunctions',N'All',630),
 (2604,N'Security.Audit',N'Xem audit security',N'Security',N'Audit',N'All',640),
-(2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'Own',710),
+(2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'All',710),
 (2307,N'Equipment.Export',N'Xuất báo cáo thiết bị',N'Equipment',N'Export',N'Department',360),
 (2901,N'Attendance.View',N'Xem báo cáo chấm công',N'Attendance',N'View',N'All',810),
 (2902,N'Attendance.Export',N'Xuất báo cáo chấm công',N'Attendance',N'Export',N'All',820)
@@ -255,7 +255,7 @@ SET ModuleCode=LEFT(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')-1),
     ActionCode=SUBSTRING(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')+1,50),
     ScopeCode=CASE
         WHEN f.FunctionCode IN (2005,2006,2105,2107,2205,2301,2304,2305) THEN N'Department'
-        WHEN f.FunctionCode IN (2106,2401,2402,2403,2404,2405,2406,2501,2502,2503,2504,2601,2602,2603,2604) THEN N'All'
+        WHEN f.FunctionCode IN (2106,2401,2402,2403,2404,2405,2406,2501,2502,2503,2504,2601,2602,2603,2604,2701) THEN N'All'
         WHEN f.FunctionCode BETWEEN 2001 AND 2999 THEN N'Own'
         ELSE f.ScopeCode
     END

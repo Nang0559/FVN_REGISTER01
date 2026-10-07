@@ -107,6 +107,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "69_Endpoint_LanscopeDeployment.sql"
 :r "70_RequestModuleCanonicalization.sql"
 :r "71_DepartmentCodeInt.sql"
+:r "73_DashboardViewShellCapability.sql"
 /* [SEED] is intentionally late: all schema/module tables must exist before the complete seed pack runs. */
 -- [SEED] :r "06_Seed_All_Modules.sql"
 :r "14D_SecuritySchemaVerify.sql"
