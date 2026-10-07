@@ -134,9 +134,6 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                     a => a.ApproverCode,
                     e => e.EmployeeCode,
                     (a, e) => new { a, e })
-                .Where(x =>
-                    x.a.ApproveForDeptCode == ApproveForDept.All ||
-                    x.e.DeptCode == resolvedDeptCode)
                 .Join(
                     _uow.Repository<F03Position>()
                         .Query()
