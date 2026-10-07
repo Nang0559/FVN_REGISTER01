@@ -214,12 +214,6 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                     x => x.IsActive == true && x.DeptCode == model.ApproveForDeptCode, ct))
                 return ServiceResult.Fail("Phòng ban áp dụng phê duyệt không tồn tại hoặc đã inactive.");
 
-            if (model.ApproveForDeptCode != ApproveForDept.All &&
-                employee.DeptCode != model.ApproveForDeptCode)
-                return ServiceResult.Fail(
-                    $"Người phê duyệt {employee.EmployeeCode} thuộc phòng ban {employee.DeptCode}, " +
-                    $"không thể cấu hình làm người phê duyệt cho phòng ban {model.ApproveForDeptCode}.");
-
             model.PositionCode = employee.PositionCode;
 
             if (!CvCodeRules.IsApprover(
@@ -238,13 +232,12 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             if (!await HasActiveApprovalPolicyAsync(
                     model.RequestType,
-                    model.ApproveForDeptCode!.Value,
                     model.Level,
                     employee.PositionCode,
                     ct))
             {
                 return ServiceResult.Fail(
-                    $"Chức vụ {employee.PositionCode} của nhân viên {employee.EmployeeName} chưa được cấu hình làm vị trí phê duyệt cho {model.RequestType}, cấp {model.Level}, phòng ban {model.ApproveForDeptCode}.");
+                    $"Chức vụ {employee.PositionCode} của nhân viên {employee.EmployeeName} chưa được cấu hình làm vị trí phê duyệt cho {model.RequestType}, cấp {model.Level}.");
             }
 
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
@@ -257,6 +250,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 return ServiceResult.Fail("Nhân viên approver chưa có EmailAddress trong HRM.");
 
             var entity = ApproverMapper.ToEntity(model, currentUserId);
+            entity.LastModifiedSource = "Manual";
             await repo.AddAsync(entity, ct);
             await _uow.SaveChangesAsync(ct);
 
@@ -306,12 +300,6 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                     x => x.IsActive == true && x.DeptCode == model.ApproveForDeptCode, ct))
                 return ServiceResult.Fail("Phòng ban áp dụng phê duyệt không tồn tại hoặc đã inactive.");
 
-            if (model.ApproveForDeptCode != ApproveForDept.All &&
-                employee.DeptCode != model.ApproveForDeptCode)
-                return ServiceResult.Fail(
-                    $"Người phê duyệt {employee.EmployeeCode} thuộc phòng ban {employee.DeptCode}, " +
-                    $"không thể cấu hình làm người phê duyệt cho phòng ban {model.ApproveForDeptCode}.");
-
             model.PositionCode = employee.PositionCode;
 
             int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, employee.PositionCode);
@@ -319,13 +307,12 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             if (!await HasActiveApprovalPolicyAsync(
                     model.RequestType,
-                    model.ApproveForDeptCode!.Value,
                     model.Level,
                     employee.PositionCode,
                     ct))
             {
                 return ServiceResult.Fail(
-                    $"Chức vụ {employee.PositionCode} của nhân viên {employee.EmployeeName} chưa được cấu hình làm vị trí phê duyệt cho {model.RequestType}, cấp {model.Level}, phòng ban {model.ApproveForDeptCode}.");
+                    $"Chức vụ {employee.PositionCode} của nhân viên {employee.EmployeeName} chưa được cấu hình làm vị trí phê duyệt cho {model.RequestType}, cấp {model.Level}.");
             }
 
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
@@ -338,6 +325,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 return ServiceResult.Fail("Nhân viên approver chưa có EmailAddress trong HRM.");
 
             ApproverMapper.ApplyUpdate(entity, model, currentUserId);
+            entity.LastModifiedSource = "Manual";
             entity.ApproverDeptCode = employee.DeptCode;
             entity.ApproverDeptName = employee.DeptName ?? entity.ApproverDeptName;
 
@@ -363,6 +351,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             entity.IsActive = false;
             entity.ModifiedBy = currentUserId;
             entity.ModifiedAt = DateTime.Now;
+            entity.LastModifiedSource = "Manual";
             repo.Update(entity);
             await _uow.SaveChangesAsync(ct);
             Logger.LogInfoIf(Debug, "[APPROVER-MGT] Soft-deleted Id={Id} {Name}", id, entity.ApproverName);
@@ -385,6 +374,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             entity.IsActive = entity.IsActive != true;
             entity.ModifiedBy = currentUserId;
             entity.ModifiedAt = DateTime.Now;
+            entity.LastModifiedSource = "Manual";
             repo.Update(entity);
             await _uow.SaveChangesAsync(ct);
             var statusText = entity.IsActive == true ? "kích hoạt" : "vô hiệu hóa";
@@ -442,12 +432,10 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
     private async Task<bool> HasActiveApprovalPolicyAsync(
         RequestModule requestType,
-        int approveForDeptCode,
         int level,
         string positionCode,
         CancellationToken ct)
     {
-        var deptCode = approveForDeptCode;
         var posCode = positionCode.Trim();
 
         return await _uow.Repository<F03ApprovalPolicy>().Query()
@@ -455,7 +443,6 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             .AnyAsync(x =>
                 x.IsActive == true &&
                 x.RequestType == requestType &&
-                x.DeptCode == deptCode &&
                 x.Level == level &&
                 x.ApprovalPositionCode == posCode,
                 ct);
