@@ -127,27 +127,31 @@ GO
 /*
   APPROVER provisioning - POLICY DRIVEN
 
-  F03ApprovalPolicies is the source of truth:
+  F03ApprovalPolicies is the source of truth for which approval positions and
+  request levels are available:
       Policy.ApprovalPositionCode -> F03Employee.PositionCode
       Policy.RequestType          -> F03Approvers.RequestType
       Policy.Level                -> F03Approvers.Level
 
-  Therefore Admin configures approval policy once. HRM security reconcile then:
+  HRM security reconcile then:
       1. marks every ApprovalPositionCode referenced by an active policy as approval-capable;
       2. derives DefaultApproveLevel from the lowest configured policy level
          for that approval position;
-      3. creates/synchronizes F03Approvers for active employees whose
-         F03Employees.LevelApprove > 0 AND PositionCode matches an active
-         policy's ApprovalPositionCode. For a department-scoped policy, the
-         approver employee must belong to the same HRM department as the
-         policy department. ApproveForDeptCode remains the REQUESTER
-         department from F03ApprovalPolicies.DeptCode;
-      4. deactivates stale HRM-owned approver rows when policy/employee no longer qualifies.
+      3. creates/synchronizes one HRM-owned F03Approver candidate for each
+         active eligible employee and each active RequestType/Level supported
+         by that employee's approval position. The default ApproveForDeptCode
+         is ALWAYS the employee's actual F03Employees.DeptCode.
+      4. deactivates stale HRM-owned rows when the employee/position/policy
+         qualification is no longer valid or the employee changes department.
 
   IMPORTANT:
       F03Employees.LevelApprove > 0 is the HRM/F03Employee gate for appearing
-      in the Approver candidate pool. ApprovalPolicies still controls which
-      RequestType/Level/department scopes are materialized into F03Approvers.
+      in the candidate pool.
+      HRM sync NEVER copies F03ApprovalPolicies.DeptCode into ApproveForDeptCode.
+      F03ApprovalPolicies.DeptCode describes the requester scope, not the
+      approver's home department.
+      Administrators may manually change ApproveForDeptCode (including another
+      department or ALL). Manual rows are protected from later HRM reconcile.
 
   No ApprovalGroup / PositionGroup layer is used.
 */
@@ -253,19 +257,17 @@ BEGIN
         ap.Level,
         ap.LevelName,
         ap.RoleName,
-        ap.DeptCode AS ApproveForDeptCode,
-        ISNULL(d.DeptName,CONVERT(nvarchar(20),ap.DeptCode)) AS ApproveForDeptName
+
+        -- HRM default: approver can approve for their own actual department.
+        e.DeptCode AS ApproveForDeptCode,
+        ISNULL(d.DeptName,CONVERT(nvarchar(20),e.DeptCode)) AS ApproveForDeptName
     INTO #HrmApproverSource
     FROM dbo.F03Employees e
     INNER JOIN dbo.F03ApprovalPolicies ap
         ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
        AND ap.IsActive=1
-       AND (
-           ap.DeptCode=0
-           OR e.DeptCode=ap.DeptCode
-       )
     LEFT JOIN dbo.F03Departments d
-        ON d.DeptCode=ap.DeptCode
+        ON d.DeptCode=e.DeptCode
     WHERE e.IsActive=1
       AND ISNULL(e.LevelApprove,0) > 0
       AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
@@ -343,8 +345,7 @@ BEGIN
           e.IsActive=0
           OR ISNULL(e.LevelApprove,0) <= 0
           OR (
-              a.ApproveForDeptCode <> 0
-              AND e.DeptCode <> a.ApproveForDeptCode
+              a.ApproveForDeptCode <> e.DeptCode
           )
           OR NOT EXISTS
           (
@@ -352,10 +353,6 @@ BEGIN
               FROM dbo.F03ApprovalPolicies ap
               WHERE ap.IsActive=1
                 AND ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
-                AND (
-                    ap.DeptCode=0
-                    OR e.DeptCode=ap.DeptCode
-                )
                 AND a.RequestType=
                     CASE ap.RequestType
                         WHEN 0 THEN N'Leave'
@@ -364,7 +361,6 @@ BEGIN
                         WHEN 3 THEN N'Equipment'
                     END
                 AND a.Level=ap.Level
-                AND a.ApproveForDeptCode=ap.DeptCode
           )
       );
 
@@ -411,10 +407,6 @@ FROM dbo.F03Employees e
 INNER JOIN dbo.F03ApprovalPolicies ap
     ON ap.ApprovalPositionCode=e.PositionCode
    AND ap.IsActive=1
-   AND (
-       ap.DeptCode=0
-       OR e.DeptCode=ap.DeptCode
-   )
 LEFT JOIN dbo.F03Approvers a
     ON a.ApproverCode=e.EmployeeCode
    AND a.IsActive=1
@@ -425,7 +417,7 @@ LEFT JOIN dbo.F03Approvers a
        WHEN 3 THEN N'Equipment'
    END
    AND a.Level=ap.Level
-   AND a.ApproveForDeptCode=ap.DeptCode
+   AND a.ApproveForDeptCode=e.DeptCode
 WHERE e.IsActive=1
   AND ISNULL(e.LevelApprove,0) > 0
   AND a.Id IS NULL;
