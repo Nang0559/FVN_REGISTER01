@@ -138,9 +138,10 @@ GO
          for that approval position;
       3. creates/synchronizes F03Approvers for active employees whose
          F03Employees.LevelApprove > 0 AND PositionCode matches an active
-         policy's ApprovalPositionCode. The ApproveForDeptCode is the
-         REQUESTER department from F03ApprovalPolicies.DeptCode, not the
-         approver employee's own department;
+         policy's ApprovalPositionCode. For a department-scoped policy, the
+         approver employee must belong to the same HRM department as the
+         policy department. ApproveForDeptCode remains the REQUESTER
+         department from F03ApprovalPolicies.DeptCode;
       4. deactivates stale HRM-owned approver rows when policy/employee no longer qualifies.
 
   IMPORTANT:
@@ -259,6 +260,10 @@ BEGIN
     INNER JOIN dbo.F03ApprovalPolicies ap
         ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
        AND ap.IsActive=1
+       AND (
+           ap.DeptCode=0
+           OR e.DeptCode=ap.DeptCode
+       )
     LEFT JOIN dbo.F03Departments d
         ON d.DeptCode=ap.DeptCode
     WHERE e.IsActive=1
@@ -337,12 +342,20 @@ BEGIN
       (
           e.IsActive=0
           OR ISNULL(e.LevelApprove,0) <= 0
+          OR (
+              a.ApproveForDeptCode <> 0
+              AND e.DeptCode <> a.ApproveForDeptCode
+          )
           OR NOT EXISTS
           (
               SELECT 1
               FROM dbo.F03ApprovalPolicies ap
               WHERE ap.IsActive=1
                 AND ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
+                AND (
+                    ap.DeptCode=0
+                    OR e.DeptCode=ap.DeptCode
+                )
                 AND a.RequestType=
                     CASE ap.RequestType
                         WHEN 0 THEN N'Leave'
@@ -398,6 +411,10 @@ FROM dbo.F03Employees e
 INNER JOIN dbo.F03ApprovalPolicies ap
     ON ap.ApprovalPositionCode=e.PositionCode
    AND ap.IsActive=1
+   AND (
+       ap.DeptCode=0
+       OR e.DeptCode=ap.DeptCode
+   )
 LEFT JOIN dbo.F03Approvers a
     ON a.ApproverCode=e.EmployeeCode
    AND a.IsActive=1
