@@ -43,7 +43,8 @@ SET @Patched = REPLACE(
 SET @Patched = REPLACE(
     @Patched,
     N'WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);',
-    N'WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)\n      AND u.LastModifiedSource=N''HRM'';', 1);
+    N'WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)' + CHAR(13) + CHAR(10) +
+    N'      AND u.LastModifiedSource=N''HRM'';');
 
 IF @Patched = @Original
     THROW 51075, 'usp_ReconcileEmployeeUsers hardening pattern was not found; procedure was not changed.', 1;
@@ -69,8 +70,23 @@ SET @Patched2 = @ProcDefinition2;
 
 SET @Patched2 = REPLACE(
     @Patched2,
-    N'WHERE e.IsActive=1;\n\n    /*\n      Positions that are no longer referenced',
-    N'WHERE e.IsActive=1\n      AND u.LastModifiedSource=N''HRM'';\n\n    /*\n      Positions that are no longer referenced');
+    N'    UPDATE u' + CHAR(13) + CHAR(10) +
+    N'       SET u.LevelApprove = ISNULL(e.LevelApprove,0),' + CHAR(13) + CHAR(10) +
+    N'           u.ModifiedAt = GETDATE(),' + CHAR(13) + CHAR(10) +
+    N'           u.LastModifiedSource = N''HRM''' + CHAR(13) + CHAR(10) +
+    N'    FROM dbo.F03Users u' + CHAR(13) + CHAR(10) +
+    N'    INNER JOIN dbo.F03Employees e' + CHAR(13) + CHAR(10) +
+    N'        ON e.EmployeeCode = u.EmployeeCode' + CHAR(13) + CHAR(10) +
+    N'    WHERE e.IsActive=1;',
+    N'    UPDATE u' + CHAR(13) + CHAR(10) +
+    N'       SET u.LevelApprove = ISNULL(e.LevelApprove,0),' + CHAR(13) + CHAR(10) +
+    N'           u.ModifiedAt = GETDATE(),' + CHAR(13) + CHAR(10) +
+    N'           u.LastModifiedSource = N''HRM''' + CHAR(13) + CHAR(10) +
+    N'    FROM dbo.F03Users u' + CHAR(13) + CHAR(10) +
+    N'    INNER JOIN dbo.F03Employees e' + CHAR(13) + CHAR(10) +
+    N'        ON e.EmployeeCode = u.EmployeeCode' + CHAR(13) + CHAR(10) +
+    N'    WHERE e.IsActive=1' + CHAR(13) + CHAR(10) +
+    N'      AND u.LastModifiedSource=N''HRM'';');
 
 IF @Patched2 = @Original2
     THROW 51077, 'usp_ReconcileEmployeeApprovers user-ownership pattern was not found; procedure was not changed.', 1;
