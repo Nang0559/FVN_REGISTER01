@@ -26,9 +26,13 @@ public sealed class HrmSyncService : IHrmSyncService
         _uow = uow;
     }
 
+    // ------------------------------------------------------------------
+    // Security provisioning (User / Approver)
+    // ------------------------------------------------------------------
+
     public async Task<ServiceResult<HrmSyncRunResultDto>> ReconcileSecurityAsync(
-    string? triggeredBy = null,
-    CancellationToken ct = default)
+        string? triggeredBy = null,
+        CancellationToken ct = default)
     {
         if (!await Gate.WaitAsync(0, ct))
             return ServiceResult<HrmSyncRunResultDto>.Fail("Đang có một phiên đồng bộ HRM khác chạy. Vui lòng chờ phiên hiện tại hoàn tất.");
@@ -56,8 +60,17 @@ public sealed class HrmSyncService : IHrmSyncService
             run.FinishedAt = DateTime.Now;
             run.Summary = string.Join(" | ", run.Jobs.Select(j => j.Summary));
 
-            SetFinished(MergeForStatus(run, previous));   // trạng thái lưu = HRM + Security
-            return ServiceResult<HrmSyncRunResultDto>.Ok(run); // client nhận bản Security như cũ
+            SetFinished(MergeForStatus(run, previous));          // trạng thái lưu = HRM + Security
+            return ServiceResult<HrmSyncRunResultDto>.Ok(run);   // client nhận bản Security
+        }
+        catch (OperationCanceledException)
+        {
+            run.Running = false;
+            run.Success = false;
+            run.FinishedAt = DateTime.Now;
+            run.Summary = "Phiên đồng bộ đã bị hủy.";
+            SetFinished(MergeForStatus(run, previous));
+            throw;
         }
         catch (Exception ex)
         {
@@ -87,14 +100,22 @@ public sealed class HrmSyncService : IHrmSyncService
     private static HrmSyncRunResultDto MergeForStatus(HrmSyncRunResultDto security, HrmSyncRunResultDto? previous)
     {
         if (previous == null) return security;
+
         var merged = CloneRun(security);
-        merged.Jobs = previous.Jobs
+        var jobs = previous.Jobs
             .Where(j => !SecurityEntityTypes.Contains(j.EntityType))
             .Concat(security.Jobs)
             .ToList();
+
+        merged.Jobs.Clear();
+        merged.Jobs.AddRange(jobs);
         merged.Success = merged.Jobs.All(x => x.Success);
         return merged;
     }
+
+    // ------------------------------------------------------------------
+    // Public API
+    // ------------------------------------------------------------------
 
     public HrmSyncRuntimeStatusDto GetRuntimeStatus()
     {
@@ -105,9 +126,22 @@ public sealed class HrmSyncService : IHrmSyncService
         => ExecuteAsync(null, triggeredBy, manual, ct);
 
     public Task<ServiceResult<HrmSyncRunResultDto>> RunEntityAsync(string entityType, string? triggeredBy = null, CancellationToken ct = default)
-        => string.IsNullOrWhiteSpace(entityType)
-            ? Task.FromResult(ServiceResult<HrmSyncRunResultDto>.Fail("EntityType không được để trống."))
-            : ExecuteAsync(entityType.Trim(), triggeredBy, true, ct);
+    {
+        if (string.IsNullOrWhiteSpace(entityType))
+            return Task.FromResult(ServiceResult<HrmSyncRunResultDto>.Fail("EntityType không được để trống."));
+
+        var type = entityType.Trim();
+
+        // User/Approver/SecurityProvisioning không có importer/job riêng -> chạy bước Security
+        if (SecurityEntityTypes.Contains(type))
+            return ReconcileSecurityAsync(triggeredBy, ct);
+
+        return ExecuteAsync(type, triggeredBy, true, ct);
+    }
+
+    // ------------------------------------------------------------------
+    // Pipeline chính
+    // ------------------------------------------------------------------
 
     private async Task<ServiceResult<HrmSyncRunResultDto>> ExecuteAsync(string? entityType, string? triggeredBy, bool manual, CancellationToken ct)
     {
@@ -116,7 +150,10 @@ public sealed class HrmSyncService : IHrmSyncService
 
         var run = new HrmSyncRunResultDto
         {
-            RunId = Guid.NewGuid(), Manual = manual, Running = true, StartedAt = DateTime.Now,
+            RunId = Guid.NewGuid(),
+            Manual = manual,
+            Running = true,
+            StartedAt = DateTime.Now,
             TriggeredBy = string.IsNullOrWhiteSpace(triggeredBy) ? "SYSTEM" : triggeredBy
         };
         SetRunning(run);
@@ -165,30 +202,34 @@ public sealed class HrmSyncService : IHrmSyncService
                 var result = await job.RunAsync(ct);
                 AddJobResult(run, job, result);
             }
-            // Chỉ khi chạy TẤT CẢ (entityType == null) mới provision User/Approver
-                       if (entityType == null)
-                            {
-                                try
+
+            // Chỉ khi chạy TẤT CẢ (entityType == null) mới provision User/Approver.
+            // Chạy cả khi một job HRM lỗi/blocked để tự-heal từ dữ liệu F03* hiện có.
+            if (entityType == null)
+            {
+                try
                 {
                     run.Jobs.AddRange(await RunSecurityProvisioningAsync(ct));
-                                    }
-                                catch (OperationCanceledException)
-               {
+                }
+                catch (OperationCanceledException)
+                {
                     throw; // để catch bên ngoài xử lý hủy phiên
-                                    }
-                                catch (Exception ex)
+                }
+                catch (Exception ex)
                 {
                     _logger.LogError(ex, "[HRM-SYNC] Security provisioning (RunAll) failed.");
                     run.Jobs.Add(new HrmSyncJobRunDto
-                                        {
-                        EntityType = "Approver",SyncOrder = 99,
+                    {
+                        EntityType = "Approver",
+                        SyncOrder = 99,
                         Success = false,
                         Summary = $"Provision thất bại: {ex.Message}",
                         Errors = new List<string> { ex.Message }
                     });
-                                    }
-                           }
-                run.Success = run.Jobs.All(x => x.Success);
+                }
+            }
+
+            run.Success = run.Jobs.All(x => x.Success);
             run.Running = false;
             run.FinishedAt = DateTime.Now;
             if (string.IsNullOrWhiteSpace(run.Summary))
@@ -215,32 +256,34 @@ public sealed class HrmSyncService : IHrmSyncService
         finally { Gate.Release(); }
     }
 
-    private sealed class MissingCount { public int Value { get; set; } }
-    // ===== thêm vào trong class HrmSyncService (cạnh MissingCount) =====
+    // ------------------------------------------------------------------
+    // Security provisioning: SQL dùng chung cho trước/sau (một nguồn duy nhất)
+    // ------------------------------------------------------------------
+
     private static readonly HashSet<string> SecurityEntityTypes =
         new(StringComparer.OrdinalIgnoreCase) { "User", "Approver", "SecurityProvisioning" };
 
     private const string ApproverFrom = """
-    FROM dbo.F03Employees e
-    INNER JOIN dbo.F03ApprovalPolicies ap
-        ON ap.ApprovalPositionCode = e.PositionCode AND ap.IsActive = 1
-    WHERE e.IsActive = 1 AND ISNULL(e.LevelApprove,0) > 0
-    """;
+        FROM dbo.F03Employees e
+        INNER JOIN dbo.F03ApprovalPolicies ap
+            ON ap.ApprovalPositionCode = e.PositionCode AND ap.IsActive = 1
+        WHERE e.IsActive = 1 AND ISNULL(e.LevelApprove,0) > 0
+        """;
 
     // Điều kiện "chưa có bản ghi F03Approvers tương ứng".
     // LƯU Ý: đang so theo ap.DeptCode (như đoạn 'before' cũ). Đối chiếu với usp_ReconcileHrmSecurity;
     // nếu SP dùng e.DeptCode thì chỉ cần đổi ở ĐÂY.
     private const string ApproverMissing = """
-    AND NOT EXISTS (
-        SELECT 1 FROM dbo.F03Approvers a
-        WHERE a.IsActive = 1
-          AND a.ApproverCode = e.EmployeeCode
-          AND a.RequestType = CASE ap.RequestType
-                WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime'
-                WHEN 2 THEN N'Trip'  WHEN 3 THEN N'Equipment' END
-          AND a.Level = ap.Level
-          AND LTRIM(RTRIM(a.ApproveForDeptCode)) = LTRIM(RTRIM(ap.DeptCode)))
-    """;
+        AND NOT EXISTS (
+            SELECT 1 FROM dbo.F03Approvers a
+            WHERE a.IsActive = 1
+              AND a.ApproverCode = e.EmployeeCode
+              AND a.RequestType = CASE ap.RequestType
+                    WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime'
+                    WHEN 2 THEN N'Trip'  WHEN 3 THEN N'Equipment' END
+              AND a.Level = ap.Level
+              AND LTRIM(RTRIM(a.ApproveForDeptCode)) = LTRIM(RTRIM(ap.DeptCode)))
+        """;
 
     private const string SecurityStatsSql =
         "SELECT " +
@@ -265,6 +308,7 @@ public sealed class HrmSyncService : IHrmSyncService
         public int TotalUsers { get; set; }
         public int MissingUsers { get; set; }
     }
+
     private sealed class ShiftSyncSummary
     {
         public int ShiftCount { get; set; }
@@ -272,6 +316,8 @@ public sealed class HrmSyncService : IHrmSyncService
         public int ScheduleDayCount { get; set; }
         public int EmployeeScheduleCount { get; set; }
     }
+
+    // Không giữ Gate: chỉ được gọi từ code đã giữ Gate (ExecuteAsync / ReconcileSecurityAsync)
     private async Task<List<HrmSyncJobRunDto>> RunSecurityProvisioningAsync(CancellationToken ct)
     {
         var before = (await _uow.SqlQueryRawAsync<SecurityStats>(SecurityStatsSql, ct)).FirstOrDefault()
@@ -279,10 +325,10 @@ public sealed class HrmSyncService : IHrmSyncService
 
         await _uow.ExecuteSqlRawAsync(
             """
-        EXEC dbo.usp_ReconcileHrmSecurity
-            @EmployeeCode=NULL,
-            @CreatedBy={0};
-        """,
+            EXEC dbo.usp_ReconcileHrmSecurity
+                @EmployeeCode=NULL,
+                @CreatedBy={0};
+            """,
             ct,
             0); // TODO: kiểm tra kiểu @CreatedBy trong SP; nếu là tên người dùng thì truyền triggeredBy
 
@@ -347,13 +393,26 @@ public sealed class HrmSyncService : IHrmSyncService
 
         return new List<HrmSyncJobRunDto> { userJob, approverJob };
     }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
     private static void AddJobResult(HrmSyncRunResultDto run, IHrmSyncJob job, HrmSyncResult result)
         => run.Jobs.Add(new HrmSyncJobRunDto
         {
-            EntityType = job.EntityType, SyncOrder = job.SyncOrder, IsBlockingDependency = job.IsBlockingDependency,
-            Success = result.Success, TotalSource = result.TotalSource, Added = result.Added, Updated = result.Updated,
-            Deactivated = result.Deactivated, Unchanged = result.Unchanged, Superseded = result.Superseded,
-            Summary = result.Summary, Errors = result.Errors.ToList()
+            EntityType = job.EntityType,
+            SyncOrder = job.SyncOrder,
+            IsBlockingDependency = job.IsBlockingDependency,
+            Success = result.Success,
+            TotalSource = result.TotalSource,
+            Added = result.Added,
+            Updated = result.Updated,
+            Deactivated = result.Deactivated,
+            Unchanged = result.Unchanged,
+            Superseded = result.Superseded,
+            Summary = result.Summary,
+            Errors = result.Errors.ToList()
         });
 
     private static void SetRunning(HrmSyncRunResultDto run)
@@ -374,14 +433,28 @@ public sealed class HrmSyncService : IHrmSyncService
     private static HrmSyncRunResultDto CloneRun(HrmSyncRunResultDto source)
         => new()
         {
-            RunId = source.RunId, Success = source.Success, Manual = source.Manual, Running = source.Running,
-            StartedAt = source.StartedAt, FinishedAt = source.FinishedAt, TriggeredBy = source.TriggeredBy, Summary = source.Summary,
+            RunId = source.RunId,
+            Success = source.Success,
+            Manual = source.Manual,
+            Running = source.Running,
+            StartedAt = source.StartedAt,
+            FinishedAt = source.FinishedAt,
+            TriggeredBy = source.TriggeredBy,
+            Summary = source.Summary,
             Jobs = source.Jobs.Select(x => new HrmSyncJobRunDto
             {
-                EntityType = x.EntityType, SyncOrder = x.SyncOrder, IsBlockingDependency = x.IsBlockingDependency,
-                Success = x.Success, TotalSource = x.TotalSource, Added = x.Added, Updated = x.Updated,
-                Deactivated = x.Deactivated, Unchanged = x.Unchanged, Superseded = x.Superseded,
-                Summary = x.Summary, Errors = x.Errors.ToList()
+                EntityType = x.EntityType,
+                SyncOrder = x.SyncOrder,
+                IsBlockingDependency = x.IsBlockingDependency,
+                Success = x.Success,
+                TotalSource = x.TotalSource,
+                Added = x.Added,
+                Updated = x.Updated,
+                Deactivated = x.Deactivated,
+                Unchanged = x.Unchanged,
+                Superseded = x.Superseded,
+                Summary = x.Summary,
+                Errors = x.Errors.ToList()
             }).ToList()
         };
 }

@@ -61,8 +61,8 @@
 }
 else if (_status?.LastRun != null)
 {
-    <MudAlert Severity="@(_status.LastRun.Success ? Severity.Success : Severity.Error)" Class="mb-4">
-        <MudText Typo="Typo.body2"><b>@(_status.LastRun.Success ? Language.T("hrm.dongBoHoanTat") : Language.T("hrm.dongBoCoLoi"))</b></MudText>
+    <MudAlert Severity="@(_status.LastRun.Success? Severity.Success: Severity.Error)" Class="mb-4">
+        <MudText Typo="Typo.body2"><b>@(_status.LastRun.Success? Language.T("hrm.dongBoHoanTat") : Language.T("hrm.dongBoCoLoi"))</b></MudText>
         <MudText Typo="Typo.caption">@_status.LastRun.Summary</MudText>
     </MudAlert>
 }
@@ -92,14 +92,19 @@ else
                     else
                     {
                         <MudChip T="string" Size="Size.Small"
-                                  Color="@(!job.Success ? Color.Error : job.TotalSource == 0 ? Color.Warning : Color.Success)">
-                                    @(!job.Success ? Language.T("hrm.coLoi") : job.TotalSource == 0 ? "Không có dữ liệu nguồn" : Language.T("common.success"))
-                            
+                                 Color="@(!job.Success ? Color.Error : job.TotalSource == 0 ? Color.Warning : Color.Success)">
+                            @(!job.Success ? Language.T("hrm.coLoi") : job.TotalSource == 0 ? "Không có dữ liệu nguồn" : Language.T("common.success"))
                         </MudChip>
                         <MudText Typo="Typo.caption">@Language.T("hrm.nguon", job.TotalSource)</MudText>
                         <MudText Typo="Typo.caption">
                             +@job.Added · ↻@job.Updated · −@job.Deactivated · =@job.Unchanged
                         </MudText>
+                        @if (SecurityEntities.Contains(master.EntityType) && !string.IsNullOrWhiteSpace(job.Summary))
+                        {
+                            <MudText Typo="Typo.caption" Color="@(job.TotalSource == 0 ? Color.Warning : Color.Secondary)">
+                                @job.Summary
+                            </MudText>
+                        }
                         @if (job.Errors.Count > 0)
                         {
                             <MudText Typo="Typo.caption" Color="Color.Error">@job.Errors.First()</MudText>
@@ -147,9 +152,8 @@ else
                 <MudTd><b>@context.EntityType</b></MudTd>
                 <MudTd>
                     <MudChip T="string" Size="Size.Small"
-                              Color="@(!context.Success ? Color.Error : context.TotalSource == 0 ? Color.Warning : Color.Success)">
-                           @(!context.Success ? Language.T("common.error") : context.TotalSource == 0 ? "EMPTY" : "OK")
-                        
+                             Color="@(!context.Success ? Color.Error : context.TotalSource == 0 ? Color.Warning : Color.Success)">
+                        @(!context.Success ? Language.T("common.error") : context.TotalSource == 0 ? "EMPTY" : "OK")
                     </MudChip>
                 </MudTd>
                 <MudTd Style="text-align:right">@context.TotalSource</MudTd>
@@ -178,11 +182,14 @@ else
         new("Department", Language.T("equipment.assigned.department"), Icons.Material.Filled.Business),
         new("Position", Language.T("common.position"), Icons.Material.Filled.Badge),
         new("Employee", Language.T("common.employee"), Icons.Material.Filled.People),
-        new("User",       "User", Icons.Material.Filled.Person),
-        new("Approver",   "Approver", Icons.Material.Filled.VerifiedUser)
+        new("User", "User", Icons.Material.Filled.Person),
+        new("Approver", "Approver", Icons.Material.Filled.VerifiedUser)
     ];
+
+    // Các entity do bước provision Security tạo ra (không có importer/job riêng)
     private static readonly HashSet<string> SecurityEntities =
-     new(StringComparer.OrdinalIgnoreCase) { "User", "Approver" };
+        new(StringComparer.OrdinalIgnoreCase) { "User", "Approver" };
+
     private HrmSyncRuntimeStatusDto? _status;
     private int _conflictCount;
     private bool _loading;
@@ -209,10 +216,12 @@ else
             _loading = false;
         }
     }
+
+    // "Đồng bộ riêng" trên card: User/Approver -> chỉ chạy Security; còn lại -> chạy entity đó
     private Task RunCardAsync(string entityType)
-    => SecurityEntities.Contains(entityType)
-        ? ReconcileSecurityOnlyAsync()
-        : RunEntityAsync(entityType);
+        => SecurityEntities.Contains(entityType)
+            ? ReconcileSecurityOnlyAsync()
+            : RunEntityAsync(entityType);
 
     // Chạy riêng bước User/Approver, giữ nguyên các job HRM của phiên đang hiển thị
     private async Task ReconcileSecurityOnlyAsync()
@@ -229,36 +238,37 @@ else
 
             var run = security.Data;
 
-            // giữ lại job HRM cũ (không thuộc User/Approver) của phiên hiện tại
+            // Giữ lại các job HRM (không phải User/Approver) của phiên đang hiển thị
             var keep = _status?.LastRun?.Jobs
-                .Where(j => !SecurityEntities.Contains(j.EntityType))
+                .Where(j => !SecurityEntities.Contains(j.EntityType)
+                            && !j.EntityType.Equals("SecurityProvisioning", StringComparison.OrdinalIgnoreCase))
                 .ToList();
             if (keep is { Count: > 0 })
             {
-                run.Jobs.RemoveAll(j => keep.Any(k =>
-                    k.EntityType.Equals(j.EntityType, StringComparison.OrdinalIgnoreCase)));
                 run.Jobs.InsertRange(0, keep);
+                run.Success = run.Jobs.All(x => x.Success);
             }
 
             _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = run };
-            Snackbar.Add(BuildSecurityMessage(run.Jobs, run.Summary),
+            Snackbar.Add(BuildSecurityMessage(run.Jobs) ?? run.Summary ?? "Đã chạy, không có job User/Approver.",
                 run.Success ? Severity.Success : Severity.Warning);
         }
-        finally { _loading = false; }
+        finally
+        {
+            _loading = false;
+        }
     }
 
-    // Thông báo có số lượng cụ thể cho User/Approver
-    private static string BuildSecurityMessage(IEnumerable<dynamic> jobs, string? fallback)
+    // Thông báo có số lượng cụ thể cho User/Approver; trả null nếu không có job nào
+    private static string? BuildSecurityMessage(IEnumerable<HrmSyncJobRunDto> jobs)
     {
-        var parts = new List<string>();
-        foreach (var j in jobs)
-        {
-            string type = j.EntityType;
-            if (!SecurityEntities.Contains(type)) continue;
-            parts.Add($"{type}: nguồn {j.TotalSource}, +{j.Added} ↻{j.Updated} −{j.Deactivated} ={j.Unchanged}");
-        }
-        return parts.Count > 0 ? string.Join(" | ", parts) : (fallback ?? "Đã chạy, không có job User/Approver.");
+        var parts = jobs
+            .Where(j => SecurityEntities.Contains(j.EntityType))
+            .Select(j => $"{j.EntityType}: nguồn {j.TotalSource}, +{j.Added} ↻{j.Updated} −{j.Deactivated} ={j.Unchanged}")
+            .ToList();
+        return parts.Count > 0 ? string.Join(" | ", parts) : null;
     }
+
     private async Task RunAllAsync()
     {
         _loading = true;
@@ -272,88 +282,15 @@ else
             }
 
             _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
-            Snackbar.Add(result.Data.Success ? Language.T("hrm.dongBoHrmHoanTat") : Language.T("hrm.dongBoHrmHoanTat2"), result.Data.Success ? Severity.Success : Severity.Warning);
-            await RefreshConflictCountAsync();
-        }
-        finally
-        {
-            _loading = false;
-        }
-    }
 
-    private async Task ReconcileSecurityAsync()
-    {
-        _loading = true;
-        try
-        {
-            // Nút này là pipeline đầy đủ:
-            // 1. Import HRM -> staging
-            // 2. Đồng bộ Department/Position/Employee vào F03*
-            // 3. Provision F03Users/F03Approvers từ dữ liệu F03* vừa có
-            var sync = await SyncService.RunAllAsync();
-            if (!sync.IsSuccess || sync.Data == null)
-            {
-                Snackbar.Add(sync.Message ?? Language.T("hrm.khongTheLayDuLieu"), Severity.Error);
-                return;
-            }
-
-            // HRM sync có thể có job lỗi/blocked nhưng dữ liệu F03* đã
-            // được ghi nhận một phần. Security provisioning là bước reconcile
-            // độc lập và phải vẫn chạy để tự-heal User/Approver từ dữ liệu
-            // Employee/Position hiện có.
-            var security = await SyncService.ReconcileSecurityAsync();
-            if (!security.IsSuccess || security.Data == null)
-            {
-                _status = new HrmSyncRuntimeStatusDto
-                {
-                    IsRunning = false,
-                    LastRun = sync.Data
-                };
-
-                var securityFirstError = sync.Data.Jobs
-                    .SelectMany(x => x.Errors)
-                    .FirstOrDefault();
-
-                Snackbar.Add(
-                    security.Message
-                        ?? securityFirstError
-                        ?? Language.T("hrm.hrmDaChayNhungKhong"),
-                    Severity.Error);
-                return;
-            }
-
-            // Hiển thị cả kết quả HRM và Security trong cùng một phiên,
-            // không làm mất trạng thái/job của pipeline HRM.
-            var combined = security.Data;
-            combined.Jobs.InsertRange(0, sync.Data.Jobs);
-            combined.Success = sync.Data.Success && security.Data.Success;
-            combined.StartedAt = sync.Data.StartedAt;
-            combined.TriggeredBy = sync.Data.TriggeredBy;
-            combined.Summary = sync.Data.Success
-                ? security.Data.Summary
-                : Language.T("hrm.hrmCoLoiNhungSecurity", sync.Data.Summary, security.Data.Summary);
-
-            _status = new HrmSyncRuntimeStatusDto
-            {
-                IsRunning = false,
-                LastRun = combined
-            };
-
-            var firstError = sync.Data.Jobs
-                .SelectMany(x => x.Errors)
-                .FirstOrDefault();
+            var baseMessage = result.Data.Success
+                ? Language.T("hrm.dongBoHrmHoanTat")
+                : Language.T("hrm.dongBoHrmHoanTat2");
+            var securityMessage = BuildSecurityMessage(result.Data.Jobs);
 
             Snackbar.Add(
-                security.Data.Success && sync.Data.Success
-                    ? security.Data.Summary
-                    : security.Data.Success
-                        ? firstError ?? Language.T("hrm.hrmCoLoiNhungUser")
-                        : security.Data.Summary ?? Language.T("hrm.provisionUserApproverCoLoi"),
-                security.Data.Success && sync.Data.Success
-                    ? Severity.Success
-                    : security.Data.Success
-                        ? Severity.Warning
-                        : Severity.Error);
+                securityMessage == null ? baseMessage : $"{baseMessage} — {securityMessage}",
+                result.Data.Success ? Severity.Success : Severity.Warning);
 
             await RefreshConflictCountAsync();
         }
@@ -362,6 +299,11 @@ else
             _loading = false;
         }
     }
+
+    // Nút "Đồng bộ HRM + User + Approver":
+    // RunAll phía backend đã gồm: import HRM -> đồng bộ F03* -> provision F03Users/F03Approvers,
+    // nên chỉ cần gọi RunAllAsync (không gọi thêm ReconcileSecurity để tránh chạy 2 lần và lặp job).
+    private Task ReconcileSecurityAsync() => RunAllAsync();
 
     private async Task RunEntityAsync(string entityType)
     {
