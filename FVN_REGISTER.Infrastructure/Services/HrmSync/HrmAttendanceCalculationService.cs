@@ -37,7 +37,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     return ServiceResult<HrmAttendanceCalculationResultDto>.Fail($"Không tìm thấy nhân viên '{employeeCode}'.");
   }
 
-  var pDept=new SqlParameter("@DeptCode",SqlDbType.NVarChar,20){Value=(object?)dept??DBNull.Value};
+  var pDept=new SqlParameter("@DeptCode",SqlDbType.Int){Value=(object?)dept??DBNull.Value};
   var pEmployee=new SqlParameter("@EmployeeCode",SqlDbType.NVarChar,50){Value=(object?)employeeCode??DBNull.Value};
   var pFrom=new SqlParameter("@FromDate",SqlDbType.Date){Value=request.FromDate.Date};
   var pTo=new SqlParameter("@ToDate",SqlDbType.Date){Value=request.ToDate.Date};
