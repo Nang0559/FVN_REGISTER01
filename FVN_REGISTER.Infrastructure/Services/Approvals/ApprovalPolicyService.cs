@@ -36,8 +36,10 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 RequestType = (int)x.RequestType,
                 RequestTypeName = RequestTypeName(x.RequestType),
                 DeptCode = x.DeptCode,
-                PositionCode = x.PositionCode,
-                ApprovalPositionCode = x.ApprovalPositionCode ?? string.Empty,
+                // Explicit SQL conversion is required because legacy databases may store these
+                // codes as numeric columns while the application contract treats them as text.
+                PositionCode = x.PositionCode == null ? null : x.PositionCode.ToString(),
+                ApprovalPositionCode = x.ApprovalPositionCode == null ? string.Empty : x.ApprovalPositionCode.ToString(),
                 Level = x.Level,
                 Sequence = x.Sequence,
                 LevelName = x.LevelName ?? string.Empty,
