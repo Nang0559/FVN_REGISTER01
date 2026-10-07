@@ -1,5 +1,4 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
-using FVN_REGISTER.Application.Interfaces.Leaves;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,7 +13,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         private readonly BackgroundWorkerHealthRegistry _health;
         private readonly Polly.ResiliencePipeline _retry;
 
-        private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(30);
 
         public HrmSyncBackgroundWorker(
             IServiceScopeFactory scopeFactory,
@@ -41,9 +40,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         {
             _health.Started(nameof(HrmSyncBackgroundWorker));
 
-            // Không chạy full HRM sync ngay khi API vừa khởi động:
-            // sync là tác vụ nền nặng và không được cạnh tranh tài nguyên với
-            // authentication/dashboard của người dùng đầu tiên.
+            // HRM sync is intentionally delayed after application startup so that
+            // authentication/dashboard traffic is not competing with the first
+            // heavy synchronization pass.
             var runOnStartup = _configuration.GetValue<bool>("HrmSync:RunOnStartup");
             if (runOnStartup)
             {
@@ -64,8 +63,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             }
             else
             {
-                // Mặc định: nhường toàn bộ startup path cho người dùng,
-                // chạy lần đầu sau đúng một chu kỳ polling.
                 try
                 {
                     await Task.Delay(GetPollInterval(), stoppingToken);
@@ -76,7 +73,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 }
             }
 
-            // Polling thay cho trigger cross-database: HRM không bị phụ thuộc vào FVN_REGISTER.
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -85,15 +81,17 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                     {
                         using var scope = _scopeFactory.CreateScope();
                         var sync = scope.ServiceProvider.GetRequiredService<IHrmSyncService>();
+
+                        // Automatic HRM polling performs the master-data sync only.
+                        // Security provisioning is intentionally not repeated on every
+                        // polling cycle; it remains available through the manual Security
+                        // reconciliation endpoint/UI and can be enabled explicitly with
+                        // HrmSync:SecurityProvisioningOnAutomatic=true when required.
                         var result = await sync.RunAllAsync("SYSTEM", manual: false, token);
                         var run = result.Data;
 
                         if (!result.IsSuccess || run == null || !run.Success)
                             throw new InvalidOperationException(result.Message ?? run?.Summary ?? "HRM sync failed.");
-
-                        // HRM sync tạo/cập nhật Employee trước; entitlement chạy ngay sau đó.
-                        var entitlement = scope.ServiceProvider.GetRequiredService<ILeaveEntitlementService>();
-                        await entitlement.EnsureWorkYearCalculatedAsync(DateTime.Today.Year, token);
 
                         _logger.LogInformation(
                             "[HRM-SYNC] Automatic synchronization completed: {Summary}",
@@ -101,8 +99,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                     }, stoppingToken);
 
                     _health.Success(nameof(HrmSyncBackgroundWorker));
-
-
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -111,7 +107,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 catch (Exception ex)
                 {
                     _health.Failure(nameof(HrmSyncBackgroundWorker), ex);
-                    // HRM/FVN failure must not terminate the hosted worker.
                     _logger.LogError(ex, "[HRM-SYNC] Automatic synchronization failed after retry policy.");
                 }
 
