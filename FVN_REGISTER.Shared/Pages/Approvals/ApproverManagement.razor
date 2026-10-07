@@ -68,9 +68,16 @@
 else
 {
     <MudTable Items="FilteredItems" Dense="true" Hover="true" Striped="true">
-        <HeaderContent><MudTh>@Language.T("nav.departments")</MudTh><MudTh>@Language.T("approval.loaiDon")</MudTh><MudTh>@Language.T("approval.cap")</MudTh><MudTh>@Language.T("nav.approvers")</MudTh><MudTh>@Language.T("common.email")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh></HeaderContent>
+        <HeaderContent><MudTh>Phòng người phê duyệt</MudTh><MudTh>Phòng áp dụng</MudTh><MudTh>@Language.T("approval.loaiDon")</MudTh><MudTh>@Language.T("approval.cap")</MudTh><MudTh>@Language.T("nav.approvers")</MudTh><MudTh>@Language.T("common.email")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh></HeaderContent>
         <RowTemplate>
-            <MudTd>@context.ApproveForDeptName (@context.ApproveForDeptCode)</MudTd>
+            <MudTd>
+                <b>@context.DeptName (@context.DeptCode)</b>
+                <MudText Typo="Typo.caption">@context.PositionCode</MudText>
+            </MudTd>
+            <MudTd>
+                <b>@context.ApproveForDeptName (@context.ApproveForDeptCode)</b>
+                <MudText Typo="Typo.caption">Phạm vi policy</MudText>
+            </MudTd>
             <MudTd>@context.RequestType</MudTd>
             <MudTd><MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Level)">@(context.RoleName ?? Language.T("approval.levelN", context.Level))</MudChip></MudTd>
             <MudTd>@context.ApproverName <MudText Typo="Typo.caption">@context.ApproverCode</MudText></MudTd>
