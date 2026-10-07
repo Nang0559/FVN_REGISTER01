@@ -117,9 +117,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         if (approvalPosition == null)
             return ServiceResult<ApprovalPolicyDto>.Fail("Chức vụ phê duyệt không còn hoạt động.");
 
-        request.Level = approvalPosition.DefaultApproveLevel!.Value;
-        request.LevelName = approvalPosition.PositionName;
-        request.RoleName = RoleNameFromPosition(request.Level);
+        ApplyDerivedApprovalValues(request, approvalPosition);
 
         var entity = new F03ApprovalPolicy
         {
@@ -160,9 +158,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         if (approvalPosition == null)
             return ServiceResult<ApprovalPolicyDto>.Fail("Chức vụ phê duyệt không còn hoạt động.");
 
-        request.Level = approvalPosition.DefaultApproveLevel!.Value;
-        request.LevelName = approvalPosition.PositionName;
-        request.RoleName = RoleNameFromPosition(request.Level);
+        ApplyDerivedApprovalValues(request, approvalPosition);
 
         entity.RequestType = (RequestModule)request.RequestType;
         entity.DeptCode = request.DeptCode;
@@ -230,24 +226,16 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             .FirstOrDefaultAsync(ct);
 
         if (approvalPosition == null)
-            return $"Cấp phê duyệt '{request.ApprovalPositionCode}' không tồn tại hoặc đã inactive.";
+            return $"Chức vụ phê duyệt '{request.ApprovalPositionCode}' không tồn tại hoặc đã inactive.";
 
         if (!approvalPosition.DefaultApproveLevel.HasValue ||
             approvalPosition.DefaultApproveLevel.Value is < 1 or > 7)
             return $"Chức vụ '{approvalPosition.PositionName}' chưa có DefaultApproveLevel hợp lệ.";
 
-        if (request.Level != approvalPosition.DefaultApproveLevel.Value)
-            return $"Level phải bằng DefaultApproveLevel ({approvalPosition.DefaultApproveLevel}) của chức vụ phê duyệt.";
-
         if (request.Sequence < 1)
-            return "Sequence phải >= 1.";
+            return "Thứ tự cấp duyệt phải >= 1.";
 
-        if (string.IsNullOrWhiteSpace(request.LevelName))
-            return "LevelName không được để trống.";
-
-        if (string.IsNullOrWhiteSpace(request.RoleName))
-            return "RoleName không được để trống.";
-
+        var level = approvalPosition.DefaultApproveLevel.Value;
         var duplicate = await _uow.Repository<F03ApprovalPolicy>().Query()
             .AnyAsync(x =>
                 x.IsActive == true &&
@@ -255,11 +243,11 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 x.RequestType == (RequestModule)request.RequestType &&
                 x.DeptCode == deptCode &&
                 x.PositionCode == positionCode &&
-                x.Level == request.Level,
+                x.Level == level,
                 ct);
 
         return duplicate
-            ? "Policy active đã tồn tại cho RequestType + Phòng ban + Position + Level."
+            ? "Đã có cấu hình duyệt cho cùng Loại yêu cầu + Phòng ban + Chức vụ người yêu cầu + Cấp duyệt."
             : null;
     }
 
@@ -281,6 +269,14 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 IsActive = x.IsActive == true
             })
             .FirstOrDefaultAsync(ct);
+    }
+
+    private static void ApplyDerivedApprovalValues(
+        ApprovalPolicyRequest request, ApprovalPolicyPositionDto approvalPosition)
+    {
+        request.Level = approvalPosition.DefaultApproveLevel!.Value;
+        request.LevelName = approvalPosition.PositionName?.Trim() ?? string.Empty;
+        request.RoleName = RoleNameFromPosition(request.Level);
     }
 
     private async Task<ApprovalPolicyDto> MapAsync(
@@ -315,8 +311,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             ApprovalPositionName = approver?.PositionName ?? x.ApprovalPositionCode,
             Level = x.Level,
             Sequence = x.Sequence,
-            LevelName = x.LevelName,
-            RoleName = x.RoleName,
+            LevelName = x.LevelName ?? string.Empty,
+            RoleName = x.RoleName ?? string.Empty,
             Required = x.Required
         };
     }
