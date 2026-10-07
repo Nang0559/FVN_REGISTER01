@@ -214,6 +214,12 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                     x => x.IsActive == true && x.DeptCode == model.ApproveForDeptCode, ct))
                 return ServiceResult.Fail("Phòng ban áp dụng phê duyệt không tồn tại hoặc đã inactive.");
 
+            if (model.ApproveForDeptCode != ApproveForDept.All &&
+                employee.DeptCode != model.ApproveForDeptCode)
+                return ServiceResult.Fail(
+                    $"Người phê duyệt {employee.EmployeeCode} thuộc phòng ban {employee.DeptCode}, " +
+                    $"không thể cấu hình làm người phê duyệt cho phòng ban {model.ApproveForDeptCode}.");
+
             model.PositionCode = employee.PositionCode;
 
             if (!CvCodeRules.IsApprover(
@@ -299,6 +305,12 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 !await _uow.Repository<F03Department>().Query().AnyAsync(
                     x => x.IsActive == true && x.DeptCode == model.ApproveForDeptCode, ct))
                 return ServiceResult.Fail("Phòng ban áp dụng phê duyệt không tồn tại hoặc đã inactive.");
+
+            if (model.ApproveForDeptCode != ApproveForDept.All &&
+                employee.DeptCode != model.ApproveForDeptCode)
+                return ServiceResult.Fail(
+                    $"Người phê duyệt {employee.EmployeeCode} thuộc phòng ban {employee.DeptCode}, " +
+                    $"không thể cấu hình làm người phê duyệt cho phòng ban {model.ApproveForDeptCode}.");
 
             model.PositionCode = employee.PositionCode;
 
