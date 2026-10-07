@@ -39,7 +39,8 @@ namespace FVN_REGISTER.Application.Maps
             ApproveForDeptCode = dto.ApproveForDeptCode ?? throw new InvalidOperationException("ApproveForDeptCode is required (0 = ALL)."),
             ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty,
             IsActive = true,
-            CreatedBy = currentUserId
+            CreatedBy = currentUserId,
+            LastModifiedSource = "Manual"
         };
 
         // 2. Map từ Cấu hình người duyệt (F03Approver) sang bản chụp (F03ApprovalStepSnapshot)
@@ -66,6 +67,7 @@ namespace FVN_REGISTER.Application.Maps
             entity.ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty;
             entity.IsActive = dto.IsActive;
             entity.ModifiedBy = userId;
+            entity.LastModifiedSource = "Manual";
         }
     }
 }
