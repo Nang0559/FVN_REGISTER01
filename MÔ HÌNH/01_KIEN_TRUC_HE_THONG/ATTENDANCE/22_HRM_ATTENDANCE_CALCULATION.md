@@ -101,6 +101,10 @@ HrmAttendanceCalculationWorker dùng cùng IHrmAttendanceCalculationService. Man
 
 Worker không mặc định tính lại toàn bộ kỳ 21→20 sau mỗi restart. Worker đọc các CalculationRun thành công có scope company-wide và chỉ catch-up phần còn thiếu tới ngày hôm qua; mỗi ngày tiếp tục tính ngày hôm qua.
 
+Catch-up chạy **từng ngày một** (mỗi ngày một dòng `CalculationRun` company-wide riêng, theo thứ tự tăng dần, dừng ở ngày lỗi đầu tiên) nên nếu API bị restart thì các ngày đã `Succeeded` được giữ lại và lần sau chỉ tính phần còn lại. Mọi lần tính company-wide (catch-up và 00:30) giữ applock session `FVN_REGISTER:ATTENDANCE:COMPANY-RUN`; nếu đã có lần khác đang chạy thì bỏ qua. Khi lấy được khoá, worker đóng các dòng `Running` company-wide của worker đã quá `BackgroundWorkers:StaleMinutes` (đánh dấu `Failed`). Session SQL mồ côi từ process cũ xem/kill bằng `SQL/22_06_AttendanceCalculationSessions.sql`.
+
+Lịch (Calendar) không chờ backfill đồng bộ: `IAttendanceBackfillCoordinator` chờ tối đa `Calendar:AttendanceBackfill:WaitSeconds` (mặc định 3s) rồi trả dữ liệu hiện có kèm cảnh báo "đang cập nhật"; backfill của nhân viên đó tiếp tục chạy nền (timeout `BackgroundTimeoutSeconds`, mặc định 300s), tối đa một backfill cho mỗi nhân viên.
+
 ## 11. Calendar historical coverage
 
 Lịch cá nhân dùng coverage-aware lazy backfill. Khi người dùng chuyển sang một tháng, hệ thống kiểm tra coverage của đúng nhân viên và khoảng ngày yêu cầu. Nếu có gap, hệ thống chỉ tính employee + khoảng gap; không kích hoạt calculation toàn công ty.

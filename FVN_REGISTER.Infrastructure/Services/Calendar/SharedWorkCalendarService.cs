@@ -19,7 +19,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
     private readonly IWorkCalendarService _workCalendar;
     private readonly ICalendarDayRuleEngine _ruleEngine;
     private readonly IAuthorizationService _authorization;
-    private readonly IHrmAttendanceCalculationService _attendanceCalculation;
+    private readonly IAttendanceBackfillCoordinator _attendanceBackfill;
     private readonly ILogger<SharedWorkCalendarService> _logger;
 
     public SharedWorkCalendarService(
@@ -28,7 +28,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         IWorkCalendarService workCalendar,
         ICalendarDayRuleEngine ruleEngine,
         IAuthorizationService authorization,
-        IHrmAttendanceCalculationService attendanceCalculation,
+        IAttendanceBackfillCoordinator attendanceBackfill,
         ILogger<SharedWorkCalendarService> logger)
     {
         _db = db;
@@ -36,7 +36,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         _workCalendar = workCalendar;
         _ruleEngine = ruleEngine;
         _authorization = authorization;
-        _attendanceCalculation = attendanceCalculation;
+        _attendanceBackfill = attendanceBackfill;
         _logger = logger;
     }
 
@@ -104,45 +104,31 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .ToDictionaryAsync(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         // Attendance is a current-state projection, not the source of calendar availability.
-        // Before reading the attendance provider, ensure the requested employee/date range
-        // has calculation coverage. Historical months are therefore lazy-backfilled only
-        // when actually requested; no calendar request triggers a company-wide calculation.
+        // Historical months are lazy-backfilled per employee when requested, but the calendar never
+        // waits long for it: the coordinator waits a few seconds at most, then the calendar renders the
+        // data that exists now while the backfill finishes in the background. No calendar request
+        // triggers a company-wide calculation.
+        CalendarAlertItemDto? backfillAlert = null;
         if (allowedModules is null || allowedModules.Contains("ATTENDANCE"))
         {
-            var coverage = await _attendanceCalculation.EnsureEmployeeRangeAsync(
+            var coverage = await _attendanceBackfill.EnsureAsync(
                 resolvedEmployeeCode,
                 employee.DeptCode,
                 from,
                 to,
                 cancellationToken);
 
-            if (!coverage.IsSuccess)
+            if (coverage.Status != AttendanceBackfillStatus.Ready)
             {
-                _logger.LogWarning(
-                    "Attendance calendar backfill failed. EmployeeCode={EmployeeCode}, From={From}, To={To}, Message={Message}",
-                    resolvedEmployeeCode,
-                    from,
-                    to,
-                    coverage.Message);
-
-                return new CalendarMonthDto
+                backfillAlert = new CalendarAlertItemDto
                 {
-                    From = from,
-                    To = to,
-                    Items = Array.Empty<CalendarItemDto>(),
-                    Days = Array.Empty<CalendarDayDto>(),
-                    Alerts =
-                    [
-                        new CalendarAlertItemDto
-                        {
-                            WorkDate = from,
-                            ModuleCode = "ATTENDANCE",
-                            Severity = "Warning",
-                            Summary = coverage.Message ?? "Không thể chuẩn bị dữ liệu chấm công cho khoảng thời gian đã chọn.",
-                            RequiresAction = false
-                        }
-                    ],
-                    RegistrationOpportunities = Array.Empty<CalendarRegistrationOpportunityDto>()
+                    WorkDate = from,
+                    ModuleCode = "ATTENDANCE",
+                    Severity = coverage.Status == AttendanceBackfillStatus.Failed ? "Warning" : "Info",
+                    Summary = coverage.Status == AttendanceBackfillStatus.Failed
+                        ? coverage.Message ?? "Không thể chuẩn bị dữ liệu chấm công cho khoảng thời gian đã chọn."
+                        : "Dữ liệu chấm công đang được cập nhật, vui lòng tải lại sau ít phút.",
+                    RequiresAction = false
                 };
             }
         }
@@ -368,6 +354,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .OrderByDescending(x => x.WorkDate)
             .ThenByDescending(x => x.Severity)
             .ToArray();
+
+        if (backfillAlert is not null)
+            alerts = [backfillAlert, .. alerts];
 
         return new CalendarMonthDto
         {

@@ -304,6 +304,7 @@ builder.Services.AddScoped<IHrmSyncJobResolver, HrmSyncJobResolver>();
 builder.Services.AddScoped<IHrmSyncReviewQueryService, HrmSyncReviewQueryService>();
 builder.Services.AddScoped<IHrmSyncService, HrmSyncService>();
 builder.Services.AddScoped<IHrmAttendanceCalculationService, HrmAttendanceCalculationService>();
+builder.Services.AddSingleton<IAttendanceBackfillCoordinator, AttendanceBackfillCoordinator>();
 builder.Services.AddScoped<IHrmAttendanceExcelExportService, HrmAttendanceExcelExportService>();
 builder.Services.AddScoped<IHrmUserRoleRuleService, HrmUserRoleRuleService>();
 builder.Services.AddAuthentication(options =>
