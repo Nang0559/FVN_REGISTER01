@@ -7,6 +7,7 @@ public sealed class ApprovalPolicyRequest
     [Required]
     public int RequestType { get; set; }
 
+    /// <summary>Requester department.</summary>
     public int DeptCode { get; set; }
 
     /// <summary>Optional requester PositionCode. Null/empty means all positions in the department.</summary>
@@ -17,16 +18,21 @@ public sealed class ApprovalPolicyRequest
     [Required, StringLength(20)]
     public string ApprovalPositionCode { get; set; } = string.Empty;
 
-    [Range(1, 7)]
+    /// <summary>
+    /// Derived by the server from ApprovalPositionCode.DefaultApproveLevel.
+    /// Clients no longer need to calculate or edit this value.
+    /// </summary>
     public int Level { get; set; }
 
     [Range(1, 100)]
-    public int Sequence { get; set; }
+    public int Sequence { get; set; } = 1;
 
-    [Required, StringLength(100)]
+    /// <summary>Derived display value; retained for backward compatibility with existing clients.</summary>
+    [StringLength(100)]
     public string LevelName { get; set; } = string.Empty;
 
-    [Required, StringLength(50)]
+    /// <summary>Derived display value; retained for backward compatibility with existing clients.</summary>
+    [StringLength(50)]
     public string RoleName { get; set; } = string.Empty;
 
     public bool Required { get; set; } = true;
