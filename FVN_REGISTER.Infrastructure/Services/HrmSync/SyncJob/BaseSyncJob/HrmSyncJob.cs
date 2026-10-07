@@ -19,10 +19,12 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
     }
 
     /// <summary>
-    /// Khung xử lý đồng bộ 1 bảng HRM: đọc Staging chưa xử lý → dedupe theo EntityKey (lấy dòng mới
-    /// nhất, các dòng cũ hơn bị "supersede") → Insert/Update/Delete vào bảng đích qua IUnitOfWork.
-    /// Sau khi batch chính được persist, AfterBatchAsync chạy trong cùng transaction để các hook
-    /// có thể đọc được dữ liệu HRM vừa ghi. Hook có thể tạo dữ liệu phụ trợ và SaveChanges thêm.
+    /// Khung xử lý đồng bộ 1 bảng HRM.
+    ///
+    /// Transaction chỉ bao quanh batch chính (Employee/Department/...). Sau khi
+    /// SaveChanges thành công, transaction được commit trước khi chạy AfterBatchAsync.
+    /// Các hook như User/Approver provisioning vì vậy không giữ lock của transaction
+    /// HRM trong suốt thời gian xử lý. Hook tự bắt lỗi provisioning và ghi review flag.
     /// </summary>
     public abstract class HrmSyncJob<TStaging, TEntity> : IHrmSyncJob
        where TStaging : class, IHrmStagingEntity
@@ -44,8 +46,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
         protected abstract bool ApplyDelete(TEntity entity);
 
         /// <summary>
-        /// Chạy SAU SaveChanges của batch chính, nhưng VẪN trong transaction của RunAsync.
-        /// Domain có thể đọc dữ liệu vừa persist và ghi entity phụ trợ.
+        /// Chạy sau khi batch chính đã commit. Hook có thể đọc dữ liệu HRM vừa persist
+        /// và ghi entity phụ trợ mà không giữ transaction/lock của batch chính.
         /// </summary>
         protected virtual Task AfterBatchAsync(HrmSyncBatchContext<TEntity> batchContext, CancellationToken ct)
             => Task.CompletedTask;
@@ -102,7 +104,6 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
             }
 
             var batchContext = new HrmSyncBatchContext<TEntity>();
-
             await using var transaction = await Uow.BeginTransactionAsync(ct);
 
             try
@@ -124,9 +125,6 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                                 var source = entity.GetType().GetProperty("LastModifiedSource")?.GetValue(entity) as string;
                                 if (!string.Equals(source, SyncSourceTags.Hrm, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    // Đây là một skip có chủ đích để bảo vệ dữ liệu FVN
-                                    // do Admin/manual tạo hoặc chỉnh sửa. Không phải lỗi của
-                                    // pipeline HRM và không được làm job Success=false.
                                     staging.ErrorMessage = "Delete skipped: target record is not owned by HRM sync.";
                                     result.Unchanged++;
                                     break;
@@ -180,25 +178,26 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                     raw.ErrorMessage = "Superseded by newer change";
                 }
 
-                // IMPORTANT: persist Employee/Position/Department/etc. FIRST.
-                // AfterBatchAsync is therefore allowed to query the just-written rows.
+                // IMPORTANT: persist and commit Employee/Position/Department/etc. FIRST.
+                // Security provisioning must not prolong this transaction.
                 await Uow.SaveChangesAsync(ct);
-
-                await AfterBatchAsync(batchContext, ct);
-
-                // Persist security/review entities created by the post-save hook.
-                await Uow.SaveChangesAsync(ct);
-                if (batchContext.ProvisioningErrors.Count > 0)
-                    result.Errors.AddRange(batchContext.ProvisioningErrors);
-
                 await transaction.CommitAsync(ct);
-                return result;
             }
             catch
             {
                 await transaction.RollbackAsync(ct);
                 throw;
             }
+
+            // From here on, no HRM batch transaction is held. User/Approver provisioning
+            // can still query the committed data and write its own short SaveChanges transaction.
+            await AfterBatchAsync(batchContext, ct);
+            await Uow.SaveChangesAsync(ct);
+
+            if (batchContext.ProvisioningErrors.Count > 0)
+                result.Errors.AddRange(batchContext.ProvisioningErrors);
+
+            return result;
         }
     }
 }
