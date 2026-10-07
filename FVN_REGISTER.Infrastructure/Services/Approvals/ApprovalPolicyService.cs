@@ -112,7 +112,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             .ThenBy(x => x.PositionCode)
             .Select(x => new ApprovalPolicyPositionDto
             {
-                PositionCode = x.PositionCode,
+                // Explicit text conversion keeps legacy numeric PositionCode rows readable.
+                PositionCode = x.PositionCode.ToString(),
                 PositionName = x.PositionName,
                 DefaultApproveLevel = x.DefaultApproveLevel,
                 RoleName = RoleNameFromPosition(x.DefaultApproveLevel),
