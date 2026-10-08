@@ -278,24 +278,37 @@ public sealed class HrmSyncService : IHrmSyncService
     private static readonly HashSet<string> SecurityEntityTypes =
         new(StringComparer.OrdinalIgnoreCase) { "User", "Approver", "SecurityProvisioning" };
 
+    // Must mirror usp_ReconcileEmployeeApprovers (SQL/31) exactly, otherwise the verification reports
+    // rows as "missing" that the procedure can never create. Policy-driven rule:
+    //  - a policy (RequestType, DeptCode, Level, ApprovalPositionCode) applies to employees whose
+    //    (trimmed) PositionCode = ApprovalPositionCode AND whose own DeptCode = policy DeptCode;
+    //  - one F03Approvers row per DISTINCT (employee, RequestType, Level) with
+    //    ApproveForDeptCode = e.DeptCode (= policy DeptCode); several policies that differ only by
+    //    requester PositionCode collapse into the same row;
+    //  - approvers outside the policy department (GM/MG of another dept, ALL) are Manual rows and
+    //    are not counted here.
+    // DepartmentCode is canonical int/int?. Do not trim/cast it in SQL.
     private const string ApproverFrom = """
-        FROM dbo.F03Employees e
-        INNER JOIN dbo.F03ApprovalPolicies ap
-            ON ap.ApprovalPositionCode = e.PositionCode AND ap.IsActive = 1
-        WHERE e.IsActive = 1 AND ISNULL(e.LevelApprove,0) > 0
+        FROM (
+            SELECT DISTINCT e.EmployeeCode, e.DeptCode, ap.RequestType, ap.Level
+            FROM dbo.F03Employees e
+            INNER JOIN dbo.F03ApprovalPolicies ap
+                ON ap.ApprovalPositionCode = LTRIM(RTRIM(e.PositionCode)) AND ap.IsActive = 1
+               AND ap.DeptCode = e.DeptCode
+            WHERE e.IsActive = 1 AND ISNULL(e.LevelApprove,0) > 0
+        ) x
         """;
 
-    // DepartmentCode is canonical int/int?. Do not trim/cast it in SQL.
     private const string ApproverMissing = """
-        AND NOT EXISTS (
+        WHERE NOT EXISTS (
             SELECT 1 FROM dbo.F03Approvers a
             WHERE a.IsActive = 1
-              AND a.ApproverCode = e.EmployeeCode
-              AND a.RequestType = CASE ap.RequestType
+              AND a.ApproverCode = x.EmployeeCode
+              AND a.RequestType = CASE x.RequestType
                     WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime'
                     WHEN 2 THEN N'Trip'  WHEN 3 THEN N'Equipment' END
-              AND a.Level = ap.Level
-              AND a.ApproveForDeptCode = ap.DeptCode)
+              AND a.Level = x.Level
+              AND a.ApproveForDeptCode = x.DeptCode)
         """;
 
     // Cheap check used by automatic runs: only the two "missing" counters.

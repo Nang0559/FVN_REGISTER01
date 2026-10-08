@@ -152,7 +152,8 @@ GO
          for that approval position;
       3. creates/synchronizes one HRM-owned F03Approver candidate for each
          active eligible employee and each active RequestType/Level supported
-         by that employee's approval position. The default ApproveForDeptCode
+         by that employee's approval position IN THE EMPLOYEE'S OWN DEPARTMENT
+         (ap.DeptCode = e.DeptCode). The default ApproveForDeptCode
          is ALWAYS the employee's actual F03Employees.DeptCode.
       4. deactivates stale HRM-owned rows when the employee/position/policy
          qualification is no longer valid or the employee changes department.
@@ -280,6 +281,9 @@ BEGIN
     INNER JOIN dbo.F03ApprovalPolicies ap
         ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
        AND ap.IsActive=1
+       -- Policy-driven per department: only the policies configured for the employee's own
+       -- department decide which RequestType/Level that employee receives.
+       AND ap.DeptCode=e.DeptCode
     LEFT JOIN dbo.F03Departments d
         ON d.DeptCode=e.DeptCode
     WHERE e.IsActive=1
@@ -367,6 +371,7 @@ BEGIN
               FROM dbo.F03ApprovalPolicies ap
               WHERE ap.IsActive=1
                 AND ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
+                AND ap.DeptCode=e.DeptCode
                 AND a.RequestType=
                     CASE ap.RequestType
                         WHEN 0 THEN N'Leave'
