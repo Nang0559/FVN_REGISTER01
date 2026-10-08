@@ -281,11 +281,12 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 x.RequestType == (RequestModule)request.RequestType &&
                 x.DeptCode == deptCode &&
                 x.PositionCode == positionCode &&
-                x.Level == level,
+                x.Level == level &&
+                x.ApprovalPositionCode == approvalPosition.PositionCode,
                 ct);
 
         return duplicate
-            ? "Đã có cấu hình duyệt cho cùng Loại yêu cầu + Phòng ban + Chức vụ người yêu cầu + Cấp duyệt."
+            ? "Đã có cấu hình duyệt cho cùng Loại yêu cầu + Phòng ban + Chức vụ người yêu cầu + Cấp duyệt + Chức vụ phê duyệt."
             : null;
     }
 

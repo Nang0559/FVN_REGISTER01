@@ -190,6 +190,31 @@ ALTER TABLE dbo.F03ApprovalPolicies
     ALTER COLUMN ApprovalPositionCode nvarchar(20) NOT NULL;
 GO
 
+/*
+  One policy per (RequestType, requester Dept, requester Position, Level, ApprovalPosition).
+  Several approval positions may share one level (e.g. Sub-Leader and Leader at level 1); the route
+  offers all of them as candidates for that level. Older databases have this index WITHOUT
+  ApprovalPositionCode, so rebuild it when that column is missing from the key.
+*/
+IF EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'UX_F03ApprovalPolicies_Request_Dept_Position_Level'
+      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+)
+AND NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes i
+    JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+    JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+    WHERE i.object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+      AND i.name = N'UX_F03ApprovalPolicies_Request_Dept_Position_Level'
+      AND c.name = N'ApprovalPositionCode'
+)
+    DROP INDEX UX_F03ApprovalPolicies_Request_Dept_Position_Level ON dbo.F03ApprovalPolicies;
+GO
+
 IF NOT EXISTS
 (
     SELECT 1
@@ -204,7 +229,8 @@ BEGIN
             RequestType,
             DeptCode,
             PositionCode,
-            Level
+            Level,
+            ApprovalPositionCode
         );
 END;
 GO

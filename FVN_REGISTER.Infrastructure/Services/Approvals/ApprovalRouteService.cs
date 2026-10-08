@@ -99,29 +99,44 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 $"chức vụ {position.PositionCode} - {position.PositionName}.");
         }
 
-        // If both a position-specific and department-wide policy exist for
-        // the same level, the position-specific row wins.
-        policies = policies
+        // One level may list several approval positions (e.g. Sub-Leader and Leader at level 1):
+        // all of them are candidates for that level. If both position-specific and department-wide
+        // policies exist for the same level, the position-specific rows win.
+        var levelGroups = policies
             .GroupBy(x => x.Level)
-            .Select(g => g.OrderBy(x => x.PositionCode == null ? 1 : 0)
-                          .ThenBy(x => x.Sequence)
-                          .ThenBy(x => x.Id)
-                          .First())
-            .OrderBy(x => x.Sequence)
-            .ThenBy(x => x.Level)
+            .Select(g =>
+            {
+                IEnumerable<F03ApprovalPolicy> chosen = g.Any(x => x.PositionCode != null)
+                    ? g.Where(x => x.PositionCode != null)
+                    : g;
+                return chosen.OrderBy(x => x.Sequence).ThenBy(x => x.Id).ToList();
+            })
+            .OrderBy(g => g[0].Sequence)
+            .ThenBy(g => g[0].Level)
             .ToList();
 
         var levels = new List<ApprovalRouteLevelDto>();
 
-        foreach (var policy in policies)
+        foreach (var group in levelGroups)
         {
+            var policy = group[0];
+            var approvalPositionCodes = group
+                .Select(x => x.ApprovalPositionCode)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            var levelName = string.Join(" / ", group
+                .Select(x => x.LevelName)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+            var levelRequired = group.Any(x => x.Required);
+
             var query = _uow.Repository<F03Approver>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true &&
                             x.RequestType == requestType &&
                             x.Level == policy.Level &&
                             x.ApproverCode != employeeCode &&
-                            x.PositionCode == policy.ApprovalPositionCode &&
+                            approvalPositionCodes.Contains(x.PositionCode) &&
                             (x.ApproveForDeptCode == resolvedDeptCode ||
                              x.ApproveForDeptCode == ApproveForDept.All));
 
@@ -169,12 +184,12 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
             if (candidates.Count == 0)
             {
-                if (policy.Required)
+                if (levelRequired)
                 {
                     return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                         $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
-                        $"({policy.LevelName} / {policy.RoleName}), " +
-                        $"chức vụ phê duyệt {policy.ApprovalPositionCode}, " +
+                        $"({levelName} / {policy.RoleName}), " +
+                        $"chức vụ phê duyệt {string.Join('/', approvalPositionCodes)}, " +
                         $"phòng ban {resolvedDeptCode}.");
                 }
 
@@ -187,9 +202,9 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             {
                 Level = policy.Level,
                 Sequence = policy.Sequence,
-                LevelName = policy.LevelName,
+                LevelName = levelName,
                 RoleName = policy.RoleName,
-                Required = policy.Required,
+                Required = levelRequired,
                 Candidates = candidates
             });
         }
