@@ -1,129 +1,63 @@
 /*
-FVN_REGISTER - HRM security/performance hardening
+FVN_REGISTER - HRM security/performance hardening (kiểm tra + rà dữ liệu)
 
-Purpose:
-  1. Prevent usp_ReconcileEmployeeUsers from deactivating manually-owned F03Users.
-  2. Prevent usp_ReconcileEmployeeApprovers from stamping active F03Users as HRM-owned.
-  3. Align the SQL default password hash with the C# HRM provisioning password Fcc@123.
-  4. Keep DepartmentCode comparisons typed as int/int? (no LTRIM/RTRIM/casts).
+Thứ tự chạy:
+  1. SQL/31_Hrm_User_Approval_Provisioning.sql  (CREATE OR ALTER - đã chứa ownership guard,
+     chỉ-update-dòng-thay-đổi và default password Fcc@123). Chạy lại file 31 trên DB hiện có.
+  2. Script này: chỉ SELECT kiểm tra + danh sách tài khoản cần rà soát. KHÔNG tự sửa dữ liệu.
 
-IMPORTANT:
-  - This script does NOT auto-reclassify existing F03Users whose LastModifiedSource
-    was already polluted by the old procedure. Review those rows before correcting
-    ownership manually.
-  - Run this script against FVN_REGISTER after pulling the application commit.
+Script cũ dùng REPLACE trên OBJECT_DEFINITION nên dễ lỗi nửa chừng; không còn dùng nữa.
+Chạy script này nhiều lần an toàn.
 */
 USE [FVN_REGISTER];
 GO
 SET NOCOUNT ON;
-SET XACT_ABORT ON;
 GO
 
-/* -------------------------------------------------------------------------
-   1. Harden usp_ReconcileEmployeeUsers.
-      Only HRM-owned users may have IsActive changed by HRM reconciliation.
-   ------------------------------------------------------------------------- */
-DECLARE @ProcDefinition nvarchar(max);
-DECLARE @Original nvarchar(max);
-DECLARE @Patched nvarchar(max);
-
-SELECT @ProcDefinition = OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeUsers', N'P'));
-
-IF @ProcDefinition IS NULL
-    THROW 51074, 'dbo.usp_ReconcileEmployeeUsers was not found.', 1;
-
-SET @Original = @ProcDefinition;
-SET @Patched = @ProcDefinition;
-
-SET @Patched = REPLACE(
-    @Patched,
-    N'@DefaultPasswordHash nvarchar(255)=N''6ed2b24e5c570014cc5de09121c111ca'' -- MD5("FVN@123")',
-    N'@DefaultPasswordHash nvarchar(255)=N''edbf6b4c784a9d55a68f115834be9d51'' -- MD5("Fcc@123")');
-
-SET @Patched = REPLACE(
-    @Patched,
-    N'WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);',
-    N'WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)' + CHAR(13) + CHAR(10) +
-    N'      AND u.LastModifiedSource=N''HRM'';');
-
-IF @Patched = @Original
-    THROW 51075, 'usp_ReconcileEmployeeUsers hardening pattern was not found; procedure was not changed.', 1;
-
-EXEC sys.sp_executesql @Patched;
-GO
-
-/* -------------------------------------------------------------------------
-   2. Harden usp_ReconcileEmployeeApprovers.
-      Its F03User mirror update must not take ownership of manual accounts.
-   ------------------------------------------------------------------------- */
-DECLARE @ProcDefinition2 nvarchar(max);
-DECLARE @Original2 nvarchar(max);
-DECLARE @Patched2 nvarchar(max);
-
-SELECT @ProcDefinition2 = OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeApprovers', N'P'));
-
-IF @ProcDefinition2 IS NULL
-    THROW 51076, 'dbo.usp_ReconcileEmployeeApprovers was not found.', 1;
-
-SET @Original2 = @ProcDefinition2;
-SET @Patched2 = @ProcDefinition2;
-
-SET @Patched2 = REPLACE(
-    @Patched2,
-    N'    UPDATE u' + CHAR(13) + CHAR(10) +
-    N'       SET u.LevelApprove = ISNULL(e.LevelApprove,0),' + CHAR(13) + CHAR(10) +
-    N'           u.ModifiedAt = GETDATE(),' + CHAR(13) + CHAR(10) +
-    N'           u.LastModifiedSource = N''HRM''' + CHAR(13) + CHAR(10) +
-    N'    FROM dbo.F03Users u' + CHAR(13) + CHAR(10) +
-    N'    INNER JOIN dbo.F03Employees e' + CHAR(13) + CHAR(10) +
-    N'        ON e.EmployeeCode = u.EmployeeCode' + CHAR(13) + CHAR(10) +
-    N'    WHERE e.IsActive=1;',
-    N'    UPDATE u' + CHAR(13) + CHAR(10) +
-    N'       SET u.LevelApprove = ISNULL(e.LevelApprove,0),' + CHAR(13) + CHAR(10) +
-    N'           u.ModifiedAt = GETDATE(),' + CHAR(13) + CHAR(10) +
-    N'           u.LastModifiedSource = N''HRM''' + CHAR(13) + CHAR(10) +
-    N'    FROM dbo.F03Users u' + CHAR(13) + CHAR(10) +
-    N'    INNER JOIN dbo.F03Employees e' + CHAR(13) + CHAR(10) +
-    N'        ON e.EmployeeCode = u.EmployeeCode' + CHAR(13) + CHAR(10) +
-    N'    WHERE e.IsActive=1' + CHAR(13) + CHAR(10) +
-    N'      AND u.LastModifiedSource=N''HRM'';');
-
-IF @Patched2 = @Original2
-    THROW 51077, 'usp_ReconcileEmployeeApprovers user-ownership pattern was not found; procedure was not changed.', 1;
-
-EXEC sys.sp_executesql @Patched2;
-GO
-
-/* -------------------------------------------------------------------------
-   3. Verification.
-   ------------------------------------------------------------------------- */
+/* 1. Kiểm tra proc đã có ownership guard chưa (cả hai phải = 1). */
 SELECT
     ProcedureName = N'usp_ReconcileEmployeeUsers',
-    DefinitionContainsHrmOwnershipGuard = CASE
-        WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeUsers', N'P')) LIKE N'%u.LastModifiedSource=N''HRM''%'
-        THEN 1 ELSE 0 END,
-    DefinitionContainsNewPasswordHash = CASE
-        WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeUsers', N'P')) LIKE N'%edbf6b4c784a9d55a68f115834be9d51%'
-        THEN 1 ELSE 0 END;
+    HasOwnershipGuard = CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeUsers', N'P'))
+                              LIKE N'%WHERE u.LastModifiedSource=N''HRM''%' THEN 1 ELSE 0 END,
+    HasFcCPassword    = CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeUsers', N'P'))
+                              LIKE N'%edbf6b4c784a9d55a68f115834be9d51%' THEN 1 ELSE 0 END;
 
 SELECT
     ProcedureName = N'usp_ReconcileEmployeeApprovers',
-    DefinitionContainsHrmUserOwnershipGuard = CASE
-        WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeApprovers', N'P')) LIKE N'%u.LastModifiedSource=N''HRM''%'
-        THEN 1 ELSE 0 END;
+    HasUserOwnershipGuard = CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_ReconcileEmployeeApprovers', N'P'))
+                              LIKE N'%AND u.LastModifiedSource = N''HRM''%' THEN 1 ELSE 0 END;
+GO
 
-/* Review candidates potentially affected by the historical ownership bug. */
+/*
+   2. Tài khoản có thể đã bị đóng dấu 'HRM' nhầm bởi procedure cũ.
+      Guard LastModifiedSource='HRM' KHÔNG bảo vệ được các tài khoản này vì dấu đã sai.
+      Rà soát cột Reason rồi tự quyết định.
+*/
 SELECT
-    u.Id,
-    u.EmployeeCode,
-    u.FullName,
-    u.IsActive,
-    u.LastModifiedSource,
-    e.IsActive AS EmployeeIsActive
+    u.Id, u.EmployeeCode, u.FullName, u.PermissionCode, u.CreatedBy,
+    u.IsActive AS UserIsActive, u.LastModifiedSource,
+    e.IsActive AS EmployeeIsActive,
+    Reason = CONCAT(
+        CASE WHEN u.CreatedBy > 0 THEN N'CreatedBy>0; ' ELSE N'' END,
+        CASE WHEN u.PermissionCode IN (1, 2) THEN N'Admin/SuperAdmin; ' ELSE N'' END,
+        CASE WHEN e.EmployeeCode IS NULL THEN N'KhongCoDongEmployee; ' ELSE N'' END,
+        CASE WHEN ISNULL(u.IsActive, 0) = 0 AND e.IsActive = 1 THEN N'User inactive nhung Employee active; ' ELSE N'' END)
 FROM dbo.F03Users u
-INNER JOIN dbo.F03Employees e ON e.EmployeeCode=u.EmployeeCode
-WHERE u.LastModifiedSource=N'HRM'
-  AND u.IsActive=0
-  AND e.IsActive=1
+LEFT JOIN dbo.F03Employees e ON e.EmployeeCode = u.EmployeeCode
+WHERE u.LastModifiedSource = N'HRM'
+  AND (   u.CreatedBy > 0
+       OR u.PermissionCode IN (1, 2)
+       OR e.EmployeeCode IS NULL
+       OR (ISNULL(u.IsActive, 0) = 0 AND e.IsActive = 1))
 ORDER BY u.EmployeeCode;
+GO
+
+/*
+   3. Sau khi rà soát, đánh dấu các tài khoản THỦ CÔNG để HRM không còn khóa/ghi đè.
+      (Bỏ comment và điền đúng mã nhân viên. Nếu cần mở lại tài khoản, đặt IsActive=1.)
+
+UPDATE dbo.F03Users
+   SET LastModifiedSource = N'Manual', ModifiedAt = GETDATE()
+ WHERE EmployeeCode IN (N'...', N'...');
+*/
 GO

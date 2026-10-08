@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Leaves;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         private readonly Polly.ResiliencePipeline _retry;
 
         private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(30);
+
+        // Leave entitlement is recalculated only when HRM added employees, or once per day.
+        private static DateOnly? _lastEntitlementDate;
 
         public HrmSyncBackgroundWorker(
             IServiceScopeFactory scopeFactory,
@@ -92,6 +96,22 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
 
                         if (!result.IsSuccess || run == null || !run.Success)
                             throw new InvalidOperationException(result.Message ?? run?.Summary ?? "HRM sync failed.");
+
+                        var employeeAdded = run.Jobs.Any(j =>
+                            string.Equals(j.EntityType, "Employee", StringComparison.OrdinalIgnoreCase) && j.Added > 0);
+                        var today = DateOnly.FromDateTime(DateTime.Today);
+
+                        if (employeeAdded || _lastEntitlementDate != today)
+                        {
+                            var entitlement = scope.ServiceProvider.GetRequiredService<ILeaveEntitlementService>();
+                            var entResult = await entitlement.EnsureWorkYearCalculatedAsync(DateTime.Today.Year, token);
+                            if (entResult.IsSuccess)
+                                _lastEntitlementDate = today;
+                            else
+                                _logger.LogWarning(
+                                    "[HRM-SYNC] Leave entitlement calculation did not complete: {Message}",
+                                    entResult.Message);
+                        }
 
                         _logger.LogInformation(
                             "[HRM-SYNC] Automatic synchronization completed: {Summary}",

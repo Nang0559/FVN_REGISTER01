@@ -154,6 +154,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     DeptCode = request.DeptCode,
                     PermissionCode = request.PermissionCode,
                     IsActive = true,
+                    LastModifiedSource = SyncSourceTags.Manual,
                     LockoutEnable = true,
                     LockoutEndDate = null,
                     NumLoginFailed = 0,
@@ -269,6 +270,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     return ServiceResult.Fail("Không thể tự xóa tài khoản của chính mình.");
 
                 user.IsActive = false;
+                // Admin decision: HRM sync must not re-activate this account.
+                user.LastModifiedSource = SyncSourceTags.Manual;
                 user.ModifiedBy = currentUserId;
                 user.ModifiedAt = DateTime.Now;
 
@@ -299,6 +302,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
                 user.IsActive = true;
+                // Admin decision: HRM sync no longer owns this account's active state.
+                user.LastModifiedSource = SyncSourceTags.Manual;
                 user.ModifiedBy = currentUserId;
                 user.ModifiedAt = DateTime.Now;
 

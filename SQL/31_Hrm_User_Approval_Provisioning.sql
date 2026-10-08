@@ -33,7 +33,7 @@ GO
 CREATE OR ALTER PROCEDURE dbo.usp_ReconcileEmployeeUsers
     @EmployeeCode nvarchar(50)=NULL,
     @CreatedBy int=0,
-    @DefaultPasswordHash nvarchar(255)=N'6ed2b24e5c570014cc5de09121c111ca' -- MD5("FVN@123")
+    @DefaultPasswordHash nvarchar(255)=N'edbf6b4c784a9d55a68f115834be9d51' -- MD5("Fcc@123"), khớp C# EmployeeHrmSyncJob
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -75,6 +75,11 @@ BEGIN
           WHERE u.EmployeeCode=e.EmployeeCode
       );
 
+    /*
+      OWNERSHIP GUARD: chỉ cập nhật tài khoản do HRM sở hữu (LastModifiedSource='HRM').
+      Tài khoản thủ công / break-glass / SuperAdmin không bị khóa và không bị đóng dấu lại.
+      Chỉ UPDATE các dòng thực sự thay đổi để không ghi/khóa toàn bộ F03Users mỗi lần chạy.
+    */
     UPDATE u
        SET u.IsActive=CASE WHEN e.IsActive=1 THEN 1 ELSE 0 END,
            u.FullName=e.EmployeeName,
@@ -82,12 +87,20 @@ BEGIN
            u.DeptCode=e.DeptCode,
            u.Cvcode=e.PositionCode,
            u.ModifiedBy=@CreatedBy,
-           u.ModifiedAt=GETDATE(),
-           u.LastModifiedSource=N'HRM'
+           u.ModifiedAt=GETDATE()
     FROM dbo.F03Users u
     INNER JOIN dbo.F03Employees e
         ON e.EmployeeCode=u.EmployeeCode
-    WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
+    WHERE u.LastModifiedSource=N'HRM'
+      AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
+      AND
+      (
+             ISNULL(u.IsActive,0)<>CASE WHEN e.IsActive=1 THEN 1 ELSE 0 END
+          OR ISNULL(u.FullName,N'')<>ISNULL(e.EmployeeName,N'')
+          OR ISNULL(u.LevelApprove,0)<>ISNULL(e.LevelApprove,0)
+          OR ISNULL(u.DeptCode,-1)<>ISNULL(e.DeptCode,-1)
+          OR ISNULL(u.Cvcode,N'')<>ISNULL(e.PositionCode,N'')
+      );
 
     /*
       Canonical RBAC: PermissionCode is the primary/default role code,
@@ -214,12 +227,13 @@ BEGIN
     */
     UPDATE u
        SET u.LevelApprove = ISNULL(e.LevelApprove,0),
-           u.ModifiedAt = GETDATE(),
-           u.LastModifiedSource = N'HRM'
+           u.ModifiedAt = GETDATE()
     FROM dbo.F03Users u
     INNER JOIN dbo.F03Employees e
         ON e.EmployeeCode = u.EmployeeCode
-    WHERE e.IsActive=1;
+    WHERE e.IsActive=1
+      AND u.LastModifiedSource = N'HRM'
+      AND ISNULL(u.LevelApprove,0) <> ISNULL(e.LevelApprove,0);
 
     /*
       Positions that are no longer referenced by any active policy are no

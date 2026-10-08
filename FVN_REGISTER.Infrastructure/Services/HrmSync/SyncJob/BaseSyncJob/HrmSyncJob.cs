@@ -191,8 +191,25 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
 
             // From here on, no HRM batch transaction is held. User/Approver provisioning
             // can still query the committed data and write its own short SaveChanges transaction.
-            await AfterBatchAsync(batchContext, ct);
-            await Uow.SaveChangesAsync(ct);
+            //
+            // The main batch is already committed (staging rows are IsProcessed=true), so a
+            // failure here must NOT be swallowed silently nor lost: surface it as a job error.
+            // HrmSyncService's self-heal check then reconciles the missing User/Approver rows.
+            try
+            {
+                await AfterBatchAsync(batchContext, ct);
+                await Uow.SaveChangesAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                batchContext.ProvisioningErrors.Add(
+                    $"[{EntityType}] AfterBatch thất bại sau khi batch chính đã commit: {ex.Message}. " +
+                    "Chạy 'Đồng bộ HRM User/Approver' hoặc đợi self-heal ở chu kỳ sau.");
+            }
 
             if (batchContext.ProvisioningErrors.Count > 0)
                 result.Errors.AddRange(batchContext.ProvisioningErrors);

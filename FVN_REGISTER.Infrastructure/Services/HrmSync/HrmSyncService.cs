@@ -188,6 +188,7 @@ public sealed class HrmSyncService : IHrmSyncService
                     ct.ThrowIfCancellationRequested();
                     var result = await job.RunAsync(ct);
                     AddJobResult(run, job, result);
+                    SetProgress(run);
                     if (!result.Success && job.IsBlockingDependency)
                     {
                         run.Success = false;
@@ -205,20 +206,29 @@ public sealed class HrmSyncService : IHrmSyncService
                 _logger.LogInformation("[HRM-SYNC] Imported {Count} rows for {EntityType}.", count, entityType);
                 var result = await job.RunAsync(ct);
                 AddJobResult(run, job, result);
+                SetProgress(run);
             }
 
             // Security provisioning is expensive because it reconciles all User/Approver
             // rows. Keep it out of the frequent automatic polling loop. Manual RunAll and
             // explicit Security reconciliation still execute it. Production can opt back
             // in with HrmSync:SecurityProvisioningOnAutomatic=true.
+            //
+            // Self-heal: the main HRM batch is committed before the User/Approver hook runs,
+            // so a failed hook would otherwise leave gaps until someone clicks "reconcile".
+            // Automatic runs therefore run one cheap COUNT query and only reconcile when
+            // there are missing users/approvers (see NeedsSecuritySelfHealAsync).
             var provisionSecurity = entityType == null &&
-                (manual || _configuration.GetValue<bool>("HrmSync:SecurityProvisioningOnAutomatic"));
+                (manual
+                 || _configuration.GetValue<bool>("HrmSync:SecurityProvisioningOnAutomatic")
+                 || await NeedsSecuritySelfHealAsync(ct));
 
             if (provisionSecurity)
             {
                 try
                 {
                     run.Jobs.AddRange(await RunSecurityProvisioningAsync(ct));
+                    SetProgress(run);
                 }
                 catch (OperationCanceledException)
                 {
@@ -288,6 +298,53 @@ public sealed class HrmSyncService : IHrmSyncService
               AND a.ApproveForDeptCode = ap.DeptCode)
         """;
 
+    // Cheap check used by automatic runs: only the two "missing" counters.
+    private const string MissingSecurityStatsSql =
+        "SELECT " +
+        "(SELECT COUNT(*) FROM dbo.F03Employees e LEFT JOIN dbo.F03Users u ON u.EmployeeCode=e.EmployeeCode " +
+        "  WHERE e.IsActive=1 AND u.Id IS NULL) AS MissingUsers, " +
+        "(SELECT COUNT(*) " + ApproverFrom + " " + ApproverMissing + ") AS MissingApprovers;";
+
+    private sealed class MissingSecurityStats
+    {
+        public int MissingUsers { get; set; }
+        public int MissingApprovers { get; set; }
+    }
+
+    private static readonly object SelfHealLock = new();
+    private static DateTime _lastSelfHealUtc = DateTime.MinValue;
+    private static int _missingAfterLastSelfHeal;
+    private static readonly TimeSpan SelfHealRetryAfter = TimeSpan.FromHours(6);
+
+    /// <summary>
+    /// True when automatic polling should run the full security reconcile: there are missing
+    /// users/approvers AND (the gap grew since the last reconcile OR the last attempt is old).
+    /// The second condition prevents a permanently-unfixable gap from re-running the heavy
+    /// procedure every polling cycle.
+    /// </summary>
+    private async Task<bool> NeedsSecuritySelfHealAsync(CancellationToken ct)
+    {
+        try
+        {
+            var row = (await _uow.SqlQueryRawAsync<MissingSecurityStats>(MissingSecurityStatsSql, ct)).FirstOrDefault();
+            var missing = (row?.MissingUsers ?? 0) + (row?.MissingApprovers ?? 0);
+            if (missing <= 0) return false;
+
+            lock (SelfHealLock)
+                return missing > _missingAfterLastSelfHeal
+                       || DateTime.UtcNow - _lastSelfHealUtc >= SelfHealRetryAfter;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[HRM-SYNC] Security self-heal check failed; skipping automatic reconcile this cycle.");
+            return false;
+        }
+    }
+
     private const string SecurityStatsSql =
         "SELECT " +
         "(SELECT COUNT(*) FROM dbo.F03Employees WHERE IsActive=1) AS ActiveEmployees, " +
@@ -336,6 +393,12 @@ public sealed class HrmSyncService : IHrmSyncService
 
         var after = (await _uow.SqlQueryRawAsync<SecurityStats>(SecurityStatsSql, ct)).FirstOrDefault()
                     ?? new SecurityStats();
+
+        lock (SelfHealLock)
+        {
+            _lastSelfHealUtc = DateTime.UtcNow;
+            _missingAfterLastSelfHeal = after.MissingUsers + after.MissingApprovers;
+        }
 
         var usersFixed = Math.Max(0, before.MissingUsers - after.MissingUsers);
         var approversFixed = Math.Max(0, before.MissingApprovers - after.MissingApprovers);
@@ -414,9 +477,22 @@ public sealed class HrmSyncService : IHrmSyncService
             _status = new HrmSyncRuntimeStatusDto
             {
                 IsRunning = true,
+                CurrentRunId = run.RunId,
+                StartedAt = run.StartedAt,
+                TriggeredBy = run.TriggeredBy,
                 LastRun = null,
                 CurrentRun = CloneRun(run)
             };
+        }
+    }
+
+    // Refresh the live snapshot after each job so the admin UI can show progress mid-run.
+    private static void SetProgress(HrmSyncRunResultDto run)
+    {
+        lock (StateLock)
+        {
+            if (!_status.IsRunning || _status.CurrentRunId != run.RunId) return;
+            _status.CurrentRun = CloneRun(run);
         }
     }
 
@@ -427,6 +503,9 @@ public sealed class HrmSyncService : IHrmSyncService
             _status = new HrmSyncRuntimeStatusDto
             {
                 IsRunning = false,
+                CurrentRunId = null,
+                StartedAt = run.StartedAt,
+                TriggeredBy = run.TriggeredBy,
                 LastRun = CloneRun(run),
                 CurrentRun = null
             };
@@ -465,6 +544,9 @@ public sealed class HrmSyncService : IHrmSyncService
         => new()
         {
             IsRunning = source.IsRunning,
+            CurrentRunId = source.CurrentRunId,
+            StartedAt = source.StartedAt,
+            TriggeredBy = source.TriggeredBy,
             LastRun = source.LastRun == null ? null : CloneRun(source.LastRun),
             CurrentRun = source.CurrentRun == null ? null : CloneRun(source.CurrentRun)
         };
