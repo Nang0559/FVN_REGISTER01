@@ -1,4 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -9,11 +11,15 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ExecutionReconciliationBackgroundWorker> _logger;
+    private readonly IBackgroundJobScheduler _scheduler;
+    private const string JobKey = BackgroundJobCatalog.ExecutionReconciliation;
 
     public ExecutionReconciliationBackgroundWorker(
         IServiceScopeFactory scopeFactory,
-        ILogger<ExecutionReconciliationBackgroundWorker> logger)
+        ILogger<ExecutionReconciliationBackgroundWorker> logger,
+        IBackgroundJobScheduler scheduler)
     {
+        _scheduler = scheduler;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -26,8 +32,11 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         {
             try
             {
+                await _scheduler.WaitUntilEnabledAsync(JobKey, stoppingToken);
+                _scheduler.MarkStarted(JobKey);
                 using var scope = _scopeFactory.CreateScope();
                 await RunOnceAsync(scope.ServiceProvider, stoppingToken);
+                _scheduler.MarkSucceeded(JobKey);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -36,9 +45,10 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Execution reconciliation worker failed.");
+                _scheduler.MarkFailed(JobKey, ex.Message);
             }
 
-            await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
+            await _scheduler.WaitForNextAsync(JobKey, stoppingToken);
         }
     }
 

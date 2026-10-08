@@ -3,6 +3,7 @@ using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Approvals;
 using FVN_REGISTER.Shared.Services.Security;
 using FVN_REGISTER.Shared.Services.HrmSync;
+using FVN_REGISTER.Shared.Services.Jobs;
 using FVN_REGISTER.Shared.Services.Calendar;
 using FVN_REGISTER.Shared.Services.Dashboards;
 using FVN_REGISTER.Shared.Services.Departments;
@@ -65,6 +66,7 @@ namespace FVN_REGISTER
             builder.Services.AddScoped<IApprovalPolicyClientService, ApprovalPolicyClientService>();
             builder.Services.AddScoped<ISecurityClientService, SecurityClientService>();
             builder.Services.AddScoped<IHrmSyncClientService, HrmSyncClientService>();
+            builder.Services.AddScoped<IBackgroundJobClientService, BackgroundJobClientService>();
             builder.Services.AddScoped<IHrmSyncReviewClientService, HrmSyncReviewClientService>();
             builder.Services.AddScoped<IHrmAttendanceCalculationClientService, HrmAttendanceCalculationClientService>();
             builder.Services.AddScoped<IHrmUserRoleRuleClientService, HrmUserRoleRuleClientService>();

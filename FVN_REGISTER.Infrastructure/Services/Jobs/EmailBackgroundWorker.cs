@@ -1,4 +1,6 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Common;
+using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,15 +12,18 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<EmailBackgroundWorker> _logger;
-        private readonly TimeSpan _period = TimeSpan.FromMinutes(5);
+        private const string JobKey = BackgroundJobCatalog.EmailQueue;
+        private readonly IBackgroundJobScheduler _scheduler;
         private readonly BackgroundWorkerHealthRegistry _health;
         private readonly Polly.ResiliencePipeline _retry;
 
         public EmailBackgroundWorker(
             IServiceProvider serviceProvider,
             ILogger<EmailBackgroundWorker> logger,
-            BackgroundWorkerHealthRegistry health)
+            BackgroundWorkerHealthRegistry health,
+            IBackgroundJobScheduler scheduler)
         {
+            _scheduler = scheduler;
             _serviceProvider = serviceProvider;
             _logger = logger;
             _health = health;
@@ -34,6 +39,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             {
                 try
                 {
+                    await _scheduler.WaitUntilEnabledAsync(JobKey, stoppingToken);
+                    _scheduler.MarkStarted(JobKey);
+
                     _logger.LogInformation(
                         "Email queue processing at {Time}",
                         DateTimeOffset.Now);
@@ -47,6 +55,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                     }, stoppingToken);
 
                     _health.Success(nameof(EmailBackgroundWorker));
+                    _scheduler.MarkSucceeded(JobKey);
                 }
                 catch (OperationCanceledException)
                 {
@@ -60,6 +69,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 {
                     // Dùng Console thay Logger để tránh ObjectDisposedException
                     _health.Failure(nameof(EmailBackgroundWorker), ex);
+                    _scheduler.MarkFailed(JobKey, ex.Message);
                     try
                     {
                         _logger.LogError(ex, "Error executing email queue after retry policy");
@@ -73,7 +83,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 // Delay an toàn
                 try
                 {
-                    await Task.Delay(_period, stoppingToken);
+                    await _scheduler.WaitForNextAsync(JobKey, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {

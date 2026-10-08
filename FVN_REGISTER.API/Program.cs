@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Factories;
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Companies;
@@ -216,6 +217,12 @@ builder.Services.AddScoped<IAccessChangeService, AccessChangeService>();
 builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAssignmentService>();
 builder.Services.AddScoped<SecurityFunctionRegistryService>();
 builder.Services.AddScoped<ILocalizationManagementService, LocalizationManagementService>();
+// Background job schedule (enabled/interval/run-now) editable from the admin UI.
+// Singleton: shared by all hosted workers and by the admin API.
+builder.Services.AddSingleton<BackgroundJobScheduler>();
+builder.Services.AddSingleton<IBackgroundJobScheduler>(sp => sp.GetRequiredService<BackgroundJobScheduler>());
+builder.Services.AddSingleton<IBackgroundJobScheduleService>(sp => sp.GetRequiredService<BackgroundJobScheduler>());
+
 builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 
 // Background workers (BackgroundService) - trước đây chưa được đăng ký nên không chạy

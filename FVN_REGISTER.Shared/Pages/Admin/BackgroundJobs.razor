@@ -1,0 +1,327 @@
+@page "/admin/background-jobs"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using FVN_REGISTER.Contract.Dtos.Jobs
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Jobs
+@using FVN_REGISTER.Shared.Services.Security
+@inherits AppComponentBase
+
+@inject IBackgroundJobClientService JobService
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+<PageTitle>@Language.T("jobs.title")</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Primary" Size="Size.Large" />
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight:700">@Language.T("jobs.title")</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("jobs.subtitle")</MudText>
+    </div>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadAsync" Disabled="@_loading">
+        @Language.T("jobs.refresh")
+    </MudButton>
+</MudStack>
+
+@if (!string.IsNullOrWhiteSpace(_warning))
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">@_warning</MudAlert>
+}
+
+@if (!_canManage && !_loading)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4">@Language.T("jobs.readOnly")</MudAlert>
+}
+
+<MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@Language.T("jobs.hrmNote")</MudAlert>
+
+@if (_loading && _rows.Count == 0)
+{
+    <MudProgressLinear Indeterminate="true" Class="mb-4" />
+}
+
+<MudPaper Elevation="1" Style="border-radius:12px; overflow-x:auto">
+    <MudSimpleTable Hover="true" Dense="true" Style="min-width:980px">
+        <thead>
+            <tr>
+                <th>@Language.T("jobs.job")</th>
+                <th>@Language.T("jobs.enabled")</th>
+                <th>@Language.T("jobs.interval")</th>
+                <th>@Language.T("jobs.lastRun")</th>
+                <th>@Language.T("jobs.nextRun")</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in _rows)
+            {
+                <tr>
+                    <td style="min-width:240px">
+                        <MudText Typo="Typo.subtitle2" Style="font-weight:700">@row.Dto.DisplayName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@row.Dto.Description</MudText>
+                    </td>
+
+                    <td>
+                        @if (row.Dto.AllowDisable)
+                        {
+                            <MudSwitch T="bool" @bind-Value="row.EditEnabled" Color="Color.Success"
+                                       Disabled="@(!_canManage || row.Saving)" />
+                        }
+                        else
+                        {
+                            <MudTooltip Text="@Language.T("jobs.cannotDisable")">
+                                <MudSwitch T="bool" Value="true" Color="Color.Success" Disabled="true" />
+                            </MudTooltip>
+                        }
+                    </td>
+
+                    <td style="min-width:230px">
+                        <MudNumericField T="int" @bind-Value="row.EditInterval" Min="1" Max="10080"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense" Style="width:140px"
+                                         Disabled="@(!_canManage || row.Saving)"
+                                         HelperText="@Humanize(row.EditInterval)" />
+                        @if (_canManage)
+                        {
+                            <MudStack Row="true" Spacing="1" Class="mt-1" Style="flex-wrap:wrap">
+                                @foreach (var preset in _presets)
+                                {
+                                    var value = preset;
+                                    <MudChip T="string" Size="Size.Small"
+                                             Variant="@(row.EditInterval == value ? Variant.Filled : Variant.Outlined)"
+                                             Color="@(row.EditInterval == value ? Color.Primary : Color.Default)"
+                                             OnClick="@(() => row.EditInterval = value)">
+                                        @Humanize(value)
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        }
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @Language.T("jobs.default", Humanize(row.Dto.DefaultIntervalMinutes))
+                        </MudText>
+                    </td>
+
+                    <td style="min-width:220px">
+                        <MudChip T="string" Size="Size.Small" Color="@StatusColor(row.Dto.LastStatus)">
+                            @StatusText(row.Dto.LastStatus)
+                        </MudChip>
+                        @if (row.Dto.LastFinishedAt.HasValue || row.Dto.LastStartedAt.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Style="display:block">
+                                @FormatTime(row.Dto.LastFinishedAt ?? row.Dto.LastStartedAt)
+                                @if (row.Dto.LastDurationMs.HasValue)
+                                {
+                                    <span> · @FormatDuration(row.Dto.LastDurationMs.Value)</span>
+                                }
+                            </MudText>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(row.Dto.LastMessage))
+                        {
+                            <MudTooltip Text="@row.Dto.LastMessage">
+                                <MudText Typo="Typo.caption"
+                                         Color="@(string.Equals(row.Dto.LastStatus, "Failed", StringComparison.OrdinalIgnoreCase) ? Color.Error : Color.Secondary)"
+                                         Style="display:block; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                                    @row.Dto.LastMessage
+                                </MudText>
+                            </MudTooltip>
+                        }
+                    </td>
+
+                    <td style="min-width:150px">
+                        <MudText Typo="Typo.body2">
+                            @(row.Dto.IsEnabled ? FormatTime(row.Dto.NextRunAt) : "—")
+                        </MudText>
+                    </td>
+
+                    <td style="white-space:nowrap">
+                        @if (_canManage)
+                        {
+                            @if (row.Dirty)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("jobs.unsaved")</MudChip>
+                            }
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Save"
+                                       Disabled="@(!row.Dirty || row.Saving)"
+                                       OnClick="@(() => SaveAsync(row))">
+                                @Language.T("jobs.save")
+                            </MudButton>
+                            <MudTooltip Text="@Language.T("jobs.runNow")">
+                                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success"
+                                               Disabled="@(row.Saving || row.Dirty || !row.Dto.IsEnabled)"
+                                               OnClick="@(() => RunNowAsync(row))" />
+                            </MudTooltip>
+                            <MudTooltip Text="@Language.T("jobs.reset")">
+                                <MudIconButton Icon="@Icons.Material.Filled.RestartAlt"
+                                               Disabled="@(row.Saving)"
+                                               OnClick="@(() => ResetAsync(row))" />
+                            </MudTooltip>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
+
+@code {
+    private sealed class JobRow
+    {
+        public BackgroundJobScheduleDto Dto { get; set; } = new();
+        public bool EditEnabled { get; set; }
+        public int EditInterval { get; set; }
+        public bool Saving { get; set; }
+
+        public bool Dirty => EditEnabled != Dto.IsEnabled || EditInterval != Dto.IntervalMinutes;
+
+        public static JobRow From(BackgroundJobScheduleDto dto) => new()
+        {
+            Dto = dto,
+            EditEnabled = dto.IsEnabled,
+            EditInterval = dto.IntervalMinutes
+        };
+
+        public void Apply(BackgroundJobScheduleDto dto)
+        {
+            Dto = dto;
+            EditEnabled = dto.IsEnabled;
+            EditInterval = dto.IntervalMinutes;
+        }
+    }
+
+    private static readonly int[] _presets = { 5, 15, 30, 60, 360, 1440 };
+
+    private List<JobRow> _rows = new();
+    private string? _warning;
+    private bool _loading;
+    private bool _canManage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await JobService.GetAllAsync();
+            if (result.IsSuccess && result.Data != null)
+            {
+                _rows = result.Data.Select(JobRow.From).ToList();
+                _warning = result.Message;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? Language.T("jobs.loadError"), Severity.Error);
+            }
+
+            var permissions = await SecurityService.GetMyPermissionsAsync();
+            if (permissions.IsSuccess)
+                _canManage = permissions.Data?.Has(SecurityFunctionCodes.BackgroundJobManage) == true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync(JobRow row)
+    {
+        row.Saving = true;
+        try
+        {
+            var result = await JobService.UpdateAsync(row.Dto.JobKey, new UpdateBackgroundJobScheduleRequest
+            {
+                IsEnabled = row.EditEnabled,
+                IntervalMinutes = row.EditInterval
+            });
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                row.Apply(result.Data);
+                Snackbar.Add(result.Message ?? Language.T("jobs.save"), Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? Language.T("jobs.loadError"), Severity.Error);
+            }
+        }
+        finally
+        {
+            row.Saving = false;
+        }
+    }
+
+    private async Task RunNowAsync(JobRow row)
+    {
+        row.Saving = true;
+        try
+        {
+            var result = await JobService.RunNowAsync(row.Dto.JobKey);
+            Snackbar.Add(result.Message ?? Language.T("jobs.runNow"),
+                result.IsSuccess ? Severity.Success : Severity.Error);
+        }
+        finally
+        {
+            row.Saving = false;
+        }
+    }
+
+    private async Task ResetAsync(JobRow row)
+    {
+        row.Saving = true;
+        try
+        {
+            var result = await JobService.ResetAsync(row.Dto.JobKey);
+            if (result.IsSuccess && result.Data != null)
+            {
+                row.Apply(result.Data);
+                Snackbar.Add(result.Message ?? Language.T("jobs.reset"), Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? Language.T("jobs.loadError"), Severity.Error);
+            }
+        }
+        finally
+        {
+            row.Saving = false;
+        }
+    }
+
+    private string Humanize(int minutes)
+    {
+        if (minutes < 60) return Language.T("jobs.minutes", minutes);
+
+        var hours = minutes / 60;
+        var rest = minutes % 60;
+        return rest == 0
+            ? Language.T("jobs.hours", hours)
+            : $"{Language.T("jobs.hours", hours)} {Language.T("jobs.minutes", rest)}";
+    }
+
+    private string StatusText(string? status) => status?.ToLowerInvariant() switch
+    {
+        "success" => Language.T("jobs.statusSuccess"),
+        "failed" => Language.T("jobs.statusFailed"),
+        "running" => Language.T("jobs.statusRunning"),
+        _ => Language.T("jobs.statusNever")
+    };
+
+    private static Color StatusColor(string? status) => status?.ToLowerInvariant() switch
+    {
+        "success" => Color.Success,
+        "failed" => Color.Error,
+        "running" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static string FormatTime(DateTime? value)
+        => value.HasValue ? value.Value.ToString("dd/MM/yyyy HH:mm:ss") : "—";
+
+    private string FormatDuration(int milliseconds)
+        => milliseconds < 1000
+            ? Language.T("jobs.durationMs", milliseconds)
+            : Language.T("jobs.durationSeconds", (milliseconds / 1000.0).ToString("0.#"));
+}

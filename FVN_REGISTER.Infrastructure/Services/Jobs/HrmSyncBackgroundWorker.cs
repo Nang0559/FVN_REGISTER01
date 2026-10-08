@@ -1,4 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -14,7 +16,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         private readonly BackgroundWorkerHealthRegistry _health;
         private readonly Polly.ResiliencePipeline _retry;
 
-        private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(30);
+        private const string JobKey = BackgroundJobCatalog.HrmSync;
+        private readonly IBackgroundJobScheduler _scheduler;
 
         // Leave entitlement is recalculated only when HRM added employees, or once per day.
         private static DateOnly? _lastEntitlementDate;
@@ -23,21 +26,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             IServiceScopeFactory scopeFactory,
             ILogger<HrmSyncBackgroundWorker> logger,
             IConfiguration configuration,
-            BackgroundWorkerHealthRegistry health)
+            BackgroundWorkerHealthRegistry health,
+            IBackgroundJobScheduler scheduler)
         {
+            _scheduler = scheduler;
             _scopeFactory = scopeFactory;
             _logger = logger;
             _configuration = configuration;
             _health = health;
             _retry = JobRetryPolicy.Create("hrm-sync", logger);
-        }
-
-        private TimeSpan GetPollInterval()
-        {
-            var minutes = _configuration.GetValue<int?>("HrmSync:PollMinutes");
-            return minutes is > 0 and <= 1440
-                ? TimeSpan.FromMinutes(minutes.Value)
-                : DefaultPollInterval;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -69,7 +66,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             {
                 try
                 {
-                    await Task.Delay(GetPollInterval(), stoppingToken);
+                    await _scheduler.WaitForNextAsync(JobKey, stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -79,8 +76,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                string? lastSummary = null;
                 try
                 {
+                    await _scheduler.WaitUntilEnabledAsync(JobKey, stoppingToken);
+                    _scheduler.MarkStarted(JobKey);
+
                     await _retry.ExecuteAsync(async token =>
                     {
                         using var scope = _scopeFactory.CreateScope();
@@ -113,12 +114,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                                     entResult.Message);
                         }
 
+                        lastSummary = run.Summary;
                         _logger.LogInformation(
                             "[HRM-SYNC] Automatic synchronization completed: {Summary}",
                             run.Summary);
                     }, stoppingToken);
 
                     _health.Success(nameof(HrmSyncBackgroundWorker));
+                    _scheduler.MarkSucceeded(JobKey, lastSummary);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -127,12 +130,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 catch (Exception ex)
                 {
                     _health.Failure(nameof(HrmSyncBackgroundWorker), ex);
+                    _scheduler.MarkFailed(JobKey, ex.Message);
                     _logger.LogError(ex, "[HRM-SYNC] Automatic synchronization failed after retry policy.");
                 }
 
                 try
                 {
-                    await Task.Delay(GetPollInterval(), stoppingToken);
+                    await _scheduler.WaitForNextAsync(JobKey, stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {

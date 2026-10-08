@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Routing;
+using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,10 +12,13 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SecurityFunctionDiscoveryHostedService> _logger;
+    private readonly IBackgroundJobScheduler _scheduler;
+    private const string JobKey = BackgroundJobCatalog.SecurityFunctionDiscovery;
     private DateOnly? _lastCleanupLocalDate;
 
-    public SecurityFunctionDiscoveryHostedService(IServiceScopeFactory scopeFactory, ILogger<SecurityFunctionDiscoveryHostedService> logger)
+    public SecurityFunctionDiscoveryHostedService(IServiceScopeFactory scopeFactory, ILogger<SecurityFunctionDiscoveryHostedService> logger, IBackgroundJobScheduler scheduler)
     {
+        _scheduler = scheduler;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -23,11 +28,13 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
         try { await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken); }
         catch (OperationCanceledException) { return; }
 
-        var interval = TimeSpan.FromHours(6);
         while (!stoppingToken.IsCancellationRequested)
         {
+            var failed = false;
             try
             {
+                await _scheduler.WaitUntilEnabledAsync(JobKey, stoppingToken);
+                _scheduler.MarkStarted(JobKey);
                 using var scope = _scopeFactory.CreateScope();
                 var registry = scope.ServiceProvider.GetRequiredService<SecurityFunctionRegistryService>();
                 var result = await registry.ReconcileAsync(stoppingToken);
@@ -42,16 +49,22 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
                     result.Discovered, result.Matched, result.PendingRegistration, result.PendingRetirement, result.Conflict, candidates);
 
                 await RunDailyEndpointComplianceCleanupAsync(db, stoppingToken);
-                interval = TimeSpan.FromHours(6);
+                _scheduler.MarkSucceeded(JobKey);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception ex)
             {
-                interval = TimeSpan.FromMinutes(5);
+                failed = true;
+                _scheduler.MarkFailed(JobKey, ex.Message);
                 _logger.LogError(ex, "Security function discovery failed. Existing permissions were not changed by the discovery process. Retrying in 5 minutes.");
             }
 
-            try { await Task.Delay(interval, stoppingToken); }
+            try
+            {
+                // After a failure retry quickly (5 min) like before; otherwise follow the configured schedule.
+                if (failed) await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                else await _scheduler.WaitForNextAsync(JobKey, stoppingToken);
+            }
             catch (OperationCanceledException) { return; }
         }
     }

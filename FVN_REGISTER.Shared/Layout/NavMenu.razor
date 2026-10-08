@@ -100,7 +100,7 @@
         </MudNavGroup>
     }
 
-    @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.HrmSyncReview, SecurityFunctionCodes.HrmUserRoleRuleManage, SecurityFunctionCodes.ApprovalPolicyManage, SecurityFunctionCodes.AttendanceCalculate, SecurityFunctionCodes.DepartmentStatusView))
+    @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.HrmSyncReview, SecurityFunctionCodes.HrmUserRoleRuleManage, SecurityFunctionCodes.ApprovalPolicyManage, SecurityFunctionCodes.AttendanceCalculate, SecurityFunctionCodes.DepartmentStatusView, SecurityFunctionCodes.BackgroundJobView))
     {
         <MudNavGroup Title="@Language.T("nav.data")" Icon="@Icons.Material.Filled.Storage" Expanded="false">
             @if (Can(SecurityFunctionCodes.DepartmentView)){<MudNavLink href="/admin/departments" Icon="@Icons.Material.Filled.Business">@Language.T("nav.departments")</MudNavLink>}
@@ -108,6 +108,7 @@
             @if (Can(SecurityFunctionCodes.ApproverView)){<MudNavLink href="/admin/approvers" Icon="@Icons.Material.Filled.VerifiedUser">@Language.T("nav.approvers")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.LeaveTypeView)){<MudNavLink href="/admin/leave-types" Icon="@Icons.Material.Filled.Category">@Language.T("nav.leaveTypes")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.HrmSyncViewStatus)){<MudNavLink href="/admin/hrm-sync" Icon="@Icons.Material.Filled.Sync">@Language.T("nav.hrmSync")</MudNavLink>}
+            @if (Can(SecurityFunctionCodes.BackgroundJobView)){<MudNavLink href="/admin/background-jobs" Icon="@Icons.Material.Filled.Schedule">@Language.T("jobs.nav")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.HrmSyncReview)){<MudNavLink href="/admin/hrm-sync-review" Icon="@Icons.Material.Filled.WarningAmber">@Language.T("nav.hrmConflict")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.HrmUserRoleRuleManage)){<MudNavLink href="/admin/hrm-role-rules" Icon="@Icons.Material.Filled.Rule">@Language.T("nav.hrmRoleRules")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.ApprovalPolicyManage)){<MudNavLink href="/admin/approval-policies" Icon="@Icons.Material.Filled.Policy">@Language.T("nav.approvalPolicy")</MudNavLink>}

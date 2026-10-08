@@ -1,4 +1,6 @@
 using FVN_REGISTER.Infrastructure;
+using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +13,15 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ActionItemLifecycleBackgroundWorker> _logger;
+    private readonly IBackgroundJobScheduler _scheduler;
+    private const string JobKey = BackgroundJobCatalog.ActionItemLifecycle;
 
     public ActionItemLifecycleBackgroundWorker(
         IServiceScopeFactory scopeFactory,
-        ILogger<ActionItemLifecycleBackgroundWorker> logger)
+        ILogger<ActionItemLifecycleBackgroundWorker> logger,
+        IBackgroundJobScheduler scheduler)
     {
+        _scheduler = scheduler;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -28,6 +34,8 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
         {
             try
             {
+                await _scheduler.WaitUntilEnabledAsync(JobKey, stoppingToken);
+                _scheduler.MarkStarted(JobKey);
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
                 var now = DateTime.Now;
@@ -114,6 +122,8 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
 
                 if (dueActions.Count > 0 || orphanedExpired.Count > 0)
                     await db.SaveChangesAsync(stoppingToken);
+
+                _scheduler.MarkSucceeded(JobKey);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -122,9 +132,10 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Action item lifecycle worker failed.");
+                _scheduler.MarkFailed(JobKey, ex.Message);
             }
 
-            await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
+            await _scheduler.WaitForNextAsync(JobKey, stoppingToken);
         }
     }
 }
