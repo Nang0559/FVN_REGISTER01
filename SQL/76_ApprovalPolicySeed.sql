@@ -74,11 +74,15 @@ INSERT @Ladder(PositionCode,ApprovalLevel,Tier,RoleName) VALUES
  (N'0009',3,4,N'Manager'),    -- Sen.Manager  (treated as MG)
  (N'0001',4,5,N'GM');         -- Giám đốc     (GM)
 
-DECLARE @Missing nvarchar(max) =
+DECLARE @Missing nvarchar(max) = STUFF
 (
-    SELECT STRING_AGG(l.PositionCode,N', ')
-    FROM @Ladder l
-    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Positions p WHERE p.PositionCode=l.PositionCode AND p.IsActive=1)
+    (
+        SELECT N', '+l.PositionCode
+        FROM @Ladder l
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Positions p WHERE p.PositionCode=l.PositionCode AND p.IsActive=1)
+        FOR XML PATH(''),TYPE
+    ).value('.','nvarchar(max)'),
+    1,2,N''
 );
 IF @Missing IS NOT NULL
     PRINT N'WARNING: position(s) not found or inactive in F03Positions, skipped: '+@Missing;
@@ -175,15 +179,29 @@ GROUP BY RequestType ORDER BY RequestType;
 SELECT MIN(DeptCode) AS DeptCode INTO #FirstDept FROM #Desired;
 
 SELECT rp.PositionName AS RequesterPosition,
-       d.Lvl AS Level,
-       Approvers=STRING_AGG(ap.PositionName,N' / ')
-FROM (SELECT DISTINCT d.RequesterPosition,d.Lvl,d.ApprovalPosition,d.RequestType,d.DeptCode FROM #Desired d) d
-JOIN #FirstDept f ON f.DeptCode=d.DeptCode
-JOIN dbo.F03Positions rp ON rp.PositionCode=d.RequesterPosition
-JOIN dbo.F03Positions ap ON ap.PositionCode=d.ApprovalPosition
-WHERE d.RequestType=1
-GROUP BY rp.PositionName,d.RequesterPosition,d.Lvl
-ORDER BY d.RequesterPosition,d.Lvl;
+       x.Lvl AS Level,
+       Approvers=STUFF
+       (
+           (
+               SELECT N' / '+ap.PositionName
+               FROM (SELECT DISTINCT d2.ApprovalPosition
+                     FROM #Desired d2
+                     JOIN #FirstDept f2 ON f2.DeptCode=d2.DeptCode
+                     WHERE d2.RequestType=1
+                       AND d2.RequesterPosition=x.RequesterPosition
+                       AND d2.Lvl=x.Lvl) q
+               JOIN dbo.F03Positions ap ON ap.PositionCode=q.ApprovalPosition
+               ORDER BY ap.PositionCode
+               FOR XML PATH(''),TYPE
+           ).value('.','nvarchar(max)'),
+           1,3,N''
+       )
+FROM (SELECT DISTINCT d.RequesterPosition,d.Lvl
+      FROM #Desired d
+      JOIN #FirstDept f ON f.DeptCode=d.DeptCode
+      WHERE d.RequestType=1) x
+JOIN dbo.F03Positions rp ON rp.PositionCode=x.RequesterPosition
+ORDER BY x.RequesterPosition,x.Lvl;
 
 DROP TABLE #FirstDept;
 DROP TABLE #Desired;
