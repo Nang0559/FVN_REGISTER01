@@ -40,7 +40,13 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     private readonly IExecutionHrClaimService _claimService;
     private readonly ILogger<ExecutionHrResolutionService> _logger;
     public Task<ServiceResult<IReadOnlyList<ExecutionHrReviewItemDto>>> GetPendingAsync(int uid,string? m,string? s,DateOnly? f,DateOnly? t,CancellationToken ct=default)=>GuardAsync(()=>GetPendingAsyncCoreAsync(uid,m,s,f,t,ct));
-    public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(int uid,string e,long id,CancellationToken ct=default){try{var v=await GetDetailAsyncCoreAsync(uid,e,id,ct);return v is null?ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation."):ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<ExecutionReconciliationDetailDto>.Fail(ex.Message);}}
+    public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(int uid,string e,long id,CancellationToken ct=default)
+    {
+        try
+        {var v=await GetDetailAsyncCoreAsync(uid,e,id,ct)
+                ;return v is null?ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation."):ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);}
+        catch(OperationCanceledException)
+        {throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<ExecutionReconciliationDetailDto>.Fail(ex.Message);}}
     public Task<ServiceResult<ExecutionEvidenceDto>> ReviewEvidenceAsync(int uid,string e,long id,ExecutionEvidenceReviewRequest q,CancellationToken ct=default)=>GuardAsync(()=>ReviewEvidenceAsyncCoreAsync(uid,e,id,q,ct));
     public Task<ServiceResult<ExecutionHrResolutionDto>> ResolveAsync(int uid,string e,long id,ExecutionHrResolutionRequest q,CancellationToken ct=default)=>GuardAsync(()=>ResolveAsyncCoreAsync(uid,e,id,q,ct));
 
@@ -217,10 +223,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     }
 
     private async Task<ExecutionReconciliationDetailDto?> GetDetailAsyncCoreAsync(
-        int userId,
-        string employeeCode,
-        long reconciliationId,
-        CancellationToken cancellationToken = default)
+     int userId,
+     string employeeCode,
+     long reconciliationId,
+     CancellationToken cancellationToken = default)
     {
         await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
 
@@ -245,10 +251,22 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             target.Employee.DeptCode,
             cancellationToken);
 
-        var reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
-            .Where(x => x.Id == reconciliationId)
-            .Select(ToDto())
-            .SingleAsync(cancellationToken);
+        // Khai báo ngoài try để dùng được ở phần return bên dưới.
+        ExecutionReconciliationDto reconciliation;
+        try
+        {
+            reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
+                .Where(x => x.Id == reconciliationId)
+                .Select(ToDto())
+                .SingleAsync(cancellationToken);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex,
+                "GetDetail cancelled. ReconciliationId={Id}, TokenCanceled={Canceled}",
+                reconciliationId, cancellationToken.IsCancellationRequested);
+            throw;
+        }
 
         var confirmation = await _db.ExecutionConfirmations.AsNoTracking()
             .Where(x => x.ReconciliationId == reconciliationId && x.IsActive != false)
