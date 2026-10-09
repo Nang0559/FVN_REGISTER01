@@ -22,6 +22,6 @@ public sealed class F03FeatureOperatorAssignment : BaseAuditEntity
     [StringLength(30)]
     public string? ScopeCode { get; set; }
 
-    [StringLength(500)]
+    [StringLength(1000)]
     public string? Remark { get; set; }
 }
