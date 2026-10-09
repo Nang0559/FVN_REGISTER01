@@ -29,20 +29,42 @@ It is intentionally separate from:
 
 ## Authorization order
 
-1. The user must have the function capability through the canonical IAuthorizationService.HasAsync RBAC path. Feature Operator Assignment never grants RBAC.
+1. The user must have the function capability through the canonical IAuthorizationService.HasAsync path. Feature Operator Assignment never grants RBAC, **except** for capability-granting functions (see "Capability-granting operators" below), where the assignment itself is a source of the capability.
 2. For Execution Review, the request must then pass ManagedScope through `CanAccessAsync` for the target employee/department. Operator assignment does **not** bypass ManagedScope.
 3. When an operator assignment is configured, the user's HRM EmployeeCode must be assigned to that resource/module.
 4. Otherwise, a global assignment (ResourceId IS NULL) is checked where the resource type supports module-wide operators.
 5. If no assignment exists at either level, the feature keeps its existing RBAC + data-scope behavior for backward compatibility.
 6. Runtime service methods must repeat the same authorization rule; controller checks are not considered sufficient.
-7. Assignment creation is rejected when the target employee has no active user account or does not currently have the effective RBAC capability. The error is: "Nhân viên {EmployeeCode} chưa có RBAC cho {FunctionKey}. Hãy cấp capability trước khi chỉ định operator."
+7. Assignment creation is rejected when the target employee has no active user account, or (legacy functions only) does not currently have the effective RBAC capability. The error is: "Nhân viên {EmployeeCode} chưa có RBAC cho {FunctionKey}. Hãy cấp capability trước khi chỉ định operator."
 
 Employee identity, department and position are resolved from HRM; the assignment table stores only EmployeeCode. RBAC is resolved centrally so active-role/lifecycle rules cannot diverge between Security Center and runtime authorization.
+
+## Capability-granting operators (Execution.Review)
+
+Two separate concepts:
+
+- **Role** (user type): grants capabilities to a whole group (e.g. every User may view their own requests).
+- **Assignment**: one row per person (employee, function, scope, assigner, date, status) for work that only a few people may do.
+
+For functions marked `AssignmentGrantsCapability` in `FeatureOperatorCatalog` (currently only `2802 Execution.Review`, module-wide):
+
+```
+effective capability = (role of the user has the function) OR (active module-wide assignment for the function)
+```
+
+- The assignment is resolved **centrally** in `AuthorizationService.GetSnapshotAsync` / `GetScopeAsync`, so every `HasAsync` consumer (API guards, runtime services, UI menu, notification fan-out) follows the same formula. Controllers must not re-implement it.
+- Do **not** tick `Execution.Review` for the shared role (e.g. `User`); otherwise everyone can review and the assignment restricts nothing.
+- Data scope is stored on the assignment (`ScopeCode`: `All` / `Department` / `Own`; default = least privilege `Department` in the UI). `ManagedScope` still applies as an additional data-scope grant and is never bypassed.
+- The assigner needs `UserManagement.AssignPermission`, must hold the capability themselves (SuperAdmin excepted) and cannot assign a scope broader than their own.
+- Only module-wide capabilities may opt in. Approve/Export style actions and resource-scoped features keep the legacy rule (RBAC AND assignment).
+- Removing an assignment removes the capability immediately and never touches role grants.
+- When HRM marks the employee inactive / ended, active assignments are deactivated (`LastModifiedSource = HRM_EMPLOYEE_INACTIVE`); `AuthorizationService` also ignores assignments of inactive employees at runtime.
+- Permissions are read live (no cache); the user's UI picks up the change on the next permission-snapshot load (page reload).
 
 ## Examples
 
 ### HR feedback
-Assign E0005 and E0012 to 2802 / EXECUTION_REVIEW / NULL. Both employees can process HR feedback only if they also have Execution.Review.
+Assign E0005 and E0012 to 2802 / EXECUTION_REVIEW / NULL. Both employees can process HR feedback through the assignment itself (Execution.Review is a capability-granting function); the role does not need the grant.
 
 ### Public Information
 Assign E0005 to 2801 / PUBLIC_INFORMATION / 15. Only E0005 can edit/publish/archive information record 15 when resource assignment is configured.
@@ -77,7 +99,7 @@ Các policy/rule cấu hình cấp module và feature quản trị có phân cô
 | 3072 HrmUserRoleRule.Manage | HRM_USER_ROLE_RULE | Toàn module — quy tắc vai trò người dùng HRM |
 | 2802 Execution.Review | EXECUTION_REVIEW | Toàn module — tiếp nhận/xử lý phản hồi đối soát của nhân viên |
 
-`Execution.Review` là **feature xử lý phản hồi**, không phải policy cấu hình; nó được đưa vào cùng bảng để thể hiện đầy đủ các feature module-wide đang dùng chung cơ chế Feature Operator Assignment. Người được chỉ định vẫn phải có capability `Execution.Review` qua RBAC.
+`Execution.Review` là **feature xử lý phản hồi**, không phải policy cấu hình; nó được đưa vào cùng bảng để thể hiện đầy đủ các feature module-wide đang dùng chung cơ chế Feature Operator Assignment. Riêng `Execution.Review` là capability-granting: chính chỉ định tạo ra quyền (role HOẶC chỉ định), xem mục "Capability-granting operators".
 
 Các feature đã dùng operator assignment trước đó tiếp tục giữ nguyên cơ chế resource-specific/global.
 

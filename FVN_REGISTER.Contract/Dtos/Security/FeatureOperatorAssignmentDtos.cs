@@ -13,6 +13,7 @@ public sealed class FeatureOperatorAssignmentDto
     public string? DeptName { get; set; }
     public string? PositionCode { get; set; }
     public string? PositionName { get; set; }
+    public string? ScopeCode { get; set; }
     public string? Remark { get; set; }
 }
 
@@ -22,6 +23,8 @@ public sealed class SaveFeatureOperatorAssignmentRequest
     public string ResourceType { get; set; } = string.Empty;
     public int? ResourceId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
+    /// <summary>Only used for capability-granting functions (All/Department/Own). Null = function default.</summary>
+    public string? ScopeCode { get; set; }
     public string? Remark { get; set; }
 }
 

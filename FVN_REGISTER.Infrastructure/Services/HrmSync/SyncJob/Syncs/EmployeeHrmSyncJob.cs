@@ -136,6 +136,40 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 
             await ProvisionApproversAsync(batchContext, ct);
             await RefreshApproverReviewFlagsAsync(ct);
+            await DeactivateOperatorAssignmentsOfInactiveEmployeesAsync(batchContext, ct);
+        }
+
+        /// <summary>
+        /// A capability-granting operator assignment must disappear when the employee leaves.
+        /// (AuthorizationService already ignores assignments of inactive employees at runtime; this keeps
+        /// the table honest and removes the row from the Security Center list.)
+        /// </summary>
+        private async Task DeactivateOperatorAssignmentsOfInactiveEmployeesAsync(
+            HrmSyncBatchContext<F03Employee> batchContext, CancellationToken ct)
+        {
+            try
+            {
+                // Row is kept (IsActive=0, LastModifiedSource=HRM_EMPLOYEE_INACTIVE) as the audit trail.
+                // No F03SyncReviewFlag is raised: this is an expected lifecycle event, not a conflict.
+                await Uow.ExecuteSqlRawAsync(
+                    """
+                    UPDATE a
+                       SET a.IsActive = 0,
+                           a.ModifiedAt = GETDATE(),
+                           a.LastModifiedSource = N'HRM_EMPLOYEE_INACTIVE'
+                    FROM dbo.F03FeatureOperatorAssignments a
+                    INNER JOIN dbo.F03Employees e ON e.EmployeeCode = a.EmployeeCode
+                    WHERE a.IsActive = 1
+                      AND (e.IsActive = 0
+                           OR (e.EndWorkingDate IS NOT NULL AND e.EndWorkingDate < CAST(GETDATE() AS date)));
+                    """,
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                batchContext.ProvisioningErrors.Add(
+                    $"Không thể vô hiệu hóa chỉ định operator của nhân viên nghỉ việc: {ex.Message}");
+            }
         }
 
         private async Task ProvisionUsersAsync(

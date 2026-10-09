@@ -56,7 +56,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         return rows.Select(x =>
         {
             em.TryGetValue(x.EmployeeCode, out var e); dm.TryGetValue(e?.DeptCode ?? 0, out var dn); pm.TryGetValue(e?.PositionCode ?? string.Empty, out var pn);
-            return new FeatureOperatorAssignmentDto { Id = x.Id, FunctionCode = x.FunctionCode, FunctionName = functions?.FunctionName ?? string.Empty, ResourceType = x.ResourceType, ResourceId = x.ResourceId, EmployeeCode = x.EmployeeCode, EmployeeName = e?.EmployeeName ?? x.EmployeeCode, DeptCode = e?.DeptCode, DeptName = dn, PositionCode = e?.PositionCode, PositionName = pn, Remark = x.Remark };
+            return new FeatureOperatorAssignmentDto { Id = x.Id, FunctionCode = x.FunctionCode, FunctionName = functions?.FunctionName ?? string.Empty, ResourceType = x.ResourceType, ResourceId = x.ResourceId, ScopeCode = x.ScopeCode, EmployeeCode = x.EmployeeCode, EmployeeName = e?.EmployeeName ?? x.EmployeeCode, DeptCode = e?.DeptCode, DeptName = dn, PositionCode = e?.PositionCode, PositionName = pn, Remark = x.Remark };
         }).ToList();
     }
 
@@ -118,12 +118,15 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
 
         var function = await _uow.Repository<F03Function>().Query().AsNoTracking()
             .Where(x => x.FunctionCode == request.FunctionCode && (x.IsActive ?? true))
-            .Select(x => new { x.Id, x.FunctionCode, x.FunctionKey })
+            .Select(x => new { x.Id, x.FunctionCode, x.FunctionKey, x.ScopeCode })
             .FirstOrDefaultAsync(ct);
         if (function == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không tồn tại hoặc đã inactive.");
 
-        // Operator assignment never grants RBAC. Use the canonical AuthorizationService
-        // so effective role/function/lifecycle rules stay identical to runtime authorization.
+        // Legacy functions: assignment never grants RBAC (role grant is a prerequisite).
+        // Capability-granting functions (FeatureOperatorCatalog.AssignmentGrantsCapability, e.g.
+        // Execution.Review): the assignment itself creates the capability, so no role grant is needed.
+        // Use the canonical AuthorizationService so effective rules stay identical to runtime authorization.
+        var grantsCapability = FeatureOperatorCatalog.AssignmentGrantsCapability(request.FunctionCode);
         var operatorIdentity = await _uow.Repository<F03User>().Query().AsNoTracking()
             .Where(x => x.EmployeeCode == employeeCode && (x.IsActive ?? true))
             .Select(x => new UserIdentityDto
@@ -140,9 +143,11 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
 
         var hasActiveUser = operatorIdentity is not null;
         var hasRbacCapability = hasActiveUser
+            && !grantsCapability
             && await _authorization.HasAsync(operatorIdentity!, request.FunctionCode, ct);
 
         if (!FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+                request.FunctionCode,
                 employee is not null,
                 hasActiveUser,
                 hasRbacCapability))
@@ -154,6 +159,35 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
                 $"Nhân viên {employeeCode} chưa có RBAC cho {function.FunctionKey}. Hãy cấp capability trước khi chỉ định operator.");
         }
+        // Scope + assigner-constraint checks for capability-granting assignments.
+        string? effectiveScope = null;
+        if (grantsCapability)
+        {
+            if (!string.IsNullOrWhiteSpace(request.ScopeCode) && NormalizeScope(request.ScopeCode) == null)
+                return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Phạm vi không hợp lệ. Chỉ chấp nhận All, Department hoặc Own.");
+
+            effectiveScope = NormalizeScope(request.ScopeCode)
+                             ?? NormalizeScope(function.ScopeCode)
+                             ?? AuthorizationScopeCodes.Department;
+
+            var actor = _currentUser.GetCurrentUser();
+            var actorIsSuperAdmin = actor?.PermissionCode == UserPermissionCodes.SuperAdmin;
+            var actorHasCapability = actor is not null
+                && await _authorization.HasAsync(actor, request.FunctionCode, ct);
+
+            if (!FeatureOperatorAuthorizationPolicy.CanGrantAssignment(actorIsSuperAdmin, actorHasCapability))
+                return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
+                    $"Bạn chưa có quyền {function.FunctionKey} nên không thể chỉ định quyền này cho người khác.");
+
+            if (!actorIsSuperAdmin)
+            {
+                var actorScope = await _authorization.GetScopeAsync(actor!.UserId, request.FunctionCode, ct);
+                if (FeatureOperatorAuthorizationPolicy.ScopeRank(effectiveScope) > FeatureOperatorAuthorizationPolicy.ScopeRank(actorScope))
+                    return ServiceResult<FeatureOperatorAssignmentDto>.Fail(
+                        $"Không thể chỉ định phạm vi {effectiveScope} rộng hơn phạm vi bạn đang có ({actorScope}).");
+            }
+        }
+
         if (request.ResourceId.HasValue && request.ResourceId.Value <= 0) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("ResourceId không hợp lệ.");
 
         if (request.ResourceId.HasValue)
@@ -177,10 +211,10 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
 
         var exists = await _uow.Repository<F03FeatureOperatorAssignment>().Query().AnyAsync(x => x.IsActive == true && x.FunctionCode == request.FunctionCode && x.ResourceType == type && x.ResourceId == request.ResourceId && x.EmployeeCode == employeeCode, ct);
         if (exists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên đã được chỉ định.");
-        var entity = new F03FeatureOperatorAssignment { FunctionCode = request.FunctionCode, ResourceType = type, ResourceId = request.ResourceId, EmployeeCode = employeeCode, Remark = request.Remark?.Trim(), CreatedBy = actorUserId };
+        var entity = new F03FeatureOperatorAssignment { FunctionCode = request.FunctionCode, ResourceType = type, ResourceId = request.ResourceId, EmployeeCode = employeeCode, ScopeCode = grantsCapability ? effectiveScope : null, Remark = request.Remark?.Trim(), CreatedBy = actorUserId };
         await _uow.Repository<F03FeatureOperatorAssignment>().AddAsync(entity, ct); await _uow.SaveChangesAsync(ct);
-        await _audit.LogAction("SECURITY_FEATURE_OPERATOR_ADDED", actorUserId, $"Id={entity.Id}; Function={entity.FunctionCode}; Resource={entity.ResourceType}:{entity.ResourceId}; Employee={entity.EmployeeCode}", ct: ct);
-        return ServiceResult<FeatureOperatorAssignmentDto>.Ok(new FeatureOperatorAssignmentDto { Id = entity.Id, FunctionCode = entity.FunctionCode, ResourceType = entity.ResourceType, ResourceId = entity.ResourceId, EmployeeCode = selectedEmployee.EmployeeCode, EmployeeName = selectedEmployee.EmployeeName ?? selectedEmployee.EmployeeCode, DeptCode = selectedEmployee.DeptCode, DeptName = selectedEmployee.DeptName, PositionCode = selectedEmployee.PositionCode, PositionName = selectedEmployee.PositionName, Remark = entity.Remark });
+        await _audit.LogAction("SECURITY_FEATURE_OPERATOR_ADDED", actorUserId, $"Id={entity.Id}; Function={entity.FunctionCode}; Scope={entity.ScopeCode}; GrantsCapability={grantsCapability}; Resource={entity.ResourceType}:{entity.ResourceId}; Employee={entity.EmployeeCode}", ct: ct);
+        return ServiceResult<FeatureOperatorAssignmentDto>.Ok(new FeatureOperatorAssignmentDto { Id = entity.Id, ScopeCode = entity.ScopeCode, FunctionCode = entity.FunctionCode, ResourceType = entity.ResourceType, ResourceId = entity.ResourceId, EmployeeCode = selectedEmployee.EmployeeCode, EmployeeName = selectedEmployee.EmployeeName ?? selectedEmployee.EmployeeCode, DeptCode = selectedEmployee.DeptCode, DeptName = selectedEmployee.DeptName, PositionCode = selectedEmployee.PositionCode, PositionName = selectedEmployee.PositionName, Remark = entity.Remark });
     }
 
     public async Task<ServiceResult> RemoveAsync(int id, int actorUserId, CancellationToken ct = default)
@@ -244,6 +278,19 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
     {
         var q = _uow.Repository<F03FeatureOperatorAssignment>().Query().AsNoTracking().Where(x => x.IsActive == true && x.FunctionCode == functionCode && x.ResourceType == type);
         return resourceId.HasValue ? q.Where(x => x.ResourceId == resourceId) : q.Where(x => x.ResourceId == null);
+    }
+
+    /// <summary>Accepts All / Department / Own (case-insensitive); returns null for anything else (or empty).</summary>
+    private static string? NormalizeScope(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        foreach (var allowed in new[] { AuthorizationScopeCodes.All, AuthorizationScopeCodes.Department, AuthorizationScopeCodes.Own })
+        {
+            if (string.Equals(trimmed, allowed, StringComparison.OrdinalIgnoreCase))
+                return allowed;
+        }
+        return null;
     }
 
     private static string NormalizeResourceType(string value) => (value ?? string.Empty).Trim().ToUpperInvariant();

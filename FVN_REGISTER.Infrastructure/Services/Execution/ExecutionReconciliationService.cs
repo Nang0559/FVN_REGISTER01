@@ -929,8 +929,33 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             })
             .ToListAsync(cancellationToken);
 
+        // Execution.Review is capability-granting: active module-wide operator assignments are
+        // reviewers even when no role carries the function.
+        var assignedCandidates = await (
+            from a in _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
+            join u in _db.Users.AsNoTracking() on a.EmployeeCode equals u.EmployeeCode
+            join f in _db.Functions.AsNoTracking() on a.FunctionCode equals f.FunctionCode
+            where a.IsActive == true
+                && a.ResourceId == null
+                && a.FunctionCode == SecurityFunctionCodes.ExecutionReview
+                && u.IsActive != false
+                && u.EmployeeCode != employee.EmployeeCode
+                && f.IsActive != false
+            select new
+            {
+                u.Id,
+                u.EmployeeCode,
+                u.DeptCode,
+                u.PermissionCode,
+                u.FullName,
+                u.LevelApprove,
+                ScopeCode = a.ScopeCode ?? f.ScopeCode
+            })
+            .ToListAsync(cancellationToken);
+
         var candidates = roleCandidates
             .Concat(directCandidates)
+            .Concat(assignedCandidates)
             .GroupBy(x => new
             {
                 x.Id,

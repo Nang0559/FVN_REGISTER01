@@ -70,6 +70,6 @@ async Task<bool> CanReviewAsync(CancellationToken ct)
         null,
         ct);
 
-    return FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, assignedOperator);
+    return FeatureOperatorAuthorizationPolicy.CanOperate(SecurityFunctionCodes.ExecutionReview, hasExecutionReview, assignedOperator);
 }
 }

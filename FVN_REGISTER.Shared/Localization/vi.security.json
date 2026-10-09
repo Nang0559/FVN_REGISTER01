@@ -179,5 +179,6 @@
   "security.xoaNgung": "Xóa/Ngừng",
   "security.yeuCauQuenMatKhau": "Yêu cầu quên mật khẩu",
   "security.operatorGlobalHint": "Quyền này áp dụng ở cấp module. Không cần chọn đối tượng cụ thể.",
+  "security.operatorGrantsHint": "Với chức năng này, chính chỉ định tạo ra quyền: người được chỉ định thao tác được kể cả khi role không tick chức năng. Hãy bỏ tick chức năng khỏi role chung (ví dụ role User) để quyền chỉ đến từ chỉ định. Chọn phạm vi dữ liệu phù hợp.",
   "security.operatorResourceHint": "Quyền này áp dụng theo từng đối tượng cụ thể. Hãy chọn resource trước khi chỉ định nhân viên."
 }

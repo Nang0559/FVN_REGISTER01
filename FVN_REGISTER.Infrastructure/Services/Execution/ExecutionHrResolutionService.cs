@@ -103,9 +103,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             null,
             cancellationToken);
 
-        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, isAssignedOperator))
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(HrExecutionReviewFunctionCode, hasExecutionReview, isAssignedOperator))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
-                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
+                "Tài khoản không có quyền Execution Review (qua role hoặc chỉ định operator).");
 
         var scope = await _authorization.GetScopeAsync(
             userId,
@@ -899,9 +899,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             null,
             cancellationToken);
 
-        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, isAssignedOperator))
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(HrExecutionReviewFunctionCode, hasExecutionReview, isAssignedOperator))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
-                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
+                "Tài khoản không có quyền Execution Review (qua role hoặc chỉ định operator).");
 
         if (requireAllScope)
         {
@@ -983,9 +983,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             HrExecutionReviewFunctionCode,
             cancellationToken);
 
-        if (!FeatureOperatorAuthorizationPolicy.CanOperate(hasExecutionReview, assignedOperator))
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(HrExecutionReviewFunctionCode, hasExecutionReview, assignedOperator))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
-                "Tài khoản phải có RBAC Execution Review và được chỉ định làm operator.");
+                "Tài khoản không có quyền Execution Review (qua role hoặc chỉ định operator).");
 
         if (!await _authorization.CanAccessAsync(
                 actor,

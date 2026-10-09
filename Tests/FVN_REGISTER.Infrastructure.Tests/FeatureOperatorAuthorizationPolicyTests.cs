@@ -1,3 +1,4 @@
+using System.Linq;
 using FVN_REGISTER.Core.Constants;
 using Xunit;
 
@@ -105,5 +106,72 @@ public sealed class FeatureOperatorAuthorizationPolicyTests
         Assert.True(FeatureOperatorAuthorizationPolicy.CanOperate(true, true));
         Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(true, false));
         Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(false, true));
+    }
+
+    // ---- capability-granting operators (Execution.Review): role grant OR assignment ----
+
+    [Theory]
+    [InlineData(false, false, false)] // no effective capability (neither role nor assignment)
+    [InlineData(true, false, true)]   // effective capability alone is enough (role OR assignment)
+    [InlineData(true, true, true)]
+    public void CanOperate_ExecutionReview_IsGrantedByEffectiveCapabilityAlone(
+        bool effectiveCapability, bool assigned, bool expected)
+    {
+        Assert.Equal(
+            expected,
+            FeatureOperatorAuthorizationPolicy.CanOperate(
+                SecurityFunctionCodes.ExecutionReview, effectiveCapability, assigned));
+    }
+
+    [Theory]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, true)]
+    public void CanOperate_LegacyFunctions_StillRequireRbacAndAssignment(
+        bool hasRbac, bool assigned, bool expected)
+    {
+        Assert.Equal(
+            expected,
+            FeatureOperatorAuthorizationPolicy.CanOperate(
+                SecurityFunctionCodes.ExecutionPolicyManage, hasRbac, assigned));
+    }
+
+    [Fact]
+    public void CanAssignOperator_ExecutionReview_DoesNotRequireExistingRoleGrant()
+    {
+        Assert.True(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.ExecutionReview, true, true, false));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.ExecutionReview, true, false, false));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.ExecutionPolicyManage, true, true, false));
+    }
+
+    [Theory]
+    [InlineData(true, false, true)]   // SuperAdmin may always assign
+    [InlineData(false, true, true)]   // assigner holds the capability
+    [InlineData(false, false, false)] // cannot grant what you do not have
+    public void CanGrantAssignment_RequiresHoldingTheCapability(bool superAdmin, bool holds, bool expected)
+    {
+        Assert.Equal(expected, FeatureOperatorAuthorizationPolicy.CanGrantAssignment(superAdmin, holds));
+    }
+
+    [Fact]
+    public void ScopeRank_OrdersAllAboveDepartmentAboveOwn()
+    {
+        Assert.True(FeatureOperatorAuthorizationPolicy.ScopeRank("All") > FeatureOperatorAuthorizationPolicy.ScopeRank("Department"));
+        Assert.True(FeatureOperatorAuthorizationPolicy.ScopeRank("Department") > FeatureOperatorAuthorizationPolicy.ScopeRank("Own"));
+        Assert.True(FeatureOperatorAuthorizationPolicy.ScopeRank("Own") > FeatureOperatorAuthorizationPolicy.ScopeRank("None"));
+    }
+
+    [Fact]
+    public void Catalog_OnlyExecutionReviewGrantsCapabilityByAssignment()
+    {
+        Assert.True(FeatureOperatorCatalog.AssignmentGrantsCapability(SecurityFunctionCodes.ExecutionReview));
+        Assert.False(FeatureOperatorCatalog.AssignmentGrantsCapability(SecurityFunctionCodes.ExecutionPolicyManage));
+        Assert.False(FeatureOperatorCatalog.AssignmentGrantsCapability(SecurityFunctionCodes.PublicFormExport));
+        Assert.Equal(
+            new[] { SecurityFunctionCodes.ExecutionReview },
+            FeatureOperatorCatalog.CapabilityGrantingFunctionCodes.ToArray());
     }
 }

@@ -22,6 +22,10 @@ BEGIN
     );
 END;
 GO
+/* Data scope of an assignment-granted capability (Execution.Review): All / Department / Own. NULL = function default. */
+IF COL_LENGTH(N'dbo.F03FeatureOperatorAssignments', N'ScopeCode') IS NULL
+    ALTER TABLE dbo.F03FeatureOperatorAssignments ADD ScopeCode nvarchar(30) NULL;
+GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03FeatureOperatorAssignments') AND name=N'IX_F03FeatureOperatorAssignments_FunctionResource')
     CREATE INDEX IX_F03FeatureOperatorAssignments_FunctionResource ON dbo.F03FeatureOperatorAssignments(FunctionCode,ResourceType,ResourceId,IsActive,EmployeeCode);
 GO

@@ -148,7 +148,93 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             select rf.ScopeCode ?? f.ScopeCode
         ).ToListAsync(ct);
 
+        // Capability-granting operator assignments (e.g. Execution.Review) contribute their own scope.
+        if (FeatureOperatorCatalog.AssignmentGrantsCapability(functionCode))
+        {
+            var assignmentScopes = await GetAssignmentScopesAsync(userId, functionCode, ct);
+            return AuthorizationScopePolicy.ResolveEffectiveScope(scopes.Concat(assignmentScopes));
+        }
+
         return AuthorizationScopePolicy.ResolveEffectiveScope(scopes);
+    }
+
+    /// <summary>
+    /// Scopes contributed by active, module-wide operator assignments of a capability-granting function.
+    /// Requires an active user AND an active HRM employee; otherwise the assignment grants nothing.
+    /// </summary>
+    private async Task<List<string?>> GetAssignmentScopesAsync(int userId, int functionCode, CancellationToken ct)
+    {
+        var employeeCode = await _uow.Repository<F03User>().Query()
+            .AsNoTracking()
+            .Where(x => x.Id == userId && (x.IsActive ?? true))
+            .Select(x => x.EmployeeCode)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(employeeCode))
+            return new List<string?>();
+
+        var employeeActive = await _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .AnyAsync(x => x.IsActive == true && x.EmployeeCode == employeeCode, ct);
+        if (!employeeActive)
+            return new List<string?>();
+
+        return await (
+            from a in _uow.Repository<F03FeatureOperatorAssignment>().Query().AsNoTracking()
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                on a.FunctionCode equals f.FunctionCode
+            where a.IsActive == true
+                && a.EmployeeCode == employeeCode
+                && a.ResourceId == null
+                && a.FunctionCode == functionCode
+                && (f.IsActive ?? true)
+            select (string?)(a.ScopeCode ?? f.ScopeCode)
+        ).ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Functions granted purely by an active module-wide operator assignment (no role grant needed).
+    /// </summary>
+    private async Task<List<SecurityFunctionDto>> GetAssignmentGrantedFunctionsAsync(
+        string employeeCode,
+        IReadOnlyCollection<int> functionCodes,
+        CancellationToken ct)
+    {
+        var rows = await (
+            from a in _uow.Repository<F03FeatureOperatorAssignment>().Query().AsNoTracking()
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                on a.FunctionCode equals f.FunctionCode
+            where a.IsActive == true
+                && a.EmployeeCode == employeeCode
+                && a.ResourceId == null
+                && functionCodes.Contains(a.FunctionCode)
+                && (f.IsActive ?? true)
+            select new { Function = f, Scope = a.ScopeCode ?? f.ScopeCode }
+        ).ToListAsync(ct);
+
+        return rows
+            .GroupBy(x => x.Function.FunctionCode)
+            .Select(g =>
+            {
+                var function = g.First().Function;
+                var scope = AuthorizationScopePolicy.ResolveEffectiveScope(g.Select(x => (string?)x.Scope));
+                return new SecurityFunctionDto
+                {
+                    IdFunction = function.Id,
+                    FunctionCode = function.FunctionCode,
+                    FunctionName = function.FunctionName,
+                    Detail = function.Detail,
+                    ModuleCode = function.ModuleCode,
+                    ActionCode = function.ActionCode,
+                    ScopeCode = scope,
+                    AccessMode = string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
+                        ? "Personal"
+                        : "Management",
+                    DisplayOrder = function.DisplayOrder,
+                    IsSystemCritical = function.IsSystemCritical
+                };
+            })
+            .ToList();
     }
 
     public async Task<bool> CanAccessAsync(
@@ -702,6 +788,20 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 IsSystemCritical = x.Function.IsSystemCritical
             })
             .ToList();
+
+        // Effective capability = role grant OR active operator assignment (for capability-granting
+        // functions such as Execution.Review). Merged HERE so every HasAsync/permission-snapshot
+        // consumer (API guards, runtime services, UI menu) follows the same formula.
+        var grantingCodes = FeatureOperatorCatalog.CapabilityGrantingFunctionCodes;
+        if (hasActiveEmployee && grantingCodes.Count > 0 && !string.IsNullOrWhiteSpace(snapshotEmployeeCode))
+        {
+            var assignmentGranted = await GetAssignmentGrantedFunctionsAsync(snapshotEmployeeCode!, grantingCodes, ct);
+            foreach (var granted in assignmentGranted)
+            {
+                if (functions.All(x => x.FunctionCode != granted.FunctionCode))
+                    functions.Add(granted);
+            }
+        }
 
         var permissionCode = await _uow.Repository<F03User>().Query()
             .Where(u => u.Id == userId)

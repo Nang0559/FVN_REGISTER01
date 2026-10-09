@@ -418,6 +418,18 @@
                                 </ItemTemplate>
                             </MudAutocomplete>
                         </MudItem>
+
+                        @if (OperatorGrantsCapability)
+                        {
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="string" Label="@Language.T("security.scope")" Variant="Variant.Outlined"
+                                           @bind-Value="_operatorScope">
+                                    <MudSelectItem T="string" Value="@("Department")">Department</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("All")">All</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Own")">Own</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                        }
                     </MudGrid>
 
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
@@ -442,6 +454,7 @@
                         <HeaderContent>
                             <MudTh>@Language.T("common.function")</MudTh>
                             <MudTh>@Language.T("security.resource")</MudTh>
+                            <MudTh>@Language.T("security.scope")</MudTh>
                             <MudTh>@Language.T("ot.employee")</MudTh>
                             <MudTh>@Language.T("ot.department")</MudTh>
                             <MudTh>@Language.T("hrm.position")</MudTh>
@@ -450,6 +463,7 @@
                         <RowTemplate>
                             <MudTd>@context.FunctionCode</MudTd>
                             <MudTd>@context.ResourceType @(context.ResourceId.HasValue ? $"#{context.ResourceId}" : "· ALL")</MudTd>
+                            <MudTd>@(context.ScopeCode ?? "—")</MudTd>
                             <MudTd><b>@context.EmployeeCode</b> — @context.EmployeeName</MudTd>
                             <MudTd>@context.DeptCode — @context.DeptName</MudTd>
                             <MudTd>@context.PositionCode — @context.PositionName</MudTd>
@@ -628,6 +642,7 @@
     private string _operatorResourceType = FeatureOperatorCatalog.PublicInformation;
     private int? _operatorResourceId;
     private string _operatorEmployeeCode = string.Empty;
+    private string _operatorScope = "Department"; // least privilege by default; only used by capability-granting functions
     private FeatureOperatorEmployeeDto? _operatorEmployee;
     private bool _loadingOperators;
     private bool _savingOperator;
@@ -857,8 +872,14 @@
             _ => Language.T("security.resource")
         };
 
+    // True when the assignment itself grants the capability (Execution.Review): role tick is not required.
+    private bool OperatorGrantsCapability
+        => FeatureOperatorCatalog.AssignmentGrantsCapability(_operatorFunctionCode);
+
     private string OperatorAssignmentHint
-        => IsGlobalOperatorFunction
+        => OperatorGrantsCapability
+            ? Language.T("security.operatorGrantsHint")
+            : IsGlobalOperatorFunction
             ? Language.T("security.operatorGlobalHint")
             : Language.T("security.operatorResourceHint");
 
@@ -938,7 +959,8 @@
                     FunctionCode = _operatorFunctionCode,
                     ResourceType = _operatorResourceType,
                     ResourceId = IsGlobalOperatorFunction ? null : _operatorResourceId,
-                    EmployeeCode = _operatorEmployeeCode
+                    EmployeeCode = _operatorEmployeeCode,
+                    ScopeCode = OperatorGrantsCapability ? _operatorScope : null
                 });
 
             if (!result.IsSuccess)

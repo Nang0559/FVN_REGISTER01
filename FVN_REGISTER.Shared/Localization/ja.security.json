@@ -179,5 +179,6 @@
   "security.xoaNgung": "削除/停止",
   "security.yeuCauQuenMatKhau": "パスワード忘れ申請",
   "security.operatorGlobalHint": "この権限はモジュール単位で適用されます。特定の対象を選択する必要はありません。",
+  "security.operatorGrantsHint": "この機能では、割り当て自体が権限を付与します。ロールにチェックがなくても、割り当てられたユーザーは操作できます。共通ロール（例: User）からこの機能のチェックを外し、権限が割り当てのみから付与されるようにしてください。適切なデータ範囲を選択してください。",
   "security.operatorResourceHint": "この権限は特定のリソース単位で適用されます。社員を指定する前に対象リソースを選択してください。"
 }
