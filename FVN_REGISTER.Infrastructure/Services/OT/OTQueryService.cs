@@ -279,9 +279,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         }
 
         public async Task<OTValidationResultDto> ValidateHoursAsync(
-            OTRequestUpsertDto model, CancellationToken ct = default)
+            OTRequestUpsertDto model, CancellationToken ct = default, bool checkDuplicateRegistration = true)
         {
-            var preview = await GetLimitPreviewAsync(model, ct);
+            var preview = await GetLimitPreviewAsync(model, ct, checkDuplicateRegistration);
             var result = new OTValidationResultDto
             {
                 IsValid = preview.IsValid,
@@ -427,7 +427,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         }
 
         public async Task<OTLimitPreviewDto> GetLimitPreviewAsync(
-            OTRequestUpsertDto model, CancellationToken ct = default)
+            OTRequestUpsertDto model, CancellationToken ct = default, bool checkDuplicateRegistration = true)
         {
             var preview = new OTLimitPreviewDto
             {
@@ -454,6 +454,14 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             {
                 var missing = codes.Except(employees.Select(x => x.EmployeeCode)).ToList();
                 preview.Errors.Add($"Không tìm thấy nhân viên: {string.Join(", ", missing)}.");
+            }
+
+            // One OT per employee per day: tell the requester right away (also when somebody else,
+            // e.g. a leader of the same department, already registered this employee).
+            if (checkDuplicateRegistration)
+            {
+                var duplicates = await OTDuplicateRegistrationFinder.FindAsync(Uow, model.OTDate, codes, null, ct);
+                preview.Errors.AddRange(OTDuplicateRegistrationFinder.DescribeAll(duplicates, model.OTDate));
             }
 
             var deptCodes = employees.Select(x => x.DeptCode).Distinct().ToList();

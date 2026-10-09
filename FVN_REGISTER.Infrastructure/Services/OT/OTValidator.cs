@@ -168,6 +168,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 if (deptCodes.Count != 1)
                     return Fail("Đăng ký OT nhiều nhân viên chỉ được phép trong cùng một phòng ban.");
 
+                var duplicateCheck = await ValidateNoDuplicateRegistrationAsync(model.OTDate, empCodes, null, ct);
+                if (!duplicateCheck.IsSuccess)
+                    return duplicateCheck;
+
                 var deptCode = deptCodes[0];
                 var blockCode = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
@@ -301,6 +305,20 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             {
                 return Fail($"Lỗi validate đơn OT: {ex.Message}");
             }
+        }
+
+        public async Task<ServiceResult> ValidateNoDuplicateRegistrationAsync(
+            DateTime otDate,
+            IEnumerable<string> employeeCodes,
+            int? excludeOTRequestId,
+            CancellationToken ct = default)
+        {
+            var duplicates = await OTDuplicateRegistrationFinder.FindAsync(
+                _uow, otDate, employeeCodes, excludeOTRequestId, ct);
+
+            return duplicates.Count == 0
+                ? ServiceResult.Ok()
+                : Fail(string.Join(" ", OTDuplicateRegistrationFinder.DescribeAll(duplicates, otDate)));
         }
 
         private static void ValidateScopedLimit(

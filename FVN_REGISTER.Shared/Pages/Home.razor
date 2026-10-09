@@ -276,6 +276,10 @@ else
             case "OPEN_OT":
                 Navigation.NavigateTo($"/ot/create?date={request.Date:yyyy-MM-dd}");
                 return;
+            case "OPEN_OT_REQUEST":
+                if (!string.IsNullOrWhiteSpace(request.DetailRoute))
+                    Navigation.NavigateTo(request.DetailRoute);
+                return;
 
             case "OPEN_HR_FEEDBACK":
                 await OpenHrFeedbackAsync(request);

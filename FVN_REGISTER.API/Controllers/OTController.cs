@@ -284,7 +284,8 @@ namespace FVN_REGISTER.API.Controllers
                     new() { EmployeeCode = body.EmployeeCode, OTHours = body.Hours }
                 }
             };
-            return Ok(ApiResponse<OTValidationResultDto>.Ok(await _queryService.ValidateHoursAsync(dto, ct)));
+            // Hours-only check for one employee (editing hours): the one-OT-per-day rule is enforced on create/join/add.
+            return Ok(ApiResponse<OTValidationResultDto>.Ok(await _queryService.ValidateHoursAsync(dto, ct, checkDuplicateRegistration: false)));
         }
 
         [HttpPost("join/{id:int}")]

@@ -35,5 +35,16 @@ namespace FVN_REGISTER.Application.Interfaces.OT
             OTRequestUpsertDto model,
             UserIdentityDto user,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Một nhân viên chỉ được đăng ký OT MỘT lần trong ngày (bất kể ai tạo đơn). Trả lỗi nêu rõ
+        /// nhân viên nào đã có đơn nào, trạng thái gì và ai đã đăng ký. Dùng khi thêm/tham gia đơn.
+        /// </summary>
+        /// <param name="excludeOTRequestId">Đơn đang thao tác (không tính là trùng với chính nó).</param>
+        Task<ServiceResult> ValidateNoDuplicateRegistrationAsync(
+            DateTime otDate,
+            IEnumerable<string> employeeCodes,
+            int? excludeOTRequestId,
+            CancellationToken ct = default);
     }
 }

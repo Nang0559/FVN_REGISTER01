@@ -295,10 +295,10 @@ BEGIN
       ON target.ApproverCode=src.EmployeeCode
      AND target.RequestType=
          CASE src.RequestType
-             WHEN 0 THEN N'Leave'
-             WHEN 1 THEN N'Overtime'
-             WHEN 2 THEN N'Trip'
-             WHEN 3 THEN N'Equipment'
+             WHEN 0 THEN N'LEAVE'
+             WHEN 1 THEN N'OT'
+             WHEN 2 THEN N'TRIP'
+             WHEN 3 THEN N'EQUIPMENT'
          END
      AND target.Level=src.Level
      AND target.ApproveForDeptCode=src.ApproveForDeptCode
@@ -333,10 +333,10 @@ BEGIN
              FROM dbo.F03Users u
              WHERE u.EmployeeCode=src.EmployeeCode),
             CASE src.RequestType
-                WHEN 0 THEN N'Leave'
-                WHEN 1 THEN N'Overtime'
-                WHEN 2 THEN N'Trip'
-                WHEN 3 THEN N'Equipment'
+                WHEN 0 THEN N'LEAVE'
+                WHEN 1 THEN N'OT'
+                WHEN 2 THEN N'TRIP'
+                WHEN 3 THEN N'EQUIPMENT'
             END,
             src.EmployeeCode,src.PositionCode,src.EmployeeName,
             ISNULL(src.EmailAddress,N''),ISNULL(src.DeptCode,0),
@@ -374,10 +374,10 @@ BEGIN
                 AND ap.DeptCode=e.DeptCode
                 AND a.RequestType=
                     CASE ap.RequestType
-                        WHEN 0 THEN N'Leave'
-                        WHEN 1 THEN N'Overtime'
-                        WHEN 2 THEN N'Trip'
-                        WHEN 3 THEN N'Equipment'
+                        WHEN 0 THEN N'LEAVE'
+                        WHEN 1 THEN N'OT'
+                        WHEN 2 THEN N'TRIP'
+                        WHEN 3 THEN N'EQUIPMENT'
                     END
                 AND a.Level=ap.Level
           )
@@ -430,10 +430,10 @@ LEFT JOIN dbo.F03Approvers a
     ON a.ApproverCode=e.EmployeeCode
    AND a.IsActive=1
    AND a.RequestType=CASE ap.RequestType
-       WHEN 0 THEN N'Leave'
-       WHEN 1 THEN N'Overtime'
-       WHEN 2 THEN N'Trip'
-       WHEN 3 THEN N'Equipment'
+       WHEN 0 THEN N'LEAVE'
+       WHEN 1 THEN N'OT'
+       WHEN 2 THEN N'TRIP'
+       WHEN 3 THEN N'EQUIPMENT'
    END
    AND a.Level=ap.Level
    AND a.ApproveForDeptCode=e.DeptCode

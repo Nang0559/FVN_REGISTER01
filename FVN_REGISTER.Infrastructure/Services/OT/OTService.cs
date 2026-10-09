@@ -6,6 +6,7 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Infrastructure.Services.Common;
+using FVN_REGISTER.Infrastructure.Services.OT;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
@@ -53,6 +54,32 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
 
                 var totalHours = model.Employees.Sum(e => e.OTHours);
                 await using var tx = await Uow.BeginTransactionAsync(ct);
+
+                // One OT per employee per day. Serialize concurrent creates (double click, or a leader and
+                // the employee registering at the same time) with a transaction-scoped applock per
+                // employee+day, then re-check inside the lock so the second request is rejected.
+                foreach (var lockCode in model.Employees
+                             .Select(e => e.EmployeeCode)
+                             .Where(c => !string.IsNullOrWhiteSpace(c))
+                             .Select(c => c.Trim().ToUpperInvariant())
+                             .Distinct()
+                             .OrderBy(c => c, StringComparer.Ordinal))
+                {
+                    await Uow.ExecuteSqlRawAsync(
+                        "DECLARE @r int; EXEC @r = sp_getapplock @Resource={0}, @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=15000; " +
+                        "IF @r < 0 THROW 51411, N'Không thể khóa đăng ký OT, vui lòng thử lại.', 1;",
+                        ct,
+                        $"FVN:OT:{lockCode}:{model.OTDate:yyyyMMdd}");
+                }
+
+                var duplicateRecheck = await _validator.ValidateNoDuplicateRegistrationAsync(
+                    model.OTDate, model.Employees.Select(e => e.EmployeeCode), null, ct);
+                if (!duplicateRecheck.IsSuccess)
+                {
+                    await tx.RollbackAsync(ct);
+                    return ServiceResult<int>.Fail(duplicateRecheck.Message ?? "Nhân viên đã có đơn OT trong ngày này.");
+                }
+
                 var entity = new F03OTRequest
                 {
                     EmployeeCode = user.EmployeeCode ?? "",
@@ -128,6 +155,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var empRepo = Uow.Repository<F03OTEmployee>();
                 var exists = await empRepo.Query().AnyAsync(x => x.OTRequestId == otRequestId && x.EmployeeCode == user.EmployeeCode && x.IsActive == true, ct);
                 if (exists) return ServiceResult.Fail("Bạn đã có trong đơn này.");
+
+                var joinDuplicate = await _validator.ValidateNoDuplicateRegistrationAsync(
+                    entity.OTDate, new[] { user.EmployeeCode ?? string.Empty }, otRequestId, ct);
+                if (!joinDuplicate.IsSuccess) return joinDuplicate;
                 await empRepo.AddAsync(new F03OTEmployee
                 {
                     OTRequestId = otRequestId,
@@ -293,6 +324,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                     .Select(g => g.First())
                     .Where(e => !existingCodes.Contains(e.EmployeeCode, StringComparer.OrdinalIgnoreCase))
                     .ToList();
+
+                var addDuplicate = await _validator.ValidateNoDuplicateRegistrationAsync(
+                    entity.OTDate, candidates.Select(e => e.EmployeeCode), otRequestId, ct);
+                if (!addDuplicate.IsSuccess) return addDuplicate;
 
                 foreach (var e in candidates)
                 {

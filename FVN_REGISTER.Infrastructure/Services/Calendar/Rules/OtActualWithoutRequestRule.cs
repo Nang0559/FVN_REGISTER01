@@ -19,8 +19,7 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
 
         // Đã có đơn OT nhưng còn đang chờ duyệt: OT thực tế vẫn chưa được ghi nhận (giữ cảnh báo),
         // nhưng KHÔNG phải "chưa có đơn" và không mời đăng ký trùng.
-        var pending = context.Day.Registrations.FirstOrDefault(x =>
-            x.ModuleCode == "OT" && (IsAwaitingApproval(x.Status) || IsAwaitingApproval(x.ApprovalStatus)));
+        var pending = CalendarOtRegistrations.FindOpenRequest(context.Day);
 
         var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "OT" && x.RequiresAction);
         long? reconciliationId = long.TryParse(source?.SourceId, out var parsedReconciliationId)
@@ -91,14 +90,6 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
                 Actions = actions
             }
         };
-    }
-
-    private static bool IsAwaitingApproval(string? status)
-    {
-        var value = status?.Trim();
-        return string.Equals(value, "Pending", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "InProgress", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "Escalated", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsApproved(string? status) =>

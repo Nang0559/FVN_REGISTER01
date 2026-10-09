@@ -10,9 +10,10 @@ namespace FVN_REGISTER.Application.Interfaces.OT
     {
         Task<OTCombinedDataDto> GetCombinedDataAsync(
             string employeeCode, int deptCode, int year, int month, CancellationToken ct = default);
-        Task<OTValidationResultDto> ValidateHoursAsync(OTRequestUpsertDto model, CancellationToken ct = default);
+        Task<OTValidationResultDto> ValidateHoursAsync(OTRequestUpsertDto model, CancellationToken ct = default, bool checkDuplicateRegistration = true);
 
-        Task<OTLimitPreviewDto> GetLimitPreviewAsync(OTRequestUpsertDto model, CancellationToken ct = default);
+        /// <param name="checkDuplicateRegistration">true (mặc định): báo lỗi nếu nhân viên đã có đơn OT trong ngày (mỗi nhân viên 1 đơn/ngày).</param>
+        Task<OTLimitPreviewDto> GetLimitPreviewAsync(OTRequestUpsertDto model, CancellationToken ct = default, bool checkDuplicateRegistration = true);
 
         Task<OTBalanceDto> GetBalanceAsync(string employeeCode, int year, int month, CancellationToken ct = default);
 
