@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace FVN_REGISTER.Contract.Dtos.Security;
 
 public sealed class FeatureOperatorAssignmentDto
@@ -20,11 +22,15 @@ public sealed class FeatureOperatorAssignmentDto
 public sealed class SaveFeatureOperatorAssignmentRequest
 {
     public int FunctionCode { get; set; }
+    [Required, MaxLength(50)]
     public string ResourceType { get; set; } = string.Empty;
     public int? ResourceId { get; set; }
+    [Required, MaxLength(50)]
     public string EmployeeCode { get; set; } = string.Empty;
     /// <summary>Only used for capability-granting functions (All/Department/Own). Null = function default.</summary>
+    [MaxLength(30)]
     public string? ScopeCode { get; set; }
+    [MaxLength(1000)]
     public string? Remark { get; set; }
 }
 
