@@ -63,13 +63,32 @@
                     <MudStack Spacing="1" Class="mt-2">
                         @foreach (var registration in Day.Registrations)
                         {
-                            <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small">
-                                <b>@registration.ModuleCode</b>&nbsp; @registration.Title
-                                @if (registration.IsHalfDay)
+                            var statusKey = RegistrationStatusKey(registration);
+                            <div>
+                                <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small">
+                                    <b>@registration.ModuleCode</b>&nbsp; @registration.Title
+                                    @if (registration.IsHalfDay)
+                                    {
+                                        <span>&nbsp;• @Language.T("calendar.halfDay")</span>
+                                    }
+                                </MudChip>
+                                @if (statusKey is not null)
                                 {
-                                    <span>&nbsp;• @Language.T("calendar.halfDay")</span>
+                                    <MudChip T="string" Size="Size.Small" Color="@RegistrationStatusColor(registration)">
+                                        @Language.T(statusKey)
+                                    </MudChip>
                                 }
-                            </MudChip>
+                                @if (HasTimeRange(registration))
+                                {
+                                    <MudText Typo="Typo.caption" Class="ml-1">@registration.Start.ToString("HH:mm") – @registration.End.ToString("HH:mm")</MudText>
+                                }
+                                @if (!registration.IsApproved && !string.IsNullOrWhiteSpace(registration.CurrentApproverName))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-1">
+                                        @Language.T("calendar.currentApprover"): @registration.CurrentApproverName@(string.IsNullOrWhiteSpace(registration.ApprovalLevelName) ? "" : $" ({registration.ApprovalLevelName})")
+                                    </MudText>
+                                }
+                            </div>
                         }
                     </MudStack>
                 </MudPaper>
@@ -328,6 +347,39 @@
 
         DialogInstance.Close();
     }
+
+    private static string? RegistrationStatusKey(CalendarRegistrationDto registration)
+    {
+        var raw = string.IsNullOrWhiteSpace(registration.ApprovalStatus) ? registration.Status : registration.ApprovalStatus;
+        return raw?.Trim().ToLowerInvariant() switch
+        {
+            "draft" => "calendar.status.draft",
+            "pending" => "calendar.status.pending",
+            "inprogress" => "calendar.status.inProgress",
+            "approved" => "calendar.status.approved",
+            "rejected" => "calendar.status.rejected",
+            "cancelled" => "calendar.status.cancelled",
+            "escalated" => "calendar.status.escalated",
+            "needsrevision" => "calendar.status.needsRevision",
+            _ => null
+        };
+    }
+
+    private static Color RegistrationStatusColor(CalendarRegistrationDto registration)
+    {
+        var raw = string.IsNullOrWhiteSpace(registration.ApprovalStatus) ? registration.Status : registration.ApprovalStatus;
+        return raw?.Trim().ToLowerInvariant() switch
+        {
+            "approved" => Color.Success,
+            "rejected" or "cancelled" => Color.Error,
+            "pending" or "inprogress" or "escalated" or "needsrevision" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    // Không hiển thị khoảng giờ rỗng (ví dụ 00:00 – 00:00) cho đơn không có giờ bắt đầu/kết thúc rõ ràng.
+    private static bool HasTimeRange(CalendarRegistrationDto registration)
+        => registration.Start.TimeOfDay != registration.End.TimeOfDay;
 
     private async Task ExecuteAction(CalendarIssueDto issue, CalendarActionOptionDto action)
     {
