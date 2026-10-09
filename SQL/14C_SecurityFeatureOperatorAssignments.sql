@@ -26,6 +26,20 @@ GO
 IF COL_LENGTH(N'dbo.F03FeatureOperatorAssignments', N'ScopeCode') IS NULL
     ALTER TABLE dbo.F03FeatureOperatorAssignments ADD ScopeCode nvarchar(30) NULL;
 GO
+/* Keep databases created by older revisions compatible with the current Contract/Core model. */
+IF COL_LENGTH(N'dbo.F03FeatureOperatorAssignments', N'Remark') IS NOT NULL
+   AND EXISTS
+   (
+       SELECT 1
+       FROM sys.columns
+       WHERE object_id = OBJECT_ID(N'dbo.F03FeatureOperatorAssignments')
+         AND name = N'Remark'
+         AND max_length < 2000
+   )
+BEGIN
+    ALTER TABLE dbo.F03FeatureOperatorAssignments ALTER COLUMN Remark nvarchar(1000) NULL;
+END;
+GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03FeatureOperatorAssignments') AND name=N'IX_F03FeatureOperatorAssignments_FunctionResource')
     CREATE INDEX IX_F03FeatureOperatorAssignments_FunctionResource ON dbo.F03FeatureOperatorAssignments(FunctionCode,ResourceType,ResourceId,IsActive,EmployeeCode);
 GO
