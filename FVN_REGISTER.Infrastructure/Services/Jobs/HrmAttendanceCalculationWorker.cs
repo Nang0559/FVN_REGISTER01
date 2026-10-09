@@ -52,7 +52,17 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         // Never wait for the first scheduled run when the application starts.
         // This closes the gap after deployment/restart and guarantees the current
         // payroll period has calculated data before users open the dashboard.
-        await RunCatchUpAsync(stoppingToken);
+        // Dev/test: đặt HrmAttendanceWorker:CatchUpOnStartup = false để KHÔNG tính bù khi khởi động
+        // (mỗi lần restart API sẽ chặn đọc F03HrmAttendanceCalculated trong lúc tính). Mặc định true.
+        if (_configuration.GetValue("HrmAttendanceWorker:CatchUpOnStartup", true))
+        {
+            await RunCatchUpAsync(stoppingToken);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "[HRM_ATTENDANCE_WORKER] Bỏ qua catch-up khi khởi động (HrmAttendanceWorker:CatchUpOnStartup = false).");
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {

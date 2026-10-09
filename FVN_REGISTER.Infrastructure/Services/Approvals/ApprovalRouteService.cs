@@ -120,6 +120,13 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         foreach (var group in levelGroups)
         {
             var policy = group[0];
+
+            // Cấp không bắt buộc (không dòng policy nào của cấp này có Required = 1):
+            // không tra người duyệt và không đưa vào luồng phê duyệt.
+            var levelRequired = group.Any(x => x.Required);
+            if (!levelRequired)
+                continue;
+
             var approvalPositionCodes = group
                 .Select(x => x.ApprovalPositionCode)
                 .Distinct(StringComparer.Ordinal)
@@ -128,7 +135,6 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .Select(x => x.LevelName)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase));
-            var levelRequired = group.Any(x => x.Required);
 
             var query = _uow.Repository<F03Approver>().Query()
                 .AsNoTracking()
@@ -184,18 +190,11 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
             if (candidates.Count == 0)
             {
-                if (levelRequired)
-                {
-                    return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                        $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
-                        $"({levelName} / {policy.RoleName}), " +
-                        $"chức vụ phê duyệt {string.Join('/', approvalPositionCodes)}, " +
-                        $"phòng ban {resolvedDeptCode}.");
-                }
-
-                // Optional policy without a candidate is simply not materialized
-                // into this request's route.
-                continue;
+                return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                    $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
+                    $"({levelName} / {policy.RoleName}), " +
+                    $"chức vụ phê duyệt {string.Join('/', approvalPositionCodes)}, " +
+                    $"phòng ban {resolvedDeptCode}.");
             }
 
             levels.Add(new ApprovalRouteLevelDto
@@ -212,7 +211,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         if (levels.Count == 0)
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                $"Không có cấp phê duyệt khả dụng cho {requestType} / " +
+                $"Không có cấp phê duyệt bắt buộc nào cho {requestType} / " +
                 $"phòng ban {resolvedDeptCode} / chức vụ {position.PositionCode}.");
         }
 
