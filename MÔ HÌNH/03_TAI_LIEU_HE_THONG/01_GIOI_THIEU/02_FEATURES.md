@@ -35,7 +35,7 @@ Tổng hợp lịch công ty, ca làm và thông tin nghiệp vụ liên quan th
 Hỗ trợ xem xét khác biệt giữa kế hoạch và dữ liệu thực tế; theo dõi trường hợp cần xác minh, trách nhiệm và bằng chứng theo chính sách. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công.
 
 ### Thiết bị và kiểm tra
-Tài liệu nghiệp vụ của repo mô tả luồng yêu cầu/phê duyệt thiết bị, QR, nhập Excel, schema theo phòng ban, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử. Cần xác nhận từng hạng mục trên môi trường nghiệm thu trước khi công bố là đã vận hành chính thức.
+Nghiệp vụ thiết bị gồm đăng ký/phê duyệt, QR, nhập Excel theo schema phòng ban, kiểm tra dữ liệu theo dòng trước khi ghi nhận, giao thiết bị cho người phụ trách, bàn giao trách nhiệm, checklist theo phiên bản, bằng chứng, sửa chữa, thông báo và báo cáo. Các thao tác import, camera/QR, checklist, bàn giao và notification phải được xác minh từng luồng trên môi trường nghiệm thu trước khi công bố là đã vận hành chính thức.
 
 ### Kiểm kê và tuân thủ máy Windows (Endpoint Inventory & Compliance)
 
