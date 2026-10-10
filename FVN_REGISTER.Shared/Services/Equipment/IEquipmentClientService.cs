@@ -28,6 +28,8 @@ public interface IEquipmentClientService
     Task<ApiResponse<EquipmentRequestDto>> CompleteRepairAsync(int id, string feedback, CancellationToken ct = default);
     Task<ApiResponse<EquipmentAssetDto>> ScanAsync(string token, CancellationToken ct = default);
     Task<ApiResponse<EquipmentAssetDto>> GetAssetAsync(int id, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentAssetDto>> UpdateAssetAsync(int id, UpdateEquipmentAssetRequest request, CancellationToken ct = default);
+    Task<ApiResponse<bool>> DeleteAssetAsync(int id, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>> GetHandoverEmployeesAsync(int? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentHandoverCandidateDto>>> GetHandoverCandidatesAsync(string oldEmployeeCode, int? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<EquipmentHandoverResultDto>> HandoverAsync(EquipmentHandoverRequest request, CancellationToken ct = default);
