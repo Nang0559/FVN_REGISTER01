@@ -70,6 +70,9 @@ else if (_model != null)
             </MudStack>
         </MudPaper>
 
+        @* Department overview appears directly under the welcome header. *@
+        <DashboardOverview Data="_model" />
+
         <MudGrid Spacing="3" Class="mb-5">
             <MudItem xs="12" md="6">
                 <MudCard Elevation="2" Style="height:100%; border-radius:18px; overflow:hidden">
@@ -191,7 +194,6 @@ else if (_model != null)
             </MudPaper>
         }
 
-        <DashboardOverview Data="_model" />
     </MudContainer>
 }
 else if (_guestFallback)
