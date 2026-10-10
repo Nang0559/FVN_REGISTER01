@@ -63,5 +63,10 @@
   "dashboard.approvedLeaveTodayNote": "Đã được phê duyệt",
   "dashboard.approvedTripTodayNote": "Theo lịch công tác đã duyệt",
   "dashboard.approvedOTTodayNote": "Theo đăng ký OT đã duyệt",
-  "dashboard.departmentOverviewDataNote": "Số liệu được tổng hợp từ dữ liệu hệ thống, không phải số liệu minh họa."
+  "dashboard.departmentOverviewDataNote": "Số liệu được tổng hợp từ dữ liệu hệ thống, không phải số liệu minh họa.",
+  "dashboard.noDetailRows": "Không có dữ liệu chi tiết cho ngày này.",
+  "dashboard.detailLoadFailed": "Không thể tải chi tiết. Vui lòng thử lại.",
+  "dashboard.detail": "Chi tiết",
+  "dashboard.status": "Trạng thái",
+  "dashboard.approved": "Đã duyệt"
 }
