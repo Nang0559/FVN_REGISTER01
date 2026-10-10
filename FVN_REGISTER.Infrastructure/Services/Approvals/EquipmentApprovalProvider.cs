@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Emails;
@@ -161,6 +164,57 @@ public sealed class EquipmentApprovalProvider
                     entity.AssetId = asset.Id;
                 }
             }
+            else if (entity.RequestKind == EquipmentRequestKind.AssetChange &&
+                     entity.AssetId.HasValue &&
+                     entity.AssetChangeAppliedAtUtc == null)
+            {
+                // Asset changes are applied only after every required approval succeeds.
+                // Compare the captured business-state hash before writing to avoid overwriting
+                // an asset that was edited by another workflow while this request was pending.
+                var asset = await _uow.Repository<F03EquipmentAsset>().Query()
+                    .FirstOrDefaultAsync(x => x.Id == entity.AssetId.Value && x.IsActive == true, ct);
+
+                if (asset == null)
+                {
+                    entity.RequestStatus = ApprovalStatus.Rejected;
+                    entity.Note = AppendWorkflowNote(entity.Note, "Không thể áp dụng thay đổi: thiết bị không còn tồn tại hoặc đã ngừng hoạt động.");
+                }
+                else if (string.IsNullOrWhiteSpace(entity.AssetBeforeSnapshotJson) ||
+                         string.IsNullOrWhiteSpace(entity.AssetAfterSnapshotJson) ||
+                         string.IsNullOrWhiteSpace(entity.AssetBeforeHash))
+                {
+                    entity.RequestStatus = ApprovalStatus.Rejected;
+                    entity.Note = AppendWorkflowNote(entity.Note, "Không thể áp dụng thay đổi: thiếu snapshot trước/sau hoặc hash đối chiếu.");
+                }
+                else
+                {
+                    var currentHash = ComputeAssetBusinessHash(asset);
+                    if (!string.Equals(currentHash, entity.AssetBeforeHash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        entity.RequestStatus = ApprovalStatus.Rejected;
+                        entity.Note = AppendWorkflowNote(entity.Note, "Xung đột dữ liệu: thiết bị đã thay đổi sau khi gửi yêu cầu. Cần tạo yêu cầu mới từ dữ liệu hiện tại.");
+                    }
+                    else
+                    {
+                        using var after = JsonDocument.Parse(entity.AssetAfterSnapshotJson);
+                        var root = after.RootElement;
+                        asset.EquipmentCode = ReadString(root, "EquipmentCode") ?? asset.EquipmentCode;
+                        asset.EquipmentName = ReadString(root, "EquipmentName") ?? asset.EquipmentName;
+                        asset.AssetCode = ReadString(root, "AssetCode");
+                        asset.SerialNumber = ReadString(root, "SerialNumber");
+                        asset.Specification = ReadString(root, "Specification");
+                        asset.PurchasePrice = ReadDecimal(root, "PurchasePrice") ?? asset.PurchasePrice;
+                        asset.PurchaseDate = ReadDate(root, "PurchaseDate") ?? asset.PurchaseDate;
+                        asset.ExpectedDepreciationDate = ReadDate(root, "ExpectedDepreciationDate") ?? asset.ExpectedDepreciationDate;
+                        asset.Location = ReadString(root, "Location");
+                        asset.Note = ReadString(root, "Note");
+                        asset.CustomDataJson = ReadString(root, "CustomDataJson") ?? asset.CustomDataJson;
+                        asset.ModifiedAt = DateTime.UtcNow;
+                        asset.ModifiedBy = entity.OperatorUserId;
+                        entity.AssetChangeAppliedAtUtc = DateTime.UtcNow;
+                    }
+                }
+            }
             else if (entity.RequestKind == EquipmentRequestKind.Repair &&
                      entity.AssetId.HasValue &&
                      entity.RepairDate.HasValue)
@@ -191,6 +245,33 @@ public sealed class EquipmentApprovalProvider
 
         await _uow.SaveChangesAsync(ct);
     }
+
+    private static string ComputeAssetBusinessHash(F03EquipmentAsset asset)
+    {
+        // Hash only editable business fields; audit timestamps and identity metadata must
+        // not create false conflicts.
+        var canonical = JsonSerializer.Serialize(new
+        {
+            asset.EquipmentCode, asset.EquipmentName, asset.AssetCode, asset.SerialNumber,
+            asset.Specification, asset.PurchasePrice, asset.PurchaseDate,
+            asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson
+        });
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
+    private static string? ReadString(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null
+            ? value.GetString() : null;
+
+    private static decimal? ReadDecimal(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.TryGetDecimal(out var result) ? result : null;
+
+    private static DateTime? ReadDate(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String &&
+        value.TryGetDateTime(out var result) ? result : null;
+
+    private static string AppendWorkflowNote(string? note, string message) =>
+        string.IsNullOrWhiteSpace(note) ? message : $"{note.Trim()} | {message}";
 
     public override async Task NotifyStepCompletedAsync(
         EquipmentRequestSubject subject,
