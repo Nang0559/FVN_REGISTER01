@@ -236,6 +236,40 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
             return await MarkResolvedAsync(stale, ct);
         }
 
+        public async Task<int> RestorePendingApproverNotificationsAsync(
+            int userId,
+            IReadOnlyCollection<(RequestModule Module, int RequestId)> actionable,
+            CancellationToken ct = default)
+        {
+            if (userId <= 0 || actionable == null || actionable.Count == 0) return 0;
+
+            var rows = await _uow.Repository<F03AppNotification>().Query()
+                .Where(x => x.UserId == userId
+                    && x.IsRead
+                    && x.NotificationType == null
+                    && InboxModules.Contains(x.RequestModule)
+                    && ApproverActions.Contains(x.Action))
+                .ToListAsync(ct);
+
+            var restored = new List<F03AppNotification>();
+            foreach (var notification in rows)
+            {
+                if (!TryParseRequestId(notification, out var requestId)
+                    || !actionable.Contains((notification.RequestModule, requestId)))
+                    continue;
+
+                notification.IsRead = false;
+                notification.ReadAt = null;
+                _uow.Repository<F03AppNotification>().Update(notification);
+                restored.Add(notification);
+            }
+
+            if (restored.Count == 0) return 0;
+            await _uow.SaveChangesAsync(ct);
+            await RefreshBadgeAsync(userId, ct);
+            return restored.Count;
+        }
+
         public async Task RefreshBadgeAsync(int userId, CancellationToken ct = default)
         {
             var unread = await GetUnreadCountAsync(userId, ct);
