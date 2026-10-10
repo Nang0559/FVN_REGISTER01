@@ -6,6 +6,7 @@
 @inject IHttpClientWithAuth Http
 @inject FVN_REGISTER.Shared.Services.Execution.IExecutionReconciliationClientService ExecutionService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>@Language.T("execution.hrXuLyDoiSoat")</PageTitle>
@@ -25,7 +26,7 @@
         <MudGrid Class="mt-4" Spacing="2">
             <MudItem xs="12" sm="4">
                 <MudSelect T="string" Label="@Language.T("common.module")" @bind-Value="_module" Clearable="true">
-                        <MudSelectItem Value="@("OT")">@Language.T("nav.reportOt")</MudSelectItem>
+                    <MudSelectItem Value="@("OT")">@Language.T("nav.reportOt")</MudSelectItem>
                     <MudSelectItem Value="@("LEAVE")">@Language.T("execution.leave")</MudSelectItem>
                     <MudSelectItem Value="@("TRIP")">@Language.T("execution.trip")</MudSelectItem>
                 </MudSelect>
@@ -72,7 +73,7 @@
                 <MudTd>@context.PlannedState</MudTd>
                 <MudTd>@context.ActualState</MudTd>
                 <MudTd><MudChip T="string" Size="Size.Small">@context.ReconciliationStatus</MudChip></MudTd>
-                <MudTd>@(context.RequiresEvidence ? Language.T("common.required") : Language.T("common.no"))</MudTd>
+                <MudTd>@(context.RequiresEvidence? Language.T("common.required") : Language.T("common.no"))</MudTd>
                 <MudTd>
                     @{
                         var claim = GetClaim(context.Id);
@@ -170,14 +171,54 @@
                 <MudTable Items="_detail.Evidence" Dense="true" Class="mt-3">
                     <HeaderContent>
                         <MudTh>@Language.T("execution.evidence2")</MudTh>
-                        <MudTh>FileId</MudTh>
+                        <MudTh>File / tài liệu đính kèm</MudTh>
                         <MudTh>@Language.T("common.status")</MudTh>
                         <MudTh>@Language.T("common.note")</MudTh>
                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.EvidenceType</MudTd>
-                        <MudTd>@(context.FileId?.ToString() ?? "-")</MudTd>
+                        <MudTd>
+                            @if (context.FileId.HasValue || !string.IsNullOrWhiteSpace(context.ExternalUrl)
+                                                || !string.IsNullOrWhiteSpace(context.ReferenceNo) || !string.IsNullOrWhiteSpace(context.Description))
+                            {
+                                <MudStack Spacing="1">
+                                    @if (context.FileId.HasValue)
+                                    {
+                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.AttachFile"
+                                                   Disabled="@(_openingEvidenceId == context.Id)"
+                                                   OnClick="@(() => ViewEvidenceFileAsync(context.Id))">
+                                            Xem file (#@context.FileId)
+                                        </MudButton>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(context.ExternalUrl))
+                                    {
+                                        if (IsHttpUrl(context.ExternalUrl))
+                                        {
+                                            <MudLink Href="@context.ExternalUrl" Target="_blank" rel="noopener noreferrer"
+                                                     Typo="Typo.body2">@context.ExternalUrl</MudLink>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body2">@context.ExternalUrl</MudText>
+                                        }
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(context.ReferenceNo))
+                                    {
+                                        <MudText Typo="Typo.caption">Số tham chiếu: @context.ReferenceNo</MudText>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(context.Description))
+                                    {
+                                        <MudText Typo="Typo.caption">@context.Description</MudText>
+                                    }
+                                </MudStack>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </MudTd>
                         <MudTd>@context.ReviewStatus</MudTd>
                         <MudTd>@(context.ReviewNote ?? "-")</MudTd>
                         <MudTd>
@@ -322,6 +363,44 @@
     }
 
     private void CloseDetail() => _detail = null;
+
+    private long? _openingEvidenceId;
+
+    private static bool IsHttpUrl(string? value)
+        => Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri)
+           && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private async Task ViewEvidenceFileAsync(long evidenceId)
+    {
+        _openingEvidenceId = evidenceId;
+        try
+        {
+            var result = await Http.GetAsync<ExecutionEvidenceFileDto>(
+                $"api/execution/hr/evidence/{evidenceId}/file");
+
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(
+                    string.IsNullOrWhiteSpace(result.Message) ? "Không mở được file đính kèm." : result.Message,
+                    Severity.Error);
+                return;
+            }
+
+            await JS.InvokeVoidAsync(
+                "fvnFileDownload.openBase64",
+                result.Data.FileName,
+                result.Data.ContentType,
+                result.Data.ContentBase64);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _openingEvidenceId = null;
+        }
+    }
 
     private ExecutionHrClaimDto GetClaim(long reconciliationId)
         => _claims.TryGetValue(reconciliationId, out var claim)

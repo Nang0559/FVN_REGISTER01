@@ -15,6 +15,7 @@ using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
@@ -39,20 +40,26 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     private readonly INotificationService _notificationService;
     private readonly IExecutionHrClaimService _claimService;
     private readonly ILogger<ExecutionHrResolutionService> _logger;
-    public Task<ServiceResult<IReadOnlyList<ExecutionHrReviewItemDto>>> GetPendingAsync(int uid,string? m,string? s,DateOnly? f,DateOnly? t,CancellationToken ct=default)=>GuardAsync(()=>GetPendingAsyncCoreAsync(uid,m,s,f,t,ct));
-    public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(int uid,string e,long id,CancellationToken ct=default)
+    public Task<ServiceResult<IReadOnlyList<ExecutionHrReviewItemDto>>> GetPendingAsync(int uid, string? m, string? s, DateOnly? f, DateOnly? t, CancellationToken ct = default) => GuardAsync(() => GetPendingAsyncCoreAsync(uid, m, s, f, t, ct));
+    public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(int uid, string e, long id, CancellationToken ct = default)
     {
         try
-        {var v=await GetDetailAsyncCoreAsync(uid,e,id,ct)
-                ;return v is null?ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation."):ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);}
-        catch(OperationCanceledException)
-        {throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<ExecutionReconciliationDetailDto>.Fail(ex.Message);}}
-    public Task<ServiceResult<ExecutionEvidenceDto>> ReviewEvidenceAsync(int uid,string e,long id,ExecutionEvidenceReviewRequest q,CancellationToken ct=default)=>GuardAsync(()=>ReviewEvidenceAsyncCoreAsync(uid,e,id,q,ct));
-    public Task<ServiceResult<ExecutionHrResolutionDto>> ResolveAsync(int uid,string e,long id,ExecutionHrResolutionRequest q,CancellationToken ct=default)=>GuardAsync(()=>ResolveAsyncCoreAsync(uid,e,id,q,ct));
+        {
+            var v = await GetDetailAsyncCoreAsync(uid, e, id, ct)
+                ; return v is null ? ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation.") : ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);
+        }
+        catch (OperationCanceledException)
+        { throw; }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException) { return ServiceResult<ExecutionReconciliationDetailDto>.Fail(ex.Message); }
+    }
+    public Task<ServiceResult<ExecutionEvidenceDto>> ReviewEvidenceAsync(int uid, string e, long id, ExecutionEvidenceReviewRequest q, CancellationToken ct = default) => GuardAsync(() => ReviewEvidenceAsyncCoreAsync(uid, e, id, q, ct));
+    public Task<ServiceResult<ExecutionHrResolutionDto>> ResolveAsync(int uid, string e, long id, ExecutionHrResolutionRequest q, CancellationToken ct = default) => GuardAsync(() => ResolveAsyncCoreAsync(uid, e, id, q, ct));
+    public Task<ServiceResult<ExecutionEvidenceFileDto>> OpenEvidenceFileAsync(int uid, string e, long id, CancellationToken ct = default) => GuardAsync(() => OpenEvidenceFileAsyncCoreAsync(uid, e, id, ct));
 
     public const int HrExecutionReviewFunctionCode = FVN_REGISTER.Core.Constants.SecurityFunctionCodes.ExecutionReview;
 
     private readonly FVNWEBAPPContext _db;
+    private readonly IHostEnvironment _hostEnvironment;
 
     public ExecutionHrResolutionService(
         FVNWEBAPPContext db,
@@ -61,9 +68,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         IFeatureOperatorAssignmentService operatorAssignments,
         INotificationService notificationService,
         IExecutionHrClaimService claimService,
-        ILogger<ExecutionHrResolutionService> logger)
+        ILogger<ExecutionHrResolutionService> logger,
+        IHostEnvironment hostEnvironment)
     {
         _db = db;
+        _hostEnvironment = hostEnvironment;
         _attendanceCalculation = attendanceCalculation;
         _authorization = authorization;
         _operatorAssignments = operatorAssignments;
@@ -346,7 +355,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             history);
     }
 
-    private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op){try{return ServiceResult<T>.Ok(await op());}catch(OperationCanceledException){throw;}catch(Exception ex) when(ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException){return ServiceResult<T>.Fail(ex.Message);}}
+    private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op) { try { return ServiceResult<T>.Ok(await op()); } catch (OperationCanceledException) { throw; } catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException) { return ServiceResult<T>.Fail(ex.Message); } }
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
         x => new ExecutionReconciliationDto(
@@ -354,6 +363,98 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             x.EmployeeId, x.WorkDate, x.PlannedState, x.ActualState,
             x.ReconciliationStatus, x.RequiresConfirmation, x.RequiresEvidence,
             x.ConfirmationId, x.ActionId);
+
+    private async Task<ExecutionEvidenceFileDto> OpenEvidenceFileAsyncCoreAsync(
+        int userId,
+        string employeeCode,
+        long evidenceId,
+        CancellationToken cancellationToken = default)
+    {
+        const long maxBytes = 10 * 1024 * 1024;
+
+        await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
+
+        var evidence = await _db.ExecutionConfirmationEvidence.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == evidenceId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy evidence.");
+
+        if (!evidence.FileId.HasValue)
+            throw new KeyNotFoundException("Evidence này không có file đính kèm.");
+
+        var confirmation = await _db.ExecutionConfirmations.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == evidence.ConfirmationId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy confirmation của evidence.");
+
+        var reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == confirmation.ReconciliationId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy reconciliation của evidence.");
+
+        var employee = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
+            .Select(x => new { x.EmployeeCode, x.DeptCode })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của evidence.");
+
+        // Cùng quy tắc với GetDetail: HR không xem evidence của chính mình và phải nằm trong phạm vi được giao.
+        if (string.Equals(employee.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "HR không được xem execution review của chính mình.");
+
+        await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
+
+        var attachment = await _db.Attachments.AsNoTracking()
+            .Where(x => x.Id == evidence.FileId.Value && x.IsActive != false)
+            .Select(x => new { x.FileName, x.FilePath, x.FileExtension })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy file đính kèm.");
+
+        // FilePath được lưu tương đối so với ContentRoot (uploads/execution-evidence/yyyy/MM/...).
+        // Chỉ cho đọc file nằm trong thư mục uploads để chặn path traversal.
+        var contentRoot = Path.GetFullPath(_hostEnvironment.ContentRootPath);
+        var uploadsRoot = Path.GetFullPath(Path.Combine(contentRoot, "uploads"))
+            + Path.DirectorySeparatorChar;
+        var fullPath = Path.GetFullPath(Path.Combine(contentRoot, attachment.FilePath));
+
+        if (!fullPath.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Đường dẫn file đính kèm không hợp lệ.");
+
+        if (!File.Exists(fullPath))
+            throw new KeyNotFoundException("File đính kèm không còn tồn tại trên máy chủ.");
+
+        byte[] bytes;
+        try
+        {
+            if (new FileInfo(fullPath).Length > maxBytes)
+                throw new InvalidOperationException("File đính kèm vượt quá 10 MB.");
+
+            bytes = await File.ReadAllBytesAsync(fullPath, cancellationToken);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Cannot read execution evidence file. EvidenceId={EvidenceId}", evidenceId);
+            throw new InvalidOperationException("Không đọc được file đính kèm.");
+        }
+
+        var extension = (attachment.FileExtension ?? Path.GetExtension(attachment.FileName) ?? string.Empty)
+            .ToLowerInvariant();
+
+        var contentType = extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xls" => "application/vnd.ms-excel",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            _ => "application/octet-stream"
+        };
+
+        return new ExecutionEvidenceFileDto(
+            string.IsNullOrWhiteSpace(attachment.FileName) ? $"evidence-{evidenceId}{extension}" : attachment.FileName,
+            contentType,
+            Convert.ToBase64String(bytes));
+    }
 
     private async Task<ExecutionEvidenceDto> ReviewEvidenceAsyncCoreAsync(
         int userId,

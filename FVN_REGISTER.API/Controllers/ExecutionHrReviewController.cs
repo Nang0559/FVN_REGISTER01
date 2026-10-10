@@ -36,6 +36,21 @@ public sealed class ExecutionHrReviewController : BaseApiController
         return r.IsSuccess ? Ok(response) : NotFound(response);
     }
 
+    [HttpGet("evidence/{evidenceId:long}/file")]
+    public async Task<IActionResult> GetEvidenceFile(long evidenceId, CancellationToken ct)
+    {
+        if (UserInfo?.UserId is not int uid || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ."));
+        if (!await CanReviewAsync(ct))
+            return Forbid();
+
+        var r = await _service.OpenEvidenceFileAsync(uid, UserInfo.EmployeeCode, evidenceId, ct);
+
+        // Dùng đúng kiểu generic để FromResult giữ lại Data.
+        var response = ApiResponse<ExecutionEvidenceFileDto>.FromResult(r);
+        return r.IsSuccess ? Ok(response) : NotFound(response);
+    }
+
     [HttpGet("reconciliations/claims")]
     public async Task<IActionResult> GetClaims([FromQuery] long[] ids, CancellationToken ct)
     {
