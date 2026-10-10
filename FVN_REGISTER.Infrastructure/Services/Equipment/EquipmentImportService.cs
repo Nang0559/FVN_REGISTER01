@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Globalization;
+using System.Text;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.Excel;
@@ -197,6 +199,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
                     AllowEmpty = !field.IsRequired,
                     SourceColumnIndex = cols[index],
                     HeaderName = inputColumns[index].Header,
+                    TargetProperty = MapEquipmentTargetProperty(inputColumns[index].Header),
                     MaxLength = field.MaxLength,
                     DisplayOrder = index + 1
                 }).ToList()
@@ -318,8 +321,111 @@ public sealed class EquipmentImportService : IEquipmentImportService
             ?? throw new KeyNotFoundException("Không tìm thấy cấu hình schema.");
         var r = await _excel.ImportAsync(content, file, d, ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportBatches(SchemaId,SchemaVersionId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows,FailedRows,CreatedBy,CreatedAt) VALUES({sid},(SELECT CurrentVersionId FROM dbo.F03ExcelSchemas WHERE Id={sid}),{ModuleCode},{EntityCode},{file},40,{r.TotalRows},{r.ValidRows},{r.InvalidRows},0,0,{u.UserId.ToString()},SYSUTCDATETIME())",ct);var bid=await _db.Database.SqlQueryRaw<long>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelImportBatches WHERE SchemaId={0} AND FileName={1} ORDER BY Id DESC",sid,file).SingleAsync(ct);foreach(var row in r.Rows){var n=d.Fields.ToDictionary(z=>z.FieldKey,z=>row.Cells.TryGetValue(z.SourceColumnIndex,out var v)?v:null);var er=r.Errors.Where(e=>e.RowNumber==row.RowIndex).ToList();await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportRows(BatchId,RowNumber,Status,RawDataJson,NormalizedDataJson,ErrorCount) VALUES({bid},{row.RowIndex},{(er.Count>0?20:30)},{JsonSerializer.Serialize(row.Cells)},{JsonSerializer.Serialize(n)},{er.Count})",ct);foreach(var e in er)await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportErrors(BatchId,RowNumber,ColumnIndex,FieldKey,ErrorCode,Severity,ErrorMessage,RawValue,CreatedAt) VALUES({bid},{e.RowNumber},{e.ColumnIndex},{e.FieldKey},{e.Code},{(int)e.Severity},{e.Message},{e.RawValue},SYSUTCDATETIME())",ct);}return ServiceResult<ExcelImportBatchDto>.Ok((await GetBatchAsync(bid,ct))!,"Đã staging file Excel.");}
     public async Task<ExcelImportBatchDto?> GetBatchAsync(long id,CancellationToken ct=default){var u=User();var b=await _db.Database.SqlQueryRaw<Batch>("SELECT Id,SchemaId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows FROM dbo.F03ExcelImportBatches WHERE Id={0}",id).SingleOrDefaultAsync(ct);if(b is null)return null;var m=await Meta(b.SchemaId,ct);await Scope(u,m.DepartmentCode,ct);return new(){Id=b.Id,SchemaId=b.SchemaId,ModuleCode=b.ModuleCode,EntityCode=b.EntityCode,FileName=b.FileName,Status=((ExcelImportBatchStatus)b.Status).ToString(),TotalRows=b.TotalRows,ValidRows=b.ValidRows,InvalidRows=b.InvalidRows,ImportedRows=b.ImportedRows};}
-    public async Task<ExcelImportCommitResultDto> CommitAsync(long id,CancellationToken ct=default){var u=User();var b=await GetBatchAsync(id,ct)??throw new KeyNotFoundException("Không tìm thấy import batch.");var m=await Meta(b.SchemaId,ct);var rows=await _db.Database.SqlQueryRaw<Row>("SELECT Id,NormalizedDataJson AS Data FROM dbo.F03ExcelImportRows WHERE BatchId={0} AND Status=30",id).ToListAsync(ct);var ok=0;foreach(var row in rows){var d=JsonSerializer.Deserialize<Dictionary<string,string?>>(row.Data??"{}")??new();if(!d.TryGetValue("EquipmentCode",out var code)||!d.TryGetValue("EquipmentName",out var name)||string.IsNullOrWhiteSpace(code)||string.IsNullOrWhiteSpace(name)||await _db.EquipmentAssets.AnyAsync(x=>x.EquipmentCode==code,ct))continue;await _uow.Repository<F03EquipmentAsset>().AddAsync(new F03EquipmentAsset{EquipmentCode=code.Trim(),EquipmentName=name.Trim(),DeptCode=m.DepartmentCode,PurchaseDate=DateTime.Today,ExpectedDepreciationDate=DateTime.Today.AddYears(5),QrToken=Guid.NewGuid().ToString("N"),IsQrActive=true,CustomDataJson=JsonSerializer.Serialize(d),CreatedBy=u.UserId},ct);await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelImportRows SET Status=100 WHERE Id={row.Id}",ct);ok++;}await _uow.SaveChangesAsync(ct);await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelImportBatches SET Status=100,ImportedRows={ok},CompletedAt=SYSUTCDATETIME() WHERE Id={id}",ct);return new(){BatchId=id,ImportedRows=ok,SkippedRows=rows.Count-ok};}
+    public async Task<ExcelImportCommitResultDto> CommitAsync(long id, CancellationToken ct = default)
+    {
+        var user = User();
+        var batch = await GetBatchAsync(id, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy import batch.");
+        var metadata = await Meta(batch.SchemaId, ct);
+        await Scope(user, metadata.DepartmentCode, ct);
+
+        var schema = await _excel.GetSchemaDefinitionAsync(batch.SchemaId, ct)
+            ?? throw new InvalidOperationException("Không tải được schema của batch import.");
+        if (!schema.Fields.Any(field => IsEquipmentField(field, "EquipmentCode")) ||
+            !schema.Fields.Any(field => IsEquipmentField(field, "EquipmentName")))
+            throw new InvalidOperationException("Schema cần ánh xạ cột Mã thiết bị (EquipmentCode) và Tên thiết bị (EquipmentName) trước khi import.");
+
+        var rows = await _db.Database.SqlQueryRaw<Row>(
+            "SELECT Id,NormalizedDataJson AS Data FROM dbo.F03ExcelImportRows WHERE BatchId={0} AND Status=30", id)
+            .ToListAsync(ct);
+        var imported = 0;
+        foreach (var row in rows)
+        {
+            var values = JsonSerializer.Deserialize<Dictionary<string, string?>>(row.Data ?? "{}") ?? new();
+            var code = GetEquipmentFieldValue(values, schema.Fields, "EquipmentCode")?.Trim();
+            var name = GetEquipmentFieldValue(values, schema.Fields, "EquipmentName")?.Trim();
+            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name) ||
+                await _db.EquipmentAssets.AnyAsync(asset => asset.EquipmentCode == code, ct))
+                continue;
+
+            await _uow.Repository<F03EquipmentAsset>().AddAsync(new F03EquipmentAsset
+            {
+                EquipmentCode = code,
+                EquipmentName = name,
+                DeptCode = metadata.DepartmentCode,
+                PurchaseDate = DateTime.Today,
+                ExpectedDepreciationDate = DateTime.Today.AddYears(5),
+                QrToken = Guid.NewGuid().ToString("N"),
+                IsQrActive = true,
+                CustomDataJson = JsonSerializer.Serialize(values),
+                CreatedBy = user.UserId
+            }, ct);
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE dbo.F03ExcelImportRows SET Status=100 WHERE Id={row.Id}", ct);
+            imported++;
+        }
+
+        await _uow.SaveChangesAsync(ct);
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE dbo.F03ExcelImportBatches SET Status=100,ImportedRows={imported},CompletedAt=SYSUTCDATETIME() WHERE Id={id}", ct);
+        return new ExcelImportCommitResultDto
+        {
+            BatchId = id,
+            ImportedRows = imported,
+            SkippedRows = rows.Count - imported
+        };
+    }
+
     public async Task<ServiceResult<bool>> DeleteDraftSchemaAsync(int id,CancellationToken ct=default){try{var u=User();var m=await Meta(id,ct);if(m.CreatedBy!=u.UserId&&!u.IsAdmin)throw new UnauthorizedAccessException("Bạn không có quyền xóa schema.");await _excel.DeleteDraftSchemaAsync(id,ct);return ServiceResult<bool>.Ok(true,"Đã xóa schema.");}catch(Exception e)when(e is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException){return ServiceResult<bool>.Fail(e.Message);}}
+    private static string? MapEquipmentTargetProperty(string? header)
+    {
+        var normalized = NormalizeEquipmentHeader(header);
+        if (normalized is "equipmentcode" or "assetcode" or "machietbi" or "mataisan" or "masothietbi" or "masanpham" or "code")
+            return "EquipmentCode";
+        if (normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name")
+            return "EquipmentName";
+        return null;
+    }
+
+    private static bool IsEquipmentField(ExcelSchemaField field, string targetProperty)
+    {
+        if (targetProperty.Equals(field.TargetProperty, StringComparison.OrdinalIgnoreCase) ||
+            targetProperty.Equals(field.FieldKey, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var normalized = NormalizeEquipmentHeader(field.HeaderName ?? field.FieldKey);
+        return targetProperty switch
+        {
+            "EquipmentCode" => normalized is "equipmentcode" or "assetcode" or "machietbi" or "mataisan" or "masothietbi" or "masanpham" or "code",
+            "EquipmentName" => normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name",
+            _ => false
+        };
+    }
+
+    private static string? GetEquipmentFieldValue(
+        IReadOnlyDictionary<string, string?> values,
+        IReadOnlyList<ExcelSchemaField> fields,
+        string targetProperty)
+    {
+        var field = fields.FirstOrDefault(candidate => IsEquipmentField(candidate, targetProperty));
+        if (field is not null && values.TryGetValue(field.FieldKey, out var value))
+            return value;
+        return values.TryGetValue(targetProperty, out var directValue) ? directValue : null;
+    }
+
+    private static string NormalizeEquipmentHeader(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var decomposed = value.Trim().Normalize(NormalizationForm.FormD);
+        var normalized = new StringBuilder(decomposed.Length);
+        foreach (var character in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark) continue;
+            if (char.IsLetterOrDigit(character)) normalized.Append(char.ToLowerInvariant(character));
+        }
+        return normalized.ToString().Normalize(NormalizationForm.FormC);
+    }
+
     private async Task InsertField(int v,ExcelSchemaField f,CancellationToken ct)=>await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelSchemaFields(SchemaVersionId,FieldKey,DataType,SourceColumnIndex,HeaderName,ResourceKey,TargetProperty,Format,ValidationRule,DefaultValue,IsRequired,AllowEmpty,MaxLength,DisplayOrder) VALUES({v},{f.FieldKey},{f.DataType},{f.SourceColumnIndex},{f.HeaderName},{f.ResourceKey},{f.TargetProperty},{f.Format},{f.ValidationRule},{f.DefaultValue},{f.Required},{f.AllowEmpty},{f.MaxLength},{f.DisplayOrder})",ct);
     private async Task OwnerSet(int id,int user,CancellationToken ct)=>await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelSchemas SET CreatedBy={user.ToString()},UpdatedBy={user.ToString()} WHERE Id={id}",ct);
     private async Task<(int DepartmentCode,int CreatedBy,string SchemaName,int FieldCount,string? SourceFileName,int Status)> Meta(int id,CancellationToken ct){var r=await _db.Database.SqlQueryRaw<MetaRow>("SELECT s.SchemaCode Code,s.SchemaName Name,ISNULL(TRY_CONVERT(int,s.CreatedBy),0) ById,(SELECT COUNT(*) FROM dbo.F03ExcelSchemaFields f WHERE f.SchemaVersionId=s.CurrentVersionId) Fields,v.SourceFileName File,s.Status Status FROM dbo.F03ExcelSchemas s LEFT JOIN dbo.F03ExcelSchemaVersions v ON v.Id=s.CurrentVersionId WHERE s.Id={0}",id).SingleOrDefaultAsync(ct)??throw new KeyNotFoundException("Không tìm thấy schema.");var p=r.Code.IndexOf(':');return(p>0&&int.TryParse(r.Code[..p],out var deptFromCode)?deptFromCode:0,r.ById,r.Name,r.Fields,r.File,r.Status);}
