@@ -162,7 +162,7 @@ else
         </MudCard>
     }
 
-    @{
+    {
         var pendingApprovals = Data.PendingApprovals
             .SelectMany(x => x.Requests)
             .Where(x => x.CanApprove)
