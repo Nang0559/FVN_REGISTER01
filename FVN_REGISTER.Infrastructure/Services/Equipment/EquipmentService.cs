@@ -279,7 +279,7 @@ public sealed class EquipmentService : IEquipmentService
                 Location = after.Location,
                 Note = after.Note,
                 RequestStatus = ApprovalStatus.Pending,
-                CreatedBy = user.UserId.ToString()
+                CreatedBy = user.UserId
             };
             await _uow.Repository<F03EquipmentRequest>().AddAsync(requestEntity, ct);
             await _uow.SaveChangesAsync(ct);
