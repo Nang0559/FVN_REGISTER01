@@ -118,6 +118,20 @@ namespace FVN_REGISTER.Application.Orchestrators
                     }
                 }
 
+                // Approval-pending summary cards are only meaningful for users who can
+                // approve that module. Do this on the server so ordinary users never
+                // receive these counters in the Dashboard response.
+                var canApproveLeave = await _authorization.HasAsync(
+                    user, SecurityFunctionCodes.LeaveApprove, ct);
+                var canApproveOT = await _authorization.HasAsync(
+                    user, SecurityFunctionCodes.OTApprove, ct);
+                var canApproveTrip = await _authorization.HasAsync(
+                    user, SecurityFunctionCodes.TripApprove, ct);
+
+                rawWidgets = rawWidgets
+                    .Where(widget => !IsApprovalPendingWidget(widget, canApproveLeave, canApproveOT, canApproveTrip))
+                    .ToList();
+
                 response.Widgets = DashboardWidgetPolicy.Arrange(user, rawWidgets);
 
                 // Shared Action inbox is part of the authenticated user's dashboard.
@@ -147,6 +161,36 @@ namespace FVN_REGISTER.Application.Orchestrators
                 return ServiceResult<DashboardResponse>.Fail(
                     "Không thể tải Dashboard.");
             }
+        }
+
+        private static bool IsApprovalPendingWidget(
+            WidgetCounterDto widget,
+            bool canApproveLeave,
+            bool canApproveOT,
+            bool canApproveTrip)
+        {
+            var title = (widget.Title ?? string.Empty).Trim();
+
+            // Match the existing dashboard widget titles (Vietnamese and known
+            // English/resource-key variants). Personal balances/history widgets
+            // are intentionally not affected.
+            if (title.Equals("Đơn nghỉ chờ duyệt", StringComparison.OrdinalIgnoreCase)
+                || title.Equals("Leave pending approval", StringComparison.OrdinalIgnoreCase)
+                || title.Equals("dashboard.leavePending", StringComparison.OrdinalIgnoreCase))
+                return !canApproveLeave;
+
+            if (title.Equals("Đơn OT chờ duyệt", StringComparison.OrdinalIgnoreCase)
+                || title.Equals("OT pending approval", StringComparison.OrdinalIgnoreCase)
+                || title.Equals("dashboard.otPending", StringComparison.OrdinalIgnoreCase))
+                return !canApproveOT;
+
+            if (title.Equals("Công tác đang chờ", StringComparison.OrdinalIgnoreCase)
+                || title.Equals("Công tác chờ duyệt", StringComparison.OrdinalIgnoreCase)
+                || title.Equals("Trip pending approval", StringComparison.OrdinalIgnoreCase)
+                || title.Equals("dashboard.tripPending", StringComparison.OrdinalIgnoreCase))
+                return !canApproveTrip;
+
+            return false;
         }
 
         private async Task<bool> CanBuildProviderAsync(
