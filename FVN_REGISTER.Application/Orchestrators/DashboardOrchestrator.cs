@@ -66,7 +66,14 @@ namespace FVN_REGISTER.Application.Orchestrators
                         || await _authorization.HasManagementAsync(user, SecurityFunctionCodes.AttendanceView, ct)
                 };
 
-                if (!await _authorization.HasAsync(user, SecurityFunctionCodes.DashboardView, ct))
+                // Dashboard access may come from DashboardView OR a module approver capability.
+                var canOpenDashboard =
+                    await _authorization.HasAsync(user, SecurityFunctionCodes.DashboardView, ct)
+                    || await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct)
+                    || await _authorization.HasAsync(user, SecurityFunctionCodes.OTApprove, ct)
+                    || await _authorization.HasAsync(user, SecurityFunctionCodes.TripApprove, ct);
+
+                if (!canOpenDashboard)
                     return ServiceResult<DashboardResponse>.Fail("Tài khoản chưa được cấp quyền xem Dashboard.");
 
                 var rawWidgets = new List<WidgetCounterDto>();
@@ -76,7 +83,7 @@ namespace FVN_REGISTER.Application.Orchestrators
                 // sequentially within this scope.
                 foreach (var provider in _providers)
                 {
-                    if (!await _authorization.HasAsync(user, provider.RequiredFunctionCode, ct))
+                    if (!await CanBuildProviderAsync(user, provider, ct))
                         continue;
 
                     var contribution = await provider.GetContributionAsync(user, ct);
@@ -140,6 +147,27 @@ namespace FVN_REGISTER.Application.Orchestrators
                 return ServiceResult<DashboardResponse>.Fail(
                     "Không thể tải Dashboard.");
             }
+        }
+
+        private async Task<bool> CanBuildProviderAsync(
+            UserIdentityDto user, IModuleDashboardProvider provider, CancellationToken ct)
+        {
+            // Approvers can see their module's scoped dashboard contribution without
+            // an unrelated DashboardView grant. Providers still enforce data scope.
+            if (await _authorization.HasAsync(user, SecurityFunctionCodes.DashboardView, ct)
+                && await _authorization.HasAsync(user, provider.RequiredFunctionCode, ct))
+                return true;
+
+            var approvalFunction = provider.Module switch
+            {
+                RequestModule.Leave => SecurityFunctionCodes.LeaveApprove,
+                RequestModule.Overtime => SecurityFunctionCodes.OTApprove,
+                RequestModule.Trip => SecurityFunctionCodes.TripApprove,
+                _ => 0
+            };
+
+            return approvalFunction != 0
+                && await _authorization.HasAsync(user, approvalFunction, ct);
         }
     }
 }
