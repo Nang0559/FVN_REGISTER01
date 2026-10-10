@@ -286,32 +286,56 @@ else
             <MudText Typo="Typo.h6">@GetDetailTitle(_selectedDetail)</MudText>
         </TitleContent>
         <DialogContent>
-            @if (_selectedDetail == "Attendance")
+            @if (_detailLoading)
             {
-                <MudStack Spacing="2">
-                    <MudText>@Language.T("dashboard.presentEmployees"): <b>@Data?.DepartmentStatistics.Sum(x => x.PresentEmployeesCount) / @Data?.DepartmentStatistics.Sum(x => x.TotalEmployees)</b></MudText>
-                    <MudProgressLinear Value="@GetOverallAttendanceRate()" Color="Color.Success" Rounded="true" />
-                    <MudText Typo="Typo.body2">@Language.T("dashboard.attendanceRate"): @GetOverallAttendanceRate().ToString("N1")%</MudText>
-                    <MudTable Items="Data!.DepartmentStatistics" Dense="true" Hover="true">
-                        <HeaderContent><MudTh>@Language.T("dashboard.department")</MudTh><MudTh>@Language.T("dashboard.present")</MudTh><MudTh>@Language.T("dashboard.staff")</MudTh><MudTh>@Language.T("dashboard.attendanceRate")</MudTh></HeaderContent>
-                        <RowTemplate>
-                            <MudTd>@context.DepartmentName</MudTd><MudTd>@context.PresentEmployeesCount</MudTd><MudTd>@context.TotalEmployees</MudTd><MudTd>@GetDepartmentRate(context.PresentEmployeesCount, context.TotalEmployees).ToString("N1")%</MudTd>
-                        </RowTemplate>
-                    </MudTable>
+                <MudStack AlignItems="AlignItems.Center" Class="pa-6">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                    <MudText Typo="Typo.body2">@Language.T("dashboard.loading")</MudText>
                 </MudStack>
+            }
+            else if (!string.IsNullOrWhiteSpace(_detailError))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_detailError</MudAlert>
+            }
+            else if (_departmentDetails.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">@Language.T("dashboard.noDetailRows")</MudAlert>
             }
             else
             {
-                <MudTable Items="GetDetailRows()" Dense="true" Hover="true">
+                <MudTable Items="_departmentDetails" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
                     <HeaderContent>
-                        <MudTh>@Language.T("dashboard.department")</MudTh>
                         <MudTh>@Language.T("dashboard.staff")</MudTh>
+                        <MudTh>@Language.T("dashboard.department")</MudTh>
+                        <MudTh>@Language.T("dashboard.detail")</MudTh>
                         <MudTh>@Language.T("dashboard.status")</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>@context.Department</MudTd>
-                        <MudTd>@context.Count</MudTd>
-                        <MudTd>@context.Note</MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.staff")">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.EmployeeCode</MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.department")">@context.DepartmentName</MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.detail")">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2">@context.Detail</MudText>
+                                @if (context.StartTime.HasValue || context.EndTime.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @(context.StartTime?.ToString("dd/MM HH:mm") ?? "—") – @(context.EndTime?.ToString("dd/MM HH:mm") ?? "—")
+                                    </MudText>
+                                }
+                                @if (context.Hours.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Hours.Value.ToString("N1") h</MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.status")">
+                            <MudChip T="string" Size="Size.Small" Color="@(context.Status == "Approved" ? Color.Success : context.Status.StartsWith("CHECKED", StringComparison.OrdinalIgnoreCase) ? Color.Info : Color.Default)">@GetDetailStatus(context.Status)</MudChip>
+                        </MudTd>
                     </RowTemplate>
                 </MudTable>
             }
@@ -329,6 +353,9 @@ else
     private DateOnly AttendanceShiftDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
     private bool _attendanceLoaded;
     private bool _detailDialogOpen;
+    private bool _detailLoading;
+    private string? _detailError;
+    private List<DepartmentDashboardDetailDto> _departmentDetails = new();
     private string _selectedDetail = string.Empty;
     private readonly DialogOptions _detailDialogOptions = new() { CloseButton = true, FullWidth = true, MaxWidth = MaxWidth.Medium };
 
@@ -398,10 +425,22 @@ else
     }
 
 
-    private void OpenDepartmentDetail(string kind)
+    private async Task OpenDepartmentDetail(string kind)
     {
         _selectedDetail = kind;
         _detailDialogOpen = true;
+        _detailLoading = true;
+        _detailError = null;
+        _departmentDetails.Clear();
+        StateHasChanged();
+
+        var result = await DashboardClient.GetDepartmentDetailsAsync(kind, AttendanceShiftDate);
+        if (result.IsSuccess && result.Data is not null)
+            _departmentDetails = result.Data.ToList();
+        else
+            _detailError = result.Message ?? Language.T("dashboard.detailLoadFailed");
+
+        _detailLoading = false;
     }
 
     private void CloseDepartmentDetail() => _detailDialogOpen = false;
@@ -415,38 +454,14 @@ else
         _ => Language.T("dashboard.departmentOverview")
     };
 
-    private double GetOverallAttendanceRate()
+    private string GetDetailStatus(string status) => status switch
     {
-        var total = Data?.DepartmentStatistics.Sum(x => x.TotalEmployees) ?? 0;
-        var present = Data?.DepartmentStatistics.Sum(x => x.PresentEmployeesCount) ?? 0;
-        return total > 0 ? Math.Clamp(present * 100d / total, 0d, 100d) : 0d;
-    }
-
-    private static double GetDepartmentRate(int present, int total) =>
-        total > 0 ? Math.Clamp(present * 100d / total, 0d, 100d) : 0d;
-
-    private IEnumerable<DepartmentDetailRow> GetDetailRows()
-    {
-        if (Data?.DepartmentStatistics is null) return Enumerable.Empty<DepartmentDetailRow>();
-        return Data.DepartmentStatistics.Select(x => new DepartmentDetailRow(
-            x.DepartmentName,
-            _selectedDetail switch
-            {
-                "Leave" => x.TodayLeaveEmployeesCount,
-                "Trip" => x.TodayTripEmployeesCount,
-                "OT" => x.TodayOTEmployeesCount,
-                _ => 0
-            },
-            _selectedDetail switch
-            {
-                "Leave" => Language.T("dashboard.approvedLeaveTodayNote"),
-                "Trip" => Language.T("dashboard.approvedTripTodayNote"),
-                "OT" => Language.T("dashboard.approvedOTTodayNote"),
-                _ => string.Empty
-            }));
-    }
-
-    private sealed record DepartmentDetailRow(string Department, int Count, string Note);
+        "Approved" => Language.T("dashboard.approved"),
+        "CHECKED_OUT" => Language.T("dashboard.statusCheckedOut"),
+        "CHECKED_IN" => Language.T("dashboard.statusCheckedIn"),
+        "NO_RECORDED_PUNCH" => Language.T("dashboard.statusNoPunch"),
+        _ => status
+    };
 
     public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }
