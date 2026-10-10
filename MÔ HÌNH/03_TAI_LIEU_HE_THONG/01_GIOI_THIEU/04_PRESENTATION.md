@@ -5,143 +5,254 @@ paginate: true
 size: 16:9
 ---
 
+<style>
+section { font-family: "Aptos", "Yu Gothic UI", sans-serif; color: #172B4D; padding: 42px 54px; }
+h1 { color: #123B5D; font-size: 31px; }
+h2 { color: #187C80; font-size: 23px; }
+strong { color: #123B5D; }
+small { color: #5B6B7A; }
+</style>
+
 # FVN REGISTER
-## TỪ THỦ CÔNG ĐẾN QUY TRÌNH SỐ HÓA
 
-**Một nền tảng — Một luồng xử lý — Dữ liệu có thể kiểm soát**
+## Từ xử lý thủ công đến quy trình số hóa có thể kiểm soát
 
-Nghỉ phép · Làm thêm giờ · Công tác · Chấm công/đối soát · Thiết bị
+**Một nền tảng · Một luồng xử lý · Dữ liệu để cải tiến**
 
----
-
-# 01 · BÀI TOÁN HIỆN TẠI
-
-## Nhiều giao dịch nhỏ tạo thành gánh nặng lớn
-
-| Cách làm thủ công | Hệ quả |
-|:--|:--|
-| Lập phiếu, chuyển giấy, hỏi tình trạng | Thời gian chờ và giao dịch |
-| Nhập lại, tổng hợp nhiều bảng Excel | Công sức và nguy cơ sai sót |
-| Theo dõi qua nhiều kênh | Khó thấy việc tồn đọng |
-| Tự đối chiếu kế hoạch và thực tế | Tốn công xác minh chênh lệch |
-| Lưu hồ sơ, bằng chứng rời rạc | Khó tìm lại lịch sử |
-
-**Vấn đề không chỉ là giấy tờ — mà là toàn bộ thời gian để chuyển, kiểm tra, nhắc, tổng hợp và xử lý lại.**
+Nghỉ phép　|　OT　|　Công tác　|　Chấm công/đối soát　|　Thiết bị
 
 ---
 
-# 02 · THAY ĐỔI CÁCH LÀM VIỆC
+# 01 — VẤN ĐỀ KHÔNG CHỈ LÀ GIẤY TỜ
 
-| TRƯỚC · THỦ CÔNG | SAU · FVN REGISTER |
-|:--|:--|
-| Phiếu giấy / Excel / trao đổi riêng | Đăng ký trên hệ thống |
-| Tự tìm người duyệt, hỏi tiến độ | Luồng phê duyệt và trạng thái rõ ràng |
-| Nhập lại và tổng hợp thủ công | Dữ liệu tập trung theo nghiệp vụ |
-| Tự dò tìm chênh lệch | Sai lệch được đưa vào luồng xử lý |
-| Tìm hồ sơ từ nhiều nơi | Lịch sử và bằng chứng dễ truy xuất |
+## Mỗi giao dịch đều kéo theo nhiều thao tác
 
-## Một vòng đời xuyên suốt
+<div style="display:flex;gap:18px;align-items:stretch">
+<div style="flex:1;border:2px solid #D8A45B;border-radius:12px;padding:18px">
 
-**ĐĂNG KÝ → PHÊ DUYỆT → THỰC HIỆN → ĐỐI SOÁT → XỬ LÝ → BÁO CÁO**
+### Cách làm thủ công
 
----
+- Lập và chuyển phiếu
+- Hỏi người duyệt / hỏi tiến độ
+- Nhập lại dữ liệu
+- Tổng hợp và đối chiếu
+- Tìm hồ sơ khi cần kiểm tra
 
-# 03 · MỘT NỀN TẢNG, NHIỀU NGHIỆP VỤ
+</div>
+<div style="flex:1;border:2px solid #187C80;border-radius:12px;padding:18px">
 
-| Nghiệp vụ | Giá trị mang lại |
-|:--|:--|
-| **Nghỉ phép** | Đăng ký, phê duyệt và theo dõi lịch |
-| **Làm thêm giờ (OT)** | Quản lý đăng ký, phê duyệt và đối chiếu thực tế |
-| **Công tác** | Theo dõi yêu cầu, thực hiện và kết quả |
-| **Lịch làm việc chung** | Xem lịch công ty, ca làm và trạng thái nghiệp vụ |
-| **Chấm công / đối soát** | Làm rõ chênh lệch giữa kế hoạch và dữ liệu thực tế |
-| **Thiết bị** | Theo dõi đăng ký, QR, kiểm tra, sửa chữa và lịch sử |
+### Hệ quả vận hành
 
-**Trọng tâm:** kết nối quy trình và trách nhiệm — không chỉ tạo thêm biểu mẫu điện tử.
+- Thời gian chờ và giao dịch
+- Công sức hành chính lặp lại
+- Nguy cơ sai lệch dữ liệu
+- Khó nhìn thấy việc tồn đọng
+- Mất thời gian truy xuất lịch sử
 
----
+</div>
+</div>
 
-# 04 · GIÁ TRỊ CHO TỪNG VAI TRÒ
-
-| Ai? | Được gì? |
-|:--|:--|
-| **Nhân viên** | Gửi yêu cầu, theo dõi trạng thái tại một nơi |
-| **Người phê duyệt** | Tập trung việc cần quyết định, rõ trạng thái xử lý |
-| **Quản lý bộ phận** | Nhìn thấy tình hình và việc tồn đọng |
-| **HR** | Tập trung vào sai lệch, xác minh và xử lý |
-| **Quản lý thiết bị** | Theo dõi tài sản, kiểm tra và lịch sử liên quan |
-| **Ban giám đốc** | Có dữ liệu để theo dõi và đánh giá hiệu quả |
+**Chi phí ẩn = thời gian xử lý + thời gian chờ + nhập lại + tìm kiếm + làm lại**
 
 ---
 
-# 05 · TỪ DỮ LIỆU ĐẾN KIỂM SOÁT
+# 02 — THAY ĐỔI CÁCH LÀM VIỆC
 
-## Không để sai lệch nằm trong bảng tính
+<div style="display:flex;gap:14px;align-items:stretch">
+<div style="flex:1;background:#F7F0E5;border-radius:12px;padding:18px">
 
-**Kế hoạch đã duyệt**  
+## TRƯỚC
+
+**Phiếu / Excel / trao đổi riêng**
+
 ↓  
-**Kết quả thực tế từ nguồn nghiệp vụ/HRM**  
-↓  
-**Đối chiếu và nhận diện chênh lệch**  
-↓  
-**Xác nhận · Bằng chứng · Người xử lý**  
-↓  
-**HR xem xét và ghi nhận kết quả**
 
-- Trạng thái và lịch sử giúp làm rõ ai xử lý, xử lý đến đâu.
-- Bảng điều khiển, lịch và thông báo hỗ trợ nhìn thấy việc cần làm.
-- HRM vẫn là nguồn chính thức của dữ liệu và quy tắc tính công.
+Chuyển phiếu · Hỏi tiến độ
+
+↓  
+
+Nhập lại · Đối chiếu thủ công
+
+↓  
+
+Tìm hồ sơ · Tổng hợp báo cáo
+
+</div>
+<div style="flex:1;background:#E8F4F3;border-radius:12px;padding:18px">
+
+## SAU
+
+**Đăng ký trên hệ thống**
+
+↓  
+
+Phê duyệt theo luồng
+
+↓  
+
+Theo dõi trạng thái và kết quả
+
+↓  
+
+Đối soát · Xử lý ngoại lệ · Báo cáo
+
+</div>
+</div>
+
+**Giá trị cốt lõi:** không chỉ thay giấy bằng màn hình — mà kết nối các bước và trách nhiệm.
 
 ---
 
-# 06 · GIÁ TRỊ QUẢN TRỊ
+# 03 — MỘT VÒNG ĐỜI XUYÊN SUỐT
 
-| Trước mắt | Năng lực dài hạn |
+<div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:32px">
+<div style="flex:1;text-align:center;border:2px solid #187C80;border-radius:10px;padding:15px"><strong>01</strong><br>ĐĂNG KÝ</div>
+<div style="font-size:24px">→</div>
+<div style="flex:1;text-align:center;border:2px solid #187C80;border-radius:10px;padding:15px"><strong>02</strong><br>PHÊ DUYỆT</div>
+<div style="font-size:24px">→</div>
+<div style="flex:1;text-align:center;border:2px solid #187C80;border-radius:10px;padding:15px"><strong>03</strong><br>THỰC HIỆN</div>
+</div>
+<div style="text-align:center;font-size:28px;margin:12px">↓</div>
+<div style="display:flex;gap:8px;align-items:center;justify-content:center">
+<div style="flex:1;text-align:center;border:2px solid #D8A45B;border-radius:10px;padding:15px"><strong>06</strong><br>BÁO CÁO</div>
+<div style="font-size:24px">←</div>
+<div style="flex:1;text-align:center;border:2px solid #D8A45B;border-radius:10px;padding:15px"><strong>05</strong><br>XỬ LÝ SAI LỆCH</div>
+<div style="font-size:24px">←</div>
+<div style="flex:1;text-align:center;border:2px solid #D8A45B;border-radius:10px;padding:15px"><strong>04</strong><br>ĐỐI SOÁT</div>
+</div>
+
+<small>Phê duyệt thể hiện kế hoạch; dữ liệu thực tế được đối chiếu theo nguồn nghiệp vụ chính thức.</small>
+
+---
+
+# 04 — CÁC NGHIỆP VỤ TRÊN CÙNG NỀN TẢNG
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+<div style="border:1px solid #C8D7E0;border-radius:10px;padding:14px">
+
+### NGHỈ PHÉP
+
+Đăng ký · Phê duyệt · Theo dõi lịch
+
+</div>
+<div style="border:1px solid #C8D7E0;border-radius:10px;padding:14px">
+
+### LÀM THÊM GIỜ
+
+Đăng ký · Kiểm tra quy tắc · Đối chiếu
+
+</div>
+<div style="border:1px solid #C8D7E0;border-radius:10px;padding:14px">
+
+### CÔNG TÁC
+
+Yêu cầu · Phê duyệt · Kết quả
+
+</div>
+<div style="border:1px solid #C8D7E0;border-radius:10px;padding:14px">
+
+### LỊCH LÀM VIỆC
+
+Lịch công ty · Ca · Trạng thái nghiệp vụ
+
+</div>
+<div style="border:1px solid #C8D7E0;border-radius:10px;padding:14px">
+
+### CHẤM CÔNG / ĐỐI SOÁT
+
+Nhận diện chênh lệch · HR xem xét
+
+</div>
+<div style="border:1px solid #C8D7E0;border-radius:10px;padding:14px">
+
+### THIẾT BỊ
+
+QR · Yêu cầu · Kiểm tra · Lịch sử
+
+</div>
+</div>
+
+<small>Phạm vi công bố cần khớp với chức năng đã triển khai và nghiệm thu trên môi trường thực tế.</small>
+
+---
+
+# 05 — MỖI VAI TRÒ ĐƯỢC GÌ?
+
+| VAI TRÒ | GIÁ TRỊ THỰC TẾ |
 |:--|:--|
-| Giảm thao tác nhập lại và hỏi tiến độ | Chuẩn hóa quy trình giữa các bộ phận |
-| Tập trung việc cần phê duyệt | Theo dõi tồn đọng và trách nhiệm |
-| Dễ tìm lịch sử và bằng chứng | Tăng khả năng kiểm tra, truy xuất |
-| Phát hiện chênh lệch rõ hơn | Có dữ liệu để cải tiến liên tục |
-| Báo cáo từ nguồn thống nhất hơn | Đánh giá dựa trên chỉ số thay vì cảm nhận |
-
-**Lưu ý:** hiệu quả thực tế cần được xác nhận bằng dữ liệu vận hành; không mặc định mọi lợi ích thời gian đều chuyển thành tiết kiệm tiền mặt.
+| **Nhân viên** | Gửi yêu cầu, tự theo dõi trạng thái, giảm việc đi hỏi |
+| **Người phê duyệt** | Tập trung việc cần quyết định, biết yêu cầu đang ở đâu |
+| **Quản lý bộ phận** | Theo dõi tình hình và việc còn tồn đọng |
+| **HR** | Tập trung xác minh sai lệch và xử lý ngoại lệ |
+| **Quản lý thiết bị** | Tăng khả năng tra cứu thiết bị, nhiệm vụ và lịch sử |
+| **Ban giám đốc** | Có chỉ số để theo dõi hiệu quả và ưu tiên cải tiến |
 
 ---
 
-# 07 · ĐO HIỆU QUẢ THAY VÌ ƯỚC ĐOÁN
+# 06 — TỪ ĐỐI SOÁT ĐẾN KIỂM SOÁT
 
-## Các chỉ số đề xuất
+<div style="text-align:center;margin-top:14px">
+<div style="display:inline-block;border:2px solid #187C80;border-radius:10px;padding:12px 28px">KẾ HOẠCH ĐÃ DUYỆT</div>
+<div style="font-size:23px">＋</div>
+<div style="display:inline-block;border:2px solid #187C80;border-radius:10px;padding:12px 28px">KẾT QUẢ THỰC TẾ TỪ NGUỒN CHUẨN</div>
+<div style="font-size:23px">↓</div>
+<div style="display:inline-block;background:#E8F4F3;border-radius:10px;padding:12px 28px"><strong>ĐỐI CHIẾU VÀ NHẬN DIỆN CHÊNH LỆCH</strong></div>
+<div style="font-size:23px">↓</div>
+<div style="display:inline-block;border:2px solid #D8A45B;border-radius:10px;padding:12px 28px">XÁC MINH · BẰNG CHỨNG · NGƯỜI XỬ LÝ</div>
+<div style="font-size:23px">↓</div>
+<div style="display:inline-block;border:2px solid #187C80;border-radius:10px;padding:12px 28px">HR XEM XÉT VÀ GHI NHẬN KẾT QUẢ</div>
+</div>
 
-- Phút xử lý trung bình cho mỗi yêu cầu
-- Số lượt nhập lại, nhắc việc và đối chiếu
+**Không thay thế HRM:** FVN REGISTER hỗ trợ luồng theo dõi/đối soát; nguồn dữ liệu và quy tắc tính công chính thức vẫn phải được tôn trọng.
+
+---
+
+# 07 — HIỆU QUẢ PHẢI ĐƯỢC ĐO
+
+<div style="display:flex;gap:14px;align-items:stretch">
+<div style="flex:1;border-radius:12px;background:#F7F0E5;padding:18px">
+
+## ĐO TRƯỚC
+
+- Phút xử lý mỗi yêu cầu
+- Số lần nhập lại / nhắc việc
 - Thời gian chờ phê duyệt
-- Tỷ lệ hồ sơ sai hoặc phải xử lý lại
-- Tỷ lệ công việc hoàn thành đúng hạn
-- Thời gian tìm hồ sơ và bằng chứng
+- Giờ lập báo cáo
+- Tỷ lệ sai và làm lại
+
+</div>
+<div style="flex:1;border-radius:12px;background:#E8F4F3;padding:18px">
+
+## ĐO SAU
+
+- Cùng định nghĩa chỉ số
+- Cùng phạm vi nghiệp vụ
+- Cùng kỳ đo phù hợp
+- Có chi phí triển khai/vận hành
+- Có xác nhận của bộ phận sử dụng
+
+</div>
+</div>
 
 ### Quy đổi giờ công
 
-**Giờ công giải phóng**  
-= Số giao dịch × (Phút thủ công trước − Phút sau áp dụng) ÷ 60
+**Giờ công giải phóng = Số giao dịch × (Phút trước − Phút sau) ÷ 60**
 
-So sánh **trước và sau áp dụng**, trên cùng loại nghiệp vụ và cùng kỳ đo. Trừ chi phí triển khai, đào tạo, vận hành khi đánh giá lợi ích ròng.
+<small>Giờ công giải phóng là năng lực được tái sử dụng, không tự động đồng nghĩa với tiền mặt tiết kiệm.</small>
 
 ---
 
-# 08 · ĐỀ XUẤT TRIỂN KHAI
+# 08 — ĐỀ XUẤT: ĐO THỬ, XÁC NHẬN, MỞ RỘNG
 
-## Đo thử · Xác nhận · Cải tiến · Mở rộng
+<div style="display:flex;gap:10px;align-items:stretch;margin-top:26px">
+<div style="flex:1;text-align:center;border:2px solid #187C80;border-radius:10px;padding:16px"><strong>01</strong><br><br>ĐO ĐƯỜNG CƠ SỞ<br><small>Quy trình hiện tại</small></div>
+<div style="flex:1;text-align:center;border:2px solid #187C80;border-radius:10px;padding:16px"><strong>02</strong><br><br>THỬ NGHIỆM<br><small>Phạm vi chọn lọc</small></div>
+<div style="flex:1;text-align:center;border:2px solid #D8A45B;border-radius:10px;padding:16px"><strong>03</strong><br><br>ĐO VÀ XÁC NHẬN<br><small>Kết quả thực tế</small></div>
+<div style="flex:1;text-align:center;border:2px solid #D8A45B;border-radius:10px;padding:16px"><strong>04</strong><br><br>MỞ RỘNG<br><small>Khi có bằng chứng</small></div>
+</div>
 
-**1. Đo đường cơ sở**  
-Ghi nhận khối lượng giao dịch và thời gian xử lý thủ công.
+# FVN REGISTER
 
-**2. Áp dụng và hướng dẫn**  
-Chọn nhóm nghiệp vụ/bộ phận phù hợp, thống nhất cách ghi nhận.
+## Giảm thao tác lặp lại. Tăng minh bạch. Cải tiến dựa trên dữ liệu.
 
-**3. Đánh giá sau vận hành**  
-So sánh thời gian, sai sót, tồn đọng và phản hồi người dùng.
-
-**4. Báo cáo kết quả**  
-Công bố lợi ích đã đo được, vấn đề còn lại và kế hoạch cải tiến.
-
-> **FVN REGISTER — giảm công việc thủ công, tăng tính minh bạch và tạo nền tảng quản trị dựa trên dữ liệu.**
+<small>Thông điệp mục tiêu; hiệu quả định lượng sẽ được xác nhận qua đo lường trước–sau.</small>
