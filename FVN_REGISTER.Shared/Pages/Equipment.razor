@@ -15,6 +15,7 @@
 @inject ICurrentUserClientService CurrentUser
 @inject ISecurityClientService Security
 @inject ISnackbar Snackbar
+@inject ILogger<Equipment> Logger
 @inject NavigationManager Navigation
 
 @if (!_ready)
@@ -222,10 +223,24 @@ else
         if (employees.IsSuccess) _assignmentEmployees = employees.Data ?? new();
         await LoadAsync();
         _assetsLoading = true;
-        var assets = await EquipmentClient.GetAssetsAsync();
-        if (assets.IsSuccess) _assets = assets.Data ?? new();
-        _assetsLoading = false;
-        _ready = true;
+        try
+        {
+            var assets = await EquipmentClient.GetAssetsAsync();
+            if (assets.IsSuccess)
+                _assets = assets.Data ?? new();
+            else
+                Snackbar.Add(assets.Message ?? "Không thể tải danh sách thiết bị theo phạm vi được cấp.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load equipment assets for the current user.");
+            Snackbar.Add("Không thể tải danh sách thiết bị. Vui lòng kiểm tra quyền truy cập hoặc thử lại.", Severity.Error);
+        }
+        finally
+        {
+            _assetsLoading = false;
+            _ready = true;
+        }
     }
 
     private async Task LoadAsync()
