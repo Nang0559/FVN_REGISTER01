@@ -1,6 +1,6 @@
 # BẢN ĐỒ TÀI LIỆU FVN_REGISTER — BẢN CHUẨN
 
-> Đây là bản đồ chính thức sau khi làm sạch và hợp nhất bộ tài liệu. `MÔ HÌNH` là nơi quản lý tài liệu chuẩn của hệ thống. Không duy trì thêm `docs/` hoặc `MÔ HÌNH/DOCUMENTATION/` như một kho tài liệu song song.
+> `MÔ HÌNH/` là nguồn tài liệu chuẩn của hệ thống. Tại thời điểm rà soát, thư mục `docs/` ở gốc repository vẫn còn các ghi chú kỹ thuật/kiểm toán; đây không phải cổng tài liệu người dùng hay bộ tài liệu PR độc lập. Cần phân loại và hợp nhất dần các ghi chú phù hợp vào đúng khu vực dưới `MÔ HÌNH/`, đồng thời rà link trước khi xóa hoặc di chuyển.
 
 ## 1. Cấu trúc chính thức
 
