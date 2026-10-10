@@ -7,5 +7,6 @@ namespace FVN_REGISTER.Shared.Services.Dashboards
     {
         Task<ApiResponse<DashboardResponse>> GetDashboardDataAsync(CancellationToken ct = default);
         Task<ApiResponse<IReadOnlyList<AttendanceShiftDashboardDto>>> GetAttendanceShiftDashboardAsync(DateOnly workDate, CancellationToken ct = default);
+        Task<ApiResponse<IReadOnlyList<DepartmentDashboardDetailDto>>> GetDepartmentDetailsAsync(string kind, DateOnly workDate, CancellationToken ct = default);
     }
 }
