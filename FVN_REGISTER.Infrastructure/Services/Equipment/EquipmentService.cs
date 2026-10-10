@@ -199,18 +199,14 @@ public sealed class EquipmentService : IEquipmentService
                 .AnyAsync(x => x.Id != assetId && x.IsActive == true && x.EquipmentCode == code, ct);
             if (duplicate) return ServiceResult<EquipmentAssetDto>.Fail("Mã thiết bị đã tồn tại.");
 
-            asset.EquipmentCode = code;
-            asset.EquipmentName = request.EquipmentName.Trim();
-            asset.AssetCode = request.AssetCode?.Trim();
-            asset.SerialNumber = request.SerialNumber?.Trim();
-            asset.Specification = request.Specification?.Trim();
-            asset.PurchasePrice = request.PurchasePrice;
-            asset.PurchaseDate = request.PurchaseDate;
-            asset.ExpectedDepreciationDate = request.ExpectedDepreciationDate;
-            asset.Location = request.Location?.Trim();
-            asset.Note = request.Note?.Trim();
+            // Do not mutate the live asset here. Capture a before/after snapshot and submit
+            // one independently approvable request; the shared ApprovalEngine applies it later.
+            var existingPending = await _uow.Repository<F03EquipmentRequest>().Query().AsNoTracking()
+                .AnyAsync(x => x.AssetId == assetId && x.RequestKind == EquipmentRequestKind.AssetChange &&
+                    (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress), ct);
+            if (existingPending)
+                return ServiceResult<EquipmentAssetDto>.Fail("Thiết bị đang có yêu cầu thay đổi chờ duyệt. Hãy chờ kết quả trước khi gửi yêu cầu mới.");
 
-            // Merge edited schema values into existing JSON to avoid deleting fields not present in this edit form.
             var custom = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
             try
             {
@@ -220,9 +216,84 @@ public sealed class EquipmentService : IEquipmentService
             catch (JsonException) { }
             foreach (var pair in request.CustomValues ?? new Dictionary<string, string?>())
                 custom[pair.Key] = pair.Value;
-            asset.CustomDataJson = JsonSerializer.Serialize(custom);
+            var customJson = JsonSerializer.Serialize(custom);
+
+            var before = new
+            {
+                asset.EquipmentCode, asset.EquipmentName, asset.AssetCode, asset.SerialNumber,
+                asset.Specification, asset.PurchasePrice, asset.PurchaseDate,
+                asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson
+            };
+            var after = new
+            {
+                EquipmentCode = code,
+                EquipmentName = request.EquipmentName.Trim(),
+                AssetCode = request.AssetCode?.Trim(),
+                SerialNumber = request.SerialNumber?.Trim(),
+                Specification = request.Specification?.Trim(),
+                PurchasePrice = request.PurchasePrice,
+                PurchaseDate = (DateTime?)request.PurchaseDate,
+                ExpectedDepreciationDate = (DateTime?)request.ExpectedDepreciationDate,
+                Location = request.Location?.Trim(),
+                Note = request.Note?.Trim(),
+                CustomDataJson = customJson
+            };
+            var beforeJson = JsonSerializer.Serialize(before);
+            var afterJson = JsonSerializer.Serialize(after);
+            var canonical = JsonSerializer.Serialize(new
+            {
+                asset.EquipmentCode, asset.EquipmentName, asset.AssetCode, asset.SerialNumber,
+                asset.Specification, asset.PurchasePrice, asset.PurchaseDate,
+                asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson
+            });
+            var beforeHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical)));
+
+            var approver = await _uow.Repository<F03Approver>().Query().AsNoTracking()
+                .Where(x => x.RequestType == RequestModule.Equipment && x.IsActive == true &&
+                    (x.ApproveForDeptCode == asset.DeptCode || x.ApproveForDeptCode == ApproveForDept.All))
+                .OrderBy(x => x.Level).ThenBy(x => x.ApproverCode)
+                .Select(x => x.ApproverCode).FirstOrDefaultAsync(ct);
+            if (string.IsNullOrWhiteSpace(approver))
+                return ServiceResult<EquipmentAssetDto>.Fail("Chưa cấu hình người phê duyệt thiết bị cho phòng ban này.");
+
+            var requestEntity = new F03EquipmentRequest
+            {
+                RequestKind = EquipmentRequestKind.AssetChange,
+                AssetId = asset.Id,
+                AssetBeforeSnapshotJson = beforeJson,
+                AssetAfterSnapshotJson = afterJson,
+                AssetBeforeHash = beforeHash,
+                AssetSnapshotCapturedAtUtc = DateTime.UtcNow,
+                SelectedApproverCode = approver,
+                QrToken = string.IsNullOrWhiteSpace(asset.QrToken) ? Guid.NewGuid().ToString("N") : asset.QrToken,
+                OperatorUserId = user.UserId,
+                EmployeeCode = user.EmployeeCode ?? string.Empty,
+                DeptCode = asset.DeptCode,
+                EquipmentName = after.EquipmentName,
+                Specification = after.Specification,
+                SerialNumber = after.SerialNumber,
+                AssetCode = after.AssetCode,
+                PurchasePrice = after.PurchasePrice,
+                PurchaseDate = after.PurchaseDate,
+                ExpectedDepreciationDate = after.ExpectedDepreciationDate,
+                Location = after.Location,
+                Note = after.Note,
+                RequestStatus = ApprovalStatus.Pending,
+                CreatedBy = user.UserId.ToString()
+            };
+            await _uow.Repository<F03EquipmentRequest>().AddAsync(requestEntity, ct);
             await _uow.SaveChangesAsync(ct);
-            return ServiceResult<EquipmentAssetDto>.Ok(await MapAssetAsync(asset, ct), "Đã cập nhật thiết bị.");
+
+            var approvalResult = await InitApprovalAsync(requestEntity, ct);
+            if (!approvalResult.IsSuccess)
+            {
+                requestEntity.RequestStatus = ApprovalStatus.Draft;
+                await _uow.SaveChangesAsync(ct);
+                return ServiceResult<EquipmentAssetDto>.Fail(approvalResult.Message ?? "Không thể khởi tạo luồng duyệt thay đổi thiết bị.");
+            }
+
+            return ServiceResult<EquipmentAssetDto>.Ok(await MapAssetAsync(asset, ct),
+                $"Đã gửi yêu cầu thay đổi thiết bị #{asset.Id} chờ phê duyệt (request #{requestEntity.Id}). Dữ liệu thiết bị hiện tại chưa bị thay đổi.");
         }
         catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
         catch (ArgumentException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
