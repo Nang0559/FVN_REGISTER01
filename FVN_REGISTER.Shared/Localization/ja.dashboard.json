@@ -63,5 +63,10 @@
   "dashboard.approvedLeaveTodayNote": "承認済み",
   "dashboard.approvedTripTodayNote": "承認済み出張予定",
   "dashboard.approvedOTTodayNote": "承認済み残業申請",
-  "dashboard.departmentOverviewDataNote": "システムデータを集計しています。サンプルデータではありません。"
+  "dashboard.departmentOverviewDataNote": "システムデータを集計しています。サンプルデータではありません。",
+  "dashboard.noDetailRows": "この日の詳細データはありません。",
+  "dashboard.detailLoadFailed": "詳細を読み込めませんでした。もう一度お試しください。",
+  "dashboard.detail": "詳細",
+  "dashboard.status": "状態",
+  "dashboard.approved": "承認済み"
 }
