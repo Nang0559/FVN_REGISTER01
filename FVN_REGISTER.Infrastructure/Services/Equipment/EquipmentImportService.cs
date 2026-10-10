@@ -39,35 +39,47 @@ public sealed class EquipmentImportService : IEquipmentImportService
     public async Task<ServiceResult<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelSheetAsync(
         int departmentCode, string fileName, Stream content, int sheetIndex, CancellationToken ct = default)
     {
-        await using var buffer = new MemoryStream();
-        await content.CopyToAsync(buffer, ct);
-        buffer.Position = 0;
-        var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
-        var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
-        if (header is null)
-            return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
+        try
+        {
+            await using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer, ct);
+            buffer.Position = 0;
+            var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
+            var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
+            if (header is null)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
 
-        buffer.Position = 0;
-        return await PreviewRange(departmentCode, fileName, buffer,
-            new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
-            ct);
+            buffer.Position = 0;
+            return await PreviewRange(departmentCode, fileName, buffer,
+                new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
+                ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) { return ServiceResult<ExcelSchemaFromExcelDto>.Fail(ex.Message); }
     }
+
     public async Task<ServiceResult<ExcelSchemaDto>> CreateSchemaFromExcelSheetAsync(
         int departmentCode, string fileName, Stream content, int sheetIndex, string? schemaName, CancellationToken ct = default)
     {
-        await using var buffer = new MemoryStream();
-        await content.CopyToAsync(buffer, ct);
-        buffer.Position = 0;
-        var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
-        var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
-        if (header is null)
-            return ServiceResult<ExcelSchemaDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
+        try
+        {
+            await using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer, ct);
+            buffer.Position = 0;
+            var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
+            var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
+            if (header is null)
+                return ServiceResult<ExcelSchemaDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
 
-        buffer.Position = 0;
-        return await CreateRange(departmentCode, fileName, buffer,
-            new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
-            schemaName, ct);
+            buffer.Position = 0;
+            return await CreateRange(departmentCode, fileName, buffer,
+                new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
+                schemaName, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) { return ServiceResult<ExcelSchemaDto>.Fail(ex.Message); }
     }
+
     public async Task<ServiceResult<ExcelGridDto>> GetExcelGridAsync(
         int dept,
         string file,
