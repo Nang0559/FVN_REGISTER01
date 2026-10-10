@@ -3,6 +3,7 @@
 @using FVN_REGISTER.Contract.Dtos.Dashboard
 @using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Dashboards
 @implements IDisposable
 
 @if (Data == null)
@@ -32,6 +33,56 @@ else
                 </MudItem>
             }
         </MudGrid>
+    }
+
+
+    @if (AttendanceShiftRows.Count > 0)
+    {
+        <MudCard Elevation="2" Class="mb-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1">@Language.T("dashboard.attendanceByShift")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.attendanceByShiftNote", AttendanceShiftDate.ToString("dd/MM/yyyy"))</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @foreach (var shift in AttendanceShiftRows)
+                {
+                    <MudPaper Outlined="true" Class="pa-3 mb-3">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle2"><b>@shift.DepartmentName — @shift.ShiftAbbr</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.calculatedEmployees"): @shift.CalculatedEmployees</MudText>
+                            </MudStack>
+                            <MudStack Row="true" Spacing="2">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("dashboard.checkedIn"): @shift.CheckedInEmployees</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@Language.T("dashboard.checkedOut"): @shift.CheckedOutEmployees</MudChip>
+                                @if (shift.MissingCheckInOrOut > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.missingPunch"): @shift.MissingCheckInOrOut</MudChip>
+                                }
+                            </MudStack>
+                        </MudStack>
+                        <MudTable Items="shift.Employees" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>@Language.T("dashboard.staff")</MudTh>
+                                <MudTh>@Language.T("dashboard.checkIn")</MudTh>
+                                <MudTh>@Language.T("dashboard.checkOut")</MudTh>
+                                <MudTh>@Language.T("dashboard.attendanceSymbol")</MudTh>
+                                <MudTh>@Language.T("dashboard.attendanceStatus")</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="@Language.T("dashboard.staff")">@context.EmployeeCode — @context.EmployeeName</MudTd>
+                                <MudTd DataLabel="@Language.T("dashboard.checkIn")">@(context.CheckInTime?.ToString("HH:mm") ?? "—")</MudTd>
+                                <MudTd DataLabel="@Language.T("dashboard.checkOut")">@(context.CheckOutTime?.ToString("HH:mm") ?? "—")</MudTd>
+                                <MudTd DataLabel="@Language.T("dashboard.attendanceSymbol")">@context.AttendanceDisplayValue</MudTd>
+                                <MudTd DataLabel="@Language.T("dashboard.attendanceStatus")">@GetAttendanceStatus(context.Status)</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                }
+            </MudCardContent>
+        </MudCard>
     }
 
     @if (Data.PendingApprovals.Any())
@@ -208,6 +259,27 @@ else
 @code {
     [Parameter] public DashboardResponse? Data { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IDashboardClientService DashboardClient { get; set; } = default!;
+    private List<AttendanceShiftDashboardDto> AttendanceShiftRows { get; set; } = new();
+    private DateOnly AttendanceShiftDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    private bool _attendanceLoaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_attendanceLoaded || Data is null) return;
+        _attendanceLoaded = true;
+        var result = await DashboardClient.GetAttendanceShiftDashboardAsync(AttendanceShiftDate);
+        if (result.IsSuccess && result.Data is not null)
+            AttendanceShiftRows = result.Data.ToList();
+    }
+
+    private string GetAttendanceStatus(string status) => status switch
+    {
+        "CHECKED_OUT" => Language.T("dashboard.statusCheckedOut"),
+        "CHECKED_IN" => Language.T("dashboard.statusCheckedIn"),
+        "MISSING_CHECK_IN" => Language.T("dashboard.statusMissingCheckIn"),
+        _ => Language.T("dashboard.statusNoPunch")
+    };
 
     protected override void OnInitialized() => Language.LanguageChanged += OnLanguageChanged;
     private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
