@@ -196,6 +196,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 .Select(x => x.First())
                 .ToList();
 
+            // Approvers may have approval capability without the separate management
+            // capability. Keep the department overview available for them, but only
+            // fall back to their own department; never broaden to company-wide data.
+            var canApproveLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct);
+            var canApproveOT = await _authorization.HasAsync(user, SecurityFunctionCodes.OTApprove, ct);
+            var canApproveTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripApprove, ct);
+            if (departmentStatistics.Count == 0
+                && user.DeptCode.HasValue
+                && (canManageDepartment || canApproveLeave || canApproveOT || canApproveTrip))
+            {
+                departmentStatistics.Add(await _statistics.GetDepartmentStatisticsAsync(user.DeptCode.Value, ct));
+            }
+
             // Summary access never needs employee-level records or department selectors.
             foreach (var row in departmentStatistics)
             {
