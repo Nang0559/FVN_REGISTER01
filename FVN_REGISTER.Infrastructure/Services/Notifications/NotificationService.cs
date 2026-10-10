@@ -100,7 +100,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
         {
             return await _uow.Repository<F03AppNotification>()
                 .Query().AsNoTracking()
-                .Where(x => x.UserId == userId)
+                // Active notification feed: keep resolved approver alerts in the database
+                // for audit/history, but do not show them as active items. Approval alerts use
+                // NotificationType == null; IsRead is set by ResolveForRequestAsync when the
+                // workflow advances or reaches a terminal state. Informational/history notices
+                // remain visible even after being read.
+                .Where(x => x.UserId == userId
+                    && (!x.IsRead
+                        || x.NotificationType != null
+                        || !ApproverActions.Contains(x.Action)
+                        || !InboxModules.Contains(x.RequestModule)))
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
