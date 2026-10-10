@@ -163,7 +163,7 @@
         var header=_grid.Rows.FirstOrDefault(r=>r.RowIndex==rowIndex);
         if(header!=null) for(var c=0;c<header.Cells.Count;c++) if(!string.IsNullOrWhiteSpace(header.Cells[c])) _selectedColumns.Add(c);
         _dataStartRowIndex=rowIndex+1;
-        _dataEndRowIndex=_grid.Rows.Count>0?_grid.Rows.Max(r=>r.RowIndex):rowIndex;
+        _dataEndRowIndex=_grid.TotalRowCount>0?_grid.TotalRowCount-1:rowIndex;
     }
 
     private void ToggleColumn(int col,bool value){ if(value) _selectedColumns.Add(col); else _selectedColumns.Remove(col); }
