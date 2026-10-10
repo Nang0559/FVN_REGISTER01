@@ -1,4 +1,7 @@
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Core.Constants
+@inject ISecurityClientService SecurityService
 
 <MudDialog>
     <TitleContent>
@@ -39,9 +42,21 @@
 
     [Parameter] public UpdateUserRequest Request { get; set; } = new();
 
-    private void Submit()
+    private async Task Submit()
     {
-        Request.FunctionIds = Request.FunctionIds?.Distinct().ToList() ?? new List<int>();
+        // Equipment access is governed through Admin > Security > Feature operator assignment.
+        // Remove legacy per-user grants for Equipment.View / Equipment.Import when this account is saved.
+        var functions = await SecurityService.GetFunctionsAsync();
+        var legacyEquipmentFunctionIds = functions.IsSuccess && functions.Data is not null
+            ? functions.Data
+                .Where(x => x.FunctionCode is SecurityFunctionCodes.EquipmentView or SecurityFunctionCodes.EquipmentImport)
+                .Select(x => x.IdFunction)
+                .ToHashSet()
+            : new HashSet<int>();
+
+        var ids = Request.FunctionIds?.Distinct().ToList() ?? new List<int>();
+        ids.RemoveAll(legacyEquipmentFunctionIds.Contains);
+        Request.FunctionIds = ids;
         MudDialog.Close(DialogResult.Ok(Request));
     }
     private void Cancel() => MudDialog.Cancel();
