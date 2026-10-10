@@ -78,6 +78,8 @@
 - [ ] Đã phân biệt tính năng đã nghiệm thu, đang phát triển và phụ thuộc cấu hình.
 - [ ] Không có số tiết kiệm hoặc ROI chưa được xác nhận.
 
+Trước buổi demo, đối chiếu thêm [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md) để xác nhận đúng branch, môi trường và phạm vi đã kiểm thử.
+
 ## Kết thúc demo
 
 > “Điểm cần đánh giá không chỉ là số biểu mẫu điện tử. Chúng ta cần đo xem hệ thống giảm bao nhiêu thao tác lao động lặp lại, cải thiện khả năng theo dõi đến đâu và phần nào còn cần cải tiến.”
