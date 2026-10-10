@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Excel;
 using FVN_REGISTER.Core.Excel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
@@ -300,10 +301,26 @@ public sealed class ExcelPlatform : IExcelPlatform
 
     private DbCommand Command(string sql, params (string Name, object Value)[] parameters)
     {
-        var command = _db.Database.GetDbConnection().CreateCommand();
+        var connection = _db.Database.GetDbConnection();
+        var command = connection.CreateCommand();
         command.CommandText = sql;
-        foreach (var (name, value) in parameters) { var parameter = command.CreateParameter(); parameter.ParameterName = name; parameter.Value = value ?? DBNull.Value; command.Parameters.Add(parameter); }
-        if (command.Connection!.State != ConnectionState.Open) command.Connection.Open();
+
+        // Raw ADO.NET commands must enlist in the active EF Core transaction.
+        // Otherwise SQL Server rejects execution when BeginTransactionAsync()
+        // has already started a local transaction on this connection.
+        command.Transaction = _db.Database.CurrentTransaction?.GetDbTransaction();
+
+        foreach (var (name, value) in parameters)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value ?? DBNull.Value;
+            command.Parameters.Add(parameter);
+        }
+
+        if (connection.State != ConnectionState.Open)
+            connection.Open();
+
         return command;
     }
 
