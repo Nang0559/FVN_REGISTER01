@@ -48,7 +48,7 @@ Khi công việc được xử lý chủ yếu bằng phiếu giấy, Excel và 
 | **HR** | Nhập liệu, tổng hợp, đối chiếu từng dòng | Tập trung xác minh sai lệch, ghi nhận quyết định và chuẩn bị dữ liệu theo quy trình |
 | **Quản lý thiết bị** | Tìm mã tài sản, lịch kiểm tra, bằng chứng và lịch sử | Theo dõi hồ sơ thiết bị, QR, nhiệm vụ kiểm tra và lịch sử đã ghi nhận |
 | **Quản trị hệ thống** | Cấp quyền và cấu hình không nhất quán | Quản lý quyền, phạm vi dữ liệu và chính sách theo trách nhiệm |
-| **IT quản trị Endpoint** | Tập hợp inventory máy Windows, phần mềm và dịch vụ từ nhiều nguồn | Hướng tới đối chiếu với chính sách được duyệt và theo dõi cảnh báo/ngoại lệ sau khi pilot được xác nhận |
+| **IT quản lý máy tính đầu cuối** | Tập hợp dữ liệu kiểm kê máy Windows, phần mềm và dịch vụ từ nhiều nguồn | Hướng tới đối chiếu với chính sách được duyệt và theo dõi cảnh báo/ngoại lệ sau khi pilot được xác nhận |
 | **Ban giám đốc** | Chờ báo cáo tổng hợp thủ công | Có nền tảng chỉ số để giám sát và đánh giá cải tiến |
 
 Giá trị có thể khác nhau theo chức năng đã triển khai, dữ liệu sẵn có và cấu hình từng bộ phận. Không nên hiểu rằng mọi thao tác thủ công đã được tự động hóa hoàn toàn.
