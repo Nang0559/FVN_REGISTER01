@@ -13,15 +13,18 @@ MÔ HÌNH/
 
 ## 2. Giới thiệu và trình bày với Ban giám đốc
 
-Bộ tài liệu PR/business case nằm tại [01_GIOI_THIEU](01_GIOI_THIEU/00_README.md).
+Bộ tài liệu giới thiệu, trình chiếu và đánh giá hiệu quả nằm tại [01_GIOI_THIEU](01_GIOI_THIEU/00_README.md).
 
 - [00 — Cổng vào bộ tài liệu giới thiệu](01_GIOI_THIEU/00_README.md)
 - [01 — Giới thiệu tổng thể](01_GIOI_THIEU/01_INTRODUCTION.md)
 - [02 — Bản đồ tính năng và giá trị](01_GIOI_THIEU/02_FEATURES.md)
-- [03 — Thông điệp giới thiệu và kế hoạch áp dụng](01_GIOI_THIEU/03_PR_AND_LAUNCH.md)
+- [03 — Thông điệp và kế hoạch áp dụng](01_GIOI_THIEU/03_PR_AND_LAUNCH.md)
 - [04 — Trình chiếu Ban giám đốc](01_GIOI_THIEU/04_PRESENTATION.md)
 - [05 — Biểu mẫu đo đường cơ sở và KPI](01_GIOI_THIEU/05_KPI_BASELINE_TEMPLATE.md)
-- [09 — Business case và đánh giá hiệu quả](01_GIOI_THIEU/09_BUSINESS_CASE_COST_REDUCTION.md)
+- [06 — Lợi ích theo vai trò](01_GIOI_THIEU/06_ROLE_BENEFITS.md)
+- [07 — Kịch bản demo](01_GIOI_THIEU/07_DEMO_STORYBOARD.md)
+- [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](01_GIOI_THIEU/08_READINESS_AND_CLAIMS.md)
+- [09 — Đánh giá hiệu quả đầu tư](01_GIOI_THIEU/09_BUSINESS_CASE_COST_REDUCTION.md)
 
 ## 3. Tài liệu người dùng và Help
 
@@ -35,7 +38,7 @@ Bộ tài liệu PR/business case nằm tại [01_GIOI_THIEU](01_GIOI_THIEU/00_R
 ## 4. Tài liệu kỹ thuật / triển khai
 
 - `04_KY_THUAT_TRIEN_KHAI/ENDPOINT/` — tài liệu Endpoint Inventory & Compliance.
-- Các tài liệu triển khai khác được đưa vào cùng lớp này thay vì duy trì thư mục `docs/` độc lập.
+- Thư mục `docs/` ở gốc repository hiện vẫn tồn tại và chứa ghi chú kỹ thuật/kiểm toán. Đây không phải cổng tài liệu người dùng hay bộ tài liệu PR; các ghi chú cần được phân loại/hợp nhất dần vào đúng khu vực chuẩn trong `MÔ HÌNH/`. Không dùng ghi chú rời làm bằng chứng nghiệm thu nếu chưa đối chiếu branch và commit hiện tại.
 
 ## 5. Tiêu chuẩn tài liệu
 
