@@ -125,7 +125,7 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 | **Thiết bị** | Hồ sơ, QR, kiểm tra, bằng chứng, sửa chữa và lịch sử theo phạm vi đã xác nhận | Tăng khả năng truy xuất vòng đời thiết bị |
 | **Công việc / báo cáo** | Việc cần xử lý, thông báo, bảng điều khiển và báo cáo theo quyền | Hỗ trợ theo dõi tình hình và tồn đọng |
 
-<small>HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công. Chức năng cụ thể cần được xác nhận trên môi trường nghiệm thu.</small>
+*HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công. Chức năng cụ thể cần được xác nhận trên môi trường nghiệm thu.*
 
 ---
 
@@ -173,7 +173,7 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 
 **Giờ công giải phóng = Số giao dịch × (Phút lao động trước − Phút lao động sau) ÷ 60**
 
-<small>Giờ công giải phóng là năng lực có thể chuyển sang việc khác; không mặc nhiên là tiết kiệm tiền mặt. Không công bố ROI khi chưa xác nhận số liệu và chi phí.</small>
+*Giờ công giải phóng là năng lực có thể chuyển sang việc khác; không mặc nhiên là tiết kiệm tiền mặt. Không công bố ROI khi chưa xác nhận số liệu và chi phí.*
 
 ---
 
