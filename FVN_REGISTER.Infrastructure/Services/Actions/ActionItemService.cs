@@ -1,4 +1,8 @@
 using FVN_REGISTER.Application.Interfaces.Actions;
+using FVN_REGISTER.Application.Interfaces.Notifications;
+using FVN_REGISTER.Application.Services.Execution;
+using FVN_REGISTER.Contract.Dtos.Notifications;
+using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Contract.Dtos.Actions;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Security;
@@ -11,10 +15,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Actions;
 public sealed class ActionItemService : IActionItemService
 {
     private readonly FVNWEBAPPContext _db;
+    private readonly INotificationService _notifications;
 
-    public ActionItemService(FVNWEBAPPContext db)
+    public ActionItemService(FVNWEBAPPContext db, INotificationService notifications)
     {
         _db = db;
+        _notifications = notifications;
     }
 
     public async Task<IReadOnlyList<ActionItemDto>> GetMineAsync(
@@ -31,6 +37,7 @@ public sealed class ActionItemService : IActionItemService
             return Array.Empty<ActionItemDto>();
 
         await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
+        await EnsureNotificationsForOpenActionsAsync(userId, employeeId.Value, cancellationToken);
         var query = _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -83,6 +90,7 @@ public sealed class ActionItemService : IActionItemService
             return new ActionCountDto();
 
         await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
+        await EnsureNotificationsForOpenActionsAsync(userId, employeeId.Value, cancellationToken);
         var counts = await _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -196,6 +204,10 @@ public sealed class ActionItemService : IActionItemService
                 "Cần hoàn tất bước xác nhận hoặc HR giải quyết trước khi đóng action.");
 
         entity.Status = target;
+
+        // Keep Task and Notification in sync: closing the task also clears its unread
+        // notification so the bell / app-icon badge do not keep counting a finished task.
+        await MarkNotificationsReadForActionAsync(userId, entity.ActionId, cancellationToken);
 
         // Department-assigned equipment repairs are a shared queue. The first
         // member who completes the repair closes the same request's remaining
@@ -334,6 +346,88 @@ public sealed class ActionItemService : IActionItemService
 
         if (_db.ChangeTracker.HasChanges())
             await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Task/Notification parity. Every Open/InProgress action assigned to the user must have
+    /// a notification carrying the same ActionId; otherwise the Work Center shows a task while
+    /// the bell and the app-icon badge (both driven by unread notifications) stay at 0.
+    /// Idempotent: NotificationService.CreateAsync de-duplicates on (UserId, ActionId, NotificationType).
+    /// </summary>
+    private async Task EnsureNotificationsForOpenActionsAsync(
+        int userId,
+        int employeeId,
+        CancellationToken cancellationToken)
+    {
+        var missing = await _db.ActionItems
+            .AsNoTracking()
+            .Where(x => x.IsActive != false
+                && x.AssignedToEmployeeId == employeeId
+                && (x.AssignedToUserId == null || x.AssignedToUserId == userId)
+                && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress)
+                && !_db.AppNotifications.Any(n => n.UserId == userId && n.ActionId == x.ActionId))
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(50)
+            .Select(x => new
+            {
+                x.ActionId,
+                x.ModuleCode,
+                x.SourceId,
+                x.ActionType,
+                x.Title,
+                x.Summary,
+                x.DetailRoute,
+                x.Priority
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in missing)
+        {
+            RequestModule module;
+            try { module = ExecutionNotificationModuleMapper.ToRequestModule(item.ModuleCode); }
+            catch (InvalidOperationException) { continue; } // module without a notification mapping
+
+            try
+            {
+                await _notifications.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = userId,
+                    EmployeeCode = string.Empty,
+                    Module = module,
+                    RelatedRequestId = 0,
+                    Action = NotificationAction.Pending,
+                    Title = item.Title,
+                    Body = item.Summary ?? string.Empty,
+                    ActionUrl = item.DetailRoute ?? string.Empty,
+                    ActionId = item.ActionId,
+                    NotificationType = item.ActionType,
+                    IsHighPriority = item.Priority >= 200
+                }, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch
+            {
+                // Notification delivery is secondary; the task stays authoritative and the
+                // next read retries (the missing-notification query is idempotent).
+            }
+        }
+    }
+
+    private async Task MarkNotificationsReadForActionAsync(
+        int userId,
+        Guid actionId,
+        CancellationToken cancellationToken)
+    {
+        var unread = await _db.AppNotifications
+            .Where(n => n.UserId == userId && n.ActionId == actionId && !n.IsRead)
+            .ToListAsync(cancellationToken);
+
+        var now = DateTime.Now;
+        foreach (var n in unread)
+        {
+            n.IsRead = true;
+            n.ReadAt = now;
+        }
     }
 
     private async Task<int?> ResolveEmployeeIdOrNullAsync(string employeeCode, CancellationToken cancellationToken)
