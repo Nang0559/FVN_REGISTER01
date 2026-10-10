@@ -207,7 +207,7 @@ public sealed class ActionItemService : IActionItemService
 
         // Keep Task and Notification in sync: closing the task also clears its unread
         // notification so the bell / app-icon badge do not keep counting a finished task.
-        await MarkNotificationsReadForActionAsync(userId, entity.ActionId, cancellationToken);
+        await MarkNotificationsReadForActionAsync(userId, entity.ActionId, entity.DetailRoute, entity.ActionType, cancellationToken);
 
         // Department-assigned equipment repairs are a shared queue. The first
         // member who completes the repair closes the same request's remaining
@@ -249,7 +249,7 @@ public sealed class ActionItemService : IActionItemService
         int employeeId,
         CancellationToken cancellationToken)
     {
-        var assigned = await _db.Set<F03FeatureOperatorAssignment>()
+        var isOperator = await _db.Set<F03FeatureOperatorAssignment>()
             .AsNoTracking()
             .AnyAsync(x => x.IsActive == true
                 && x.FunctionCode == SecurityFunctionCodes.ExecutionReview
@@ -258,8 +258,41 @@ public sealed class ActionItemService : IActionItemService
                 && x.EmployeeCode == employeeCode,
                 cancellationToken);
 
-        if (!assigned)
+        // Role/direct reviewers (Execution.Review granted through a role or user function) already
+        // receive a notification from ExecutionReconciliationService; they must also see the task,
+        // otherwise the bell shows 1 while "Nhiệm vụ của tôi" is empty. Scope mirrors that service:
+        // All = every employee, Department = same department; never the user's own reconciliation.
+        var roleScopes = await (
+            from ur in _db.UserRoles.AsNoTracking()
+            join rf in _db.RoleFunctions.AsNoTracking() on ur.IdRole equals rf.IdRole
+            join f in _db.Functions.AsNoTracking() on rf.IdFunction equals f.Id
+            where ur.IdUser == userId
+                && f.IsActive != false
+                && f.FunctionCode == SecurityFunctionCodes.ExecutionReview
+            select f.ScopeCode)
+            .Concat(
+                from uf in _db.UserFunctions.AsNoTracking()
+                join f in _db.Functions.AsNoTracking() on uf.IdFunction equals f.Id
+                where uf.IdUser == userId
+                    && f.IsActive != false
+                    && f.FunctionCode == SecurityFunctionCodes.ExecutionReview
+                select f.ScopeCode)
+            .ToListAsync(cancellationToken);
+
+        var scopeAll = isOperator || roleScopes.Any(x =>
+            string.Equals(x, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase));
+        var scopeDept = roleScopes.Any(x =>
+            string.Equals(x, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase));
+
+        if (!scopeAll && !scopeDept)
             return;
+
+        var userDept = scopeDept
+            ? await _db.Users.AsNoTracking()
+                .Where(x => x.Id == userId)
+                .Select(x => x.DeptCode)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
 
         // The employee confirmation is the source of truth for an HR review task.
         // Evidence is optional, so backfill must not depend on ExecutionConfirmationEvidence.
@@ -273,6 +306,8 @@ public sealed class ActionItemService : IActionItemService
                 && confirmation.Status == "Pending"
                 && reconciliation.IsActive != false
                 && reconciliation.ReconciliationStatus != "Resolved"
+                && (isOperator || employee.EmployeeCode != employeeCode)
+                && (scopeAll || employee.DeptCode == userDept)
                 && _db.ExecutionPolicies.Any(p =>
                     p.IsActive != false
                     && p.ModuleCode == reconciliation.ModuleCode
@@ -365,7 +400,11 @@ public sealed class ActionItemService : IActionItemService
                 && x.AssignedToEmployeeId == employeeId
                 && (x.AssignedToUserId == null || x.AssignedToUserId == userId)
                 && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress)
-                && !_db.AppNotifications.Any(n => n.UserId == userId && n.ActionId == x.ActionId))
+                // Already notified either by ActionId, or by the same route+type (reviewer
+                // notifications are keyed to the reconciliation, not to the reviewer's task).
+                && !_db.AppNotifications.Any(n => n.UserId == userId
+                    && (n.ActionId == x.ActionId
+                        || (n.ActionUrl == x.DetailRoute && n.NotificationType == x.ActionType))))
             .OrderByDescending(x => x.CreatedAt)
             .Take(50)
             .Select(x => new
@@ -416,10 +455,14 @@ public sealed class ActionItemService : IActionItemService
     private async Task MarkNotificationsReadForActionAsync(
         int userId,
         Guid actionId,
+        string? detailRoute,
+        string? actionType,
         CancellationToken cancellationToken)
     {
         var unread = await _db.AppNotifications
-            .Where(n => n.UserId == userId && n.ActionId == actionId && !n.IsRead)
+            .Where(n => n.UserId == userId && !n.IsRead
+                && (n.ActionId == actionId
+                    || (detailRoute != null && n.ActionUrl == detailRoute && n.NotificationType == actionType)))
             .ToListAsync(cancellationToken);
 
         var now = DateTime.Now;
