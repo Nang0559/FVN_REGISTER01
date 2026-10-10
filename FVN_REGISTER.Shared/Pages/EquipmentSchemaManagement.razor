@@ -177,7 +177,7 @@
             HeaderRowIndex=_headerRowIndex.Value,
             SelectedColumnIndexes=_selectedColumns.Count>0?_selectedColumns.OrderBy(x=>x).ToList():null,
             DataStartRowIndex=_dataStartRowIndex,
-            DataEndRowIndex=_dataEndRowIndex
+            DataEndRowIndex=_grid!=null && _dataEndRowIndex.HasValue && _dataEndRowIndex.Value < _grid.TotalRowCount-1 ? _dataEndRowIndex : null
         };
     }
 
