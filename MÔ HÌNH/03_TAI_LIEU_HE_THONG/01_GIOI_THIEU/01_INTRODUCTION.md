@@ -60,7 +60,7 @@ Giá trị có thể khác nhau theo chức năng đã triển khai, dữ liệu
 - **Công tác:** theo dõi yêu cầu, quyết định phê duyệt và trạng thái thực hiện; đối chiếu khi có dữ liệu thực tế phù hợp.
 - **Lịch làm việc chung:** tổng hợp lịch công ty, ca làm và trạng thái nghiệp vụ theo ngày; lịch không thay thế dữ liệu gốc của từng module.
 - **Chấm công, đối soát và HR Review:** hỗ trợ xem chênh lệch, theo dõi trường hợp cần xác minh, trách nhiệm và bằng chứng. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công.
-- **Thiết bị và kiểm tra:** quản lý yêu cầu/phê duyệt, QR, thông tin thiết bị, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử theo phạm vi đã triển khai.
+- **Quản lý thiết bị:** đăng ký/phê duyệt, QR, nhập Excel theo schema phòng ban, thông tin tài sản, trách nhiệm vận hành, bàn giao, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử — theo phạm vi đã nghiệm thu.
 - **Kiểm kê và tuân thủ máy Windows (Endpoint):** năng lực IT nhằm thu thập inventory máy, phần mềm và Windows Service qua Agent, đối chiếu với chính sách được phê duyệt và theo dõi cảnh báo/ngoại lệ. Chỉ công bố là vận hành chính thức sau pilot, kiểm thử bảo mật và nghiệm thu trên đúng branch.
 - **Trung tâm công việc và thông báo:** tập trung việc cần xử lý, trạng thái và nhắc việc theo cấu hình.
 - **Bảng điều khiển và báo cáo:** tổng hợp theo quyền và phạm vi dữ liệu; quyền xem và xuất dữ liệu được kiểm soát riêng.
