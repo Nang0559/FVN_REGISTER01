@@ -1,4 +1,4 @@
-# FVN REGISTER — DOCUMENTATION HUB
+# FVN REGISTER — CỔNG TÀI LIỆU
 
 > Cổng vào cho tài liệu giới thiệu, hướng dẫn sử dụng, trợ giúp, vận hành và tiêu chuẩn tài liệu.
 
