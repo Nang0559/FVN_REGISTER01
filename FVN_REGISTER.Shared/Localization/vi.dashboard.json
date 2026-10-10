@@ -39,5 +39,19 @@
   "dashboard.equipmentAssigned": "Thiết bị tôi đang phụ trách",
   "dashboard.equipmentRequests": "Yêu cầu thiết bị của tôi",
   "dashboard.equipmentPending": "Yêu cầu thiết bị chờ duyệt",
-  "dashboard.equipmentApproved": "Yêu cầu thiết bị đã duyệt"
+  "dashboard.equipmentApproved": "Yêu cầu thiết bị đã duyệt",
+  "dashboard.attendanceByShift": "Chấm công theo ca",
+  "dashboard.attendanceByShiftNote": "Dữ liệu chấm công đã tính cho ngày {0}; đây chưa phải danh sách đầy đủ nhân viên dự kiến.",
+  "dashboard.calculatedEmployees": "Nhân viên có kết quả tính công",
+  "dashboard.checkedIn": "Đã check-in",
+  "dashboard.checkedOut": "Đã check-out",
+  "dashboard.missingPunch": "Thiếu giờ vào/ra",
+  "dashboard.checkIn": "Giờ vào",
+  "dashboard.checkOut": "Giờ ra",
+  "dashboard.attendanceSymbol": "Ký hiệu công",
+  "dashboard.attendanceStatus": "Trạng thái",
+  "dashboard.statusCheckedOut": "Đã check-out",
+  "dashboard.statusCheckedIn": "Đã check-in, chưa check-out",
+  "dashboard.statusMissingCheckIn": "Có giờ ra, thiếu giờ vào",
+  "dashboard.statusNoPunch": "Không có giờ quẹt trong kết quả tính"
 }
