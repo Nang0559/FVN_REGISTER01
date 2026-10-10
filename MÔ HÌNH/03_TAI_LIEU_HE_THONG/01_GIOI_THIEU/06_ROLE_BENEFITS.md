@@ -19,7 +19,7 @@ Giá trị của một vai trò không chỉ đến từ màn hình riêng, mà 
 | Quản lý bộ phận | Hỏi từng người và tổng hợp nhiều bảng | Theo dõi tình hình, yêu cầu tồn và báo cáo được cấp quyền | Giờ tổng hợp; thời gian phát hiện tồn đọng |
 | HR | Thu thập phiếu, nhập số liệu, dò lệch kế hoạch/thực tế | Theo dõi Leave/OT/Trip và trường hợp đối soát, lưu kết quả xem xét theo quy trình | Phút đối soát; tỷ lệ làm lại; thời gian tìm bằng chứng |
 | Quản lý thiết bị | Tìm hồ sơ, người phụ trách, lịch kiểm tra, sửa chữa và ảnh minh chứng ở nhiều nơi | Tra cứu QR/tài sản, theo dõi bàn giao, checklist, nhiệm vụ và lịch sử đã ghi nhận | Thời gian truy xuất; thời gian bàn giao; tỷ lệ nhiệm vụ đúng hạn |
-| IT quản trị Endpoint | Tập hợp inventory máy Windows, phần mềm và dịch vụ; rà soát phần mềm ngoài danh mục | Đối chiếu inventory với chính sách được duyệt, theo dõi cảnh báo/ngoại lệ sau khi pilot hoàn tất | Tỷ lệ endpoint có inventory hợp lệ; cảnh báo cần xử lý; thời gian xử lý ngoại lệ |
+| IT quản lý máy tính đầu cuối | Tập hợp dữ liệu kiểm kê máy Windows, phần mềm và dịch vụ; rà soát phần mềm ngoài danh mục | Đối chiếu dữ liệu kiểm kê với chính sách được duyệt, theo dõi cảnh báo/ngoại lệ sau khi thử nghiệm hoàn tất | Tỷ lệ endpoint có inventory hợp lệ; cảnh báo cần xử lý; thời gian xử lý ngoại lệ |
 | Quản trị hệ thống | Cấp quyền và điều chỉnh cấu hình thiếu tập trung | Kiểm soát capability và phạm vi dữ liệu, cấu hình theo chính sách | Thời gian xử lý yêu cầu phân quyền; số lỗi cấp quyền |
 | Ban giám đốc | Nhận số liệu sau khi các bộ phận tổng hợp | Xem báo cáo/tổng quan trong phạm vi được cung cấp và theo dõi chỉ số cải tiến | Thời gian chuẩn bị báo cáo; mức đầy đủ và đúng hạn của KPI |
 
