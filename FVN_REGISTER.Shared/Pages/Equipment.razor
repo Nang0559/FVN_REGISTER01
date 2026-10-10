@@ -254,19 +254,17 @@ else
                             <MudTd>@context.AssetCode</MudTd>
                             <MudTd>
                                 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                                    @if (_canEditAssets)
-                                    {
-                                        <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => BeginEditAsset(context))">Sửa</MudButton>
-                                    }
-                                    @if (_canManageAssets)
-                                    {
-                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteAssetAsync(context))">Xóa</MudButton>
-                                    }
+                                    <MudTooltip Text="@(_canEditAssets ? "Sửa thông tin thiết bị" : "Thiếu quyền Equipment Edit/Manage")">
+                                        <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit"
+                                                   Disabled="@(!_canEditAssets)" OnClick="@(() => BeginEditAsset(context))">Sửa</MudButton>
+                                    </MudTooltip>
+                                    <MudTooltip Text="@(_canManageAssets ? "Xóa mềm thiết bị, giữ lịch sử" : "Thiếu quyền Equipment Manage")">
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                                                   Disabled="@(!_canManageAssets)" OnClick="@(() => DeleteAssetAsync(context))">Xóa</MudButton>
+                                    </MudTooltip>
                                     @if (!_canEditAssets && !_canManageAssets)
                                     {
-                                        <MudTooltip Text="Tài khoản chưa có quyền sửa hoặc quản lý thiết bị">
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chỉ xem</MudChip>
-                                        </MudTooltip>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chỉ xem</MudChip>
                                     }
                                 </MudStack>
                                 @if ((context.EndpointAgentEligible && CanEndpointManage) || CanEligibilityManage)
