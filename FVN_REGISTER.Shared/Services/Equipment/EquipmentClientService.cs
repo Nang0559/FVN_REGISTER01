@@ -33,6 +33,8 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
     public Task<ApiResponse<EquipmentRequestDto>> SubmitRegistrationAsync(int id, CancellationToken ct = default) => Post<EquipmentRequestDto>($"api/equipment/registrations/{id}/submit", new { }, "submit registration", ct);
     public Task<ApiResponse<List<EquipmentAssetDto>>> GetMyAssignedAssetsAsync(CancellationToken ct = default) => Get<List<EquipmentAssetDto>>("api/equipment/assigned-to-me", "assigned equipment", ct);
     public Task<ApiResponse<List<EquipmentAssetDto>>> GetAssetsAsync(int? deptCode = null, CancellationToken ct = default) => Get<List<EquipmentAssetDto>>($"api/equipment/assets?deptCode={Uri.EscapeDataString(deptCode?.ToString() ?? string.Empty)}", "equipment assets", ct);
+    public Task<ApiResponse<EquipmentAssetDto>> UpdateAssetAsync(int id, UpdateEquipmentAssetRequest request, CancellationToken ct = default) => Put<EquipmentAssetDto>($"api/equipment/assets/{id}", request, "update equipment asset", ct);
+    public Task<ApiResponse<bool>> DeleteAssetAsync(int id, CancellationToken ct = default) => Delete<bool>($"api/equipment/assets/{id}", "delete equipment asset", ct);
     public Task<ApiResponse<EquipmentAssetDto>> SetEndpointAgentEligibilityAsync(int assetId, EndpointAgentEligibilityRequest request, CancellationToken ct = default) => Put<EquipmentAssetDto>($"api/equipment/assets/{assetId}/endpoint-agent-eligibility", request, "endpoint eligibility", ct);
     public Task<ApiResponse<List<EquipmentRequestDto>>> GetMineAsync(CancellationToken ct = default) => Get<List<EquipmentRequestDto>>("api/equipment/registrations/mine", "mine", ct);
     public Task<ApiResponse<EquipmentRequestDto>> CreateRepairAsync(CreateEquipmentRepairDto request, CancellationToken ct = default) => Post<EquipmentRequestDto>("api/equipment/repairs", request, "create repair", ct);
@@ -139,6 +141,17 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
         {
             throw;
         }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] {Op}", op);
+            return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị.");
+        }
+    }
+
+    private async Task<ApiResponse<T>> Delete<T>(string url, string op, CancellationToken ct)
+    {
+        try { return await _http.DeleteAsync<T>(url, ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] {Op}", op);
