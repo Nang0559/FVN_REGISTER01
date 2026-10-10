@@ -35,6 +35,25 @@ namespace FVN_REGISTER.Shared.Services.Dashboards
             }
         }
 
+        public async Task<ApiResponse<IReadOnlyList<DepartmentDashboardDetailDto>>> GetDepartmentDetailsAsync(
+            string kind, DateOnly workDate, CancellationToken ct = default)
+        {
+            try
+            {
+                var safeKind = Uri.EscapeDataString(kind ?? string.Empty);
+                var result = await _http.GetAsync<IReadOnlyList<DepartmentDashboardDetailDto>>(
+                    $"{BaseUrl}/department-details?kind={safeKind}&workDate={workDate:yyyy-MM-dd}", ct);
+                if (!result.IsSuccess)
+                    _logger.LogWarning("[DASHBOARD] Department detail query failed | Kind={Kind} | Status={Status}", kind, result.StatusCode);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[DASHBOARD] Exception while fetching department details | Kind={Kind}", kind);
+                return ApiResponse<IReadOnlyList<DepartmentDashboardDetailDto>>.Fail("Không thể tải chi tiết thống kê phòng ban.");
+            }
+        }
+
         public async Task<ApiResponse<DashboardResponse>> GetDashboardDataAsync(
             CancellationToken ct = default)
         {
