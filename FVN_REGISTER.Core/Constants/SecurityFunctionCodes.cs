@@ -6,7 +6,8 @@ public static class SecurityFunctionCodes
  public const int LeaveView=2001,LeaveCreate=2002,LeaveEdit=2003,LeaveCancel=2004,LeaveApprove=2005,LeaveExport=2006;
  public const int OTView=2101,OTCreate=2102,OTEdit=2103,OTCancel=2104,OTApprove=2105,OTReconcile=2106,OTExport=2107;
  public const int TripView=2201,TripCreate=2202,TripEdit=2203,TripCancel=2204,TripApprove=2205,TripExport=2206;
- public const int EquipmentView=2301,EquipmentCreate=2302,EquipmentEdit=2303,EquipmentRepair=2304,EquipmentApprove=2305,EquipmentImport=2306,EquipmentExport=2307,EquipmentCancel=2308,EquipmentAssign=2309,EquipmentTransfer=2310,EquipmentReturn=2311,EquipmentLiquidate=2312,EquipmentQR=2313,EquipmentHistory=2314,EquipmentInspectionManage=2315,EquipmentInspectionExecute=2316,EquipmentInspectionApprove=2317,EquipmentInspectionReport=2318,EquipmentManage=2319,EquipmentFormManage=2320;
+ public const int EquipmentView=2301,EquipmentCreate=2302,EquipmentEdit=2303,EquipmentRepair=2304,EquipmentApprove=2305,EquipmentImport=2306,EquipmentExport=2307,EquipmentCancel=2308,EquipmentAssign=2309,EquipmentTransfer=2310,EquipmentReturn=2311,EquipmentLiquidate=2312,EquipmentQR=2313,EquipmentHistory=2314,EquipmentInspectionManage=2315,EquipmentInspectionExecute=2316,EquipmentInspectionApprove=2317,EquipmentInspectionReport=2318,EquipmentManage=2319;
+ [SecurityFunctionDefinition("Equipment.FormManage","Quản lý biểu mẫu thiết bị",ModuleCode="Equipment",ActionCode="FormManage",ScopeCode=AuthorizationScopeCodes.Own)] public const int EquipmentFormManage=2320;
  public const int UserManagementView=2401,UserManagementCreate=2402,UserManagementEdit=2403,UserManagementLock=2404,UserManagementResetPassword=2405,UserManagementAssignPermission=2406,UserManagementManageTwoFactor=2407;
  public const int HrmSyncViewStatus=2501,HrmSyncSync=2502,HrmSyncReview=2503,HrmSyncRetry=2504;
  public const int SecurityView=2601,SecurityManageRoles=2602,SecurityManageFunctions=2603,SecurityAudit=2604;
