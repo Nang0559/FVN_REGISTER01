@@ -48,6 +48,7 @@ Khi công việc được xử lý chủ yếu bằng phiếu giấy, Excel và 
 | **HR** | Nhập liệu, tổng hợp, đối chiếu từng dòng | Tập trung xác minh sai lệch, ghi nhận quyết định và chuẩn bị dữ liệu theo quy trình |
 | **Quản lý thiết bị** | Tìm mã tài sản, lịch kiểm tra, bằng chứng và lịch sử | Theo dõi hồ sơ thiết bị, QR, nhiệm vụ kiểm tra và lịch sử đã ghi nhận |
 | **Quản trị hệ thống** | Cấp quyền và cấu hình không nhất quán | Quản lý quyền, phạm vi dữ liệu và chính sách theo trách nhiệm |
+| **IT quản trị Endpoint** | Tập hợp inventory máy Windows, phần mềm và dịch vụ từ nhiều nguồn | Hướng tới đối chiếu với chính sách được duyệt và theo dõi cảnh báo/ngoại lệ sau khi pilot được xác nhận |
 | **Ban giám đốc** | Chờ báo cáo tổng hợp thủ công | Có nền tảng chỉ số để giám sát và đánh giá cải tiến |
 
 Giá trị có thể khác nhau theo chức năng đã triển khai, dữ liệu sẵn có và cấu hình từng bộ phận. Không nên hiểu rằng mọi thao tác thủ công đã được tự động hóa hoàn toàn.
@@ -60,6 +61,7 @@ Giá trị có thể khác nhau theo chức năng đã triển khai, dữ liệu
 - **Lịch làm việc chung:** tổng hợp lịch công ty, ca làm và trạng thái nghiệp vụ theo ngày; lịch không thay thế dữ liệu gốc của từng module.
 - **Chấm công, đối soát và HR Review:** hỗ trợ xem chênh lệch, theo dõi trường hợp cần xác minh, trách nhiệm và bằng chứng. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công.
 - **Thiết bị và kiểm tra:** quản lý yêu cầu/phê duyệt, QR, thông tin thiết bị, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử theo phạm vi đã triển khai.
+- **Kiểm kê và tuân thủ máy Windows (Endpoint):** năng lực IT nhằm thu thập inventory máy, phần mềm và Windows Service qua Agent, đối chiếu với chính sách được phê duyệt và theo dõi cảnh báo/ngoại lệ. Chỉ công bố là vận hành chính thức sau pilot, kiểm thử bảo mật và nghiệm thu trên đúng branch.
 - **Trung tâm công việc và thông báo:** tập trung việc cần xử lý, trạng thái và nhắc việc theo cấu hình.
 - **Bảng điều khiển và báo cáo:** tổng hợp theo quyền và phạm vi dữ liệu; quyền xem và xuất dữ liệu được kiểm soát riêng.
 - **Dữ liệu phục vụ kỳ tính lương:** hỗ trợ tạo snapshot khi các điều kiện sẵn sàng được đáp ứng; không thay thế hệ thống HRM/payroll chính thức.
