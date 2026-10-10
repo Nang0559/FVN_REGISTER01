@@ -297,12 +297,12 @@ namespace FVN_REGISTER.API.Controllers
                         && allowedDepartments.Contains(e.DeptCode)
                     orderby e.DeptCode, e.EmployeeCode
                     select new { r.OTDate, p.EmployeeCode, p.EmployeeName, p.StartTime, p.EndTime, p.OTHours,
-                        p.OTReasonDetail, e.EmployeeName, e.DeptCode, d.DeptName })
+                        p.OTReasonDetail, MasterEmployeeName = e.EmployeeName, e.DeptCode, d.DeptName })
                     .ToListAsync(ct);
                 output.AddRange(rows.Select(x => new DepartmentDashboardDetailDto
                 {
                     Kind = normalizedKind, WorkDate = x.OTDate, EmployeeCode = x.EmployeeCode,
-                    EmployeeName = x.EmployeeName ?? string.Empty,
+                    EmployeeName = x.EmployeeName ?? x.MasterEmployeeName ?? string.Empty,
                     DepartmentName = x.DeptName ?? string.Empty, Detail = x.OTReasonDetail ?? string.Empty,
                     Status = ApprovalStatus.Approved.ToString(), StartTime = x.StartTime, EndTime = x.EndTime, Hours = x.OTHours
                 }));
