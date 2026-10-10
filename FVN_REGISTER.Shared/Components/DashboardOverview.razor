@@ -226,7 +226,7 @@ else
 
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("Attendance"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.attendanceRate")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <div style="@($"width:68px;height:68px;flex:0 0 68px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--mud-palette-success) {attendanceRate.ToString(System.Globalization.CultureInfo.InvariantCulture)}%, var(--mud-palette-divider) 0)")">
@@ -243,7 +243,7 @@ else
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("Leave"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayLeave")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <MudIcon Icon="@Icons.Material.Outlined.EventBusy" Size="Size.Large" Style="color:#ed6c02" />
@@ -253,7 +253,7 @@ else
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("Trip"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayTrip")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <MudIcon Icon="@Icons.Material.Outlined.WorkOutline" Size="Size.Large" Style="color:#2979ff" />
@@ -263,7 +263,7 @@ else
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("OT"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayOT")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Size="Size.Large" Style="color:#7b1fa2" />
@@ -281,6 +281,46 @@ else
     }
 }
 
+    <MudDialog @bind-Visible="_detailDialogOpen" Options="_detailDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@GetDetailTitle(_selectedDetail)</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (_selectedDetail == "Attendance")
+            {
+                <MudStack Spacing="2">
+                    <MudText>@Language.T("dashboard.presentEmployees"): <b>@Data?.DepartmentStatistics.Sum(x => x.PresentEmployeesCount) / @Data?.DepartmentStatistics.Sum(x => x.TotalEmployees)</b></MudText>
+                    <MudProgressLinear Value="@GetOverallAttendanceRate()" Color="Color.Success" Rounded="true" />
+                    <MudText Typo="Typo.body2">@Language.T("dashboard.attendanceRate"): @GetOverallAttendanceRate().ToString("N1")%</MudText>
+                    <MudTable Items="Data!.DepartmentStatistics" Dense="true" Hover="true">
+                        <HeaderContent><MudTh>@Language.T("dashboard.department")</MudTh><MudTh>@Language.T("dashboard.present")</MudTh><MudTh>@Language.T("dashboard.staff")</MudTh><MudTh>@Language.T("dashboard.attendanceRate")</MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.DepartmentName</MudTd><MudTd>@context.PresentEmployeesCount</MudTd><MudTd>@context.TotalEmployees</MudTd><MudTd>@GetDepartmentRate(context.PresentEmployeesCount, context.TotalEmployees).ToString("N1")%</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudStack>
+            }
+            else
+            {
+                <MudTable Items="GetDetailRows()" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>@Language.T("dashboard.department")</MudTh>
+                        <MudTh>@Language.T("dashboard.staff")</MudTh>
+                        <MudTh>@Language.T("dashboard.status")</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Department</MudTd>
+                        <MudTd>@context.Count</MudTd>
+                        <MudTd>@context.Note</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="CloseDepartmentDetail">@Language.T("common.close")</MudButton>
+        </DialogActions>
+    </MudDialog>
+
 @code {
     [Parameter] public DashboardResponse? Data { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
@@ -288,6 +328,9 @@ else
     private List<AttendanceShiftDashboardDto> AttendanceShiftRows { get; set; } = new();
     private DateOnly AttendanceShiftDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
     private bool _attendanceLoaded;
+    private bool _detailDialogOpen;
+    private string _selectedDetail = string.Empty;
+    private readonly DialogOptions _detailDialogOptions = new() { CloseButton = true, FullWidth = true, MaxWidth = MaxWidth.Medium };
 
     protected override async Task OnParametersSetAsync()
     {
@@ -353,6 +396,57 @@ else
         if (!string.IsNullOrWhiteSpace(link))
             Navigation.NavigateTo(link);
     }
+
+
+    private void OpenDepartmentDetail(string kind)
+    {
+        _selectedDetail = kind;
+        _detailDialogOpen = true;
+    }
+
+    private void CloseDepartmentDetail() => _detailDialogOpen = false;
+
+    private string GetDetailTitle(string kind) => kind switch
+    {
+        "Attendance" => Language.T("dashboard.attendanceRate"),
+        "Leave" => Language.T("dashboard.todayLeave"),
+        "Trip" => Language.T("dashboard.todayTrip"),
+        "OT" => Language.T("dashboard.todayOT"),
+        _ => Language.T("dashboard.departmentOverview")
+    };
+
+    private double GetOverallAttendanceRate()
+    {
+        var total = Data?.DepartmentStatistics.Sum(x => x.TotalEmployees) ?? 0;
+        var present = Data?.DepartmentStatistics.Sum(x => x.PresentEmployeesCount) ?? 0;
+        return total > 0 ? Math.Clamp(present * 100d / total, 0d, 100d) : 0d;
+    }
+
+    private static double GetDepartmentRate(int present, int total) =>
+        total > 0 ? Math.Clamp(present * 100d / total, 0d, 100d) : 0d;
+
+    private IEnumerable<DepartmentDetailRow> GetDetailRows()
+    {
+        if (Data?.DepartmentStatistics is null) return Enumerable.Empty<DepartmentDetailRow>();
+        return Data.DepartmentStatistics.Select(x => new DepartmentDetailRow(
+            x.DepartmentName,
+            _selectedDetail switch
+            {
+                "Leave" => x.TodayLeaveEmployeesCount,
+                "Trip" => x.TodayTripEmployeesCount,
+                "OT" => x.TodayOTEmployeesCount,
+                _ => 0
+            },
+            _selectedDetail switch
+            {
+                "Leave" => Language.T("dashboard.approvedLeaveTodayNote"),
+                "Trip" => Language.T("dashboard.approvedTripTodayNote"),
+                "OT" => Language.T("dashboard.approvedOTTodayNote"),
+                _ => string.Empty
+            }));
+    }
+
+    private sealed record DepartmentDetailRow(string Department, int Count, string Note);
 
     public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }
