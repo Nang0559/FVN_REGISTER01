@@ -115,7 +115,7 @@
                             }
                         </MudAlert>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0 || _batch.Status != "Ready")" OnClick="CommitAsync">@Language.T("equipment.nhapDuLieuVaoHe")</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0 || !string.Equals(_batch.Status, "Staged", StringComparison.OrdinalIgnoreCase))" OnClick="CommitAsync">@Language.T("equipment.nhapDuLieuVaoHe")</MudButton>
                 }
             </MudPaper>
         }
