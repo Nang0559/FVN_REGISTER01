@@ -36,6 +36,15 @@ namespace FVN_REGISTER.Application.Interfaces.Notifications
             IReadOnlyCollection<(RequestModule Module, int RequestId)> actionable,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Restores unread state for approval notifications that still correspond to a
+        /// currently actionable approval step. Reading an alert cannot resolve the work.
+        /// </summary>
+        Task<int> RestorePendingApproverNotificationsAsync(
+            int userId,
+            IReadOnlyCollection<(RequestModule Module, int RequestId)> actionable,
+            CancellationToken ct = default);
+
         /// <summary>Pushes the current unread count to the user's open clients (bell + app-icon badge).</summary>
         Task RefreshBadgeAsync(int userId, CancellationToken ct = default);
     }
