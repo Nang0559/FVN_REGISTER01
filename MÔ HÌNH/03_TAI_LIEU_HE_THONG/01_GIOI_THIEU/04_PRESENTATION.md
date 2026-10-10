@@ -122,7 +122,7 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 | **Làm thêm giờ** | Đăng ký, kiểm tra quy tắc được cấu hình, phê duyệt và đối chiếu | Làm rõ kế hoạch đã duyệt và kết quả thực tế |
 | **Công tác** | Theo dõi yêu cầu, phê duyệt và thực hiện | Tập trung tình trạng và lịch sử |
 | **Lịch / chấm công / đối soát** | Tổng hợp lịch, ca và trường hợp cần xác minh | Nhìn rõ ngoại lệ cần xử lý |
-| **Thiết bị** | Hồ sơ, QR, kiểm tra, bằng chứng, sửa chữa và lịch sử theo phạm vi đã xác nhận | Tăng khả năng truy xuất vòng đời thiết bị |
+| **Thiết bị** | Đăng ký, QR, nhập Excel theo schema, bàn giao, checklist, sửa chữa và lịch sử | Truy xuất trách nhiệm và vòng đời thiết bị theo phạm vi đã xác nhận |
 | **Công việc / báo cáo** | Việc cần xử lý, thông báo, bảng điều khiển và báo cáo theo quyền | Hỗ trợ theo dõi tình hình và tồn đọng |
 | **Endpoint / tuân thủ máy Windows** | Thu thập inventory qua Agent, đối chiếu phần mềm/dịch vụ với chính sách được duyệt | Năng lực IT riêng; chỉ công bố vận hành sau pilot và nghiệm thu |
 
