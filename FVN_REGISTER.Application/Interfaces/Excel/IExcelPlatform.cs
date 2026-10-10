@@ -5,6 +5,7 @@ namespace FVN_REGISTER.Application.Interfaces.Excel;
 public interface IExcelPlatform
 {
     Task<ExcelWorkbookInspection> InspectAsync(Stream content, string fileName, CancellationToken ct = default);
+    Task<ExcelSheetGrid> ReadGridAsync(Stream content, string fileName, int sheetIndex, int maxRows = 200, CancellationToken ct = default);
     Task<ExcelPreviewResult> PreviewAsync(Stream content, string fileName, ExcelSchemaDefinition schema, CancellationToken ct = default);
     Task<ExcelImportResult> ImportAsync(Stream content, string fileName, ExcelSchemaDefinition schema, CancellationToken ct = default);
     Task<Stream> ExportAsync(string fileName, ExcelSchemaDefinition schema, IReadOnlyList<IReadOnlyDictionary<string, object?>> rows, CancellationToken ct = default);
