@@ -55,7 +55,32 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 return null;
 
             var user = _currentUser.GetCurrentUser();
-            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, entity.EmployeeCode, entity.DeptCode, ct))
+            if (user == null)
+                return null;
+
+            var canAccessByScope = await _authorization.CanAccessAsync(
+                user, SecurityFunctionCodes.OTView, entity.EmployeeCode, entity.DeptCode, ct);
+
+            // OT approver không nhất thiết có OTView theo phòng ban/người đăng ký.
+            // Chỉ cho phép vượt phạm vi xem thông thường khi chính tài khoản hiện tại
+            // được gán trong snapshot luồng duyệt của đúng đơn OT này.
+            var isAssignedApprover = false;
+            if (!canAccessByScope)
+            {
+                var employeeCode = user.EmployeeCode;
+                var email = user.Email;
+
+                isAssignedApprover = await Uow.Repository<F03ApprovalSnapshot>().Query()
+                    .AsNoTracking()
+                    .Where(s => s.RequestId == requestId && s.RequestType == RequestModule.Overtime)
+                    .SelectMany(s => s.Steps)
+                    .AnyAsync(step =>
+                        (!string.IsNullOrWhiteSpace(employeeCode) && step.ApproverCode == employeeCode)
+                        || (!string.IsNullOrWhiteSpace(email) && step.ApproverEmail == email),
+                        ct);
+            }
+
+            if (!canAccessByScope && !isAssignedApprover)
                 return null;
 
             var requester = await Uow.Repository<VF03employee>().Query()
