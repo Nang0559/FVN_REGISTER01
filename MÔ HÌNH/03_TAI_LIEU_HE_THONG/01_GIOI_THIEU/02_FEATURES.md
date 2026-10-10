@@ -37,11 +37,11 @@ Hỗ trợ xem xét khác biệt giữa kế hoạch và dữ liệu thực tế
 ### Thiết bị và kiểm tra
 Nghiệp vụ thiết bị gồm đăng ký/phê duyệt, QR, nhập Excel theo schema phòng ban, kiểm tra dữ liệu theo dòng trước khi ghi nhận, giao thiết bị cho người phụ trách, bàn giao trách nhiệm, checklist theo phiên bản, bằng chứng, sửa chữa, thông báo và báo cáo. Các thao tác import, camera/QR, checklist, bàn giao và notification phải được xác minh từng luồng trên môi trường nghiệm thu trước khi công bố là đã vận hành chính thức.
 
-### Kiểm kê và tuân thủ máy Windows (Endpoint Inventory & Compliance)
+### Kiểm kê và tuân thủ máy tính đầu cuối (Endpoint)
 
-Năng lực IT được thiết kế để thu thập inventory máy Windows, phần mềm và Windows Service qua Agent; chuẩn hóa dữ liệu; so sánh với danh mục/chính sách được phê duyệt; đưa cảnh báo hoặc ngoại lệ vào quy trình quản trị chung. Inventory thực tế không tự động trở thành danh sách được phép và Agent không phải kênh thực thi lệnh từ xa tùy ý.
+Năng lực IT được thiết kế để thu thập dữ liệu máy Windows, phần mềm và dịch vụ Windows qua tác nhân cài trên máy; chuẩn hóa dữ liệu; so sánh với danh mục/chính sách được phê duyệt; đưa cảnh báo hoặc ngoại lệ vào quy trình quản trị chung. Dữ liệu kiểm kê thực tế không tự động trở thành danh sách cho phép; tác nhân trên máy không phải kênh thực thi lệnh từ xa tùy ý.
 
-Đây là phạm vi riêng với nghiệp vụ đăng ký thiết bị. Trước khi giới thiệu là đã vận hành, cần xác minh cấp/enroll credential, inventory idempotent, policy/approval, compliance alert, revoke/expiry và pilot trên máy thật. Xem [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md).
+Đây là phạm vi riêng với nghiệp vụ đăng ký thiết bị. Trước khi giới thiệu là đã vận hành, cần xác minh đăng ký kết nối của tác nhân, quản lý thông tin xác thực, dữ liệu kiểm kê không bị ghi trùng khi gửi lại, chính sách/luồng phê duyệt, cảnh báo tuân thủ, thu hồi/hết hạn và thử nghiệm trên máy thật. Xem [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md).
 
 ## 3. Giá trị theo vai trò
 
