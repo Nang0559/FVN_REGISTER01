@@ -17,6 +17,8 @@ public sealed class EquipmentAssetDto
     public string QrUrl { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
     public string? Note { get; set; }
+    public string? EquipmentSchemaKey { get; set; }
+    public string CustomDataJson { get; set; } = "{}";
     public bool EndpointAgentEligible { get; set; }
     public string? EndpointOsFamily { get; set; }
     public long? EndpointDeviceId { get; set; }
