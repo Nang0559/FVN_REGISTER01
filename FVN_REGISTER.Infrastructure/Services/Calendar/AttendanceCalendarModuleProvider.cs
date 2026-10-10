@@ -27,17 +27,10 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         CalendarContext context,
         CancellationToken cancellationToken = default)
     {
-        // IMPORTANT:
-        // Database.SqlQuery<T> binds string interpolation as nvarchar(4000).
-        // HRM EmployeeCode is commonly varchar/char. Comparing a varchar column
-        // with nvarchar(4000) can make SQL Server inject CONVERT_IMPLICIT on the
-        // column and turn the EmployeeCode + WorkDate lookup into a scan.
-        // The calendar is opened for a single employee, so preserving an index
-        // seek here is critical.
-        //
-        // Convert the parameter to varchar on the parameter side. This keeps the
-        // column untouched and remains seekable whether EmployeeCode is varchar
-        // or nvarchar.
+        // EmployeeCode is nvarchar(100) in both attendance tables.
+        // Keep the parameter Unicode as well; converting it to varchar(50)
+        // introduces an unnecessary type/length conversion and can truncate
+        // employee codes. The EmployeeCode + WorkDate indexes support this lookup.
         var rows = await _db.Database.SqlQuery<AttendanceCalendarRow>($"""
             WITH CurrentRows AS
             (
@@ -69,7 +62,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                     a.HrmBCLyDoNghi,
                     a.HrmBCGhiChu
                 FROM dbo.F03HrmAttendanceCalculated AS a
-                WHERE a.EmployeeCode = CONVERT(varchar(50), {context.EmployeeCode})
+                WHERE a.EmployeeCode = {context.EmployeeCode}
                   AND a.WorkDate >= {context.From}
                   AND a.WorkDate <= {context.To}
             )
@@ -106,7 +99,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                 h.HrmBCLyDoNghi,
                 h.HrmBCGhiChu
             FROM dbo.F03HrmAttendanceHistory AS h
-            WHERE h.EmployeeCode = CONVERT(varchar(50), {context.EmployeeCode})
+            WHERE h.EmployeeCode = {context.EmployeeCode}
               AND h.WorkDate >= {context.From}
               AND h.WorkDate <= {context.To}
               AND NOT EXISTS
