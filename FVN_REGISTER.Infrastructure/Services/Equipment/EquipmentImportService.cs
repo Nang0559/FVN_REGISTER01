@@ -350,16 +350,39 @@ public sealed class EquipmentImportService : IEquipmentImportService
                 await _db.EquipmentAssets.AnyAsync(asset => asset.EquipmentCode == code, ct))
                 continue;
 
+            // Preserve schema keys and expose TargetProperty keys as well. This keeps
+            // department-specific fields aligned with the schema while allowing the
+            // standard equipment list to use canonical asset columns.
+            var customValues = new Dictionary<string, string?>(values, StringComparer.OrdinalIgnoreCase);
+            foreach (var field in schema.Fields)
+            {
+                if (!string.IsNullOrWhiteSpace(field.TargetProperty) &&
+                    values.TryGetValue(field.FieldKey, out var fieldValue))
+                    customValues[field.TargetProperty] = fieldValue;
+            }
+
+            var purchaseDate = ParseSchemaDate(GetEquipmentFieldValue(values, schema.Fields, "PurchaseDate"));
+            var purchasePrice = ParseSchemaDecimal(GetEquipmentFieldValue(values, schema.Fields, "PurchasePrice"));
+
             await _uow.Repository<F03EquipmentAsset>().AddAsync(new F03EquipmentAsset
             {
                 EquipmentCode = code,
                 EquipmentName = name,
+                AssetCode = GetEquipmentFieldValue(values, schema.Fields, "AssetCode")?.Trim(),
+                SerialNumber = GetEquipmentFieldValue(values, schema.Fields, "SerialNumber")?.Trim(),
+                Specification = GetEquipmentFieldValue(values, schema.Fields, "Specification")?.Trim(),
+                PurchasePrice = purchasePrice ?? 0m,
+                PurchaseDate = purchaseDate ?? DateTime.Today,
+                ExpectedDepreciationDate = ParseSchemaDate(GetEquipmentFieldValue(values, schema.Fields, "ExpectedDepreciationDate"))
+                    ?? (purchaseDate ?? DateTime.Today).AddYears(5),
+                Location = GetEquipmentFieldValue(values, schema.Fields, "Location")?.Trim(),
+                Note = GetEquipmentFieldValue(values, schema.Fields, "Note")?.Trim(),
+                ResponsibleEmployeeCode = GetEquipmentFieldValue(values, schema.Fields, "ResponsibleEmployeeCode")?.Trim(),
+                EquipmentSchemaKey = schema.SchemaKey,
                 DeptCode = metadata.DepartmentCode,
-                PurchaseDate = DateTime.Today,
-                ExpectedDepreciationDate = DateTime.Today.AddYears(5),
                 QrToken = Guid.NewGuid().ToString("N"),
                 IsQrActive = true,
-                CustomDataJson = JsonSerializer.Serialize(values),
+                CustomDataJson = JsonSerializer.Serialize(customValues),
                 CreatedBy = user.UserId
             }, ct);
             await _db.Database.ExecuteSqlInterpolatedAsync(
@@ -396,10 +419,22 @@ public sealed class EquipmentImportService : IEquipmentImportService
             return true;
 
         var normalized = NormalizeEquipmentHeader(field.HeaderName ?? field.FieldKey);
+        if (string.Equals(field.TargetProperty, targetProperty, StringComparison.OrdinalIgnoreCase))
+            return true;
+
         return targetProperty switch
         {
             "EquipmentCode" => normalized is "equipmentcode" or "assetcode" or "machietbi" or "mataisan" or "masothietbi" or "masanpham" or "code",
             "EquipmentName" => normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name",
+            "AssetCode" => normalized is "assettag" or "assetcode" or "tagtaisan" or "mataisan",
+            "SerialNumber" => normalized is "serialnumber" or "serialno" or "serial" or "soserial",
+            "Specification" => normalized is "specification" or "thongso" or "cauhinh",
+            "PurchasePrice" => normalized is "purchaseprice" or "nguyengia" or "giatrimua" or "price",
+            "PurchaseDate" => normalized is "purchasedate" or "ngaymua",
+            "ExpectedDepreciationDate" => normalized is "expecteddepreciationdate" or "ngaykhauhao" or "ngayhetkhauhao",
+            "Location" => normalized is "location" or "vitri" or "noisudung",
+            "Note" => normalized is "note" or "notes" or "ghichu",
+            "ResponsibleEmployeeCode" => normalized is "responsibleemployeecode" or "nguoiphutrach" or "manhanvienphutrach",
             _ => false
         };
     }
@@ -412,7 +447,36 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var field = fields.FirstOrDefault(candidate => IsEquipmentField(candidate, targetProperty));
         if (field is not null && values.TryGetValue(field.FieldKey, out var value))
             return value;
+
+        field = fields.FirstOrDefault(candidate =>
+            string.Equals(candidate.TargetProperty, targetProperty, StringComparison.OrdinalIgnoreCase));
+        if (field is not null && values.TryGetValue(field.FieldKey, out value))
+            return value;
+
         return values.TryGetValue(targetProperty, out var directValue) ? directValue : null;
+    }
+
+    private static DateTime? ParseSchemaDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (DateTime.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out var parsed) ||
+            DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out parsed))
+            return parsed;
+        if (double.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var oaDate))
+        {
+            try { return DateTime.FromOADate(oaDate); }
+            catch (ArgumentException) { }
+        }
+        return null;
+    }
+
+    private static decimal? ParseSchemaDecimal(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out var parsed) ||
+            decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed))
+            return parsed;
+        return null;
     }
 
     private static string NormalizeEquipmentHeader(string? value)
