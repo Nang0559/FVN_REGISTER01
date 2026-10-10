@@ -184,7 +184,7 @@ else
                                     <MudSelect T="string" Label="Schema" Value="_assetSchemaFilter" ValueChanged="@(v => _assetSchemaFilter = v ?? string.Empty)" Clearable="true" Dense="true" Variant="Variant.Outlined">
                                         @foreach (var schemaKey in _assets.Select(x => x.EquipmentSchemaKey).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x))
                                         {
-                                            <MudSelectItem T="string" Value="@schemaKey!">@schemaKey</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@(schemaKey!)">@schemaKey</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudItem>
