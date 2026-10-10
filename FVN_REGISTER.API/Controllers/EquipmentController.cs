@@ -122,6 +122,22 @@ public sealed class EquipmentController : ControllerBase
         return result.IsSuccess ? Ok(ApiResponse<List<EquipmentAssetDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentAssetDto>>.FromResult(result));
     }
 
+    [HttpPut("assets/{id:int}")]
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> UpdateAsset(int id, [FromBody] UpdateEquipmentAssetRequest request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.UpdateAssetAsync(id, request, ct);
+        return result.IsSuccess ? Ok(ApiResponse<EquipmentAssetDto>.FromResult(result)) : BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+    }
+
+    [HttpDelete("assets/{id:int}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteAsset(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.DeleteAssetAsync(id, ct);
+        return result.IsSuccess ? Ok(ApiResponse<bool>.FromResult(result)) : BadRequest(ApiResponse<bool>.FromResult(result));
+    }
+
     [HttpGet("assigned-to-me")]
     public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> AssignedToMe(CancellationToken ct)
     {
