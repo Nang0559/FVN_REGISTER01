@@ -31,7 +31,7 @@ Không dùng từ “tự động hoàn toàn”, “đã sẵn sàng toàn bộ
 | Nghỉ phép / OT / công tác | Kịch bản hợp lệ và không hợp lệ; quy tắc nghiệp vụ; quyền; hủy/sửa; lịch sử |
 | Chấm công / đối soát / HR Review | Nguồn dữ liệu thực tế; so sánh kế hoạch-thực tế; xử lý sai lệch; bằng chứng; lịch sử quyết định |
 | Thiết bị | Luồng yêu cầu/phê duyệt; QR; camera nếu trình diễn; nhập Excel; schema phòng ban; checklist; sửa chữa; lịch sử |
-| Endpoint Inventory/Compliance | Agent enroll; credential an toàn; inventory idempotent; policy/allowlist có phê duyệt; cảnh báo compliance; revoke/expiry; audit; pilot máy thật |
+| Kiểm kê/tuân thủ máy tính đầu cuối | Đăng ký kết nối của tác nhân; thông tin xác thực an toàn; dữ liệu kiểm kê không bị ghi trùng; chính sách/danh sách cho phép có phê duyệt; cảnh báo tuân thủ; thu hồi/hết hạn; nhật ký kiểm tra; thử nghiệm trên máy thật |
 | Trung tâm công việc / thông báo | Việc được giao đúng người; thông báo; trạng thái sau xử lý; tránh thông báo trùng |
 | Dashboard / báo cáo / xuất dữ liệu | Số liệu đúng; bộ lọc; phân quyền; phạm vi dữ liệu; quyền xuất; dữ liệu rỗng được thể hiện đúng |
 | An toàn truy cập | API kiểm tra quyền phía máy chủ; dữ liệu ngoài phạm vi không thể truy cập trực tiếp |
