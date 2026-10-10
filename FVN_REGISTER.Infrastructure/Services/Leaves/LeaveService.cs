@@ -137,6 +137,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                         approvalResult.Message ?? "Không thể khởi tạo luồng duyệt cho đơn nghỉ.");
                 }
 
+                // Creating a leave request initializes its approval snapshot. Keep the
+                // persisted request status in sync with that submitted workflow; leaving
+                // it as Draft causes ApprovalEngine to hide the valid pending snapshot.
+                entity.RequestStatus = ApprovalStatus.Pending;
+                entity.ModifiedAt = DateTime.Now;
+                await Uow.SaveChangesAsync(ct);
+
                 await tx.CommitAsync(ct);
                 Logger.LogInfoIf(Debug, "[{Component}] Created LeaveId={Id} By={User}", ComponentName, entity.Id, user.EmployeeCode);
                 return ServiceResult<int>.Ok(entity.Id, "Đã gửi đơn nghỉ thành công.");
