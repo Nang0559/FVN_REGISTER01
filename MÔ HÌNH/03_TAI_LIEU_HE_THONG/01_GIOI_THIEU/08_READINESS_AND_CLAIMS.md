@@ -31,6 +31,7 @@ Không dùng từ “tự động hoàn toàn”, “đã sẵn sàng toàn bộ
 | Nghỉ phép / OT / công tác | Kịch bản hợp lệ và không hợp lệ; quy tắc nghiệp vụ; quyền; hủy/sửa; lịch sử |
 | Chấm công / đối soát / HR Review | Nguồn dữ liệu thực tế; so sánh kế hoạch-thực tế; xử lý sai lệch; bằng chứng; lịch sử quyết định |
 | Thiết bị | Luồng yêu cầu/phê duyệt; QR; camera nếu trình diễn; nhập Excel; schema phòng ban; checklist; sửa chữa; lịch sử |
+| Endpoint Inventory/Compliance | Agent enroll; credential an toàn; inventory idempotent; policy/allowlist có phê duyệt; cảnh báo compliance; revoke/expiry; audit; pilot máy thật |
 | Trung tâm công việc / thông báo | Việc được giao đúng người; thông báo; trạng thái sau xử lý; tránh thông báo trùng |
 | Dashboard / báo cáo / xuất dữ liệu | Số liệu đúng; bộ lọc; phân quyền; phạm vi dữ liệu; quyền xuất; dữ liệu rỗng được thể hiện đúng |
 | An toàn truy cập | API kiểm tra quyền phía máy chủ; dữ liệu ngoài phạm vi không thể truy cập trực tiếp |
@@ -60,6 +61,8 @@ Vì vậy:
 2. Cần cập nhật hoặc lập biên bản readiness mới theo đúng commit của branch hiện tại.
 3. Chỉ đổi một mục sang “đã xác nhận vận hành” sau khi có bằng chứng build/test/UAT phù hợp.
 4. Bản trình chiếu hiện mô tả **giá trị và quy trình mục tiêu**; không phải biên bản xác nhận tất cả module đã sẵn sàng production.
+
+Tài liệu **docs/ENDPOINT_GOVERNANCE_STATUS.md** cũng ghi branch **feature/i18n-vi-ja**, không phải branch đang rà soát; nó chỉ là ghi chú kỹ thuật tham khảo, không phải chứng nhận pilot cho branch hiện tại.
 
 Trong thư mục **.github/workflows** của branch đang rà soát, workflow hiện có là kiểm tra đa ngôn ngữ; không nên diễn giải nó thành bằng chứng rằng toàn bộ solution build, UAT và luồng nghiệp vụ đã PASS.
 
