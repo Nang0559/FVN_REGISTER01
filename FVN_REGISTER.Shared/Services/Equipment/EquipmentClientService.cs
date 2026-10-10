@@ -148,17 +148,6 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
         }
     }
 
-    private async Task<ApiResponse<T>> Delete<T>(string url, string op, CancellationToken ct)
-    {
-        try { return await _http.DeleteAsync<T>(url, ct); }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogErrorIf(true, ex, "[EQUIPMENT_CLIENT] {Op}", op);
-            return ApiResponse<T>.Fail("Không thể thực hiện thao tác thiết bị.");
-        }
-    }
-
     private async Task<ApiResponse<T>> Put<T>(string url, object body, string op, CancellationToken ct)
     {
         try
