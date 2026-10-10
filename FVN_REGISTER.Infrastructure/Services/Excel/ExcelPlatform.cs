@@ -39,6 +39,47 @@ public sealed class ExcelPlatform : IExcelPlatform
         return Task.FromResult(new ExcelWorkbookInspection(Path.GetFileName(fileName), Path.GetExtension(fileName).ToLowerInvariant(), content.CanSeek ? content.Length : 0, sheets));
     }
 
+    public Task<ExcelSheetGrid> ReadGridAsync(Stream content, string fileName, int sheetIndex, int maxRows = 200, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (sheetIndex < 0) throw new ArgumentOutOfRangeException(nameof(sheetIndex), "Sheet Excel không hợp lệ.");
+        maxRows = Math.Clamp(maxRows, 1, 10000);
+
+        using var workbook = Open(content, fileName);
+        if (sheetIndex >= workbook.NumberOfSheets)
+            throw new InvalidOperationException("Sheet Excel không hợp lệ.");
+
+        var sheet = workbook.GetSheetAt(sheetIndex);
+        var lastRow = sheet.LastRowNum;
+        var totalRows = sheet.PhysicalNumberOfRows == 0 ? 0 : Math.Max(0, lastRow + 1);
+        var columnCount = 0;
+        for (var rowIndex = Math.Max(0, sheet.FirstRowNum); rowIndex <= lastRow; rowIndex++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var row = sheet.GetRow(rowIndex);
+            if (row is not null && row.LastCellNum > columnCount)
+                columnCount = row.LastCellNum;
+        }
+
+        var rows = new List<ExcelGridRow>();
+        var endRow = Math.Min(lastRow, maxRows - 1);
+        for (var rowIndex = 0; rowIndex <= endRow && totalRows > 0; rowIndex++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var source = sheet.GetRow(rowIndex);
+            var cells = new string?[columnCount];
+            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            {
+                var cell = source?.GetCell(columnIndex);
+                var value = cell?.ToString();
+                cells[columnIndex] = string.IsNullOrWhiteSpace(value) ? null : value;
+            }
+            rows.Add(new ExcelGridRow(rowIndex, cells));
+        }
+
+        return Task.FromResult(new ExcelSheetGrid(sheetIndex, sheet.SheetName, totalRows, columnCount, rows));
+    }
+
     public Task<ExcelPreviewResult> PreviewAsync(Stream content, string fileName, ExcelSchemaDefinition schema, CancellationToken ct = default) => ReadAsync(content, fileName, schema, ct);
 
     public async Task<ExcelImportResult> ImportAsync(Stream content, string fileName, ExcelSchemaDefinition schema, CancellationToken ct = default)
