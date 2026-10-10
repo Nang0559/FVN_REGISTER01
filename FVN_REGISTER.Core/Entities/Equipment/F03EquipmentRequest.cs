@@ -7,6 +7,13 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
 {
     public EquipmentRequestKind RequestKind { get; set; }
     public int? AssetId { get; set; }
+
+    // Immutable before/after snapshots for an independently approved asset change.
+    [Column(TypeName = "nvarchar(max)")] public string? AssetBeforeSnapshotJson { get; set; }
+    [Column(TypeName = "nvarchar(max)")] public string? AssetAfterSnapshotJson { get; set; }
+    [StringLength(64)] public string? AssetBeforeHash { get; set; }
+    public DateTime? AssetSnapshotCapturedAtUtc { get; set; }
+    public DateTime? AssetChangeAppliedAtUtc { get; set; }
     public int? FormId { get; set; }
     public int? FormSubmissionId { get; set; }
     [StringLength(50)] public string? FormCode { get; set; }
