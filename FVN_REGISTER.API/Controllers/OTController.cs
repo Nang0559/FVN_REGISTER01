@@ -159,7 +159,11 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetDetail(int id, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            // Người duyệt cần mở được đơn được giao ngay cả khi không có quyền xem OT tổng quát.
+            var canView = await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)
+                || await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTApprove, ct);
+            if (!canView) return Forbid();
+
             return HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
         }
 
