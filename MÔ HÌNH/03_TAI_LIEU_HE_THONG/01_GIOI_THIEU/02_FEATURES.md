@@ -37,6 +37,12 @@ Hỗ trợ xem xét khác biệt giữa kế hoạch và dữ liệu thực tế
 ### Thiết bị và kiểm tra
 Tài liệu nghiệp vụ của repo mô tả luồng yêu cầu/phê duyệt thiết bị, QR, nhập Excel, schema theo phòng ban, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử. Cần xác nhận từng hạng mục trên môi trường nghiệm thu trước khi công bố là đã vận hành chính thức.
 
+### Kiểm kê và tuân thủ máy Windows (Endpoint Inventory & Compliance)
+
+Năng lực IT được thiết kế để thu thập inventory máy Windows, phần mềm và Windows Service qua Agent; chuẩn hóa dữ liệu; so sánh với danh mục/chính sách được phê duyệt; đưa cảnh báo hoặc ngoại lệ vào quy trình quản trị chung. Inventory thực tế không tự động trở thành danh sách được phép và Agent không phải kênh thực thi lệnh từ xa tùy ý.
+
+Đây là phạm vi riêng với nghiệp vụ đăng ký thiết bị. Trước khi giới thiệu là đã vận hành, cần xác minh cấp/enroll credential, inventory idempotent, policy/approval, compliance alert, revoke/expiry và pilot trên máy thật. Xem [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md).
+
 ## 3. Giá trị theo vai trò
 
 | Vai trò | Cách làm thủ công hiện tại | Giá trị kỳ vọng |
