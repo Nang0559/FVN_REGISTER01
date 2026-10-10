@@ -226,7 +226,7 @@ else
 
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("Attendance"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("Attendance"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.attendanceRate")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <div style="@($"width:68px;height:68px;flex:0 0 68px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--mud-palette-success) {attendanceRate.ToString(System.Globalization.CultureInfo.InvariantCulture)}%, var(--mud-palette-divider) 0)")">
@@ -243,7 +243,7 @@ else
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("Leave"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("Leave"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayLeave")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <MudIcon Icon="@Icons.Material.Outlined.EventBusy" Size="Size.Large" Style="color:#ed6c02" />
@@ -253,7 +253,7 @@ else
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("Trip"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("Trip"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayTrip")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <MudIcon Icon="@Icons.Material.Outlined.WorkOutline" Size="Size.Large" Style="color:#2979ff" />
@@ -263,7 +263,7 @@ else
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" @onclick="@(() => OpenDepartmentDetail("OT"))" Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("OT"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayOT")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Size="Size.Large" Style="color:#7b1fa2" />
