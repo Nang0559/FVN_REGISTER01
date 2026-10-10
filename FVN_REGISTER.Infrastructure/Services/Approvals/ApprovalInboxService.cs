@@ -114,6 +114,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     scopedByModule[pair.Key] = scopedItems;
                 }
 
+                // Reconcile notification state against the actual unresolved approval route.
+                // If a user previously opened an approval alert, restore it while that request
+                // is still actionable; only workflow completion may resolve the alert.
+                var actionableApprovals = scopedByModule
+                    .SelectMany(pair => pair.Value.Select(item => (pair.Key, item.RequestId)))
+                    .Distinct()
+                    .ToList();
+                await _notifications.RestorePendingApproverNotificationsAsync(
+                    user.UserId, actionableApprovals, ct);
+
                 var groups = _groupingPolicy.BuildGroups(scopedByModule);
 
                 // Do not mark approver notifications as read merely because an item is absent
