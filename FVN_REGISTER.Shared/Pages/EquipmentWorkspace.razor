@@ -42,10 +42,10 @@
             </MudSelect>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@(_deptCode == null)">@Language.T("equipment.taiMauDuLieu")</MudButton>
 
-            @if (_schemas.Count > 0)
+            @if (_schemas.Any(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)))
             {
                 <MudSelect T="int?" Label="@Language.T("equipment.mauDuLieuPhienBan")" @bind-Value="_schemaId" Variant="Variant.Outlined" Dense="true" Class="mt-3">
-                    @foreach (var item in _schemas.Where(x => x.Status == "Active"))
+                    @foreach (var item in _schemas.Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)))
                     {
                         <MudSelectItem T="int?" Value="@((int?)item.Id)">@item.SchemaName — v@item.Version — @item.CreatedByUserName</MudSelectItem>
                     }
@@ -56,6 +56,13 @@
                         @Language.T("equipment.dangSuDung") <b>@_schema.SchemaName — v@_schema.Version</b>@Language.T("equipment.nguoiTaoSoTruong", _schema.CreatedByUserName, _schema.Fields.Count)
                     </MudAlert>
                 }
+            }
+            else if (_schemas.Count > 0)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mt-3">
+                    Phòng ban này đã có @_schemas.Count mẫu dữ liệu nhưng tất cả đang ở trạng thái Bản nháp. Vào Quản lý mẫu dữ liệu, mở mẫu do bạn tạo và chọn "Đưa vào sử dụng" để mẫu xuất hiện tại đây.
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">Quản lý mẫu dữ liệu</MudButton>
+                </MudAlert>
             }
             else if (_deptCode != null)
             {
