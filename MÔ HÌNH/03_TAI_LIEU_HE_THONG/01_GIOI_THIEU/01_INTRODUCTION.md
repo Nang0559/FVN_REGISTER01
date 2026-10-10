@@ -1,119 +1,98 @@
-# FVN REGISTER — GIỚI THIỆU PHẦN MỀM
+# FVN REGISTER
+## Từ xử lý thủ công đến quy trình số hóa có thể kiểm soát
 
-## 1. FVN REGISTER là gì?
+> **Một nền tảng dùng chung để đăng ký, phê duyệt, theo dõi thực hiện và đối soát nghiệp vụ — giảm thao tác thủ công, tăng khả năng kiểm soát.**
 
-**FVN REGISTER** là nền tảng quản lý nghiệp vụ nhân sự và phê duyệt điện tử, số hóa vòng đời:
+---
 
-**Đăng ký → Phê duyệt → Thực hiện → Đối soát → HR Review → Báo cáo/Payroll**
+## 1. Bài toán hiện tại
 
-Hệ thống không chỉ là phần mềm đăng ký nghỉ phép. Các nghiệp vụ được quản lý trên cùng một nền tảng gồm Nghỉ phép, OT, Công tác, Thiết bị, Attendance/Execution, Work Calendar, Action, Notification, Dashboard và Reports.
+Khi nghiệp vụ được xử lý bằng giấy tờ, Excel và trao đổi trực tiếp, thông tin thường nằm ở nhiều nơi. Nhân viên phải lập và chuyển phiếu; người duyệt phải tìm hồ sơ; bộ phận phụ trách phải nhập lại, tổng hợp và đối chiếu; khi có sai lệch, việc tìm nguyên nhân phụ thuộc vào hồ sơ và trao đổi giữa các bên.
 
-## 2. Vấn đề phần mềm giải quyết
+| Công việc thủ công | Hệ quả cần kiểm soát |
+|---|---|
+| Lập phiếu, chuyển phiếu, hỏi tình trạng | Mất thời gian giao dịch và chờ đợi |
+| Nhập lại dữ liệu vào nhiều bảng | Tốn công, dễ sai lệch |
+| Theo dõi bằng Excel hoặc trao đổi riêng | Khó biết việc nào đang chờ, ai phụ trách |
+| Đối chiếu kế hoạch với kết quả thực tế | Tốn công tìm chênh lệch và xác nhận |
+| Lưu hồ sơ giấy, ảnh và lịch sử rời rạc | Khó truy xuất, khó kiểm tra lại |
+| Nhắc lịch, kiểm tra thiết bị thủ công | Có nguy cơ bỏ sót công việc định kỳ |
 
-```mermaid
-flowchart LR
-    OLD[Email / Excel / Chat / Giấy tờ] --> P1[Thông tin phân tán]
-    OLD --> P2[Khó biết ai đang xử lý]
-    OLD --> P3[Khó truy vết]
-    OLD --> P4[Khó đối chiếu kế hoạch - thực tế]
-    P1 --> FVN[FVN REGISTER]
-    P2 --> FVN
-    P3 --> FVN
-    P4 --> FVN
-    FVN --> R1[Workflow tập trung]
-    FVN --> R2[Approval rõ ràng]
-    FVN --> R3[Audit / History]
-    FVN --> R4[Reconciliation]
-```
+## 2. FVN REGISTER thay đổi cách làm như thế nào?
 
-## 3. Vòng đời nghiệp vụ
+**Trước:** Đăng ký → chuyển hồ sơ → hỏi tình trạng → nhập lại → đối chiếu thủ công → lưu hồ sơ riêng lẻ.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Draft
-    Draft --> Pending: Submit
-    Pending --> Approved: Approval hoàn tất
-    Pending --> Rejected: Reject
-    Approved --> Execution
-    Execution --> Matched: Actual phù hợp
-    Execution --> Mismatch: Actual khác Planned
-    Mismatch --> Confirmation
-    Confirmation --> EvidenceReview
-    EvidenceReview --> HRReview
-    HRReview --> Resolved
-    Matched --> Resolved
-    Rejected --> [*]
-    Resolved --> [*]
-```
+**Sau:** Đăng ký trên hệ thống → phê duyệt theo quy trình → theo dõi trạng thái → ghi nhận kết quả → tự tập trung sai lệch cần xử lý → báo cáo từ dữ liệu có kiểm soát.
 
-## 4. Các module
+Hệ thống quản lý một vòng đời nghiệp vụ xuyên suốt:
 
-### Leave
-Đăng ký nghỉ, approval, số dư phép, lịch nghỉ và báo cáo.
+**Đăng ký → Phê duyệt → Kế hoạch → Thực tế → Đối soát → Xử lý ngoại lệ → Báo cáo**
 
-### Overtime
-Đăng ký OT, kiểm tra hạn mức, approval, actual OT, reconciliation và dữ liệu phục vụ payroll.
+Số hóa không chỉ là thay tờ giấy bằng màn hình. Giá trị nằm ở việc kết nối các bước, xác định trách nhiệm, lưu lại lịch sử và giúp phát hiện công việc còn tồn đọng.
 
-### Trip
-Đăng ký công tác, approval, execution/actual và reconciliation.
+## 3. Mỗi vai trò nhận được giá trị gì?
 
-### Equipment
-Đăng ký thiết bị, QR, approval, asset và lịch sử sửa chữa. QR chỉ có hiệu lực nghiệp vụ sau khi request được duyệt hoàn tất.
+| Người dùng | Giá trị thực tế |
+|---|---|
+| **Nhân viên** | Gửi đăng ký, theo dõi trạng thái và xem lịch nghiệp vụ tại một nơi; giảm việc đi hỏi và theo dõi giấy tờ |
+| **Người phê duyệt** | Tập trung các yêu cầu cần xử lý; xem thông tin và đưa ra quyết định theo luồng được phân quyền |
+| **Quản lý bộ phận** | Có góc nhìn tổng hợp về tình hình, yêu cầu tồn đọng và các vấn đề cần chú ý |
+| **HR** | Theo dõi phép, OT, công tác và kết quả chấm công; tập trung xử lý sai lệch thay vì chỉ tổng hợp dữ liệu |
+| **Người quản lý thiết bị** | Theo dõi đăng ký thiết bị, mã QR, kiểm tra định kỳ, sửa chữa và lịch sử liên quan |
+| **Quản trị hệ thống** | Quản lý quyền truy cập, phạm vi dữ liệu và cấu hình theo trách nhiệm |
+| **Ban giám đốc** | Có cơ sở theo dõi tình hình và đánh giá hiệu quả bằng dữ liệu, thay vì phụ thuộc hoàn toàn vào báo cáo thủ công |
 
-### Attendance / HRM Calculation
-FVN cung cấp UI và snapshot kết quả tính tương thích HRM. HRM là nguồn dữ liệu và luật tính chấm công; FVN không ghi ngược vào HRM.
+## 4. Các nghiệp vụ trên cùng một nền tảng
 
-### Work Calendar
-Hiển thị các projection nghiệp vụ theo ngày, giúp người dùng xem kế hoạch và trạng thái.
+- **Nghỉ phép:** đăng ký, phê duyệt, theo dõi lịch và thông tin liên quan đến phép.
+- **Làm thêm giờ (OT):** đăng ký, kiểm tra quy tắc/hạn mức được cấu hình, phê duyệt và đối chiếu với kết quả thực tế.
+- **Công tác:** quản lý đăng ký, phê duyệt, thực hiện và đối chiếu kết quả.
+- **Lịch làm việc chung:** xem lịch công ty, ca làm, đăng ký và trạng thái nghiệp vụ theo ngày.
+- **Chấm công và đối soát:** hỗ trợ xem kết quả từ HRM, so sánh kế hoạch với thực tế và đưa sai lệch cần xử lý vào luồng theo dõi. HRM vẫn là nguồn chính thức của dữ liệu và quy tắc tính công.
+- **Quản lý thiết bị:** đăng ký và phê duyệt thiết bị, QR, danh mục, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử.
+- **Trung tâm công việc và thông báo:** tập trung việc cần xử lý, trạng thái và nhắc việc theo quy trình.
+- **Bảng điều khiển và báo cáo:** tổng hợp thông tin theo quyền và phạm vi dữ liệu; quyền xem và quyền xuất dữ liệu được kiểm soát riêng.
+- **HR Review và dữ liệu đầu vào tính lương:** hỗ trợ xem xét sai lệch, ghi nhận quyết định xử lý và tạo dữ liệu theo kỳ khi đáp ứng điều kiện sẵn sàng.
 
-### Action Center
-Tập trung các việc người dùng cần xử lý.
+Phạm vi hiển thị và thao tác phụ thuộc vào quyền, cấu hình và mức độ hoàn thiện của từng nghiệp vụ; tài liệu giới thiệu không thay thế kiểm thử nghiệm thu thực tế.
 
-### Notification
-Thông báo in-app/realtime và email theo workflow/event.
+## 5. Giá trị quản trị cốt lõi
 
-### Dashboard
-Tổng hợp pending approvals và đóng góp của từng module.
+**Giảm thao tác lặp lại** — hạn chế việc chuyển phiếu, hỏi trạng thái, nhập lại và tổng hợp thủ công.
 
-### Reports
-Báo cáo Leave, OT, Trip, Equipment, Attendance; capability View và Export được kiểm soát riêng.
+**Tăng tính minh bạch** — thể hiện trạng thái, người chịu trách nhiệm và lịch sử xử lý.
 
-### HR Review
-Tiếp nhận execution mismatch, confirmation, evidence và quyết định OK/NG.
+**Phát hiện sai lệch có trọng tâm** — chuyển chênh lệch giữa kế hoạch và thực tế thành nội dung cần xác nhận/xử lý.
 
-### Payroll Input
-Tạo snapshot dữ liệu payroll theo kỳ sau khi các điều kiện readiness được đáp ứng.
+**Tăng khả năng truy xuất** — tập trung thông tin, bằng chứng và lịch sử theo nghiệp vụ.
 
-## 5. Ai sử dụng hệ thống?
+**Chuẩn hóa kiểm soát** — dùng quy trình phê duyệt và phân quyền nhất quán giữa các nghiệp vụ phù hợp.
 
-```mermaid
-flowchart TB
-    FVN[FVN REGISTER]
-    FVN --> EMP[Employee]
-    FVN --> APP[Approver]
-    FVN --> HR[HR]
-    FVN --> ADM[Admin]
-    FVN --> MGR[Manager]
-    EMP --> E1[Create / Track request]
-    APP --> A1[Review / Approve / Reject]
-    HR --> H1[Review / Reconciliation / Attendance]
-    ADM --> D1[Security / Configuration]
-    MGR --> M1[Dashboard / Calendar / Reports]
-```
+**Tạo nền tảng cải tiến liên tục** — dữ liệu quy trình giúp đo thời gian xử lý, tồn đọng và chất lượng sau khi áp dụng.
 
-## 6. Điểm nổi bật
+## 6. Đánh giá hiệu quả áp dụng
 
-1. Một approval engine dùng chung cho nhiều module.
-2. Approval Snapshot bảo toàn hierarchy tại thời điểm Submit.
-3. Action, Calendar và Notification dùng chung ngữ cảnh xử lý nhưng không thay thế business state.
-4. Planned và Actual được đối soát ở cấp employee/participant và work date.
-5. Evidence có lifecycle riêng.
-6. HR Resolution có audit và idempotency.
-7. Capability và Data Scope được kiểm soát độc lập.
-8. Reporting View và Export là hai capability khác nhau.
-9. Payroll chỉ sử dụng snapshot đã được kiểm tra readiness.
-10. Thiết kế mở rộng theo provider/policy/mapping thay vì copy workflow riêng.
+Không nên đưa ra con số tiết kiệm ước tính như kết quả thực tế khi chưa đo tại nhà máy. Nên ghi nhận đường cơ sở trước khi áp dụng và so sánh sau một giai đoạn vận hành.
 
-## 7. Thông điệp
+| Chỉ số | Cách đo |
+|---|---|
+| Thời gian xử lý mỗi yêu cầu | Tổng phút làm việc thực tế / số yêu cầu |
+| Công sức hành chính | Số lượt nhập lại, tổng hợp, nhắc việc và đối chiếu × thời gian trung bình |
+| Thời gian chờ phê duyệt | Thời điểm quyết định − thời điểm gửi yêu cầu |
+| Tỷ lệ sai sót | Số hồ sơ cần sửa hoặc xử lý lại / tổng hồ sơ |
+| Tỷ lệ đúng hạn | Số việc hoàn thành đúng hạn / tổng việc đến hạn |
+| Chất lượng truy xuất | Thời gian tìm hồ sơ, bằng chứng hoặc lịch sử xử lý |
 
-> **FVN REGISTER — từ yêu cầu đến phê duyệt, từ thực tế đến đối soát.**
+### Công thức quy đổi lợi ích
+
+- **Giờ công có thể giải phóng** = số giao dịch × (thời gian thủ công trước − thời gian sau áp dụng) / 60.
+- **Giá trị năng lực được giải phóng** = giờ công có thể giải phóng × chi phí lao động quy đổi theo giờ.
+- **Lợi ích ròng ước tính** = giá trị lợi ích đo được − chi phí vận hành và duy trì hệ thống.
+
+Giờ công được giải phóng là năng lực có thể chuyển sang công việc khác; không mặc nhiên đồng nghĩa với giảm chi tiền mặt. Khi tính hiệu quả, cần tính cả chi phí triển khai, đào tạo, vận hành và duy trì.
+
+## 7. Thông điệp dành cho ban giám đốc
+
+> **FVN REGISTER không chỉ số hóa biểu mẫu. Hệ thống hướng tới chuẩn hóa cách làm việc, kết nối quy trình từ đăng ký đến xử lý kết quả, và tạo dữ liệu để quản lý hiệu quả hơn.**
+
+**Đề xuất:** chọn một giai đoạn đo thử, ghi nhận đường cơ sở, theo dõi chỉ số sau áp dụng và báo cáo kết quả thực tế trước khi mở rộng.
