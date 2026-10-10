@@ -8,6 +8,8 @@ using FVN_REGISTER.Contract.Dtos.Dashboard;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Dashboards
 {
@@ -20,6 +22,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         private readonly ILeaveQueryService _leaveQuery;
         private readonly IStatisticsService _statistics;
         private readonly IAuthorizationService _authorization;
+        private readonly IUnitOfWork _uow;
 
         public RequestModule Module => RequestModule.Leave;
         public int RequiredFunctionCode => SecurityFunctionCodes.DashboardView;
@@ -27,11 +30,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         public LeaveDashboardProvider(
             ILeaveQueryService leaveQuery,
             IStatisticsService statistics,
-            IAuthorizationService authorization)
+            IAuthorizationService authorization,
+            IUnitOfWork uow)
         {
             _leaveQuery = leaveQuery;
             _statistics = statistics;
             _authorization = authorization;
+            _uow = uow;
         }
 
         public async Task<ModuleDashboardContribution> GetContributionAsync(
@@ -81,27 +86,93 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 }
             }
 
-            // These are Leave/attendance aggregates: OT/Trip approval scope must not
-            // accidentally grant access to Leave data.
-            if (await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct))
+            // F03ApprovalPolicies is the source of truth for approval department scope.
+            // Match active policy + approver position + exact approval level + request type.
+            // DeptCode is the requester department governed by the policy, not the approver's own department.
+            var activePolicies = await _uow.Repository<F03ApprovalPolicy>().Query()
+                .AsNoTracking()
+                .Where(p => p.IsActive == true
+                    && p.ApprovalPositionCode == user.PositionCode
+                    && p.Level == user.LevelApprove
+                    && (p.RequestType == RequestModule.Leave
+                        || p.RequestType == RequestModule.Overtime
+                        || p.RequestType == RequestModule.Trip))
+                .Select(p => new { p.RequestType, p.DeptCode })
+                .Distinct()
+                .ToListAsync(ct);
+
+            var leaveDepartments = activePolicies.Where(p => p.RequestType == RequestModule.Leave)
+                .Select(p => p.DeptCode).Distinct().ToHashSet();
+            var otDepartments = activePolicies.Where(p => p.RequestType == RequestModule.Overtime)
+                .Select(p => p.DeptCode).Distinct().ToHashSet();
+            var tripDepartments = activePolicies.Where(p => p.RequestType == RequestModule.Trip)
+                .Select(p => p.DeptCode).Distinct().ToHashSet();
+            var approvalDepartments = leaveDepartments
+                .Concat(otDepartments).Concat(tripDepartments).ToHashSet();
+
+            if (approvalDepartments.Count > 0)
             {
-                var approvalScope = await _authorization.GetScopeAsync(
-                    user.UserId, SecurityFunctionCodes.LeaveApprove, ct);
+                var today = DateTime.Today;
+                var tomorrow = today.AddDays(1);
                 var allStatistics = await _statistics.GetLeaveStatisticsAsync(
-                    includeCompanyTotal: true, ct);
-                var canSeeAllDepartments = string.Equals(
-                    approvalScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase);
+                    includeCompanyTotal: false, ct);
+
+                var todayLeaveByDept = leaveDepartments.Count == 0
+                    ? new Dictionary<int, int>()
+                    : await _uow.Repository<F03LeaveDay>().Query()
+                        .AsNoTracking()
+                        .Where(l => l.IsActive == true
+                            && l.RequestStatus == ApprovalStatus.Approved
+                            && l.StartTime < tomorrow && l.EndTime >= today)
+                        .Join(_uow.Repository<F03Employee>().Query().Where(e => e.IsActive == true),
+                            l => l.EmployeeCode, e => e.EmployeeCode,
+                            (l, e) => new { l.EmployeeCode, e.DeptCode })
+                        .Where(x => leaveDepartments.Contains(x.DeptCode))
+                        .GroupBy(x => x.DeptCode)
+                        .Select(g => new { DeptCode = g.Key, Count = g.Select(x => x.EmployeeCode).Distinct().Count() })
+                        .ToDictionaryAsync(x => x.DeptCode, x => x.Count, ct);
+
+                var todayOtByDept = otDepartments.Count == 0
+                    ? new Dictionary<int, int>()
+                    : await _uow.Repository<F03OTEmployee>().Query()
+                        .AsNoTracking()
+                        .Where(e => e.IsActive == true
+                            && e.OTRequest.IsActive == true
+                            && e.OTRequest.RequestStatus == ApprovalStatus.Approved
+                            && e.OTRequest.OTDate >= today && e.OTRequest.OTDate < tomorrow
+                            && e.DeptCode.HasValue)
+                        .Where(e => otDepartments.Contains(e.DeptCode!.Value))
+                        .GroupBy(e => e.DeptCode!.Value)
+                        .Select(g => new { DeptCode = g.Key, Count = g.Select(x => x.EmployeeCode).Distinct().Count() })
+                        .ToDictionaryAsync(x => x.DeptCode, x => x.Count, ct);
+
+                var todayTripByDept = tripDepartments.Count == 0
+                    ? new Dictionary<int, int>()
+                    : await _uow.Repository<F03TripRequest>().Query()
+                        .AsNoTracking()
+                        .Where(t => t.IsActive == true
+                            && t.RequestStatus == ApprovalStatus.Approved
+                            && t.StartDate < tomorrow && t.EndDate >= today)
+                        .Join(_uow.Repository<F03Employee>().Query().Where(e => e.IsActive == true),
+                            t => t.EmployeeCode, e => e.EmployeeCode,
+                            (t, e) => new { t.EmployeeCode, e.DeptCode })
+                        .Where(x => tripDepartments.Contains(x.DeptCode))
+                        .GroupBy(x => x.DeptCode)
+                        .Select(g => new { DeptCode = g.Key, Count = g.Select(x => x.EmployeeCode).Distinct().Count() })
+                        .ToDictionaryAsync(x => x.DeptCode, x => x.Count, ct);
 
                 foreach (var row in allStatistics)
                 {
-                    if (!int.TryParse(row.DepartmentId, out var departmentCode))
+                    if (!int.TryParse(row.DepartmentId, out var departmentCode)
+                        || !approvalDepartments.Contains(departmentCode))
                         continue;
 
-                    var allowed = canSeeAllDepartments
-                        || await _authorization.CanAccessAsync(
-                            user, SecurityFunctionCodes.LeaveApprove, null, departmentCode, ct);
-                    if (!allowed)
-                        continue;
+                    if (leaveDepartments.Contains(departmentCode))
+                        todayLeaveByDept.TryGetValue(departmentCode, out row.TodayLeaveEmployeesCount);
+                    if (otDepartments.Contains(departmentCode))
+                        todayOtByDept.TryGetValue(departmentCode, out row.TodayOTEmployeesCount);
+                    if (tripDepartments.Contains(departmentCode))
+                        todayTripByDept.TryGetValue(departmentCode, out row.TodayTripEmployeesCount);
 
                     row.EmployeeLeaves = new();
                     row.Departments = new();
