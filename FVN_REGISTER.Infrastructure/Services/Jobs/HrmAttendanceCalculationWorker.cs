@@ -64,30 +64,39 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 "[HRM_ATTENDANCE_WORKER] Bỏ qua catch-up khi khởi động (HrmAttendanceWorker:CatchUpOnStartup = false).");
         }
 
+        // Refresh today's attendance in one shared background process. Dashboard requests
+        // never call HRM/calculation directly, so N approvers still cause only one scheduled
+        // company-wide refresh per interval. SQL applock prevents overlap across API instances.
+        var refreshMinutes = Math.Clamp(
+            _configuration.GetValue<int?>("HrmAttendanceWorker:TodayRefreshMinutes") ?? 15,
+            5,
+            120);
+        var lastDailyRunDate = DateTime.MinValue;
+
         while (!stoppingToken.IsCancellationRequested)
         {
-            var now = DateTime.Now;
-            var nextRun = DateTime.Today.Add(DailyRunAt);
-            if (now >= nextRun)
-                nextRun = nextRun.AddDays(1);
-
-            var delay = nextRun - now;
-
-            _logger.LogInformation(
-                "[HRM_ATTENDANCE_WORKER] Chờ đến {NextRun} ({Hours:F1}h nữa)",
-                nextRun.ToString("dd/MM/yyyy HH:mm"),
-                delay.TotalHours);
-
             try
             {
-                await Task.Delay(delay, stoppingToken);
+                var now = DateTime.Now;
+                if (now.TimeOfDay >= DailyRunAt && lastDailyRunDate.Date != now.Date)
+                {
+                    await RunYesterdayAsync(stoppingToken);
+                    lastDailyRunDate = now.Date;
+                }
+
+                await RunTodayAsync(stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(refreshMinutes), stoppingToken);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
-
-            await RunYesterdayAsync(stoppingToken);
+            catch (Exception ex)
+            {
+                _health.Failure(nameof(HrmAttendanceCalculationWorker), ex);
+                _logger.LogError(ex, "[HRM_ATTENDANCE_WORKER] Lỗi vòng làm mới chấm công hôm nay.");
+                await Task.Delay(TimeSpan.FromMinutes(refreshMinutes), stoppingToken);
+            }
         }
 
         _logger.LogInformation("[HRM_ATTENDANCE_WORKER] Dừng.");
@@ -127,6 +136,37 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         {
             _health.Failure(nameof(HrmAttendanceCalculationWorker), ex);
             _logger.LogError(ex, "[HRM_ATTENDANCE_WORKER] Catch-up lỗi.");
+        }
+    }
+
+    private async Task RunTodayAsync(CancellationToken ct)
+    {
+        try
+        {
+            await using var guard = await TryAcquireCompanyRunGuardAsync(ct);
+            if (guard is null)
+            {
+                _logger.LogDebug(
+                    "[HRM_ATTENDANCE_WORKER] Bỏ qua refresh hôm nay: một lần tính company-wide khác đang chạy.");
+                return;
+            }
+
+            var today = DateTime.Today;
+            _logger.LogInformation(
+                "[HRM_ATTENDANCE_WORKER] Refresh attendance hôm nay: {Date}",
+                today.ToString("dd/MM/yyyy"));
+
+            await CalculateCompanyWideAsync(
+                today, today, "HRM-ATTENDANCE-WORKER-TODAY", ct, reopenPayrollPeriod: false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Expected during application shutdown.
+        }
+        catch (Exception ex)
+        {
+            _health.Failure(nameof(HrmAttendanceCalculationWorker), ex);
+            _logger.LogError(ex, "[HRM_ATTENDANCE_WORKER] Refresh hôm nay thất bại.");
         }
     }
 
@@ -206,7 +246,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         DateTime from,
         DateTime to,
         string triggeredBy,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool reopenPayrollPeriod = true)
     {
         try
         {
@@ -221,7 +262,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                     EmployeeCode = null,
                     FromDate = from,
                     ToDate = to,
-                    ReopenPayrollPeriod = true
+                    ReopenPayrollPeriod = reopenPayrollPeriod
                 },
                 triggeredBy,
                 ct);
