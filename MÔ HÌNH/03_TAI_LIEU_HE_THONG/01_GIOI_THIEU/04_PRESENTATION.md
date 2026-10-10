@@ -124,6 +124,7 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 | **Lịch / chấm công / đối soát** | Tổng hợp lịch, ca và trường hợp cần xác minh | Nhìn rõ ngoại lệ cần xử lý |
 | **Thiết bị** | Hồ sơ, QR, kiểm tra, bằng chứng, sửa chữa và lịch sử theo phạm vi đã xác nhận | Tăng khả năng truy xuất vòng đời thiết bị |
 | **Công việc / báo cáo** | Việc cần xử lý, thông báo, bảng điều khiển và báo cáo theo quyền | Hỗ trợ theo dõi tình hình và tồn đọng |
+| **Endpoint / tuân thủ máy Windows** | Thu thập inventory qua Agent, đối chiếu phần mềm/dịch vụ với chính sách được duyệt | Năng lực IT riêng; chỉ công bố vận hành sau pilot và nghiệm thu |
 
 *HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công. Chức năng cụ thể cần được xác nhận trên môi trường nghiệm thu.*
 
@@ -138,6 +139,7 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 | **Quản lý bộ phận** | Hỏi từng người, ghép nhiều bảng | Theo dõi tình hình và việc tồn đọng trong phạm vi được cấp |
 | **HR** | Nhập liệu, tổng hợp, dò chênh lệch | Tập trung xác minh và xử lý ngoại lệ |
 | **Quản lý thiết bị** | Tìm mã, lịch kiểm tra, bằng chứng và lịch sử | Tra cứu hồ sơ và nhiệm vụ đã ghi nhận |
+| **IT quản trị Endpoint** | Tập hợp inventory máy Windows, phần mềm và dịch vụ | Theo dõi tuân thủ theo chính sách được duyệt sau pilot đã xác nhận |
 | **Ban giám đốc** | Chờ các bộ phận tổng hợp số liệu | Có cơ sở đo hiệu quả và ưu tiên cải tiến |
 
 **Lợi ích là giảm việc lặp lại và tăng khả năng kiểm soát — không phải xóa bỏ mọi thao tác của con người.**
