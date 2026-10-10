@@ -1,6 +1,4 @@
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
-@using FVN_REGISTER.Shared.Services.Security
-@inject ISecurityClientService SecurityService
 
 <MudDialog>
     <TitleContent>
@@ -19,15 +17,6 @@
             <MudSelectItem Value="4">@Language.T("nav.approvers")</MudSelectItem>
             <MudSelectItem Value="5">@Language.T("common.user2")</MudSelectItem>
         </MudSelect>
-        <MudStack Class="mt-4" Spacing="1">
-            <MudText Typo="Typo.subtitle2">@Language.T("user.quyenModuleThietBi")</MudText>
-            <MudCheckBox @bind-Value="_equipmentAccess">@Language.T("equipment.register")</MudCheckBox>
-            <MudCheckBox @bind-Value="_equipmentImportAccess">@Language.T("equipment.import")</MudCheckBox>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                @Language.T("user.chiUserDuocCapQuyen")
-            </MudText>
-        </MudStack>
-
         <MudTextField @bind-Value="Request.DeptCode"
                       Label='@Language.T("common.departmentCode")'
                       Variant="Variant.Outlined"
@@ -50,42 +39,10 @@
 
     [Parameter] public UpdateUserRequest Request { get; set; } = new();
 
-    private int? _equipmentFunctionId;
-    private int? _equipmentImportFunctionId;
-    private bool _equipmentAccess;
-    private bool _equipmentImportAccess;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var result = await SecurityService.GetFunctionsAsync();
-        if (!result.IsSuccess || result.Data == null) return;
-
-        _equipmentFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2301)?.IdFunction;
-        _equipmentImportFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2306)?.IdFunction;
-        _equipmentAccess = _equipmentFunctionId.HasValue && Request.FunctionIds?.Contains(_equipmentFunctionId.Value) == true;
-        _equipmentImportAccess = _equipmentImportFunctionId.HasValue && Request.FunctionIds?.Contains(_equipmentImportFunctionId.Value) == true;
-    }
-
     private void Submit()
     {
-        var ids = Request.FunctionIds?.Distinct().ToList() ?? new List<int>();
-        SetFunction(ids, _equipmentFunctionId, _equipmentAccess);
-        SetFunction(ids, _equipmentImportFunctionId, _equipmentImportAccess);
-        Request.FunctionIds = ids;
+        Request.FunctionIds = Request.FunctionIds?.Distinct().ToList() ?? new List<int>();
         MudDialog.Close(DialogResult.Ok(Request));
-    }
-
-    private static void SetFunction(List<int> ids, int? functionId, bool enabled)
-    {
-        if (!functionId.HasValue) return;
-        if (enabled)
-        {
-            if (!ids.Contains(functionId.Value)) ids.Add(functionId.Value);
-        }
-        else
-        {
-            ids.Remove(functionId.Value);
-        }
     }
     private void Cancel() => MudDialog.Cancel();
 }
