@@ -108,6 +108,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             await _notification.CreateAsync(dto, ct);
         }
 
+        public Task ResolveApproverNotificationsAsync(
+            RequestModule requestType, int requestId, CancellationToken ct = default)
+            => _notification.ResolveForRequestAsync(requestType, requestId, ct);
+
         public async Task NotifyCreatorInAppAsync(
             int creatorUserId, string creatorEmployeeCode, string status,
             int requestId, RequestModule requestType,

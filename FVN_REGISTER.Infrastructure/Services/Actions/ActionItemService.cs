@@ -3,6 +3,8 @@ using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Extensions;
+using System.Text.RegularExpressions;
 using FVN_REGISTER.Contract.Dtos.Actions;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Security;
@@ -38,6 +40,7 @@ public sealed class ActionItemService : IActionItemService
 
         await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
         await EnsureNotificationsForOpenActionsAsync(userId, employeeId.Value, cancellationToken);
+        await ResolveStaleActionNotificationsAsync(userId, employeeId.Value, cancellationToken);
         var query = _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -91,6 +94,7 @@ public sealed class ActionItemService : IActionItemService
 
         await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
         await EnsureNotificationsForOpenActionsAsync(userId, employeeId.Value, cancellationToken);
+        await ResolveStaleActionNotificationsAsync(userId, employeeId.Value, cancellationToken);
         var counts = await _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -240,6 +244,11 @@ public sealed class ActionItemService : IActionItemService
             entity.DismissedAt = DateTime.Now;
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        try { await _notifications.RefreshBadgeAsync(userId, cancellationToken); }
+        catch (OperationCanceledException) { throw; }
+        catch { /* badge refresh is cosmetic */ }
+
         return true;
     }
 
@@ -423,8 +432,10 @@ public sealed class ActionItemService : IActionItemService
         foreach (var item in missing)
         {
             RequestModule module;
-            try { module = ExecutionNotificationModuleMapper.ToRequestModule(item.ModuleCode); }
-            catch (InvalidOperationException) { continue; } // module without a notification mapping
+            if (string.Equals(item.ModuleCode, "SecurityAccess", StringComparison.OrdinalIgnoreCase))
+                module = RequestModule.AccessChange;
+            else if (!item.ModuleCode.TryToRequestModule(out module))
+                continue; // module without a notification mapping
 
             try
             {
@@ -450,6 +461,99 @@ public sealed class ActionItemService : IActionItemService
                 // next read retries (the missing-notification query is idempotent).
             }
         }
+    }
+
+    private static readonly Regex ReconciliationIdRegex =
+        new(@"reconciliationId=(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Task -> Notification direction of the parity rule. Actions are closed in many places
+    /// (employee/HR resolution, lifecycle worker, access change, reconciliation cancel) and none of
+    /// them touches notifications, so the Work Center would show 0 tasks while the bell still counts
+    /// the old notification. Heal centrally here, on every task read:
+    ///  1. owner: notification.ActionId points to this employee's action that is now Completed/Dismissed/Cancelled;
+    ///  2. reviewer/employee Execution notifications whose reconciliation is Resolved/Matched/inactive.
+    /// </summary>
+    private async Task ResolveStaleActionNotificationsAsync(
+        int userId,
+        int employeeId,
+        CancellationToken cancellationToken)
+    {
+        var unread = await _db.AppNotifications
+            .Where(n => n.UserId == userId
+                && !n.IsRead
+                && n.NotificationType != null
+                && (n.ActionId != null || n.ActionUrl != null))
+            .OrderByDescending(n => n.Id)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+
+        if (unread.Count == 0)
+            return;
+
+        var actionIds = unread
+            .Where(n => n.ActionId.HasValue)
+            .Select(n => n.ActionId!.Value)
+            .Distinct()
+            .ToList();
+
+        var closedActionIds = actionIds.Count == 0
+            ? new HashSet<Guid>()
+            : (await _db.ActionItems.AsNoTracking()
+                .Where(x => actionIds.Contains(x.ActionId)
+                    && x.AssignedToEmployeeId == employeeId
+                    && (x.Status == ActionItemStatus.Completed
+                        || x.Status == ActionItemStatus.Dismissed
+                        || x.Status == ActionItemStatus.Cancelled))
+                .Select(x => x.ActionId)
+                .ToListAsync(cancellationToken)).ToHashSet();
+
+        var reconciliationIds = new Dictionary<int, long>();
+        foreach (var n in unread)
+        {
+            if (n.NotificationType is null
+                || !n.NotificationType.StartsWith("EXECUTION_", StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(n.ActionUrl))
+                continue;
+
+            var match = ReconciliationIdRegex.Match(n.ActionUrl);
+            if (match.Success && long.TryParse(match.Groups[1].Value, out var rid))
+                reconciliationIds[n.Id] = rid;
+        }
+
+        var reconciliationIdList = reconciliationIds.Values.Distinct().ToList();
+        var doneReconciliations = reconciliationIdList.Count == 0
+            ? new HashSet<long>()
+            : (await _db.ExecutionReconciliations.AsNoTracking()
+                .Where(r => reconciliationIdList.Contains(r.Id)
+                    && (r.IsActive == false
+                        || r.ReconciliationStatus == "Resolved"
+                        || r.ReconciliationStatus == "Matched"))
+                .Select(r => r.Id)
+                .ToListAsync(cancellationToken)).ToHashSet();
+
+        var now = DateTime.Now;
+        var changed = false;
+        foreach (var n in unread)
+        {
+            var stale = (n.ActionId.HasValue && closedActionIds.Contains(n.ActionId.Value))
+                || (reconciliationIds.TryGetValue(n.Id, out var rid) && doneReconciliations.Contains(rid));
+
+            if (!stale) continue;
+
+            n.IsRead = true;
+            n.ReadAt = now;
+            changed = true;
+        }
+
+        if (!changed)
+            return;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        try { await _notifications.RefreshBadgeAsync(userId, cancellationToken); }
+        catch (OperationCanceledException) { throw; }
+        catch { /* badge refresh is cosmetic */ }
     }
 
     private async Task MarkNotificationsReadForActionAsync(

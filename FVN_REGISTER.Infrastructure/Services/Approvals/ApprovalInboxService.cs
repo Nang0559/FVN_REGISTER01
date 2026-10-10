@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Policies;
@@ -24,6 +25,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly IAuthorizationService _authorization;
         private readonly IApprovalPolicyService _approvalPolicies;
         private readonly IAuditService _audit;
+        private readonly INotificationService _notifications;
 
         public ApprovalInboxService(
             IApprovalWorkflowOrchestrator<LeaveRequestSubject> leaveWorkflow,
@@ -35,6 +37,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IAuthorizationService authorization,
             IApprovalPolicyService approvalPolicies,
             IAuditService audit,
+            INotificationService notifications,
             ILogger<ApprovalInboxService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
@@ -48,6 +51,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _authorization = authorization;
             _approvalPolicies = approvalPolicies;
             _audit = audit;
+            _notifications = notifications;
         }
 
         public async Task<ServiceResult<List<PendingApprovalGroupDto>>> GetPendingAsync(UserIdentityDto user, CancellationToken ct = default)
@@ -110,7 +114,34 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     scopedByModule[pair.Key] = scopedItems;
                 }
 
-                return ServiceResult<List<PendingApprovalGroupDto>>.Ok(_groupingPolicy.BuildGroups(scopedByModule));
+                var groups = _groupingPolicy.BuildGroups(scopedByModule);
+
+                // Single source of truth: the inbox decides what is actionable. Unread approver
+                // notifications for requests that are NOT actionable for this user any more
+                // (decided, cancelled, overridden, outside policy/scope) are cleared so the bell
+                // and the app-icon badge never exceed what "Nhiệm vụ của tôi" can show.
+                // Skipped when the approver identity is empty, otherwise an empty inbox would
+                // wrongly clear every notification.
+                if (user.UserId > 0 && !string.IsNullOrWhiteSpace(approverKey))
+                {
+                    try
+                    {
+                        var actionable = groups
+                            .SelectMany(g => g.Requests)
+                            .Where(r => r.CanApprove)
+                            .Select(r => (r.Kind, r.RequestId))
+                            .Distinct()
+                            .ToList();
+                        await _notifications.ResolveStaleApproverAsync(user.UserId, actionable, ct);
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "[INBOX] Stale approver notification cleanup failed. UserId={UserId}", user.UserId);
+                    }
+                }
+
+                return ServiceResult<List<PendingApprovalGroupDto>>.Ok(groups);
             }
             catch (Exception ex)
             {

@@ -138,6 +138,12 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
             var stepsFull = await GetStepsAsync(requestId, ct);
             await _provider.ApplyOverallStatusAsync(requestId, stepsFull, ct);
 
+            // The request moved on: the approvers' pending notifications for it are now stale.
+            // Resolve them BEFORE notifying the next approver so only the new one stays unread.
+            try { await _notification.ResolveApproverNotificationsAsync(Module, requestId, ct); }
+            catch (OperationCanceledException) { throw; }
+            catch { /* notification housekeeping is secondary; the next inbox load self-heals */ }
+
             var subject = await _provider.GetSubjectAsync(requestId, ct);
             var completedStep = stepsFull.FirstOrDefault(s => s.Level == action.Level);
 

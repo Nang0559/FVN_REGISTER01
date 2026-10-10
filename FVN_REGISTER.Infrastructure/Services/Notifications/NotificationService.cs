@@ -11,6 +11,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Infrastructure.Utils;
+using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Extensions;
+using FVN_REGISTER.Core.Entities.Common;
 
 
 namespace FVN_REGISTER.Infrastructure.Services.Notifications
@@ -156,6 +159,116 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
 
             await _uow.SaveChangesAsync(ct);
             return ServiceResult.Ok();
+        }
+
+        private static readonly NotificationAction[] ApproverActions =
+        {
+            NotificationAction.Pending,
+            NotificationAction.PendingNextLevel,
+            NotificationAction.Escalated,
+            NotificationAction.Reminder
+        };
+
+        private static readonly RequestModule[] InboxModules =
+        {
+            RequestModule.Leave,
+            RequestModule.Overtime,
+            RequestModule.Trip,
+            RequestModule.Equipment,
+            RequestModule.Payroll
+        };
+
+        public async Task<int> ResolveForRequestAsync(RequestModule module, int requestId, CancellationToken ct = default)
+        {
+            string detail;
+            try { detail = $"{module.ToDetailPath()}/{requestId}"; }
+            catch (ArgumentOutOfRangeException) { return 0; }
+
+            // Approval notifications carry no NotificationType; Execution/Equipment-inspection ones do.
+            var rows = await _uow.Repository<F03AppNotification>().Query()
+                .Where(x => !x.IsRead
+                    && x.RequestModule == module
+                    && x.NotificationType == null
+                    && x.ActionUrl == detail
+                    && ApproverActions.Contains(x.Action))
+                .ToListAsync(ct);
+
+            return await MarkResolvedAsync(rows, ct);
+        }
+
+        public async Task<int> ResolveStaleApproverAsync(
+            int userId,
+            IReadOnlyCollection<(RequestModule Module, int RequestId)> actionable,
+            CancellationToken ct = default)
+        {
+            if (userId <= 0) return 0;
+
+            var rows = await _uow.Repository<F03AppNotification>().Query()
+                .Where(x => x.UserId == userId
+                    && !x.IsRead
+                    && x.NotificationType == null
+                    && InboxModules.Contains(x.RequestModule)
+                    && ApproverActions.Contains(x.Action))
+                .ToListAsync(ct);
+
+            var stale = new List<F03AppNotification>();
+            foreach (var n in rows)
+            {
+                if (!TryParseRequestId(n, out var requestId)) continue;
+                if (!actionable.Contains((n.RequestModule, requestId)))
+                    stale.Add(n);
+            }
+
+            return await MarkResolvedAsync(stale, ct);
+        }
+
+        public async Task RefreshBadgeAsync(int userId, CancellationToken ct = default)
+        {
+            var unread = await GetUnreadCountAsync(userId, ct);
+            await _hub.Clients.Group(NotificationHubGroups.ForUser(userId))
+                .SendAsync("BadgeUpdated", unread, ct);
+        }
+
+        private static bool TryParseRequestId(F03AppNotification n, out int requestId)
+        {
+            requestId = 0;
+            if (string.IsNullOrWhiteSpace(n.ActionUrl)) return false;
+
+            string prefix;
+            try { prefix = n.RequestModule.ToDetailPath() + "/"; }
+            catch (ArgumentOutOfRangeException) { return false; }
+
+            if (!n.ActionUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
+            var tail = n.ActionUrl.Substring(prefix.Length);
+            var cut = tail.IndexOfAny(new[] { '?', '#', '/' });
+            if (cut >= 0) tail = tail.Substring(0, cut);
+            return int.TryParse(tail, out requestId);
+        }
+
+        private async Task<int> MarkResolvedAsync(List<F03AppNotification> rows, CancellationToken ct)
+        {
+            if (rows.Count == 0) return 0;
+
+            var now = DateTime.Now;
+            foreach (var n in rows)
+            {
+                n.IsRead = true;
+                n.ReadAt = now;
+                _uow.Repository<F03AppNotification>().Update(n);
+            }
+            await _uow.SaveChangesAsync(ct);
+
+            foreach (var userId in rows.Select(x => x.UserId).Distinct())
+            {
+                try { await RefreshBadgeAsync(userId, ct); }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "[NOTIFY] Badge refresh failed. UserId={UserId}", userId);
+                }
+            }
+
+            return rows.Count;
         }
 
         // Web Push (app-icon badge). Best effort and off the request path: it runs in its own DI scope

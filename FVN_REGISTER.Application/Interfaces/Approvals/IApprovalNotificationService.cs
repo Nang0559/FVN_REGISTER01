@@ -26,6 +26,10 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
             string newApproverEmployeeCode, int requestId, RequestModule requestType,
             CancellationToken ct = default);
 
+        /// <summary>Clears the approvers' unread notifications of a request once it has been decided.</summary>
+        Task ResolveApproverNotificationsAsync(RequestModule requestType, int requestId,
+            CancellationToken ct = default);
+
         // ❌ SendPendingRemindersAsync — đã xóa khỏi interface
     }
 }
