@@ -272,7 +272,7 @@ namespace FVN_REGISTER.API.Controllers
                     from l in _db.LeaveDays.AsNoTracking()
                     join e in _db.Employees.AsNoTracking() on l.EmployeeCode equals e.EmployeeCode
                     join d in _db.Departments.AsNoTracking() on e.DeptCode equals d.DeptCode
-                    where l.IsActive == true && l.RequestStatus == ApprovalStatus.Approved
+                    where l.IsActive == true && e.IsActive == true && l.RequestStatus == ApprovalStatus.Approved
                         && allowedDepartments.Contains(e.DeptCode)
                         && l.StartTime < nextDay && l.EndTime >= day
                     orderby e.DeptCode, e.EmployeeCode
@@ -294,7 +294,7 @@ namespace FVN_REGISTER.API.Controllers
                     join p in _db.OvertimeEmployees.AsNoTracking() on r.Id equals p.OTRequestId
                     join e in _db.Employees.AsNoTracking() on p.EmployeeCode equals e.EmployeeCode
                     join d in _db.Departments.AsNoTracking() on e.DeptCode equals d.DeptCode
-                    where r.IsActive == true && r.RequestStatus == ApprovalStatus.Approved
+                    where r.IsActive == true && e.IsActive == true && r.RequestStatus == ApprovalStatus.Approved
                         && r.OTDate >= day && r.OTDate < nextDay
                         && allowedDepartments.Contains(e.DeptCode)
                     orderby e.DeptCode, e.EmployeeCode
@@ -315,7 +315,7 @@ namespace FVN_REGISTER.API.Controllers
                     from r in _db.TripRequests.AsNoTracking()
                     join e in _db.Employees.AsNoTracking() on r.EmployeeCode equals e.EmployeeCode
                     join d in _db.Departments.AsNoTracking() on e.DeptCode equals d.DeptCode
-                    where r.IsActive == true && r.RequestStatus == ApprovalStatus.Approved
+                    where r.IsActive == true && e.IsActive == true && r.RequestStatus == ApprovalStatus.Approved
                         && r.StartDate < nextDay && r.EndDate >= day
                         && allowedDepartments.Contains(e.DeptCode)
                     orderby e.DeptCode, e.EmployeeCode
