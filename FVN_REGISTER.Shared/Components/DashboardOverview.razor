@@ -175,9 +175,9 @@ else
                                         <MudText Typo="Typo.subtitle2"><b>@department.DepartmentName</b></MudText>
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.present"): @department.PresentEmployeesCount / @department.TotalEmployees</MudText>
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.leaveRequests"): @department.ApprovedLeaveCount</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.leaveType") hôm nay: @department.TodayLeaveEmployeesCount</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.tripType") hôm nay: @department.TodayTripEmployeesCount</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.overtimeType") hôm nay: @department.TodayOTEmployeesCount</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.todayLeave"): @department.TodayLeaveEmployeesCount</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.todayTrip"): @department.TodayTripEmployeesCount</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.todayOT"): @department.TodayOTEmployeesCount</MudText>
                                     </MudStack>
                                 </MudStack>
                             </MudPaper>
@@ -186,7 +186,7 @@ else
                 </MudGrid>
                 <MudTable Items="Data.DepartmentStatistics" Dense="true" Hover="true">
                     <HeaderContent>
-                        <MudTh>@Language.T("dashboard.department")</MudTh><MudTh>@Language.T("dashboard.staff")</MudTh><MudTh>@Language.T("dashboard.present")</MudTh><MudTh>@Language.T("dashboard.leaveRequests")</MudTh><MudTh>@Language.T("dashboard.pending")</MudTh><MudTh>@Language.T("dashboard.leaveRate")</MudTh><MudTh>@Language.T("dashboard.leaveType") hôm nay</MudTh><MudTh>@Language.T("dashboard.tripType") hôm nay</MudTh><MudTh>@Language.T("dashboard.overtimeType") hôm nay</MudTh>
+                        <MudTh>@Language.T("dashboard.department")</MudTh><MudTh>@Language.T("dashboard.staff")</MudTh><MudTh>@Language.T("dashboard.present")</MudTh><MudTh>@Language.T("dashboard.leaveRequests")</MudTh><MudTh>@Language.T("dashboard.pending")</MudTh><MudTh>@Language.T("dashboard.leaveRate")</MudTh><MudTh>@Language.T("dashboard.todayLeave")</MudTh><MudTh>@Language.T("dashboard.todayTrip")</MudTh><MudTh>@Language.T("dashboard.todayOT")</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.DepartmentName</MudTd>
