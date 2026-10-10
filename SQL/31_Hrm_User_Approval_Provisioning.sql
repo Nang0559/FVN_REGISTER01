@@ -345,6 +345,45 @@ BEGIN
         );
 
     /*
+      Deactivate only HRM-owned rows that are no longer represented by
+      active employee + active ApprovalPolicy configuration.
+    */
+    UPDATE a
+       SET a.IsActive=0,
+           a.ModifiedBy=@CreatedBy,
+           a.ModifiedAt=GETDATE(),
+           a.LastModifiedSource=N'HRM'
+    FROM dbo.F03Approvers a
+    INNER JOIN dbo.F03Employees e
+        ON e.EmployeeCode=a.ApproverCode
+    WHERE a.LastModifiedSource=N'HRM'
+      AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
+      AND
+      (
+          e.IsActive=0
+          OR ISNULL(e.LevelApprove,0) <= 0
+          OR (
+              a.ApproveForDeptCode <> e.DeptCode
+          )
+          OR NOT EXISTS
+          (
+              SELECT 1
+              FROM dbo.F03ApprovalPolicies ap
+              WHERE ap.IsActive=1
+                AND ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
+                AND ap.DeptCode=e.DeptCode
+                AND a.RequestType=
+                    CASE ap.RequestType
+                        WHEN 0 THEN N'LEAVE'
+                        WHEN 1 THEN N'OT'
+                        WHEN 2 THEN N'TRIP'
+                        WHEN 3 THEN N'EQUIPMENT'
+                    END
+                AND a.Level=ap.Level
+          )
+      );
+
+    /*
       RBAC provisioning for HRM-derived approvers:
       - Keep the default User role (RoleCode=5) as primary.
       - Add Approver (RoleCode=4) as a secondary role for employees who have
@@ -418,45 +457,6 @@ BEGIN
           FROM dbo.F03Approvers a
           WHERE a.UserId = u.Id
             AND a.IsActive = 1
-      );
-
-    /*
-      Deactivate only HRM-owned rows that are no longer represented by
-      active employee + active ApprovalPolicy configuration.
-    */
-    UPDATE a
-       SET a.IsActive=0,
-           a.ModifiedBy=@CreatedBy,
-           a.ModifiedAt=GETDATE(),
-           a.LastModifiedSource=N'HRM'
-    FROM dbo.F03Approvers a
-    INNER JOIN dbo.F03Employees e
-        ON e.EmployeeCode=a.ApproverCode
-    WHERE a.LastModifiedSource=N'HRM'
-      AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
-      AND
-      (
-          e.IsActive=0
-          OR ISNULL(e.LevelApprove,0) <= 0
-          OR (
-              a.ApproveForDeptCode <> e.DeptCode
-          )
-          OR NOT EXISTS
-          (
-              SELECT 1
-              FROM dbo.F03ApprovalPolicies ap
-              WHERE ap.IsActive=1
-                AND ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
-                AND ap.DeptCode=e.DeptCode
-                AND a.RequestType=
-                    CASE ap.RequestType
-                        WHEN 0 THEN N'LEAVE'
-                        WHEN 1 THEN N'OT'
-                        WHEN 2 THEN N'TRIP'
-                        WHEN 3 THEN N'EQUIPMENT'
-                    END
-                AND a.Level=ap.Level
-          )
       );
 
     SELECT
