@@ -5,7 +5,7 @@
 
 ---
 
-**Bộ tài liệu:** [Cổng giới thiệu](00_README.md) · [Bản đồ nghiệp vụ](02_FEATURES.md) · [Thông điệp và kế hoạch áp dụng](03_PR_AND_LAUNCH.md) · [Trình chiếu Ban giám đốc](04_PRESENTATION.md) · [Đo KPI](05_KPI_BASELINE_TEMPLATE.md) · [Business case](09_BUSINESS_CASE_COST_REDUCTION.md)
+**Bộ tài liệu:** [Cổng giới thiệu](00_README.md) · [Bản đồ nghiệp vụ](02_FEATURES.md) · [Thông điệp và kế hoạch áp dụng](03_PR_AND_LAUNCH.md) · [Trình chiếu Ban giám đốc](04_PRESENTATION.md) · [Đo KPI](05_KPI_BASELINE_TEMPLATE.md) · [Sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md) · [Đánh giá hiệu quả đầu tư](09_BUSINESS_CASE_COST_REDUCTION.md)
 
 ## 1. Bài toán hiện tại
 
