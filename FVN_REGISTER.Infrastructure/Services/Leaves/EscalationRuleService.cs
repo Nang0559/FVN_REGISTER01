@@ -85,9 +85,22 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
 
         public DateTime GetDeadline(DateTime registerDate, int deadlineHour)
         {
-            return new DateTime(
-                registerDate.Year, registerDate.Month, registerDate.Day,
-                deadlineHour, 0, 0);
+            // 24 is accepted as "end of this day" and means midnight of the next day.
+            // Any other out-of-range value is treated as bad configuration rather than
+            // being allowed to terminate the escalation background worker.
+            if (deadlineHour == 24)
+                return registerDate.Date.AddDays(1);
+
+            if (deadlineHour is < 0 or > 23)
+            {
+                Logger.LogWarning(
+                    "[ESC-RULE] Invalid DeadlineHour={DeadlineHour}; using default {DefaultHour}. RegisterDate={RegisterDate:yyyy-MM-dd}",
+                    deadlineHour, DEFAULT_DEADLINE_HOUR, registerDate);
+
+                deadlineHour = DEFAULT_DEADLINE_HOUR;
+            }
+
+            return registerDate.Date.AddHours(deadlineHour);
         }
     }
 }
