@@ -63,6 +63,7 @@ Tài liệu nghiệp vụ của repo mô tả luồng yêu cầu/phê duyệt th
 - Trình chiếu Ban giám đốc: 04_PRESENTATION.md
 - Thông điệp và kế hoạch áp dụng: 03_PR_AND_LAUNCH.md
 - Đo KPI: 05_KPI_BASELINE_TEMPLATE.md
-- Business case: 09_BUSINESS_CASE_COST_REDUCTION.md
+- Kiểm soát sẵn sàng và tuyên bố chức năng: 08_READINESS_AND_CLAIMS.md
+- Đánh giá hiệu quả đầu tư: 09_BUSINESS_CASE_COST_REDUCTION.md
 
 **Thông điệp cốt lõi:** kết nối quy trình để giảm thao tác lặp lại, làm rõ trách nhiệm và tạo dữ liệu cho cải tiến liên tục.
