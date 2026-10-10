@@ -11,7 +11,8 @@ public partial class F03Function : BaseAuditEntity
     [Required] public int FunctionCode { get; set; }
     [Required, StringLength(150)] public string FunctionKey { get; set; } = string.Empty;
     [Required, StringLength(100)] public string FunctionName { get; set; } = string.Empty;
-    [Required, StringLength(500)] public string Detail { get; set; } = string.Empty;
+    // Legacy security-function rows may contain NULL in Detail; keep reads compatible with the SQL schema.
+    [StringLength(500)] public string? Detail { get; set; }
     [StringLength(50)] public string? ModuleCode { get; set; }
     [StringLength(50)] public string? ActionCode { get; set; }
     [StringLength(30)] public string? ScopeCode { get; set; }
