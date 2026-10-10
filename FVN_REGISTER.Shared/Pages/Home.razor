@@ -3,6 +3,8 @@
 @using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Contract.Dtos.Security
 @using FVN_REGISTER.Contract.Dtos.Actions
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
@@ -77,17 +79,33 @@ else if (_model != null)
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.myTasksDescription")</MudText>
                         </CardHeaderContent>
                         <CardHeaderActions>
-                            @if (_model.ActionCount.TotalOpenCount > 0)
+                            @if (MyTaskTotalCount > 0)
                             {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@_model.ActionCount.TotalOpenCount</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@MyTaskTotalCount</MudChip>
                             }
                         </CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent Class="pa-0">
-                        @if (_model.Actions.Any())
+                        @if (PendingApprovalItems.Count > 0 || _model.Actions.Any())
                         {
                             <MudList T="ActionItemDto" Dense="true">
-                                @foreach (var action in _model.Actions.Take(5))
+                                @foreach (var approval in PendingApprovalItems)
+                                {
+                                    <MudListItem T="ActionItemDto" OnClick="OpenPath_approvals">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body2"><b>@approval.EmployeeName</b> — @GetApprovalKindDisplay(approval.Kind)</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@approval.EmployeeCode — @approval.DeptName</MudText>
+                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Size="Size.Small">@Language.T("dashboard.level", GetApprovalLevel(approval))</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.pending")</MudChip>
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudListItem>
+                                    <MudDivider />
+                                }
+                                @foreach (var action in _model.Actions.Take(Math.Max(0, 5 - PendingApprovalItems.Count)))
                                 {
                                     <MudListItem T="ActionItemDto" OnClick="@(() => OpenAction(action))">
                                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
@@ -114,7 +132,7 @@ else if (_model != null)
                         }
                     </MudCardContent>
                     <MudCardActions>
-                        @if (_model.ActionCount.TotalOpenCount > 5)
+                        @if (MyTaskTotalCount > 5)
                         {
                             <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_work_inbox">@Language.T("dashboard.viewAll")</MudButton>
                         }
@@ -368,6 +386,33 @@ else
     private void OpenPath_ot_create() => Navigation.NavigateTo("/ot/create");
     private void OpenPath_trip_create() => Navigation.NavigateTo("/trip/create");
     private void OpenPath_work_inbox() => Navigation.NavigateTo("/work/inbox");
+    private void OpenPath_approvals() => Navigation.NavigateTo("/approvals");
+
+    // "Nhiệm vụ của tôi" = Action Items (đối soát/phản hồi công) + đơn đang chờ tôi duyệt.
+    // Đơn chờ duyệt lấy trực tiếp từ approval inbox (nguồn đúng), không nhân bản thành ActionItem.
+    private List<PendingApprovalItemDto> PendingApprovalItems =>
+        (_model?.PendingApprovals ?? new())
+            .SelectMany(g => g.Requests)
+            .Where(r => r.CanApprove)
+            .OrderBy(r => r.FromDate)
+            .Take(5)
+            .ToList();
+
+    private int PendingApprovalCount =>
+        (_model?.PendingApprovals ?? new()).SelectMany(g => g.Requests).Count(r => r.CanApprove);
+
+    private int MyTaskTotalCount => (_model?.ActionCount.TotalOpenCount ?? 0) + PendingApprovalCount;
+
+    private string GetApprovalKindDisplay(RequestModule kind) => kind switch
+    {
+        RequestModule.Overtime => Language.T("dashboard.overtimeType"),
+        RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.Leave => Language.T("dashboard.leaveType"),
+        _ => kind.ToString()
+    };
+
+    private int GetApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
     private void OpenAction(ActionItemDto action)
     {
         if (!string.IsNullOrWhiteSpace(action.DetailRoute))
