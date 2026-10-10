@@ -5,7 +5,7 @@
 
 ---
 
-## 1. Bài toán hiện tại
+**Bộ tài liệu liên quan:** [Cổng vào bộ tài liệu giới thiệu](00_README.md) · [Bản đồ tính năng](02_FEATURES.md) · [Trình chiếu Ban giám đốc](04_PRESENTATION.md) · [Đo KPI](05_KPI_BASELINE_TEMPLATE.md) · [Business case](09_BUSINESS_CASE_COST_REDUCTION.md)\n\n## 1. Bài toán hiện tại
 
 Khi nghiệp vụ được xử lý bằng giấy tờ, Excel và trao đổi trực tiếp, thông tin thường nằm ở nhiều nơi. Nhân viên phải lập và chuyển phiếu; người duyệt phải tìm hồ sơ; bộ phận phụ trách phải nhập lại, tổng hợp và đối chiếu; khi có sai lệch, việc tìm nguyên nhân phụ thuộc vào hồ sơ và trao đổi giữa các bên.
 
