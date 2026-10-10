@@ -5,6 +5,7 @@ using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Entities.HRM;
 using FVN_REGISTER.Core.Utils; // TimeRange
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -45,10 +46,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
         // ================= PRESENT TODAY =================
         public async Task<int> GetPresentTodayAsync(CancellationToken ct = default)
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
-            return await _uow.Repository<VwCurrentlyPresentEmployee>().Query()
-                .Where(x => x.Date == today)
-                .Select(x => x.EmployeeId)
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+            // F03HrmAttendanceCalculated is the current calculated attendance source.
+            // A non-null CheckInTime is sufficient to classify an employee as present;
+            // CheckOutTime may legitimately still be null during the workday.
+            return await _uow.Repository<F03HrmAttendanceCalculated>().Query()
+                .Where(x => x.WorkDate >= today
+                    && x.WorkDate < tomorrow
+                    && x.CheckInTime != null)
+                .Select(x => x.HrmEmployeeId)
                 .Distinct()
                 .CountAsync(ct);
         }
@@ -228,10 +235,21 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
                 })
                 .ToListAsync(ct);
 
-            var presentByDept = await _uow.Repository<VwCurrentlyPresentEmployee>().Query()
-                .Where(x => x.Date == today)
+            var todayStart = DateTime.Today;
+            var tomorrowStart = todayStart.AddDays(1);
+            // Attendance KPI must be based on the latest calculated table, not the
+            // legacy "currently present" view. Check-in alone means present today.
+            var presentByDept = await _uow.Repository<F03HrmAttendanceCalculated>().Query()
+                .Where(x => x.WorkDate >= todayStart
+                    && x.WorkDate < tomorrowStart
+                    && x.CheckInTime != null
+                    && x.DeptCode != null)
                 .GroupBy(x => x.DeptCode)
-                .Select(g => new { DeptCode = g.Key, Count = g.Select(x => x.EmployeeId).Distinct().Count() })
+                .Select(g => new
+                {
+                    DeptCode = g.Key,
+                    Count = g.Select(x => x.HrmEmployeeId).Distinct().Count()
+                })
                 .ToListAsync(ct);
 
             var leaveDict = leaveStatsByDept.ToDictionary(x => x.DeptCode, x => x);

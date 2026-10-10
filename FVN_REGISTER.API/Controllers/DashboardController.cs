@@ -34,7 +34,20 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.DashboardView, ct))
+            // Approvers provisioned from HRM may need the Home dashboard even when
+            // their role does not carry the standalone DashboardView capability.
+            // This only permits entering the dashboard endpoint; each provider must
+            // still enforce its own module capability and department/policy scope.
+            var canViewDashboard = await _authorization.HasAsync(
+                UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.DashboardView, ct);
+            var canApproveLeave = await _authorization.HasAsync(
+                UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.LeaveApprove, ct);
+            var canApproveOt = await _authorization.HasAsync(
+                UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.OTApprove, ct);
+            var canApproveTrip = await _authorization.HasAsync(
+                UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.TripApprove, ct);
+
+            if (!canViewDashboard && !canApproveLeave && !canApproveOt && !canApproveTrip)
                 return Forbid();
 
             var result = await _dashboardOrchestrator.BuildAsync(UserInfo, ct);
