@@ -71,5 +71,11 @@
   "dashboard.detailLoadFailed": "Không thể tải chi tiết. Vui lòng thử lại.",
   "dashboard.detail": "Chi tiết",
   "dashboard.status": "Trạng thái",
-  "dashboard.approved": "Đã duyệt"
+  "dashboard.approved": "Đã duyệt",
+  "dashboard.myTasks": "Nhiệm vụ của tôi",
+  "dashboard.myTasksCount": "{0} nhiệm vụ đang mở",
+  "dashboard.tasksToApprove": "Nhiệm vụ cần duyệt",
+  "dashboard.tasksToReconcile": "Nhiệm vụ cần xác nhận / đối soát",
+  "dashboard.otherOpenTasks": "Công việc khác đang mở",
+  "dashboard.noOpenTasks": "Hiện không có nhiệm vụ nào cần xử lý."
 }
