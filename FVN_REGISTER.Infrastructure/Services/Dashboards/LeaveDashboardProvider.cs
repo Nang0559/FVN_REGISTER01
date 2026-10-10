@@ -22,7 +22,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         private readonly IAuthorizationService _authorization;
 
         public RequestModule Module => RequestModule.Leave;
-        public int RequiredFunctionCode => SecurityFunctionCodes.LeaveView;
+        public int RequiredFunctionCode => SecurityFunctionCodes.DashboardView;
 
         public LeaveDashboardProvider(
             ILeaveQueryService leaveQuery,
@@ -58,6 +58,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 && await _authorization.CanAccessAsync(
                     user, SecurityFunctionCodes.LeaveView, null, user.DeptCode, ct);
 
+            // Department rows are visible only within the authenticated user's own
+            // management scope or explicitly configured Leave approval scope.
             if (canManageDepartment)
             {
                 deptWarning = await _statistics.GetAbsenceWarningAsync(
@@ -77,6 +79,46 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                         await _statistics.GetDepartmentStatisticsAsync(
                             user.DeptCode!.Value, ct));
                 }
+            }
+
+            // These are Leave/attendance aggregates: OT/Trip approval scope must not
+            // accidentally grant access to Leave data.
+            if (await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct))
+            {
+                var approvalScope = await _authorization.GetScopeAsync(
+                    user.UserId, SecurityFunctionCodes.LeaveApprove, ct);
+                var allStatistics = await _statistics.GetLeaveStatisticsAsync(
+                    includeCompanyTotal: true, ct);
+                var canSeeAllDepartments = string.Equals(
+                    approvalScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase);
+
+                foreach (var row in allStatistics)
+                {
+                    if (!int.TryParse(row.DepartmentId, out var departmentCode))
+                        continue;
+
+                    var allowed = canSeeAllDepartments
+                        || await _authorization.CanAccessAsync(
+                            user, SecurityFunctionCodes.LeaveApprove, null, departmentCode, ct);
+                    if (!allowed)
+                        continue;
+
+                    row.EmployeeLeaves = new();
+                    row.Departments = new();
+                    departmentStatistics.Add(row);
+                }
+            }
+
+            departmentStatistics = departmentStatistics
+                .GroupBy(x => x.DepartmentId, StringComparer.OrdinalIgnoreCase)
+                .Select(x => x.First())
+                .ToList();
+
+            // Summary access never needs employee-level records or department selectors.
+            foreach (var row in departmentStatistics)
+            {
+                row.EmployeeLeaves = new();
+                row.Departments = new();
             }
 
             var detail = new LeaveDashboardDto
