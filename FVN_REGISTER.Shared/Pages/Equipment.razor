@@ -181,42 +181,51 @@ else
                         </MudStack>
                     </MudPaper>
                 }
-                <MudTable Items="_assets" Dense="true" Hover="true" Loading="_assetsLoading" Class="pa-4">
-                    <HeaderContent>
-                        <MudTh>Thiết bị</MudTh><MudTh>Mã tài sản</MudTh>
-                        @foreach (var field in _assetSchemaFields)
-                        {
-                            <MudTh>@field.FieldLabel</MudTh>
-                        }
-                        <MudTh>Người phụ trách</MudTh><MudTh>Endpoint Agent</MudTh><MudTh>Thao tác</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd><b>@context.EquipmentName</b><br /><MudText Typo="Typo.caption">@context.EquipmentCode · @context.SerialNumber</MudText></MudTd>
-                        <MudTd>@context.AssetCode</MudTd>
-                        @foreach (var field in _assetSchemaFields)
-                        {
-                            <MudTd>@GetAssetCustomValue(context, field)</MudTd>
-                        }
-                        <MudTd>@context.ResponsibleEmployeeCode</MudTd>
-                        <MudTd>
-                            @if (!context.EndpointAgentEligible)
-                            { <MudChip T="string" Size="Size.Small">Không áp dụng</MudChip> }
-                            else if (context.EndpointDeviceId.HasValue)
-                            { <MudChip T="string" Size="Size.Small" Color="Color.Success">@context.EndpointAgentStatus</MudChip> }
-                            else
-                            { <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chưa cài Agent</MudChip> }
-                        </MudTd>
-                        <MudTd>
-                            @if ((context.EndpointAgentEligible && CanEndpointManage) || CanEligibilityManage)
-                            { <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security" OnClick="@(() => Navigation.NavigateTo($"/equipment/{context.Id}/endpoint-agent"))">@(context.EndpointAgentEligible ? "Endpoint Agent" : "Thiết lập Agent")</MudButton> }
-                            @if (_canManageAssets)
+                <div style="width:100%; overflow-x:auto;">
+                    <MudTable Items="_assets" Dense="true" Hover="true" Loading="_assetsLoading" Class="pa-4" Style="min-width:1200px;">
+                        <HeaderContent>
+                            <MudTh>Thiết bị</MudTh>
+                            <MudTh>Mã tài sản</MudTh>
+                            <MudTh>Thao tác</MudTh>
+                            @foreach (var field in _assetSchemaFields)
                             {
-                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEditAsset(context))">Sửa</MudButton>
-                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteAssetAsync(context))">Xóa</MudButton>
+                                <MudTh>@field.FieldLabel</MudTh>
                             }
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
+                            <MudTh>Người phụ trách</MudTh>
+                            <MudTh>Endpoint Agent</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><b>@context.EquipmentName</b><br /><MudText Typo="Typo.caption">@context.EquipmentCode · @context.SerialNumber</MudText></MudTd>
+                            <MudTd>@context.AssetCode</MudTd>
+                            <MudTd>
+                                @if (_canManageAssets)
+                                {
+                                    <MudStack Row="true" Spacing="1">
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEditAsset(context))">Sửa</MudButton>
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteAssetAsync(context))">Xóa</MudButton>
+                                    </MudStack>
+                                }
+                                @if ((context.EndpointAgentEligible && CanEndpointManage) || CanEligibilityManage)
+                                {
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security" OnClick="@(() => Navigation.NavigateTo($"/equipment/{context.Id}/endpoint-agent"))">@(context.EndpointAgentEligible ? "Endpoint Agent" : "Thiết lập Agent")</MudButton>
+                                }
+                            </MudTd>
+                            @foreach (var field in _assetSchemaFields)
+                            {
+                                <MudTd>@GetAssetCustomValue(context, field)</MudTd>
+                            }
+                            <MudTd>@context.ResponsibleEmployeeCode</MudTd>
+                            <MudTd>
+                                @if (!context.EndpointAgentEligible)
+                                { <MudChip T="string" Size="Size.Small">Không áp dụng</MudChip> }
+                                else if (context.EndpointDeviceId.HasValue)
+                                { <MudChip T="string" Size="Size.Small" Color="Color.Success">@context.EndpointAgentStatus</MudChip> }
+                                else
+                                { <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chưa cài Agent</MudChip> }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
             </MudTabPanel>
 
             <MudTabPanel Text="@Language.T("equipment.yeuCauCuaToi")">
