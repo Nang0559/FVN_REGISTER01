@@ -112,54 +112,58 @@ else
         </MudGrid>
     }
 
-
     @if (AttendanceShiftRows.Count > 0)
     {
-        <MudCard Elevation="2" Class="mb-4">
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.subtitle1">@Language.T("dashboard.attendanceByShift")</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.attendanceByShiftNote", AttendanceShiftDate.ToString("dd/MM/yyyy"))</MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                @foreach (var shift in AttendanceShiftRows)
-                {
-                    <MudPaper Outlined="true" Class="pa-3 mb-3">
-                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.subtitle2"><b>@shift.DepartmentName — @shift.ShiftAbbr</b></MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.calculatedEmployees"): @shift.CalculatedEmployees</MudText>
-                            </MudStack>
-                            <MudStack Row="true" Spacing="2">
-                                <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("dashboard.checkedIn"): @shift.CheckedInEmployees</MudChip>
-                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@Language.T("dashboard.checkedOut"): @shift.CheckedOutEmployees</MudChip>
-                                @if (shift.MissingCheckInOrOut > 0)
-                                {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.missingPunch"): @shift.MissingCheckInOrOut</MudChip>
-                                }
-                            </MudStack>
+        <MudExpansionPanels Elevation="2" Class="mb-4">
+            <MudExpansionPanel Expanded="false">
+                <TitleContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Color="Color.Primary" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.subtitle1" Style="font-weight:700">@Language.T("dashboard.attendanceByShift")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.attendanceByShiftNote", AttendanceShiftDate.ToString("dd/MM/yyyy"))</MudText>
                         </MudStack>
-                        <MudTable Items="shift.Employees" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
-                            <HeaderContent>
-                                <MudTh>@Language.T("dashboard.staff")</MudTh>
-                                <MudTh>@Language.T("dashboard.checkIn")</MudTh>
-                                <MudTh>@Language.T("dashboard.checkOut")</MudTh>
-                                <MudTh>@Language.T("dashboard.attendanceSymbol")</MudTh>
-                                <MudTh>@Language.T("dashboard.attendanceStatus")</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="@Language.T("dashboard.staff")">@context.EmployeeCode — @context.EmployeeName</MudTd>
-                                <MudTd DataLabel="@Language.T("dashboard.checkIn")">@(context.CheckInTime?.ToString("HH:mm") ?? "—")</MudTd>
-                                <MudTd DataLabel="@Language.T("dashboard.checkOut")">@(context.CheckOutTime?.ToString("HH:mm") ?? "—")</MudTd>
-                                <MudTd DataLabel="@Language.T("dashboard.attendanceSymbol")">@context.AttendanceDisplayValue</MudTd>
-                                <MudTd DataLabel="@Language.T("dashboard.attendanceStatus")">@GetAttendanceStatus(context.Status)</MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudPaper>
-                }
-            </MudCardContent>
-        </MudCard>
+                    </MudStack>
+                </TitleContent>
+                <ChildContent>
+                    @foreach (var shift in AttendanceShiftRows)
+                    {
+                        <MudPaper Outlined="true" Class="pa-3 mb-3">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.subtitle2"><b>@shift.DepartmentName — @shift.ShiftAbbr</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.calculatedEmployees"): @shift.CalculatedEmployees</MudText>
+                                </MudStack>
+                                <MudStack Row="true" Spacing="2">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("dashboard.checkedIn"): @shift.CheckedInEmployees</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@Language.T("dashboard.checkedOut"): @shift.CheckedOutEmployees</MudChip>
+                                    @if (shift.MissingCheckInOrOut > 0)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.missingPunch"): @shift.MissingCheckInOrOut</MudChip>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                            <MudTable Items="shift.Employees" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                                <HeaderContent>
+                                    <MudTh>@Language.T("dashboard.staff")</MudTh>
+                                    <MudTh>@Language.T("dashboard.checkIn")</MudTh>
+                                    <MudTh>@Language.T("dashboard.checkOut")</MudTh>
+                                    <MudTh>@Language.T("dashboard.attendanceSymbol")</MudTh>
+                                    <MudTh>@Language.T("dashboard.attendanceStatus")</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="@Language.T("dashboard.staff")">@context.EmployeeCode — @context.EmployeeName</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.checkIn")">@(context.CheckInTime?.ToString("HH:mm") ?? "—")</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.checkOut")">@(context.CheckOutTime?.ToString("HH:mm") ?? "—")</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.attendanceSymbol")">@context.AttendanceDisplayValue</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.attendanceStatus")">@GetAttendanceStatus(context.Status)</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudPaper>
+                    }
+                </ChildContent>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
     }
 
     <MudGrid>
