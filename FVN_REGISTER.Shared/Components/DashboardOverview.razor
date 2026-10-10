@@ -152,13 +152,35 @@ else
         </MudCard>
     }
 
-    @if (Data.ShowManagerView && Data.DepartmentStatistics.Any())
+    @if (Data.DepartmentStatistics.Any())
     {
         <MudCard Elevation="2" Class="mt-4">
             <MudCardHeader>
                 <CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("dashboard.leaveStatistics")</MudText></CardHeaderContent>
             </MudCardHeader>
-            <MudCardContent Class="pa-0">
+            <MudCardContent>
+                <MudGrid Spacing="3" Class="mb-3">
+                    @foreach (var department in Data.DepartmentStatistics)
+                    {
+                        var rate = GetWorkingRate(department.WorkingRate);
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudPaper Outlined="true" Class="pa-3" Style="height:100%; border-radius:14px">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                                    <div style="@($"width:88px;height:88px;flex:0 0 88px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--mud-palette-success) {rate}%, var(--mud-palette-divider) 0)")">
+                                        <div style="width:64px;height:64px;border-radius:50%;background:var(--mud-palette-surface);display:flex;align-items:center;justify-content:center">
+                                            <MudText Typo="Typo.subtitle1"><b>@rate.ToString("N1")%</b></MudText>
+                                        </div>
+                                    </div>
+                                    <MudStack Spacing="1">
+                                        <MudText Typo="Typo.subtitle2"><b>@department.DepartmentName</b></MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.present"): @department.PresentEmployeesCount / @department.TotalEmployees</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.leaveRequests"): @department.ApprovedLeaveCount</MudText>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
                 <MudTable Items="Data.DepartmentStatistics" Dense="true" Hover="true">
                     <HeaderContent>
                         <MudTh>@Language.T("dashboard.department")</MudTh><MudTh>@Language.T("dashboard.staff")</MudTh><MudTh>@Language.T("dashboard.present")</MudTh><MudTh>@Language.T("dashboard.leaveRequests")</MudTh><MudTh>@Language.T("dashboard.pending")</MudTh><MudTh>@Language.T("dashboard.leaveRate")</MudTh>
@@ -183,6 +205,7 @@ else
 
     protected override void OnInitialized() => Language.LanguageChanged += OnLanguageChanged;
     private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    private static double GetWorkingRate(double rate) => double.IsFinite(rate) ? Math.Clamp(rate, 0d, 100d) : 0d;
     private string GetKindDisplay(RequestModule kind) => kind switch { RequestModule.Overtime => Language.T("dashboard.overtimeType"), RequestModule.Trip => Language.T("dashboard.tripType"), RequestModule.Leave => Language.T("dashboard.leaveType"), _ => kind.ToString() };
     private int GetCurrentApprovalLevel(PendingApprovalItemDto item) => item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
     private string GetWidgetTitle(string? title)
