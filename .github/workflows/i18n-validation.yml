@@ -22,6 +22,10 @@ jobs:
         run: dotnet restore FVN_REGISTER.API/FVN_REGISTER.API.csproj
       - name: Build API graph
         run: dotnet build FVN_REGISTER.API/FVN_REGISTER.API.csproj --configuration Release
+      - name: Restore test projects
+        run: |
+          dotnet restore Tests/FVN_REGISTER.Shared.Tests/FVN_REGISTER.Shared.Tests.csproj
+          dotnet restore Tests/FVN_REGISTER.Infrastructure.Tests/FVN_REGISTER.Infrastructure.Tests.csproj
       - name: Test Shared localization
         run: dotnet test Tests/FVN_REGISTER.Shared.Tests/FVN_REGISTER.Shared.Tests.csproj --configuration Release --no-restore
       - name: Test Infrastructure localization runtime
