@@ -45,14 +45,15 @@ public sealed class EquipmentImportService : IEquipmentImportService
         {
             await using var buffer = new MemoryStream();
             await content.CopyToAsync(buffer, ct);
-            buffer.Position = 0;
-            var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
+            var bytes = buffer.ToArray();
+            await using var gridStream = new MemoryStream(bytes);
+            var grid = await _excel.ReadGridAsync(gridStream, fileName, sheetIndex, 1000, ct);
             var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
             if (header is null)
                 return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
 
-            buffer.Position = 0;
-            return await PreviewRange(departmentCode, fileName, buffer,
+            await using var previewStream = new MemoryStream(bytes);
+            return await PreviewRange(departmentCode, fileName, previewStream,
                 new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
                 ct);
         }
@@ -67,14 +68,15 @@ public sealed class EquipmentImportService : IEquipmentImportService
         {
             await using var buffer = new MemoryStream();
             await content.CopyToAsync(buffer, ct);
-            buffer.Position = 0;
-            var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
+            var bytes = buffer.ToArray();
+            await using var gridStream = new MemoryStream(bytes);
+            var grid = await _excel.ReadGridAsync(gridStream, fileName, sheetIndex, 1000, ct);
             var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
             if (header is null)
                 return ServiceResult<ExcelSchemaDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
 
-            buffer.Position = 0;
-            return await CreateRange(departmentCode, fileName, buffer,
+            await using var previewStream = new MemoryStream(bytes);
+            return await CreateRange(departmentCode, fileName, previewStream,
                 new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
                 schemaName, ct);
         }
