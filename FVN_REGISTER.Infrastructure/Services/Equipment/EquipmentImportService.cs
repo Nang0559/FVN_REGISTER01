@@ -91,7 +91,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
 
             var requiredRows = request.DataEndRowIndex.HasValue
                 ? request.DataEndRowIndex.Value + 1
-                : Math.Max(200, request.HeaderRowIndex + 1);
+                : Math.Max(200, request.HeaderRowIndex + 2);
             var maxRows = Math.Clamp(requiredRows, 1, 10000);
             var grid = await _excel.ReadGridAsync(content, fileName, request.SheetIndex, maxRows, ct);
             if (grid.TotalRowCount == 0 || grid.ColumnCount == 0)
@@ -239,7 +239,42 @@ public sealed class EquipmentImportService : IEquipmentImportService
         return result.Data;
     }
 
-    public async Task<ServiceResult<ExcelImportBatchDto>> StageExcelSheetAsync(int dept,int? schemaId,string file,Stream content,int sheetIndex,bool assignToEmployee=false,CancellationToken ct=default){var u=User();dept=Dept(dept,u.DeptCode);await Scope(u,dept,ct);var sid=schemaId??(await _excel.GetSchemasAsync(ModuleCode,EntityCode,false,ct)).FirstOrDefault(z=>z.Status==ExcelSchemaStatus.Active)?.Id??0;if(sid==0)return ServiceResult<ExcelImportBatchDto>.Fail("Chưa có schema Active.");var d=await _excel.GetSchemaDefinitionAsync(sid,ct)??throw new KeyNotFoundException("Không tìm thấy schema.");var r=await _excel.ImportAsync(content,file,d,ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportBatches(SchemaId,SchemaVersionId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows,FailedRows,CreatedBy,CreatedAt) VALUES({sid},(SELECT CurrentVersionId FROM dbo.F03ExcelSchemas WHERE Id={sid}),{ModuleCode},{EntityCode},{file},40,{r.TotalRows},{r.ValidRows},{r.InvalidRows},0,0,{u.UserId.ToString()},SYSUTCDATETIME())",ct);var bid=await _db.Database.SqlQueryRaw<long>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelImportBatches WHERE SchemaId={0} AND FileName={1} ORDER BY Id DESC",sid,file).SingleAsync(ct);foreach(var row in r.Rows){var n=d.Fields.ToDictionary(z=>z.FieldKey,z=>row.Cells.TryGetValue(z.SourceColumnIndex,out var v)?v:null);var er=r.Errors.Where(e=>e.RowNumber==row.RowIndex).ToList();await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportRows(BatchId,RowNumber,Status,RawDataJson,NormalizedDataJson,ErrorCount) VALUES({bid},{row.RowIndex},{(er.Count>0?20:30)},{JsonSerializer.Serialize(row.Cells)},{JsonSerializer.Serialize(n)},{er.Count})",ct);foreach(var e in er)await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportErrors(BatchId,RowNumber,ColumnIndex,FieldKey,ErrorCode,Severity,ErrorMessage,RawValue,CreatedAt) VALUES({bid},{e.RowNumber},{e.ColumnIndex},{e.FieldKey},{e.Code},{(int)e.Severity},{e.Message},{e.RawValue},SYSUTCDATETIME())",ct);}return ServiceResult<ExcelImportBatchDto>.Ok((await GetBatchAsync(bid,ct))!,"Đã staging file Excel.");}
+    public async Task<ServiceResult<ExcelImportBatchDto>> StageExcelSheetAsync(int dept,int? schemaId,string file,Stream content,int sheetIndex,bool assignToEmployee=false,CancellationToken ct=default)
+    {
+        var u = User();
+        dept = Dept(dept, u.DeptCode);
+        await Scope(u, dept, ct);
+
+        var sid = schemaId.GetValueOrDefault();
+        if (sid <= 0)
+        {
+            foreach (var candidate in await _excel.GetSchemasAsync(ModuleCode, EntityCode, false, ct))
+            {
+                if (candidate.Status != ExcelSchemaStatus.Active) continue;
+                var candidateMeta = await Meta(candidate.Id, ct);
+                if (candidateMeta.DepartmentCode == dept)
+                {
+                    sid = candidate.Id;
+                    break;
+                }
+            }
+        }
+
+        if (sid <= 0)
+            return ServiceResult<ExcelImportBatchDto>.Fail("Phòng ban chưa có schema Excel ở trạng thái Active.");
+
+        var metadata = await Meta(sid, ct);
+        await Scope(u, metadata.DepartmentCode, ct);
+        if (metadata.DepartmentCode != dept)
+            return ServiceResult<ExcelImportBatchDto>.Fail("Schema Excel không thuộc phòng ban đang import.");
+
+        var summary = await _excel.GetSchemaAsync(sid, ct);
+        if (summary is null || summary.Status != ExcelSchemaStatus.Active)
+            return ServiceResult<ExcelImportBatchDto>.Fail("Chỉ được import bằng schema đang Active.");
+
+        var d = await _excel.GetSchemaDefinitionAsync(sid, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy cấu hình schema.");
+        var r = await _excel.ImportAsync(content, file, d, ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportBatches(SchemaId,SchemaVersionId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows,FailedRows,CreatedBy,CreatedAt) VALUES({sid},(SELECT CurrentVersionId FROM dbo.F03ExcelSchemas WHERE Id={sid}),{ModuleCode},{EntityCode},{file},40,{r.TotalRows},{r.ValidRows},{r.InvalidRows},0,0,{u.UserId.ToString()},SYSUTCDATETIME())",ct);var bid=await _db.Database.SqlQueryRaw<long>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelImportBatches WHERE SchemaId={0} AND FileName={1} ORDER BY Id DESC",sid,file).SingleAsync(ct);foreach(var row in r.Rows){var n=d.Fields.ToDictionary(z=>z.FieldKey,z=>row.Cells.TryGetValue(z.SourceColumnIndex,out var v)?v:null);var er=r.Errors.Where(e=>e.RowNumber==row.RowIndex).ToList();await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportRows(BatchId,RowNumber,Status,RawDataJson,NormalizedDataJson,ErrorCount) VALUES({bid},{row.RowIndex},{(er.Count>0?20:30)},{JsonSerializer.Serialize(row.Cells)},{JsonSerializer.Serialize(n)},{er.Count})",ct);foreach(var e in er)await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportErrors(BatchId,RowNumber,ColumnIndex,FieldKey,ErrorCode,Severity,ErrorMessage,RawValue,CreatedAt) VALUES({bid},{e.RowNumber},{e.ColumnIndex},{e.FieldKey},{e.Code},{(int)e.Severity},{e.Message},{e.RawValue},SYSUTCDATETIME())",ct);}return ServiceResult<ExcelImportBatchDto>.Ok((await GetBatchAsync(bid,ct))!,"Đã staging file Excel.");}
     public async Task<ExcelImportBatchDto?> GetBatchAsync(long id,CancellationToken ct=default){var u=User();var b=await _db.Database.SqlQueryRaw<Batch>("SELECT Id,SchemaId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows FROM dbo.F03ExcelImportBatches WHERE Id={0}",id).SingleOrDefaultAsync(ct);if(b is null)return null;var m=await Meta(b.SchemaId,ct);await Scope(u,m.DepartmentCode,ct);return new(){Id=b.Id,SchemaId=b.SchemaId,ModuleCode=b.ModuleCode,EntityCode=b.EntityCode,FileName=b.FileName,Status=((ExcelImportBatchStatus)b.Status).ToString(),TotalRows=b.TotalRows,ValidRows=b.ValidRows,InvalidRows=b.InvalidRows,ImportedRows=b.ImportedRows};}
     public async Task<ExcelImportCommitResultDto> CommitAsync(long id,CancellationToken ct=default){var u=User();var b=await GetBatchAsync(id,ct)??throw new KeyNotFoundException("Không tìm thấy import batch.");var m=await Meta(b.SchemaId,ct);var rows=await _db.Database.SqlQueryRaw<Row>("SELECT Id,NormalizedDataJson AS Data FROM dbo.F03ExcelImportRows WHERE BatchId={0} AND Status=30",id).ToListAsync(ct);var ok=0;foreach(var row in rows){var d=JsonSerializer.Deserialize<Dictionary<string,string?>>(row.Data??"{}")??new();if(!d.TryGetValue("EquipmentCode",out var code)||!d.TryGetValue("EquipmentName",out var name)||string.IsNullOrWhiteSpace(code)||string.IsNullOrWhiteSpace(name)||await _db.EquipmentAssets.AnyAsync(x=>x.EquipmentCode==code,ct))continue;await _uow.Repository<F03EquipmentAsset>().AddAsync(new F03EquipmentAsset{EquipmentCode=code.Trim(),EquipmentName=name.Trim(),DeptCode=m.DepartmentCode,PurchaseDate=DateTime.Today,ExpectedDepreciationDate=DateTime.Today.AddYears(5),QrToken=Guid.NewGuid().ToString("N"),IsQrActive=true,CustomDataJson=JsonSerializer.Serialize(d),CreatedBy=u.UserId},ct);await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelImportRows SET Status=100 WHERE Id={row.Id}",ct);ok++;}await _uow.SaveChangesAsync(ct);await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelImportBatches SET Status=100,ImportedRows={ok},CompletedAt=SYSUTCDATETIME() WHERE Id={id}",ct);return new(){BatchId=id,ImportedRows=ok,SkippedRows=rows.Count-ok};}
     public async Task<ServiceResult<bool>> DeleteDraftSchemaAsync(int id,CancellationToken ct=default){try{var u=User();var m=await Meta(id,ct);if(m.CreatedBy!=u.UserId&&!u.IsAdmin)throw new UnauthorizedAccessException("Bạn không có quyền xóa schema.");await _excel.DeleteDraftSchemaAsync(id,ct);return ServiceResult<bool>.Ok(true,"Đã xóa schema.");}catch(Exception e)when(e is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException){return ServiceResult<bool>.Fail(e.Message);}}
