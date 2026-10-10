@@ -39,6 +39,7 @@ Không tuyên bố mọi thao tác đã tự động hóa hoàn toàn. Mức đ�
 | Quản lý bộ phận | Nhìn thấy tình hình và việc tồn đọng |
 | HR | Tập trung xác minh sai lệch và xử lý ngoại lệ |
 | Quản lý thiết bị | Tăng khả năng truy xuất hồ sơ thiết bị và nhiệm vụ |
+| IT quản trị Endpoint | Đối chiếu inventory máy/phần mềm/dịch vụ với chính sách đã duyệt; chỉ công bố sau pilot và nghiệm thu |
 | Ban giám đốc | Theo dõi hiệu quả bằng chỉ số vận hành đã xác nhận |
 
 Chi tiết theo vai trò: [06 — Lợi ích theo vai trò](06_ROLE_BENEFITS.md).
