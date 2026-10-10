@@ -2,7 +2,7 @@
 
 FVN_REGISTER là nền tảng đăng ký nghiệp vụ nhân sự và e-Approval, bao gồm Leave, OT, Trip, Equipment, Attendance/Execution, Work Calendar, Action, Notification, Dashboard và Reports.
 
-## Documentation
+## Management introduction & business case\n\n- **Executive intro / presentation / KPI / business case:** [Introduction Hub](M%C3%94%20H%C3%8CNH/03_TAI_LIEU_HE_THONG/01_GIOI_THIEU/00_README.md)\n\n## Documentation
 
 - **Tài liệu kiến trúc/source of truth:** [24 — Work Calendar & Action](MÔ%20HÌNH/24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md)
 - **Execution Reconciliation:** [18 — Reconciliation](MÔ%20HÌNH/18_OT_ATTENDANCE_RECONCILIATION.md)
