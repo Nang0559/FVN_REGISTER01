@@ -71,3 +71,19 @@ public sealed class EquipmentHandoverHistoryDto
     public string Reason { get; set; } = string.Empty;
     public int HandoverByUserId { get; set; }
 }
+
+
+public sealed class UpdateEquipmentAssetRequest
+{
+    public string EquipmentCode { get; set; } = string.Empty;
+    public string EquipmentName { get; set; } = string.Empty;
+    public string? AssetCode { get; set; }
+    public string? SerialNumber { get; set; }
+    public string? Specification { get; set; }
+    public decimal PurchasePrice { get; set; }
+    public DateTime PurchaseDate { get; set; }
+    public DateTime ExpectedDepreciationDate { get; set; }
+    public string? Location { get; set; }
+    public string? Note { get; set; }
+    public Dictionary<string, string?> CustomValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
