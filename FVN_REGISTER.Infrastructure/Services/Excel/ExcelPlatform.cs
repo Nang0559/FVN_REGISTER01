@@ -146,7 +146,7 @@ public sealed class ExcelPlatform : IExcelPlatform
                    v.DataEndRowIndex, v.SelectedColumnsJson, v.Culture
             FROM dbo.F03ExcelSchemas s
             INNER JOIN dbo.F03ExcelSchemaVersions v ON v.Id=s.CurrentVersionId
-            WHERE s.Id=@id AND s.Status=1;
+            WHERE s.Id=@id AND s.Status IN (0,1,2);
             """;
         await using var schemaCommand = Command(schemaSql, ("@id", schemaId));
         await using var schemaReader = await schemaCommand.ExecuteReaderAsync(ct);
@@ -294,8 +294,9 @@ public sealed class ExcelPlatform : IExcelPlatform
 
     private static IWorkbook Open(Stream content, string fileName) =>
         fileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase) ? new HSSFWorkbook(content) :
-        fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ? new XSSFWorkbook(content) :
-        throw new InvalidOperationException("Only .xls and .xlsx files are supported.");
+        fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+        fileName.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase) ? new XSSFWorkbook(content) :
+        throw new InvalidOperationException("Chỉ hỗ trợ file Excel .xls, .xlsx và .xlsm.");
 
     private DbCommand Command(string sql, params (string Name, object Value)[] parameters)
     {
