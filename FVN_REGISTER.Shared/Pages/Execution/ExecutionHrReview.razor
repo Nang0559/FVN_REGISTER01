@@ -298,26 +298,20 @@
             var result = await Http.GetAsync<ExecutionReconciliationDetailDto>(
                 $"api/execution/hr/reconciliations/{reconciliationId}/detail");
 
-            // TODO: xóa dòng debug này sau khi xác định xong nguyên nhân.
-            Console.WriteLine(
-                $"[HR detail] id={reconciliationId} success={result.IsSuccess} " +
-                $"dataNull={result.Data is null} message={result.Message}");
-
             if (!result.IsSuccess || result.Data is null)
             {
-                _error = result.Message ?? Language.T("common.khongTaiDuocChiTiet");
+                _error = string.IsNullOrWhiteSpace(result.Message)
+                    ? Language.T("common.khongTaiDuocChiTiet")
+                    : result.Message;
                 Snackbar.Add(_error, Severity.Error);
                 return;
             }
 
-            _error = string.IsNullOrWhiteSpace(result.Message)
-            ? Language.T("common.khongTaiDuocChiTiet")
-            : result.Message;
+            _error = null;
             _detail = result.Data;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HR detail] EXCEPTION id={reconciliationId}: {ex}");
             _error = ex.Message;
             Snackbar.Add(ex.Message, Severity.Error);
             return;
