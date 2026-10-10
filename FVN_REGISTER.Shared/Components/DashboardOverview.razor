@@ -205,54 +205,79 @@ else
 
     @if (Data.DepartmentStatistics.Any())
     {
-        <MudCard Elevation="2" Class="mt-4">
-            <MudCardHeader>
-                <CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("dashboard.leaveStatistics")</MudText></CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                <MudGrid Spacing="3" Class="mb-3">
-                    @foreach (var department in Data.DepartmentStatistics)
-                    {
-                        var rate = GetWorkingRate(department.WorkingRate);
-                        <MudItem xs="12" sm="6" md="4">
-                            <MudPaper Outlined="true" Class="pa-3" Style="height:100%; border-radius:14px">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-                                    <div style="@($"width:88px;height:88px;flex:0 0 88px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--mud-palette-success) {rate}%, var(--mud-palette-divider) 0)")">
-                                        <div style="width:64px;height:64px;border-radius:50%;background:var(--mud-palette-surface);display:flex;align-items:center;justify-content:center">
-                                            <MudText Typo="Typo.subtitle1"><b>@rate.ToString("N1")%</b></MudText>
-                                        </div>
-                                    </div>
-                                    <MudStack Spacing="1">
-                                        <MudText Typo="Typo.subtitle2"><b>@department.DepartmentName</b></MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.present"): @department.PresentEmployeesCount / @department.TotalEmployees</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.leaveRequests"): @department.ApprovedLeaveCount</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.todayLeave"): @department.TodayLeaveEmployeesCount</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.todayTrip"): @department.TodayTripEmployeesCount</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("dashboard.todayOT"): @department.TodayOTEmployeesCount</MudText>
-                                    </MudStack>
-                                </MudStack>
-                            </MudPaper>
-                        </MudItem>
-                    }
-                </MudGrid>
-                <MudTable Items="Data.DepartmentStatistics" Dense="true" Hover="true">
-                    <HeaderContent>
-                        <MudTh>@Language.T("dashboard.department")</MudTh><MudTh>@Language.T("dashboard.staff")</MudTh><MudTh>@Language.T("dashboard.present")</MudTh><MudTh>@Language.T("dashboard.leaveRequests")</MudTh><MudTh>@Language.T("dashboard.pending")</MudTh><MudTh>@Language.T("dashboard.leaveRate")</MudTh><MudTh>@Language.T("dashboard.todayLeave")</MudTh><MudTh>@Language.T("dashboard.todayTrip")</MudTh><MudTh>@Language.T("dashboard.todayOT")</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.DepartmentName</MudTd>
-                        <MudTd>@context.TotalEmployees</MudTd>
-                        <MudTd>@context.PresentEmployeesCount</MudTd>
-                        <MudTd>@context.TotalLeaveCount</MudTd>
-                        <MudTd>@context.PendingLeaveCount</MudTd>
-                        <MudTd>@context.LeaveRate.ToString("N1")%</MudTd>
-                        <MudTd>@context.TodayLeaveEmployeesCount</MudTd>
-                        <MudTd>@context.TodayTripEmployeesCount</MudTd>
-                        <MudTd>@context.TodayOTEmployeesCount</MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudCardContent>
-        </MudCard>
+        var departments = Data.DepartmentStatistics;
+        var totalStaff = departments.Sum(x => x.TotalEmployees);
+        var presentStaff = departments.Sum(x => x.PresentEmployeesCount);
+        var attendanceRate = totalStaff > 0
+            ? Math.Clamp(presentStaff * 100d / totalStaff, 0d, 100d)
+            : 0d;
+        var leaveToday = departments.Sum(x => x.TodayLeaveEmployeesCount);
+        var tripToday = departments.Sum(x => x.TodayTripEmployeesCount);
+        var otToday = departments.Sum(x => x.TodayOTEmployeesCount);
+
+        <MudPaper Outlined="true" Class="pa-4 mt-4 mb-4" Style="border-radius:14px">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.h6" Style="font-weight:700">@Language.T("dashboard.departmentOverview")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.todayDepartmentOverview")</MudText>
+                </MudStack>
+                <MudIcon Icon="@Icons.Material.Outlined.BarChart" Size="Size.Medium" Color="Color.Secondary" />
+            </MudStack>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.attendanceRate")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <div style="@($"width:68px;height:68px;flex:0 0 68px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--mud-palette-success) {attendanceRate.ToString(System.Globalization.CultureInfo.InvariantCulture)}%, var(--mud-palette-divider) 0)")">
+                                <div style="width:52px;height:52px;border-radius:50%;background:var(--mud-palette-surface);display:flex;flex-direction:column;align-items:center;justify-content:center">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight:700;line-height:1.1">@attendanceRate.ToString("N0")%</MudText>
+                                    <MudText Typo="Typo.overline" Style="font-size:8px;line-height:1.2">@Language.T("dashboard.presentShort")</MudText>
+                                </div>
+                            </div>
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h6" Style="font-weight:700">@presentStaff/@totalStaff</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.presentEmployees")</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayLeave")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Outlined.EventBusy" Size="Size.Large" Style="color:#ed6c02" />
+                            <MudText Typo="Typo.h5" Style="font-weight:700">@leaveToday <MudText Inline="true" Typo="Typo.body2">@Language.T("dashboard.people")</MudText></MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">@Language.T("dashboard.approvedLeaveTodayNote")</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayTrip")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Outlined.WorkOutline" Size="Size.Large" Style="color:#2979ff" />
+                            <MudText Typo="Typo.h5" Style="font-weight:700">@tripToday <MudText Inline="true" Typo="Typo.body2">@Language.T("dashboard.people")</MudText></MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">@Language.T("dashboard.approvedTripTodayNote")</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" Style="height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayOT")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Size="Size.Large" Style="color:#7b1fa2" />
+                            <MudText Typo="Typo.h5" Style="font-weight:700">@otToday <MudText Inline="true" Typo="Typo.body2">@Language.T("dashboard.people")</MudText></MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">@Language.T("dashboard.approvedOTTodayNote")</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">
+                @Language.T("dashboard.departmentOverviewDataNote")
+            </MudText>
+        </MudPaper>
     }
 }
 
