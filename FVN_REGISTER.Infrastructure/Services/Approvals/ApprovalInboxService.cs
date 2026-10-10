@@ -88,6 +88,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     if (functionCode == 0) continue;
 
                     var scopedItems = new List<PendingApprovalItemDto>();
+                    // Check the function grant once per module, not once per pending request.
+                    var hasApproveCapability = await _authorization.HasAsync(user, functionCode, ct);
                     foreach (var item in pair.Value)
                     {
                         // The workflow snapshot is the authoritative, request-specific route:
@@ -97,7 +99,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                         // a second time: that would hide legitimate cross-department routed tasks.
                         // This is not a general scope bypass; it applies only to a step already
                         // assigned to the current approver by the persisted workflow snapshot.
-                        var hasApproveCapability = await _authorization.HasAsync(user, functionCode, ct);
                         if (hasApproveCapability)
                         {
                             scopedItems.Add(item);
@@ -108,8 +109,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                                 "[APPROVAL-INBOX] Pending item hidden: missing approve capability. " +
                                 "Module={Module} RequestId={RequestId} Requester={Requester} " +
                                 "Approver={Approver} Level={Level} FunctionCode={FunctionCode}",
-                                pair.Key, item.RequestId, item.EmployeeCode, user.EmployeeCode,
-                                GetCurrentLevel(item), functionCode);
+                                pair.Key, item.RequestId, user.EmployeeCode,
+                                user.EmployeeCode, GetCurrentLevel(item), functionCode);
                         }
                     }
                     scopedByModule[pair.Key] = scopedItems;
