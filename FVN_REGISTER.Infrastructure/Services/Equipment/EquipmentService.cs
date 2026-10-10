@@ -81,27 +81,54 @@ public sealed class EquipmentService : IEquipmentService
 
     public async Task<ServiceResult<List<EquipmentAssetDto>>> GetAssetsAsync(int? deptCode = null, CancellationToken ct = default)
     {
-        var user = RequireModuleUser();
-        await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentView, null, deptCode, ct);
-        var q = _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x => x.IsActive == true);
-        var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.EquipmentView, ct);
-        if (scope != AuthorizationScopeCodes.All)
+        try
         {
-            var managed = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
-            var employeeCodes = managed.Select(x => x.EmployeeCode).Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var deptCodes = managed.Select(x => x.DeptCode).Where(x => x.HasValue).ToHashSet();
-            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
-                q = q.Where(x => x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode || employeeCodes.Contains(x.ResponsibleEmployeeCode!) || employeeCodes.Contains(x.OperatingResponsibleEmployeeCode!));
-            else if (scope == AuthorizationScopeCodes.Department)
-                q = q.Where(x => x.DeptCode == user.DeptCode || deptCodes.Contains(x.DeptCode));
-            else
-                q = q.Where(x => false);
+            var user = RequireModuleUser();
+
+            // A null department means "list assets within my effective scope",
+            // not a concrete department that can be checked by CanAccessAsync.
+            if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentView, ct))
+                return ServiceResult<List<EquipmentAssetDto>>.Fail("Bạn không có quyền xem danh sách thiết bị.");
+
+            if (deptCode.HasValue)
+                await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentView, null, deptCode, ct);
+
+            var q = _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x => x.IsActive == true);
+            var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.EquipmentView, ct);
+            if (scope != AuthorizationScopeCodes.All)
+            {
+                var managed = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
+                var employeeCodes = managed.Select(x => x.EmployeeCode)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var deptCodes = managed.Select(x => x.DeptCode).Where(x => x.HasValue).ToHashSet();
+
+                if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                    q = q.Where(x =>
+                        x.ResponsibleEmployeeCode == user.EmployeeCode ||
+                        x.OperatingResponsibleEmployeeCode == user.EmployeeCode ||
+                        employeeCodes.Contains(x.ResponsibleEmployeeCode!) ||
+                        employeeCodes.Contains(x.OperatingResponsibleEmployeeCode!));
+                else if (scope == AuthorizationScopeCodes.Department)
+                    q = q.Where(x => x.DeptCode == user.DeptCode || deptCodes.Contains(x.DeptCode));
+                else
+                    q = q.Where(x => false);
+            }
+
+            if (deptCode.HasValue)
+                q = q.Where(x => x.DeptCode == deptCode.Value);
+
+            var assets = await q.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentName).Take(1000).ToListAsync(ct);
+            var result = new List<EquipmentAssetDto>(assets.Count);
+            foreach (var asset in assets)
+                result.Add(await MapAssetAsync(asset, ct));
+
+            return ServiceResult<List<EquipmentAssetDto>>.Ok(result);
         }
-        if (deptCode != null) q = q.Where(x => x.DeptCode == deptCode);
-        var assets = await q.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentName).Take(1000).ToListAsync(ct);
-        var result = new List<EquipmentAssetDto>(assets.Count);
-        foreach (var asset in assets) result.Add(await MapAssetAsync(asset, ct));
-        return ServiceResult<List<EquipmentAssetDto>>.Ok(result);
+        catch (UnauthorizedAccessException ex)
+        {
+            return ServiceResult<List<EquipmentAssetDto>>.Fail(ex.Message);
+        }
     }
 
     public async Task<ServiceResult<List<EquipmentAssetDto>>> GetMyAssignedAssetsAsync(CancellationToken ct = default)
