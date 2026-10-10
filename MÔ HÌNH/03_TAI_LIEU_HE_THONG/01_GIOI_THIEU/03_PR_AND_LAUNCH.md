@@ -60,7 +60,7 @@ Dùng [05 — Biểu mẫu KPI](05_KPI_BASELINE_TEMPLATE.md) và [09 — Busines
 - So sánh trước–sau theo cùng định nghĩa chỉ số; giải thích thay đổi khối lượng và nhân sự.
 - Báo cáo lợi ích đo được, chi phí, tồn tại và phần còn xử lý thủ công.
 
-Kịch bản trình diễn: [07 — Demo storyboard](07_DEMO_STORYBOARD.md).
+Kịch bản trình diễn: [07 — Kịch bản demo](07_DEMO_STORYBOARD.md). Trước khi công bố một chức năng đã sẵn sàng, đối chiếu [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md).
 
 ## 7. Mẫu mở đầu khi trình bày
 
