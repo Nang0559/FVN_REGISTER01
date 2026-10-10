@@ -162,20 +162,19 @@ else
         </MudCard>
     }
 
-    {
-        var pendingApprovals = Data.PendingApprovals
-            .SelectMany(x => x.Requests)
-            .Where(x => x.CanApprove)
-            .OrderBy(x => x.FromDate)
-            .Take(8)
-            .ToList();
-        var openActions = Data.Actions
-            .Where(x => x.Status == 0 || x.Status == 1)
-            .ToList();
-        var reconciliationActions = openActions.Where(IsReconciliationAction).Take(8).ToList();
-        var otherActions = openActions.Where(x => !IsReconciliationAction(x)).Take(8).ToList();
-        var totalTaskCount = pendingApprovals.Count + openActions.Count;
-    }
+    var pendingApprovals = Data.PendingApprovals
+        .SelectMany(x => x.Requests)
+        .Where(x => x.CanApprove)
+        .OrderBy(x => x.FromDate)
+        .Take(8)
+        .ToList();
+    var openActions = Data.Actions
+        .Where(x => x.Status == 0 || x.Status == 1)
+        .ToList();
+    var reconciliationActions = openActions.Where(IsReconciliationAction).Take(8).ToList();
+    var otherActions = openActions.Where(x => !IsReconciliationAction(x)).Take(8).ToList();
+    var totalTaskCount = pendingApprovals.Count + openActions.Count;
+
     <MudCard Elevation="2" Class="mb-4">
         <MudCardHeader>
             <CardHeaderContent>
