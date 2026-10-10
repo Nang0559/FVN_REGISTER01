@@ -116,30 +116,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
 
                 var groups = _groupingPolicy.BuildGroups(scopedByModule);
 
-                // Single source of truth: the inbox decides what is actionable. Unread approver
-                // notifications for requests that are NOT actionable for this user any more
-                // (decided, cancelled, overridden, outside policy/scope) are cleared so the bell
-                // and the app-icon badge never exceed what "Nhiệm vụ của tôi" can show.
-                // Skipped when the approver identity is empty, otherwise an empty inbox would
-                // wrongly clear every notification.
-                if (user.UserId > 0 && !string.IsNullOrWhiteSpace(approverKey))
-                {
-                    try
-                    {
-                        var actionable = groups
-                            .SelectMany(g => g.Requests)
-                            .Where(r => r.CanApprove)
-                            .Select(r => (r.Kind, r.RequestId))
-                            .Distinct()
-                            .ToList();
-                        await _notifications.ResolveStaleApproverAsync(user.UserId, actionable, ct);
-                    }
-                    catch (OperationCanceledException) { throw; }
-                    catch (Exception ex)
-                    {
-                        Logger.LogWarning(ex, "[INBOX] Stale approver notification cleanup failed. UserId={UserId}", user.UserId);
-                    }
-                }
+                // Do not mark approver notifications as read merely because an item is absent
+                // from this inbox response. Policy/scope filtering can hide an otherwise valid
+                // pending step (e.g. policy changed after snapshot creation); auto-clearing here
+                // silently erases the bell count and makes notification, inbox, and dashboard
+                // all appear empty. Resolve notifications only when the workflow explicitly
+                // advances/completes the request. Keep diagnostic logs above for policy/scope issues.
 
                 return ServiceResult<List<PendingApprovalGroupDto>>.Ok(groups);
             }
