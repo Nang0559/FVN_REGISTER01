@@ -341,6 +341,14 @@ else
         if (!schemas.IsSuccess || schemas.Data == null) return;
         var active = schemas.Data.Where(x => x.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) || x.IsActive)
             .GroupBy(x => x.Id).Select(x => x.First()).ToList();
+        var usedSchemaKeys = _assets.Select(x => x.EquipmentSchemaKey)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (usedSchemaKeys.Count > 0)
+        {
+            var matching = active.Where(x => usedSchemaKeys.Contains(x.SchemaCode)).ToList();
+            if (matching.Count > 0) active = matching;
+        }
         var fields = new Dictionary<string, ExcelSchemaFieldDto>(StringComparer.OrdinalIgnoreCase);
         foreach (var summary in active)
         {
@@ -370,7 +378,6 @@ else
         var employees = await EquipmentClient.GetAssignmentEmployeesAsync(_form.DeptCode);
         if (employees.IsSuccess) _assignmentEmployees = employees.Data ?? new();
         await LoadAsync();
-        await LoadAssetSchemaFieldsAsync();
         _assetsLoading = true;
         try
         {
@@ -388,6 +395,7 @@ else
         finally
         {
             _assetsLoading = false;
+            await LoadAssetSchemaFieldsAsync();
             _ready = true;
         }
     }
