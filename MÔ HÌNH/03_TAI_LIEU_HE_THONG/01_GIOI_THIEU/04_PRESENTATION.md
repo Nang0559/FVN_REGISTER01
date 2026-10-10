@@ -110,7 +110,11 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 
 **Vòng đời kết nối**
 
-**ĐĂNG KÝ → KIỂM TRA → PHÊ DUYỆT → THỰC HIỆN → ĐỐI SOÁT → XỬ LÝ → BÁO CÁO**
+**01 · ĐĂNG KÝ → 02 · PHÊ DUYỆT → 03 · THỰC HIỆN**
+
+**　　　　　　　　　↓**
+
+**06 · BÁO CÁO ← 05 · XỬ LÝ SAI LỆCH ← 04 · ĐỐI SOÁT**
 
 ---
 
