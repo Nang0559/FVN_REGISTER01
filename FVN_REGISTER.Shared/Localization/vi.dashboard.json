@@ -53,5 +53,15 @@
   "dashboard.statusCheckedOut": "Đã check-out",
   "dashboard.statusCheckedIn": "Đã check-in, chưa check-out",
   "dashboard.statusMissingCheckIn": "Có giờ ra, thiếu giờ vào",
-  "dashboard.statusNoPunch": "Không có giờ quẹt trong kết quả tính"
+  "dashboard.statusNoPunch": "Không có giờ quẹt trong kết quả tính",
+  "dashboard.departmentOverview": "Tổng quan phòng ban",
+  "dashboard.todayDepartmentOverview": "Hôm nay · Phòng ban của người phê duyệt",
+  "dashboard.attendanceRate": "Tỷ lệ đi làm",
+  "dashboard.presentShort": "Có mặt",
+  "dashboard.presentEmployees": "Nhân viên có mặt",
+  "dashboard.people": "người",
+  "dashboard.approvedLeaveTodayNote": "Đã được phê duyệt",
+  "dashboard.approvedTripTodayNote": "Theo lịch công tác đã duyệt",
+  "dashboard.approvedOTTodayNote": "Theo đăng ký OT đã duyệt",
+  "dashboard.departmentOverviewDataNote": "Số liệu được tổng hợp từ dữ liệu hệ thống, không phải số liệu minh họa."
 }
