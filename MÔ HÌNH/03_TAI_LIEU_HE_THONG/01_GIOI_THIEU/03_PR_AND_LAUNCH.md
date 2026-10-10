@@ -1,121 +1,72 @@
-# FVN REGISTER — PR, GIỚI THIỆU VÀ BUSINESS CASE
+# FVN REGISTER — THÔNG ĐIỆP GIỚI THIỆU VÀ KẾ HOẠCH ÁP DỤNG
 
-## 1. Product statement
+## 1. Thông điệp sản phẩm
 
-> **FVN REGISTER — Smart Employee Request, e-Approval & Operational Control Platform**
+> **FVN REGISTER — Số hóa quy trình nghiệp vụ, minh bạch trách nhiệm, đo lường hiệu quả.**
 
-FVN REGISTER là nền tảng tập trung cho đăng ký nghiệp vụ, phê duyệt điện tử, theo dõi thực tế, đối soát, quản lý thiết bị, checklist, báo cáo và kiểm soát công việc.
+FVN REGISTER là nền tảng hỗ trợ đăng ký nghiệp vụ, phê duyệt điện tử, theo dõi thực hiện, đối soát và xử lý ngoại lệ trên cùng một luồng. Phạm vi được mô tả trong bộ tài liệu gồm nghỉ phép, OT, công tác, lịch làm việc, chấm công/đối soát và thiết bị.
 
-Điểm khác biệt là nối toàn bộ vòng đời:
+**Đăng ký → Phê duyệt → Kế hoạch → Thực tế → Đối soát → Xử lý sai lệch → Báo cáo**
 
-**Request → Approval → Planned → Actual → Reconciliation → Action → Resolution → Reporting / Payroll**
+Điểm khác biệt cần truyền thông không phải số lượng màn hình, mà là khả năng nối các bước và làm rõ trách nhiệm.
 
-## 2. Business value
+## 2. Trước và sau
 
-| Giá trị | Tác động |
+| Trước — xử lý thủ công | Sau — quy trình số hóa |
 |---|---|
-| Giảm giờ công thủ công | Ít nhập lại, ít tìm hồ sơ, ít tổng hợp Excel |
-| Giảm chi phí giấy tờ | Giảm in, scan, lưu trữ và luân chuyển hồ sơ |
-| Giảm rework | Validation + workflow + reconciliation phát hiện sai lệch sớm |
-| Giảm việc bị quên / quá hạn | Notification, reminder, Action, escalation |
-| Tăng khả năng truy vết | Snapshot, History, Evidence, Resolution |
-| Giảm thời gian báo cáo | Dashboard / Reports / Export theo scope |
-| Quản lý tài sản tốt hơn | QR + lịch sử sửa chữa + checklist + evidence |
+| Phiếu giấy, bảng tính và trao đổi riêng | Thông tin đăng ký tập trung theo nghiệp vụ |
+| Tự tìm người duyệt, hỏi tiến độ | Trạng thái và trách nhiệm xử lý rõ hơn |
+| Nhập lại và tổng hợp nhiều lần | Giảm thao tác lặp lại ở quy trình được triển khai |
+| Tự dò chênh lệch giữa kế hoạch và thực tế | Có luồng theo dõi trường hợp cần xác minh |
+| Tìm hồ sơ/bằng chứng từ nhiều nơi | Tăng khả năng tra cứu lịch sử đã lưu |
+| Báo cáo phụ thuộc vào thao tác tổng hợp | Có cơ sở theo dõi chỉ số trước–sau |
 
-## 3. Before / After
+Không tuyên bố mọi thao tác đã được tự động hóa hoàn toàn. Mức độ tự động hóa phụ thuộc nguồn dữ liệu, cấu hình và nghiệm thu của từng nghiệp vụ.
 
-```mermaid
-flowchart LR
-    OLD[Giấy / Excel / Email / Chat] --> P1[Nhập lại]
-    P1 --> P2[Tìm hồ sơ]
-    P2 --> P3[Đối chiếu]
-    P3 --> P4[Nhắc người xử lý]
-    P4 --> P5[Sửa / tổng hợp]
-    P5 --> P6[Payroll / Report]
+## 3. Giá trị cần nhấn mạnh
 
-    FVN[FVN REGISTER]
-    FVN --> V[Validation]
-    FVN --> W[Workflow]
-    FVN --> A[Automation]
-    FVN --> R[Reconciliation]
-    FVN --> AC[Action / Notification]
-    FVN --> AU[Audit / History]
-```
+1. **Năng suất:** giảm thời gian chuyển phiếu, hỏi tiến độ, nhập lại và tổng hợp.
+2. **Minh bạch:** làm rõ trạng thái, người chịu trách nhiệm và lịch sử quyết định.
+3. **Chất lượng dữ liệu:** kiểm tra đầu vào và làm rõ chênh lệch.
+4. **Kiểm soát vận hành:** theo dõi việc cần xử lý và các trường hợp chưa hoàn tất theo cấu hình.
+5. **Truy xuất:** tập trung thông tin, lịch sử và bằng chứng được ghi nhận.
+6. **Cải tiến liên tục:** dùng chỉ số để đánh giá quy trình và ưu tiên cải tiến.
 
-## 4. Equipment & Checklist
+## 4. Thông điệp theo đối tượng
 
-**Equipment Request → Approval → Asset + QR → Assignment → Scheduled Task → Reminder → Inspection → Evidence → Approval → History / Report**
+| Đối tượng | Thông điệp |
+|---|---|
+| Nhân viên | Gửi yêu cầu và tự theo dõi trạng thái, giảm việc đi hỏi |
+| Người phê duyệt | Tập trung yêu cầu cần quyết định |
+| Quản lý bộ phận | Nhìn thấy tình hình và việc còn tồn đọng |
+| HR | Tập trung xác minh sai lệch và xử lý ngoại lệ |
+| Quản lý thiết bị | Tăng khả năng tra cứu thiết bị, nhiệm vụ và lịch sử đã ghi nhận |
+| Ban giám đốc | Đánh giá cải tiến dựa trên chỉ số vận hành |
 
-Giá trị gồm QR, import Excel staging/validation, schema theo phòng ban, checklist version, lịch định kỳ, task, reminder, evidence và Action Center.
+## 5. Đo trước khi công bố
 
-## 5. Business case
+Tối thiểu cần đo số giao dịch; phút làm việc của nhân viên, người phê duyệt và HR; số lần nhập lại/nhắc việc/tìm hồ sơ/đối chiếu; thời gian chờ phê duyệt; tỷ lệ làm lại; thời gian lập báo cáo; chi phí triển khai, đào tạo, vận hành và duy trì.
 
-### Giảm giờ công
+Biểu mẫu: [05 — Biểu mẫu đo đường cơ sở và KPI](05_KPI_BASELINE_TEMPLATE.md).
 
-`HoursSaved = (Transactions × MinutesSavedPerTransaction + MonthlyReportingHoursSaved) / 60`
+## 6. Lộ trình áp dụng đề xuất
 
-`LaborValue = HoursSaved × LoadedLaborCostPerHour`
+**Đo đường cơ sở → Chọn phạm vi thử nghiệm → Hướng dẫn người dùng → Đo lại → Xác nhận kết quả → Mở rộng**
 
-### Giảm chi phí giấy tờ
+- Đo quy trình thủ công trong 2–4 tuần hoặc đủ một chu kỳ nghiệp vụ đại diện.
+- Chọn một hoặc hai bộ phận/nghiệp vụ có đủ giao dịch để đo.
+- Giữ nguyên định nghĩa KPI trước và sau.
+- Ghi nhận biến động khối lượng, nhân sự, chính sách hoặc mùa vụ.
+- Chỉ mở rộng khi dữ liệu, hướng dẫn và trách nhiệm vận hành đã rõ.
 
-`PaperSaving = Printing + Scan + Filing + Storage + InternalTransport`
+## 7. Đoạn giới thiệu dùng trong cuộc họp
 
-### Giảm chi phí rework
+FVN REGISTER hướng tới số hóa các quy trình đăng ký và phê duyệt đang được xử lý thủ công. Hệ thống kết nối yêu cầu, phê duyệt, theo dõi thực hiện và xử lý sai lệch, giúp giảm thao tác lặp lại, tăng khả năng truy xuất và tạo cơ sở đo hiệu quả vận hành. Hiệu quả sẽ được đánh giá bằng dữ liệu trước–sau áp dụng, bao gồm thời gian xử lý, chất lượng dữ liệu, tồn đọng và chi phí vận hành.
 
-`ReworkSaving = BaselineReworkCost - PostGoLiveReworkCost`
+## 8. Nguyên tắc truyền thông
 
-### Tổng lợi ích
-
-`AnnualBenefit = LaborValue + PaperSaving + ReworkSaving + RiskAvoidance`
-
-`ROI = (AnnualBenefit - AnnualRunCost) / TotalInvestment`
-
-> Không trình “% tiết kiệm” như kết quả đạt được nếu chưa có baseline/pilot.
-
-## 6. Cách trình Ban lãnh đạo
-
-```mermaid
-flowchart LR
-    PROBLEM[Vấn đề hiện tại] --> COST[Chi phí ẩn]
-    COST --> DIGITAL[Giải pháp FVN REGISTER]
-    DIGITAL --> KPI[Đo Before / After]
-    KPI --> ROI[Ngân sách / ROI]
-```
-
-Bắt đầu bằng baseline thực tế: giờ công, số hồ sơ, thời gian đối chiếu, checklist trễ, thời gian lập báo cáo, chi phí tìm lịch sử và số issue trước payroll.
-
-## 7. KPI pilot
-
-| KPI | Baseline | After |
-|---|---:|---:|
-| Minutes / request | Đo thực tế | So sánh |
-| HR minutes / request | Đo thực tế | So sánh |
-| Approver minutes / request | Đo thực tế | So sánh |
-| Manual touches / request | Đo thực tế | So sánh |
-| Report preparation hours | Đo thực tế | So sánh |
-| Checklist on-time % | Đo thực tế | So sánh |
-| Rework % | Đo thực tế | So sánh |
-| Missing history | Đo thực tế | So sánh |
-| Payroll exception rate | Đo thực tế | So sánh |
-| Digital adoption rate | Đo thực tế | So sánh |
-
-## 8. Adoption & rollout
-
-```mermaid
-flowchart LR
-    BASE[Baseline 2–4 tuần] --> PILOT[Pilot 1–2 phòng ban]
-    PILOT --> MEASURE[Đo KPI]
-    MEASURE --> BUSINESS[Chốt Business Case]
-    BUSINESS --> SCALE[Mở rộng toàn công ty]
-    SCALE --> MONITOR[Theo dõi định kỳ]
-```
-
-**Measure first → Pilot → Prove → Scale**
-
-## 9. Kết luận truyền thông
-
-### FVN REGISTER
-
-**Một nền tảng. Một quy trình. Một nơi để theo dõi.**
-
-Không chỉ “không dùng giấy”, mà là giảm công việc lặp lại, giảm thời gian kiểm tra, giảm lỗi, giảm việc quên hạn, tăng khả năng truy vết và tạo dữ liệu quản trị.
+- Không dùng thuật ngữ kỹ thuật làm tiêu đề cho Ban giám đốc.
+- Không gọi giờ công giải phóng là tiền mặt tiết kiệm nếu chưa chứng minh.
+- Không mô tả tính năng chưa nghiệm thu là đã vận hành chính thức.
+- Dùng ảnh chụp màn hình thật sau khi che dữ liệu cá nhân.
+- Giữ tiếng Việt nhất quán; chỉ dùng HR, OT, QR khi cần.
