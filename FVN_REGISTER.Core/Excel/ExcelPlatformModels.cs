@@ -49,6 +49,8 @@ public sealed record ExcelSchemaVersion(
     DateTime CreatedAt);
 
 public sealed record ExcelWorkbookInspection(string FileName,string Extension,long Length,IReadOnlyList<ExcelSheetInspection> Sheets);
+public sealed record ExcelGridRow(int RowIndex,IReadOnlyList<string?> Cells);
+public sealed record ExcelSheetGrid(int SheetIndex,string SheetName,int TotalRowCount,int ColumnCount,IReadOnlyList<ExcelGridRow> Rows);
 public sealed record ExcelSheetInspection(int Index,string Name,int FirstRowIndex,int LastRowIndex,int FirstColumnIndex,int LastColumnIndex,IReadOnlyList<ExcelHeaderCandidate> HeaderCandidates);
 public sealed record ExcelHeaderCandidate(int RowIndex,IReadOnlyList<string?> Values,double Score);
 public sealed record ExcelCell(int RowIndex,int ColumnIndex,string? Value,string? DisplayValue=null);
