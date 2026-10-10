@@ -38,11 +38,191 @@ public sealed class EquipmentImportService : IEquipmentImportService
     public async Task<ServiceResult<ExcelWorkbookDto>> InspectExcelAsync(int dept,string file,Stream content,CancellationToken ct=default){try{var u=User();await Scope(u,Dept(dept,u.DeptCode),ct);var x=await _excel.InspectAsync(content,file,ct);return ServiceResult<ExcelWorkbookDto>.Ok(new(){FileName=x.FileName,Sheets=x.Sheets.Select(s=>new ExcelSheetDto{Index=s.Index,Name=s.Name,RowCount=Math.Max(0,s.LastRowIndex-s.FirstRowIndex+1),ColumnCount=Math.Max(0,s.LastColumnIndex-s.FirstColumnIndex+1),HasData=s.LastRowIndex>=s.FirstRowIndex}).ToList()});}catch(Exception e)when(e is UnauthorizedAccessException or ArgumentException or InvalidOperationException){return ServiceResult<ExcelWorkbookDto>.Fail(e.Message);}}
     public Task<ServiceResult<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelSheetAsync(int d,string f,Stream c,int s,CancellationToken ct=default)=>PreviewRange(d,f,c,new(){SheetIndex=s,HeaderRowIndex=0,DataStartRowIndex=1},ct);
     public Task<ServiceResult<ExcelSchemaDto>> CreateSchemaFromExcelSheetAsync(int d,string f,Stream c,int s,string? n,CancellationToken ct=default)=>CreateRange(d,f,c,new(){SheetIndex=s,HeaderRowIndex=0,DataStartRowIndex=1},n,ct);
-    public async Task<ServiceResult<ExcelGridDto>> GetExcelGridAsync(int dept,string file,Stream content,int sheet,int maxRows=200,CancellationToken ct=default){var u=User();await Scope(u,Dept(dept,u.DeptCode),ct);await using var buffer=new MemoryStream();await content.CopyToAsync(buffer,ct);buffer.Position=0;var x=await _excel.InspectAsync(buffer,file,ct);buffer.Position=0;if(sheet<0||sheet>=x.Sheets.Count)return ServiceResult<ExcelGridDto>.Fail("Sheet Excel không hợp lệ.");var s=x.Sheets[sheet];var h=s.HeaderCandidates.FirstOrDefault()??new ExcelHeaderCandidate(s.FirstRowIndex,Array.Empty<string?>(),0);var fs=h.Values.Select((v,i)=>new ExcelSchemaField($"C{i}","Text",false,i,v)).ToList();var p=await _excel.PreviewAsync(buffer,file,new ExcelSchemaDefinition(ModuleCode,EntityCode,"preview",1,sheet,s.Name,h.RowIndex,h.RowIndex+1,Math.Min(s.LastRowIndex,h.RowIndex+maxRows),fs.Select(z=>z.SourceColumnIndex).ToList(),fs),ct);return ServiceResult<ExcelGridDto>.Ok(new(){FileName=file,SheetIndex=sheet,TotalRowCount=p.Rows.Count,ColumnCount=fs.Count,Rows=p.Rows.Select(r=>new ExcelGridRowDto{RowIndex=r.RowIndex-1,Cells=fs.Select(f=>r.Cells.TryGetValue(f.SourceColumnIndex,out var v)?v:null).ToList()}).ToList()});}
+    public async Task<ServiceResult<ExcelGridDto>> GetExcelGridAsync(
+        int dept,
+        string file,
+        Stream content,
+        int sheet,
+        int maxRows = 200,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var user = User();
+            await Scope(user, Dept(dept, user.DeptCode), ct);
+            var grid = await _excel.ReadGridAsync(content, file, sheet, Math.Clamp(maxRows, 1, 1000), ct);
+            return ServiceResult<ExcelGridDto>.Ok(new ExcelGridDto
+            {
+                FileName = Path.GetFileName(file),
+                SheetIndex = grid.SheetIndex,
+                TotalRowCount = grid.TotalRowCount,
+                ColumnCount = grid.ColumnCount,
+                Rows = grid.Rows.Select(row => new ExcelGridRowDto
+                {
+                    RowIndex = row.RowIndex,
+                    Cells = row.Cells.ToList()
+                }).ToList()
+            });
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<ExcelGridDto>.Fail(ex.Message);
+        }
+    }
     public Task<ServiceResult<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelRangeAsync(int d,string f,Stream c,ExcelRangeRequest r,CancellationToken ct=default)=>PreviewRange(d,f,c,r,ct);
     public Task<ServiceResult<ExcelSchemaDto>> CreateSchemaFromExcelRangeAsync(int d,string f,Stream c,ExcelRangeRequest r,string? n,CancellationToken ct=default)=>CreateRange(d,f,c,r,n,ct);
-    private async Task<ServiceResult<ExcelSchemaFromExcelDto>> PreviewRange(int d,string f,Stream c,ExcelRangeRequest r,CancellationToken ct){var u=User();await Scope(u,Dept(d,u.DeptCode),ct);var x=await _excel.InspectAsync(c,f,ct);if(r.SheetIndex<0||r.SheetIndex>=x.Sheets.Count)return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Sheet Excel không hợp lệ.");var s=x.Sheets[r.SheetIndex];var h=s.HeaderCandidates.FirstOrDefault(z=>z.RowIndex==r.HeaderRowIndex)??s.HeaderCandidates.FirstOrDefault();if(h is null)return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Không tìm thấy dòng tiêu đề.");var cols=(r.SelectedColumnIndexes??Enumerable.Range(0,h.Values.Count)).Where(i=>i>=0&&i<h.Values.Count).Distinct().ToList();var inf=ExcelSchemaInference.Infer(cols.Select(i=>new ExcelSchemaInference.InputColumn(h.Values[i]??$"Column_{i+1}",Array.Empty<string?>())).ToList());return ServiceResult<ExcelSchemaFromExcelDto>.Ok(new(){FileName=Path.GetFileName(f),SuggestedSchemaName=Path.GetFileNameWithoutExtension(f),ColumnCount=inf.Count,SampleRowCount=Math.Max(0,s.LastRowIndex-(r.DataStartRowIndex??r.HeaderRowIndex+1)+1),Fields=inf.Select((z,i)=>new ExcelSchemaFieldDto{FieldKey=z.FieldKey,FieldLabel=z.FieldLabel,DataType=z.DataType,IsRequired=z.IsRequired,AllowEmpty=!z.IsRequired,SourceColumnIndex=cols[i],HeaderName=z.FieldLabel,MaxLength=z.MaxLength,DisplayOrder=i+1}).ToList()});}
-    private async Task<ServiceResult<ExcelSchemaDto>> CreateRange(int d,string f,Stream c,ExcelRangeRequest r,string? n,CancellationToken ct){var p=await PreviewRange(d,f,c,r,ct);if(!p.IsSuccess||p.Data is null)return ServiceResult<ExcelSchemaDto>.Fail(p.Message??"Không thể suy luận schema.");var u=User();var dept=Dept(d,u.DeptCode);var fs=p.Data.Fields.Select(z=>new ExcelSchemaField(z.FieldKey,z.DataType,z.IsRequired,z.SourceColumnIndex,z.HeaderName,null,null,z.TargetProperty,z.DisplayOrder,z.AllowEmpty,z.MaxLength,z.DefaultValue,z.ValidationRule)).ToList();var s=await _excel.CreateDraftSchemaAsync(new ExcelSchemaCreateRequest(ModuleCode,EntityCode,$"{dept}:{Guid.NewGuid():N}",string.IsNullOrWhiteSpace(n)?p.Data.SuggestedSchemaName:n!,r.SheetIndex,$"Sheet{r.SheetIndex+1}",r.HeaderRowIndex,r.DataStartRowIndex??r.HeaderRowIndex+1,r.DataEndRowIndex,r.SelectedColumnIndexes??fs.Select(z=>z.SourceColumnIndex).ToList(),fs),Path.GetFileName(f),ct);await OwnerSet(s.Id,u.UserId,ct);return ServiceResult<ExcelSchemaDto>.Ok((await GetSchemaAsync(s.Id,ct))!,"Đã tạo schema từ Excel.");}
+    private async Task<ServiceResult<ExcelSchemaFromExcelDto>> PreviewRange(
+        int departmentCode,
+        string fileName,
+        Stream content,
+        ExcelRangeRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var user = User();
+            await Scope(user, Dept(departmentCode, user.DeptCode), ct);
+            if (request.SheetIndex < 0)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Sheet Excel không hợp lệ.");
+
+            var requiredRows = request.DataEndRowIndex.HasValue
+                ? request.DataEndRowIndex.Value + 1
+                : Math.Max(200, request.HeaderRowIndex + 1);
+            var maxRows = Math.Clamp(requiredRows, 1, 10000);
+            var grid = await _excel.ReadGridAsync(content, fileName, request.SheetIndex, maxRows, ct);
+            if (grid.TotalRowCount == 0 || grid.ColumnCount == 0)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Sheet Excel không có dữ liệu.");
+
+            if (request.HeaderRowIndex < 0 || request.HeaderRowIndex >= grid.TotalRowCount)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Dòng tiêu đề nằm ngoài phạm vi sheet Excel.");
+
+            var header = grid.Rows.FirstOrDefault(row => row.RowIndex == request.HeaderRowIndex);
+            if (header is null)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Không đọc được dòng tiêu đề đã chọn.");
+
+            var dataStart = request.DataStartRowIndex ?? request.HeaderRowIndex + 1;
+            var dataEnd = request.DataEndRowIndex ?? grid.TotalRowCount - 1;
+            if (dataStart <= request.HeaderRowIndex)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Dòng dữ liệu bắt đầu phải nằm sau dòng tiêu đề.");
+            if (dataStart < 0 || dataStart >= grid.TotalRowCount || dataEnd < dataStart || dataEnd >= grid.TotalRowCount)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Phạm vi dòng dữ liệu không hợp lệ.");
+
+            var cols = (request.SelectedColumnIndexes
+                    ?? Enumerable.Range(0, Math.Min(header.Cells.Count, grid.ColumnCount))
+                        .Where(index => !string.IsNullOrWhiteSpace(header.Cells[index]))
+                        .ToList())
+                .Where(index => index >= 0 && index < grid.ColumnCount)
+                .Distinct()
+                .OrderBy(index => index)
+                .ToList();
+            if (cols.Count == 0)
+                return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Hãy chọn ít nhất một cột có tiêu đề.");
+
+            var inputColumns = cols.Select(index =>
+            {
+                var headerName = header.Cells[index]?.Trim();
+                if (string.IsNullOrWhiteSpace(headerName))
+                    headerName = $"Column_{index + 1}";
+                var samples = grid.Rows
+                    .Where(row => row.RowIndex >= dataStart && row.RowIndex <= dataEnd)
+                    .Select(row => index < row.Cells.Count ? row.Cells[index] : null)
+                    .ToList();
+                return new ExcelSchemaInference.InputColumn(headerName, samples);
+            }).ToList();
+
+            var inferred = ExcelSchemaInference.Infer(inputColumns);
+            var sampleRowCount = grid.Rows
+                .Where(row => row.RowIndex >= dataStart && row.RowIndex <= dataEnd)
+                .Count(row => cols.Any(index => index < row.Cells.Count && !string.IsNullOrWhiteSpace(row.Cells[index])));
+
+            return ServiceResult<ExcelSchemaFromExcelDto>.Ok(new ExcelSchemaFromExcelDto
+            {
+                FileName = Path.GetFileName(fileName),
+                SheetName = grid.SheetName,
+                SuggestedSchemaName = Path.GetFileNameWithoutExtension(fileName),
+                ColumnCount = inferred.Count,
+                SampleRowCount = sampleRowCount,
+                Fields = inferred.Select((field, index) => new ExcelSchemaFieldDto
+                {
+                    FieldKey = field.FieldKey,
+                    FieldLabel = field.FieldLabel,
+                    DataType = field.DataType,
+                    IsRequired = field.IsRequired,
+                    AllowEmpty = !field.IsRequired,
+                    SourceColumnIndex = cols[index],
+                    HeaderName = inputColumns[index].Header,
+                    MaxLength = field.MaxLength,
+                    DisplayOrder = index + 1
+                }).ToList()
+            });
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<ExcelSchemaFromExcelDto>.Fail(ex.Message);
+        }
+    }
+
+    private async Task<ServiceResult<ExcelSchemaDto>> CreateRange(
+        int departmentCode,
+        string fileName,
+        Stream content,
+        ExcelRangeRequest request,
+        string? schemaName,
+        CancellationToken ct)
+    {
+        await using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, ct);
+        buffer.Position = 0;
+
+        var preview = await PreviewRange(departmentCode, fileName, buffer, request, ct);
+        if (!preview.IsSuccess || preview.Data is null)
+            return ServiceResult<ExcelSchemaDto>.Fail(preview.Message ?? "Không thể suy luận schema.");
+
+        var user = User();
+        var department = Dept(departmentCode, user.DeptCode);
+        var fields = preview.Data.Fields.Select(field => new ExcelSchemaField(
+            field.FieldKey,
+            field.DataType,
+            field.IsRequired,
+            field.SourceColumnIndex,
+            field.HeaderName,
+            field.Format,
+            field.ResourceKey,
+            field.TargetProperty,
+            field.DisplayOrder,
+            field.AllowEmpty,
+            field.MaxLength,
+            field.DefaultValue,
+            field.ValidationRule)).ToList();
+
+        var selectedColumns = fields.Select(field => field.SourceColumnIndex).ToList();
+        var created = await _excel.CreateDraftSchemaAsync(new ExcelSchemaCreateRequest(
+            ModuleCode,
+            EntityCode,
+            $"{department}:{Guid.NewGuid():N}",
+            string.IsNullOrWhiteSpace(schemaName) ? preview.Data.SuggestedSchemaName : schemaName.Trim(),
+            request.SheetIndex,
+            preview.Data.SheetName,
+            request.HeaderRowIndex,
+            request.DataStartRowIndex ?? request.HeaderRowIndex + 1,
+            request.DataEndRowIndex,
+            selectedColumns,
+            fields), Path.GetFileName(fileName), ct);
+
+        await OwnerSet(created.Id, user.UserId, ct);
+        return ServiceResult<ExcelSchemaDto>.Ok(
+            (await GetSchemaAsync(created.Id, ct))!,
+            "Đã tạo schema từ Excel.");
+    }
+
     public async Task<ExcelSchemaFromExcelDto> PreviewSchemaFromExcelAsync(int departmentCode, string fileName, Stream content, CancellationToken ct = default)
     {
         var result = await PreviewSchemaFromExcelSheetAsync(departmentCode, fileName, content, 0, ct);
