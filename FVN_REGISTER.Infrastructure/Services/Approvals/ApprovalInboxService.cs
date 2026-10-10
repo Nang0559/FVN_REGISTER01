@@ -54,13 +54,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         {
             try
             {
+                // Thông báo gửi theo ApproverCode (mã nhân viên) nên tra cứu cũng phải theo mã
+                // nhân viên; email chỉ là phương án dự phòng khi tài khoản không có EmployeeCode.
+                var approverKey = !string.IsNullOrWhiteSpace(user.EmployeeCode)
+                    ? user.EmployeeCode!
+                    : user.Email ?? "";
+
                 var byModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>
                 {
-                    [RequestModule.Leave] = await _leaveWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Overtime] = await _otWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Trip] = await _tripWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct)
+                    [RequestModule.Leave] = await _leaveWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Overtime] = await _otWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Trip] = await _tripWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(approverKey, ct)
                 };
 
                 var scopedByModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>();
@@ -82,9 +88,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     {
                         var policyAllows = await _approvalPolicies.CanApproveAsync(pair.Key, item.EmployeeCode,
                             user.EmployeeCode ?? string.Empty, GetCurrentLevel(item), ct);
-                        if (policyAllows && await _authorization.CanAccessAsync(user, functionCode,
-                            item.EmployeeCode, item.DeptCode, ct))
+                        var scopeAllows = policyAllows && await _authorization.CanAccessAsync(user, functionCode,
+                            item.EmployeeCode, item.DeptCode, ct);
+                        if (scopeAllows)
+                        {
                             scopedItems.Add(item);
+                        }
+                        else if (Debug)
+                        {
+                            // Đơn có trong luồng duyệt của người này (và đã có thông báo) nhưng bị loại
+                            // khỏi inbox: ghi rõ lý do để biết cần sửa policy hay cấp quyền chức năng.
+                            Logger.LogWarning(
+                                "[APPROVAL-INBOX] Loại đơn khỏi inbox: Module={Module} RequestId={RequestId} " +
+                                "Requester={Requester} Approver={Approver} Level={Level} " +
+                                "PolicyAllows={PolicyAllows} (false = F03ApprovalPolicy không khớp phòng ban/chức vụ/cấp) " +
+                                "FunctionScopeAllows={ScopeAllows} (false = thiếu quyền {FunctionCode} hoặc ngoài phạm vi)",
+                                pair.Key, item.RequestId, item.EmployeeCode, user.EmployeeCode,
+                                GetCurrentLevel(item), policyAllows, scopeAllows, functionCode);
+                        }
                     }
                     scopedByModule[pair.Key] = scopedItems;
                 }

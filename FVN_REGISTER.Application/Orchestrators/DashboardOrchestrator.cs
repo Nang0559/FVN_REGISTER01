@@ -118,19 +118,18 @@ namespace FVN_REGISTER.Application.Orchestrators
                     }
                 }
 
-                // Approval-pending summary cards are only meaningful for users who can
-                // approve that module. Do this on the server so ordinary users never
-                // receive these counters in the Dashboard response.
-                var canApproveLeave = await _authorization.HasAsync(
-                    user, SecurityFunctionCodes.LeaveApprove, ct);
-                var canApproveOT = await _authorization.HasAsync(
-                    user, SecurityFunctionCodes.OTApprove, ct);
-                var canApproveTrip = await _authorization.HasAsync(
-                    user, SecurityFunctionCodes.TripApprove, ct);
+                // Approval inbox is independent from Manager Workspace.
+                // A user may be an approver without ManagedScope; the inbox service
+                // resolves actual approval policy/route and returns only actionable items.
+                var pendingResult = await _approvalInbox.GetPendingAsync(user, ct);
+                response.PendingApprovals = pendingResult.IsSuccess
+                    ? pendingResult.Data ?? new List<PendingApprovalGroupDto>()
+                    : new List<PendingApprovalGroupDto>();
 
-                rawWidgets = rawWidgets
-                    .Where(widget => !IsApprovalPendingWidget(widget, canApproveLeave, canApproveOT, canApproveTrip))
-                    .ToList();
+                // Các card "…chờ tôi duyệt" đếm theo đơn thực sự đang chờ người dùng này
+                // (cùng nguồn với thông báo và khung "Nhiệm vụ của tôi"), không dùng bộ đếm
+                // đơn của chính người dùng ("Đơn nghỉ chờ duyệt", "Công tác đang chờ"...).
+                rawWidgets.AddRange(BuildApprovalPendingWidgets(response.PendingApprovals));
 
                 response.Widgets = DashboardWidgetPolicy.Arrange(user, rawWidgets);
 
@@ -140,14 +139,6 @@ namespace FVN_REGISTER.Application.Orchestrators
                 var actions = await _actions.GetMineAsync(user.EmployeeCode, user.UserId, includeCompleted: false, ct);
                 response.ActionCount = actionCount;
                 response.Actions = actions.Take(5).ToList();
-
-                // Approval inbox is independent from Manager Workspace.
-                // A user may be an approver without ManagedScope; the inbox service
-                // resolves actual approval policy/route and returns only actionable items.
-                var pendingResult = await _approvalInbox.GetPendingAsync(user, ct);
-                response.PendingApprovals = pendingResult.IsSuccess
-                    ? pendingResult.Data ?? new List<PendingApprovalGroupDto>()
-                    : new List<PendingApprovalGroupDto>();
 
                 return ServiceResult<DashboardResponse>.Ok(response);
             }
@@ -163,34 +154,36 @@ namespace FVN_REGISTER.Application.Orchestrators
             }
         }
 
-        private static bool IsApprovalPendingWidget(
-            WidgetCounterDto widget,
-            bool canApproveLeave,
-            bool canApproveOT,
-            bool canApproveTrip)
+        private static IEnumerable<WidgetCounterDto> BuildApprovalPendingWidgets(
+            IEnumerable<PendingApprovalGroupDto> groups)
         {
-            var title = (widget.Title ?? string.Empty).Trim();
+            var items = groups
+                .SelectMany(g => g.Requests)
+                .Where(r => r.CanApprove)
+                .ToList();
 
-            // Match the existing dashboard widget titles (Vietnamese and known
-            // English/resource-key variants). Personal balances/history widgets
-            // are intentionally not affected.
-            if (title.Equals("Đơn nghỉ chờ duyệt", StringComparison.OrdinalIgnoreCase)
-                || title.Equals("Leave pending approval", StringComparison.OrdinalIgnoreCase)
-                || title.Equals("dashboard.leavePending", StringComparison.OrdinalIgnoreCase))
-                return !canApproveLeave;
+            var cards = new (RequestModule Kind, string TitleKey)[]
+            {
+                (RequestModule.Leave, "dashboard.leaveApprovalPending"),
+                (RequestModule.Overtime, "dashboard.otApprovalPending"),
+                (RequestModule.Trip, "dashboard.tripApprovalPending")
+            };
 
-            if (title.Equals("Đơn OT chờ duyệt", StringComparison.OrdinalIgnoreCase)
-                || title.Equals("OT pending approval", StringComparison.OrdinalIgnoreCase)
-                || title.Equals("dashboard.otPending", StringComparison.OrdinalIgnoreCase))
-                return !canApproveOT;
+            foreach (var (kind, titleKey) in cards)
+            {
+                var count = items.Count(i => i.Kind == kind);
+                if (count == 0) continue;
 
-            if (title.Equals("Công tác đang chờ", StringComparison.OrdinalIgnoreCase)
-                || title.Equals("Công tác chờ duyệt", StringComparison.OrdinalIgnoreCase)
-                || title.Equals("Trip pending approval", StringComparison.OrdinalIgnoreCase)
-                || title.Equals("dashboard.tripPending", StringComparison.OrdinalIgnoreCase))
-                return !canApproveTrip;
-
-            return false;
+                yield return new WidgetCounterDto
+                {
+                    Title = titleKey,
+                    Value = count.ToString(),
+                    Icon = "PendingActions",
+                    Color = "Warning",
+                    Link = "/approvals",
+                    IsPersonal = false
+                };
+            }
         }
 
         private async Task<bool> CanBuildProviderAsync(

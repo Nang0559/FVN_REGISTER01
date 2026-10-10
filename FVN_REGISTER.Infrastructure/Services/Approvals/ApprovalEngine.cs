@@ -188,14 +188,30 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
             ct);
     }
 
+    /// <param name="approver">
+    /// EmployeeCode của người duyệt (ưu tiên, khớp với thông báo vốn gửi theo ApproverCode)
+    /// hoặc email (tương thích ngược).
+    /// </param>
     public async Task<List<PendingApprovalItemDto>> GetPendingForApproverAsync(
-        string approverEmail, CancellationToken ct)
+        string approver, CancellationToken ct)
     {
+        var key = approver?.Trim();
+        if (string.IsNullOrEmpty(key)) return new();
+
         var approverCode = await _uow.Repository<F03Employee>()
             .Query()
-            .Where(e => e.EmailAddress == approverEmail)
+            .Where(e => e.EmployeeCode == key)
             .Select(e => e.EmployeeCode)
             .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrEmpty(approverCode))
+        {
+            approverCode = await _uow.Repository<F03Employee>()
+                .Query()
+                .Where(e => e.EmailAddress == key)
+                .Select(e => e.EmployeeCode)
+                .FirstOrDefaultAsync(ct);
+        }
 
         if (string.IsNullOrEmpty(approverCode)) return new();
 
@@ -210,17 +226,23 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
 
         foreach (var snapshot in snapshots)
         {
-            var myStep = snapshot.Steps.FirstOrDefault(s => s.ApproverCode == approverCode);
-            if (myStep == null) continue;
-
             var calculated = await GetStepsAsync(snapshot.RequestId, ct);
-            var myCalc = calculated.FirstOrDefault(c => c.Level == myStep.Level);
-            if (myCalc == null || myCalc.Decision != DecisionType.Pending) continue;
 
-            var previousDone = calculated
-                .Where(c => c.Level < myStep.Level && c.IsRequired)
-                .All(c => c.Decision == DecisionType.Approved);
-            if (!previousDone) continue;
+            // Một người có thể giữ nhiều cấp trong cùng một đơn: lấy cấp đang thực sự
+            // chờ họ (Pending và các cấp bắt buộc trước đó đã duyệt), không phải cấp đầu tiên.
+            var myStep = snapshot.Steps
+                .Where(s => s.ApproverCode == approverCode)
+                .OrderBy(s => s.Level)
+                .FirstOrDefault(s =>
+                {
+                    var calc = calculated.FirstOrDefault(c => c.Level == s.Level);
+                    return calc != null
+                        && calc.Decision == DecisionType.Pending
+                        && calculated
+                            .Where(c => c.Level < s.Level && c.IsRequired)
+                            .All(c => c.Decision == DecisionType.Approved);
+                });
+            if (myStep == null) continue;
 
             var subject = await _provider.GetSubjectAsync(snapshot.RequestId, ct);
             if (subject == null) continue;
