@@ -1,98 +1,114 @@
 # FVN REGISTER
 ## Từ xử lý thủ công đến quy trình số hóa có thể kiểm soát
 
-> **Một nền tảng dùng chung để đăng ký, phê duyệt, theo dõi thực hiện và đối soát nghiệp vụ — giảm thao tác thủ công, tăng khả năng kiểm soát.**
+> **Một nền tảng dùng chung để đăng ký, phê duyệt, theo dõi thực hiện và đối soát nghiệp vụ — giảm thao tác lặp lại, làm rõ trách nhiệm và tạo dữ liệu để cải tiến.**
 
 ---
 
-**Bộ tài liệu liên quan:** [Cổng vào bộ tài liệu giới thiệu](00_README.md) · [Bản đồ tính năng](02_FEATURES.md) · [Trình chiếu Ban giám đốc](04_PRESENTATION.md) · [Đo KPI](05_KPI_BASELINE_TEMPLATE.md) · [Business case](09_BUSINESS_CASE_COST_REDUCTION.md)\n\n## 1. Bài toán hiện tại
+**Bộ tài liệu:** [Cổng giới thiệu](00_README.md) · [Bản đồ nghiệp vụ](02_FEATURES.md) · [Thông điệp và kế hoạch áp dụng](03_PR_AND_LAUNCH.md) · [Trình chiếu Ban giám đốc](04_PRESENTATION.md) · [Đo KPI](05_KPI_BASELINE_TEMPLATE.md) · [Business case](09_BUSINESS_CASE_COST_REDUCTION.md)
 
-Khi nghiệp vụ được xử lý bằng giấy tờ, Excel và trao đổi trực tiếp, thông tin thường nằm ở nhiều nơi. Nhân viên phải lập và chuyển phiếu; người duyệt phải tìm hồ sơ; bộ phận phụ trách phải nhập lại, tổng hợp và đối chiếu; khi có sai lệch, việc tìm nguyên nhân phụ thuộc vào hồ sơ và trao đổi giữa các bên.
+## 1. Bài toán hiện tại
 
-| Công việc thủ công | Hệ quả cần kiểm soát |
+Khi công việc được xử lý chủ yếu bằng phiếu giấy, Excel và trao đổi trực tiếp, mỗi yêu cầu kéo theo nhiều công đoạn: lập phiếu, chuyển hồ sơ, hỏi tiến độ, nhập lại dữ liệu, tổng hợp báo cáo và tìm hồ sơ khi cần xác minh.
+
+| Công việc thủ công | Tác động vận hành |
 |---|---|
-| Lập phiếu, chuyển phiếu, hỏi tình trạng | Mất thời gian giao dịch và chờ đợi |
-| Nhập lại dữ liệu vào nhiều bảng | Tốn công, dễ sai lệch |
-| Theo dõi bằng Excel hoặc trao đổi riêng | Khó biết việc nào đang chờ, ai phụ trách |
+| Lập và chuyển phiếu, hỏi tình trạng | Tốn thời gian giao dịch và theo dõi |
+| Nhập lại cùng thông tin vào nhiều nơi | Tăng công sức và nguy cơ sai lệch |
+| Theo dõi qua Excel hoặc trao đổi riêng | Khó nhìn thấy hồ sơ đang chờ và người phụ trách |
 | Đối chiếu kế hoạch với kết quả thực tế | Tốn công tìm chênh lệch và xác nhận |
-| Lưu hồ sơ giấy, ảnh và lịch sử rời rạc | Khó truy xuất, khó kiểm tra lại |
-| Nhắc lịch, kiểm tra thiết bị thủ công | Có nguy cơ bỏ sót công việc định kỳ |
+| Lưu giấy tờ, hình ảnh, lịch sử rời rạc | Khó truy xuất và kiểm tra lại |
+| Nhắc lịch, theo dõi thiết bị thủ công | Có nguy cơ bỏ sót công việc định kỳ |
+
+**Chi phí ẩn không chỉ là giấy in:** còn là phút lao động lặp lại, thời gian tìm kiếm, nhắc việc và xử lý lại. Mức độ thực tế cần được đo tại từng bộ phận.
 
 ## 2. FVN REGISTER thay đổi cách làm như thế nào?
 
-**Trước:** Đăng ký → chuyển hồ sơ → hỏi tình trạng → nhập lại → đối chiếu thủ công → lưu hồ sơ riêng lẻ.
-
-**Sau:** Đăng ký trên hệ thống → phê duyệt theo quy trình → theo dõi trạng thái → ghi nhận kết quả → tự tập trung sai lệch cần xử lý → báo cáo từ dữ liệu có kiểm soát.
-
-Hệ thống quản lý một vòng đời nghiệp vụ xuyên suốt:
-
-**Đăng ký → Phê duyệt → Kế hoạch → Thực tế → Đối soát → Xử lý ngoại lệ → Báo cáo**
-
-Số hóa không chỉ là thay tờ giấy bằng màn hình. Giá trị nằm ở việc kết nối các bước, xác định trách nhiệm, lưu lại lịch sử và giúp phát hiện công việc còn tồn đọng.
-
-## 3. Mỗi vai trò nhận được giá trị gì?
-
-| Người dùng | Giá trị thực tế |
+| Trước — xử lý thủ công | Sau — quy trình số hóa |
 |---|---|
-| **Nhân viên** | Gửi đăng ký, theo dõi trạng thái và xem lịch nghiệp vụ tại một nơi; giảm việc đi hỏi và theo dõi giấy tờ |
-| **Người phê duyệt** | Tập trung các yêu cầu cần xử lý; xem thông tin và đưa ra quyết định theo luồng được phân quyền |
-| **Quản lý bộ phận** | Có góc nhìn tổng hợp về tình hình, yêu cầu tồn đọng và các vấn đề cần chú ý |
-| **HR** | Theo dõi phép, OT, công tác và kết quả chấm công; tập trung xử lý sai lệch thay vì chỉ tổng hợp dữ liệu |
-| **Người quản lý thiết bị** | Theo dõi đăng ký thiết bị, mã QR, kiểm tra định kỳ, sửa chữa và lịch sử liên quan |
-| **Quản trị hệ thống** | Quản lý quyền truy cập, phạm vi dữ liệu và cấu hình theo trách nhiệm |
-| **Ban giám đốc** | Có cơ sở theo dõi tình hình và đánh giá hiệu quả bằng dữ liệu, thay vì phụ thuộc hoàn toàn vào báo cáo thủ công |
+| Phiếu giấy, Excel, trao đổi nhiều kênh | Yêu cầu được ghi nhận trong module nghiệp vụ |
+| Tự hỏi ai đang giữ hồ sơ | Theo dõi trạng thái và luồng phê duyệt |
+| Nhập lại và tổng hợp thủ công | Tập trung thông tin, hỗ trợ báo cáo theo quyền |
+| Tự dò kế hoạch và thực tế | Đưa trường hợp sai lệch vào luồng theo dõi |
+| Tìm chứng từ, hình ảnh từ nhiều nơi | Tra cứu lịch sử và bằng chứng đã ghi nhận |
 
-## 4. Các nghiệp vụ trên cùng một nền tảng
+### Vòng đời nghiệp vụ mục tiêu
 
-- **Nghỉ phép:** đăng ký, phê duyệt, theo dõi lịch và thông tin liên quan đến phép.
-- **Làm thêm giờ (OT):** đăng ký, kiểm tra quy tắc/hạn mức được cấu hình, phê duyệt và đối chiếu với kết quả thực tế.
-- **Công tác:** quản lý đăng ký, phê duyệt, thực hiện và đối chiếu kết quả.
-- **Lịch làm việc chung:** xem lịch công ty, ca làm, đăng ký và trạng thái nghiệp vụ theo ngày.
-- **Chấm công và đối soát:** hỗ trợ xem kết quả từ HRM, so sánh kế hoạch với thực tế và đưa sai lệch cần xử lý vào luồng theo dõi. HRM vẫn là nguồn chính thức của dữ liệu và quy tắc tính công.
-- **Quản lý thiết bị:** đăng ký và phê duyệt thiết bị, QR, danh mục, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử.
-- **Trung tâm công việc và thông báo:** tập trung việc cần xử lý, trạng thái và nhắc việc theo quy trình.
-- **Bảng điều khiển và báo cáo:** tổng hợp thông tin theo quyền và phạm vi dữ liệu; quyền xem và quyền xuất dữ liệu được kiểm soát riêng.
-- **HR Review và dữ liệu đầu vào tính lương:** hỗ trợ xem xét sai lệch, ghi nhận quyết định xử lý và tạo dữ liệu theo kỳ khi đáp ứng điều kiện sẵn sàng.
+**Đăng ký → Kiểm tra điều kiện → Phê duyệt → Theo dõi thực hiện → Đối soát → Xử lý sai lệch → Báo cáo**
 
-Phạm vi hiển thị và thao tác phụ thuộc vào quyền, cấu hình và mức độ hoàn thiện của từng nghiệp vụ; tài liệu giới thiệu không thay thế kiểm thử nghiệm thu thực tế.
+Điểm cốt lõi không phải chỉ thay phiếu giấy bằng biểu mẫu điện tử. Giá trị nằm ở việc kết nối các bước, làm rõ trách nhiệm, lưu lịch sử và giúp phát hiện việc còn tồn đọng.
+
+## 3. Mỗi vai trò được lợi gì?
+
+| Vai trò | Công việc thủ công cần giảm | Giá trị từ hệ thống |
+|---|---|---|
+| **Nhân viên** | Lập/chuyển phiếu, hỏi trạng thái, tìm lại thông tin | Gửi yêu cầu và tự theo dõi tiến độ tại một nơi |
+| **Người phê duyệt** | Tìm yêu cầu, xác nhận qua nhiều kênh | Tập trung yêu cầu cần quyết định và xem ngữ cảnh xử lý |
+| **Quản lý bộ phận** | Thu thập tình hình từ nhiều người/bảng tính | Theo dõi tổng quan, hồ sơ tồn đọng và vấn đề cần chú ý |
+| **HR** | Nhập liệu, tổng hợp, đối chiếu từng dòng | Tập trung xác minh sai lệch, ghi nhận quyết định và chuẩn bị dữ liệu theo quy trình |
+| **Quản lý thiết bị** | Tìm mã tài sản, lịch kiểm tra, bằng chứng và lịch sử | Theo dõi hồ sơ thiết bị, QR, nhiệm vụ kiểm tra và lịch sử đã ghi nhận |
+| **Quản trị hệ thống** | Cấp quyền và cấu hình không nhất quán | Quản lý quyền, phạm vi dữ liệu và chính sách theo trách nhiệm |
+| **Ban giám đốc** | Chờ báo cáo tổng hợp thủ công | Có nền tảng chỉ số để giám sát và đánh giá cải tiến |
+
+Giá trị có thể khác nhau theo chức năng đã triển khai, dữ liệu sẵn có và cấu hình từng bộ phận. Không nên hiểu rằng mọi thao tác thủ công đã được tự động hóa hoàn toàn.
+
+## 4. Phạm vi nghiệp vụ trên cùng nền tảng
+
+- **Nghỉ phép:** đăng ký, phê duyệt, theo dõi trạng thái và lịch nghiệp vụ.
+- **Làm thêm giờ (OT):** đăng ký, kiểm tra quy tắc/hạn mức được cấu hình, phê duyệt và hỗ trợ đối chiếu với dữ liệu thực tế.
+- **Công tác:** theo dõi yêu cầu, quyết định phê duyệt và trạng thái thực hiện; đối chiếu khi có dữ liệu thực tế phù hợp.
+- **Lịch làm việc chung:** tổng hợp lịch công ty, ca làm và trạng thái nghiệp vụ theo ngày; lịch không thay thế dữ liệu gốc của từng module.
+- **Chấm công, đối soát và HR Review:** hỗ trợ xem chênh lệch, theo dõi trường hợp cần xác minh, trách nhiệm và bằng chứng. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công.
+- **Thiết bị và kiểm tra:** quản lý yêu cầu/phê duyệt, QR, thông tin thiết bị, kiểm tra định kỳ, bằng chứng, sửa chữa và lịch sử theo phạm vi đã triển khai.
+- **Trung tâm công việc và thông báo:** tập trung việc cần xử lý, trạng thái và nhắc việc theo cấu hình.
+- **Bảng điều khiển và báo cáo:** tổng hợp theo quyền và phạm vi dữ liệu; quyền xem và xuất dữ liệu được kiểm soát riêng.
+- **Dữ liệu phục vụ kỳ tính lương:** hỗ trợ tạo snapshot khi các điều kiện sẵn sàng được đáp ứng; không thay thế hệ thống HRM/payroll chính thức.
 
 ## 5. Giá trị quản trị cốt lõi
 
-**Giảm thao tác lặp lại** — hạn chế việc chuyển phiếu, hỏi trạng thái, nhập lại và tổng hợp thủ công.
+**Năng suất:** giảm các thao tác chuyển phiếu, hỏi tiến độ, nhập lại và tổng hợp lặp lại.
 
-**Tăng tính minh bạch** — thể hiện trạng thái, người chịu trách nhiệm và lịch sử xử lý.
+**Minh bạch:** rõ trạng thái, người phụ trách và lịch sử quyết định.
 
-**Phát hiện sai lệch có trọng tâm** — chuyển chênh lệch giữa kế hoạch và thực tế thành nội dung cần xác nhận/xử lý.
+**Chất lượng dữ liệu:** kiểm tra đầu vào và làm rõ chênh lệch giữa kế hoạch với thực tế.
 
-**Tăng khả năng truy xuất** — tập trung thông tin, bằng chứng và lịch sử theo nghiệp vụ.
+**Kiểm soát vận hành:** tập trung việc cần xử lý và trường hợp chưa hoàn tất theo cấu hình.
 
-**Chuẩn hóa kiểm soát** — dùng quy trình phê duyệt và phân quyền nhất quán giữa các nghiệp vụ phù hợp.
+**Truy xuất:** dễ tìm thông tin, lịch sử và bằng chứng đã ghi nhận.
 
-**Tạo nền tảng cải tiến liên tục** — dữ liệu quy trình giúp đo thời gian xử lý, tồn đọng và chất lượng sau khi áp dụng.
+**Cải tiến liên tục:** tạo dữ liệu để đo tải công việc, thời gian xử lý và chất lượng quy trình.
 
 ## 6. Đánh giá hiệu quả áp dụng
 
-Không nên đưa ra con số tiết kiệm ước tính như kết quả thực tế khi chưa đo tại nhà máy. Nên ghi nhận đường cơ sở trước khi áp dụng và so sánh sau một giai đoạn vận hành.
+Chưa có dữ liệu đường cơ sở được xác nhận trong tài liệu này. Vì vậy, không đưa số giờ tiết kiệm, phần trăm giảm lỗi hay ROI giả định thành kết quả thực tế.
 
 | Chỉ số | Cách đo |
 |---|---|
-| Thời gian xử lý mỗi yêu cầu | Tổng phút làm việc thực tế / số yêu cầu |
-| Công sức hành chính | Số lượt nhập lại, tổng hợp, nhắc việc và đối chiếu × thời gian trung bình |
-| Thời gian chờ phê duyệt | Thời điểm quyết định − thời điểm gửi yêu cầu |
-| Tỷ lệ sai sót | Số hồ sơ cần sửa hoặc xử lý lại / tổng hồ sơ |
-| Tỷ lệ đúng hạn | Số việc hoàn thành đúng hạn / tổng việc đến hạn |
-| Chất lượng truy xuất | Thời gian tìm hồ sơ, bằng chứng hoặc lịch sử xử lý |
+| Phút lao động/giao dịch | Tổng phút làm việc thực tế của các vai trò / số giao dịch |
+| Lượt thao tác thủ công | Số lượt chuyển, nhập lại, nhắc, tìm hồ sơ và đối chiếu |
+| Thời gian chờ phê duyệt | Từ lúc gửi đến lúc ra quyết định; tách khỏi thời gian lao động |
+| Tỷ lệ làm lại | Hồ sơ cần sửa/xử lý lại / tổng hồ sơ |
+| Tỷ lệ đúng hạn | Công việc hoàn thành đúng hạn / công việc đến hạn |
+| Giờ tổng hợp báo cáo | Tổng thời gian lao động thực tế trong kỳ |
+| Thời gian truy xuất | Thời gian tìm hồ sơ/bằng chứng theo mẫu kiểm tra |
+| Tỷ lệ sử dụng hệ thống | Giao dịch được xử lý trên hệ thống / tổng giao dịch thuộc phạm vi |
 
-### Công thức quy đổi lợi ích
+### Công thức quy đổi
 
-- **Giờ công có thể giải phóng** = số giao dịch × (thời gian thủ công trước − thời gian sau áp dụng) / 60.
-- **Giá trị năng lực được giải phóng** = giờ công có thể giải phóng × chi phí lao động quy đổi theo giờ.
-- **Lợi ích ròng ước tính** = giá trị lợi ích đo được − chi phí vận hành và duy trì hệ thống.
+- **Giờ công giải phóng** = số giao dịch × (phút lao động trước − phút lao động sau) / 60.
+- **Giá trị năng lực quy đổi** = giờ công giải phóng × chi phí lao động/giờ đã được doanh nghiệp thống nhất.
+- **Lợi ích ròng** = lợi ích định lượng được chấp nhận − chi phí triển khai, đào tạo, vận hành và duy trì trong cùng kỳ phân tích.
 
-Giờ công được giải phóng là năng lực có thể chuyển sang công việc khác; không mặc nhiên đồng nghĩa với giảm chi tiền mặt. Khi tính hiệu quả, cần tính cả chi phí triển khai, đào tạo, vận hành và duy trì.
+Giờ công giải phóng là năng lực có thể chuyển sang công việc khác, không tự động đồng nghĩa với tiết kiệm tiền mặt. Không tính trùng giờ công với chi phí làm lại.
 
-## 7. Thông điệp dành cho ban giám đốc
+## 7. Đề xuất với Ban giám đốc
 
-> **FVN REGISTER không chỉ số hóa biểu mẫu. Hệ thống hướng tới chuẩn hóa cách làm việc, kết nối quy trình từ đăng ký đến xử lý kết quả, và tạo dữ liệu để quản lý hiệu quả hơn.**
+**Đo đường cơ sở → Thử nghiệm có kiểm soát → Đo lại → Xác nhận kết quả → Quyết định mở rộng**
 
-**Đề xuất:** chọn một giai đoạn đo thử, ghi nhận đường cơ sở, theo dõi chỉ số sau áp dụng và báo cáo kết quả thực tế trước khi mở rộng.
+1. Chọn một vài nghiệp vụ có khối lượng đủ đại diện.
+2. Ghi nhận quy trình hiện tại, thời gian lao động và số giao dịch.
+3. Sau khi áp dụng, đo cùng chỉ số và cùng cách tính.
+4. Xác nhận số liệu với bộ phận sử dụng và người phụ trách tài chính/nhân sự.
+5. Báo cáo rõ lợi ích đã đo, chi phí phát sinh và phần việc còn thủ công.
+
+> **FVN REGISTER không chỉ số hóa biểu mẫu. Hệ thống hướng tới kết nối quy trình, làm rõ trách nhiệm và tạo dữ liệu để quản lý hiệu quả hơn.**
