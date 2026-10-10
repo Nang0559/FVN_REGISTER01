@@ -36,8 +36,38 @@ public sealed class EquipmentImportService : IEquipmentImportService
     public async Task<ServiceResult<ExcelSchemaDto>> CreateVersionAsync(int id,CancellationToken ct=default){try{var u=User();var d=await _excel.GetSchemaDefinitionAsync(id,ct)??throw new KeyNotFoundException("Không tìm thấy schema.");var m=await Meta(id,ct);if(m.CreatedBy!=u.UserId&&!u.IsAdmin)throw new UnauthorizedAccessException("Bạn không có quyền tạo phiên bản.");var v=await _db.Database.SqlQueryRaw<int>("SELECT ISNULL(MAX(VersionNo),0)+1 AS Value FROM dbo.F03ExcelSchemaVersions WHERE SchemaId={0}",id).SingleAsync(ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelSchemaVersions(SchemaId,VersionNo,SheetIndex,SheetName,HeaderRowIndex,DataStartRowIndex,DataEndRowIndex,Status,SourceFileName,SelectedColumnsJson,Culture,CreatedAt) VALUES({id},{v},{d.SheetIndex},{d.SheetName},{d.HeaderRowIndex},{d.DataStartRowIndex},{d.DataEndRowIndex},0,{m.SourceFileName},{JsonSerializer.Serialize(d.SelectedColumnIndexes)},{d.Culture},SYSUTCDATETIME())",ct);var vid=await _db.Database.SqlQueryRaw<int>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelSchemaVersions WHERE SchemaId={0} ORDER BY Id DESC",id).SingleAsync(ct);foreach(var f in d.Fields)await InsertField(vid,f,ct);await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelSchemas SET CurrentVersionId={vid},UpdatedAt=SYSUTCDATETIME() WHERE Id={id}",ct);return ServiceResult<ExcelSchemaDto>.Ok((await GetSchemaAsync(id,ct))!,$"Đã tạo phiên bản v{v}.");}catch(Exception e)when(e is UnauthorizedAccessException or ArgumentException or InvalidOperationException or KeyNotFoundException){return ServiceResult<ExcelSchemaDto>.Fail(e.Message);}}
     public async Task<ServiceResult<ExcelSchemaFieldDto>> SaveSchemaFieldAsync(SaveExcelSchemaFieldRequest r,CancellationToken ct=default){try{var u=User();var m=await Meta(r.SchemaId,ct);if(m.CreatedBy!=u.UserId&&!u.IsAdmin)throw new UnauthorizedAccessException("Bạn không có quyền sửa schema.");var vid=await _db.Database.SqlQueryRaw<int?>("SELECT CurrentVersionId AS Value FROM dbo.F03ExcelSchemas WHERE Id={0} AND Status=0",r.SchemaId).SingleOrDefaultAsync(ct)??throw new InvalidOperationException("Schema phải ở trạng thái Draft.");var f=new ExcelSchemaField(r.FieldKey.Trim(),r.DataType.Trim(),r.IsRequired,r.SourceColumnIndex,r.HeaderName,r.Format,r.ResourceKey,r.TargetProperty,r.DisplayOrder,r.AllowEmpty,r.MaxLength,r.DefaultValue,r.ValidationRule);var old=await _db.Database.SqlQueryRaw<int?>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelSchemaFields WHERE SchemaVersionId={0} AND FieldKey={1}",vid,f.FieldKey).SingleOrDefaultAsync(ct);if(old.HasValue)await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelSchemaFields SET DataType={f.DataType},SourceColumnIndex={f.SourceColumnIndex},HeaderName={f.HeaderName},ResourceKey={f.ResourceKey},TargetProperty={f.TargetProperty},Format={f.Format},ValidationRule={f.ValidationRule},DefaultValue={f.DefaultValue},IsRequired={f.Required},AllowEmpty={f.AllowEmpty},MaxLength={f.MaxLength},DisplayOrder={f.DisplayOrder} WHERE Id={old.Value}",ct);else await InsertField(vid,f,ct);var d=await _excel.GetSchemaDefinitionAsync(r.SchemaId,ct)??throw new InvalidOperationException("Không tải được schema.");return ServiceResult<ExcelSchemaFieldDto>.Ok(Map(d.Fields.First(x=>x.FieldKey.Equals(f.FieldKey,StringComparison.OrdinalIgnoreCase))),"Đã lưu field.");}catch(Exception e)when(e is UnauthorizedAccessException or ArgumentException or InvalidOperationException or KeyNotFoundException){return ServiceResult<ExcelSchemaFieldDto>.Fail(e.Message);}}
     public async Task<ServiceResult<ExcelWorkbookDto>> InspectExcelAsync(int dept,string file,Stream content,CancellationToken ct=default){try{var u=User();await Scope(u,Dept(dept,u.DeptCode),ct);var x=await _excel.InspectAsync(content,file,ct);return ServiceResult<ExcelWorkbookDto>.Ok(new(){FileName=x.FileName,Sheets=x.Sheets.Select(s=>new ExcelSheetDto{Index=s.Index,Name=s.Name,RowCount=Math.Max(0,s.LastRowIndex-s.FirstRowIndex+1),ColumnCount=Math.Max(0,s.LastColumnIndex-s.FirstColumnIndex+1),HasData=s.LastRowIndex>=s.FirstRowIndex}).ToList()});}catch(Exception e)when(e is UnauthorizedAccessException or ArgumentException or InvalidOperationException){return ServiceResult<ExcelWorkbookDto>.Fail(e.Message);}}
-    public Task<ServiceResult<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelSheetAsync(int d,string f,Stream c,int s,CancellationToken ct=default)=>PreviewRange(d,f,c,new(){SheetIndex=s,HeaderRowIndex=0,DataStartRowIndex=1},ct);
-    public Task<ServiceResult<ExcelSchemaDto>> CreateSchemaFromExcelSheetAsync(int d,string f,Stream c,int s,string? n,CancellationToken ct=default)=>CreateRange(d,f,c,new(){SheetIndex=s,HeaderRowIndex=0,DataStartRowIndex=1},n,ct);
+    public async Task<ServiceResult<ExcelSchemaFromExcelDto>> PreviewSchemaFromExcelSheetAsync(
+        int departmentCode, string fileName, Stream content, int sheetIndex, CancellationToken ct = default)
+    {
+        await using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, ct);
+        buffer.Position = 0;
+        var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
+        var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
+        if (header is null)
+            return ServiceResult<ExcelSchemaFromExcelDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
+
+        buffer.Position = 0;
+        return await PreviewRange(departmentCode, fileName, buffer,
+            new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
+            ct);
+    }
+    public async Task<ServiceResult<ExcelSchemaDto>> CreateSchemaFromExcelSheetAsync(
+        int departmentCode, string fileName, Stream content, int sheetIndex, string? schemaName, CancellationToken ct = default)
+    {
+        await using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, ct);
+        buffer.Position = 0;
+        var grid = await _excel.ReadGridAsync(buffer, fileName, sheetIndex, 1000, ct);
+        var header = grid.Rows.FirstOrDefault(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)));
+        if (header is null)
+            return ServiceResult<ExcelSchemaDto>.Fail("Không tìm thấy dòng tiêu đề trong sheet Excel.");
+
+        buffer.Position = 0;
+        return await CreateRange(departmentCode, fileName, buffer,
+            new ExcelRangeRequest { SheetIndex = sheetIndex, HeaderRowIndex = header.RowIndex, DataStartRowIndex = header.RowIndex + 1 },
+            schemaName, ct);
+    }
     public async Task<ServiceResult<ExcelGridDto>> GetExcelGridAsync(
         int dept,
         string file,
