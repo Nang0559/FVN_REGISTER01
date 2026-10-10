@@ -71,5 +71,11 @@
   "dashboard.detailLoadFailed": "詳細を読み込めませんでした。もう一度お試しください。",
   "dashboard.detail": "詳細",
   "dashboard.status": "状態",
-  "dashboard.approved": "承認済み"
+  "dashboard.approved": "承認済み",
+  "dashboard.myTasks": "自分のタスク",
+  "dashboard.myTasksCount": "未完了タスク {0} 件",
+  "dashboard.tasksToApprove": "承認が必要なタスク",
+  "dashboard.tasksToReconcile": "確認・照合作業",
+  "dashboard.otherOpenTasks": "その他の未完了タスク",
+  "dashboard.noOpenTasks": "現在、対応が必要なタスクはありません。"
 }
