@@ -345,6 +345,82 @@ BEGIN
         );
 
     /*
+      RBAC provisioning for HRM-derived approvers:
+      - Keep the default User role (RoleCode=5) as primary.
+      - Add Approver (RoleCode=4) as a secondary role for employees who have
+        at least one active F03Approvers assignment.
+      - Only manage role assignments owned by HRM; preserve manual assignments.
+      - Revoke an HRM-owned Approver role when the employee no longer has any
+        active approver assignment.
+    */
+    DECLARE @ApproverRoleId int;
+
+    SELECT TOP (1) @ApproverRoleId = r.Id
+    FROM dbo.F03Roles r
+    WHERE r.RoleCode = 4
+      AND r.IsActive = 1
+    ORDER BY r.Id;
+
+    IF @ApproverRoleId IS NULL
+        THROW 51041, 'F03Roles is missing active RoleCode=4 (Approver).', 1;
+
+    -- Reactivate an existing HRM-managed role link if the employee becomes approver again.
+    UPDATE ur
+       SET ur.IsActive = 1,
+           ur.ModifiedBy = @CreatedBy,
+           ur.ModifiedAt = GETDATE(),
+           ur.LastModifiedSource = N'HRM'
+    FROM dbo.F03UserRoles ur
+    INNER JOIN dbo.F03Users u ON u.Id = ur.IdUser
+    WHERE ur.IdRole = @ApproverRoleId
+      AND ur.LastModifiedSource = N'HRM'
+      AND u.IsActive = 1
+      AND EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03Approvers a
+          WHERE a.UserId = u.Id
+            AND a.IsActive = 1
+      )
+      AND ISNULL(ur.IsActive, 0) = 0;
+
+    -- Add role 4 without replacing the primary User role or changing PermissionCode.
+    INSERT dbo.F03UserRoles
+        (IdUser, IdRole, IsPrimary, IsActive, CreatedBy, LastModifiedSource)
+    SELECT DISTINCT
+        u.Id, @ApproverRoleId, 0, 1, @CreatedBy, N'HRM'
+    FROM dbo.F03Users u
+    INNER JOIN dbo.F03Approvers a
+        ON a.UserId = u.Id
+       AND a.IsActive = 1
+    WHERE u.IsActive = 1
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03UserRoles ur
+          WHERE ur.IdUser = u.Id
+            AND ur.IdRole = @ApproverRoleId
+      );
+
+    -- Remove only HRM-owned role 4 links that no longer have an active approver assignment.
+    UPDATE ur
+       SET ur.IsActive = 0,
+           ur.ModifiedBy = @CreatedBy,
+           ur.ModifiedAt = GETDATE()
+    FROM dbo.F03UserRoles ur
+    INNER JOIN dbo.F03Users u ON u.Id = ur.IdUser
+    WHERE ur.IdRole = @ApproverRoleId
+      AND ur.LastModifiedSource = N'HRM'
+      AND ISNULL(ur.IsActive, 0) = 1
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03Approvers a
+          WHERE a.UserId = u.Id
+            AND a.IsActive = 1
+      );
+
+    /*
       Deactivate only HRM-owned rows that are no longer represented by
       active employee + active ApprovalPolicy configuration.
     */
