@@ -39,5 +39,19 @@
   "dashboard.equipmentAssigned": "担当中の設備",
   "dashboard.equipmentRequests": "自分の設備申請",
   "dashboard.equipmentPending": "承認待ちの設備申請",
-  "dashboard.equipmentApproved": "承認済みの設備申請"
+  "dashboard.equipmentApproved": "承認済みの設備申請",
+  "dashboard.attendanceByShift": "シフト別勤怠",
+  "dashboard.attendanceByShiftNote": "{0} の計算済み勤怠データです。予定勤務者全員の名簿ではありません。",
+  "dashboard.calculatedEmployees": "計算済み従業員",
+  "dashboard.checkedIn": "出勤打刻あり",
+  "dashboard.checkedOut": "退勤打刻あり",
+  "dashboard.missingPunch": "出退勤打刻不足",
+  "dashboard.checkIn": "出勤時刻",
+  "dashboard.checkOut": "退勤時刻",
+  "dashboard.attendanceSymbol": "勤怠記号",
+  "dashboard.attendanceStatus": "状態",
+  "dashboard.statusCheckedOut": "退勤打刻済み",
+  "dashboard.statusCheckedIn": "出勤済み・退勤未打刻",
+  "dashboard.statusMissingCheckIn": "退勤あり・出勤不足",
+  "dashboard.statusNoPunch": "計算結果に打刻なし"
 }
