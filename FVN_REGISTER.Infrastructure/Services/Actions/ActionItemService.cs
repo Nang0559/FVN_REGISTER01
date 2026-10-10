@@ -40,7 +40,8 @@ public sealed class ActionItemService : IActionItemService
 
         await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
         await EnsureNotificationsForOpenActionsAsync(userId, employeeId.Value, cancellationToken);
-        await ResolveStaleActionNotificationsAsync(userId, employeeId.Value, cancellationToken);
+        // Reading the Action Center must never resolve notifications. Notifications are
+        // cleared only by an explicit user read action or a terminal workflow transition.
         var query = _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -94,7 +95,8 @@ public sealed class ActionItemService : IActionItemService
 
         await EnsureAssignedExecutionReviewActionsAsync(employeeCode, userId, employeeId.Value, cancellationToken);
         await EnsureNotificationsForOpenActionsAsync(userId, employeeId.Value, cancellationToken);
-        await ResolveStaleActionNotificationsAsync(userId, employeeId.Value, cancellationToken);
+        // Reading the Action Center must never resolve notifications. Notifications are
+        // cleared only by an explicit user read action or a terminal workflow transition.
         var counts = await _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
