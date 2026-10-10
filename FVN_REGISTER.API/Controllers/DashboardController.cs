@@ -91,8 +91,18 @@ namespace FVN_REGISTER.API.Controllers
 
             // No active approval-policy match means no department-level attendance data.
             // Generic DashboardView permission must not widen the approver's department scope.
+            // DepartmentCode on F03ApprovalPolicies represents the requester's
+            // department scope. For this dashboard, the approver must only see
+            // attendance belonging to their own HRM department. Do not union other
+            // policy departments here: cross-department approval is configured
+            // separately and must not widen the attendance dashboard.
+            if (!UserInfo.DeptCode.HasValue)
+                return Ok(ApiResponse<IReadOnlyList<AttendanceShiftDashboardDto>>.Ok(
+                    Array.Empty<AttendanceShiftDashboardDto>()));
+
             var policyQuery = _db.ApprovalPolicies.AsNoTracking()
                 .Where(p => p.IsActive == true
+                    && p.DeptCode == UserInfo.DeptCode.Value
                     && p.ApprovalPositionCode == UserInfo.PositionCode
                     && p.Level == UserInfo.LevelApprove);
 
