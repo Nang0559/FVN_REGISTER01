@@ -90,23 +90,23 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     var scopedItems = new List<PendingApprovalItemDto>();
                     foreach (var item in pair.Value)
                     {
-                        var policyAllows = await _approvalPolicies.CanApproveAsync(pair.Key, item.EmployeeCode,
-                            user.EmployeeCode ?? string.Empty, GetCurrentLevel(item), ct);
-                        var scopeAllows = policyAllows && await _authorization.CanAccessAsync(user, functionCode,
+                        // Route/snapshot identifies the approver and the pending level.
+                        // Do not re-evaluate mutable department/position policy here: a policy
+                        // edit after the workflow was created must not make an already-routed
+                        // approval disappear from inbox, Home tasks, or counters.
+                        var policyAllows = true;
+                        var scopeAllows = await _authorization.CanAccessAsync(user, functionCode,
                             item.EmployeeCode, item.DeptCode, ct);
                         if (scopeAllows)
                         {
                             scopedItems.Add(item);
                         }
-                        else if (Debug)
+                        else
                         {
-                            // Đơn có trong luồng duyệt của người này (và đã có thông báo) nhưng bị loại
-                            // khỏi inbox: ghi rõ lý do để biết cần sửa policy hay cấp quyền chức năng.
                             Logger.LogWarning(
-                                "[APPROVAL-INBOX] Loại đơn khỏi inbox: Module={Module} RequestId={RequestId} " +
+                                "[APPROVAL-INBOX] Pending item hidden: Module={Module} RequestId={RequestId} " +
                                 "Requester={Requester} Approver={Approver} Level={Level} " +
-                                "PolicyAllows={PolicyAllows} (false = F03ApprovalPolicy không khớp phòng ban/chức vụ/cấp) " +
-                                "FunctionScopeAllows={ScopeAllows} (false = thiếu quyền {FunctionCode} hoặc ngoài phạm vi)",
+                                "PolicyAllows={PolicyAllows} ScopeAllows={ScopeAllows} FunctionCode={FunctionCode}",
                                 pair.Key, item.RequestId, item.EmployeeCode, user.EmployeeCode,
                                 GetCurrentLevel(item), policyAllows, scopeAllows, functionCode);
                         }
