@@ -174,4 +174,15 @@ public sealed class FeatureOperatorAuthorizationPolicyTests
             new[] { SecurityFunctionCodes.ExecutionReview },
             FeatureOperatorCatalog.CapabilityGrantingFunctionCodes.ToArray());
     }
+
+    [Theory]
+    [InlineData(SecurityFunctionCodes.EquipmentView)]
+    [InlineData(SecurityFunctionCodes.EquipmentImport)]
+    public void EquipmentOperators_AreModuleWideAndStillRequireRbac(int functionCode)
+    {
+        Assert.True(FeatureOperatorCatalog.TryGetResourceType(functionCode, out var resourceType));
+        Assert.Equal(FeatureOperatorCatalog.Equipment, resourceType);
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(functionCode));
+        Assert.False(FeatureOperatorCatalog.AssignmentGrantsCapability(functionCode));
+    }
 }
