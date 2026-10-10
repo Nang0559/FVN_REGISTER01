@@ -56,17 +56,17 @@
 
 **Thông điệp:** thông tin thiết bị, nhiệm vụ và lịch sử có thể được tra cứu có hệ thống.
 
-## Câu chuyện 5 — IT xem kiểm kê và tuân thủ Endpoint (2 phút, tùy chọn)
+## Câu chuyện 5 — IT kiểm tra máy tính đầu cuối (2 phút, tùy chọn)
 
-**Chỉ trình diễn sau khi pilot và kiểm thử bảo mật đã đạt.**
+**Chỉ trình diễn sau khi giai đoạn thử nghiệm và kiểm thử bảo mật đã đạt.**
 
-1. Chọn một máy Windows demo đã enroll hợp lệ.
-2. Cho thấy lần liên lạc gần nhất và inventory máy/phần mềm/dịch vụ được thu thập.
-3. Dùng kịch bản đã chuẩn bị để minh họa đối chiếu với chính sách được duyệt và một cảnh báo/ngoại lệ.
-4. Không biến inventory mới phát hiện thành allowlist tự động; không trình diễn lệnh tùy ý gửi xuống Agent.
+1. Chọn một máy Windows mẫu đã đăng ký kết nối hợp lệ.
+2. Cho thấy lần liên lạc gần nhất và dữ liệu kiểm kê máy/phần mềm/dịch vụ đã thu thập.
+3. Dùng kịch bản đã chuẩn bị để minh họa đối chiếu với chính sách được duyệt và một cảnh báo/ngoại lệ mẫu.
+4. Không tự động cho phép phần mềm chỉ vì đã được phát hiện; không trình diễn lệnh tùy ý gửi xuống tác nhân trên máy.
 5. Nếu chưa có bằng chứng pilot, bỏ qua phần này và nói đây là năng lực đang được xác minh.
 
-**Thông điệp:** hỗ trợ IT nhìn thấy inventory và sai lệch so với chính sách — với điều kiện kiểm soát và phê duyệt rõ ràng.
+**Thông điệp:** hỗ trợ IT theo dõi dữ liệu kiểm kê và sai lệch so với chính sách — với điều kiện kiểm soát và phê duyệt rõ ràng.
 
 ## Câu chuyện 6 — Ban quản lý xem dữ liệu (1–2 phút)
 
