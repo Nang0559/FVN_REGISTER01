@@ -7,9 +7,12 @@ namespace FVN_REGISTER.Core.Constants;
 public sealed record FeatureOperatorDefinition(int FunctionCode,string ResourceType,bool ResourceScoped,bool AssignmentGrantsCapability=false);
 public static class FeatureOperatorCatalog
 {
- public const string ExecutionPolicy="EXECUTION_POLICY"; public const string ApprovalPolicy="APPROVAL_POLICY"; public const string OtLimitRule="OT_LIMIT_RULE"; public const string WorkCalendar="WORK_CALENDAR"; public const string AttendanceSymbolRule="ATTENDANCE_SYMBOL_RULE"; public const string HrmUserRoleRule="HRM_USER_ROLE_RULE"; public const string PublicInformation="PUBLIC_INFORMATION"; public const string PublicForm="PUBLIC_FORM"; public const string ExecutionReview="EXECUTION_REVIEW"; public const string EquipmentSchema="EQUIPMENT_SCHEMA"; public const string EndpointSoftwareCatalog="ENDPOINT_SOFTWARE_CATALOG";
+ public const string Equipment="EQUIPMENT"; public const string ExecutionPolicy="EXECUTION_POLICY"; public const string ApprovalPolicy="APPROVAL_POLICY"; public const string OtLimitRule="OT_LIMIT_RULE"; public const string WorkCalendar="WORK_CALENDAR"; public const string AttendanceSymbolRule="ATTENDANCE_SYMBOL_RULE"; public const string HrmUserRoleRule="HRM_USER_ROLE_RULE"; public const string PublicInformation="PUBLIC_INFORMATION"; public const string PublicForm="PUBLIC_FORM"; public const string ExecutionReview="EXECUTION_REVIEW"; public const string EquipmentSchema="EQUIPMENT_SCHEMA"; public const string EndpointSoftwareCatalog="ENDPOINT_SOFTWARE_CATALOG";
  private static readonly IReadOnlyDictionary<int,FeatureOperatorDefinition> Definitions=new Dictionary<int,FeatureOperatorDefinition>
  {
+  // Equipment operator assignment is module-wide; RBAC is still required independently.
+  [SecurityFunctionCodes.EquipmentView]=new(SecurityFunctionCodes.EquipmentView,Equipment,false),
+  [SecurityFunctionCodes.EquipmentImport]=new(SecurityFunctionCodes.EquipmentImport,Equipment,false),
   [SecurityFunctionCodes.ExecutionPolicyManage]=new(SecurityFunctionCodes.ExecutionPolicyManage,ExecutionPolicy,false),
   [SecurityFunctionCodes.ApprovalPolicyManage]=new(SecurityFunctionCodes.ApprovalPolicyManage,ApprovalPolicy,false),
   [SecurityFunctionCodes.OTLimitManage]=new(SecurityFunctionCodes.OTLimitManage,OtLimitRule,false),
