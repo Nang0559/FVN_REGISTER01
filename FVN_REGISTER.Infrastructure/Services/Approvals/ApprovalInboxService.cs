@@ -90,25 +90,26 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     var scopedItems = new List<PendingApprovalItemDto>();
                     foreach (var item in pair.Value)
                     {
-                        // Route/snapshot identifies the approver and the pending level.
-                        // Do not re-evaluate mutable department/position policy here: a policy
-                        // edit after the workflow was created must not make an already-routed
-                        // approval disappear from inbox, Home tasks, or counters.
-                        var policyAllows = true;
-                        var scopeAllows = await _authorization.CanAccessAsync(user, functionCode,
-                            item.EmployeeCode, item.DeptCode, ct);
-                        if (scopeAllows)
+                        // The workflow snapshot is the authoritative, request-specific route:
+                        // GetPendingForApproverAsync returns this item only when this employee is
+                        // assigned to the currently actionable step. Require the module's approve
+                        // capability, but do not apply the requester's personal/department scope
+                        // a second time: that would hide legitimate cross-department routed tasks.
+                        // This is not a general scope bypass; it applies only to a step already
+                        // assigned to the current approver by the persisted workflow snapshot.
+                        var hasApproveCapability = await _authorization.HasAsync(user, functionCode, ct);
+                        if (hasApproveCapability)
                         {
                             scopedItems.Add(item);
                         }
                         else
                         {
                             Logger.LogWarning(
-                                "[APPROVAL-INBOX] Pending item hidden: Module={Module} RequestId={RequestId} " +
-                                "Requester={Requester} Approver={Approver} Level={Level} " +
-                                "PolicyAllows={PolicyAllows} ScopeAllows={ScopeAllows} FunctionCode={FunctionCode}",
+                                "[APPROVAL-INBOX] Pending item hidden: missing approve capability. " +
+                                "Module={Module} RequestId={RequestId} Requester={Requester} " +
+                                "Approver={Approver} Level={Level} FunctionCode={FunctionCode}",
                                 pair.Key, item.RequestId, item.EmployeeCode, user.EmployeeCode,
-                                GetCurrentLevel(item), policyAllows, scopeAllows, functionCode);
+                                GetCurrentLevel(item), functionCode);
                         }
                     }
                     scopedByModule[pair.Key] = scopedItems;
