@@ -109,7 +109,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                                 "[APPROVAL-INBOX] Pending item hidden: missing approve capability. " +
                                 "Module={Module} RequestId={RequestId} Requester={Requester} " +
                                 "Approver={Approver} Level={Level} FunctionCode={FunctionCode}",
-                                pair.Key, item.RequestId, user.EmployeeCode,
+                                pair.Key, item.RequestId, item.EmployeeCode,
                                 user.EmployeeCode, GetCurrentLevel(item), functionCode);
                         }
                     }
