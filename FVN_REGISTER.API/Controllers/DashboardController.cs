@@ -204,14 +204,16 @@ namespace FVN_REGISTER.API.Controllers
             if (normalizedKind is not ("ATTENDANCE" or "LEAVE" or "TRIP" or "OT"))
                 return BadRequest(ApiResponse<object>.Fail("Loại thống kê không hợp lệ."));
 
-            var requiredCode = normalizedKind switch
+            var canView = normalizedKind switch
             {
-                "LEAVE" => FVN_REGISTER.Core.Constants.SecurityFunctionCodes.LeaveApprove,
-                "TRIP" => FVN_REGISTER.Core.Constants.SecurityFunctionCodes.TripApprove,
-                "OT" => FVN_REGISTER.Core.Constants.SecurityFunctionCodes.OTApprove,
-                _ => FVN_REGISTER.Core.Constants.SecurityFunctionCodes.DashboardView
+                "LEAVE" => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.LeaveApprove, ct),
+                "TRIP" => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.TripApprove, ct),
+                "OT" => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.OTApprove, ct),
+                _ => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.DashboardView, ct)
+                    || await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.LeaveApprove, ct)
+                    || await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.OTApprove, ct)
+                    || await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.TripApprove, ct)
             };
-            var canView = await _authorization.HasAsync(UserInfo, requiredCode, ct);
             if (!canView) return Forbid();
 
             if (!UserInfo.DeptCode.HasValue)
