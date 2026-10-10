@@ -65,6 +65,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             var activePolicies = await _uow.Repository<F03ApprovalPolicy>().Query()
                 .AsNoTracking()
                 .Where(p => p.IsActive == true
+                    // Dashboard department cards are scoped to the signed-in user's
+                    // own department. Cross-department approval routes must not widen
+                    // this summary; they remain available to the approval inbox/workflow.
+                    && user.DeptCode.HasValue
+                    && p.DeptCode == user.DeptCode.Value
                     && p.ApprovalPositionCode == user.PositionCode
                     && p.Level == user.LevelApprove
                     && (p.RequestType == RequestModule.Leave
