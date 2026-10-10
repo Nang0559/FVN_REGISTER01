@@ -167,12 +167,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                         || !approvalDepartments.Contains(departmentCode))
                         continue;
 
-                    if (leaveDepartments.Contains(departmentCode))
-                        todayLeaveByDept.TryGetValue(departmentCode, out row.TodayLeaveEmployeesCount);
-                    if (otDepartments.Contains(departmentCode))
-                        todayOtByDept.TryGetValue(departmentCode, out row.TodayOTEmployeesCount);
-                    if (tripDepartments.Contains(departmentCode))
-                        todayTripByDept.TryGetValue(departmentCode, out row.TodayTripEmployeesCount);
+                    if (leaveDepartments.Contains(departmentCode)
+                        && todayLeaveByDept.TryGetValue(departmentCode, out var todayLeaveCount))
+                        row.TodayLeaveEmployeesCount = todayLeaveCount;
+                    if (otDepartments.Contains(departmentCode)
+                        && todayOtByDept.TryGetValue(departmentCode, out var todayOtCount))
+                        row.TodayOTEmployeesCount = todayOtCount;
+                    if (tripDepartments.Contains(departmentCode)
+                        && todayTripByDept.TryGetValue(departmentCode, out var todayTripCount))
+                        row.TodayTripEmployeesCount = todayTripCount;
 
                     row.EmployeeLeaves = new();
                     row.Departments = new();
