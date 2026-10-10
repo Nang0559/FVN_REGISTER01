@@ -129,6 +129,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
             if (entity == null)
                 return ServiceResult.Fail("Không tìm thấy thông báo.");
 
+            // Approval notifications represent unresolved work, not disposable alerts.
+            // Opening/clicking one must not clear it; it is resolved only by a workflow
+            // transition through ResolveForRequestAsync. Informational notifications remain
+            // explicitly markable as read.
+            if (IsUnresolvedApprovalNotification(entity))
+                return ServiceResult.Ok("Yêu cầu vẫn đang chờ xử lý; thông báo được giữ lại.");
+
             if (!entity.IsRead)
             {
                 entity.IsRead = true;
@@ -144,7 +151,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
         {
             var unread = await _uow.Repository<F03AppNotification>()
                 .Query()
-                .Where(x => x.UserId == userId && !x.IsRead)
+                .Where(x => x.UserId == userId && !x.IsRead
+                    && !(x.NotificationType == null && ApproverActions.Contains(x.Action)
+                        && InboxModules.Contains(x.RequestModule)))
                 .ToListAsync(ct);
 
             if (unread.Count == 0)
@@ -177,6 +186,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
             RequestModule.Equipment,
             RequestModule.Payroll
         };
+
+        private static bool IsUnresolvedApprovalNotification(F03AppNotification notification)
+            => notification.NotificationType == null
+                && InboxModules.Contains(notification.RequestModule)
+                && ApproverActions.Contains(notification.Action);
 
         public async Task<int> ResolveForRequestAsync(RequestModule module, int requestId, CancellationToken ct = default)
         {
