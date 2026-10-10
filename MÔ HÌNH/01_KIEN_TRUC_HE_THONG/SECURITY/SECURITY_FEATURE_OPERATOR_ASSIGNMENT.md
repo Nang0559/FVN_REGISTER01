@@ -14,6 +14,10 @@ It is intentionally separate from:
 
 | Function | ResourceType | ResourceId |
 |---|---|---|
+| 2301 Equipment.View | EQUIPMENT | NULL (module-wide operator) |
+| 2306 Equipment.Import | EQUIPMENT | NULL (module-wide operator) |
+| Function | ResourceType | ResourceId |
+|---|---|---|
 | 2801 PublicInformation.Manage | PUBLIC_INFORMATION | F03PublicInformation.Id |
 | 2802 Execution.Review | EXECUTION_REVIEW | NULL (module-level operator) |
 | 3073 Execution.PolicyManage | EXECUTION_POLICY | NULL (module-level operator) |
@@ -26,6 +30,16 @@ It is intentionally separate from:
 | 2809 PublicForm.Export | PUBLIC_FORM | F03PublicForms.Id |
 | 3110 Endpoint.SoftwareCatalogManage | ENDPOINT_SOFTWARE_CATALOG | NULL (global operator) |
 | 3044 WorkCalendar.SymbolRuleManage | ATTENDANCE_SYMBOL_RULE | NULL (module-level operator) |
+
+## Equipment permissions
+
+Equipment view and Excel import operator assignments are managed in **Admin → Security → Feature operator assignment**. They are no longer edited as dedicated checkboxes in the Edit User dialog.
+
+- `2301 Equipment.View` and `2306 Equipment.Import` use module-wide `EQUIPMENT` assignments (`ResourceId = NULL`).
+- Assignment does **not** grant RBAC for either function. The selected employee must have an active user account and the corresponding function capability through the role/function matrix before the assignment can be saved.
+- Equipment schema/form management remains a separate resource-scoped capability: `2320 Equipment.FormManage` uses `EQUIPMENT_SCHEMA` with the active Excel schema ID and retains the SuperAdmin-only assignment restriction.
+- Removing an operator assignment does not remove the user's role grants. Editing the user's roles does not create or delete operator assignments.
+- Existing role grants from the old dialog are preserved during migration; review the role/function matrix separately if old per-user grants need to be normalized.
 
 ## Authorization order
 
