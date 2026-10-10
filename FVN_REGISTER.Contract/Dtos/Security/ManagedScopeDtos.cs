@@ -7,8 +7,8 @@ public sealed class ManagedScopeDto
     public string NodeType { get; set; } = string.Empty;
     public string? NodeCode { get; set; }
     public string? FactoryCode { get; set; }
-    public string? DeptCode { get; set; }
-    public string? SubDepartmentCode { get; set; }
+    public int? DeptCode { get; set; }
+    public int? SubDepartmentCode { get; set; }
     public bool IncludeChildren { get; set; }
     public string? Remark { get; set; }
 }
@@ -18,8 +18,8 @@ public sealed class ManagedScopeRequest
     public string NodeType { get; set; } = "Department";
     public string? NodeCode { get; set; }
     public string? FactoryCode { get; set; }
-    public string? DeptCode { get; set; }
-    public string? SubDepartmentCode { get; set; }
+    public int? DeptCode { get; set; }
+    public int? SubDepartmentCode { get; set; }
     public bool IncludeChildren { get; set; } = true;
     public string? Remark { get; set; }
 }
@@ -29,7 +29,7 @@ public sealed class EffectivePermissionPreviewDto
     public int UserId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
     public string? EmployeeName { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? PositionCode { get; set; }
     public List<int> RoleCodes { get; set; } = new();
     public List<string> RoleNames { get; set; } = new();
@@ -46,13 +46,14 @@ public sealed class EffectivePermissionActionDto
     public string ModuleCode { get; set; } = string.Empty;
     public string ActionCode { get; set; } = string.Empty;
     public string? ScopeCode { get; set; }
+    public string? AccessMode { get; set; }
 }
 
 public sealed class EffectiveApprovalPolicyDto
 {
     public int RequestType { get; set; }
     public string RequestTypeName { get; set; } = string.Empty;
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? PositionCode { get; set; }
     public string ApprovalPositionCode { get; set; } = string.Empty;
     public int Level { get; set; }
@@ -67,5 +68,5 @@ public sealed class ManagedEmployeeDto
 {
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
 }

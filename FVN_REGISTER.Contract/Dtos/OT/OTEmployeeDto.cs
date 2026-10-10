@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Contract.Dtos.OT
     {
         public string EmployeeCode { get; set; } = string.Empty;
         public string EmployeeName { get; set; } = string.Empty;
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? DeptName { get; set; }
         public string? CvCode { get; set; }
 

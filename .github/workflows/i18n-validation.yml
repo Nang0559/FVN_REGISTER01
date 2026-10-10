@@ -1,0 +1,41 @@
+name: i18n-validation
+
+on:
+  push:
+    branches:
+      - feature/i18n-vi-ja
+  pull_request:
+    branches:
+      - feature/i18n-vi-ja
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Restore API graph
+        run: dotnet restore FVN_REGISTER.API/FVN_REGISTER.API.csproj
+      - name: Build API graph
+        run: dotnet build FVN_REGISTER.API/FVN_REGISTER.API.csproj --configuration Release
+      - name: Restore test projects
+        run: |
+          dotnet restore Tests/FVN_REGISTER.Shared.Tests/FVN_REGISTER.Shared.Tests.csproj
+          dotnet restore Tests/FVN_REGISTER.Infrastructure.Tests/FVN_REGISTER.Infrastructure.Tests.csproj
+      - name: Test Shared localization
+        run: dotnet test Tests/FVN_REGISTER.Shared.Tests/FVN_REGISTER.Shared.Tests.csproj --configuration Release --no-restore
+      - name: Test Infrastructure localization runtime
+        run: dotnet test Tests/FVN_REGISTER.Infrastructure.Tests/FVN_REGISTER.Infrastructure.Tests.csproj --configuration Release --no-restore --filter FullyQualifiedName~LocalizationRuntimeAndWriteTests
+      - name: Validate localization
+        run: python3 scripts/validate-ui-localization.py --output artifacts/localization-audit.json
+      - name: Upload localization audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localization-audit
+          path: artifacts/localization-audit.json
+          if-no-files-found: ignore

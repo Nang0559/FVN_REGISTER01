@@ -19,27 +19,27 @@
 }
 else if (_asset == null)
 {
-    <MudAlert Severity="Severity.Warning">Không tìm thấy thiết bị hoặc QR chưa có hiệu lực.</MudAlert>
+    <MudAlert Severity="Severity.Warning">@Language.T("equipment.khongTimThayThietBi2")</MudAlert>
 }
 else
 {
     <MudText Typo="Typo.h5">@_asset.EquipmentName</MudText>
     <MudPaper Class="pa-4 my-3">
         <MudGrid>
-            <MudItem xs="12" md="6"><b>Mã thiết bị:</b> @_asset.EquipmentCode</MudItem>
-            <MudItem xs="12" md="6"><b>Mã tài sản:</b> @_asset.AssetCode</MudItem>
+            <MudItem xs="12" md="6"><b>@Language.T("equipment.maThietBi")</b> @_asset.EquipmentCode</MudItem>
+            <MudItem xs="12" md="6"><b>@Language.T("equipment.maTaiSan2")</b> @_asset.AssetCode</MudItem>
             <MudItem xs="12" md="6"><b>Serial:</b> @_asset.SerialNumber</MudItem>
-            <MudItem xs="12" md="6"><b>Bộ phận:</b> @_asset.DeptCode</MudItem>
-            <MudItem xs="12" md="6"><b>Giá mua:</b> @_asset.PurchasePrice.ToString("N0")</MudItem>
-            <MudItem xs="12" md="6"><b>Ngày mua:</b> @_asset.PurchaseDate.ToString("dd/MM/yyyy")</MudItem>
-            <MudItem xs="12" md="6"><b>Khấu hao:</b> @_asset.ExpectedDepreciationDate.ToString("dd/MM/yyyy")</MudItem>
-            <MudItem xs="12" md="6"><b>Vị trí:</b> @_asset.Location</MudItem>
+            <MudItem xs="12" md="6"><b>@Language.T("equipment.boPhan")</b> @_asset.DeptCode</MudItem>
+            <MudItem xs="12" md="6"><b>@Language.T("equipment.giaMua")</b> @_asset.PurchasePrice.ToString("N0")</MudItem>
+            <MudItem xs="12" md="6"><b>@Language.T("equipment.ngayMua2")</b> @_asset.PurchaseDate.ToString("dd/MM/yyyy")</MudItem>
+            <MudItem xs="12" md="6"><b>@Language.T("equipment.khauHao")</b> @_asset.ExpectedDepreciationDate.ToString("dd/MM/yyyy")</MudItem>
+            <MudItem xs="12" md="6"><b>@Language.T("equipment.viTri")</b> @_asset.Location</MudItem>
         </MudGrid>
     </MudPaper>
 
-    <MudText Typo="Typo.h6">Lịch sử sửa chữa đã phê duyệt</MudText>
+    <MudText Typo="Typo.h6">@Language.T("equipment.lichSuSuaChuaDa")</MudText>
     <MudTable Items="_asset.RepairHistory" Dense="true" Hover="true">
-        <HeaderContent><MudTh>Ngày</MudTh><MudTh>Nội dung</MudTh><MudTh>Đơn vị</MudTh><MudTh>Chi phí</MudTh><MudTh>Kết quả</MudTh></HeaderContent>
+        <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("public.content")</MudTh><MudTh>@Language.T("equipment.donVi")</MudTh><MudTh>@Language.T("common.chiPhi")</MudTh><MudTh>@Language.T("hrm.result")</MudTh></HeaderContent>
         <RowTemplate>
             <MudTd>@context.RepairDate.ToString("dd/MM/yyyy")</MudTd>
             <MudTd>@context.RepairContent</MudTd>
@@ -52,25 +52,25 @@ else
     @if (_canRepair)
     {
         <MudDivider Class="my-4" />
-        <MudText Typo="Typo.h6">Tạo yêu cầu sửa chữa</MudText>
+        <MudText Typo="Typo.h6">@Language.T("equipment.taoYeuCauSuaChua")</MudText>
         <MudGrid>
-            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_repairDate" Label="Ngày sửa" /></MudItem>
-            <MudItem xs="12" md="8"><MudTextField @bind-Value="_repair.RepairContent" Label="Nội dung sửa chữa" Required="true" /></MudItem>
-            <MudItem xs="12" md="4"><MudSelect T="string" @bind-Value="_repair.RepairAssignmentType" Label="Đối tượng chịu trách nhiệm sửa chữa" Required="true"><MudSelectItem Value="@("Department")">Bộ phận</MudSelectItem><MudSelectItem Value="@("Employee")">Nhân viên</MudSelectItem></MudSelect></MudItem>
+            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_repairDate" Label='@Language.T("common.modifiedAt")' /></MudItem>
+            <MudItem xs="12" md="8"><MudTextField @bind-Value="_repair.RepairContent" Label="@Language.T("equipment.noiDungSuaChua")" Required="true" /></MudItem>
+            <MudItem xs="12" md="4"><MudSelect T="string" @bind-Value="_repair.RepairAssignmentType" Label="@Language.T("equipment.doiTuongChiuTrachNhiem")" Required="true"><MudSelectItem Value="@("Department")">@Language.T("nav.departments")</MudSelectItem><MudSelectItem Value="@("Employee")">@Language.T("ot.employee")</MudSelectItem></MudSelect></MudItem>
             @if (_repair.RepairAssignmentType == "Department")
             {
-                <MudItem xs="12" md="4"><MudSelect T="string" @bind-Value="_repair.RepairResponsibleDeptCode" Label="Bộ phận sửa chữa" Required="true"><MudSelectItem Value="@string.Empty">-- Chọn bộ phận --</MudSelectItem>@foreach (var d in _repairAssignees.Select(x => x.DeptCode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x)){<MudSelectItem Value="@d">@d</MudSelectItem>}</MudSelect></MudItem>
+                <MudItem xs="12" md="4"><MudSelect T="int?" @bind-Value="_repair.RepairResponsibleDeptCode" Label="@Language.T("equipment.boPhanSuaChua")" Required="true"><MudSelectItem T="int?" Value="@((int?)null)">@Language.T("equipment.chonBoPhan")</MudSelectItem>@foreach (var d in _repairAssignees.Select(x => x.DeptCode).Distinct().OrderBy(x => x)){<MudSelectItem T="int?" Value="@((int?)d)">@d</MudSelectItem>}</MudSelect></MudItem>
             }
             else if (_repair.RepairAssignmentType == "Employee")
             {
-                <MudItem xs="12" md="4"><MudSelect T="string" @bind-Value="_repair.RepairAssigneeEmployeeCode" Label="Nhân viên sửa chữa" Required="true"><MudSelectItem Value="@string.Empty">-- Chọn nhân viên --</MudSelectItem>@foreach (var e in _repairAssignees){<MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode - @e.EmployeeName (@e.DeptCode)</MudSelectItem>}</MudSelect></MudItem>
+                <MudItem xs="12" md="4"><MudSelect T="string" @bind-Value="_repair.RepairAssigneeEmployeeCode" Label="@Language.T("equipment.nhanVienSuaChua")" Required="true"><MudSelectItem Value="@string.Empty">@Language.T("equipment.chonNhanVien")</MudSelectItem>@foreach (var e in _repairAssignees){<MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode - @e.EmployeeName (@e.DeptCode)</MudSelectItem>}</MudSelect></MudItem>
             }
-            <MudItem xs="12" md="4"><MudTextField @bind-Value="_repair.RepairVendor" Label="Đơn vị sửa chữa" /></MudItem>
-            <MudItem xs="12" md="4"><MudNumericField @bind-Value="_repair.RepairCost" Label="Chi phí" Min="0" /></MudItem>
-            <MudItem xs="12" md="4"><MudTextField @bind-Value="_repair.RepairResult" Label="Kết quả" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField @bind-Value="_repair.RepairVendor" Label="@Language.T("equipment.donViSuaChua")" /></MudItem>
+            <MudItem xs="12" md="4"><MudNumericField @bind-Value="_repair.RepairCost" Label="@Language.T("common.chiPhi")" Min="0" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField @bind-Value="_repair.RepairResult" Label='@Language.T("hrm.result")' /></MudItem>
             <MudItem xs="12"><ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" /></MudItem>
-            <MudItem xs="12"><MudTextField @bind-Value="_repair.Note" Label="Ghi chú" /></MudItem>
-            <MudItem xs="12"><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateRepairAsync" Disabled="_busy">Tạo & gửi yêu cầu sửa chữa</MudButton></MudItem>
+            <MudItem xs="12"><MudTextField @bind-Value="_repair.Note" Label='@Language.T("common.note")' /></MudItem>
+            <MudItem xs="12"><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateRepairAsync" Disabled="_busy">@Language.T("equipment.taoGuiYeuCauSua")</MudButton></MudItem>
         </MudGrid>
     }
 }
@@ -112,12 +112,12 @@ else
     private async Task CreateRepairAsync()
     {
         if (_asset == null || !_canRepair) return;
-        if (_repair.RepairAssignmentType != "Department" && _repair.RepairAssignmentType != "Employee") { Snackbar.Add("Phải chọn bộ phận hoặc nhân viên chịu trách nhiệm sửa chữa.", Severity.Warning); return; }
-        if (_repair.RepairAssignmentType == "Department" && string.IsNullOrWhiteSpace(_repair.RepairResponsibleDeptCode)) { Snackbar.Add("Vui lòng chọn bộ phận sửa chữa.", Severity.Warning); return; }
-        if (_repair.RepairAssignmentType == "Employee" && string.IsNullOrWhiteSpace(_repair.RepairAssigneeEmployeeCode)) { Snackbar.Add("Vui lòng chọn nhân viên sửa chữa.", Severity.Warning); return; }
+        if (_repair.RepairAssignmentType != "Department" && _repair.RepairAssignmentType != "Employee") { Snackbar.Add(Language.T("equipment.phaiChonBoPhanHoac"), Severity.Warning); return; }
+        if (_repair.RepairAssignmentType == "Department" && _repair.RepairResponsibleDeptCode == null) { Snackbar.Add(Language.T("equipment.vuiLongChonBoPhan"), Severity.Warning); return; }
+        if (_repair.RepairAssignmentType == "Employee" && string.IsNullOrWhiteSpace(_repair.RepairAssigneeEmployeeCode)) { Snackbar.Add(Language.T("equipment.vuiLongChonNhanVien"), Severity.Warning); return; }
         if (_approvalRoute == null || _approvalRoute.Levels.Count == 0)
         {
-            Snackbar.Add("Chưa xác định được luồng phê duyệt sửa chữa.", Severity.Error);
+            Snackbar.Add(Language.T("equipment.chuaXacDinhDuocLuong"), Severity.Error);
             return;
         }
         _repair.RepairDate = _repairDate ?? DateTime.Today;
@@ -126,7 +126,7 @@ else
         var selected = _repair.ApprovalSelections.Where(x => !string.IsNullOrWhiteSpace(x.ApproverCode)).Select(x => x.Level).ToHashSet();
         if (required.Any(level => !selected.Contains(level)))
         {
-            Snackbar.Add("Vui lòng chọn người phê duyệt cho tất cả cấp bắt buộc.", Severity.Warning);
+            Snackbar.Add(Language.T("equipment.vuiLongChonNguoiPhe"), Severity.Warning);
             return;
         }
         _busy = true;
@@ -135,11 +135,11 @@ else
             var result = await Equipment.CreateRepairAsync(_repair);
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Không thể tạo yêu cầu.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("equipment.khongTheTaoYeuCau"), Severity.Error);
                 return;
             }
             var submit = await Equipment.SubmitRepairAsync(result.Data.Id);
-            Snackbar.Add(submit.IsSuccess ? "Đã gửi yêu cầu sửa chữa để phê duyệt." : submit.Message ?? "Không thể gửi duyệt.", submit.IsSuccess ? Severity.Success : Severity.Error);
+            Snackbar.Add(submit.IsSuccess ? Language.T("equipment.daGuiYeuCauSua") : submit.Message ?? Language.T("equipment.khongTheGuiDuyet"), submit.IsSuccess ? Severity.Success : Severity.Error);
             if (submit.IsSuccess) Navigation.NavigateTo("/equipment");
         }
         finally { _busy = false; }

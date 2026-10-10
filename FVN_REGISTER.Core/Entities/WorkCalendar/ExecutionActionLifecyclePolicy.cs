@@ -15,6 +15,10 @@ public static class ExecutionActionLifecyclePolicy
             "Resolved" => ActionItemStatus.Completed,
             "Mismatch" => ActionItemStatus.InProgress,
             "AwaitingConfirmation" => ActionItemStatus.InProgress,
+            "AwaitingEmployeeDecision" => ActionItemStatus.InProgress,
+            "AppealReviewing" => ActionItemStatus.InProgress,
+            "FinalDecisionPending" => ActionItemStatus.InProgress,
+            "EmployeeDisputed" => ActionItemStatus.InProgress,
             "Matched" => ActionItemStatus.Cancelled,
             "None" => ActionItemStatus.Expired,
             _ => ActionItemStatus.Expired

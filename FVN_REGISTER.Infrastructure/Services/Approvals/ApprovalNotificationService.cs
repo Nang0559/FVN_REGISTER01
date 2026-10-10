@@ -5,12 +5,10 @@ using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Rules;
 using FVN_REGISTER.Application.Services.Common;
-
 using FVN_REGISTER.Core.Extensions;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
 
 namespace FVN_REGISTER.Infrastructure.Services.Approvals
 {
@@ -21,14 +19,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly INotificationFactory _factory;
         private readonly INotificationService _notification;
         private readonly IEmailService _email;
-        private readonly IEmployeeUserResolver _userResolver;   // ★ MỚI
+        private readonly IEmployeeUserResolver _userResolver;
 
         public ApprovalNotificationService(
             IUnitOfWork uow,
             INotificationFactory factory,
             INotificationService notification,
             IEmailService email,
-            IEmployeeUserResolver userResolver,                 // ★ MỚI
+            IEmployeeUserResolver userResolver,
             ILogger<ApprovalNotificationService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
@@ -37,11 +35,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _factory = factory;
             _notification = notification;
             _email = email;
-            _userResolver = userResolver;                       // ★ MỚI
+            _userResolver = userResolver;
         }
 
-        // ================= EMAIL: ĐƠN MỚI =================
-        // (không đổi — dùng thẳng approverEmail, không cần resolve UserId)
         public async Task NotifyNewRequestAsync(string approverCode,
             string approverEmail, string approverName, int requestId,
             RequestModule requestType, string creatorName, int level,
@@ -62,7 +58,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 action: NotificationAction.Pending,
                 level: level);
 
-            var templateCode = $"{requestType.ToCode()}_REQUEST_NEW";
+            // Must match the canonical Email Center seed convention:
+            // {MODULE}_APPROVAL_REQUEST.
+            var templateCode = $"{requestType.ToCode()}_APPROVAL_REQUEST";
 
             await _email.QueueEmail(approverEmail, templateCode, new
             {
@@ -78,7 +76,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 templateCode, approverEmail, requestId);
         }
 
-        // ================= IN-APP: APPROVER CÓ ĐƠN CHỜ =================
         public async Task NotifyApproverInAppAsync(
             string approverEmployeeCode, int requestId,
             RequestModule requestType, string creatorName, int level,
@@ -91,7 +88,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 return;
             }
 
-            // ★ SỬA — dùng IEmployeeUserResolver thay cho ResolveUserIdAsync riêng
             var approverUserId = await _userResolver.ResolveUserIdAsync(approverEmployeeCode, ct);
             if (approverUserId is null or <= 0)
             {
@@ -112,8 +108,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             await _notification.CreateAsync(dto, ct);
         }
 
-        // ================= IN-APP: NGƯỜI TẠO ĐƠN NHẬN KẾT QUẢ =================
-        // (không đổi — đã có creatorUserId sẵn từ nơi gọi, không cần resolve)
+        public Task ResolveApproverNotificationsAsync(
+            RequestModule requestType, int requestId, CancellationToken ct = default)
+            => _notification.ResolveForRequestAsync(requestType, requestId, ct);
+
         public async Task NotifyCreatorInAppAsync(
             int creatorUserId, string creatorEmployeeCode, string status,
             int requestId, RequestModule requestType,
@@ -138,8 +136,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             await _notification.CreateAsync(dto, ct);
         }
 
-        // ================= IN-APP: LEO THANG (ESCALATE) =================
-        // (không đổi — newApproverUserId đã có sẵn từ nơi gọi)
         public async Task NotifyEscalatedInAppAsync(
             int oldApproverUserId, int newApproverUserId, string newApproverEmployeeCode,
             int requestId, RequestModule requestType,
@@ -161,17 +157,5 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 "[APPROVAL-NOTIFY] Escalated RequestId={Id} | {Old} -> {New}",
                 requestId, oldApproverUserId, newApproverUserId);
         }
-
-        // ================= ❌ ĐÃ XÓA: SendPendingRemindersAsync =================
-        // Lý do: đọc F03ApprovalStep (bảng cũ, Obsolete) + field ReminderSent
-        // (KHÔNG tồn tại ở kiến trúc mới). Reminder giờ do
-        // ApprovalEscalationService<TSubject>.ProcessStepAsync tự xử lý hoàn
-        // toàn — tự ghi F03ApprovalReminderLog, tự gửi email — KHÔNG đi qua
-        // ApprovalNotificationService nữa. Giữ lại method này sẽ gây gửi email
-        // nhắc trùng lặp (double reminder) nếu còn nơi nào gọi nhầm.
-
-        // ================= ❌ ĐÃ XÓA: private ResolveUserIdAsync =================
-        // Thay bằng IEmployeeUserResolver (constructor-injected), tránh mỗi
-        // service tự viết lại query resolve UserId từ EmployeeCode.
     }
 }

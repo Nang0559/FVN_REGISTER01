@@ -1,4 +1,4 @@
-﻿@* FVN_REGISTER.Shared/Pages/Admin/EmailTemplates.razor *@
+@* FVN_REGISTER.Shared/Pages/Admin/EmailTemplates.razor *@
 @page "/admin/email-templates"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos
@@ -22,12 +22,12 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<PageTitle>Quản lý Email Template</PageTitle>
+<PageTitle>@Language.T("email.quanLyEmailTemplate")</PageTitle>
 
 @* ── Kiểm tra quyền ── *@
 @if (!CanManage)
 {
-    <MudAlert Severity="Severity.Error">Bạn không có quyền truy cập trang này.</MudAlert>
+    <MudAlert Severity="Severity.Error">@Language.T("email.banKhongCoQuyenTruy")</MudAlert>
     return;
 }
 
@@ -83,16 +83,16 @@
     <div>
         <MudText Typo="Typo.h5">
             <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
-            Quản lý Email Template
+            @Language.T("email.quanLyEmailTemplate")
         </MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
-            Cấu hình nội dung email thông báo hệ thống
+            @Language.T("email.cauHinhNoiDungEmail")
         </MudText>
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Add"
                OnClick="@(() => OpenEditor(null))">
-        Thêm template
+        @Language.T("email.themTemplate")
     </MudButton>
 </MudStack>
 
@@ -108,7 +108,7 @@ else
                   Filter="FilterFunc" @ref="_table">
             <ToolBarContent>
                 <MudTextField @bind-Value="_searchText"
-                              Placeholder="Tìm theo Code hoặc Subject..."
+                              Placeholder="@Language.T("email.timTheoCodeHoacSubject")"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search"
                               Immediate="true"
@@ -118,10 +118,10 @@ else
             </ToolBarContent>
             <HeaderContent>
                 <MudTh><MudTableSortLabel SortBy="new Func<EmailTemplateDto,object>(x=>x.Code)">Code</MudTableSortLabel></MudTh>
-                <MudTh>Tiêu đề</MudTh>
-                <MudTh>Trạng thái</MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<EmailTemplateDto,object>(x=>x.CreatedAt ?? DateTime.MinValue)">Ngày tạo</MudTableSortLabel></MudTh>
-                <MudTh>Thao tác</MudTh>
+                <MudTh>@Language.T("common.tieuDe")</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<EmailTemplateDto,object>(x=>x.CreatedAt ?? DateTime.MinValue)">@Language.T("common.createdAt")</MudTableSortLabel></MudTh>
+                <MudTh>@Language.T("security.actions")</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>
@@ -136,13 +136,13 @@ else
                     @if (context.IsActive)
                     {
                         <MudChip T="string" Size="Size.Small" Color="Color.Success" Label="true">
-                            Đang hoạt động
+                            @Language.T("common.enabled")
                         </MudChip>
                     }
                     else
                     {
                         <MudChip T="string" Size="Size.Small" Color="Color.Default" Label="true">
-                            Vô hiệu hóa
+                            @Language.T("email.voHieuHoa")
                         </MudChip>
                     }
                 </MudTd>
@@ -154,26 +154,26 @@ else
                 <MudTd>
                     <MudStack Row="true" Spacing="0">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                       Size="Size.Small" Color="Color.Primary" title="Chỉnh sửa"
+                                       Size="Size.Small" Color="Color.Primary" title="@Language.T("email.chinhSua")"
                                        OnClick="@(() => OpenEditor(context))" />
                         <MudIconButton
                             Icon="@(context.IsActive
                                 ? Icons.Material.Filled.ToggleOff
                                 : Icons.Material.Filled.ToggleOn)"
                             Size="Size.Small"
-                            Color="@(context.IsActive ? Color.Warning : Color.Success)" title="@(context.IsActive ? "Vô hiệu hóa" : "Kích hoạt")"
+                            Color="@(context.IsActive ? Color.Warning : Color.Success)" title="@(context.IsActive ? Language.T("email.voHieuHoa") : Language.T("email.kichHoat"))"
                             OnClick="@(() => ToggleTemplate(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                       Size="Size.Small" Color="Color.Info" title="Xem trước"
+                                       Size="Size.Small" Color="Color.Info" title="@Language.T("email.xemTruoc")"
                                        OnClick="@(() => PreviewTemplate(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
-                                       Size="Size.Small" Color="Color.Default" title="Nhân bản"
+                                       Size="Size.Small" Color="Color.Default" title="@Language.T("email.nhanBan")"
                                        OnClick="@(() => DuplicateTemplate(context))" />
                     </MudStack>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
-                <MudText Color="Color.Secondary" Class="pa-4">Không có template nào.</MudText>
+                <MudText Color="Color.Secondary" Class="pa-4">@Language.T("email.khongCoTemplateNao")</MudText>
             </NoRecordsContent>
         </MudTable>
     </MudPaper>
@@ -193,14 +193,14 @@ else
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Primary" />
             <MudText Typo="Typo.h6">
-                @(_editModel.Id == 0 ? "Thêm template mới" : $"Sửa: {_editModel.Code}")
+                @(_editModel.Id == 0 ? Language.T("email.themTemplateMoi") : Language.T("email.sua", _editModel.Code))
             </MudText>
             @if (_editModel.Id > 0)
             {
                 <MudChip T="string" Size="Size.Small"
                          Color="@(_editModel.IsActive ? Color.Success : Color.Default)"
                          Label="true">
-                    @(_editModel.IsActive ? "Đang hoạt động" : "Vô hiệu hóa")
+                    @(_editModel.IsActive ? Language.T("common.enabled") : Language.T("email.voHieuHoa"))
                 </MudChip>
             }
         </MudStack>
@@ -210,22 +210,22 @@ else
         <MudGrid>
             @* ── Row 1: Code + Subject + Switch ── *@
             <MudItem xs="12" sm="3">
-                <MudTextField Label="Mã template (*)"
+                <MudTextField Label="@Language.T("email.maTemplate")"
                               @bind-Value="_editModel.Code"
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense"
                               Disabled="@(_editModel.Id > 0)"
-                              HelperText="VD: LEAVE_APPROVAL_REQUEST"
+                              HelperText="@Language.T("email.vdLeaveApprovalRequest")"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Code"
                               Required="true" />
             </MudItem>
             <MudItem xs="12" sm="7">
-                <MudTextField Label="Tiêu đề email (*)"
+                <MudTextField Label="@Language.T("email.tieuDeEmail")"
                               @bind-Value="_editModel.Subject"
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense"
-                              HelperText="Hỗ trợ {{VariableName}} — VD: Đơn nghỉ phép của {{EmployeeName}}"
+                              HelperText='@Language.T("email.hoTroVariablenameVdDon")'
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Title"
                               Required="true" />
@@ -233,7 +233,7 @@ else
             <MudItem xs="12" sm="2" Class="d-flex align-center">
                 <MudSwitch @bind-Value="_editModel.IsActive"
                            Color="Color.Success"
-                           Label="Kích hoạt" />
+                           Label="@Language.T("email.kichHoat")" />
             </MudItem>
 
             @* ── Row 2: Variable hints ── *@
@@ -246,7 +246,7 @@ else
                     <MudAlert Severity="Severity.Info" Dense="true" Class="py-2">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="0">
                             <MudText Typo="Typo.caption" Class="mr-2">
-                                <strong>Biến khả dụng</strong> (click để chèn vào editor):
+                                <strong>@Language.T("email.bienKhaDung")</strong> @Language.T("email.clickDeChenVaoEditor")
                             </MudText>
                             @foreach (var h in hints)
                             {
@@ -268,7 +268,7 @@ else
                          ActivePanelIndexChanged="OnTabChanged" Class="pt-2">
 
                     @* TAB 1: Rich Editor *@
-                    <MudTabPanel Text="Trình soạn thảo"
+                    <MudTabPanel Text="@Language.T("email.trinhSoanThao")"
                                  Icon="@Icons.Material.Filled.FormatColorText"
                                  BadgeColor="Color.Primary">
                         @* Quill toolbar *@
@@ -280,50 +280,50 @@ else
                                     flex-wrap:wrap;">
                             <span class="ql-formats">
                                 <select class="ql-header">
-                                    <option value="1">Tiêu đề 1</option>
-                                    <option value="2">Tiêu đề 2</option>
-                                    <option value="3">Tiêu đề 3</option>
-                                    <option selected>Thường</option>
+                                    <option value="1">@Language.T("email.tieuDe1")</option>
+                                    <option value="2">@Language.T("email.tieuDe2")</option>
+                                    <option value="3">@Language.T("email.tieuDe3")</option>
+                                    <option selected>@Language.T("email.thuong")</option>
                                 </select>
                                 <select class="ql-font"></select>
                                 <select class="ql-size">
-                                    <option value="small">Nhỏ</option>
-                                    <option selected>Thường</option>
-                                    <option value="large">Lớn</option>
-                                    <option value="huge">Rất lớn</option>
+                                    <option value="small">@Language.T("email.nho")</option>
+                                    <option selected>@Language.T("email.thuong")</option>
+                                    <option value="large">@Language.T("email.lon")</option>
+                                    <option value="huge">@Language.T("email.ratLon")</option>
                                 </select>
                             </span>
                             <span class="ql-formats">
-                                <button class="ql-bold" title="Đậm"></button>
-                                <button class="ql-italic" title="Nghiêng"></button>
-                                <button class="ql-underline" title="Gạch chân"></button>
-                                <button class="ql-strike" title="Gạch ngang"></button>
+                                <button class="ql-bold" title="@Language.T("email.dam")"></button>
+                                <button class="ql-italic" title="@Language.T("email.nghieng")"></button>
+                                <button class="ql-underline" title="@Language.T("email.gachChan")"></button>
+                                <button class="ql-strike" title="@Language.T("email.gachNgang")"></button>
                             </span>
                             <span class="ql-formats">
-                                <select class="ql-color" title="Màu chữ"></select>
-                                <select class="ql-background" title="Màu nền"></select>
+                                <select class="ql-color" title="@Language.T("email.mauChu")"></select>
+                                <select class="ql-background" title="@Language.T("email.mauNen")"></select>
                             </span>
                             <span class="ql-formats">
-                                <button class="ql-list" value="ordered" title="Danh sách có số"></button>
-                                <button class="ql-list" value="bullet" title="Danh sách dấu chấm"></button>
-                                <button class="ql-indent" value="-1" title="Giảm thụt lề"></button>
-                                <button class="ql-indent" value="+1" title="Tăng thụt lề"></button>
+                                <button class="ql-list" value="ordered" title="@Language.T("email.danhSachCoSo")"></button>
+                                <button class="ql-list" value="bullet" title="@Language.T("email.danhSachDauCham")"></button>
+                                <button class="ql-indent" value="-1" title="@Language.T("email.giamThutLe")"></button>
+                                <button class="ql-indent" value="+1" title="@Language.T("email.tangThutLe")"></button>
                             </span>
                             <span class="ql-formats">
-                                <select class="ql-align" title="Căn lề"></select>
+                                <select class="ql-align" title="@Language.T("email.canLe")"></select>
                             </span>
                             <span class="ql-formats">
-                                <button class="ql-link" title="Chèn link"></button>
-                                <button class="ql-image" title="Chèn hình"></button>
-                                <button class="ql-blockquote" title="Trích dẫn"></button>
-                                <button class="ql-code-block" title="Khối code"></button>
+                                <button class="ql-link" title="@Language.T("email.chenLink")"></button>
+                                <button class="ql-image" title="@Language.T("email.chenHinh")"></button>
+                                <button class="ql-blockquote" title="@Language.T("email.trichDan")"></button>
+                                <button class="ql-code-block" title="@Language.T("email.khoiCode")"></button>
                             </span>
                             <span class="ql-formats">
-                                <button class="ql-script" value="sub" title="Chỉ số dưới"></button>
-                                <button class="ql-script" value="super" title="Chỉ số trên"></button>
+                                <button class="ql-script" value="sub" title="@Language.T("email.chiSoDuoi")"></button>
+                                <button class="ql-script" value="super" title="@Language.T("email.chiSoTren")"></button>
                             </span>
                             <span class="ql-formats">
-                                <button class="ql-clean" title="Xóa định dạng"></button>
+                                <button class="ql-clean" title="@Language.T("email.xoaDinhDang")"></button>
                             </span>
                         </div>
                         @* Quill editor area *@
@@ -333,15 +333,15 @@ else
                                     border-radius:0 0 4px 4px;">
                         </div>
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
-                            💡 Tip: Chọn text rồi click biến ở trên để chèn nhanh. Hoặc gõ thẳng {{TênBiến}} vào editor.
+                            @Language.T("email.tipChonTextRoiClick")
                         </MudText>
                     </MudTabPanel>
 
                     @* TAB 2: HTML thuần *@
-                    <MudTabPanel Text="HTML / CSS"
+                    <MudTabPanel Text="@Language.T("email.htmlCss")"
                                  Icon="@Icons.Material.Filled.Code">
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">
-                            Chỉnh sửa trực tiếp HTML + inline CSS. Thay đổi ở đây sẽ đồng bộ sang editor.
+                            @Language.T("email.chinhSuaTrucTiepHtml")
                         </MudText>
                         <div style="position:relative;">
                             <MudTextField @bind-Value="_editModel.Body"
@@ -358,22 +358,22 @@ else
                             <MudButton Size="Size.Small" Variant="Variant.Outlined"
                                        StartIcon="@Icons.Material.Filled.FormatIndentIncrease"
                                        OnClick="FormatHtml">
-                                Format HTML
+                                @Language.T("email.formatHtml")
                             </MudButton>
                             <MudButton Size="Size.Small" Variant="Variant.Outlined"
                                        Color="Color.Warning"
                                        StartIcon="@Icons.Material.Filled.DeleteSweep"
                                        OnClick="InsertEmailBoilerplate">
-                                Chèn khung email chuẩn
+                                @Language.T("email.chenKhungEmailChuan")
                             </MudButton>
                         </MudStack>
                     </MudTabPanel>
 
                     @* TAB 3: Preview *@
-                    <MudTabPanel Text="Xem trước"
+                    <MudTabPanel Text="@Language.T("email.xemTruoc")"
                                  Icon="@Icons.Material.Filled.Visibility">
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
-                            Preview email với dữ liệu mẫu (biến được thay bằng giá trị mô phỏng).
+                            @Language.T("email.previewEmailVoiDuLieu")
                         </MudText>
 
                         @* Subject preview *@
@@ -384,7 +384,7 @@ else
                                 <MudIcon Icon="@Icons.Material.Filled.Subject"
                                          Size="Size.Small" Color="Color.Secondary" />
                                 <MudText Typo="Typo.body2">
-                                    <strong>Tiêu đề:</strong>
+                                    <strong>@Language.T("email.tieuDe")</strong>
                                     @ReplacePreviewVars(_editModel.Subject ?? "")
                                 </MudText>
                             </MudStack>
@@ -399,14 +399,14 @@ else
                                     font-family: Arial, sans-serif;
                                     overflow-y:auto;
                                     max-height:500px;">
-                            @((MarkupString)ReplacePreviewVars(_editModel.Body ?? "<em style='color:#999'>Chưa có nội dung</em>"))
+                            @((MarkupString)ReplacePreviewVars(_editModel.Body ?? Language.T("email.emStyleColor999Chua")))
                         </div>
 
                         @* Preview vars *@
                         @if (hints.Any())
                         {
                             <MudExpansionPanels Class="mt-2" Elevation="0">
-                                <MudExpansionPanel Text="Giá trị mẫu đang dùng để preview" Dense="true">
+                                <MudExpansionPanel Text="@Language.T("email.giaTriMauDangDung")" Dense="true">
                                     <MudGrid Spacing="1">
                                         @foreach (var h in hints)
                                         {
@@ -428,18 +428,18 @@ else
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="CloseEditor" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="CloseEditor" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudSpacer />
         <MudButton Color="Color.Info" Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Visibility"
                    OnClick="GoToPreviewTab">
-            Xem trước
+            @Language.T("email.xemTruoc")
         </MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.Save"
                    Disabled="_isSaving"
                    OnClick="SaveTemplate">
-            @(_isSaving ? "Đang lưu..." : "Lưu template")
+            @(_isSaving ? Language.T("common.dangLuu") : Language.T("email.luuTemplate"))
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -450,7 +450,7 @@ else
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
-            Xem trước: @_previewModel?.Code
+            @Language.T("email.xemTruoc2", _previewModel?.Code)
         </MudText>
     </TitleContent>
     <DialogContent>
@@ -459,22 +459,22 @@ else
             <MudPaper Elevation="0" Class="pa-2 mb-3"
                       Style="background:var(--mud-palette-background-grey); border-radius:4px;">
                 <MudText Typo="Typo.body2">
-                    <strong>Tiêu đề:</strong> @_previewModel.Subject
+                    <strong>@Language.T("email.tieuDe")</strong> @_previewModel.Subject
                 </MudText>
             </MudPaper>
             <div style="border:1px solid rgba(0,0,0,0.12); border-radius:4px;
                         min-height:300px; padding:24px; background:white;
                         font-family: Arial, sans-serif; overflow-y:auto; max-height:600px;">
-                @((MarkupString)(_previewModel.Body ?? "<em>Chưa có nội dung</em>"))
+                @((MarkupString)(_previewModel.Body ?? Language.T("email.emChuaCoNoiDung")))
             </div>
         }
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="@(() => _showPreview = false)">Đóng</MudButton>
+        <MudButton OnClick="@(() => _showPreview = false)">@Language.T("common.close")</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Edit"
                    OnClick="@(() => { _showPreview = false; OpenEditor(_previewModel); })">
-            Chỉnh sửa
+            @Language.T("email.chinhSua")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -679,12 +679,12 @@ else
             if (result.IsSuccess && result.Data != null)
                 _templates = result.Data;
             else
-                Snackbar.Add(result.Message ?? "Lỗi tải template.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("email.loiTaiTemplate"), Severity.Error);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "[EMAIL_TPL] Load error");
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
+            Snackbar.Add(Language.T("common.loiHeThong"), Severity.Error);
         }
         finally { _isLoading = false; }
     }
@@ -720,9 +720,9 @@ else
         await SyncFromQuillAsync();
 
         if (string.IsNullOrWhiteSpace(_editModel.Code))
-        { Snackbar.Add("Vui lòng nhập mã template.", Severity.Warning); return; }
+        { Snackbar.Add(Language.T("email.vuiLongNhapMaTemplate"), Severity.Warning); return; }
         if (string.IsNullOrWhiteSpace(_editModel.Subject))
-        { Snackbar.Add("Vui lòng nhập tiêu đề.", Severity.Warning); return; }
+        { Snackbar.Add(Language.T("email.vuiLongNhapTieuDe"), Severity.Warning); return; }
 
         _isSaving = true;
         try
@@ -730,12 +730,12 @@ else
             var result = await TemplateService.SaveAsync(_editModel, _cts.Token);
             if (result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Đã lưu!", Severity.Success);
+                Snackbar.Add(result.Message ?? Language.T("email.daLuu"), Severity.Success);
                 _showEditor  = false;
                 _editorReady = false;
                 await LoadTemplates();
             }
-            else Snackbar.Add(result.Message ?? "Lỗi.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("common.loi"), Severity.Error);
         }
         finally { _isSaving = false; }
     }
@@ -745,8 +745,8 @@ else
     {
         var result = await TemplateService.ToggleAsync(item.Id, _cts.Token);
         Snackbar.Add(result.IsSuccess
-            ? result.Message ?? "Đã cập nhật."
-            : result.Message ?? "Lỗi.",
+            ? result.Message ?? Language.T("common.daCapNhat")
+            : result.Message ?? Language.T("common.loi"),
             result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) await LoadTemplates();
     }
@@ -776,7 +776,7 @@ else
     {
         // Basic indentation — full formatter cần JS
         if (string.IsNullOrEmpty(_editModel.Body)) return;
-        Snackbar.Add("Chuyển sang tab 'Trình soạn thảo' để format tốt hơn.", Severity.Info);
+        Snackbar.Add(Language.T("email.chuyenSangTabTrinhSoan"), Severity.Info);
     }
 
     // ── Insert boilerplate ──────────────────────────────────────────────
@@ -828,7 +828,7 @@ else
 </div>
 </body>
 </html>";
-        Snackbar.Add("Đã chèn khung email chuẩn.", Severity.Success);
+        Snackbar.Add(Language.T("email.daChenKhungEmailChuan"), Severity.Success);
     }
 
     // ── Filter ──────────────────────────────────────────────────────────
@@ -904,5 +904,5 @@ else
          .Replace("\r", "\\r")
          .Replace("\n", "\\n");
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
 }

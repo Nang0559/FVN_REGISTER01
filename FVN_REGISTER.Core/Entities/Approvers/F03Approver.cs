@@ -41,15 +41,15 @@ namespace FVN_REGISTER.Core.Entities.Approvers
         [StringLength(100)]
         public string ApproverEmail { get; set; } = string.Empty;
 
-        [Required, StringLength(20)]
-        public string ApproverDeptCode { get; set; } = string.Empty;
+        
+        public int ApproverDeptCode { get; set; }
 
         [StringLength(100)]
         public string ApproverDeptName { get; set; } = string.Empty;
 
         // ── Phạm vi được phép duyệt ───────────────────
-        [Required, StringLength(20)]
-        public string ApproveForDeptCode { get; set; } = string.Empty;
+       
+        public int ApproveForDeptCode { get; set; }
 
         [StringLength(100)]
         public string ApproveForDeptName { get; set; } = string.Empty;

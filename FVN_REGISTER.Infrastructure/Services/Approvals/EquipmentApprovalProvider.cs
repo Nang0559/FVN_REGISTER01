@@ -146,11 +146,13 @@ public sealed class EquipmentApprovalProvider
                         PurchasePrice = entity.PurchasePrice,
                         PurchaseDate = entity.PurchaseDate.Value,
                         ExpectedDepreciationDate = entity.ExpectedDepreciationDate.Value,
-                        DeptCode = entity.DeptCode!,
+                        DeptCode = entity.DeptCode!.Value,
                         Location = entity.Location,
                         QrToken = entity.QrToken,
                         IsQrActive = true,
                         Note = entity.Note,
+                        EndpointAgentEligible = entity.EndpointAgentEligible,
+                        EndpointOsFamily = entity.EndpointOsFamily,
                         CreatedBy = entity.OperatorUserId
                     };
 
@@ -247,7 +249,7 @@ public sealed class EquipmentApprovalProvider
             Kind = subject.Module,
             EmployeeCode = subject.EmployeeCode,
             EmployeeName = subject.EmployeeName ?? string.Empty,
-            DeptCode = subject.DeptCode ?? string.Empty,
+            DeptCode = subject.DeptCode ?? 0,
             DeptName = deptName ?? string.Empty,
             FromDate = subject.RepairDate ?? DateTime.Now,
             ToDate = subject.RepairDate ?? DateTime.Now,

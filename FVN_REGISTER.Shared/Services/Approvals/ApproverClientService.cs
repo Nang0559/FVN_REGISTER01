@@ -20,14 +20,14 @@ namespace FVN_REGISTER.Shared.Services.Approvals
             => _http.GetAsync<List<ApproverTreeNodeDto>>("api/Approver/tree", ct);
 
         public Task<ApiResponse<List<ApproverDto>>> GetListAsync(
-            string? deptCode,
+            int? deptCode,
             int? level,
             string? requestType,
             CancellationToken ct = default)
         {
             var query = BuildQuery(new Dictionary<string, string?>
             {
-                ["deptCode"] = deptCode,
+                ["deptCode"] = deptCode?.ToString(),
                 ["level"] = level?.ToString(),
                 ["requestType"] = requestType
             });
@@ -40,12 +40,12 @@ namespace FVN_REGISTER.Shared.Services.Approvals
             => _http.GetAsync<List<DepartmentDto>>("api/Approver/departments", ct);
 
         public Task<ApiResponse<List<EmployeeSelectDto>>> GetEmployeesAsync(
-            string? deptCode,
+            int? deptCode,
             CancellationToken ct = default)
         {
             var query = BuildQuery(new Dictionary<string, string?>
             {
-                ["deptCode"] = deptCode
+                ["deptCode"] = deptCode?.ToString()
             });
 
             return _http.GetAsync<List<EmployeeSelectDto>>(

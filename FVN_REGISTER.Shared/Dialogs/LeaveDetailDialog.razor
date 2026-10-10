@@ -7,43 +7,43 @@
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
-            Chi tiết đơn nghỉ
+            @Language.T("leave.chiTietDonNghi")
         </MudText>
     </TitleContent>
 
     <DialogContent>
         @if (Item == null)
         {
-            <MudAlert Severity="Severity.Warning">Không có dữ liệu đơn nghỉ.</MudAlert>
+            <MudAlert Severity="Severity.Warning">@Language.T("leave.khongCoDuLieuDon")</MudAlert>
         }
         else
         {
             <MudSimpleTable Dense="true" Class="mb-3">
                 <tbody>
-                    <tr><td>Ngày đăng ký</td><td>@Item.RegisterDate.ToString("dd/MM/yyyy HH:mm")</td></tr>
-                    <tr><td>Thời gian</td><td>@Item.StartDate.ToString("dd/MM/yyyy") → @Item.EndDate.ToString("dd/MM/yyyy")</td></tr>
-                    <tr><td>Loại nghỉ</td><td>@Item.LeaveTypeName (@Item.LeaveTypeCode)</td></tr>
-                    <tr><td>Số ngày</td><td>@Item.TotalDay ngày, tính phép @Item.TotalLeaveDay ngày</td></tr>
-                    <tr><td>Lý do</td><td>@(string.IsNullOrWhiteSpace(Item.Reason) ? "-" : Item.Reason)</td></tr>
-                    <tr><td>Trạng thái</td><td>@GetStatusText(Item.Status)</td></tr>
-                    <tr><td>Mã đơn</td><td>@(string.IsNullOrWhiteSpace(Item.LeaveCode) ? Item.RequestId.ToString() : Item.LeaveCode)</td></tr>
+                    <tr><td>@Language.T("common.ngayDangKy")</td><td>@Item.RegisterDate.ToString("dd/MM/yyyy HH:mm")</td></tr>
+                    <tr><td>@Language.T("common.thoiGian")</td><td>@Item.StartDate.ToString("dd/MM/yyyy") → @Item.EndDate.ToString("dd/MM/yyyy")</td></tr>
+                    <tr><td>@Language.T("common.loaiNghi")</td><td>@Item.LeaveTypeName (@Item.LeaveTypeCode)</td></tr>
+                    <tr><td>@Language.T("common.soNgay")</td><td>@Language.T("leave.ngayTinhPhepNgay", Item.TotalDay, Item.TotalLeaveDay)</td></tr>
+                    <tr><td>@Language.T("common.reason")</td><td>@(string.IsNullOrWhiteSpace(Item.Reason) ? "-" : Item.Reason)</td></tr>
+                    <tr><td>@Language.T("common.status")</td><td>@GetStatusText(Item.Status)</td></tr>
+                    <tr><td>@Language.T("common.maDon")</td><td>@(string.IsNullOrWhiteSpace(Item.LeaveCode) ? Item.RequestId.ToString() : Item.LeaveCode)</td></tr>
                 </tbody>
             </MudSimpleTable>
 
             @if (CanCancel)
             {
                 <MudDivider Class="my-2" />
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Yêu cầu hủy đơn</MudText>
-                <MudTextField @bind-Value="_cancelReason" Label="Lý do hủy *" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("leave.yeuCauHuyDon")</MudText>
+                <MudTextField @bind-Value="_cancelReason" Label="@Language.T("leave.lyDoHuy")" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 <MudButton Class="mt-2" OnClick="ConfirmCancel" Color="Color.Error" Variant="Variant.Filled" Disabled="@_isCancelling" FullWidth="true">
-                    @(_isCancelling ? "Đang xử lý..." : "Hủy cả đơn")
+                    @(_isCancelling ? Language.T("common.dangXuLy") : Language.T("leave.huyCaDon"))
                 </MudButton>
             }
         }
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Close" Variant="Variant.Text">Đóng</MudButton>
+        <MudButton OnClick="Close" Variant="Variant.Text">@Language.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -65,7 +65,7 @@
         if (Item == null) return;
         if (string.IsNullOrWhiteSpace(_cancelReason))
         {
-            Snackbar.Add("Vui lòng nhập lý do hủy", Severity.Warning);
+            Snackbar.Add(Language.T("leave.vuiLongNhapLyDo3"), Severity.Warning);
             return;
         }
 
@@ -75,11 +75,11 @@
             var result = await LeaveService.CancelLeaveAsync(Item.RequestId, _cancelReason.Trim());
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Hủy đơn thất bại", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("leave.huyDonThatBai"), Severity.Error);
                 return;
             }
 
-            Snackbar.Add("Đã hủy đơn nghỉ thành công", Severity.Success);
+            Snackbar.Add(Language.T("leave.daHuyDonNghiThanh"), Severity.Success);
             await OnCancelled.InvokeAsync();
             MudDialog.Close(DialogResult.Ok(true));
         }
@@ -91,14 +91,14 @@
 
     private void Close() => MudDialog.Cancel();
 
-    private static string GetStatusText(string? status) => status switch
+    private string GetStatusText(string? status) => status switch
     {
-        nameof(ApprovalStatus.Approved) => "Đã duyệt",
-        nameof(ApprovalStatus.Rejected) => "Từ chối",
-        nameof(ApprovalStatus.Cancelled) => "Đã hủy",
-        nameof(ApprovalStatus.InProgress) => "Đang xử lý",
-        nameof(ApprovalStatus.Draft) => "Nháp",
-        nameof(ApprovalStatus.NeedsRevision) => "Yêu cầu chỉnh sửa",
-        _ => "Chờ duyệt"
+        nameof(ApprovalStatus.Approved) => Language.T("leave.statusApproved"),
+        nameof(ApprovalStatus.Rejected) => Language.T("common.reject"),
+        nameof(ApprovalStatus.Cancelled) => Language.T("leave.statusCancelled"),
+        nameof(ApprovalStatus.InProgress) => Language.T("leave.statusInProgress"),
+        nameof(ApprovalStatus.Draft) => Language.T("leave.statusDraft"),
+        nameof(ApprovalStatus.NeedsRevision) => Language.T("leave.yeuCauChinhSua"),
+        _ => Language.T("leave.statusPending")
     };
 }

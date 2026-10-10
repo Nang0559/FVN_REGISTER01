@@ -1,3 +1,4 @@
+using FVN_REGISTER.Core.Utils;
 ﻿using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Depts;
@@ -7,14 +8,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-
-
 namespace FVN_REGISTER.Infrastructure.Services.Departments
 {
     public class DepartmentStatusService
         : BaseService<DepartmentStatusService>, IDepartmentStatusService
     {
-        private readonly IUnitOfWork _uow;   // SỬA: FVNWEBAPPContext -> IUnitOfWork
+        private readonly IUnitOfWork _uow;
 
         public DepartmentStatusService(
             IUnitOfWork uow,
@@ -26,7 +25,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
         }
 
         public async Task<DepartmentStatusDto> GetDeptStatusAsync(
-            string deptCode, DateTime? date = null, CancellationToken ct = default)
+            int deptCode, DateTime? date = null, CancellationToken ct = default)
         {
             var targetDate = (date ?? DateTime.Today).Date;
             var targetDateOnly = DateOnly.FromDateTime(targetDate);
@@ -34,7 +33,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
             Logger.LogDebugIf(Debug, "[DEPT_STATUS] DeptCode={Dept} Date={Date}",
                 deptCode, targetDate.ToString("dd/MM/yyyy"));
 
-            var employees = await _uow.Repository<F03Employee>().Query()   // SỬA: F03employee (đúng entity đã chốt)
+            var employees = await _uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
                 .Where(e => e.DeptCode == deptCode && e.IsActive == true)
                 .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode })
@@ -55,13 +54,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                 .GroupBy(a => a.EmployeeId)
                 .ToDictionary(g => g.Key, g => g.Min(x => x.CheckIn));
 
-            // SỬA: F03leaveDays -> F03LeaveDay, LeaveStatus.Rejected/Cancel -> ApprovalStatus.Rejected/Cancelled
             var leaveRaw = await _uow.Repository<F03LeaveDay>().Query()
                 .AsNoTracking()
                 .Where(l =>
                     empCodes.Contains(l.EmployeeCode) &&
                     l.IsActive == true &&
-                    l.RequestStatus == ApprovalStatus.Approved &&   // CHỐT: Approved-only
+                    l.RequestStatus == ApprovalStatus.Approved &&
                     l.StartDate.Date <= targetDate &&
                     l.EndDate.Date >= targetDate)
                 .Select(l => new { l.EmployeeCode, l.LeaveTypeCode, l.LeaveReason, l.RequestStatus })
@@ -75,7 +73,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                 .AsNoTracking()
                 .Where(d => d.DeptCode == deptCode)
                 .Select(d => d.DeptName)
-                .FirstOrDefaultAsync(ct) ?? deptCode;
+                .FirstOrDefaultAsync(ct) ?? deptCode.ToString();
 
             var leaveTypeCodes = leaveRaw.Select(l => l.LeaveTypeCode).Where(c => c != null).Distinct().ToList();
 
@@ -154,7 +152,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
             var targetDateOnly = DateOnly.FromDateTime(targetDate);
 
             var employees = await _uow.Repository<F03Employee>().Query()
-                .AsNoTracking().Where(e => e.IsActive==true)
+                .AsNoTracking().Where(e => e.IsActive == true)
                 .Select(e => new { e.EmployeeCode, e.DeptCode }).ToListAsync(ct);
 
             var attendance = (await _uow.Repository<VwCurrentlyPresentEmployee>().Query()
@@ -164,7 +162,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
             var onLeave = (await _uow.Repository<F03LeaveDay>().Query()
                  .AsNoTracking()
                  .Where(l => l.IsActive == true &&
-                             l.RequestStatus == ApprovalStatus.Approved &&   // CHỐT: đồng bộ 2 hàm
+                             l.RequestStatus == ApprovalStatus.Approved &&
                              l.StartDate.Date <= targetDate &&
                              l.EndDate.Date >= targetDate)
                  .Select(l => l.EmployeeCode).ToListAsync(ct)).ToHashSet();
@@ -187,7 +185,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                     return new DepartmentStatusDto
                     {
                         DeptCode = g.Key,
-                        DeptName = deptMap.GetValueOrDefault(g.Key, g.Key),
+                        DeptName = deptMap.GetValueOrDefault(g.Key, g.Key.ToString()),
                         ReportDate = targetDate,
                         TotalEmployees = total,
                         PresentCount = presentCount,

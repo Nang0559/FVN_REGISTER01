@@ -15,29 +15,29 @@
 @rendermode InteractiveServer
 
 <MudPaper Class="pa-6">
- @if (!_canCalculate) { <MudAlert Severity="Severity.Error">Bạn không có quyền thực hiện tính giờ HRM.</MudAlert> } else {
- <MudText Typo="Typo.h5">Tính giờ theo HRM</MudText>
- <MudText Typo="Typo.body2" Class="mb-4">FVN đọc dữ liệu HRM và lưu kết quả tính giờ vào database FVN.</MudText>
+ @if (!_canCalculate) { <MudAlert Severity="Severity.Error">@Language.T("hrm.banKhongCoQuyenThuc")</MudAlert> } else {
+ <MudText Typo="Typo.h5">@Language.T("hrm.calculate")</MudText>
+ <MudText Typo="Typo.body2" Class="mb-4">@Language.T("hrm.fvnDocDuLieuHrm")</MudText>
  <MudGrid>
   <MudItem xs="12" md="4">
-   <MudSelect T="string" Label="Bộ phận" @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
-    @foreach(var d in _departments){<MudSelectItem Value="@d.DeptCode">@d.DeptCode - @d.DeptName</MudSelectItem>}
+   <MudSelect T="int?" Label='@Language.T("nav.departments")' @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
+    @foreach(var d in _departments){<MudSelectItem T="int?" Value="@((int?)d.DeptCode)">@d.DeptCode - @d.DeptName</MudSelectItem>}
    </MudSelect>
   </MudItem>
-  <MudItem xs="12" md="3"><MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
-  <MudItem xs="12" md="3"><MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
-  <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton></MudItem>
+  <MudItem xs="12" md="3"><MudDatePicker Label='@Language.T("common.startDate")' @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
+  <MudItem xs="12" md="3"><MudDatePicker Label='@Language.T("common.endDate")' @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
+  <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">@Language.T("hrm.tinhGio")</MudButton></MudItem>
  </MudGrid>
  @if(_running){<MudProgressLinear Indeterminate="true" Class="mt-4"/>}
  @if(_result is not null)
 {
- <MudAlert Severity="Severity.Success" Class="mt-4">Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.</MudAlert>
+ <MudAlert Severity="Severity.Success" Class="mt-4">@Language.T("hrm.batchDongNhanVien", _result.CalculationBatchId, _result.CalculatedRows, _result.EmployeeCount)</MudAlert>
  <MudStack Row="true" Spacing="2" Class="mt-3">
   <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceAsync">
-   Xuất chấm công
+   @Language.T("hrm.xuatChamCong")
   </MudButton>
   <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="_exporting" OnClick="ExportOtAsync">
-   Xuất tính OT
+   @Language.T("hrm.xuatTinhOt")
   </MudButton>
  </MudStack>
 }
@@ -46,7 +46,7 @@
 
 @code {
  private List<DepartmentDto> _departments=new();
- private string? _deptCode;
+ private int? _deptCode;
  private DateTime? _fromDate=DateTime.Today;
  private DateTime? _toDate=DateTime.Today;
  private bool _running;
@@ -71,9 +71,9 @@
    if (r.IsSuccess && r.Data is not null)
    {
     await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data, $"BangChamCong_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
-    Snackbar.Add("Đã xuất bảng chấm công.", Severity.Success);
+    Snackbar.Add(Language.T("hrm.daXuatBangChamCong"), Severity.Success);
    }
-   else Snackbar.Add(r.Message ?? "Xuất chấm công thất bại.", Severity.Error);
+   else Snackbar.Add(r.Message ?? Language.T("hrm.xuatChamCongThatBai"), Severity.Error);
   }
   finally { _exporting = false; }
  }
@@ -88,22 +88,22 @@
    if (r.IsSuccess && r.Data is not null)
    {
     await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data, $"BangLamThem_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
-    Snackbar.Add("Đã xuất bảng tính OT.", Severity.Success);
+    Snackbar.Add(Language.T("hrm.daXuatBangTinhOt"), Severity.Success);
    }
-   else Snackbar.Add(r.Message ?? "Xuất OT thất bại.", Severity.Error);
+   else Snackbar.Add(r.Message ?? Language.T("hrm.xuatOtThatBai"), Severity.Error);
   }
   finally { _exporting = false; }
  }
 
  private async Task CalculateAsync()
  {
-  if(_fromDate is null||_toDate is null||_fromDate>_toDate){Snackbar.Add("Khoảng ngày không hợp lệ.",Severity.Warning);return;}
+  if(_fromDate is null||_toDate is null||_fromDate>_toDate){Snackbar.Add(Language.T("common.khoangNgayKhongHopLe"),Severity.Warning);return;}
   _running=true; _result=null;
   try
   {
    var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto{DeptCode=_deptCode,FromDate=_fromDate.Value,ToDate=_toDate.Value});
-   if(r.IsSuccess&&r.Data is not null){_result=r.Data;Snackbar.Add("Đã tính giờ xong.",Severity.Success);}
-   else Snackbar.Add(r.Message??"Tính giờ thất bại.",Severity.Error);
+   if(r.IsSuccess&&r.Data is not null){_result=r.Data;Snackbar.Add(Language.T("hrm.daTinhGioXong"),Severity.Success);}
+   else Snackbar.Add(r.Message??Language.T("hrm.tinhGioThatBai"),Severity.Error);
   }
   finally{_running=false;}
  }

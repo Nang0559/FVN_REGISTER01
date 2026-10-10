@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Core.Constants;
@@ -12,12 +13,19 @@ namespace FVN_REGISTER.API.Controllers;
 [ApiController,Route("api/work-years"),Authorize]
 public sealed class WorkYearController : ControllerBase
 {
-    private readonly IWorkYearManagementService _service; private readonly ICurrentUserService _currentUser; private readonly IAuthorizationService _authorization;
-    public WorkYearController(IWorkYearManagementService service,ICurrentUserService currentUser,IAuthorizationService authorization){_service=service;_currentUser=currentUser;_authorization=authorization;}
+    private readonly IWorkYearManagementService _service;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
+
+    public WorkYearController(IWorkYearManagementService service, ICurrentUserService currentUser, IAuthorizationService authorization, IFeatureOperatorAssignmentService operators)
+    {
+        _service=service; _currentUser=currentUser; _authorization=authorization; _operators=operators;
+    }
     [HttpGet] public async Task<ActionResult<List<WorkYearDto>>> GetAll(CancellationToken ct){if(!await CanViewAsync(ct))return Forbid();return Ok(await _service.GetAllAsync(ct));}
     [HttpPost] public async Task<ActionResult<WorkYearDto>> Create([FromBody]WorkYearDto model,CancellationToken ct){if(!await CanManageAsync(ct))return Forbid();var u=_currentUser.GetCurrentUser();if(u==null)return Unauthorized();var r=await _service.CreateAsync(model,u.UserId,ct);return r.IsSuccess?Ok(r.Data):BadRequest(r.Message);}
     [HttpPut("{id:int}")] public async Task<ActionResult<WorkYearDto>> Update(int id,[FromBody]WorkYearDto model,CancellationToken ct){if(!await CanManageAsync(ct))return Forbid();var u=_currentUser.GetCurrentUser();if(u==null)return Unauthorized();model.Id=id;var r=await _service.UpdateAsync(model,u.UserId,ct);return r.IsSuccess?Ok(r.Data):BadRequest(r.Message);}
     [HttpPost("{id:int}/active")] public async Task<IActionResult> SetActive(int id,[FromQuery]bool active,CancellationToken ct){if(!await CanManageAsync(ct))return Forbid();var u=_currentUser.GetCurrentUser();if(u==null)return Unauthorized();var r=await _service.SetActiveAsync(id,active,u.UserId,ct);return r.IsSuccess?Ok(r.Message):BadRequest(r.Message);}
     private async Task<bool> CanViewAsync(CancellationToken ct){var u=_currentUser.GetCurrentUser();return u!=null&&await _authorization.HasAsync(u,SecurityFunctionCodes.WorkCalendarView,ct);}
-    private async Task<bool> CanManageAsync(CancellationToken ct){var u=_currentUser.GetCurrentUser();return u!=null&&await _authorization.HasAsync(u,SecurityFunctionCodes.WorkCalendarManage,ct);}
+    private async Task<bool> CanManageAsync(CancellationToken ct){var u=_currentUser.GetCurrentUser();if(u==null||!await _authorization.HasAsync(u,SecurityFunctionCodes.WorkCalendarManage,ct))return false;return await _operators.CanOperateAsync(u.UserId,u.EmployeeCode,SecurityFunctionCodes.WorkCalendarManage,FeatureOperatorCatalog.WorkCalendar,null,ct);}
 }

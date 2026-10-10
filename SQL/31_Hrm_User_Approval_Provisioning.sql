@@ -33,7 +33,7 @@ GO
 CREATE OR ALTER PROCEDURE dbo.usp_ReconcileEmployeeUsers
     @EmployeeCode nvarchar(50)=NULL,
     @CreatedBy int=0,
-    @DefaultPasswordHash nvarchar(255)=N'6ed2b24e5c570014cc5de09121c111ca' -- MD5("FVN@123")
+    @DefaultPasswordHash nvarchar(255)=N'edbf6b4c784a9d55a68f115834be9d51' -- MD5("Fcc@123"), khớp C# EmployeeHrmSyncJob
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -75,6 +75,11 @@ BEGIN
           WHERE u.EmployeeCode=e.EmployeeCode
       );
 
+    /*
+      OWNERSHIP GUARD: chỉ cập nhật tài khoản do HRM sở hữu (LastModifiedSource='HRM').
+      Tài khoản thủ công / break-glass / SuperAdmin không bị khóa và không bị đóng dấu lại.
+      Chỉ UPDATE các dòng thực sự thay đổi để không ghi/khóa toàn bộ F03Users mỗi lần chạy.
+    */
     UPDATE u
        SET u.IsActive=CASE WHEN e.IsActive=1 THEN 1 ELSE 0 END,
            u.FullName=e.EmployeeName,
@@ -82,12 +87,20 @@ BEGIN
            u.DeptCode=e.DeptCode,
            u.Cvcode=e.PositionCode,
            u.ModifiedBy=@CreatedBy,
-           u.ModifiedAt=GETDATE(),
-           u.LastModifiedSource=N'HRM'
+           u.ModifiedAt=GETDATE()
     FROM dbo.F03Users u
     INNER JOIN dbo.F03Employees e
         ON e.EmployeeCode=u.EmployeeCode
-    WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
+    WHERE u.LastModifiedSource=N'HRM'
+      AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
+      AND
+      (
+             ISNULL(u.IsActive,0)<>CASE WHEN e.IsActive=1 THEN 1 ELSE 0 END
+          OR ISNULL(u.FullName,N'')<>ISNULL(e.EmployeeName,N'')
+          OR ISNULL(u.LevelApprove,0)<>ISNULL(e.LevelApprove,0)
+          OR ISNULL(u.DeptCode,-1)<>ISNULL(e.DeptCode,-1)
+          OR ISNULL(u.Cvcode,N'')<>ISNULL(e.PositionCode,N'')
+      );
 
     /*
       Canonical RBAC: PermissionCode is the primary/default role code,
@@ -127,18 +140,32 @@ GO
 /*
   APPROVER provisioning - POLICY DRIVEN
 
-  F03ApprovalPolicies is the source of truth:
+  F03ApprovalPolicies is the source of truth for which approval positions and
+  request levels are available:
       Policy.ApprovalPositionCode -> F03Employee.PositionCode
       Policy.RequestType          -> F03Approvers.RequestType
       Policy.Level                -> F03Approvers.Level
 
-  Therefore Admin configures approval policy once. HRM security reconcile then:
+  HRM security reconcile then:
       1. marks every ApprovalPositionCode referenced by an active policy as approval-capable;
       2. derives DefaultApproveLevel from the lowest configured policy level
          for that approval position;
-      3. creates/synchronizes F03Approvers for active employees whose PositionCode
-         matches an active policy's ApprovalPositionCode;
-      4. deactivates stale HRM-owned approver rows when policy/employee no longer qualifies.
+      3. creates/synchronizes one HRM-owned F03Approver candidate for each
+         active eligible employee and each active RequestType/Level supported
+         by that employee's approval position IN THE EMPLOYEE'S OWN DEPARTMENT
+         (ap.DeptCode = e.DeptCode). The default ApproveForDeptCode
+         is ALWAYS the employee's actual F03Employees.DeptCode.
+      4. deactivates stale HRM-owned rows when the employee/position/policy
+         qualification is no longer valid or the employee changes department.
+
+  IMPORTANT:
+      F03Employees.LevelApprove > 0 is the HRM/F03Employee gate for appearing
+      in the candidate pool.
+      HRM sync NEVER copies F03ApprovalPolicies.DeptCode into ApproveForDeptCode.
+      F03ApprovalPolicies.DeptCode describes the requester scope, not the
+      approver's home department.
+      Administrators may manually change ApproveForDeptCode (including another
+      department or ALL). Manual rows are protected from later HRM reconcile.
 
   No ApprovalGroup / PositionGroup layer is used.
 */
@@ -178,6 +205,38 @@ BEGIN
       );
 
     /*
+      Keep F03Employees.LevelApprove as the effective FVN approval-capability
+      marker. It is not read from the HRM source table; it is derived from the
+      active approval-policy configuration through F03Positions.DefaultApproveLevel.
+
+      This is intentionally done BEFORE building #HrmApproverSource so that
+      an employee whose position becomes approval-capable in the same HRM
+      security sync is immediately eligible for F03Approvers.
+    */
+    UPDATE e
+       SET e.LevelApprove = ISNULL(p.DefaultApproveLevel,0),
+           e.ModifiedAt = GETDATE(),
+           e.LastModifiedSource = N'HRM'
+    FROM dbo.F03Employees e
+    INNER JOIN dbo.F03Positions p
+        ON p.PositionCode = LTRIM(RTRIM(e.PositionCode))
+    WHERE e.IsActive=1;
+
+    /*
+      F03Users mirrors the employee approval level for security/UI consumers.
+      Existing roles/permissions are NOT changed here.
+    */
+    UPDATE u
+       SET u.LevelApprove = ISNULL(e.LevelApprove,0),
+           u.ModifiedAt = GETDATE()
+    FROM dbo.F03Users u
+    INNER JOIN dbo.F03Employees e
+        ON e.EmployeeCode = u.EmployeeCode
+    WHERE e.IsActive=1
+      AND u.LastModifiedSource = N'HRM'
+      AND ISNULL(u.LevelApprove,0) <> ISNULL(e.LevelApprove,0);
+
+    /*
       Positions that are no longer referenced by any active policy are no
       longer approval-capable. Do not touch positions owned by another source.
     */
@@ -207,22 +266,28 @@ BEGIN
         e.PositionCode,
         e.EmployeeName,
         e.EmailAddress,
-        e.DeptCode,
+        e.DeptCode AS DeptCode,
         d.DeptName,
         ap.RequestType,
         ap.Level,
         ap.LevelName,
         ap.RoleName,
+
+        -- HRM default: approver can approve for their own actual department.
         e.DeptCode AS ApproveForDeptCode,
-        ISNULL(d.DeptName,e.DeptCode) AS ApproveForDeptName
+        ISNULL(d.DeptName,CONVERT(nvarchar(20),e.DeptCode)) AS ApproveForDeptName
     INTO #HrmApproverSource
     FROM dbo.F03Employees e
     INNER JOIN dbo.F03ApprovalPolicies ap
-        ON ap.ApprovalPositionCode=e.PositionCode
+        ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
        AND ap.IsActive=1
+       -- Policy-driven per department: only the policies configured for the employee's own
+       -- department decide which RequestType/Level that employee receives.
+       AND ap.DeptCode=e.DeptCode
     LEFT JOIN dbo.F03Departments d
         ON d.DeptCode=e.DeptCode
     WHERE e.IsActive=1
+      AND ISNULL(e.LevelApprove,0) > 0
       AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
 
     MERGE dbo.F03Approvers AS target
@@ -246,8 +311,8 @@ BEGIN
             target.PositionCode=src.PositionCode,
             target.ApproverName=src.EmployeeName,
             target.ApproverEmail=ISNULL(src.EmailAddress,N''),
-            target.ApproverDeptCode=ISNULL(src.DeptCode,N''),
-            target.ApproverDeptName=ISNULL(src.DeptName,src.DeptCode),
+            target.ApproverDeptCode=ISNULL(src.DeptCode,0),
+            target.ApproverDeptName=ISNULL(src.DeptName,CONVERT(nvarchar(20),src.DeptCode)),
             target.ApproveForDeptName=src.ApproveForDeptName,
             target.RoleName=ISNULL(src.RoleName,src.LevelName),
             target.ModifiedBy=@CreatedBy,
@@ -274,8 +339,8 @@ BEGIN
                 WHEN 3 THEN N'Equipment'
             END,
             src.EmployeeCode,src.PositionCode,src.EmployeeName,
-            ISNULL(src.EmailAddress,N''),ISNULL(src.DeptCode,N''),
-            ISNULL(src.DeptName,src.DeptCode),src.ApproveForDeptCode,
+            ISNULL(src.EmailAddress,N''),ISNULL(src.DeptCode,0),
+            ISNULL(src.DeptName,CONVERT(nvarchar(20),src.DeptCode)),src.ApproveForDeptCode,
             src.ApproveForDeptName,src.Level,ISNULL(src.RoleName,src.LevelName)
         );
 
@@ -296,12 +361,17 @@ BEGIN
       AND
       (
           e.IsActive=0
+          OR ISNULL(e.LevelApprove,0) <= 0
+          OR (
+              a.ApproveForDeptCode <> e.DeptCode
+          )
           OR NOT EXISTS
           (
               SELECT 1
               FROM dbo.F03ApprovalPolicies ap
               WHERE ap.IsActive=1
-                AND ap.ApprovalPositionCode=e.PositionCode
+                AND ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
+                AND ap.DeptCode=e.DeptCode
                 AND a.RequestType=
                     CASE ap.RequestType
                         WHEN 0 THEN N'Leave'
@@ -310,8 +380,83 @@ BEGIN
                         WHEN 3 THEN N'Equipment'
                     END
                 AND a.Level=ap.Level
-                AND a.ApproveForDeptCode=e.DeptCode
           )
+      );
+
+    /*
+      RBAC provisioning for HRM-derived approvers:
+      - Keep the default User role (RoleCode=5) as primary.
+      - Add Approver (RoleCode=4) as a secondary role for employees who have
+        at least one active F03Approvers assignment.
+      - Only manage role assignments owned by HRM; preserve manual assignments.
+      - Revoke an HRM-owned Approver role when the employee no longer has any
+        active approver assignment.
+    */
+    DECLARE @ApproverRoleId int;
+
+    SELECT TOP (1) @ApproverRoleId = r.Id
+    FROM dbo.F03Roles r
+    WHERE r.RoleCode = 4
+      AND r.IsActive = 1
+    ORDER BY r.Id;
+
+    IF @ApproverRoleId IS NULL
+        THROW 51041, 'F03Roles is missing active RoleCode=4 (Approver).', 1;
+
+    -- Reactivate an existing HRM-managed role link if the employee becomes approver again.
+    UPDATE ur
+       SET ur.IsActive = 1,
+           ur.ModifiedBy = @CreatedBy,
+           ur.ModifiedAt = GETDATE(),
+           ur.LastModifiedSource = N'HRM'
+    FROM dbo.F03UserRoles ur
+    INNER JOIN dbo.F03Users u ON u.Id = ur.IdUser
+    WHERE ur.IdRole = @ApproverRoleId
+      AND ur.LastModifiedSource = N'HRM'
+      AND u.IsActive = 1
+      AND EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03Approvers a
+          WHERE a.UserId = u.Id
+            AND a.IsActive = 1
+      )
+      AND ISNULL(ur.IsActive, 0) = 0;
+
+    -- Add role 4 without replacing the primary User role or changing PermissionCode.
+    INSERT dbo.F03UserRoles
+        (IdUser, IdRole, IsPrimary, IsActive, CreatedBy, LastModifiedSource)
+    SELECT DISTINCT
+        u.Id, @ApproverRoleId, 0, 1, @CreatedBy, N'HRM'
+    FROM dbo.F03Users u
+    INNER JOIN dbo.F03Approvers a
+        ON a.UserId = u.Id
+       AND a.IsActive = 1
+    WHERE u.IsActive = 1
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03UserRoles ur
+          WHERE ur.IdUser = u.Id
+            AND ur.IdRole = @ApproverRoleId
+      );
+
+    -- Remove only HRM-owned role 4 links that no longer have an active approver assignment.
+    UPDATE ur
+       SET ur.IsActive = 0,
+           ur.ModifiedBy = @CreatedBy,
+           ur.ModifiedAt = GETDATE()
+    FROM dbo.F03UserRoles ur
+    INNER JOIN dbo.F03Users u ON u.Id = ur.IdUser
+    WHERE ur.IdRole = @ApproverRoleId
+      AND ur.LastModifiedSource = N'HRM'
+      AND ISNULL(ur.IsActive, 0) = 1
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03Approvers a
+          WHERE a.UserId = u.Id
+            AND a.IsActive = 1
       );
 
     SELECT
@@ -355,8 +500,9 @@ WHERE e.IsActive=1 AND u.Id IS NULL;
 SELECT MissingApprovers=COUNT(*)
 FROM dbo.F03Employees e
 INNER JOIN dbo.F03ApprovalPolicies ap
-    ON ap.ApprovalPositionCode=e.PositionCode
+    ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode))
    AND ap.IsActive=1
+   AND ap.DeptCode=e.DeptCode
 LEFT JOIN dbo.F03Approvers a
     ON a.ApproverCode=e.EmployeeCode
    AND a.IsActive=1
@@ -369,5 +515,6 @@ LEFT JOIN dbo.F03Approvers a
    AND a.Level=ap.Level
    AND a.ApproveForDeptCode=e.DeptCode
 WHERE e.IsActive=1
+  AND ISNULL(e.LevelApprove,0) > 0
   AND a.Id IS NULL;
 GO

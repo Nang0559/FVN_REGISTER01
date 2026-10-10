@@ -109,3 +109,24 @@ Mở tài liệu chi tiết tại /huong-dan?feature=...
 - Đã loại bỏ mô hình Help riêng của Equipment; Help dùng chung qua `FeatureHelp` với mapping Equipment chuyên biệt.
 - Đã loại bỏ cách route matching bằng substring trong `FeatureHelp`.
 - Các tài liệu nghiệp vụ vẫn phải được rà nội dung khi nghiệp vụ thay đổi; không tạo thêm tài liệu chỉ để ghi nhận cùng một rule.
+
+
+## 6. Canonical Equipment → Endpoint Agent
+
+Endpoint Agent là capability gắn với Equipment Asset, không phải một quy trình cấp DeviceKey độc lập.
+
+Luồng chuẩn: Employee → Equipment Asset → Endpoint Device → Credential → Agent Installation → Inventory/LastSeen → Compliance/Alert.
+
+Quy tắc:
+- Chỉ Equipment phù hợp với thiết bị có OS mới được bật Endpoint Agent.
+- DeviceKey do server quản lý và gắn với Endpoint Device; người dùng không nhập DeviceKey để bắt đầu nghiệp vụ.
+- Cấp/rotate/revoke credential thực hiện từ Sổ thiết bị → Endpoint Agent của Equipment.
+- Secret chỉ hiển thị một lần; server chỉ lưu hash.
+- Đổi người sử dụng Equipment không tự tạo DeviceKey mới.
+- Cài lại OS có thể tạo AgentInstallationId mới; server đối chiếu hardware identity trước khi quyết định giữ Endpoint hay yêu cầu IT xác minh.
+- ComputerName chỉ là thuộc tính, không phải identity chính.
+- /endpoint-credentials nếu còn tồn tại chỉ là security/audit surface; không phải entry point nghiệp vụ.
+
+## 7. Quy tắc cập nhật tài liệu
+
+Khi thay đổi Equipment/Endpoint Agent, cập nhật theo thứ tự: 10 Equipment domain → 30 Endpoint domain → 31–35 technical contract/security/runbook/data model → User Guide/Help → Quick Guide/FAQ. Không tạo tài liệu kiến trúc thứ hai cho cùng flow.

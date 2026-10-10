@@ -7,7 +7,7 @@
 
 @if (User == null)
 {
-    <MudAlert Severity="Severity.Info">Chọn một tài khoản để cấu hình ManagedScope.</MudAlert>
+    <MudAlert Severity="Severity.Info">@Language.T("security.chonMotTaiKhoanDe2")</MudAlert>
 }
 else
 {
@@ -17,22 +17,22 @@ else
                 <MudText Typo="Typo.h6">@User.FullName</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">@User.EmployeeCode · @User.DeptCode</MudText>
                 <MudDivider Class="my-3" />
-                <MudSelect T="string" Label="Node tổ chức" @bind-Value="_nodeType" Variant="Variant.Outlined">
-                    <MudSelectItem Value="@("Company")">Company</MudSelectItem>
-                    <MudSelectItem Value="@("Factory")">Factory</MudSelectItem>
-                    <MudSelectItem Value="@("Department")">Department</MudSelectItem>
+                <MudSelect T="string" Label="@Language.T("security.nodeToChuc")" @bind-Value="_nodeType" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("Company")">@Language.T("security.company")</MudSelectItem>
+                    <MudSelectItem Value="@("Factory")">@Language.T("security.factory")</MudSelectItem>
+                    <MudSelectItem Value="@("Department")">@Language.T("common.department2")</MudSelectItem>
                     <MudSelectItem Value="@("SubDepartment")">SubDepartment</MudSelectItem>
                 </MudSelect>
                 <MudTextField Class="mt-2" Label="NodeCode" @bind-Value="_nodeCode" Variant="Variant.Outlined" />
                 <MudTextField Class="mt-2" Label="FactoryCode" @bind-Value="_factoryCode" Variant="Variant.Outlined" />
-                <MudTextField Class="mt-2" Label="DeptCode" @bind-Value="_deptCode" Variant="Variant.Outlined" />
-                <MudTextField Class="mt-2" Label="SubDepartmentCode" @bind-Value="_subDepartmentCode" Variant="Variant.Outlined" />
-                <MudSwitch Class="mt-2" T="bool" @bind-Value="_includeChildren" Color="Color.Primary">Bao phủ node con</MudSwitch>
-                <MudTextField Class="mt-2" Label="Ghi chú" @bind-Value="_remark" Variant="Variant.Outlined" />
+                <MudNumericField T="int?" Class="mt-2" Label="DeptCode" @bind-Value="_deptCode" HideSpinButtons="true" Variant="Variant.Outlined" />
+                <MudNumericField T="int?" Class="mt-2" Label="SubDepartmentCode" @bind-Value="_subDepartmentCode" HideSpinButtons="true" Variant="Variant.Outlined" />
+                <MudSwitch Class="mt-2" T="bool" @bind-Value="_includeChildren" Color="Color.Primary">@Language.T("security.baoPhuNodeCon")</MudSwitch>
+                <MudTextField Class="mt-2" Label='@Language.T("common.note")' @bind-Value="_remark" Variant="Variant.Outlined" />
                 <MudStack Row="true" Class="mt-3" Spacing="1">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Add">Thêm</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Add">@Language.T("common.add")</MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="Save" Disabled="_saving || !_dirty">
-                        @(_saving ? "Đang lưu..." : "Lưu ManagedScope")
+                        @(_saving ? Language.T("common.dangLuu") : Language.T("security.luuManagedscope"))
                     </MudButton>
                 </MudStack>
             </MudPaper>
@@ -40,14 +40,14 @@ else
         <MudItem xs="12" md="7">
             <MudPaper Class="pa-4" Outlined="true" Style="border-radius:14px">
                 <MudStack Row="true" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.h6">Phạm vi hiện tại</MudText>
+                    <MudText Typo="Typo.h6">@Language.T("security.phamViHienTai")</MudText>
                     <MudSpacer />
-                    <MudButton Variant="Variant.Text" OnClick="LoadAsync">Làm mới</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="LoadAsync">@Language.T("common.refresh")</MudButton>
                 </MudStack>
                 @if (_scopes.Count == 0)
                 {
                     <MudAlert Class="mt-3" Severity="Severity.Info" Variant="Variant.Outlined">
-                        Chưa có ManagedScope. User chỉ dùng scope của capability.
+                        @Language.T("security.chuaCoManagedscopeUserChi")
                     </MudAlert>
                 }
                 @foreach (var scope in _scopes)
@@ -55,11 +55,11 @@ else
                     <MudPaper Class="pa-2 mt-2" Outlined="true">
                         <MudStack Row="true" AlignItems="AlignItems.Center">
                             <div>
-                                <MudText Typo="Typo.subtitle2">@scope.NodeType · @(scope.NodeCode ?? scope.DeptCode ?? scope.SubDepartmentCode ?? scope.FactoryCode ?? "-")</MudText>
-                                <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode ?? "-") · Sub=@(scope.SubDepartmentCode ?? "-")</MudText>
+                                <MudText Typo="Typo.subtitle2">@scope.NodeType · @(scope.NodeCode ?? scope.DeptCode?.ToString() ?? scope.SubDepartmentCode?.ToString() ?? scope.FactoryCode ?? "-")</MudText>
+                                <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode?.ToString() ?? "-") · Sub=@(scope.SubDepartmentCode?.ToString() ?? "-")</MudText>
                             </div>
                             <MudSpacer />
-                            <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? "Bao phủ node con" : "Chỉ node")</MudChip>
+                            <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? Language.T("security.baoPhuNodeCon") : Language.T("security.chiNode"))</MudChip>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => Remove(scope))" />
                         </MudStack>
                     </MudPaper>
@@ -76,8 +76,8 @@ else
     private string _nodeType = "Department";
     private string _nodeCode = string.Empty;
     private string _factoryCode = string.Empty;
-    private string _deptCode = string.Empty;
-    private string _subDepartmentCode = string.Empty;
+    private int? _deptCode;
+    private int? _subDepartmentCode;
     private string _remark = string.Empty;
     private bool _includeChildren = true;
     private bool _saving;
@@ -104,7 +104,7 @@ else
         }
         else
         {
-            Snackbar.Add(result.Message ?? "Không tải được ManagedScope.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("security.khongTaiDuocManagedscope"), Severity.Error);
         }
     }
 
@@ -115,15 +115,15 @@ else
         var nodeType = (_nodeType ?? string.Empty).Trim();
         var nodeCode = NullIfWhite(_nodeCode);
         var factoryCode = NullIfWhite(_factoryCode);
-        var deptCode = NullIfWhite(_deptCode);
-        var subDepartmentCode = NullIfWhite(_subDepartmentCode);
+        var deptCode = _deptCode;
+        var subDepartmentCode = _subDepartmentCode;
 
         var valid = nodeType switch
         {
             "Company" => true,
             "Factory" => !string.IsNullOrWhiteSpace(factoryCode) || !string.IsNullOrWhiteSpace(nodeCode),
-            "Department" => !string.IsNullOrWhiteSpace(deptCode) || !string.IsNullOrWhiteSpace(nodeCode),
-            "SubDepartment" => !string.IsNullOrWhiteSpace(subDepartmentCode) || !string.IsNullOrWhiteSpace(nodeCode),
+            "Department" => deptCode != null || !string.IsNullOrWhiteSpace(nodeCode),
+            "SubDepartment" => subDepartmentCode != null || !string.IsNullOrWhiteSpace(nodeCode),
             _ => false
         };
 
@@ -132,10 +132,10 @@ else
             Snackbar.Add(
                 nodeType switch
                 {
-                    "Factory" => "Factory cần FactoryCode hoặc NodeCode.",
-                    "Department" => "Department cần DeptCode hoặc NodeCode.",
-                    "SubDepartment" => "SubDepartment cần SubDepartmentCode hoặc NodeCode.",
-                    _ => "NodeType ManagedScope không hợp lệ."
+                    "Factory" => Language.T("security.factoryCanFactorycodeHoac"),
+                    "Department" => Language.T("security.departmentCanDeptcodeHoac"),
+                    "SubDepartment" => Language.T("security.subdepartmentCan"),
+                    _ => Language.T("security.nodetypeManagedscopeKhongHopLe")
                 },
                 Severity.Warning);
             return;
@@ -154,7 +154,8 @@ else
         });
 
         _dirty = true;
-        _nodeCode = _factoryCode = _deptCode = _subDepartmentCode = _remark = string.Empty;
+        _nodeCode = _factoryCode = _remark = string.Empty;
+        _deptCode = _subDepartmentCode = null;
     }
 
     private void Remove(ManagedScopeDto scope)
@@ -183,11 +184,11 @@ else
                 }).ToList());
             if (!result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Không thể lưu ManagedScope.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("security.khongTheLuuManagedscope"), Severity.Error);
                 return;
             }
             await LoadAsync();
-            Snackbar.Add("Đã lưu ManagedScope.", Severity.Success);
+            Snackbar.Add(Language.T("security.daLuuManagedscope"), Severity.Success);
         }
         finally { _saving = false; }
     }

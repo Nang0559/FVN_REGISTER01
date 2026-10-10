@@ -52,10 +52,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         // SHARED HELPERS — dùng tự do trong subclass (không đổi)
         // ════════════════════════════════════════════════════════════════
 
-        protected async Task<Dictionary<string, string>> LoadDeptMapAsync(
-        IEnumerable<string?> deptCodes, CancellationToken ct)
+        protected async Task<Dictionary<int, string>> LoadDeptMapAsync(
+        IEnumerable<int?> deptCodes, CancellationToken ct)
         {
-            var codes = deptCodes.Where(x => x != null).Select(x => x!).Distinct().ToList();
+            var codes = deptCodes.Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
             if (codes.Count == 0) return new();
 
             return await _uow.Repository<F03Department>().Query()
@@ -123,7 +123,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         protected static IQueryable<T> ApplyAccessFilter<T>(
             IQueryable<T> query,
             UserIdentityDto user,
-            string? queryDeptCode,
+            int? queryDeptCode,
             Func<T, string?> getDeptCode)
         {
             return query; // placeholder — giữ nguyên như bạn đã ghi chú, không dùng trực tiếp
@@ -174,12 +174,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .ToListAsync(ct);
 
             return ServiceResult<List<KeyValuePair<string, string>>>.Ok(
-                depts.Select(d => new KeyValuePair<string, string>(d.DeptCode, d.DeptName)).ToList());
+                depts.Select(d => new KeyValuePair<string, string>(d.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), d.DeptName)).ToList());
         }
 
         public async Task<ServiceResult<List<KeyValuePair<string, string>>>> SearchLookupEmployeesAsync(
         string filterText, UserIdentityDto user,
-        string? deptCode = null, CancellationToken ct = default)
+        int? deptCode = null, CancellationToken ct = default)
         {
             var scope = await GetEffectiveReportScopeAsync(
                 user, ct,
@@ -196,7 +196,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             else if (string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                   || string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
                 q = q.Where(e => e.EmployeeCode == user.EmployeeCode);
-            else if (!string.IsNullOrWhiteSpace(deptCode))
+            else if (deptCode != null)
                 q = q.Where(e => e.DeptCode == deptCode);
 
             if (!string.IsNullOrEmpty(filterText))

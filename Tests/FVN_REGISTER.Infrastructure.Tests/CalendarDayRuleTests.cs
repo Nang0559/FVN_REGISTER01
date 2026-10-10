@@ -284,4 +284,71 @@ public sealed class CalendarDayRuleTests
         Assert.Equal("OT_ACTUAL_WITHOUT_REQUEST", issue.Code);
         Assert.Equal((byte)3, issue.Severity);
     }
+
+    private static CalendarDayDto DayWithOt(string status, string? detailRoute = "/ot/detail/55") => new()
+    {
+        Date = new DateOnly(2026, 9, 24),
+        Attendance = new CalendarAttendanceInfoDto
+        {
+            HasActualOt = true,
+            ActualOtMinutes = 90,
+            ActualHours = 10m,
+            RequiredHours = 8m,
+            IsNumericVariance = true
+        },
+        Registrations = new[]
+        {
+            new CalendarRegistrationDto
+            {
+                ModuleCode = "OT",
+                RequestId = 55,
+                Status = status,
+                DetailRoute = detailRoute
+            }
+        }
+    };
+
+    [Theory]
+    [InlineData("Pending")]
+    [InlineData("InProgress")]
+    [InlineData("Escalated")]
+    [InlineData("Draft")]
+    [InlineData("NeedsRevision")]
+    public void ActualOtWithoutRequest_HidesRegisterButton_WhenOtAlreadyRequested(string status)
+    {
+        var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtActualWithoutRequestRule() });
+
+        var issue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(
+            DayWithOt(status), Array.Empty<CalendarItemDto>())));
+
+        Assert.Equal((byte)2, issue.Severity);
+        Assert.DoesNotContain(issue.Actions, x => x.Code == "OPEN_OT");
+        Assert.Contains(issue.Actions, x => x.Code == "OPEN_OT_REQUEST" && x.DetailRoute == "/ot/detail/55");
+    }
+
+    [Theory]
+    [InlineData("Rejected")]
+    [InlineData("Cancelled")]
+    public void ActualOtWithoutRequest_StillOffersRegister_WhenOnlyClosedOtExists(string status)
+    {
+        var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtActualWithoutRequestRule() });
+
+        var issue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(
+            DayWithOt(status), Array.Empty<CalendarItemDto>())));
+
+        Assert.Equal((byte)3, issue.Severity);
+        Assert.Contains(issue.Actions, x => x.Code == "OPEN_OT");
+    }
+
+    [Fact]
+    public void NumericAttendanceVariance_DoesNotOfferSecondOt_WhenOtAlreadyRequested()
+    {
+        var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new AttendanceNumericVarianceRule() });
+
+        var issue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(
+            DayWithOt("Pending"), Array.Empty<CalendarItemDto>())));
+
+        Assert.DoesNotContain(issue.Actions, x => x.Code == "OPEN_OT");
+        Assert.Contains(issue.Actions, x => x.Code == "OPEN_OT_REQUEST");
+    }
 }

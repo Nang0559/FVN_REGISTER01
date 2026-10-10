@@ -67,7 +67,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 .AsNoTracking()
                 .Where(x => x.IsActive && x.WorkYear == year);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -80,7 +80,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName ?? x.EmployeeCode,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["TotalEntitledLeave"] = x.TotalEntitledLeave,
                 ["LeaveDaysUsed"] = x.LeaveDaysUsed,
                 ["TotalDaysOff"] = x.TotalDaysOff,
@@ -129,9 +129,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.LeaveDate <= DateOnly.FromDateTime(toDate)
                          && x.IsCountedAsLeave);
 
-            if (string.IsNullOrWhiteSpace(query.DeptCode) && string.IsNullOrWhiteSpace(query.EmployeeCode))
+            if (query.DeptCode == null && string.IsNullOrWhiteSpace(query.EmployeeCode))
                 return ServiceResult<ReportResultDto>.Fail("Thiếu phạm vi dữ liệu báo cáo nghỉ phép.");
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -151,7 +151,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var rows = data.Select(x => new Dictionary<string, object?>
             {
                 ["DeptCode"] = x.DeptCode,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["EmployeeCount"] = x.EmployeeCount,
                 ["TotalUsed"] = x.TotalUsed,
             }).ToList();
@@ -177,7 +177,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 Chart = new()
                 {
                     ChartType = "bar",
-                    Labels = data.Select(x => x.DeptName ?? x.DeptCode ?? "").ToList(),
+                    Labels = data.Select(x => x.DeptName ?? x.DeptCode?.ToString() ?? "").ToList(),
                     Series = new()
                     {
                         new() { Name = "Số ngày đã nghỉ", Data = data.Select(x => x.TotalUsed).ToList() }
@@ -205,7 +205,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
             if (string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrEmpty(query.DeptCode))
+                if (query.DeptCode != null)
                     q = q.Where(x => x.DeptCode == query.DeptCode);
                 if (!string.IsNullOrEmpty(query.EmployeeCode))
                     q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -245,7 +245,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["TotalRequests"] = x.TotalRequests,
                 ["TotalDays"] = x.TotalDays,
                 ["ApprovedDays"] = x.ApprovedDays,
@@ -294,7 +294,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.StartDate >= fromDate
                          && x.StartDate <= toDate);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
@@ -315,7 +315,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 ["Id"] = x.Id,
                 ["EmployeeCode"] = x.EmployeeCode,
                 ["EmployeeName"] = x.EmployeeName,
-                ["DeptName"] = x.DeptName ?? x.DeptCode ?? "",
+                ["DeptName"] = x.DeptName ?? x.DeptCode?.ToString() ?? "",
                 ["RegisterDate"] = x.RegisterDate,
                 ["StartDate"] = x.StartDate,
                 ["EndDate"] = x.EndDate,
@@ -369,7 +369,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.RegisterDate >= fromDate
                          && x.RegisterDate <= toDate);
 
-            if (!string.IsNullOrEmpty(query.DeptCode))
+            if (query.DeptCode != null)
                 q = q.Where(x => x.DeptCode == query.DeptCode);
 
             var data = await q

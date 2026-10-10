@@ -10,7 +10,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
             => query.Where(x => x.IsActive==true);
 
         public static IQueryable<F03Department> WhereDeptCode(
-            this IQueryable<F03Department> query, string? deptCode)
-            => string.IsNullOrEmpty(deptCode) ? query : query.Where(x => x.DeptCode == deptCode);
+            this IQueryable<F03Department> query, int? deptCode)
+            => deptCode == null ? query : query.Where(x => x.DeptCode == deptCode);
     }
 }

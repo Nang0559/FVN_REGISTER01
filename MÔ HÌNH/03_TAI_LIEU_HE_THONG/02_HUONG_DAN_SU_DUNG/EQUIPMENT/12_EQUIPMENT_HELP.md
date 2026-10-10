@@ -105,3 +105,30 @@ Không được:
 ## H. Lưu ý sau staging import
 
 Nếu HRM thay đổi DeptCode của nhân viên sau khi staging nhưng trước Commit, hệ thống kiểm tra lại tại Commit và chặn dòng không còn thuộc đúng DeptCode của batch. Người dùng phải tạo/staging lại dữ liệu theo HRM hiện tại.
+
+
+## 7. Endpoint Agent theo Equipment
+
+Điểm vào: Sổ thiết bị → chọn Equipment → Endpoint Agent.
+
+### Cấp credential
+1. Equipment phải là tài sản có OS/Agent capability.
+2. Người dùng cần capability phù hợp.
+3. Chọn Cấp credential.
+4. Hệ thống tạo/duy trì DeviceKey và credential riêng cho Endpoint.
+5. Secret chỉ hiển thị một lần. Sao chép secret ngay.
+6. Cài Agent trên đúng máy; không truyền secret plaintext qua command line nếu installer hỗ trợ prompt bảo mật.
+
+### Rotate / Revoke
+- Rotate: thay secret; secret mới cũng chỉ hiển thị một lần.
+- Revoke: vô hiệu hóa credential hiện tại; lịch sử vẫn giữ để audit.
+
+### Sau khi cài Agent
+Equipment → Endpoint Agent hiển thị DeviceKey, ComputerName, OS, AgentVersion, AgentInstallationId, LastSeen và trạng thái credential. Inventory/compliance được xử lý ở Endpoint layer.
+
+### Lưu ý
+- Không phải mọi Equipment đều cần Endpoint Agent.
+- Credential là machine authentication, không phải user permission.
+- Đổi người sử dụng không đổi DeviceKey.
+- Cài lại OS có thể đổi AgentInstallationId.
+- Nếu hardware identity thay đổi, liên hệ IT để xác minh.

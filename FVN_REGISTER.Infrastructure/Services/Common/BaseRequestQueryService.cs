@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Contract.Requests;
 
 using FVN_REGISTER.Core.Repositories;
@@ -72,27 +73,44 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
         protected abstract Task<List<TDetail>> GetDetailsByIdAsync(
             int requestId, CancellationToken ct);
 
-        public abstract Task<List<WidgetCounterDto>> GetMyWidgetsAsync(
-            string employeeCode, CancellationToken ct = default);
+        public Task<ServiceResult<List<WidgetCounterDto>>> GetMyWidgetsAsync(string employeeCode, CancellationToken ct = default)
+            => GuardAsync(() => GetMyWidgetsCoreAsync(employeeCode, ct));
 
-        public abstract Task<List<TSummary>> GetRecentSummaryAsync(
-            string employeeCode, int limit = 5, CancellationToken ct = default);
+        protected abstract Task<List<WidgetCounterDto>> GetMyWidgetsCoreAsync(string employeeCode, CancellationToken ct = default);
 
-        public abstract Task<TBalance> GetSimpleBalanceAsync(
-            string employeeCode, int year, CancellationToken ct = default);
+        public Task<ServiceResult<List<TSummary>>> GetRecentSummaryAsync(string employeeCode, int limit = 5, CancellationToken ct = default)
+            => GuardAsync(() => GetRecentSummaryCoreAsync(employeeCode, limit, ct));
 
-        public abstract Task<PaginationResult<TSummary>> GetPagedAsync(
-            string? deptCode,
-            ApprovalStatus? status,
-            DateTime? fromDate,
-            DateTime? toDate,
-            int page,
-            int pageSize,
-            CancellationToken ct = default);
+        protected abstract Task<List<TSummary>> GetRecentSummaryCoreAsync(string employeeCode, int limit = 5, CancellationToken ct = default);
 
-        public abstract Task<List<TDto>> GetDeptByDateAsync(
-            string deptCode,
-            DateTime date,
-            CancellationToken ct = default);
+        public Task<ServiceResult<TBalance>> GetSimpleBalanceAsync(string employeeCode, int year, CancellationToken ct = default)
+            => GuardAsync(() => GetSimpleBalanceCoreAsync(employeeCode, year, ct));
+
+        protected abstract Task<TBalance> GetSimpleBalanceCoreAsync(string employeeCode, int year, CancellationToken ct = default);
+
+        public Task<ServiceResult<PaginationResult<TSummary>>> GetPagedAsync(int? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
+            => GuardAsync(() => GetPagedCoreAsync(deptCode, status, fromDate, toDate, page, pageSize, ct));
+
+        protected abstract Task<PaginationResult<TSummary>> GetPagedCoreAsync(int? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default);
+
+        public Task<ServiceResult<List<TDto>>> GetDeptByDateAsync(int deptCode, DateTime date, CancellationToken ct = default)
+            => GuardAsync(() => GetDeptByDateCoreAsync(deptCode, date, ct));
+
+        protected abstract Task<List<TDto>> GetDeptByDateCoreAsync(int deptCode, DateTime date, CancellationToken ct = default);
+        private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> operation)
+        {
+            try
+            {
+                return ServiceResult<T>.Ok(await operation());
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+            {
+                return ServiceResult<T>.Fail(ex.Message);
+            }
+        }
     }
 }

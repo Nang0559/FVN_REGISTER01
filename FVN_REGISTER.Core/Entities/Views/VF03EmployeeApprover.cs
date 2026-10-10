@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace FVN_REGISTER.Core.Entities.Views;
 
@@ -7,7 +8,7 @@ public partial class VF03EmployeeApprover
 {
     public int Id { get; set; }
 
-    public string DeptCode { get; set; } = null!;
+    public int DeptCode { get; set; }
 
     public string DeptName { get; set; } = null!;
 

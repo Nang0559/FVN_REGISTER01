@@ -61,3 +61,18 @@ Tất cả link nội bộ phải dùng đường dẫn tương đối theo vị
 ## 7. Source of truth nghiệp vụ
 
 Các tài liệu thiết kế current dưới `MÔ HÌNH/` vẫn là nguồn rule của hệ thống; không sao chép chúng sang thư mục Help. Documentation Hub chỉ điều hướng và diễn giải.
+
+
+## 8. Equipment / Endpoint Agent — tài liệu phải đọc theo flow
+
+| Nhu cầu | Tài liệu chính |
+|---|---|
+| Hiểu Equipment business | 02_NGHIEP_VU_MODULE/EQUIPMENT/10_EQUIPMENT_REGISTER.md |
+| Hiểu bàn giao/trách nhiệm vận hành | 02_NGHIEP_VU_MODULE/EQUIPMENT/11_EQUIPMENT_COMPLETE.md |
+| Hiểu Endpoint architecture | 02_NGHIEP_VU_MODULE/ENDPOINT/30_ENDPOINT_INVENTORY_COMPLIANCE.md |
+| Cấp/rotate/revoke credential | 04_KY_THUAT_TRIEN_KHAI/ENDPOINT/33_ENDPOINT_CREDENTIAL_SECURITY.md |
+| Cài Agent / rollout | 04_KY_THUAT_TRIEN_KHAI/ENDPOINT/34_ENDPOINT_DEPLOYMENT_RUNBOOK_VI.md |
+| Identity/schema | 04_KY_THUAT_TRIEN_KHAI/ENDPOINT/35_ENDPOINT_DATA_MODEL_VI.md |
+| Hướng dẫn người dùng | 02_HUONG_DAN_SU_DUNG/EQUIPMENT/12_EQUIPMENT_HELP.md |
+
+Không dùng DeviceKey làm business entry point. DeviceKey chỉ là technical endpoint identity được server tạo/quản lý.

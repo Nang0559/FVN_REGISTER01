@@ -40,12 +40,12 @@ namespace FVN_REGISTER.API.Controllers
             var result = await _deptStatus.GetAllDeptStatusAsync(date ?? DateTime.Today, ct);
             var scope = await _authorization.GetScopeAsync(UserInfo.UserId, SecurityFunctionCodes.DepartmentStatusView, ct);
             if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
-                result = result.Where(x => string.Equals(x.DeptCode, UserInfo.DeptCode, StringComparison.OrdinalIgnoreCase)).ToList();
+                result = result.Where(x => x.DeptCode == UserInfo.DeptCode).ToList();
             return Ok(ApiResponse<object>.Ok(result));
         }
 
         [HttpGet("{deptCode}")]
-        public async Task<IActionResult> GetByDept(string deptCode, [FromQuery] DateTime? date, CancellationToken ct)
+        public async Task<IActionResult> GetByDept(int deptCode, [FromQuery] DateTime? date, CancellationToken ct)
         {
             if (UserInfo == null || !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.DepartmentStatusView, null, deptCode, ct)) return Forbid();
             var result = await _deptStatus.GetDeptStatusAsync(deptCode, date ?? DateTime.Today, ct);

@@ -1,17 +1,18 @@
 @using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Contract.Dtos
+@implements IDisposable
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-5">
         <div>
-            <MudText Typo="Typo.overline" Color="Color.Primary">WORKSPACE OVERVIEW</MudText>
+            <MudText Typo="Typo.overline" Color="Color.Primary">@Language.T("workspace.overview")</MudText>
             <MudText Typo="Typo.h4" Style="font-weight:850">@Title</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">@Description</MudText>
         </div>
         <MudStack Row="true" Spacing="1">
-            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(HistoryUrl))">Danh sách</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo(CreateUrl))">Đăng ký</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(HistoryUrl))">@Language.T("workspace.list")</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo(CreateUrl))">@Language.T("workspace.register")</MudButton>
         </MudStack>
     </MudStack>
     @if (_loading)
@@ -33,13 +34,11 @@
         </MudGrid>
         <MudCard Class="mt-5" Elevation="1">
             <MudCardContent>
-                <MudText Typo="Typo.h6">Thao tác nhanh</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">
-                    Overview chỉ tổng hợp trạng thái; business workflow vẫn được xử lý tại Đăng ký/Danh sách/Approval.
-                </MudText>
+                <MudText Typo="Typo.h6">@Language.T("workspace.quickActions")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">@Language.T("workspace.summary")</MudText>
                 <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
-                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/calendar"))">Mở Calendar</MudButton>
-                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/work/inbox"))">Việc cần tôi xử lý</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/calendar"))">@Language.T("workspace.openCalendar")</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/work/inbox"))">@Language.T("workspace.myTasks")</MudButton>
                 </MudStack>
             </MudCardContent>
         </MudCard>
@@ -59,6 +58,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Language.LanguageChanged += OnLanguageChanged;
         var result = await DashboardService.GetDashboardDataAsync();
         if (result.IsSuccess)
             _model = result.Data;
@@ -67,4 +67,7 @@
 
     private bool IsModuleWidget(WidgetCounterDto widget)
         => widget.Link?.StartsWith(ModulePrefix, StringComparison.OrdinalIgnoreCase) == true;
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }

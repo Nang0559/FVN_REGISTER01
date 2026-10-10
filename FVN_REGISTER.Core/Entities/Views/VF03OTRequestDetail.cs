@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Core.Enums;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ namespace FVN_REGISTER.Core.Entities.Views
         public string? OTCode { get; set; }
         public string EmployeeCode { get; set; } = null!;
         public string? EmployeeName { get; set; }
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? DeptName { get; set; }
         public int DetailId { get; set; }
         public DateOnly OTDate { get; set; }

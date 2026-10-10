@@ -1,4 +1,6 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Common;
+using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.OT;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,31 +18,30 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<EscalationBackgroundWorker> _logger;
-        private readonly TimeSpan _period = TimeSpan.FromMinutes(15);
+        private const string JobKey = BackgroundJobCatalog.Escalation;
+        private readonly IBackgroundJobScheduler _scheduler;
 
         public EscalationBackgroundWorker(
             IServiceProvider serviceProvider,
-            ILogger<EscalationBackgroundWorker> logger)
+            ILogger<EscalationBackgroundWorker> logger,
+            IBackgroundJobScheduler scheduler)
         {
+            _scheduler = scheduler;
             _serviceProvider = serviceProvider;
             _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation(
-                "[ESC_WORKER] Started, interval={Minutes}m",
-                _period.TotalMinutes);
-
-            await DoWorkAsync(stoppingToken);
+            _logger.LogInformation("[ESC_WORKER] Started (schedule is read from F03BackgroundJobSchedules)");
 
             try
             {
-                using var timer = new PeriodicTimer(_period);
-                while (!stoppingToken.IsCancellationRequested
-                       && await timer.WaitForNextTickAsync(stoppingToken))
+                while (!stoppingToken.IsCancellationRequested)
                 {
+                    await _scheduler.WaitUntilEnabledAsync(JobKey, stoppingToken);
                     await DoWorkAsync(stoppingToken);
+                    await _scheduler.WaitForNextAsync(JobKey, stoppingToken);
                 }
             }
             catch (OperationCanceledException)
@@ -55,6 +56,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         {
             try
             {
+                _scheduler.MarkStarted(JobKey);
                 _logger.LogInformation("[ESC_WORKER] Running at {Time}", DateTimeOffset.Now);
 
                 await using var scope = _serviceProvider.CreateAsyncScope();
@@ -66,6 +68,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 await otEscalation.ProcessAsync(ct);
 
                 _logger.LogInformation("[ESC_WORKER] Completed at {Time}", DateTimeOffset.Now);
+                _scheduler.MarkSucceeded(JobKey);
             }
             catch (OperationCanceledException)
             {
@@ -74,6 +77,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[ESC_WORKER] Error during execution");
+                _scheduler.MarkFailed(JobKey, ex.Message);
             }
         }
     }

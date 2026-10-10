@@ -168,6 +168,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 if (deptCodes.Count != 1)
                     return Fail("Đăng ký OT nhiều nhân viên chỉ được phép trong cùng một phòng ban.");
 
+                var duplicateCheck = await ValidateNoDuplicateRegistrationAsync(model.OTDate, empCodes, null, ct);
+                if (!duplicateCheck.IsSuccess)
+                    return duplicateCheck;
+
                 var deptCode = deptCodes[0];
                 var blockCode = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
@@ -189,7 +193,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 var monthEnd = monthStart.AddMonths(1);
 
                 var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
-                    ? new List<string>()
+                    ? new List<int>()
                     : await _uow.Repository<F03Department>().Query()
                         .AsNoTracking()
                         .Where(d => d.IsActive == true && d.BlockCode == blockCode)
@@ -205,7 +209,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         e.OTRequest.RequestStatus != ApprovalStatus.Cancelled &&
                         e.OTRequest.OTDate >= yearStart &&
                         e.OTRequest.OTDate < yearEnd &&
-                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || blockDeptCodes.Contains(e.OTRequest.DeptCode ?? string.Empty)))
+                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || (e.OTRequest.DeptCode.HasValue && blockDeptCodes.Contains(e.OTRequest.DeptCode.Value))))
                     .Select(e => new
                     {
                         e.EmployeeCode,
@@ -242,19 +246,19 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 }
 
                 var deptUsed = usedData.Where(x => x.DeptCode == deptCode).ToList();
-                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Weekly,
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), OTLimitType.Weekly,
                     deptUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                     model.Employees.Sum(x => x.OTHours));
-                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Monthly,
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), OTLimitType.Monthly,
                     deptUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
                     model.Employees.Sum(x => x.OTHours));
-                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Yearly,
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture), OTLimitType.Yearly,
                     deptUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours),
                     model.Employees.Sum(x => x.OTHours));
 
                 if (!string.IsNullOrWhiteSpace(blockCode))
                 {
-                    var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode ?? string.Empty)).ToList();
+                    var blockUsed = usedData.Where(x => (x.DeptCode.HasValue && blockDeptCodes.Contains(x.DeptCode.Value))).ToList();
                     ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Weekly,
                         blockUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                         model.Employees.Sum(x => x.OTHours));
@@ -303,11 +307,25 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             }
         }
 
+        public async Task<ServiceResult> ValidateNoDuplicateRegistrationAsync(
+            DateTime otDate,
+            IEnumerable<string> employeeCodes,
+            int? excludeOTRequestId,
+            CancellationToken ct = default)
+        {
+            var duplicates = await OTDuplicateRegistrationFinder.FindAsync(
+                _uow, otDate, employeeCodes, excludeOTRequestId, ct);
+
+            return duplicates.Count == 0
+                ? ServiceResult.Ok()
+                : Fail(string.Join(" ", OTDuplicateRegistrationFinder.DescribeAll(duplicates, otDate)));
+        }
+
         private static void ValidateScopedLimit(
             List<F03OTLimitRule> rules,
             string employeeCode,
             string positionCode,
-            string deptCode,
+            int deptCode,
             OTLimitType type,
             decimal used,
             decimal requested,
@@ -348,7 +366,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             List<F03OTLimitRule> rules,
             string employeeCode,
             string? positionCode,
-            string deptCode,
+            int deptCode,
             OTLimitType type)
         {
             return rules

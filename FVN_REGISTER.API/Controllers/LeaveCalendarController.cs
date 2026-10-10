@@ -39,7 +39,7 @@ public class LeaveCalendarController : BaseApiController
     [HttpGet("data")]
     public async Task<IActionResult> GetData(
         [FromQuery] string? empCode,
-        [FromQuery] string? deptCode,
+        [FromQuery] int? deptCode,
         [FromQuery] string? cvCode,
         [FromQuery] int year,
         CancellationToken ct)
@@ -50,9 +50,7 @@ public class LeaveCalendarController : BaseApiController
         var effectiveEmpCode = string.IsNullOrWhiteSpace(empCode)
             ? UserInfo.EmployeeCode ?? string.Empty
             : empCode;
-        var effectiveDeptCode = string.IsNullOrWhiteSpace(deptCode)
-            ? UserInfo.DeptCode ?? string.Empty
-            : deptCode;
+        var effectiveDeptCode = deptCode ?? UserInfo.DeptCode ?? 0;
         var effectiveCvCode = string.IsNullOrWhiteSpace(cvCode)
             ? UserInfo.PositionCode ?? string.Empty
             : cvCode;

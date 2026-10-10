@@ -39,8 +39,8 @@ BEGIN
         NodeType nvarchar(30) NOT NULL,
         NodeCode nvarchar(50) NULL,
         FactoryCode nvarchar(50) NULL,
-        DeptCode nvarchar(20) NULL,
-        SubDepartmentCode nvarchar(20) NULL,
+        DeptCode int NULL,
+        SubDepartmentCode int NULL,
         IncludeChildren bit NOT NULL
             CONSTRAINT DF_F03ManagedScopes_IncludeChildren DEFAULT(1),
         Remark nvarchar(500) NULL
@@ -85,10 +85,10 @@ BEGIN
         ALTER TABLE dbo.F03ManagedScopes ADD FactoryCode nvarchar(50) NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'DeptCode') IS NULL
-        ALTER TABLE dbo.F03ManagedScopes ADD DeptCode nvarchar(20) NULL;
+        ALTER TABLE dbo.F03ManagedScopes ADD DeptCode int NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'SubDepartmentCode') IS NULL
-        ALTER TABLE dbo.F03ManagedScopes ADD SubDepartmentCode nvarchar(20) NULL;
+        ALTER TABLE dbo.F03ManagedScopes ADD SubDepartmentCode int NULL;
 
     IF COL_LENGTH(N'dbo.F03ManagedScopes',N'IncludeChildren') IS NULL
         ALTER TABLE dbo.F03ManagedScopes ADD IncludeChildren bit NOT NULL
@@ -170,8 +170,8 @@ BEGIN
         UPPER(LTRIM(RTRIM(ISNULL(NodeType,N'')))) + N'|' +
         UPPER(LTRIM(RTRIM(ISNULL(NodeCode,N'')))) + N'|' +
         UPPER(LTRIM(RTRIM(ISNULL(FactoryCode,N'')))) + N'|' +
-        UPPER(LTRIM(RTRIM(ISNULL(DeptCode,N'')))) + N'|' +
-        UPPER(LTRIM(RTRIM(ISNULL(SubDepartmentCode,N''))))
+        ISNULL(CONVERT(nvarchar(20),DeptCode),N'') + N'|' +
+        ISNULL(CONVERT(nvarchar(20),SubDepartmentCode),N'')
     ) PERSISTED;
 END;
 GO

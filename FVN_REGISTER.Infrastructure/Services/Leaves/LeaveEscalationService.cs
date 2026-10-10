@@ -51,7 +51,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 .ToDictionaryAsync(x => x.Id, x => x.CreatedAt, ct);
         }
 
-        protected override async Task<Dictionary<int, string?>> GetDeptCodeMapAsync(
+        protected override async Task<Dictionary<int, int?>> GetDeptCodeMapAsync(
             List<int> ids, CancellationToken ct)
         {
             return await Uow.Repository<F03LeaveDay>().Query()

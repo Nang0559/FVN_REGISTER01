@@ -35,7 +35,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
             => model.ApplyTo(entity, currentUserId);
 
         // ===== Field access cho base dùng =====
-        protected override string GetCode(F03Department e) => e.DeptCode;
+        protected override string GetCode(F03Department e) => e.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
         protected override bool GetIsActive(F03Department e) => e.IsActive == true;
         protected override void SetIsActive(F03Department e, bool value) => e.IsActive = value;
 
@@ -46,7 +46,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
         }
 
         protected override int GetUpsertKey(DepartmentUpsertDto m) => m.Id;
-        protected override string GetUpsertCode(DepartmentUpsertDto m) => m.DeptCode;
+        protected override string GetUpsertCode(DepartmentUpsertDto m) => m.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         // ===== Expression cho EF Core dịch sang SQL =====
         protected override Expression<Func<F03Department, bool>> KeyEqualsExpr(int key)
@@ -56,7 +56,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
             => x => x.Id != key;
 
         protected override Expression<Func<F03Department, bool>> CodeEqualsExpr(string code)
-            => x => x.DeptCode == code;
+        {
+            var deptCode = int.TryParse(code?.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : int.MinValue; // không khớp bản ghi nào
+            return x => x.DeptCode == deptCode;
+        }
 
         protected override IQueryable<F03Department> ApplyActiveFilter(
             IQueryable<F03Department> query, bool isActive)

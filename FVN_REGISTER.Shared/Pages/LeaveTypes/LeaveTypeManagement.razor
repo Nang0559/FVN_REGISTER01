@@ -8,32 +8,32 @@
 @inject ILeaveTypeClientService LeaveTypeService
 @inject ISnackbar Snackbar
 
-<PageTitle>Hình thức nghỉ - FCC</PageTitle>
+<PageTitle>@Language.T("leave.hinhThucNghiFcc")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <div>
-        <MudText Typo="Typo.h5">Hình thức nghỉ phép</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary">Quản lý loại nghỉ bằng contract DTO của Application/API.</MudText>
+        <MudText Typo="Typo.h5">@Language.T("leave.hinhThucNghiPhep")</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("leave.quanLyLoaiNghiBang")</MudText>
     </div>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="StartCreate">Thêm mới</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="StartCreate">@Language.T("leave.themMoi")</MudButton>
 </MudStack>
 
 <MudPaper Class="pa-3 mb-4" Elevation="1">
     <MudGrid>
         <MudItem xs="12" sm="6">
-            <MudTextField T="string" @bind-Value="_search" Immediate="true" Clearable="true" Label="Tìm theo mã hoặc tên" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudTextField T="string" @bind-Value="_search" Immediate="true" Clearable="true" Label="@Language.T("leave.timTheoMaHoacTen")" Variant="Variant.Outlined" Margin="Margin.Dense" />
         </MudItem>
         <MudItem xs="12" sm="3">
-            <MudSelect T="bool?" @bind-Value="_isActive" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                <MudSelectItem T="bool?" Value="true">Đang dùng</MudSelectItem>
-                <MudSelectItem T="bool?" Value="false">Tạm dừng</MudSelectItem>
+            <MudSelect T="bool?" @bind-Value="_isActive" Label='@Language.T("common.status")' Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="bool?" Value="true">@Language.T("leave.dangDung")</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">@Language.T("leave.tamDung")</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="3">
-            <MudSelect T="bool?" @bind-Value="_isCountedAsLeave" Label="Tính phép" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                <MudSelectItem T="bool?" Value="true">Có</MudSelectItem>
-                <MudSelectItem T="bool?" Value="false">Không</MudSelectItem>
+            <MudSelect T="bool?" @bind-Value="_isCountedAsLeave" Label="@Language.T("common.tinhPhep")" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="bool?" Value="true">@Language.T("common.yes")</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">@Language.T("common.no")</MudSelectItem>
             </MudSelect>
         </MudItem>
     </MudGrid>
@@ -42,20 +42,20 @@
 @if (_editing)
 {
     <MudPaper Class="pa-4 mb-4" Elevation="2">
-        <MudText Typo="Typo.h6" Class="mb-3">@(_edit.Id == 0 ? "Thêm loại nghỉ" : "Chỉnh sửa loại nghỉ")</MudText>
+        <MudText Typo="Typo.h6" Class="mb-3">@(_edit.Id == 0 ? Language.T("leave.themLoaiNghi") : Language.T("leave.chinhSuaLoaiNghi"))</MudText>
         <MudForm @ref="_form">
             <MudGrid>
-                <MudItem xs="12" sm="3"><MudTextField @bind-Value="_edit.LeaveTypeCode" Label="Mã loại nghỉ *" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="12" sm="5"><MudTextField @bind-Value="_edit.LeaveTypeName" Label="Tên loại nghỉ *" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="12" sm="4"><MudTextField @bind-Value="_edit.LeaveTypeName2" Label="Tên phụ" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="12" sm="3"><MudTextField @bind-Value="_edit.HRMCode" Label="HRM Code" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="6" sm="3"><MudCheckBox @bind-Value="_edit.IsCountedAsLeave" Label="Tính phép năm" /></MudItem>
-                <MudItem xs="6" sm="3"><MudCheckBox @bind-Value="_edit.IsActive" Label="Đang sử dụng" /></MudItem>
+                <MudItem xs="12" sm="3"><MudTextField @bind-Value="_edit.LeaveTypeCode" Label="@Language.T("leave.maLoaiNghi")" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="5"><MudTextField @bind-Value="_edit.LeaveTypeName" Label="@Language.T("leave.tenLoaiNghi")" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="4"><MudTextField @bind-Value="_edit.LeaveTypeName2" Label="@Language.T("leave.tenPhu")" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="3"><MudTextField @bind-Value="_edit.HRMCode" Label="@Language.T("leave.hrmCode")" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="6" sm="3"><MudCheckBox @bind-Value="_edit.IsCountedAsLeave" Label="@Language.T("leave.tinhPhepNam")" /></MudItem>
+                <MudItem xs="6" sm="3"><MudCheckBox @bind-Value="_edit.IsActive" Label="@Language.T("leave.dangSuDung")" /></MudItem>
             </MudGrid>
         </MudForm>
         <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-            <MudButton Variant="Variant.Text" OnClick="CancelEdit">Hủy</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_saving ? "Đang lưu..." : "Lưu")</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="CancelEdit">@Language.T("common.cancel")</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_saving ? Language.T("common.dangLuu") : Language.T("common.save"))</MudButton>
         </MudStack>
     </MudPaper>
 }
@@ -68,22 +68,22 @@ else
 {
     <MudTable Items="FilteredItems" Hover="true" Dense="true" Striped="true">
         <HeaderContent>
-            <MudTh>Mã</MudTh><MudTh>Tên</MudTh><MudTh>Tên phụ</MudTh><MudTh>HRM</MudTh><MudTh>Tính phép</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thao tác</MudTh>
+            <MudTh>@Language.T("common.code")</MudTh><MudTh>@Language.T("common.name")</MudTh><MudTh>@Language.T("leave.tenPhu")</MudTh><MudTh>@Language.T("hrm.title")</MudTh><MudTh>@Language.T("common.tinhPhep")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("common.action")</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Mã">@context.LeaveTypeCode</MudTd>
-            <MudTd DataLabel="Tên">@context.LeaveTypeName</MudTd>
-            <MudTd DataLabel="Tên phụ">@(context.LeaveTypeName2 ?? "-")</MudTd>
+            <MudTd DataLabel='@Language.T("common.code")'>@context.LeaveTypeCode</MudTd>
+            <MudTd DataLabel='@Language.T("common.name")'>@context.LeaveTypeName</MudTd>
+            <MudTd DataLabel='@Language.T("leave.tenPhu")'>@(context.LeaveTypeName2 ?? "-")</MudTd>
             <MudTd DataLabel="HRM">@(context.HRMCode ?? "-")</MudTd>
-            <MudTd DataLabel="Tính phép"><MudChip T="string" Size="Size.Small" Color="@(context.IsCountedAsLeave ? Color.Warning : Color.Default)">@(context.IsCountedAsLeave ? "Có" : "Không")</MudChip></MudTd>
-            <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Đang dùng" : "Tạm dừng")</MudChip></MudTd>
-            <MudTd DataLabel="Thao tác">
+            <MudTd DataLabel='@Language.T("common.tinhPhep")'><MudChip T="string" Size="Size.Small" Color="@(context.IsCountedAsLeave ? Color.Warning : Color.Default)">@(context.IsCountedAsLeave ? Language.T("common.yes") : Language.T("common.no"))</MudChip></MudTd>
+            <MudTd DataLabel='@Language.T("common.status")'><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? Language.T("leave.dangDung") : Language.T("leave.tamDung"))</MudChip></MudTd>
+            <MudTd DataLabel='@Language.T("common.action")'>
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => StartEdit(context))" />
                 <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)" Size="Size.Small" OnClick="@(() => Toggle(context))" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => Delete(context))" />
             </MudTd>
         </RowTemplate>
-        <NoRecordsContent><MudAlert Severity="Severity.Info">Không có dữ liệu phù hợp.</MudAlert></NoRecordsContent>
+        <NoRecordsContent><MudAlert Severity="Severity.Info">@Language.T("leave.khongCoDuLieuPhu")</MudAlert></NoRecordsContent>
     </MudTable>
 }
 
@@ -116,7 +116,7 @@ else
         {
             var result = await LeaveTypeService.GetListAsync(ct: CancellationToken.None);
             if (result.IsSuccess && result.Data != null) _items = result.Data;
-            else Snackbar.Add(result.Message ?? "Không thể tải loại nghỉ.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("leave.khongTheTaiLoaiNghi"), Severity.Error);
         }
         finally { _loading = false; }
     }
@@ -149,14 +149,14 @@ else
             if (_edit.Id == 0)
             {
                 var result = await LeaveTypeService.CreateAsync(_edit);
-                if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Tạo loại nghỉ thất bại.", Severity.Error); return; }
+                if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("leave.taoLoaiNghiThatBai"), Severity.Error); return; }
             }
             else
             {
                 var result = await LeaveTypeService.UpdateAsync(_edit.Id, _edit);
-                if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Cập nhật loại nghỉ thất bại.", Severity.Error); return; }
+                if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("leave.capNhatLoaiNghiThat"), Severity.Error); return; }
             }
-            Snackbar.Add("Đã lưu loại nghỉ.", Severity.Success);
+            Snackbar.Add(Language.T("leave.daLuuLoaiNghi"), Severity.Success);
             CancelEdit();
             await LoadAsync();
         }
@@ -166,15 +166,15 @@ else
     private async Task Toggle(LeaveTypeDto item)
     {
         var result = await LeaveTypeService.ToggleAsync(item.Id);
-        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể thay đổi trạng thái.", Severity.Error); return; }
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("leave.khongTheThayDoiTrang"), Severity.Error); return; }
         await LoadAsync();
     }
 
     private async Task Delete(LeaveTypeDto item)
     {
         var result = await LeaveTypeService.DeleteAsync(item.Id);
-        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa loại nghỉ.", Severity.Error); return; }
-        Snackbar.Add("Đã xóa loại nghỉ.", Severity.Success);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("leave.khongTheXoaLoaiNghi"), Severity.Error); return; }
+        Snackbar.Add(Language.T("leave.daXoaLoaiNghi"), Severity.Success);
         await LoadAsync();
     }
 }

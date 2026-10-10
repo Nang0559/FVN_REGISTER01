@@ -40,6 +40,13 @@ public sealed class ExecutionReconciliationClientService : IExecutionReconciliat
         _http.PostAsync<ExecutionConfirmationDto>(
             $"api/execution/me/{reconciliationId}/confirmation", request, ct);
 
+    public Task<ApiResponse<ExecutionEmployeeResolutionDto>> DecideEmployeeResolutionAsync(
+        long reconciliationId,
+        ExecutionEmployeeDecisionRequest request,
+        CancellationToken ct = default) =>
+        _http.PostAsync<ExecutionEmployeeResolutionDto>(
+            $"api/execution/me/{reconciliationId}/resolution", request, ct);
+
     public Task<ApiResponse<ExecutionEvidenceDto>> AddEvidenceAsync(
         long confirmationId, ExecutionEvidenceRequest request, CancellationToken ct = default) =>
         _http.PostAsync<ExecutionEvidenceDto>(

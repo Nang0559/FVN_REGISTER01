@@ -19,4 +19,10 @@ public partial class F03CompanyHoliday : BaseAuditEntity
     /// 0 = ngày nghỉ nhưng không tính phép.
     /// </summary>
     public bool TinhPhep { get; set; }
+
+    /// <summary>
+    /// Phân loại ngày nghỉ dùng cho lịch công:
+    /// 1 = Company, 2 = National, 3 = Compensatory, 4 = Other.
+    /// </summary>
+    public byte HolidayType { get; set; } = 1;
 }

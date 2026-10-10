@@ -1,251 +1,35 @@
 @using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Services.Calendar
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Language
 @inject IWorkCalendarClientService CalendarService
 @inject ICurrentUserClientService CurrentUser
 @inject IJSRuntime JS
 @inject ILogger<WorkCalendar> Logger
 @implements IAsyncDisposable
-
-<MudPaper Class="pa-2" Elevation="0">
-    <MudStack Row="true" Spacing="1" Class="mb-2 flex-wrap">
-        @foreach (var filter in Filters)
-        {
-            <MudChip T="string" Size="Size.Small"
-                     Variant="@(_moduleFilter == filter.Code ? Variant.Filled : Variant.Outlined)"
-                     Color="@(_moduleFilter == filter.Code ? Color.Primary : Color.Default)"
-                     OnClick="@(() => SetFilter(filter.Code))">
-                @filter.Name
-            </MudChip>
-        }
-    </MudStack>
-
-    <div @ref="_element" style="min-height:450px; touch-action:manipulation; user-select:none; -webkit-user-select:none;"></div>
-</MudPaper>
-
+<MudPaper Class="pa-2" Elevation="0"><MudStack Row="true" Spacing="1" Class="mb-2 flex-wrap">@foreach(var filter in Filters){
+<MudChip T="string" Size="Size.Small" Variant="@(_moduleFilter == filter.Code ? Variant.Filled : Variant.Outlined)" Color="@(_moduleFilter == filter.Code ? Color.Primary : Color.Default)" OnClick="@(() => SetFilter(filter.Code))">@filter.Name</MudChip>
+}
+</MudStack><div @ref="_element" style="min-height:450px;touch-action:manipulation;user-select:none;-webkit-user-select:none;"></div></MudPaper>
 @code {
-    [Parameter] public string ModuleContext { get; set; } = "ALL";
-    [Parameter] public string? EmployeeCode { get; set; }
+    [Parameter] public string ModuleContext { get; set; } = "ALL"; [Parameter] public string? EmployeeCode { get; set; }
     [Parameter] public EventCallback<DateTime> OnDateSelected { get; set; }
     [Parameter] public EventCallback<CalendarItemDto> OnEventSelected { get; set; }
     [Parameter] public EventCallback<DateTime> OnRegistrationRequested { get; set; }
     [Parameter] public EventCallback<CalendarDayDto> OnDaySelected { get; set; }
-
-    private static readonly (string Code, string Name)[] Filters =
-    [
-        ("ALL", "Tất cả"),
-        ("COMPANY", "Công ty"),
-        ("ATTENDANCE", "Chấm công"),
-        ("LEAVE", "Nghỉ phép"),
-        ("OT", "OT"),
-        ("TRIP", "Công tác")
-    ];
-
-    private ElementReference _element;
-    private DotNetObjectReference<WorkCalendar>? _ref;
-    private CalendarMonthDto _data = new();
-    private string _moduleFilter = "ALL";
-    private bool _initialized;
-    private DateTime _rangeFrom;
-    private DateTime _rangeTo;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender || _initialized)
-            return;
-
-        if (!CurrentUser.IsLoggedIn)
-            await CurrentUser.InitializeAsync();
-
-        _moduleFilter = "ALL";
-        _rangeFrom = DateTime.Today.AddMonths(-1).Date;
-        _rangeTo = DateTime.Today.AddMonths(2).Date.AddDays(-1);
-
-        await LoadAsync(_rangeFrom, _rangeTo);
-        _ref = DotNetObjectReference.Create(this);
-
-        try
-        {
-            await JS.InvokeVoidAsync(
-                "workCalendar.init",
-                _element,
-                _ref,
-                BuildDays(),
-                DateTime.Today.ToString("yyyy-MM-dd"));
-
-            _initialized = true;
-        }
-        catch (JSException ex)
-        {
-            _ref?.Dispose();
-            _ref = null;
-            Logger.LogError(
-                ex,
-                "WorkCalendar JavaScript initialization failed. EmployeeCode={EmployeeCode}",
-                EmployeeCode ?? CurrentUser.User?.EmployeeCode);
-        }
-    }
-
-    private async Task LoadAsync(DateTime from, DateTime to)
-    {
-        _rangeFrom = from.Date;
-        _rangeTo = to.Date;
-
-        var effectiveEmployeeCode = EmployeeCode?.Trim();
-        if (string.IsNullOrWhiteSpace(effectiveEmployeeCode))
-            effectiveEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
-
-        var result = string.IsNullOrWhiteSpace(effectiveEmployeeCode)
-            ? await CalendarService.GetAsync(from.Date, to.Date)
-            : await CalendarService.GetForEmployeeAsync(effectiveEmployeeCode, from.Date, to.Date);
-
-        if (result.IsSuccess && result.Data is not null)
-            _data = result.Data;
-    }
-
-    private List<object> BuildDays()
-    {
-        return _data.Days
-            .Where(VisibleDay)
-            .Select(day => new
-            {
-                date = day.Date.ToString("yyyy-MM-dd"),
-                holiday = day.Holiday?.Name,
-                shift = day.Shift?.ShiftAbbr,
-                attendance = day.Attendance is null
-                    ? null
-                    : new
-                    {
-                        checkIn = day.Attendance.CheckIn?.ToString("HH:mm"),
-                        checkOut = day.Attendance.CheckOut?.ToString("HH:mm"),
-                        display = day.Attendance.DisplayValue,
-                        actualHours = day.Attendance.ActualHours,
-                        requiredHours = day.Attendance.RequiredHours
-                    },
-                registrations = day.Registrations
-                    .Where(x => _moduleFilter == "ALL" || x.ModuleCode == _moduleFilter)
-                    .Select(x => new
-                    {
-                        moduleCode = x.ModuleCode,
-                        title = x.Title,
-                        isHalfDay = x.IsHalfDay,
-                        dayValue = x.DayValue,
-                        approvalStatus = x.ApprovalStatus ?? x.Status,
-                        approvalLevel = x.ApprovalLevel,
-                        approvalLevelName = x.ApprovalLevelName,
-                        currentApproverName = x.CurrentApproverName,
-                        isApproved = x.IsApproved
-                    }),
-                issues = day.Issues.Select(x => new
-                {
-                    code = x.Code,
-                    severity = x.Severity,
-                    marker = x.Marker,
-                    title = x.Title,
-                    summary = x.Summary
-                }),
-                canRegister = day.CanRegisterLeave || day.CanRegisterOT || day.CanRegisterTrip
-            })
-            .Cast<object>()
-            .ToList();
-    }
-
-    private bool VisibleDay(CalendarDayDto day)
-    {
-        if (_moduleFilter is "ALL" or "COMPANY")
-            return true;
-
-        return _moduleFilter switch
-        {
-            "ATTENDANCE" => day.Attendance is not null
-                || day.Issues.Any(x => x.Code.StartsWith("ATTENDANCE_", StringComparison.OrdinalIgnoreCase)),
-            "LEAVE" => day.Registrations.Any(x => x.ModuleCode == "LEAVE"),
-            "OT" => day.Registrations.Any(x => x.ModuleCode == "OT")
-                || day.Issues.Any(x => x.Code.StartsWith("OT_", StringComparison.OrdinalIgnoreCase)),
-            "TRIP" => day.Registrations.Any(x => x.ModuleCode == "TRIP"),
-            _ => true
-        };
-    }
-
-    private async Task SetFilter(string code)
-    {
-        _moduleFilter = code;
-        if (_initialized)
-            await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
-    }
-
-    [JSInvokable]
-    public async Task OnCalendarDateClick(string date)
-    {
-        if (!DateOnly.TryParse(date, out var parsed))
-            return;
-
-        var day = _data.Days.FirstOrDefault(x => x.Date == parsed);
-        if (day is not null && OnDaySelected.HasDelegate)
-        {
-            await OnDaySelected.InvokeAsync(day);
-            return;
-        }
-
-        if (DateTime.TryParse(date, out var value))
-        {
-            if (OnDateSelected.HasDelegate)
-                await OnDateSelected.InvokeAsync(value.Date);
-            else if (OnRegistrationRequested.HasDelegate)
-                await OnRegistrationRequested.InvokeAsync(value.Date);
-        }
-    }
-
-    [JSInvokable]
-    public async Task OnCalendarIssueClick(string date, string issueCode)
-    {
-        if (!DateOnly.TryParse(date, out var parsed))
-            return;
-
-        var day = _data.Days.FirstOrDefault(x => x.Date == parsed);
-        if (day is not null && OnDaySelected.HasDelegate)
-            await OnDaySelected.InvokeAsync(day);
-    }
-
-    [JSInvokable]
-    public async Task OnCalendarRangeChanged(string start, string end)
-    {
-        if (!DateTime.TryParse(start, out var from)
-            || !DateTime.TryParse(end, out var to))
-            return;
-
-        await LoadAsync(from.Date, to.Date.AddDays(-1));
-
-        if (_initialized)
-            await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
-    }
-
-    public async Task RefreshAsync()
-    {
-        var from = _rangeFrom == default ? DateTime.Today.AddMonths(-1).Date : _rangeFrom;
-        var to = _rangeTo == default ? DateTime.Today.AddMonths(2).Date.AddDays(-1) : _rangeTo;
-
-        await LoadAsync(from, to);
-
-        if (_initialized)
-            await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _ref?.Dispose();
-
-        if (_initialized)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("workCalendar.destroy");
-            }
-            catch
-            {
-            }
-        }
-    }
+    private IEnumerable<(string Code, string Name)> Filters => [("ALL", Language.T("calendar.filter.all")), ("COMPANY", Language.T("calendar.filter.company")), ("ATTENDANCE", Language.T("calendar.filter.attendance")), ("LEAVE", Language.T("calendar.filter.leave")), ("OT", Language.T("calendar.filter.ot")), ("TRIP", Language.T("calendar.filter.trip"))];
+    private ElementReference _element; private DotNetObjectReference<WorkCalendar>? _ref; private CalendarMonthDto _data = new(); private string _moduleFilter = "ALL"; private bool _initialized; private DateTime _rangeFrom, _rangeTo;
+    protected override void OnInitialized() => Language.LanguageChanged += OnLanguageChanged;
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (!firstRender || _initialized) return; if (!CurrentUser.IsLoggedIn) await CurrentUser.InitializeAsync(); var today = DateTime.Today; _rangeFrom = new(today.Year, today.Month, 1); _rangeTo = _rangeFrom.AddMonths(1).AddDays(-1); await LoadAsync(_rangeFrom, _rangeTo); _ref = DotNetObjectReference.Create(this); try { await JS.InvokeVoidAsync("workCalendar.init", _element, _ref, BuildDays(), today.ToString("yyyy-MM-dd"), Language.Current == LanguageCode.Ja ? "ja" : "vi", BuildJsLabels()); _initialized = true; } catch (JSException ex) { _ref?.Dispose(); _ref = null; Logger.LogError(ex, "WorkCalendar JavaScript initialization failed. EmployeeCode={EmployeeCode}", EmployeeCode ?? CurrentUser.User?.EmployeeCode); } }
+    private Dictionary<string, string> BuildJsLabels() => new() { ["issue"] = Language.T("calendar.issue"), ["holiday"] = Language.T("calendar.holiday"), ["shift"] = Language.T("calendar.shift", "{0}"), ["register"] = Language.T("calendar.register"), ["today"] = Language.T("calendar.today"), ["month"] = Language.T("calendar.month"), ["list"] = Language.T("calendar.list") };
+    private async Task LoadAsync(DateTime from, DateTime to) { _rangeFrom = from.Date; _rangeTo = to.Date; var code = EmployeeCode?.Trim(); if (string.IsNullOrWhiteSpace(code)) code = CurrentUser.User?.EmployeeCode?.Trim(); var r = string.IsNullOrWhiteSpace(code) ? await CalendarService.GetAsync(from.Date, to.Date) : await CalendarService.GetForEmployeeAsync(code, from.Date, to.Date); if (r.IsSuccess && r.Data is not null) _data = r.Data; }
+    private List<object> BuildDays() => _data.Days.Where(VisibleDay).Select(day => new { date = day.Date.ToString("yyyy-MM-dd"), holiday = day.Holiday?.Name, holidayType = day.Attendance?.DayType ?? day.Holiday?.Type, backgroundColor = day.Attendance?.BackgroundColor ?? "#ffffff", shift = day.Shift?.ShiftAbbr, attendance = day.Attendance is null ? null : new { checkIn = day.Attendance.CheckIn?.ToString("HH:mm"), checkOut = day.Attendance.CheckOut?.ToString("HH:mm"), display = day.Attendance.DisplayValue, symbol = day.Attendance.Symbol, otSymbol = day.Attendance.OtSymbol, actualHours = day.Attendance.ActualHours, requiredHours = day.Attendance.RequiredHours, dayType = day.Attendance.DayType, backgroundColor = day.Attendance.BackgroundColor, symbolRuleCode = day.Attendance.SymbolRuleCode }, registrations = day.Registrations.Where(x => _moduleFilter == "ALL" || x.ModuleCode == _moduleFilter).Select(x => new { moduleCode = x.ModuleCode, title = x.Title, start = x.Start.ToString("HH:mm"), end = x.End.ToString("HH:mm"), isHalfDay = x.IsHalfDay, dayValue = x.DayValue, approvalStatus = x.ApprovalStatus ?? x.Status, approvalLevel = x.ApprovalLevel, approvalLevelName = x.ApprovalLevelName, currentApproverName = x.CurrentApproverName, isApproved = x.IsApproved }), issues = day.Issues.Select(x => new { code = x.Code, severity = x.Severity, marker = x.Marker, title = x.Title, summary = x.Summary }), canRegister = day.CanRegisterLeave || day.CanRegisterOT || day.CanRegisterTrip }).Cast<object>().ToList();
+    private bool VisibleDay(CalendarDayDto day) => _moduleFilter switch { "ALL" or "COMPANY" => true, "ATTENDANCE" => day.Attendance is not null || day.Issues.Any(x => x.Code.StartsWith("ATTENDANCE_", StringComparison.OrdinalIgnoreCase)), "LEAVE" => day.Registrations.Any(x => x.ModuleCode == "LEAVE"), "OT" => day.Registrations.Any(x => x.ModuleCode == "OT") || day.Issues.Any(x => x.Code.StartsWith("OT_", StringComparison.OrdinalIgnoreCase)), "TRIP" => day.Registrations.Any(x => x.ModuleCode == "TRIP"), _ => true };
+    private async Task SetFilter(string code) { _moduleFilter = code; if (_initialized) await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays()); }
+    private async void OnLanguageChanged(object? sender, EventArgs e) { await InvokeAsync(StateHasChanged); if (!_initialized) return; try { await JS.InvokeVoidAsync("workCalendar.setLocale", Language.Current == LanguageCode.Ja ? "ja" : "vi", BuildJsLabels()); } catch (JSDisconnectedException) { } }
+    [JSInvokable] public async Task OnCalendarDateClick(string date) { if (!DateOnly.TryParse(date, out var parsed)) return; var day = _data.Days.FirstOrDefault(x => x.Date == parsed); if (day is not null && OnDaySelected.HasDelegate) { await OnDaySelected.InvokeAsync(day); return; } if (DateTime.TryParse(date, out var value)) { if (OnDateSelected.HasDelegate) await OnDateSelected.InvokeAsync(value.Date); else if (OnRegistrationRequested.HasDelegate) await OnRegistrationRequested.InvokeAsync(value.Date); } }
+    [JSInvokable] public async Task OnCalendarIssueClick(string date, string issueCode) { if (!DateOnly.TryParse(date, out var parsed)) return; var day = _data.Days.FirstOrDefault(x => x.Date == parsed); if (day is not null && OnDaySelected.HasDelegate) await OnDaySelected.InvokeAsync(day); }
+    [JSInvokable] public async Task OnCalendarRangeChanged(string start, string end) { if (!DateTime.TryParse(start, out var from) || !DateTime.TryParse(end, out _)) return; var monthStart = new DateTime(from.Year, from.Month, 1); await LoadAsync(monthStart, monthStart.AddMonths(1).AddDays(-1)); if (_initialized) await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays()); }
+    public async Task RefreshAsync() { var today = DateTime.Today; await LoadAsync(_rangeFrom == default ? new DateTime(today.Year, today.Month, 1) : _rangeFrom, _rangeTo == default ? new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1) : _rangeTo); if (_initialized) await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays()); await InvokeAsync(StateHasChanged); }
+    public async ValueTask DisposeAsync() { Language.LanguageChanged -= OnLanguageChanged; if (_initialized) { try { await JS.InvokeVoidAsync("workCalendar.destroy"); } catch { } } _ref?.Dispose(); }
 }

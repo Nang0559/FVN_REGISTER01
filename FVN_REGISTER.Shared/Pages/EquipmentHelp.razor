@@ -3,57 +3,57 @@
 @using Microsoft.AspNetCore.Authorization
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
-    <MudText Typo="Typo.h4">Trợ giúp — Quản lý thiết bị</MudText>
+    <MudText Typo="Typo.h4">@Language.T("equipment.troGiupQuanLyThiet")</MudText>
     <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-        Hướng dẫn vận hành chuẩn cho import, checklist, sửa chữa, bàn giao và báo cáo.
+        @Language.T("equipment.huongDanVanHanhChuan")
     </MudText>
     <MudExpansionPanels MultiExpansion="true">
-        <MudExpansionPanel Text="1. Import thiết bị và giao nhân viên">
-            <MudText>Chọn Equipment → Import Excel, chọn DeptCode/schema và bật “Giao cho nhân viên” nếu muốn gán ngay khi import.</MudText>
+        <MudExpansionPanel Text="@Language.T("equipment.t1ImportThietBiVa")">
+            <MudText>@Language.T("equipment.chonEquipmentImportExcelChon")</MudText>
             <MudList T="string" Dense="true">
-                <MudListItem T="string">Excel phải có mã thiết bị, tên thiết bị và EmployeeCode khi bật giao nhân viên.</MudListItem>
-                <MudListItem T="string">Staging kiểm tra nhân viên tồn tại, đang làm việc và thuộc đúng DeptCode.</MudListItem>
-                <MudListItem T="string">Chỉ batch không có dòng lỗi mới ở trạng thái Ready.</MudListItem>
-                <MudListItem T="string">Commit kiểm tra lại HRM lần cuối, gồm cả DeptCode, để tránh dữ liệu bị thay đổi sau staging.</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.excelPhaiCoMaThiet")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.stagingKiemTraNhanVien")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.chiBatchKhongCoDong")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.commitKiemTraLaiHrm")</MudListItem>
             </MudList>
-            <MudAlert Severity="Severity.Warning">Không sửa database để bỏ qua validation hoặc ép batch sang Ready.</MudAlert>
+            <MudAlert Severity="Severity.Warning">@Language.T("equipment.khongSuaDatabaseDeBo")</MudAlert>
         </MudExpansionPanel>
-        <MudExpansionPanel Text="2. Import checklist theo schema">
-            <MudText>Mỗi dòng là một item. Các cột chuẩn gồm TemplateCode, TemplateName, DeptCode, Frequency, ItemCode, ItemLabel, InputType, DisplayOrder; có thể dùng Description, IsRequired, RequireImage, MinImages, MaxImages, MinValue, MaxValue, Unit và OptionsJson.</MudText>
-            <MudText Class="mt-2">InputType hỗ trợ PassFail, YesNo, Number, Text và Select. Với Select, OptionsJson chứa danh sách lựa chọn, ví dụ ["OK","NG","N/A"]. Import tạo Draft; phải review và publish Active.</MudText>
+        <MudExpansionPanel Text="@Language.T("equipment.t2ImportChecklistTheoSchema")">
+            <MudText>@Language.T("equipment.moiDongLaMotItem")</MudText>
+            <MudText Class="mt-2">@Language.T("equipment.inputtypeHoTroPassfailYesno")</MudText>
         </MudExpansionPanel>
-        <MudExpansionPanel Text="3. Yêu cầu sửa chữa">
-            <MudText>Người phụ trách hoặc người vận hành thiết bị được giao có thể tạo repair cho chính asset đó. Server vẫn kiểm tra quan hệ asset, vì vậy không cần cấp quyền EquipmentRepair toàn hệ thống chỉ để một người phụ trách thiết bị của mình báo hỏng.</MudText>
+        <MudExpansionPanel Text="@Language.T("equipment.t3YeuCauSuaChua")">
+            <MudText>@Language.T("equipment.nguoiPhuTrachHoacNguoi")</MudText>
             <MudList T="string" Dense="true">
-                <MudListItem T="string">Chọn đúng một kiểu chịu trách nhiệm sửa chữa: Bộ phận hoặc Nhân viên.</MudListItem>
-                <MudListItem T="string">Bộ phận phải active; nhân viên phải active và chưa có EndWorkingDate.</MudListItem>
-                <MudListItem T="string">Chọn approver theo Approval Policy rồi gửi duyệt.</MudListItem>
-                <MudListItem T="string">Sau khi đủ cấp duyệt, hệ thống sinh REPAIR_EXECUTION Action.</MudListItem>
-                <MudListItem T="string">Nếu giao bộ phận, tất cả nhân viên active trong bộ phận nhận Action + notification + email.</MudListItem>
-                <MudListItem T="string">Người đầu tiên hoàn thành sẽ đóng Action của mình và cancel các Action song song.</MudListItem>
-            </MudList>
-        </MudExpansionPanel>
-        <MudExpansionPanel Text="4. Bàn giao thiết bị">
-            <MudText>Người tiếp quản đăng nhập bằng tài khoản của mình và mở Phiếu thay đổi quyền / bàn giao. Không có đường API công khai để bỏ qua Approval + IT.</MudText>
-            <MudList T="string" Dense="true">
-                <MudListItem T="string">Chọn nhân sự cũ.</MudListItem>
-                <MudListItem T="string">Chọn “Bàn giao trách nhiệm” và/hoặc “Bàn giao approver”.</MudListItem>
-                <MudListItem T="string">Chọn từng tài sản cần bàn giao; không mặc định chuyển toàn bộ tài sản.</MudListItem>
-                <MudListItem T="string">Server xác minh tài sản thực sự thuộc người cũ ở vai trò tương ứng.</MudListItem>
-                <MudListItem T="string">PreChangeSnapshot lưu tài sản, trách nhiệm, approver, lịch sử sửa chữa, lịch sử bàn giao và checklist/evidence.</MudListItem>
-                <MudListItem T="string">Sau đủ approval, IT là điểm thực thi duy nhất và hệ thống ghi PostChangeResult + lịch sử bàn giao.</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.chonDungMotKieuChiu")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.boPhanPhaiActiveNhan")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.chonApproverTheoApprovalPolicy")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.sauKhiDuCapDuyet")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.neuGiaoBoPhanTat")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.nguoiDauTienHoanThanh")</MudListItem>
             </MudList>
         </MudExpansionPanel>
-        <MudExpansionPanel Text="5. Báo cáo">
-            <MudText>Báo cáo lọc theo bộ phận, người phụ trách, bộ phận sửa chữa và khoảng thời gian. Excel gồm TaiSan, LichSuSuaChua, LichSuBanGiao và Checklist.</MudText>
-        </MudExpansionPanel>
-        <MudExpansionPanel Text="6. Quy tắc không được bỏ qua">
+        <MudExpansionPanel Text="@Language.T("equipment.t4BanGiaoThietBi")">
+            <MudText>@Language.T("equipment.nguoiTiepQuanDangNhap")</MudText>
             <MudList T="string" Dense="true">
-                <MudListItem T="string">Không gán nhân viên không tồn tại, đã nghỉ việc hoặc ngoài DeptCode khi import.</MudListItem>
-                <MudListItem T="string">Không tạo repair thiếu Department/Employee chịu trách nhiệm.</MudListItem>
-                <MudListItem T="string">Không hoàn thành cùng một repair hai lần.</MudListItem>
-                <MudListItem T="string">Không sửa Active checklist version.</MudListItem>
-                <MudListItem T="string">Không tự điều chuyển thiết bị bỏ qua Approval + IT.</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.chonNhanSuCu")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.chonBanGiaoTrachNhiem")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.chonTungTaiSanCan")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.serverXacMinhTaiSan")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.prechangesnapshotLuuTaiSanTrach")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.sauDuApprovalItLa")</MudListItem>
+            </MudList>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="@Language.T("equipment.t5BaoCao")">
+            <MudText>@Language.T("equipment.baoCaoLocTheoBo")</MudText>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="@Language.T("equipment.t6QuyTacKhongDuoc")">
+            <MudList T="string" Dense="true">
+                <MudListItem T="string">@Language.T("equipment.khongGanNhanVienKhong")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.khongTaoRepairThieuDepartment")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.khongHoanThanhCungMot")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.khongSuaActiveChecklistVersion")</MudListItem>
+                <MudListItem T="string">@Language.T("equipment.khongTuDieuChuyenThiet")</MudListItem>
             </MudList>
         </MudExpansionPanel>
     </MudExpansionPanels>

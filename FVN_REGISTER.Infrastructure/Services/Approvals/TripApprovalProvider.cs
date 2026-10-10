@@ -133,7 +133,7 @@ public sealed class TripApprovalProvider
         bool canApprove,
         CancellationToken ct)
     {
-        var deptName = string.IsNullOrWhiteSpace(subject.DeptCode)
+        var deptName = subject.DeptCode == null
             ? null
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
                 .Where(x => x.DeptCode == subject.DeptCode)
@@ -146,7 +146,7 @@ public sealed class TripApprovalProvider
             Kind = subject.Module,
             EmployeeCode = subject.EmployeeCode,
             EmployeeName = subject.EmployeeName ?? string.Empty,
-            DeptCode = subject.DeptCode ?? string.Empty,
+            DeptCode = subject.DeptCode ?? 0,
             DeptName = deptName ?? string.Empty,
             FromDate = subject.StartDate,
             ToDate = subject.EndDate,

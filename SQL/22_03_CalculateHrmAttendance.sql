@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE dbo.usp_CalculateHrmAttendance
- @DeptCode nvarchar(20)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
+ @DeptCode int=NULL,@EmployeeCode nvarchar(50)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
 AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
@@ -9,10 +9,16 @@ BEGIN
  --   1) background: @DeptCode = NULL => whole company
  --   2) manual:     @DeptCode + date range => selected department/date
  -- The per-staff calculation remains dbo.usp_HrmCompatibleTimeKeepingForStaff.
- DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=TRY_CONVERT(int,NULLIF(@DeptCode,N''));
+ DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=@DeptCode,@HrmEmployeeId int=NULL;
+ SET @EmployeeCode=NULLIF(LTRIM(RTRIM(@EmployeeCode)),N'');
+ IF @EmployeeCode IS NOT NULL
+ BEGIN
+   SELECT TOP (1) @HrmEmployeeId=nv.NVMa FROM HRM.dbo.tblNhanVien nv WHERE RTRIM(nv.NVMaNV)=@EmployeeCode AND ISNULL(nv.DLocked,0)=0;
+   IF @HrmEmployeeId IS NULL THROW 51321,N'Không tìm thấy nhân viên HRM hoặc nhân viên đã bị khóa.',1;
+ END
  INSERT dbo.F03HrmAttendanceCalculationRun
- (CalculationBatchId,DeptCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt)
- VALUES(@BatchId,@DeptCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE());
+ (CalculationBatchId,DeptCode,EmployeeCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt)
+ VALUES(@BatchId,@DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE());
  CREATE TABLE #Result(
   BCNgay datetime NOT NULL,BCMaNV int NOT NULL,BCMaBP int NOT NULL,BCMaCV int NOT NULL,BCMaCa int NOT NULL,
   BCCuaDen int NULL,BCTGDen datetime NULL,BCCuaVe int NULL,BCTGVe datetime NULL,BCCuaRa int NULL,BCTGRa datetime NULL,BCCuaVao int NULL,BCTGVao datetime NULL,
@@ -38,9 +44,17 @@ BEGIN
   BEGIN TRANSACTION;
 
   -- Remove the previous current-state rows for this date/scope first.
+  DECLARE @AppLockResult int;
+  DECLARE @AppLockResource nvarchar(255) = N'FVN_REGISTER:ATTENDANCE:DATE:' + CONVERT(nvarchar(10),@D,112);
+  EXEC @AppLockResult=sp_getapplock
+      @Resource=@AppLockResource,
+      @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=30000;
+  IF @AppLockResult<0 THROW 51322,N'Ngày chấm công đang được một calculation khác xử lý.',1;
+
   DELETE FROM dbo.F03HrmAttendanceCalculated
   WHERE WorkDate=@D
-    AND (@HrmDeptId IS NULL OR HrmDeptId=@HrmDeptId);
+    AND (@HrmDeptId IS NULL OR HrmDeptId=@HrmDeptId)
+    AND (@HrmEmployeeId IS NULL OR HrmEmployeeId=@HrmEmployeeId);
 
   -- OT actual is also current-state; clear the same employee/date scope
   -- inside the same date transaction so a failed calculation rolls it back.
@@ -57,11 +71,12 @@ BEGIN
             WHERE nv.NVMa=oa.HrmEmployeeId
               AND nv.NVMaBP=@HrmDeptId
         )
-    );
+    )
+    AND (@HrmEmployeeId IS NULL OR oa.HrmEmployeeId=@HrmEmployeeId);
 
   DECLARE @StaffID int;
   DECLARE staff_cur CURSOR LOCAL FAST_FORWARD FOR
-   SELECT NVMa FROM HRM.dbo.tblNhanVien WHERE ISNULL(DLocked,0)=0 AND (@HrmDeptId IS NULL OR NVMaBP=@HrmDeptId);
+   SELECT NVMa FROM HRM.dbo.tblNhanVien WHERE ISNULL(DLocked,0)=0 AND (@HrmDeptId IS NULL OR NVMaBP=@HrmDeptId) AND (@HrmEmployeeId IS NULL OR NVMa=@HrmEmployeeId);
   OPEN staff_cur; FETCH NEXT FROM staff_cur INTO @StaffID;
   WHILE @@FETCH_STATUS=0
   BEGIN
@@ -75,7 +90,7 @@ BEGIN
     LeaveCompensatory,LeaveOther,LeaveTypeCode,LeaveReason,Note,HrmType,HrmHoliday,HrmEmployeeHoliday,IsLocked,
     HrmBCGhiChu,HrmBCLyDoNghi,HrmBCNghiTotal,HrmBCNghiPhep,HrmBCNghiH100,HrmBCNghiH70,HrmBCNghiKL,HrmBCNghiBH100,HrmBCNghiBH70,HrmBCNghiCongTac,HrmBCNghiBu,HrmBCNghiKhac,
     HrmBCDaXacNhanLamThem,HrmBCLoaiLamThem,HrmBCTinhLamThem,HrmBCNgayLe,HrmBCNgayLeNV,HrmShiftDayType,AttendanceDisplayValue,OtDisplayValue,CalculatedAt,CalculatedBy)
-   SELECT @BatchId,@CalculationVersion,CAST(r.BCNgay AS date),r.BCMaNV,RTRIM(nv.NVMaNV),RTRIM(nv.NVHoTen),r.BCMaBP,CONVERT(nvarchar(20),r.BCMaBP),r.BCMaCV,r.BCMaCa,ca.CVietTat,
+   SELECT @BatchId,@CalculationVersion,CAST(r.BCNgay AS date),r.BCMaNV,RTRIM(nv.NVMaNV),RTRIM(nv.NVHoTen),r.BCMaBP,r.BCMaBP,r.BCMaCV,r.BCMaCa,ca.CVietTat,
     r.BCCuaDen,CASE WHEN r.BCTGDen <= '19000101' THEN NULL ELSE r.BCTGDen END,r.BCCuaVe,CASE WHEN r.BCTGVe <= '19000101' THEN NULL ELSE r.BCTGVe END,r.BCCuaRa,CASE WHEN r.BCTGRa <= '19000101' THEN NULL ELSE r.BCTGRa END,r.BCCuaVao,CASE WHEN r.BCTGVao <= '19000101' THEN NULL ELSE r.BCTGVao END,ISNULL(r.BCTGLamNgay,0),ISNULL(r.BCTGLamToi,0),
     ISNULL(r.BCTGQuaGioNgay,0),ISNULL(r.BCTGQuaGioToi,0),ISNULL(r.BCTGQuaGioNgayTC,0),ISNULL(r.BCTGQuaGioToiTC,0),ISNULL(r.BCTGThemNgay,0),ISNULL(r.BCTGThemToi,0),
     ISNULL(r.BCTGDiMuonNgay,0),ISNULL(r.BCTGDiMuonToi,0),ISNULL(r.BCTGVeSomNgay,0),ISNULL(r.BCTGVeSomToi,0),ISNULL(r.BCTGQuyDinh,0),
@@ -130,6 +145,7 @@ BEGIN
     AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
 
   COMMIT TRANSACTION;
+  EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
 
   SET @D=DATEADD(day,1,@D);
  END
@@ -160,13 +176,15 @@ BEGIN
      CalculatedRows=(SELECT COUNT(*) FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId)
  WHERE CalculationBatchId=@BatchId;
 
- SELECT @BatchId AS CalculationBatchId,@DeptCode AS DeptCode,@FromDate AS FromDate,@ToDate AS ToDate,COUNT(DISTINCT HrmEmployeeId) AS EmployeeCount,COUNT(*) AS CalculatedRows,MIN(CalculatedAt) AS StartedAt,MAX(CalculatedAt) AS FinishedAt,@CalculationVersion AS CalculationVersion
+ SELECT @BatchId AS CalculationBatchId,@DeptCode AS DeptCode,@EmployeeCode AS EmployeeCode,@FromDate AS FromDate,@ToDate AS ToDate,COUNT(DISTINCT HrmEmployeeId) AS EmployeeCount,COUNT(*) AS CalculatedRows,MIN(CalculatedAt) AS StartedAt,MAX(CalculatedAt) AS FinishedAt,@CalculationVersion AS CalculationVersion
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId;
  END TRY
  BEGIN CATCH
      /* XACT_ABORT is ON: the per-date transaction is doomed after an error and must be
         rolled back before the Run row can be updated, otherwise the run stays 'Running'. */
      IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+     IF @D IS NOT NULL AND @AppLockResource IS NOT NULL
+         EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
      UPDATE dbo.F03HrmAttendanceCalculationRun
      SET Status=N'Failed',FinishedAt=GETDATE(),ErrorMessage=ERROR_MESSAGE()
      WHERE CalculationBatchId=@BatchId;

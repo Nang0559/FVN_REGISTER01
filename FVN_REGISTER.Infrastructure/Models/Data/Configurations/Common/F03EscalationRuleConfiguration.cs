@@ -1,4 +1,4 @@
-﻿
+﻿using FVN_REGISTER.Core.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,9 +15,14 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Common
             // Index: Tối ưu khi hệ thống cần kiểm tra quy tắc cho phòng ban cụ thể
             entity.HasIndex(e => new { e.RequestModule, e.Level, e.DeptCode }, "IX_EscalationRule_Lookup");
 
-            // Chuyển Enum sang String trong DB
+            // RequestModule được lưu bằng mã canonical (LEAVE, OT, TRIP, ...) giống F03Approver
+            // và dữ liệu seed (SQL/06_Seed.sql). Không dùng HasConversion<string>() vì nó ghi/đọc
+            // theo tên enum ("Overtime") nên không đọc được giá trị 'OT' trong DB.
+            // ParseCode vẫn chấp nhận dữ liệu cũ như 'Overtime', và fail-fast nếu gặp giá trị lạ.
             entity.Property(e => e.RequestModule)
-                  .HasConversion<string>()
+                  .HasConversion(
+                      v => v.ToCode(),
+                      v => RequestModuleExtensions.ParseCode(v))
                   .HasMaxLength(20)
                   .IsRequired();
 

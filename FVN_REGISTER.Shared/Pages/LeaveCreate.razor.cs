@@ -65,7 +65,7 @@ public partial class LeaveCreate : IAsyncDisposable
 
         var result = await LeaveService.GetCombinedDataAsync(
             user.EmployeeCode ?? string.Empty,
-            user.DeptCode ?? string.Empty,
+            user.DeptCode ?? 0,
             user.PositionCode ?? string.Empty,
             DateTime.Now.Year,
             _cts.Token);

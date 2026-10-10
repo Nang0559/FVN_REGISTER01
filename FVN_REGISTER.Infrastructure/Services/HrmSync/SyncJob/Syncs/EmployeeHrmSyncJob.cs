@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
     {
         private readonly List<string> _changedApproverRelevantCodes = new();
         private readonly Dictionary<string, int?> _positionLevelCache = new();
-        private readonly Dictionary<string, (string Dept, string Position)> _approverChangeSnapshot = new();
+        private readonly Dictionary<string, (int Dept, string Position)> _approverChangeSnapshot = new();
         private readonly ISessionTerminationNotifier _sessionNotifier;
 
         public EmployeeHrmSyncJob(IUnitOfWork uow, ISessionTerminationNotifier sessionNotifier) : base(uow)
@@ -52,8 +52,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         {
             EmployeeCode = s.EntityKey,
             EmployeeName = s.EmployeeName,
-            DeptCode = s.DeptCode ?? string.Empty,
-            PositionCode = s.PositionCode ?? string.Empty,
+            DeptCode = s.DeptCode ?? 0,
+            PositionCode = NormalizeCode(s.PositionCode),
             EmailAddress = s.EmailAddress,
             PhoneNumber = s.PhoneNumber,
             BirthDate = s.BirthDate,
@@ -73,12 +73,15 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             var oldDeptCode = e.DeptCode;
             var oldPositionCode = e.PositionCode;
 
-            bool deptChanged = e.DeptCode != (s.DeptCode ?? string.Empty);
-            bool positionChanged = e.PositionCode != (s.PositionCode ?? string.Empty);
+            var normalizedDeptCode = s.DeptCode ?? 0;
+            var normalizedPositionCode = NormalizeCode(s.PositionCode);
+
+            bool deptChanged = e.DeptCode != normalizedDeptCode;
+            bool positionChanged = !string.Equals(e.PositionCode, normalizedPositionCode, StringComparison.Ordinal);
 
             if (e.EmployeeName != s.EmployeeName) { e.EmployeeName = s.EmployeeName; changed = true; }
-            if (deptChanged) { e.DeptCode = s.DeptCode ?? string.Empty; changed = true; }
-            if (positionChanged) { e.PositionCode = s.PositionCode ?? string.Empty; changed = true; }
+            if (deptChanged) { e.DeptCode = normalizedDeptCode; changed = true; }
+            if (positionChanged) { e.PositionCode = normalizedPositionCode; changed = true; }
             if (e.BirthDate != s.BirthDate) { e.BirthDate = s.BirthDate; changed = true; }
             if (e.GenderCode != s.GenderCode) { e.GenderCode = s.GenderCode; changed = true; }
             if (e.FirstWorkingDate != s.FirstWorkingDate) { e.FirstWorkingDate = s.FirstWorkingDate; changed = true; }
@@ -133,6 +136,40 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 
             await ProvisionApproversAsync(batchContext, ct);
             await RefreshApproverReviewFlagsAsync(ct);
+            await DeactivateOperatorAssignmentsOfInactiveEmployeesAsync(batchContext, ct);
+        }
+
+        /// <summary>
+        /// A capability-granting operator assignment must disappear when the employee leaves.
+        /// (AuthorizationService already ignores assignments of inactive employees at runtime; this keeps
+        /// the table honest and removes the row from the Security Center list.)
+        /// </summary>
+        private async Task DeactivateOperatorAssignmentsOfInactiveEmployeesAsync(
+            HrmSyncBatchContext<F03Employee> batchContext, CancellationToken ct)
+        {
+            try
+            {
+                // Row is kept (IsActive=0, LastModifiedSource=HRM_EMPLOYEE_INACTIVE) as the audit trail.
+                // No F03SyncReviewFlag is raised: this is an expected lifecycle event, not a conflict.
+                await Uow.ExecuteSqlRawAsync(
+                    """
+                    UPDATE a
+                       SET a.IsActive = 0,
+                           a.ModifiedAt = GETDATE(),
+                           a.LastModifiedSource = N'HRM_EMPLOYEE_INACTIVE'
+                    FROM dbo.F03FeatureOperatorAssignments a
+                    INNER JOIN dbo.F03Employees e ON e.EmployeeCode = a.EmployeeCode
+                    WHERE a.IsActive = 1
+                      AND (e.IsActive = 0
+                           OR (e.EndWorkingDate IS NOT NULL AND e.EndWorkingDate < CAST(GETDATE() AS date)));
+                    """,
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                batchContext.ProvisioningErrors.Add(
+                    $"Không thể vô hiệu hóa chỉ định operator của nhân viên nghỉ việc: {ex.Message}");
+            }
         }
 
         private async Task ProvisionUsersAsync(
@@ -195,6 +232,17 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                     }
                     else
                     {
+                        // IMPORTANT:
+                        // Only accounts provisioned/owned by HRM may have their
+                        // active state changed by HRM sync. Accounts created outside
+                        // HRM (for example SuperAdmin/break-glass accounts) must not
+                        // be disabled merely because the HRM employee snapshot does
+                        // not contain them or marks a matching employee inactive.
+                        var hrmOwned = string.Equals(
+                            user.LastModifiedSource,
+                            SyncSourceTags.Hrm,
+                            StringComparison.OrdinalIgnoreCase);
+
                         var wasActive = user.IsActive == true;
 
                         user.FullName = employee.EmployeeName;
@@ -206,10 +254,15 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         // Existing FVN users keep their role/permissions. HRM only owns
                         // employee identity/master fields. HRM role rule is used only
                         // when provisioning a brand-new F03User.
-                        user.IsActive = employee.IsActive;
-                        user.LastModifiedSource = SyncSourceTags.Hrm;
+                        //
+                        // Preserve ownership for manually-created FVN accounts.
+                        if (hrmOwned)
+                        {
+                            user.IsActive = employee.IsActive;
+                            user.LastModifiedSource = SyncSourceTags.Hrm;
+                        }
 
-                        if (wasActive && employee.IsActive != true)
+                        if (hrmOwned && wasActive && employee.IsActive != true)
                         {
                             user.LockoutEndDate = DateTime.Now;
 
@@ -226,7 +279,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                                 {
                                     await _sessionNotifier.NotifyRevokedAsync(
                                         session.SignalRConnectionId,
-                                        "Tài khoản đã bị khóa do nhân viên nghỉ việc.",
+                                        "Tài khoản HRM đã bị khóa do nhân viên nghỉ việc.",
                                         ct);
                                 }
                             }
@@ -288,7 +341,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         }
 
         private async Task<int> ResolvePermissionCodeAsync(
-            string? deptCode,
+            int? deptCode,
             string? positionCode,
             CancellationToken ct)
         {
@@ -444,6 +497,9 @@ ORDER BY
             _ when level == 3 => ApproverRole.GM,
             _ => $"Level{level}"
         };
+
+        private static string NormalizeCode(string? value)
+            => (value ?? string.Empty).Trim();
 
         private int? GetSuggestedLevel(string? positionCode)
             => positionCode != null && _positionLevelCache.TryGetValue(positionCode, out var level)

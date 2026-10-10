@@ -7,6 +7,7 @@ using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities.Equipment;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
@@ -49,7 +50,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         _logger = logger;
     }
 
-    public async Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         var canManage = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct);
@@ -58,7 +59,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentAssetDto>>.Fail("Bạn không có quyền xem danh sách thiết bị phục vụ checklist.");
 
         var q = _db.EquipmentAssets.AsNoTracking().Where(x => x.IsActive == true);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (deptCode != null) q = q.Where(x => x.DeptCode == deptCode);
         var rows = await q.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentCode).Take(2000).ToListAsync(ct);
         return ServiceResult<List<EquipmentAssetDto>>.Ok(rows.Select(x => new EquipmentAssetDto
         {
@@ -69,7 +70,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         }).ToList());
     }
 
-    public async Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct) &&
@@ -77,7 +78,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentInspectionTemplateDto>>.Fail("Bạn không có quyền xem cấu hình checklist.");
 
         var query = _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking().Where(x => x.IsActive != false);
-        if (!string.IsNullOrWhiteSpace(deptCode)) query = query.Where(x => x.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (deptCode != null) query = query.Where(x => x.DeptCode == deptCode);
 
         var rows = await query.Include(x => x.Items).OrderBy(x => x.DeptCode).ThenBy(x => x.TemplateName).ThenByDescending(x => x.Version).ToListAsync(ct);
         return ServiceResult<List<EquipmentInspectionTemplateDto>>.Ok(rows.Select(MapTemplate).ToList());
@@ -145,16 +146,16 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             string V(Dictionary<string,string?> d, params string[] keys) => keys.Select(NormalizeInspectionExcelKey).Select(k => d.TryGetValue(k, out var v) ? v : null).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? "";
             var templateCode = V(rows[0], "TemplateCode", "Mã checklist").Trim().ToUpperInvariant();
             var templateName = V(rows[0], "TemplateName", "Tên checklist");
-            var deptCode = V(rows[0], "DeptCode", "Bộ phận", "DepartmentCode").Trim().ToUpperInvariant();
+            var deptCode = int.TryParse(V(rows[0], "DeptCode", "Bộ phận", "DepartmentCode").Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsedDeptCode) ? parsedDeptCode : (int?)null;
             var frequency = V(rows[0], "Frequency", "Chu kỳ").Trim();
             var description = V(rows[0], "Description", "Mô tả");
             var errors = new List<string>();
             if (string.IsNullOrWhiteSpace(templateCode)) errors.Add("Thiếu TemplateCode.");
             if (string.IsNullOrWhiteSpace(templateName)) errors.Add("Thiếu TemplateName.");
-            if (string.IsNullOrWhiteSpace(deptCode)) errors.Add("Thiếu DeptCode.");
+            if (deptCode == null) errors.Add("Thiếu DeptCode.");
             if (string.IsNullOrWhiteSpace(frequency) || !new[] {"Daily","Weekly","Monthly","Quarterly","Yearly"}.Contains(frequency,StringComparer.OrdinalIgnoreCase))
                 errors.Add("Frequency không hợp lệ: Daily/Weekly/Monthly/Quarterly/Yearly.");
-            if (string.IsNullOrWhiteSpace(deptCode) || !await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == deptCode && e.IsActive != false, ct))
+            if (deptCode == null || !await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == deptCode && e.IsActive != false, ct))
                 errors.Add($"Bộ phận '{deptCode}' không tồn tại hoặc không có nhân viên hoạt động.");
             var items = new List<EquipmentInspectionItemDto>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -181,7 +182,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             }
             if (errors.Count > 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(string.Join(" ", errors.Take(20)));
 
-            var saved=await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest { TemplateCode=templateCode,TemplateName=templateName,DeptCode=deptCode,Frequency=frequency,Status="Draft",Description=description,Items=items },ct);
+            var saved=await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest { TemplateCode=templateCode,TemplateName=templateName,DeptCode=deptCode!.Value,Frequency=frequency,Status="Draft",Description=description,Items=items },ct);
             if (!saved.IsSuccess || saved.Data == null) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(saved.Message ?? "Không thể lưu checklist từ Excel.");
             return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Ok(new EquipmentInspectionTemplateImportResultDto { TemplateId=saved.Data.Id,TemplateCode=saved.Data.TemplateCode,TemplateName=saved.Data.TemplateName,ItemCount=items.Count }, "Đã kiểm tra và import checklist Excel thành công ở trạng thái Draft.");
         }
@@ -202,8 +203,8 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct))
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("Bạn không có quyền quản lý checklist.");
 
-        var dept = request.DeptCode.Trim().ToUpperInvariant();
-        if (string.IsNullOrWhiteSpace(dept) || string.IsNullOrWhiteSpace(request.TemplateName))
+        var dept = request.DeptCode;
+        if (dept <= 0 || string.IsNullOrWhiteSpace(request.TemplateName))
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("DepartmentCode và tên checklist là bắt buộc.");
 
         var frequencies = new[] { "Daily", "Weekly", "Monthly", "Quarterly", "Yearly" };
@@ -335,7 +336,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         var template = await _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == request.TemplateId && x.IsActive != false && x.Status == "Active", ct);
         if (template == null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Checklist phải là version Active.");
-        if (!string.Equals(template.DeptCode, asset.DeptCode, StringComparison.OrdinalIgnoreCase))
+        if (template.DeptCode != asset.DeptCode)
             return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("DepartmentCode của checklist không khớp DepartmentCode của thiết bị.");
 
         var inspector = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == request.InspectorEmployeeCode && x.IsActive != false, ct);
@@ -548,7 +549,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         return ServiceResult<EquipmentInspectionTaskDto>.Ok(MapTask(task), "Đã từ chối checklist.");
     }
 
-    public async Task<ServiceResult<EquipmentInspectionDashboardDto>> DashboardAsync(DateTime from, DateTime to, string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<EquipmentInspectionDashboardDto>> DashboardAsync(DateTime from, DateTime to, int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionReport, ct))
@@ -556,7 +557,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
 
         var q = _db.Set<F03EquipmentInspectionTask>().AsNoTracking().Include(x => x.Equipment).Include(x => x.Template)
             .Where(x => x.IsActive != false && x.ScheduledDate >= from.Date && x.ScheduledDate <= to.Date);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.Equipment!.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (deptCode != null) q = q.Where(x => x.Equipment!.DeptCode == deptCode);
         var rows = await q.OrderByDescending(x => x.ScheduledDate).ThenBy(x => x.Equipment!.EquipmentCode).Take(5000).ToListAsync(ct);
         var total = rows.Count;
         var completed = rows.Count(x => x.Status == "Approved");
@@ -573,7 +574,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             Rows = rows.Select(x => new EquipmentInspectionReportRowDto
             {
                 TaskId = x.Id,
-                DeptCode = x.Equipment?.DeptCode ?? "", EquipmentCode = x.Equipment?.EquipmentCode ?? "",
+                DeptCode = x.Equipment?.DeptCode ?? 0, EquipmentCode = x.Equipment?.EquipmentCode ?? "",
                 EquipmentName = x.Equipment?.EquipmentName ?? "", TemplateName = x.Template?.TemplateName ?? "",
                 InspectorEmployeeCode = x.InspectorEmployeeCode, Status = x.Status, Result = x.Result,
                 ScheduledDate = x.ScheduledDate, DueAt = x.DueAt, SubmittedAt = x.SubmittedAt, ApprovedAt = x.ApprovedAt
@@ -890,7 +891,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     private static EquipmentInspectionTaskDto MapTask(F03EquipmentInspectionTask x) => new()
     {
         Id=x.Id, EquipmentId=x.EquipmentId, EquipmentCode=x.Equipment?.EquipmentCode ?? "", EquipmentName=x.Equipment?.EquipmentName ?? "",
-        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? "", TemplateId=x.TemplateId,
+        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? 0, TemplateId=x.TemplateId,
         TemplateName=x.Template?.TemplateName ?? "", TemplateVersion=x.Template?.Version ?? 0, Status=x.Status, Result=x.Result,
         ScheduledDate=x.ScheduledDate, DueAt=x.DueAt, InspectorEmployeeCode=x.InspectorEmployeeCode, ApproverEmployeeCode=x.ApproverEmployeeCode,
         Items=x.Template?.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>{

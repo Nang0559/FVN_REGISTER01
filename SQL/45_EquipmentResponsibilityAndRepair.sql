@@ -4,7 +4,7 @@
 
 IF OBJECT_ID(N'dbo.F03EquipmentAssets', N'U') IS NOT NULL
 BEGIN
-    IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'OperatingResponsibleDeptCode') IS NULL ALTER TABLE dbo.F03EquipmentAssets ADD OperatingResponsibleDeptCode nvarchar(20) NULL;
+    IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'OperatingResponsibleDeptCode') IS NULL ALTER TABLE dbo.F03EquipmentAssets ADD OperatingResponsibleDeptCode int NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'OperatingResponsibleEmployeeCode') IS NULL ALTER TABLE dbo.F03EquipmentAssets ADD OperatingResponsibleEmployeeCode nvarchar(50) NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'OperatingResponsibleAssignedAt') IS NULL ALTER TABLE dbo.F03EquipmentAssets ADD OperatingResponsibleAssignedAt datetime2 NULL;
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03EquipmentAssets_OperatingResponsible' AND object_id=OBJECT_ID(N'dbo.F03EquipmentAssets')) CREATE INDEX IX_F03EquipmentAssets_OperatingResponsible ON dbo.F03EquipmentAssets(OperatingResponsibleEmployeeCode,OperatingResponsibleDeptCode);
@@ -12,7 +12,7 @@ END;
 
 IF OBJECT_ID(N'dbo.F03EquipmentRequests', N'U') IS NOT NULL
 BEGIN
-    IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'RepairResponsibleDeptCode') IS NULL ALTER TABLE dbo.F03EquipmentRequests ADD RepairResponsibleDeptCode nvarchar(20) NULL;
+    IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'RepairResponsibleDeptCode') IS NULL ALTER TABLE dbo.F03EquipmentRequests ADD RepairResponsibleDeptCode int NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'RepairAssigneeEmployeeCode') IS NULL ALTER TABLE dbo.F03EquipmentRequests ADD RepairAssigneeEmployeeCode nvarchar(50) NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'RepairAssigneeUserId') IS NULL ALTER TABLE dbo.F03EquipmentRequests ADD RepairAssigneeUserId int NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'RepairFeedback') IS NULL ALTER TABLE dbo.F03EquipmentRequests ADD RepairFeedback nvarchar(1000) NULL;
@@ -23,7 +23,7 @@ END;
 
 IF OBJECT_ID(N'dbo.F03EquipmentRepairHistory', N'U') IS NOT NULL
 BEGIN
-    IF COL_LENGTH(N'dbo.F03EquipmentRepairHistory', N'ResponsibleDeptCode') IS NULL ALTER TABLE dbo.F03EquipmentRepairHistory ADD ResponsibleDeptCode nvarchar(20) NULL;
+    IF COL_LENGTH(N'dbo.F03EquipmentRepairHistory', N'ResponsibleDeptCode') IS NULL ALTER TABLE dbo.F03EquipmentRepairHistory ADD ResponsibleDeptCode int NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentRepairHistory', N'RepairerEmployeeCode') IS NULL ALTER TABLE dbo.F03EquipmentRepairHistory ADD RepairerEmployeeCode nvarchar(50) NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentRepairHistory', N'RepairFeedback') IS NULL ALTER TABLE dbo.F03EquipmentRepairHistory ADD RepairFeedback nvarchar(1000) NULL;
     IF COL_LENGTH(N'dbo.F03EquipmentRepairHistory', N'CompletedAt') IS NULL ALTER TABLE dbo.F03EquipmentRepairHistory ADD CompletedAt datetime2 NULL;

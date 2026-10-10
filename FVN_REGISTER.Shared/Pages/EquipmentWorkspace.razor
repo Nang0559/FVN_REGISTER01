@@ -11,15 +11,15 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageTitle>Nhập dữ liệu từ Excel</PageTitle>
+<PageTitle>@Language.T("equipment.nhapDuLieuTuExcel")</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-5">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Nhập dữ liệu từ Excel</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Phòng ban → chọn mẫu dữ liệu → kiểm tra Excel → xem lỗi → nhập dữ liệu</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("equipment.nhapDuLieuTuExcel")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.phongBanChonMauDu")</MudText>
         </div>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">Quản lý mẫu dữ liệu</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">@Language.T("equipment.quanLyMauDuLieu2")</MudButton>
     </MudStack>
 
     @if (!_ready)
@@ -28,53 +28,60 @@
     }
     else if (!_access)
     {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Tài khoản chưa được cấp quyền nhập dữ liệu từ Excel.</MudAlert>
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@Language.T("equipment.taiKhoanChuaDuocCap2")</MudAlert>
     }
     else
     {
         <MudPaper Outlined="true" Class="pa-5 mb-4">
-            <MudText Typo="Typo.h6" Class="mb-3">1. Chọn phòng ban và mẫu dữ liệu</MudText>
-            <MudSelect T="string" Label="Phòng ban" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
+            <MudText Typo="Typo.h6" Class="mb-3">@Language.T("equipment.t1ChonPhongBanVa")</MudText>
+            <MudSelect T="int?" Label='@Language.T("common.department")' @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
                 @foreach (var dept in _departments)
                 {
-                    <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode – @dept.DeptName</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@((int?)dept.DeptCode)">@dept.DeptCode – @dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@string.IsNullOrWhiteSpace(_deptCode)">Tải mẫu dữ liệu</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemasAsync" Disabled="@(_deptCode == null)">@Language.T("equipment.taiMauDuLieu")</MudButton>
 
-            @if (_schemas.Count > 0)
+            @if (_schemas.Any(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)))
             {
-                <MudSelect T="int?" Label="Mẫu dữ liệu / phiên bản" @bind-Value="_schemaId" Variant="Variant.Outlined" Dense="true" Class="mt-3">
-                    @foreach (var item in _schemas.Where(x => x.Status == "Active"))
+                <MudSelect T="int?" Label="@Language.T("equipment.mauDuLieuPhienBan")" @bind-Value="_schemaId" Variant="Variant.Outlined" Dense="true" Class="mt-3">
+                    @foreach (var item in _schemas.Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)))
                     {
-                        <MudSelectItem T="int?" Value="@((int?)item.Id)">@item.SchemaName — v@item.Version — @item.OwnerName</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)item.Id)">@item.SchemaName — v@item.Version — @item.CreatedByUserName</MudSelectItem>
                     }
                 </MudSelect>
                 @if (_schema != null)
                 {
                     <MudAlert Severity="Severity.Success" Class="mt-3">
-                        Đang sử dụng: <b>@_schema.SchemaName — v@_schema.Version</b>. Người tạo: @_schema.OwnerName. Số trường: @_schema.Fields.Count.
+                        @Language.T("equipment.dangSuDung") <b>@_schema.SchemaName — v@_schema.Version</b>@Language.T("equipment.nguoiTaoSoTruong", _schema.CreatedByUserName, _schema.Fields.Count)
                     </MudAlert>
                 }
             }
-            else if (!string.IsNullOrWhiteSpace(_deptCode))
+            else if (_schemas.Count > 0)
             {
-                <MudAlert Severity="Severity.Warning" Class="mt-3">Phòng <b>@_deptCode</b> chưa có mẫu dữ liệu đang sử dụng. Hãy tạo và kích hoạt mẫu trước.</MudAlert>
+                <MudAlert Severity="Severity.Warning" Class="mt-3">
+                    Phòng ban này đã có @_schemas.Count mẫu dữ liệu nhưng tất cả đang ở trạng thái Bản nháp. Vào Quản lý mẫu dữ liệu, mở mẫu do bạn tạo và chọn "Đưa vào sử dụng" để mẫu xuất hiện tại đây.
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">Quản lý mẫu dữ liệu</MudButton>
+                </MudAlert>
+            }
+            else if (_deptCode != null)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mt-3">@Language.T("equipment.phong") <b>@_deptCode</b> @Language.T("equipment.chuaCoMauDuLieu")</MudAlert>
             }
         </MudPaper>
 
         @if (_schema != null)
         {
             <MudPaper Outlined="true" Class="pa-5 mb-4">
-                <MudText Typo="Typo.h6">2. Cấu trúc được dùng để kiểm tra Excel</MudText>
-                <MudTable Items="_schema.Fields.Where(x => x.IsActiveField && x.IsImportable).OrderBy(x => x.DisplayOrder)" Dense="true" Class="mt-3">
+                <MudText Typo="Typo.h6">@Language.T("equipment.t2CauTrucDuocDung")</MudText>
+                <MudTable Items="_schema.Fields.OrderBy(x => x.DisplayOrder)" Dense="true" Class="mt-3">
                     <HeaderContent>
-                        <MudTh>Trường dữ liệu</MudTh><MudTh>Kiểu dữ liệu</MudTh><MudTh>Bắt buộc</MudTh><MudTh>Độ dài</MudTh><MudTh>Giá trị mặc định</MudTh>
+                        <MudTh>@Language.T("equipment.truongDuLieu")</MudTh><MudTh>@Language.T("equipment.kieuDuLieu")</MudTh><MudTh>@Language.T("common.required")</MudTh><MudTh>@Language.T("equipment.doDai")</MudTh><MudTh>@Language.T("equipment.giaTriMacDinh")</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.FieldLabel <span class="mud-text-secondary">(@context.FieldKey)</span></MudTd>
                         <MudTd>@DataTypeText(context.DataType)</MudTd>
-                        <MudTd>@(context.IsRequired ? "Có" : "Không")</MudTd>
+                        <MudTd>@(context.IsRequired ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
                         <MudTd>@context.MaxLength</MudTd>
                         <MudTd>@context.DefaultValue</MudTd>
                     </RowTemplate>
@@ -82,33 +89,33 @@
             </MudPaper>
 
             <MudPaper Outlined="true" Class="pa-5">
-                <MudText Typo="Typo.h6">3. Chọn file Excel và kiểm tra dữ liệu</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">File được kiểm tra theo đúng mẫu/phiên bản bạn đã chọn. Không tự lấy một mẫu khác trong phòng.</MudText>
-                <MudCheckBox T="bool" @bind-Value="_assignToEmployee" Label="Giao thiết bị cho nhân viên" Color="Color.Primary" Class="mb-2" />
-                <MudText Typo="Typo.caption" Class="d-block mb-2">Khi bật, Excel bắt buộc có cột <b>Mã nhân viên / EmployeeCode</b> và hệ thống sẽ đối chiếu từng dòng với HR Master.</MudText>
+                <MudText Typo="Typo.h6">@Language.T("equipment.t3ChonFileExcelVa")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@Language.T("equipment.fileDuocKiemTraTheo")</MudText>
+                <MudCheckBox T="bool" @bind-Value="_assignToEmployee" Label="@Language.T("equipment.giaoThietBiChoNhan")" Color="Color.Primary" Class="mb-2" />
+                <MudText Typo="Typo.caption" Class="d-block mb-2">@Language.T("equipment.khiBatExcelBatBuoc") <b>@Language.T("equipment.maNhanVienEmployeecode")</b> @Language.T("equipment.vaHeThongSeDoi")</MudText>
                 <InputFile OnChange="OnFileSelected" accept=".xls,.xlsx,.xlsm" />
                 @if (_file != null)
                 {
-                    <MudAlert Severity="Severity.Info" Class="my-3">Đã chọn: @_file.Name (@_file.Size bytes)</MudAlert>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StageAsync" Disabled="_uploading">@(_uploading ? "Đang kiểm tra..." : "Kiểm tra và xem trước")</MudButton>
+                    <MudAlert Severity="Severity.Info" Class="my-3">@Language.T("equipment.daChonBytes", _file.Name, _file.Size)</MudAlert>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StageAsync" Disabled="_uploading">@(_uploading ? Language.T("equipment.dangKiemTra2") : Language.T("equipment.kiemTraVaXemTruoc"))</MudButton>
                 }
 
                 @if (_batch != null)
                 {
                     <MudDivider Class="my-4" />
-                    <MudText Typo="Typo.subtitle1">Lô nhập #@_batch.Id</MudText>
-                    <MudText>Trạng thái: @BatchStatusText(_batch.Status)</MudText>
-                    <MudText>Tổng: @_batch.TotalRows · Hợp lệ: @_batch.ValidRows · Lỗi: @_batch.InvalidRows</MudText>
+                    <MudText Typo="Typo.subtitle1">@Language.T("equipment.loNhap", _batch.Id)</MudText>
+                    <MudText>@Language.T("common.trangThai2", BatchStatusText(_batch.Status))</MudText>
+                    <MudText>@Language.T("equipment.tongHopLeLoi", _batch.TotalRows, _batch.ValidRows, _batch.InvalidRows)</MudText>
                     @if (_batch.Rows.Any(x => !string.IsNullOrWhiteSpace(x.ErrorMessage)))
                     {
                         <MudAlert Severity="Severity.Error" Class="my-3">
                             @foreach (var row in _batch.Rows.Where(x => !string.IsNullOrWhiteSpace(x.ErrorMessage)).Take(20))
                             {
-                                <div>Dòng @row.RowNumber: @row.ErrorMessage</div>
+                                <div>@Language.T("equipment.dong", row.RowNumber, row.ErrorMessage)</div>
                             }
                         </MudAlert>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0 || _batch.Status != "Ready")" OnClick="CommitAsync">Nhập dữ liệu vào hệ thống</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0 || !string.Equals(_batch.Status, "Staged", StringComparison.OrdinalIgnoreCase))" OnClick="CommitAsync">@Language.T("equipment.nhapDuLieuVaoHe")</MudButton>
                 }
             </MudPaper>
         }
@@ -120,12 +127,12 @@
     private bool _access;
     private bool _uploading;
     private bool _assignToEmployee;
-    private string _deptCode = string.Empty;
+    private int? _deptCode;
     private int? _schemaId;
     private List<DepartmentDto> _departments = new();
-    private List<EquipmentSchemaSummaryDto> _schemas = new();
-    private EquipmentSchemaDto? _schema;
-    private EquipmentImportBatchDto? _batch;
+    private List<ExcelSchemaSummaryDto> _schemas = new();
+    private ExcelSchemaDto? _schema;
+    private ExcelImportBatchDto? _batch;
     private IBrowserFile? _file;
 
     protected override async Task OnInitializedAsync()
@@ -147,17 +154,17 @@
         _schema = null;
         _schemaId = null;
         _batch = null;
-        if (string.IsNullOrWhiteSpace(_deptCode)) return;
+        if (_deptCode == null) return;
         var list = await EquipmentClient.GetSchemasAsync(_deptCode);
         if (!list.IsSuccess)
         {
-            Snackbar.Add(list.Message ?? "Không tải được mẫu dữ liệu.", Severity.Error);
+            Snackbar.Add(list.Message ?? Language.T("equipment.khongTaiDuocMauDu"), Severity.Error);
             return;
         }
         _schemas = list.Data ?? new();
         var active = _schemas.Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)).OrderByDescending(x => x.Version).ToList();
         if (active.Count == 1) _schemaId = active[0].Id;
-        else if (active.Count > 1) Snackbar.Add("Phòng này có nhiều mẫu đang sử dụng. Hãy chọn đúng mẫu trước khi nhập Excel.", Severity.Info);
+        else if (active.Count > 1) Snackbar.Add(Language.T("equipment.phongNayCoNhieuMau"), Severity.Info);
         await LoadSelectedSchemaAsync();
     }
 
@@ -167,24 +174,24 @@
         if (!_schemaId.HasValue) return;
         var result = await EquipmentClient.GetSchemaAsync(_schemaId.Value);
         if (result.IsSuccess) _schema = result.Data;
-        else Snackbar.Add(result.Message ?? "Không tải được mẫu dữ liệu.", Severity.Error);
+        else Snackbar.Add(result.Message ?? Language.T("equipment.khongTaiDuocMauDu"), Severity.Error);
     }
 
     private void OnFileSelected(InputFileChangeEventArgs e) => _file = e.File;
 
     private async Task StageAsync()
     {
-        if (_file == null || string.IsNullOrWhiteSpace(_deptCode) || !_schemaId.HasValue) return;
+        if (_file == null || _deptCode == null || !_schemaId.HasValue) return;
         _uploading = true;
         try
         {
-            var result = await EquipmentClient.StageImportAsync(_deptCode, _schemaId, _file, _assignToEmployee);
+            var result = await EquipmentClient.StageImportAsync(_deptCode.Value, _schemaId, _file, _assignToEmployee);
             if (result.IsSuccess)
             {
                 _batch = result.Data;
-                Snackbar.Add("Excel đã được kiểm tra theo đúng phiên bản mẫu đã chọn.", Severity.Success);
+                Snackbar.Add(Language.T("equipment.excelDaDuocKiemTra"), Severity.Success);
             }
-            else Snackbar.Add(result.Message ?? "Không thể kiểm tra Excel.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheKiemTraExcel"), Severity.Error);
         }
         finally { _uploading = false; }
     }
@@ -193,28 +200,28 @@
     {
         if (_batch == null) return;
         var result = await EquipmentClient.CommitImportAsync(_batch.Id);
-        Snackbar.Add(result.IsSuccess ? "Đã nhập dữ liệu thành công." : (result.Message ?? "Không thể nhập dữ liệu."), result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(result.IsSuccess ? Language.T("equipment.daNhapDuLieuThanh") : (result.Message ?? Language.T("equipment.khongTheNhapDuLieu")), result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) await LoadSelectedSchemaAsync();
     }
 
-    private static string DataTypeText(string? type) => type?.ToLowerInvariant() switch
+    private string DataTypeText(string? type) => type?.ToLowerInvariant() switch
     {
-        "integer" => "Số nguyên",
-        "number" or "decimal" => "Số thập phân",
-        "currency" => "Tiền tệ",
-        "date" => "Ngày",
-        "datetime" => "Ngày giờ",
-        "boolean" => "Đúng / Sai",
+        "integer" => Language.T("equipment.soNguyen"),
+        "number" or "decimal" => Language.T("equipment.soThapPhan"),
+        "currency" => Language.T("equipment.tienTe"),
+        "date" => Language.T("ot.date"),
+        "datetime" => Language.T("equipment.ngayGio"),
+        "boolean" => Language.T("equipment.dungSai"),
         "email" => "Email",
-        "choice" => "Danh sách lựa chọn",
-        _ => "Văn bản"
+        "choice" => Language.T("equipment.danhSachLuaChon"),
+        _ => Language.T("equipment.vanBan")
     };
 
-    private static string BatchStatusText(string? status) => status?.ToLowerInvariant() switch
+    private string BatchStatusText(string? status) => status?.ToLowerInvariant() switch
     {
-        "ready" => "Sẵn sàng nhập",
-        "needsreview" => "Cần xử lý lỗi",
-        "imported" => "Đã nhập",
-        _ => "Đang kiểm tra"
+        "ready" => Language.T("equipment.sanSangNhap"),
+        "needsreview" => Language.T("equipment.canXuLyLoi"),
+        "imported" => Language.T("equipment.daNhap"),
+        _ => Language.T("equipment.dangKiemTra")
     };
 }

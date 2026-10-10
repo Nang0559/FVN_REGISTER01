@@ -190,20 +190,25 @@ BEGIN
 
     DECLARE @Now datetime2(0)=GETDATE();
 
-    DELETE FROM dbo.F03AttendanceStaging
-    WHERE WorkDate >= CAST(@WorkDate AS datetime2(0))
-      AND WorkDate < DATEADD(day,1,CAST(@WorkDate AS datetime2(0)));
-
+    /*
+      Validate required local master data BEFORE replacing the current day's staging.
+      If HRM shift sync has not run or the local master is empty, fail closed and
+      preserve the last successful staging snapshot for readers.
+    */
     IF NOT EXISTS (SELECT 1 FROM dbo.F03Shifts WHERE IsActive=1)
         THROW 51301,'F03Shifts is empty. Run dbo.usp_SyncHrmShiftMaster first.',1;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.F03ShiftSchedules WHERE IsActive=1)
         THROW 51302,'F03ShiftSchedules is empty. Run dbo.usp_SyncHrmShiftMaster first.',1;
 
+    DELETE FROM dbo.F03AttendanceStaging
+    WHERE WorkDate >= CAST(@WorkDate AS datetime2(0))
+      AND WorkDate < DATEADD(day,1,CAST(@WorkDate AS datetime2(0)));
+
     CREATE TABLE #Employees(
         EmployeeCode nvarchar(50) NOT NULL PRIMARY KEY,
         FullName nvarchar(100) NULL,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
         ScheduleCode nvarchar(50) NULL,
         ScheduleType nvarchar(20) NULL,
         HrmScheduleCode nvarchar(50) NULL
@@ -516,11 +521,11 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT
-        DeptCode = CONVERT(nvarchar(20), BP.BPMa),
+        DeptCode = CONVERT(int, BP.BPMa),
         DeptName = BP.BPTen,
         ParentDeptCode =
             CASE WHEN ISNULL(BP.BPMaCha, 0) = 0 THEN NULL
-                 ELSE CONVERT(nvarchar(50), BP.BPMaCha) END,
+                 ELSE CONVERT(int, BP.BPMaCha) END,
         DisplayPriority =
             CASE WHEN BP.BPUuTien IS NULL THEN NULL
                  WHEN BP.BPUuTien > 2147483647 OR BP.BPUuTien < -2147483648 THEN NULL
@@ -555,9 +560,7 @@ BEGIN
     SELECT
         EmployeeCode = LTRIM(RTRIM(NV.NVMaNV)),
         EmployeeName = COALESCE(NULLIF(LTRIM(RTRIM(NV.NVHoTen)), N''), LTRIM(RTRIM(NV.NVMaNV))),
-        DeptCode =
-            CASE WHEN ISNULL(NV.NVMaBP, 0) = 0 THEN NULL
-                 ELSE CONVERT(nvarchar(20), NV.NVMaBP) END,
+        DeptCode = NULLIF(CONVERT(int, NV.NVMaBP), 0),
         PositionCode = NULLIF(LEFT(LTRIM(RTRIM(NV.NVMaCV)), 20), N''),
         BirthDate = NV.NVNgaySinh,
         GenderCode = CONVERT(int, NV.NVGioiTinh),

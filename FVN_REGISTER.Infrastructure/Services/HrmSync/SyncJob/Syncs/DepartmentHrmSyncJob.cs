@@ -9,7 +9,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 {
     public class DepartmentHrmSyncJob : HrmSyncJob<F03StagingDepartment, F03Department>
     {
-        private readonly List<string> _deactivatedDeptCodes = new();
+        private readonly List<int> _deactivatedDeptCodes = new();
         // ★ MỚI — track để AfterBatchAsync ghi F03SyncReviewFlag
         private readonly List<string> _overwrittenManualEdits = new();          // đổi tên bị Hrm ghi đè
         private readonly List<string> _overwrittenManualDeactivations = new();  // Admin từng tắt tay, Hrm bật lại
@@ -23,15 +23,23 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         protected override async Task<Dictionary<string, F03Department>> LoadExistingEntitiesAsync(
             List<string> keys, CancellationToken ct)
         {
+            // Staging EntityKey là text; DeptCode trong DB/Entity là INT.
+            var codes = keys
+                .Select(k => int.TryParse(k?.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var c) ? (int?)c : null)
+                .Where(c => c.HasValue)
+                .Select(c => c!.Value)
+                .Distinct()
+                .ToList();
+
             var list = await Uow.Repository<F03Department>().Query()
-                .Where(x => keys.Contains(x.DeptCode))
+                .Where(x => codes.Contains(x.DeptCode))
                 .ToListAsync(ct);
-            return list.ToDictionary(x => x.DeptCode);
+            return list.ToDictionary(x => x.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         protected override F03Department MapToNewEntity(F03StagingDepartment s) => new()
         {
-            DeptCode = s.EntityKey,
+            DeptCode = int.Parse(s.EntityKey.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture),
             DeptName = s.DeptName,
             IsActive = true,
             ParentDeptCode = s.ParentDeptCode,
@@ -50,7 +58,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (e.DeptName != s.DeptName)
             {
                 if (wasManuallyEdited)
-                    _overwrittenManualEdits.Add(e.DeptCode);
+                    _overwrittenManualEdits.Add(e.DeptCode.ToString());
 
                 e.DeptName = s.DeptName;
                 changed = true;
@@ -64,7 +72,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (e.IsActive != true)
             {
                 if (wasManuallyEdited)
-                    _overwrittenManualDeactivations.Add(e.DeptCode);
+                    _overwrittenManualDeactivations.Add(e.DeptCode.ToString());
 
                 e.IsActive = true;
                 changed = true;
@@ -129,7 +137,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                     await flagRepo.AddAsync(new F03SyncReviewFlag
                     {
                         EntityType = "Department",
-                        EntityKey = approver.ApproveForDeptCode,
+                        EntityKey = approver.ApproveForDeptCode.ToString(),
                         FlagType = "DeptDeactivated_ApproverMayBeStale",
                         Message = $"Phòng ban {approver.ApproveForDeptCode} vừa bị vô hiệu hóa từ HRM, " +
                                   $"nhưng approver {approver.ApproverCode} Level {approver.Level} " +

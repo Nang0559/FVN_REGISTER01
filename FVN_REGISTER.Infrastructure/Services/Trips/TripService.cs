@@ -10,6 +10,7 @@ using FVN_REGISTER.Contract.Dtos.Trips;
 using FVN_REGISTER.Core.Entities.Trips;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,8 +36,10 @@ public sealed class TripService : ITripService
         _approvalSelections = approvalSelections;
     }
 
-    public async Task<TripRequestDto> CreateDraftAsync(CreateTripRequestDto request, CancellationToken ct = default)
+    public async Task<ServiceResult<TripRequestDto>> CreateDraftAsync(CreateTripRequestDto request, CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
         ValidateRequest(request);
@@ -68,7 +71,10 @@ public sealed class TripService : ITripService
 
         await _uow.Repository<F03TripRequest>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
-        return await MapAsync(entity, ct);
+        return ServiceResult<TripRequestDto>.Ok(await MapAsync(entity, ct), "Đã tạo đăng ký công tác.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult<TripRequestDto>.Fail(ex.Message); }
     }
 
     public async Task<ServiceResult<TripRequestDto>> SubmitAsync(int requestId, List<ApprovalSelectionDto>? approvalSelections = null, CancellationToken ct = default)
@@ -107,7 +113,7 @@ public sealed class TripService : ITripService
         var context = ApprovalBuildContext.ForTrip(
             entity.Id,
             entity.EmployeeCode,
-            entity.DeptCode ?? employee?.DeptCode ?? string.Empty,
+            entity.DeptCode ?? employee?.DeptCode ?? 0,
             employee?.PositionCode ?? string.Empty);
 
         var approvalResult = await _workflow.InitApprovalAsync(entity.Id, context, ct);
@@ -137,22 +143,29 @@ public sealed class TripService : ITripService
         }
     }
 
-    public async Task<TripRequestDto?> GetAsync(int requestId, CancellationToken ct = default)
+    public async Task<ServiceResult<TripRequestDto>> GetAsync(int requestId, CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
 
         var entity = await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
-        if (entity == null) return null;
+        if (entity == null) return ServiceResult<TripRequestDto>.Fail("Không tìm thấy đăng ký công tác.");
         if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripView, entity.EmployeeCode, entity.DeptCode, ct))
             throw new UnauthorizedAccessException("Bạn không có quyền xem đăng ký này.");
 
-        return await MapAsync(entity, ct);
+        return ServiceResult<TripRequestDto>.Ok(await MapAsync(entity, ct));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult<TripRequestDto>.Fail(ex.Message); }
     }
 
-    public async Task<List<TripRequestDto>> GetMineAsync(CancellationToken ct = default)
+    public async Task<ServiceResult<List<TripRequestDto>>> GetMineAsync(CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
         var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.TripView, ct);
@@ -168,8 +181,8 @@ public sealed class TripService : ITripService
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var managedDeptCodes = managedEmployees
                 .Select(x => x.DeptCode)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .Where(x => x.HasValue)
+                .ToHashSet();
 
             if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                 query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode));
@@ -189,7 +202,10 @@ public sealed class TripService : ITripService
             .Select(x => new { x.EmployeeCode, x.EmployeeName })
             .ToDictionaryAsync(x => x.EmployeeCode, x => x.EmployeeName, ct);
 
-        return entities.Select(x => ToDto(x, names.TryGetValue(x.EmployeeCode, out var n) ? n : null)).ToList();
+        return ServiceResult<List<TripRequestDto>>.Ok(entities.Select(x => ToDto(x, names.TryGetValue(x.EmployeeCode, out var n) ? n : null)).ToList());
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult<List<TripRequestDto>>.Fail(ex.Message); }
     }
 
     private async Task<TripRequestDto> MapAsync(F03TripRequest x, CancellationToken ct)
@@ -222,8 +238,10 @@ public sealed class TripService : ITripService
     };
 
 
-    public async Task<TripRequestDto> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default)
+    public async Task<ServiceResult<TripRequestDto>> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
         var entity = await _uow.Repository<F03TripRequest>().Query()
@@ -250,11 +268,16 @@ public sealed class TripService : ITripService
         entity.ModifiedBy = user.UserId;
         entity.ModifiedAt = DateTime.Now;
         await _uow.SaveChangesAsync(ct);
-        return await MapAsync(entity, ct);
+        return ServiceResult<TripRequestDto>.Ok(await MapAsync(entity, ct), "Đã cập nhật đăng ký công tác.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult<TripRequestDto>.Fail(ex.Message); }
     }
 
-    public async Task CancelAsync(int requestId, string reason, CancellationToken ct = default)
+    public async Task<ServiceResult> CancelAsync(int requestId, string reason, CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
         var entity = await _uow.Repository<F03TripRequest>().Query()
@@ -273,6 +296,10 @@ public sealed class TripService : ITripService
         entity.ModifiedBy = user.UserId;
         entity.ModifiedAt = DateTime.Now;
         await _uow.SaveChangesAsync(ct);
+        return ServiceResult.Ok("Đã hủy đăng ký công tác.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult.Fail(ex.Message); }
     }
 
     private static void ValidateRequest(CreateTripRequestDto request)

@@ -1,10 +1,37 @@
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Contract.Dtos.Security;
 using Xunit;
 
 namespace FVN_REGISTER.Infrastructure.Tests;
 
 public sealed class SecurityFunctionCapabilityMatrixTests
 {
+    [Fact]
+    public void ScopePolicy_DistinguishesPersonalAndManagement()
+    {
+        Assert.True(AuthorizationScopePolicy.IsPersonalScope(AuthorizationScopeCodes.Own));
+        Assert.False(AuthorizationScopePolicy.IsManagementScope(AuthorizationScopeCodes.Own));
+        Assert.True(AuthorizationScopePolicy.IsManagementScope(AuthorizationScopeCodes.Department));
+        Assert.True(AuthorizationScopePolicy.IsManagementScope(AuthorizationScopeCodes.All));
+    }
+
+    [Fact]
+    public void PermissionSnapshot_AllowsUserAndManagerScopesForSameFunction()
+    {
+        var snapshot = new PermissionSnapshotDto
+        {
+            Functions = new List<SecurityFunctionDto>
+            {
+                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Own, AccessMode = "Personal" },
+                new() { FunctionCode = SecurityFunctionCodes.LeaveView, ScopeCode = AuthorizationScopeCodes.Department, AccessMode = "Management" }
+            },
+            FunctionCodes = new HashSet<int> { SecurityFunctionCodes.LeaveView }
+        };
+
+        Assert.True(snapshot.HasPersonal(SecurityFunctionCodes.LeaveView));
+        Assert.True(snapshot.HasManagement(SecurityFunctionCodes.LeaveView));
+    }
+
     [Fact]
     public void AttendanceCalculate_IsSeparateFromAttendanceViewAndExport()
     {
@@ -66,6 +93,48 @@ public sealed class SecurityFunctionCapabilityMatrixTests
         Assert.NotEqual(
             SecurityFunctionCodes.CalendarView,
             SecurityFunctionCodes.WorkCalendarManage);
+    }
+
+    [Fact]
+    public void FeatureOperatorCapabilities_IncludeExecutionReviewAndEndpointSoftwareCatalogManage()
+    {
+        Assert.Equal(2802, SecurityFunctionCodes.ExecutionReview);
+        Assert.Equal(3110, SecurityFunctionCodes.EndpointSoftwareCatalogManage);
+        Assert.NotEqual(
+            SecurityFunctionCodes.ExecutionReview,
+            SecurityFunctionCodes.EndpointSoftwareCatalogManage);
+    }
+
+    [Fact]
+    public void PolicyAndRuleCapabilities_UseTheSharedFeatureOperatorCatalog()
+    {
+        Assert.Equal(FeatureOperatorCatalog.ExecutionPolicy, FeatureOperatorCatalog.All[SecurityFunctionCodes.ExecutionPolicyManage]);
+        Assert.Equal(FeatureOperatorCatalog.ApprovalPolicy, FeatureOperatorCatalog.All[SecurityFunctionCodes.ApprovalPolicyManage]);
+        Assert.Equal(FeatureOperatorCatalog.OtLimitRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.OTLimitManage]);
+        Assert.Equal(FeatureOperatorCatalog.WorkCalendar, FeatureOperatorCatalog.All[SecurityFunctionCodes.WorkCalendarManage]);
+        Assert.Equal(FeatureOperatorCatalog.AttendanceSymbolRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.WorkCalendarSymbolRuleManage]);
+        Assert.Equal(FeatureOperatorCatalog.HrmUserRoleRule, FeatureOperatorCatalog.All[SecurityFunctionCodes.HrmUserRoleRuleManage]);
+
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.ExecutionPolicyManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.ApprovalPolicyManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.OTLimitManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.WorkCalendarManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.WorkCalendarSymbolRuleManage));
+        Assert.True(FeatureOperatorCatalog.IsModuleWide(SecurityFunctionCodes.HrmUserRoleRuleManage));
+        Assert.Equal(3044, SecurityFunctionCodes.WorkCalendarSymbolRuleManage);
+        Assert.Equal(3073, SecurityFunctionCodes.ExecutionPolicyManage);
+        Assert.True(FeatureOperatorCatalog.IsModuleWideResourceType(FeatureOperatorCatalog.ExecutionPolicy));
+        Assert.True(FeatureOperatorCatalog.IsModuleWideResourceType(FeatureOperatorCatalog.AttendanceSymbolRule));
+        Assert.False(FeatureOperatorCatalog.IsModuleWideResourceType(FeatureOperatorCatalog.PublicForm));
+    }
+
+    [Fact]
+    public void FeatureOperatorAuthorization_RequiresBothRbacAndAssignment()
+    {
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(false, false));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(false, true));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanOperate(true, false));
+        Assert.True(FeatureOperatorAuthorizationPolicy.CanOperate(true, true));
     }
 
     [Fact]

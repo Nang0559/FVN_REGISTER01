@@ -1,19 +1,34 @@
 @page "/"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Responses
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Actions
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Calendar
+@using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Shared.Services.Execution
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
 @inject IDashboardClientService DashboardService
 @inject ICurrentUserClientService CurrentUserService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ISecurityClientService SecurityService
+@inject IOTClientService OTClient
+@inject IExecutionReconciliationClientService ExecutionService
+@inject IWorkCalendarClientService CalendarService
 @inject NavigationManager Navigation
 
-<PageTitle>Trang chủ</PageTitle>
+<PageTitle>@Language.T("home.title")</PageTitle>
 
 @if (_isLoading)
 {
@@ -33,67 +48,157 @@ else if (_model != null)
         <MudPaper Elevation="0" Class="pa-6 mb-5" Style="border-radius:24px; background:linear-gradient(135deg, rgba(25,118,210,.12), rgba(0,150,136,.08)); border:1px solid rgba(25,118,210,.10)">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="4" Wrap="Wrap.Wrap">
                 <div>
-                    <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • WORKSPACE</MudText>
-                    <MudText Typo="Typo.h4" Style="font-weight:850">Xin chào, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")</MudText>
-                    <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">Đây là trung tâm công việc cá nhân: theo dõi đơn, xử lý phê duyệt và các thông tin cần chú ý.</MudText>
+                    <MudText Typo="Typo.overline" Color="Color.Primary">@Language.T("common.fvnRegisterWorkspace")</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight:850">@Language.T("home.greeting"), @(CurrentUserService.User?.FullName ?? Language.T("common.user"))</MudText>
+                    <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">@Language.T("home.workspaceDescription")</MudText>
                 </div>
                 <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign" OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">Thông tin</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => Navigation.NavigateTo("/leave/create"))">Tạo Leave</MudButton>
-                    @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.OTCreate) == true)
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign" OnClick="OpenPath_thong_tin_cong_khai">@Language.T("home.information")</MudButton>
+                    @if (CanPersonal(SecurityFunctionCodes.LeaveCreate))
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule" OnClick="@(() => Navigation.NavigateTo("/ot/create"))">Tạo OT</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" OnClick="OpenPath_leave_create">@Language.T("home.createLeave")</MudButton>
                     }
-                    @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.TripCreate) == true)
+                    @if (CanPersonal(SecurityFunctionCodes.OTCreate))
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FlightTakeoff" OnClick="@(() => Navigation.NavigateTo("/trip/create"))">Tạo công tác</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule" OnClick="OpenPath_ot_create">@Language.T("home.createOt")</MudButton>
+                    }
+                    @if (CanPersonal(SecurityFunctionCodes.TripCreate))
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FlightTakeoff" OnClick="OpenPath_trip_create">@Language.T("home.createTrip")</MudButton>
                     }
                 </MudStack>
             </MudStack>
         </MudPaper>
 
-        <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">Trung tâm công việc</MudText>
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">Thông báo và phê duyệt dùng chung một Action Center. Thiết bị cũng được mở ngay trong Workspace.</MudAlert>
+        @* Department overview appears directly under the welcome header. *@
+        <DashboardOverview Data="_model" />
+
         <MudGrid Spacing="3" Class="mb-5">
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/work/inbox"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">Phê duyệt</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Tập trung các việc đang chờ xử lý theo quyền của tài khoản.</MudText></MudCardContent></MudCard></MudItem>
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/leave"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">Nghỉ phép của tôi</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Xem số dư, lịch sử và trạng thái các đơn nghỉ.</MudText></MudCardContent></MudCard></MudItem>
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/ot"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">OT của tôi</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Theo dõi giờ OT và các yêu cầu đã gửi.</MudText></MudCardContent></MudCard></MudItem>
-            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/calendar"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">Lịch làm việc</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Xem tổng quan lịch làm việc, chấm công và các đơn trong tháng.</MudText></MudCardContent></MudCard></MudItem>
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2" Style="height:100%; border-radius:18px; overflow:hidden">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.myTasks")</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.myTasksDescription")</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            @if (MyTaskTotalCount > 0)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@MyTaskTotalCount</MudChip>
+                            }
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent Class="pa-0">
+                        @if (PendingApprovalItems.Count > 0 || _model.Actions.Any())
+                        {
+                            <MudList T="ActionItemDto" Dense="true">
+                                @foreach (var approval in PendingApprovalItems)
+                                {
+                                    <MudListItem T="ActionItemDto" OnClick="OpenPath_approvals">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body2"><b>@approval.EmployeeName</b> — @GetApprovalKindDisplay(approval.Kind)</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@approval.EmployeeCode — @approval.DeptName</MudText>
+                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Size="Size.Small">@Language.T("dashboard.level", GetApprovalLevel(approval))</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.pending")</MudChip>
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudListItem>
+                                    <MudDivider />
+                                }
+                                @foreach (var action in _model.Actions.Take(Math.Max(0, 5 - PendingApprovalItems.Count)))
+                                {
+                                    <MudListItem T="ActionItemDto" OnClick="@(() => OpenAction(action))">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body2"><b>@action.Title</b></MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@action.Summary</MudText>
+                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
+                                                @if (action.Status == 0)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.pending")</MudChip>
+                                                }
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudListItem>
+                                    <MudDivider />
+                                }
+                            </MudList>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="pa-4 mud-text-secondary">@Language.T("home.myTasksEmpty")</MudText>
+                        }
+                    </MudCardContent>
+                    <MudCardActions>
+                        @if (MyTaskTotalCount > 5)
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_work_inbox">@Language.T("dashboard.viewAll")</MudButton>
+                        }
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            @if (CanSeeMyCalendar)
+            {
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="2" Style="height:100%; border-radius:18px; overflow:hidden">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.myCalendar")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.myCalendarDescription")</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="OpenPath_calendar">@Language.T("dashboard.viewAll")</MudButton>
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent Class="pa-2">
+                            <WorkCalendar ModuleContext="ALL" OnDaySelected="HandleCalendarDaySelected" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
         </MudGrid>
 
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
-            <MudText Typo="Typo.h6" Style="font-weight:750">Tổng quan cá nhân</MudText>
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">Cập nhật @_loadedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
+            <MudText Typo="Typo.h6" Style="font-weight:750">@Language.T("home.personalOverview")</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("home.updatedAt", _loadedAt?.ToString("dd/MM/yyyy HH:mm"))</MudText>
         </MudStack>
 
-        <EquipmentDashboardTile />
+        @if (CanPersonal(SecurityFunctionCodes.EquipmentView))
+        {
+            <EquipmentDashboardTile />
+        }
 
-        @if (CurrentUserService.User?.IsAdmin == true || CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
+        @if (CanManagement(SecurityFunctionCodes.EquipmentView))
         {
             <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <div>
-                        <MudText Typo="Typo.h6">Thiết bị</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Sổ thiết bị, QR, repair và workspace Excel theo schema phòng ban.</MudText>
+                        <MudText Typo="Typo.h6">@Language.T("home.equipment")</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("home.equipmentDescription")</MudText>
                     </div>
-                    @if (CurrentUserService.User?.IsAdmin == true || CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentImport) == true)
+                    @if (CanManagement(SecurityFunctionCodes.EquipmentImport))
                     {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Import Excel</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="OpenPath_equipment_workspace">@Language.T("home.importExcel")</MudButton>
                     }
                     else
                     {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Mở Equipment</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices" OnClick="OpenPath_equipment">@Language.T("home.openEquipment")</MudButton>
                     }
                 </MudStack>
             </MudPaper>
         }
 
-        <DashboardOverview Data="_model" />
     </MudContainer>
 }
 else if (_guestFallback)
 {
-    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8"><MudPaper Outlined="true" Class="pa-6" Style="border-radius:20px"><MudText Typo="Typo.h5">Thông tin công khai</MudText><MudText Typo="Typo.body2" Class="mt-2 mb-4 mud-text-secondary">Tài khoản hiện không có capability Dashboard.View. Bạn chỉ thấy các thông tin công khai được phép.</MudText><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Campaign" OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">Mở thông tin công khai</MudButton></MudPaper></MudContainer>
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8"><MudPaper Outlined="true" Class="pa-6" Style="border-radius:20px"><MudText Typo="Typo.h5">@Language.T("home.publicInformation")</MudText><MudText Typo="Typo.body2" Class="mt-2 mb-4 mud-text-secondary">@Language.T("home.publicOnlyDescription")</MudText><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Campaign" OnClick="OpenPath_thong_tin_cong_khai">@Language.T("home.openPublicInformation")</MudButton></MudPaper></MudContainer>
 }
 else if (!string.IsNullOrWhiteSpace(_errorMessage))
 {
@@ -101,7 +206,7 @@ else if (!string.IsNullOrWhiteSpace(_errorMessage))
 }
 else
 {
-    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6"><MudAlert Severity="Severity.Info">Dashboard chưa có dữ liệu để hiển thị.</MudAlert></MudContainer>
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6"><MudAlert Severity="Severity.Info">@Language.T("home.dashboardEmpty")</MudAlert></MudContainer>
 }
 
 @code {
@@ -110,28 +215,218 @@ else
     private string? _errorMessage;
     private bool _guestFallback;
     private DateTime? _loadedAt;
+    private PermissionSnapshotDto? _permissions;
     private readonly CancellationTokenSource _cts = new();
+
+    private bool Can(int functionCode) => _permissions?.Has(functionCode) == true;
+    private bool CanPersonal(int functionCode) => _permissions?.HasPersonal(functionCode) == true;
+    private bool CanManagement(int functionCode) => _permissions?.HasManagement(functionCode) == true;
+    private bool CanSeeMyCalendar =>
+        CanPersonal(SecurityFunctionCodes.CalendarView)
+        || CanPersonal(SecurityFunctionCodes.LeaveView)
+        || CanPersonal(SecurityFunctionCodes.LeaveCreate)
+        || CanPersonal(SecurityFunctionCodes.OTView)
+        || CanPersonal(SecurityFunctionCodes.OTCreate)
+        || CanPersonal(SecurityFunctionCodes.TripView)
+        || CanPersonal(SecurityFunctionCodes.TripCreate)
+        || CanPersonal(SecurityFunctionCodes.AttendanceView);
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            await Language.InitializeAsync(_cts.Token);
             await CurrentUserService.InitializeAsync();
-            if (!CurrentUserService.IsLoggedIn) { _errorMessage = "Phiên đăng nhập không hợp lệ hoặc đã hết hạn."; return; }
+            if (!CurrentUserService.IsLoggedIn) { _errorMessage = Language.T("home.sessionInvalid"); return; }
+
+            var permissionResult = await SecurityService.GetMyPermissionsAsync(_cts.Token);
+            if (permissionResult.IsSuccess)
+                _permissions = permissionResult.Data;
+
             var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
             if (result.IsSuccess && result.Data != null) { _model = result.Data; _loadedAt = DateTime.Now; }
-            else if (result.IsUnauthorized) _errorMessage = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+            else if (result.IsUnauthorized) _errorMessage = Language.T("home.sessionExpired");
             else
             {
-                var message = result.Message ?? "Không thể tải Dashboard.";
+                var message = result.Message ?? Language.T("home.loadFailed");
                 if (message.Contains("chưa được cấp quyền xem Dashboard", StringComparison.OrdinalIgnoreCase)) _guestFallback = true;
                 else _errorMessage = message;
             }
         }
         catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
-        catch (Exception ex) { _errorMessage = $"Không thể tải Dashboard: {ex.Message}"; Snackbar.Add(_errorMessage, Severity.Error); }
+        catch (Exception ex) { _errorMessage = Language.T("home.loadError", ex.Message); Snackbar.Add(_errorMessage, Severity.Error); }
         finally { _isLoading = false; }
     }
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    private async Task HandleCalendarDaySelected(CalendarDayDto day)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarDayDialog.Day)] = day,
+            [nameof(CalendarDayDialog.OnRegistrationSelected)] = EventCallback.Factory.Create<CalendarRegistrationDto>(this, registration =>
+            {
+                OpenRegistration(registration.ModuleCode, day.Date);
+                return Task.CompletedTask;
+            }),
+            [nameof(CalendarDayDialog.OnActionSelected)] = EventCallback.Factory.Create<CalendarActionRequestDto>(this, HandleCalendarActionAsync)
+        };
+
+        await DialogService.ShowAsync<CalendarDayDialog>(
+            Language.T("calendar.dayTitle", day.Date.ToString("dd/MM/yyyy")),
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+    }
+
+    private void OpenRegistration(string moduleCode, DateOnly date)
+    {
+        var route = moduleCode switch
+        {
+            "LEAVE" => $"/leave/create?date={date:yyyy-MM-dd}",
+            "OT" => $"/ot/create?date={date:yyyy-MM-dd}",
+            "TRIP" => $"/trip/create?date={date:yyyy-MM-dd}",
+            _ => "/calendar"
+        };
+        Navigation.NavigateTo(route);
+    }
+
+    private async Task HandleCalendarActionAsync(CalendarActionRequestDto request)
+    {
+        switch (request.ActionCode)
+        {
+            case "OPEN_OT":
+                Navigation.NavigateTo($"/ot/create?date={request.Date:yyyy-MM-dd}");
+                return;
+            case "OPEN_OT_REQUEST":
+                if (!string.IsNullOrWhiteSpace(request.DetailRoute))
+                    Navigation.NavigateTo(request.DetailRoute);
+                return;
+
+            case "OPEN_HR_FEEDBACK":
+                await OpenHrFeedbackAsync(request);
+                return;
+
+            case "CANCEL_OT":
+                if (request.RequestId is not int requestId)
+                {
+                    Snackbar.Add(Language.T("calendar.cancelOtUnknown"), Severity.Error);
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(request.Reason))
+                {
+                    Snackbar.Add(Language.T("calendar.cancelOtReasonRequired"), Severity.Warning);
+                    return;
+                }
+
+                var result = await OTClient.CancelAsync(requestId, request.Reason);
+                Snackbar.Add(
+                    result.Message ?? (result.IsSuccess ? Language.T("calendar.otCancelled") : Language.T("calendar.otCancelFailed")),
+                    result.IsSuccess ? Severity.Success : Severity.Error);
+                return;
+        }
+    }
+
+    private async Task OpenHrFeedbackAsync(CalendarActionRequestDto request)
+    {
+        var employeeCode = CurrentUserService.User?.EmployeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(employeeCode))
+        {
+            Snackbar.Add(Language.T("calendar.employeeUnknown"), Severity.Error);
+            return;
+        }
+
+        long reconciliationId;
+        if (request.ReconciliationId is long existingReconciliationId)
+        {
+            reconciliationId = existingReconciliationId;
+        }
+        else
+        {
+            var ensure = await ExecutionService.EnsureAttendanceFeedbackAsync(request.Date);
+            if (!ensure.IsSuccess || ensure.Data is null)
+            {
+                Snackbar.Add(ensure.Message ?? Language.T("calendar.feedbackCreateFailed"), Severity.Error);
+                return;
+            }
+            reconciliationId = ensure.Data.Id;
+        }
+
+        var result = await CalendarService.GetForEmployeeAsync(
+            employeeCode,
+            request.Date.ToDateTime(TimeOnly.MinValue),
+            request.Date.ToDateTime(TimeOnly.MinValue));
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Snackbar.Add(result.Message ?? Language.T("calendar.attendanceLoadFailed"), Severity.Error);
+            return;
+        }
+
+        var selectedDay = result.Data.Days.FirstOrDefault(x => x.Date == request.Date);
+        var issue = selectedDay?.Issues.FirstOrDefault(x => x.Code == request.IssueCode);
+        var action = issue?.Actions.FirstOrDefault(x => x.Code == request.ActionCode);
+        if (selectedDay is null || issue is null || action is null)
+        {
+            Snackbar.Add(Language.T("calendar.issueNotFound"), Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarAttendanceFeedbackDialog.Day)] = selectedDay,
+            [nameof(CalendarAttendanceFeedbackDialog.Issue)] = issue,
+            [nameof(CalendarAttendanceFeedbackDialog.Action)] = action,
+            [nameof(CalendarAttendanceFeedbackDialog.ReconciliationId)] = reconciliationId
+        };
+
+        await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(
+            Language.T("calendar.feedbackTitle"),
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+    }
+
+    private void OpenPath_thong_tin_cong_khai() => Navigation.NavigateTo("/thong-tin-cong-khai");
+    private void OpenPath_leave_create() => Navigation.NavigateTo("/leave/create");
+    private void OpenPath_ot_create() => Navigation.NavigateTo("/ot/create");
+    private void OpenPath_trip_create() => Navigation.NavigateTo("/trip/create");
+    private void OpenPath_work_inbox() => Navigation.NavigateTo("/work/inbox");
+    private void OpenPath_approvals() => Navigation.NavigateTo("/approvals");
+
+    // "Nhiệm vụ của tôi" = Action Items (đối soát/phản hồi công) + đơn đang chờ tôi duyệt.
+    // Đơn chờ duyệt lấy trực tiếp từ approval inbox (nguồn đúng), không nhân bản thành ActionItem.
+    private List<PendingApprovalItemDto> PendingApprovalItems =>
+        (_model?.PendingApprovals ?? new())
+            .SelectMany(g => g.Requests)
+            .Where(r => r.CanApprove)
+            .OrderBy(r => r.FromDate)
+            .Take(5)
+            .ToList();
+
+    private int PendingApprovalCount =>
+        (_model?.PendingApprovals ?? new()).SelectMany(g => g.Requests).Count(r => r.CanApprove);
+
+    private int MyTaskTotalCount => (_model?.ActionCount.TotalOpenCount ?? 0) + PendingApprovalCount;
+
+    private string GetApprovalKindDisplay(RequestModule kind) => kind switch
+    {
+        RequestModule.Overtime => Language.T("dashboard.overtimeType"),
+        RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.Leave => Language.T("dashboard.leaveType"),
+        _ => kind.ToString()
+    };
+
+    private int GetApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
+    private void OpenAction(ActionItemDto action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.DetailRoute))
+            Navigation.NavigateTo(action.DetailRoute);
+        else
+            Navigation.NavigateTo("/work/inbox");
+    }
+    private void OpenPath_history_leave() => Navigation.NavigateTo("/history/leave");
+    private void OpenPath_history_ot() => Navigation.NavigateTo("/history/ot");
+    private void OpenPath_calendar() => Navigation.NavigateTo("/calendar");
+    private void OpenPath_equipment_workspace() => Navigation.NavigateTo("/equipment/workspace");
+    private void OpenPath_equipment() => Navigation.NavigateTo("/equipment");
+
+    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
 }

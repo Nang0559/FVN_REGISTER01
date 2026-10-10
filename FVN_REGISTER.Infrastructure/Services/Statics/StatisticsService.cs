@@ -5,6 +5,7 @@ using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Entities.HRM;
 using FVN_REGISTER.Core.Utils; // TimeRange
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -45,10 +46,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
         // ================= PRESENT TODAY =================
         public async Task<int> GetPresentTodayAsync(CancellationToken ct = default)
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
-            return await _uow.Repository<VwCurrentlyPresentEmployee>().Query()
-                .Where(x => x.Date == today)
-                .Select(x => x.EmployeeId)
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+            // F03HrmAttendanceCalculated is the current calculated attendance source.
+            // A non-null CheckInTime is sufficient to classify an employee as present;
+            // CheckOutTime may legitimately still be null during the workday.
+            return await _uow.Repository<F03HrmAttendanceCalculated>().Query()
+                .Where(x => x.WorkDate >= today
+                    && x.WorkDate < tomorrow
+                    && x.CheckInTime != null)
+                .Select(x => x.HrmEmployeeId)
                 .Distinct()
                 .CountAsync(ct);
         }
@@ -77,12 +84,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
         // ================= DEPARTMENT (1 phòng - có chi tiết đơn) =================
         public async Task<LeaveStatisticsDto> GetDepartmentStatisticsAsync(
-            string deptCode, CancellationToken ct = default)
+            int deptCode, CancellationToken ct = default)
         {
             var summary = (await GetLeaveStatisticsAsync(false, ct))
-                .FirstOrDefault(x => x.DepartmentId == deptCode) ?? new LeaveStatisticsDto
+                .FirstOrDefault(x => x.DepartmentId == deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? new LeaveStatisticsDto
                 {
-                    DepartmentId = deptCode
+                    DepartmentId = deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 };
 
             summary.EmployeeLeaves = await LoadEmployeeLeavesForDeptAsync(deptCode, ct);
@@ -103,7 +110,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
         // Helper riêng: load đơn nghỉ + chi tiết cho 1 phòng ban
         private async Task<List<LeaveRequestDto>> LoadEmployeeLeavesForDeptAsync(
-            string deptCode, CancellationToken ct)
+            int deptCode, CancellationToken ct)
         {
             var empCodes = await _uow.Repository<F03Employee>().Query()
                 .Where(e => e.DeptCode == deptCode && e.IsActive == true)
@@ -137,7 +144,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
                     RegisterDate = l.CreatedAt,
                     RequesterCode = l.EmployeeCode,
                     RequesterName = emp?.EmployeeName ?? string.Empty,
-                    DeptCode = emp?.DeptCode ?? string.Empty,
+                    DeptCode = emp?.DeptCode ?? 0,
                     DeptName = string.Empty, // fill nếu cần join F03Department
                     RequestStatus = l.RequestStatus,
                     WorkYear = l.WorkYear,
@@ -162,7 +169,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
         // ================= TIME RANGE =================
         public async Task<List<LeaveStatisticsDto>> GetStatisticsByTimeRangeAsync(
-            string[]? departments, TimeRange timeRange, CancellationToken ct = default)
+            int[]? departments, TimeRange timeRange, CancellationToken ct = default)
         {
             var today = DateTime.Today;
             var fromDate = timeRange switch
@@ -178,13 +185,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
                             x.RegisterDate >= fromDate && x.RegisterDate <= today);
 
             if (departments != null && departments.Length > 0)
-                query = query.Where(x => departments.Contains(x.DeptCode));
+                query = query.Where(x => x.DeptCode != null && departments.Contains(x.DeptCode.Value));
 
             return await query
                 .GroupBy(x => new { x.DeptCode, x.DeptName })
                 .Select(g => new LeaveStatisticsDto
                 {
-                    DepartmentId = g.Key.DeptCode ?? "",
+                    DepartmentId = g.Key.DeptCode.HasValue ? g.Key.DeptCode.Value.ToString() : "",
                     DepartmentName = g.Key.DeptName ?? "",
                     ApprovedLeaveCount = g.Count(x => x.RequestStatus == ApprovalStatus.Approved),
                     PendingLeaveCount = g.Count(x =>
@@ -228,25 +235,36 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
                 })
                 .ToListAsync(ct);
 
-            var presentByDept = await _uow.Repository<VwCurrentlyPresentEmployee>().Query()
-                .Where(x => x.Date == today)
+            var todayStart = DateTime.Today;
+            var tomorrowStart = todayStart.AddDays(1);
+            // Attendance KPI must be based on the latest calculated table, not the
+            // legacy "currently present" view. Check-in alone means present today.
+            var presentByDept = await _uow.Repository<F03HrmAttendanceCalculated>().Query()
+                .Where(x => x.WorkDate >= todayStart
+                    && x.WorkDate < tomorrowStart
+                    && x.CheckInTime != null
+                    && x.DeptCode != null)
                 .GroupBy(x => x.DeptCode)
-                .Select(g => new { DeptCode = g.Key, Count = g.Select(x => x.EmployeeId).Distinct().Count() })
+                .Select(g => new
+                {
+                    DeptCode = g.Key,
+                    Count = g.Select(x => x.HrmEmployeeId).Distinct().Count()
+                })
                 .ToListAsync(ct);
 
-            var leaveDict = leaveStatsByDept.ToDictionary(x => x.DeptCode ?? "", x => x);
-            var presentDict = presentByDept.ToDictionary(x => x.DeptCode ?? "", x => x.Count);
+            var leaveDict = leaveStatsByDept.ToDictionary(x => x.DeptCode, x => x);
+            var presentDict = presentByDept.Where(x => x.DeptCode.HasValue).ToDictionary(x => x.DeptCode!.Value, x => x.Count);
 
             var result = employeesByDept.Select(e =>
             {
-                var deptCode = e.DeptCode ?? "";
+                var deptCode = e.DeptCode;
                 leaveDict.TryGetValue(deptCode, out var leave);
                 var present = presentDict.GetValueOrDefault(deptCode, 0);
 
                 return new LeaveStatisticsDto
                 {
-                    DepartmentId = deptCode,
-                    DepartmentName = deptNames.GetValueOrDefault(deptCode, deptCode),
+                    DepartmentId = deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    DepartmentName = deptNames.GetValueOrDefault(deptCode, deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                     TotalEmployees = e.Total,
                     PresentEmployeesCount = present,
                     ApprovedLeaveCount = leave?.Approved ?? 0,
@@ -277,7 +295,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
         // ================= ABSENCE WARNING =================
         public async Task<AbsenceWarningDto> GetAbsenceWarningAsync(
-            string deptCode, CancellationToken ct = default)
+            int deptCode, CancellationToken ct = default)
         {
             const double threshold = 10.0;
             var today = DateOnly.FromDateTime(DateTime.Today);
@@ -330,11 +348,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
             => BuildWidgetsAsync(deptCode: null, totalTitle: "Tổng nhân viên", ct);
 
         public Task<List<WidgetCounterDto>> GetDeptDashboardWidgetsAsync(
-            string deptCode, CancellationToken ct = default)
+            int deptCode, CancellationToken ct = default)
             => BuildWidgetsAsync(deptCode, totalTitle: "Nhân viên bộ phận", ct);
 
         private async Task<List<WidgetCounterDto>> BuildWidgetsAsync(
-            string? deptCode, string totalTitle, CancellationToken ct)
+            int? deptCode, string totalTitle, CancellationToken ct)
         {
             var today = DateTime.Today;
             var todayOnly = DateOnly.FromDateTime(today);

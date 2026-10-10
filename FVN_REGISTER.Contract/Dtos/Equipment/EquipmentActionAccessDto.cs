@@ -3,6 +3,8 @@ namespace FVN_REGISTER.Contract.Dtos.Equipment;
 public sealed class EquipmentActionAccessDto
 {
     public bool View { get; set; }
+    public bool Manage { get; set; }
+    public bool EndpointAgentEligibilityManage { get; set; }
     public bool Create { get; set; }
     public bool Edit { get; set; }
     public bool Assign { get; set; }
@@ -20,3 +22,5 @@ public sealed class EquipmentActionAccessDto
     public bool InspectionApprove { get; set; }
     public bool InspectionReport { get; set; }
 }
+
+public sealed record EndpointAgentEligibilityRequest(bool Enabled, string? OsFamily);

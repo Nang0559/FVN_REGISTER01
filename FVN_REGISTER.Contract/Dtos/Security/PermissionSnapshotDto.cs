@@ -9,6 +9,18 @@ public sealed class PermissionSnapshotDto
     public HashSet<int> FunctionCodes { get; set; } = new();
 
     public bool Has(int functionCode) => FunctionCodes.Contains(functionCode);
+
+    public bool HasScope(int functionCode, string scope) =>
+        Functions.Any(x => x.FunctionCode == functionCode &&
+            string.Equals(x.ScopeCode, scope, StringComparison.OrdinalIgnoreCase));
+
+    public bool HasPersonal(int functionCode) =>
+        Functions.Any(x => x.FunctionCode == functionCode &&
+            string.Equals(x.AccessMode, "Personal", StringComparison.OrdinalIgnoreCase));
+
+    public bool HasManagement(int functionCode) =>
+        Functions.Any(x => x.FunctionCode == functionCode &&
+            string.Equals(x.AccessMode, "Management", StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed class SecurityFunctionDto
@@ -20,6 +32,7 @@ public sealed class SecurityFunctionDto
     public string? ModuleCode { get; set; }
     public string? ActionCode { get; set; }
     public string? ScopeCode { get; set; }
+    public string? AccessMode { get; set; }
     public int DisplayOrder { get; set; }
+    public bool IsSystemCritical { get; set; }
 }
-

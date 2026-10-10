@@ -3,7 +3,6 @@ using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Core.Extensions;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Histories;
@@ -29,9 +28,7 @@ public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
 
         if (!string.IsNullOrWhiteSpace(filter.Status) &&
             Enum.TryParse<ApprovalStatus>(filter.Status, true, out var status))
-        {
             q = q.Where(x => x.RequestStatus == status);
-        }
 
         if (filter.FromDate.HasValue)
             q = q.Where(x => x.StartDate >= filter.FromDate.Value);
@@ -154,7 +151,7 @@ public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
             Leave = new LeaveDetailPayload
             {
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode,
+                DeptName = row.employee?.DeptCode.ToString(),
                 StartDate = row.request.StartDate,
                 EndDate = row.request.EndDate,
                 TotalDay = row.request.TotalDay,

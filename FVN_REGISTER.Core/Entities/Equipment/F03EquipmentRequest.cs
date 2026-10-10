@@ -23,13 +23,15 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
     public DateTime? ExpectedDepreciationDate { get; set; }
     [StringLength(250)] public string? Location { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
+    public bool EndpointAgentEligible { get; set; }
+    [StringLength(30)] public string? EndpointOsFamily { get; set; }
     public DateTime? RepairDate { get; set; }
     [StringLength(1000)] public string? RepairContent { get; set; }
     [StringLength(250)] public string? RepairVendor { get; set; }
     [Column(TypeName = "decimal(18,2)")] public decimal? RepairCost { get; set; }
     [StringLength(1000)] public string? RepairResult { get; set; }
 
-    [StringLength(20)] public string? RepairResponsibleDeptCode { get; set; }
+    public int? RepairResponsibleDeptCode { get; set; }
     [StringLength(50)] public string? RepairAssigneeEmployeeCode { get; set; }
     public int? RepairAssigneeUserId { get; set; }
     [StringLength(1000)] public string? RepairFeedback { get; set; }

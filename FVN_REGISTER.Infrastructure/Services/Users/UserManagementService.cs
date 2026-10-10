@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Usermanagers;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -34,30 +35,44 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
         {
             try
             {
-                var joined = await _uow.Repository<F03User>().Query()
+                // Không dùng navigation PermissionCodeNavigation trong projection: EF sinh INNER JOIN
+                // (F03Users.PermissionCode = F03Permissions.Id) nên user bị mất khỏi danh sách nếu Id != PermissionCode.
+                var users = await _uow.Repository<F03User>().Query()
                     .AsNoTracking()
                     .OrderBy(x => x.PermissionCode)
                     .ThenBy(x => x.EmployeeCode)
-                    .Select(x => new
-                    {
-                        User = x,
-                        PermissionName = x.PermissionCodeNavigation.PermissionName
-                    })
                     .ToListAsync(ct);
 
-                var deptCodes = joined.Select(x => x.User.DeptCode).Where(d => d != null).Distinct().ToList();
-                var deptNames = await _uow.Repository<F03Department>().Query()
-                    .Where(d => deptCodes.Contains(d.DeptCode))
-                    .ToDictionaryAsync(d => d.DeptCode, d => d.DeptName, ct);
+                var permissionNames = (await _uow.Repository<F03Permission>().Query()
+                        .AsNoTracking()
+                        .Select(p => new { p.PermissionCode, p.PermissionName })
+                        .ToListAsync(ct))
+                    .GroupBy(p => p.PermissionCode)
+                    .ToDictionary(g => g.Key, g => g.First().PermissionName);
 
-                var userIds = joined.Select(x => x.User.Id).ToList();
-                var functionMap = await _uow.Repository<F03UserFunction>().Query()
-                    .Where(f => userIds.Contains(f.IdUser))
+                var deptCodes = users.Select(x => x.DeptCode).Where(d => d != null).Distinct().ToList();
+                var deptNames = (await _uow.Repository<F03Department>().Query()
+                        .AsNoTracking()
+                        .Where(d => deptCodes.Contains(d.DeptCode))
+                        .Select(d => new { d.DeptCode, d.DeptName })
+                        .ToListAsync(ct))
+                    .GroupBy(d => d.DeptCode)
+                    .ToDictionary(g => g.Key, g => g.First().DeptName);
+
+                // Tránh GroupBy + ToList() lồng trong projection (dễ lỗi translate); gom nhóm phía client.
+                var functionRows = await _uow.Repository<F03UserFunction>().Query()
+                    .AsNoTracking()
+                    .Select(f => new { f.IdUser, f.IdFunction })
+                    .ToListAsync(ct);
+                var functionMap = functionRows
                     .GroupBy(f => f.IdUser)
-                    .Select(g => new { UserId = g.Key, FunctionIds = g.Select(f => f.IdFunction).ToList() })
-                    .ToDictionaryAsync(x => x.UserId, x => x.FunctionIds, ct);
+                    .ToDictionary(g => g.Key, g => g.Select(f => f.IdFunction).ToList());
 
-                var list = joined.Select(x => MapToDto(x.User, x.PermissionName, deptNames, functionMap)).ToList();
+                var list = users.Select(u => MapToDto(
+                    u,
+                    permissionNames.GetValueOrDefault(u.PermissionCode),
+                    deptNames,
+                    functionMap)).ToList();
 
                 Logger.LogDebugIf(Debug, "[USER_MGT] GetAll: {Count} users", list.Count);
                 return list;
@@ -139,6 +154,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     DeptCode = request.DeptCode,
                     PermissionCode = request.PermissionCode,
                     IsActive = true,
+                    LastModifiedSource = SyncSourceTags.Manual,
                     LockoutEnable = true,
                     LockoutEndDate = null,
                     NumLoginFailed = 0,
@@ -254,6 +270,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     return ServiceResult.Fail("Không thể tự xóa tài khoản của chính mình.");
 
                 user.IsActive = false;
+                // Admin decision: HRM sync must not re-activate this account.
+                user.LastModifiedSource = SyncSourceTags.Manual;
                 user.ModifiedBy = currentUserId;
                 user.ModifiedAt = DateTime.Now;
 
@@ -284,6 +302,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
                 user.IsActive = true;
+                // Admin decision: HRM sync no longer owns this account's active state.
+                user.LastModifiedSource = SyncSourceTags.Manual;
                 user.ModifiedBy = currentUserId;
                 user.ModifiedAt = DateTime.Now;
 
@@ -389,9 +409,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
         // ===== HELPER =====
         private UserAccountDto MapToDto(
             F03User user, string? permissionName,
-            Dictionary<string, string> deptNames, Dictionary<int, List<int>> functionMap)
+            Dictionary<int, string> deptNames, Dictionary<int, List<int>> functionMap)
         {
-            deptNames.TryGetValue(user.DeptCode ?? "", out var deptName);
+            string? deptName = null;
+            if (user.DeptCode.HasValue)
+                deptNames.TryGetValue(user.DeptCode.Value, out deptName);
             functionMap.TryGetValue(user.Id, out var functionIds);
 
             return new UserAccountDto

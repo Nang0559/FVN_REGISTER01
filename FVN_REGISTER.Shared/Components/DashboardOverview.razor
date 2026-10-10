@@ -1,17 +1,97 @@
 @using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Dtos.Actions
 @using FVN_REGISTER.Contract.Dtos.Dashboard
 @using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Dashboards
+@implements IDisposable
 
 @if (Data == null)
 {
     <MudStack AlignItems="AlignItems.Center" Class="pa-10">
         <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-        <MudText Typo="Typo.body2">Đang nạp thông số hệ thống FCC...</MudText>
+        <MudText Typo="Typo.body2">@Language.T("dashboard.loading")</MudText>
     </MudStack>
 }
 else
 {
+    @if (Data.DepartmentStatistics.Any())
+    {
+        var departments = Data.DepartmentStatistics;
+        var totalStaff = departments.Sum(x => x.TotalEmployees);
+        var presentStaff = departments.Sum(x => x.PresentEmployeesCount);
+        var attendanceRate = totalStaff > 0
+            ? Math.Clamp(presentStaff * 100d / totalStaff, 0d, 100d)
+            : 0d;
+        var leaveToday = departments.Sum(x => x.TodayLeaveEmployeesCount);
+        var tripToday = departments.Sum(x => x.TodayTripEmployeesCount);
+        var otToday = departments.Sum(x => x.TodayOTEmployeesCount);
+
+        <MudPaper Outlined="true" Class="pa-4 mt-4 mb-4" Style="border-radius:14px">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.h6" Style="font-weight:700">@Language.T("dashboard.departmentOverview")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.todayDepartmentOverview")</MudText>
+                </MudStack>
+                <MudIcon Icon="@Icons.Material.Outlined.BarChart" Size="Size.Medium" Color="Color.Secondary" />
+            </MudStack>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("Attendance"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.attendanceRate")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <div style="@($"width:68px;height:68px;flex:0 0 68px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--mud-palette-success) {attendanceRate.ToString(System.Globalization.CultureInfo.InvariantCulture)}%, var(--mud-palette-divider) 0)")">
+                                <div style="width:52px;height:52px;border-radius:50%;background:var(--mud-palette-surface);display:flex;flex-direction:column;align-items:center;justify-content:center">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight:700;line-height:1.1">@attendanceRate.ToString("N0")%</MudText>
+                                    <MudText Typo="Typo.overline" Style="font-size:8px;line-height:1.2">@Language.T("dashboard.presentShort")</MudText>
+                                </div>
+                            </div>
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h6" Style="font-weight:700">@presentStaff/@totalStaff</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.presentEmployees")</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("Leave"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayLeave")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Outlined.EventBusy" Size="Size.Large" Style="color:#ed6c02" />
+                            <MudText Typo="Typo.h5" Style="font-weight:700">@leaveToday <MudText Inline="true" Typo="Typo.body2">@Language.T("dashboard.people")</MudText></MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">@Language.T("dashboard.approvedLeaveTodayNote")</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("Trip"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayTrip")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Outlined.WorkOutline" Size="Size.Large" Style="color:#2979ff" />
+                            <MudText Typo="Typo.h5" Style="font-weight:700">@tripToday <MudText Inline="true" Typo="Typo.body2">@Language.T("dashboard.people")</MudText></MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">@Language.T("dashboard.approvedTripTodayNote")</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("OT"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayOT")</MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Size="Size.Large" Style="color:#7b1fa2" />
+                            <MudText Typo="Typo.h5" Style="font-weight:700">@otToday <MudText Inline="true" Typo="Typo.body2">@Language.T("dashboard.people")</MudText></MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">@Language.T("dashboard.approvedOTTodayNote")</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">
+                @Language.T("dashboard.departmentOverviewDataNote")
+            </MudText>
+        </MudPaper>
+    }
+
     @if (Data.Widgets.Any())
     {
         <MudGrid Class="mb-4">
@@ -21,7 +101,7 @@ else
                     <MudPaper Class="@($"pa-4 mud-theme-{widget.Color.ToLowerInvariant()}")" Elevation="4" Style="height:110px; border-radius:12px; cursor:pointer" @onclick="@(() => OnWidgetClick(widget.Link))">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                             <MudStack Spacing="0">
-                                <MudText Typo="Typo.subtitle2" Style="opacity:0.8">@widget.Title</MudText>
+                                <MudText Typo="Typo.subtitle2" Style="opacity:0.8">@GetWidgetTitle(widget.Title)</MudText>
                                 <MudText Typo="Typo.h4"><b>@widget.Value</b></MudText>
                             </MudStack>
                             <MudIcon Icon="@widget.Icon" Size="Size.Large" Style="opacity:0.5" />
@@ -32,36 +112,58 @@ else
         </MudGrid>
     }
 
-    @if (Data.PendingApprovals.Any())
+    @if (AttendanceShiftRows.Count > 0)
     {
-        var pending = Data.PendingApprovals.SelectMany(x => x.Requests).OrderBy(x => x.FromDate).Take(8).ToList();
-        <MudCard Elevation="2" Class="mb-4">
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.subtitle1">Đơn đang chờ tôi xử lý</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">@pending.Count đơn gần nhất</MudText>
-                </CardHeaderContent>
-                <CardHeaderActions>
-                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/approvals"))">Xem tất cả</MudButton>
-                </CardHeaderActions>
-            </MudCardHeader>
-            <MudCardContent Class="pa-0">
-                <MudList T="PendingApprovalItemDto" Dense="true">
-                    @foreach (var item in pending)
+        <MudExpansionPanels Elevation="2" Class="mb-4">
+            <MudExpansionPanel Expanded="false">
+                <TitleContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Color="Color.Primary" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.subtitle1" Style="font-weight:700">@Language.T("dashboard.attendanceByShift")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.attendanceByShiftNote", AttendanceShiftDate.ToString("dd/MM/yyyy"))</MudText>
+                        </MudStack>
+                    </MudStack>
+                </TitleContent>
+                <ChildContent>
+                    @foreach (var shift in AttendanceShiftRows)
                     {
-                        <MudListItem T="PendingApprovalItemDto" OnClick="@(() => Navigation.NavigateTo("/approvals"))">
-                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                        <MudPaper Outlined="true" Class="pa-3 mb-3">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
                                 <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body2"><b>@item.EmployeeName</b> — @GetKindDisplay(item.Kind)</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
+                                    <MudText Typo="Typo.subtitle2"><b>@shift.DepartmentName — @shift.ShiftAbbr</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.calculatedEmployees"): @shift.CalculatedEmployees</MudText>
                                 </MudStack>
-                                <MudChip T="string" Size="Size.Small">Cấp @GetCurrentApprovalLevel(item)</MudChip>
+                                <MudStack Row="true" Spacing="2">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("dashboard.checkedIn"): @shift.CheckedInEmployees</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@Language.T("dashboard.checkedOut"): @shift.CheckedOutEmployees</MudChip>
+                                    @if (shift.MissingCheckInOrOut > 0)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.missingPunch"): @shift.MissingCheckInOrOut</MudChip>
+                                    }
+                                </MudStack>
                             </MudStack>
-                        </MudListItem>
+                            <MudTable Items="shift.Employees" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                                <HeaderContent>
+                                    <MudTh>@Language.T("dashboard.staff")</MudTh>
+                                    <MudTh>@Language.T("dashboard.checkIn")</MudTh>
+                                    <MudTh>@Language.T("dashboard.checkOut")</MudTh>
+                                    <MudTh>@Language.T("dashboard.attendanceSymbol")</MudTh>
+                                    <MudTh>@Language.T("dashboard.attendanceStatus")</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="@Language.T("dashboard.staff")">@context.EmployeeCode — @context.EmployeeName</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.checkIn")">@(context.CheckInTime?.ToString("HH:mm") ?? "—")</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.checkOut")">@(context.CheckOutTime?.ToString("HH:mm") ?? "—")</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.attendanceSymbol")">@context.AttendanceDisplayValue</MudTd>
+                                    <MudTd DataLabel="@Language.T("dashboard.attendanceStatus")">@GetAttendanceStatus(context.Status)</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudPaper>
                     }
-                </MudList>
-            </MudCardContent>
-        </MudCard>
+                </ChildContent>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
     }
 
     <MudGrid>
@@ -70,29 +172,29 @@ else
             <MudItem xs="12" md="6">
                 <MudCard Elevation="2">
                     <MudCardHeader>
-                        <CardHeaderContent><MudText Typo="Typo.subtitle1">Phép của tôi</MudText></CardHeaderContent>
-                        <CardHeaderActions><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/leave"))">Lịch sử</MudButton></CardHeaderActions>
+                        <CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("dashboard.leave")</MudText></CardHeaderContent>
+                        <CardHeaderActions><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/leave"))">@Language.T("dashboard.history")</MudButton></CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.TotalEntitled.ToString("N1") ngày</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã nghỉ</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Used.ToString("N1") ngày</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Remaining.ToString("N1") ngày</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("dashboard.entitled")</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.TotalEntitled.ToString("N1") @Language.T("dashboard.days")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("dashboard.used")</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Used.ToString("N1") @Language.T("dashboard.days")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("dashboard.remaining")</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Remaining.ToString("N1") @Language.T("dashboard.days")</MudText></MudItem>
                         </MudGrid>
                         @if (Data.Leave.PersonalBalance.NextLeaveDate.HasValue)
                         {
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
-                                Sắp nghỉ: <b>@Data.Leave.PersonalBalance.NextLeaveDate.Value.ToString("dd/MM/yyyy")</b>
+                                @Language.T("dashboard.nextLeave"): <b>@Data.Leave.PersonalBalance.NextLeaveDate.Value.ToString("dd/MM/yyyy")</b>
                                 @if (!string.IsNullOrWhiteSpace(Data.Leave.PersonalBalance.NextLeaveTypeName))
                                 {
                                     <span> — @Data.Leave.PersonalBalance.NextLeaveTypeName</span>
                                 }
-                                <span> • Tổng các đợt nghỉ sắp tới: @Data.Leave.PersonalBalance.UpcomingDays.ToString("N1") ngày</span>
+                                <span> • @Language.T("dashboard.upcomingDays", Data.Leave.PersonalBalance.UpcomingDays.ToString("N1"))</span>
                             </MudAlert>
                         }
                         else
                         {
-                            <MudText Typo="Typo.caption" Class="mt-3 mud-text-secondary">Chưa có ngày nghỉ đã duyệt sắp tới.</MudText>
+                            <MudText Typo="Typo.caption" Class="mt-3 mud-text-secondary">@Language.T("dashboard.noUpcomingLeave")</MudText>
                         }
                     </MudCardContent>
                 </MudCard>
@@ -104,21 +206,19 @@ else
             <MudItem xs="12" md="6">
                 <MudCard Elevation="2">
                     <MudCardHeader>
-                        <CardHeaderContent><MudText Typo="Typo.subtitle1">OT của tôi</MudText></CardHeaderContent>
-                        <CardHeaderActions><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/ot"))">Lịch sử</MudButton></CardHeaderActions>
+                        <CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("dashboard.ot")</MudText></CardHeaderContent>
+                        <CardHeaderActions><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/ot"))">@Language.T("dashboard.history")</MudButton></CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">OT tuần</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisWeek.ToString("N1") / @(Data.OT.PersonalBalance.WeeklyLimit?.ToString("N1") ?? "—") h</MudText></MudItem>
-                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">OT tháng</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisMonth.ToString("N1") / @Data.OT.PersonalBalance.MonthlyLimit.ToString("N1") h</MudText></MudItem>
-                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">OT năm</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisYear.ToString("N1") / @Data.OT.PersonalBalance.YearlyLimit.ToString("N1") h</MudText></MudItem>
+                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">@Language.T("dashboard.otWeek")</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisWeek.ToString("N1") / @(Data.OT.PersonalBalance.WeeklyLimit?.ToString("N1") ?? "—") h</MudText></MudItem>
+                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">@Language.T("dashboard.otMonth")</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisMonth.ToString("N1") / @Data.OT.PersonalBalance.MonthlyLimit.ToString("N1") h</MudText></MudItem>
+                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">@Language.T("dashboard.otYear")</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisYear.ToString("N1") / @Data.OT.PersonalBalance.YearlyLimit.ToString("N1") h</MudText></MudItem>
                         </MudGrid>
                         @if (Data.OT.PersonalBalance.IsNearWeeklyLimit || Data.OT.PersonalBalance.IsNearMonthlyLimit || Data.OT.PersonalBalance.IsNearYearlyLimit)
                         {
                             <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">
-                                Có giới hạn OT đang gần chạm. Tuần: @(Data.OT.PersonalBalance.RemainingWeekly?.ToString("N1") ?? "—")h,
-                                tháng: @Data.OT.PersonalBalance.RemainingMonthly.ToString("N1")h,
-                                năm: @Data.OT.PersonalBalance.RemainingYearly.ToString("N1")h.
+                                @Language.T("dashboard.otLimitWarning", Data.OT.PersonalBalance.RemainingWeekly?.ToString("N1") ?? "—", Data.OT.PersonalBalance.RemainingMonthly.ToString("N1"), Data.OT.PersonalBalance.RemainingYearly.ToString("N1"))
                             </MudAlert>
                         }
                     </MudCardContent>
@@ -133,16 +233,16 @@ else
         <MudCard Elevation="2" Class="mt-4">
             <MudCardHeader>
                 <CardHeaderContent>
-                    <MudText Typo="Typo.subtitle1">Tình hình phòng ban — @warning.DeptName</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Chỉ hiển thị khi tài khoản có quyền quản lý.</MudText>
+                    <MudText Typo="Typo.subtitle1">@Language.T("dashboard.deptSituation", warning.DeptName)</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("dashboard.managerOnly")</MudText>
                 </CardHeaderContent>
             </MudCardHeader>
             <MudCardContent>
                 <MudGrid>
-                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Nhân sự</MudText><MudText Typo="Typo.h6">@warning.TotalStaff</MudText></MudItem>
-                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Đang vắng</MudText><MudText Typo="Typo.h6">@warning.CurrentAbsent</MudText></MudItem>
-                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Chờ duyệt</MudText><MudText Typo="Typo.h6">@warning.PendingRequests</MudText></MudItem>
-                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Tỷ lệ vắng</MudText><MudText Typo="Typo.h6">@warning.AbsenceRate.ToString("N1")%</MudText></MudItem>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">@Language.T("dashboard.staff")</MudText><MudText Typo="Typo.h6">@warning.TotalStaff</MudText></MudItem>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">@Language.T("dashboard.absent")</MudText><MudText Typo="Typo.h6">@warning.CurrentAbsent</MudText></MudItem>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">@Language.T("dashboard.pending")</MudText><MudText Typo="Typo.h6">@warning.PendingRequests</MudText></MudItem>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">@Language.T("dashboard.absenceRate")</MudText><MudText Typo="Typo.h6">@warning.AbsenceRate.ToString("N1")%</MudText></MudItem>
                 </MudGrid>
                 @if (!string.IsNullOrWhiteSpace(warning.WarningMessage))
                 {
@@ -152,41 +252,205 @@ else
         </MudCard>
     }
 
-    @if (Data.ShowManagerView && Data.DepartmentStatistics.Any())
-    {
-        <MudCard Elevation="2" Class="mt-4">
-            <MudCardHeader>
-                <CardHeaderContent><MudText Typo="Typo.subtitle1">Thống kê nghỉ phép phòng ban</MudText></CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent Class="pa-0">
-                <MudTable Items="Data.DepartmentStatistics" Dense="true" Hover="true">
+
+}
+
+    <MudDialog @bind-Visible="_detailDialogOpen" Options="_detailDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@GetDetailTitle(_selectedDetail)</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (_detailLoading)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="pa-6">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                    <MudText Typo="Typo.body2">@Language.T("dashboard.loading")</MudText>
+                </MudStack>
+            }
+            else if (!string.IsNullOrWhiteSpace(_detailError))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_detailError</MudAlert>
+            }
+            else if (_departmentDetails.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">@Language.T("dashboard.noDetailRows")</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_departmentDetails" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
                     <HeaderContent>
-                        <MudTh>Phòng ban</MudTh><MudTh>Nhân sự</MudTh><MudTh>Đang có mặt</MudTh><MudTh>Đơn nghỉ</MudTh><MudTh>Chờ duyệt</MudTh><MudTh>Tỷ lệ nghỉ</MudTh>
+                        <MudTh>@Language.T("dashboard.staff")</MudTh>
+                        <MudTh>@Language.T("dashboard.department")</MudTh>
+                        <MudTh>@Language.T("dashboard.detail")</MudTh>
+                        <MudTh>@Language.T("dashboard.status")</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>@context.DepartmentName</MudTd>
-                        <MudTd>@context.TotalEmployees</MudTd>
-                        <MudTd>@context.PresentEmployeesCount</MudTd>
-                        <MudTd>@context.TotalLeaveCount</MudTd>
-                        <MudTd>@context.PendingLeaveCount</MudTd>
-                        <MudTd>@context.LeaveRate.ToString("N1")%</MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.staff")">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.EmployeeCode</MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.department")">@context.DepartmentName</MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.detail")">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2">@context.Detail</MudText>
+                                @if (context.StartTime.HasValue || context.EndTime.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @(context.StartTime?.ToString("dd/MM HH:mm") ?? "—") – @(context.EndTime?.ToString("dd/MM HH:mm") ?? "—")
+                                    </MudText>
+                                }
+                                @if (context.Hours.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Hours.Value.ToString("N1") h</MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="@Language.T("dashboard.status")">
+                            <MudChip T="string" Size="Size.Small" Color="@(context.Status == "Approved" ? Color.Success : context.Status.StartsWith("CHECKED", StringComparison.OrdinalIgnoreCase) ? Color.Info : Color.Default)">@GetDetailStatus(context.Status)</MudChip>
+                        </MudTd>
                     </RowTemplate>
                 </MudTable>
-            </MudCardContent>
-        </MudCard>
-    }
-}
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="CloseDepartmentDetail">@Language.T("common.close")</MudButton>
+        </DialogActions>
+    </MudDialog>
 
 @code {
     [Parameter] public DashboardResponse? Data { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IDashboardClientService DashboardClient { get; set; } = default!;
+    private List<AttendanceShiftDashboardDto> AttendanceShiftRows { get; set; } = new();
+    private DateOnly AttendanceShiftDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    private bool _attendanceLoaded;
+    private bool _detailDialogOpen;
+    private bool _detailLoading;
+    private string? _detailError;
+    private List<DepartmentDashboardDetailDto> _departmentDetails = new();
+    private string _selectedDetail = string.Empty;
+    private readonly DialogOptions _detailDialogOptions = new() { CloseButton = true, FullWidth = true, MaxWidth = MaxWidth.Medium };
 
-    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) => item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
-    private static string GetKindDisplay(RequestModule kind) => kind switch { RequestModule.Overtime => "OT", RequestModule.Trip => "Công tác", RequestModule.Leave => "Nghỉ phép", _ => kind.ToString() };
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_attendanceLoaded || Data is null) return;
+        _attendanceLoaded = true;
+        var result = await DashboardClient.GetAttendanceShiftDashboardAsync(AttendanceShiftDate);
+        if (result.IsSuccess && result.Data is not null)
+            AttendanceShiftRows = result.Data.ToList();
+    }
+
+    private string GetAttendanceStatus(string status) => status switch
+    {
+        "CHECKED_OUT" => Language.T("dashboard.statusCheckedOut"),
+        "CHECKED_IN" => Language.T("dashboard.statusCheckedIn"),
+        "MISSING_CHECK_IN" => Language.T("dashboard.statusMissingCheckIn"),
+        _ => Language.T("dashboard.statusNoPunch")
+    };
+
+    protected override void OnInitialized() => Language.LanguageChanged += OnLanguageChanged;
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    private static double GetWorkingRate(double rate) => double.IsFinite(rate) ? Math.Clamp(rate, 0d, 100d) : 0d;
+    private string GetKindDisplay(RequestModule kind) => kind switch { RequestModule.Overtime => Language.T("dashboard.overtimeType"), RequestModule.Trip => Language.T("dashboard.tripType"), RequestModule.Leave => Language.T("dashboard.leaveType"), _ => kind.ToString() };
+    private int GetCurrentApprovalLevel(PendingApprovalItemDto item) => item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
+    private string GetWidgetTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+        return title.Trim() switch
+        {
+            "Đơn chờ duyệt" => Language.T("dashboard.pending"),
+            "Nghỉ phép" => Language.T("dashboard.leaveType"),
+            "OT" => Language.T("dashboard.overtimeType"),
+            "Công tác" => Language.T("dashboard.tripType"),
+            "dashboard.leaveApprovalPending" => Language.T("dashboard.leaveApprovalPending"),
+            "dashboard.otApprovalPending" => Language.T("dashboard.otApprovalPending"),
+            "dashboard.tripApprovalPending" => Language.T("dashboard.tripApprovalPending"),
+            "dashboard.equipmentAssigned" => Language.T("dashboard.equipmentAssigned"),
+            "dashboard.equipmentRequests" => Language.T("dashboard.equipmentRequests"),
+            "dashboard.equipmentPending" => Language.T("dashboard.equipmentPending"),
+            "dashboard.equipmentApproved" => Language.T("dashboard.equipmentApproved"),
+            _ => title
+        };
+    }
+
+    private static bool IsReconciliationAction(ActionItemDto action)
+    {
+        var source = $"{action.ModuleCode} {action.SourceType} {action.ActionType} {action.DetailRoute}";
+        return source.Contains("RECONCIL", StringComparison.OrdinalIgnoreCase)
+            || source.Contains("ACTUAL", StringComparison.OrdinalIgnoreCase)
+            || source.Contains("CONFIRM", StringComparison.OrdinalIgnoreCase)
+            || source.Contains("EXECUTION_REVIEW", StringComparison.OrdinalIgnoreCase)
+            || source.Contains("ATTENDANCE", StringComparison.OrdinalIgnoreCase)
+            || source.Contains("ĐỐI SOÁT", StringComparison.OrdinalIgnoreCase)
+            || source.Contains("XÁC NHẬN", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OpenActionWork()
+    {
+        var action = Data?.Actions.FirstOrDefault();
+        if (action is not null && !string.IsNullOrWhiteSpace(action.DetailRoute))
+        {
+            Navigation.NavigateTo(action.DetailRoute);
+            return;
+        }
+
+        Navigation.NavigateTo("/work/inbox");
+    }
+
+    private void OpenAction(ActionItemDto action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.DetailRoute))
+            Navigation.NavigateTo(action.DetailRoute);
+        else
+            Navigation.NavigateTo("/work/inbox");
+    }
 
     private void OnWidgetClick(string? link)
     {
         if (!string.IsNullOrWhiteSpace(link))
             Navigation.NavigateTo(link);
     }
+
+
+    private async Task OpenDepartmentDetail(string kind)
+    {
+        _selectedDetail = kind;
+        _detailDialogOpen = true;
+        _detailLoading = true;
+        _detailError = null;
+        _departmentDetails.Clear();
+        StateHasChanged();
+
+        var result = await DashboardClient.GetDepartmentDetailsAsync(kind, AttendanceShiftDate);
+        if (result.IsSuccess && result.Data is not null)
+            _departmentDetails = result.Data.ToList();
+        else
+            _detailError = result.Message ?? Language.T("dashboard.detailLoadFailed");
+
+        _detailLoading = false;
+    }
+
+    private void CloseDepartmentDetail() => _detailDialogOpen = false;
+
+    private string GetDetailTitle(string kind) => kind switch
+    {
+        "Attendance" => Language.T("dashboard.attendanceRate"),
+        "Leave" => Language.T("dashboard.todayLeave"),
+        "Trip" => Language.T("dashboard.todayTrip"),
+        "OT" => Language.T("dashboard.todayOT"),
+        _ => Language.T("dashboard.departmentOverview")
+    };
+
+    private string GetDetailStatus(string status) => status switch
+    {
+        "Approved" => Language.T("dashboard.approved"),
+        "CHECKED_OUT" => Language.T("dashboard.statusCheckedOut"),
+        "CHECKED_IN" => Language.T("dashboard.statusCheckedIn"),
+        "NO_RECORDED_PUNCH" => Language.T("dashboard.statusNoPunch"),
+        _ => status
+    };
+
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }

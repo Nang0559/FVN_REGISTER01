@@ -96,6 +96,15 @@ SET FunctionKey = CASE f.FunctionCode
     WHEN 2807 THEN N'PublicForm.Manage'
     WHEN 2808 THEN N'PublicForm.SubmissionView'
     WHEN 2809 THEN N'PublicForm.Export'
+    WHEN 2810 THEN N'PublicForm.View'
+    WHEN 2811 THEN N'PublicForm.Submit'
+    WHEN 2812 THEN N'PublicForm.Feedback'
+    WHEN 2813 THEN N'PublicForm.Create'
+    WHEN 2814 THEN N'PublicForm.Edit'
+    WHEN 2815 THEN N'PublicForm.AssignAudience'
+    WHEN 2816 THEN N'PublicForm.ResultView'
+    WHEN 2817 THEN N'PublicForm.ResultExport'
+    WHEN 2818 THEN N'PublicForm.AuditView'
     WHEN 2901 THEN N'Attendance.View'
     WHEN 2902 THEN N'Attendance.Export'
     WHEN 2911 THEN N'Attendance.Calculate'
@@ -111,10 +120,12 @@ SET FunctionKey = CASE f.FunctionCode
     WHEN 3041 THEN N'WorkCalendar.View'
     WHEN 3042 THEN N'WorkCalendar.Manage'
     WHEN 3043 THEN N'Calendar.View'
+    WHEN 3044 THEN N'WorkCalendar.SymbolRuleManage'
     WHEN 3051 THEN N'DepartmentStatus.View'
     WHEN 3061 THEN N'OTLimit.Manage'
     WHEN 3071 THEN N'ApprovalPolicy.Manage'
     WHEN 3072 THEN N'HrmUserRoleRule.Manage'
+    WHEN 3073 THEN N'Execution.PolicyManage'
     WHEN 3081 THEN N'EmailQueue.Manage'
     WHEN 3082 THEN N'EmailTemplate.Manage'
     WHEN 3091 THEN N'SecurityAccessChange.View'
@@ -156,6 +167,12 @@ IF EXISTS (SELECT 1 FROM dbo.F03Functions GROUP BY FunctionKey HAVING COUNT(*) >
     THROW 51460, N'F03Functions có FunctionKey trùng; cần xử lý trước khi tạo unique index.', 1;
 GO
 
+/* An older deployment may already own UX_F03Functions_FunctionKey; a column that is part of an
+   index cannot change nullability, so drop it here and recreate it right below. */
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.F03Functions') AND name = N'UX_F03Functions_FunctionKey')
+    DROP INDEX UX_F03Functions_FunctionKey ON dbo.F03Functions;
+GO
+
 ALTER TABLE dbo.F03Functions ALTER COLUMN FunctionKey nvarchar(150) NOT NULL;
 GO
 
@@ -194,6 +211,26 @@ BEGIN
 END;
 GO
 
+/*
+  Schema repair for databases where this table was created by an older patch.
+  The application model is authoritative; expand-only ALTERs are safe for existing data.
+*/
+IF OBJECT_ID(N'dbo.F03SecurityFunctionRegistry',N'U') IS NOT NULL
+BEGIN
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN FunctionKey nvarchar(150) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN DefinitionName nvarchar(150) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ModuleCode nvarchar(50) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ActionCode nvarchar(50) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ScopeCode nvarchar(30) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN LifecycleStatus nvarchar(30) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN SourceType nvarchar(30) NOT NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN SourceAssembly nvarchar(250) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN SourceTypeName nvarchar(250) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN ReplacementFunctionKey nvarchar(150) NULL;
+    ALTER TABLE dbo.F03SecurityFunctionRegistry ALTER COLUMN DefinitionHash nvarchar(128) NOT NULL;
+END;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.F03SecurityFunctionRegistry') AND name = N'UX_F03SecurityFunctionRegistry_FunctionKey')
     CREATE UNIQUE INDEX UX_F03SecurityFunctionRegistry_FunctionKey ON dbo.F03SecurityFunctionRegistry(FunctionKey);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.F03SecurityFunctionRegistry') AND name = N'IX_F03SecurityFunctionRegistry_Status')
@@ -206,9 +243,13 @@ INSERT INTO dbo.F03SecurityFunctionRegistry
     FunctionKey, FunctionCode, DefinitionName, ModuleCode, ActionCode, ScopeCode,
     LifecycleStatus, SourceType, DefinitionHash, FirstDiscoveredAt, LastSeenAt, IsIgnored
 )
-SELECT f.FunctionKey, f.FunctionCode, f.FunctionName, f.ModuleCode, f.ActionCode, f.ScopeCode,
+SELECT f.FunctionKey, f.FunctionCode,
+       LEFT(f.FunctionName, 150),
+       LEFT(f.ModuleCode, 50),
+       LEFT(f.ActionCode, 50),
+       LEFT(f.ScopeCode, 30),
        CASE WHEN f.LifecycleStatus IN (N'Retired',N'Replaced') THEN f.LifecycleStatus ELSE N'Active' END,
-       f.SourceType,
+       LEFT(f.SourceType, 30),
        CONVERT(varchar(128), HASHBYTES('SHA2_256', CONCAT(f.FunctionKey, N'|', f.FunctionCode, N'|', f.FunctionName)), 2),
        f.CreatedAt,
        ISNULL(f.LastSeenAt,f.CreatedAt),

@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Policies;
@@ -24,6 +25,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly IAuthorizationService _authorization;
         private readonly IApprovalPolicyService _approvalPolicies;
         private readonly IAuditService _audit;
+        private readonly INotificationService _notifications;
 
         public ApprovalInboxService(
             IApprovalWorkflowOrchestrator<LeaveRequestSubject> leaveWorkflow,
@@ -35,6 +37,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IAuthorizationService authorization,
             IApprovalPolicyService approvalPolicies,
             IAuditService audit,
+            INotificationService notifications,
             ILogger<ApprovalInboxService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
@@ -48,19 +51,26 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _authorization = authorization;
             _approvalPolicies = approvalPolicies;
             _audit = audit;
+            _notifications = notifications;
         }
 
         public async Task<ServiceResult<List<PendingApprovalGroupDto>>> GetPendingAsync(UserIdentityDto user, CancellationToken ct = default)
         {
             try
             {
+                // Thông báo gửi theo ApproverCode (mã nhân viên) nên tra cứu cũng phải theo mã
+                // nhân viên; email chỉ là phương án dự phòng khi tài khoản không có EmployeeCode.
+                var approverKey = !string.IsNullOrWhiteSpace(user.EmployeeCode)
+                    ? user.EmployeeCode!
+                    : user.Email ?? "";
+
                 var byModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>
                 {
-                    [RequestModule.Leave] = await _leaveWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Overtime] = await _otWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Trip] = await _tripWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
-                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct)
+                    [RequestModule.Leave] = await _leaveWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Overtime] = await _otWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Trip] = await _tripWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(approverKey, ct)
                 };
 
                 var scopedByModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>();
@@ -78,18 +88,54 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     if (functionCode == 0) continue;
 
                     var scopedItems = new List<PendingApprovalItemDto>();
+                    // Check the function grant once per module, not once per pending request.
+                    var hasApproveCapability = await _authorization.HasAsync(user, functionCode, ct);
                     foreach (var item in pair.Value)
                     {
-                        var policyAllows = await _approvalPolicies.CanApproveAsync(pair.Key, item.EmployeeCode,
-                            user.EmployeeCode ?? string.Empty, GetCurrentLevel(item), ct);
-                        if (policyAllows && await _authorization.CanAccessAsync(user, functionCode,
-                            item.EmployeeCode, item.DeptCode, ct))
+                        // The workflow snapshot is the authoritative, request-specific route:
+                        // GetPendingForApproverAsync returns this item only when this employee is
+                        // assigned to the currently actionable step. Require the module's approve
+                        // capability, but do not apply the requester's personal/department scope
+                        // a second time: that would hide legitimate cross-department routed tasks.
+                        // This is not a general scope bypass; it applies only to a step already
+                        // assigned to the current approver by the persisted workflow snapshot.
+                        if (hasApproveCapability)
+                        {
                             scopedItems.Add(item);
+                        }
+                        else
+                        {
+                            Logger.LogWarning(
+                                "[APPROVAL-INBOX] Pending item hidden: missing approve capability. " +
+                                "Module={Module} RequestId={RequestId} Requester={Requester} " +
+                                "Approver={Approver} Level={Level} FunctionCode={FunctionCode}",
+                                pair.Key, item.RequestId, item.EmployeeCode,
+                                user.EmployeeCode, GetCurrentLevel(item), functionCode);
+                        }
                     }
                     scopedByModule[pair.Key] = scopedItems;
                 }
 
-                return ServiceResult<List<PendingApprovalGroupDto>>.Ok(_groupingPolicy.BuildGroups(scopedByModule));
+                // Reconcile notification state against the actual unresolved approval route.
+                // If a user previously opened an approval alert, restore it while that request
+                // is still actionable; only workflow completion may resolve the alert.
+                var actionableApprovals = scopedByModule
+                    .SelectMany(pair => pair.Value.Select(item => (pair.Key, item.RequestId)))
+                    .Distinct()
+                    .ToList();
+                await _notifications.RestorePendingApproverNotificationsAsync(
+                    user.UserId, actionableApprovals, ct);
+
+                var groups = _groupingPolicy.BuildGroups(scopedByModule);
+
+                // Do not mark approver notifications as read merely because an item is absent
+                // from this inbox response. Policy/scope filtering can hide an otherwise valid
+                // pending step (e.g. policy changed after snapshot creation); auto-clearing here
+                // silently erases the bell count and makes notification, inbox, and dashboard
+                // all appear empty. Resolve notifications only when the workflow explicitly
+                // advances/completes the request. Keep diagnostic logs above for policy/scope issues.
+
+                return ServiceResult<List<PendingApprovalGroupDto>>.Ok(groups);
             }
             catch (Exception ex)
             {

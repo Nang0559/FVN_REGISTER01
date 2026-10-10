@@ -10,3 +10,11 @@
 *.user
 *.userosscache
 *.sln.docstates
+
+# Signed patch packages and private signing material
+patches/
+*.private.xml
+private.xml
+*.log
+/SQL-changed-files/SQL
+/SQL-changed-files.zip

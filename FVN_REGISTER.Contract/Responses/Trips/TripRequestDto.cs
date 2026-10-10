@@ -8,7 +8,7 @@ public sealed class TripRequestDto
     public string TripCode { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
     public string? EmployeeName { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public ApprovalStatus RequestStatus { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }

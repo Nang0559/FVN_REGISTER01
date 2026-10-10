@@ -1,12 +1,9 @@
 using System.Text;
-using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Payroll;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Payroll;
-using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.Payroll;
-using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Payroll;
@@ -27,19 +24,30 @@ public sealed class PayrollInputService : IPayrollInputService
         _currentUser = currentUser;
     }
 
-    public async Task<PayrollPeriodDto> GetOrCreateCurrentPeriodAsync(int actorUserId, CancellationToken ct = default)
+    public Task<ServiceResult<PayrollPeriodDto>> GetOrCreateCurrentPeriodAsync(int actorUserId, CancellationToken ct = default) => GuardValueAsync(() => GetOrCreateCurrentPeriodCoreAsync(actorUserId, ct));
+
+    private static async Task<ServiceResult<T>> GuardValueAsync<T>(Func<Task<T>> operation)
+    {
+        try { return ServiceResult<T>.Ok(await operation()); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult<T>.Fail(ex.Message); }
+    }
+
+    private async Task<PayrollPeriodDto> GetOrCreateCurrentPeriodCoreAsync(int actorUserId, CancellationToken ct = default)
     {
         var rows = await _db.PayrollCalculationPeriods
             .FromSqlInterpolated($"EXEC dbo.usp_EnsurePayrollPeriod @AsOfDate={DateTime.Today}, @ActorUserId={actorUserId}")
             .AsNoTracking()
             .ToListAsync(ct);
         var row = rows.FirstOrDefault();
-        return row is null
-            ? throw new InvalidOperationException("Không thể tạo/xác định kỳ lương hiện tại.")
-            : Map(row);
+        if (row is null) throw new InvalidOperationException("Không thể tạo/xác định kỳ lương hiện tại.");
+        return Map(row);
     }
 
-    public async Task<IReadOnlyList<PayrollPeriodDto>> GetPeriodsAsync(CancellationToken ct = default)
+    public Task<ServiceResult<IReadOnlyList<PayrollPeriodDto>>> GetPeriodsAsync(CancellationToken ct = default) => GuardAsync(() => GetPeriodsCoreAsync(ct));
+
+    private async Task<IReadOnlyList<PayrollPeriodDto>> GetPeriodsCoreAsync(CancellationToken ct = default)
         => await _db.PayrollCalculationPeriods.AsNoTracking()
             .Where(x => x.IsActive != false)
             .OrderByDescending(x => x.FromDate)
@@ -47,7 +55,9 @@ public sealed class PayrollInputService : IPayrollInputService
                 x.CalculatedAt, x.CalculatedBy, x.LockedAt, x.LockedBy, x.ExportedAt, x.ExportedBy))
             .ToListAsync(ct);
 
-    public async Task<PayrollPrepareDto> PrepareAsync(int periodId, int actorUserId, CancellationToken ct = default)
+    public Task<ServiceResult<PayrollPrepareDto>> PrepareAsync(int periodId, int actorUserId, CancellationToken ct = default) => GuardAsync(() => PrepareCoreAsync(periodId, actorUserId, ct));
+
+    private async Task<PayrollPrepareDto> PrepareCoreAsync(int periodId, int actorUserId, CancellationToken ct = default)
     {
         var period = await GetPeriodAsync(periodId, ct);
         Ensure21To20(period);
@@ -61,7 +71,9 @@ public sealed class PayrollInputService : IPayrollInputService
         return new PayrollPrepareDto(periodId, result?.InputRows ?? 0);
     }
 
-    public async Task<PayrollPeriodDto> LockAsync(int periodId, int actorUserId, CancellationToken ct = default)
+    public Task<ServiceResult<PayrollPeriodDto>> LockAsync(int periodId, int actorUserId, CancellationToken ct = default) => GuardAsync(() => LockCoreAsync(periodId, actorUserId, ct));
+
+    private async Task<PayrollPeriodDto> LockCoreAsync(int periodId, int actorUserId, CancellationToken ct = default)
     {
         var period = await GetPeriodAsync(periodId, ct);
         Ensure21To20(period);
@@ -103,7 +115,7 @@ public sealed class PayrollInputService : IPayrollInputService
             ApprovalBuildContext.ForPayrollPeriod(
                 periodId,
                 identity.EmployeeCode!,
-                identity.DeptCode ?? string.Empty,
+                identity.DeptCode ?? 0,
                 identity.PositionCode ?? string.Empty),
             ct);
 
@@ -114,7 +126,9 @@ public sealed class PayrollInputService : IPayrollInputService
         return Map(locked);
     }
 
-    public async Task<PayrollExportDto> ExportAsync(int periodId, int actorUserId, CancellationToken ct = default)
+    public Task<ServiceResult<PayrollExportDto>> ExportAsync(int periodId, int actorUserId, CancellationToken ct = default) => GuardAsync(() => ExportCoreAsync(periodId, actorUserId, ct));
+
+    private async Task<PayrollExportDto> ExportCoreAsync(int periodId, int actorUserId, CancellationToken ct = default)
     {
         var period = await GetPeriodAsync(periodId, ct);
         Ensure21To20(period);
@@ -124,7 +138,9 @@ public sealed class PayrollInputService : IPayrollInputService
         await EnsurePayrollReadyAsync(period, ct);
         await EnsurePayrollApprovedAsync(periodId, ct);
 
-        var rows = await GetInputsAsync(periodId, ct);
+        var rowsResult = await GetInputsAsync(periodId, ct);
+        if (!rowsResult.IsSuccess) throw new InvalidOperationException(rowsResult.Message ?? "Không thể đọc Payroll Input.");
+        var rows = rowsResult.Data ?? Array.Empty<PayrollInputDto>();
         if (rows.Count == 0)
             throw new InvalidOperationException("Kỳ lương không có Payroll Input để xuất.");
 
@@ -178,14 +194,19 @@ public sealed class PayrollInputService : IPayrollInputService
         if (period.Status == "Locked")
             await EnsurePayrollApprovedAsync(periodId, ct);
 
-        var inputs = await GetInputsAsync(periodId, ct);
+        var inputsResult = await GetInputsAsync(periodId, ct);
+        if (!inputsResult.IsSuccess)
+            throw new InvalidOperationException(inputsResult.Message ?? "Không thể đọc dữ liệu bảng công.");
+        var inputs = inputsResult.Data?.ToList() ?? new List<PayrollInputDto>();
         if (inputs.Count == 0)
             throw new InvalidOperationException("Kỳ lương không có dữ liệu bảng công để in.");
 
         return new PayrollPrintResultDto(Map(period), inputs);
     }
 
-    public async Task<IReadOnlyList<PayrollInputDto>> GetInputsAsync(int periodId, CancellationToken ct = default)
+    public Task<ServiceResult<IReadOnlyList<PayrollInputDto>>> GetInputsAsync(int periodId, CancellationToken ct = default) => GuardAsync(() => GetInputsCoreAsync(periodId, ct));
+
+    private async Task<IReadOnlyList<PayrollInputDto>> GetInputsCoreAsync(int periodId, CancellationToken ct = default)
     {
         _ = await GetPeriodAsync(periodId, ct);
         return await (
@@ -248,6 +269,22 @@ public sealed class PayrollInputService : IPayrollInputService
         => new(x.Id, x.PeriodCode, x.FromDate, x.ToDate, x.Status, x.CalculatedAt, x.CalculatedBy, x.LockedAt, x.LockedBy, x.ExportedAt, x.ExportedBy);
 
     private static string Escape(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
+
+    private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> operation)
+    {
+        try
+        {
+            return ServiceResult<T>.Ok(await operation());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        {
+            return ServiceResult<T>.Fail(ex.Message);
+        }
+    }
 
     private sealed class PayrollPrepareResult
     {

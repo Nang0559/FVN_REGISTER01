@@ -1,6 +1,8 @@
 using System.Text.Json;
+using FVN_REGISTER.Contract.Utils;
 using System.Linq.Expressions;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Policies;
@@ -13,35 +15,73 @@ using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
+
+public sealed record ExecutionResolutionPolicySnapshot(
+    byte CorrectionMode,
+    int EmployeeResponseHours,
+    byte EmployeeTimeoutMode,
+    int HrReviewHours,
+    bool AllowEmployeeAppeal,
+    byte MaxAppealRounds,
+    int AppealReviewHours,
+    bool RequireEvidenceOnAppeal,
+    bool RequireFinalDecision,
+    string? FinalDecisionPositionCode);
 
 public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 {
     private readonly IHrmAttendanceCalculationService _attendanceCalculation;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operatorAssignments;
     private readonly INotificationService _notificationService;
+    private readonly IExecutionHrClaimService _claimService;
     private readonly ILogger<ExecutionHrResolutionService> _logger;
+    public Task<ServiceResult<IReadOnlyList<ExecutionHrReviewItemDto>>> GetPendingAsync(int uid, string? m, string? s, DateOnly? f, DateOnly? t, CancellationToken ct = default) => GuardAsync(() => GetPendingAsyncCoreAsync(uid, m, s, f, t, ct));
+    public async Task<ServiceResult<ExecutionReconciliationDetailDto>> GetDetailAsync(int uid, string e, long id, CancellationToken ct = default)
+    {
+        try
+        {
+            var v = await GetDetailAsyncCoreAsync(uid, e, id, ct)
+                ; return v is null ? ServiceResult<ExecutionReconciliationDetailDto>.Fail("Không tìm thấy reconciliation.") : ServiceResult<ExecutionReconciliationDetailDto>.Ok(v);
+        }
+        catch (OperationCanceledException)
+        { throw; }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException) { return ServiceResult<ExecutionReconciliationDetailDto>.Fail(ex.Message); }
+    }
+    public Task<ServiceResult<ExecutionEvidenceDto>> ReviewEvidenceAsync(int uid, string e, long id, ExecutionEvidenceReviewRequest q, CancellationToken ct = default) => GuardAsync(() => ReviewEvidenceAsyncCoreAsync(uid, e, id, q, ct));
+    public Task<ServiceResult<ExecutionHrResolutionDto>> ResolveAsync(int uid, string e, long id, ExecutionHrResolutionRequest q, CancellationToken ct = default) => GuardAsync(() => ResolveAsyncCoreAsync(uid, e, id, q, ct));
+    public Task<ServiceResult<ExecutionEvidenceFileDto>> OpenEvidenceFileAsync(int uid, string e, long id, CancellationToken ct = default) => GuardAsync(() => OpenEvidenceFileAsyncCoreAsync(uid, e, id, ct));
+
     public const int HrExecutionReviewFunctionCode = FVN_REGISTER.Core.Constants.SecurityFunctionCodes.ExecutionReview;
 
     private readonly FVNWEBAPPContext _db;
+    private readonly IHostEnvironment _hostEnvironment;
 
     public ExecutionHrResolutionService(
         FVNWEBAPPContext db,
         IHrmAttendanceCalculationService attendanceCalculation,
         IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operatorAssignments,
         INotificationService notificationService,
-        ILogger<ExecutionHrResolutionService> logger)
+        IExecutionHrClaimService claimService,
+        ILogger<ExecutionHrResolutionService> logger,
+        IHostEnvironment hostEnvironment)
     {
         _db = db;
+        _hostEnvironment = hostEnvironment;
         _attendanceCalculation = attendanceCalculation;
         _authorization = authorization;
+        _operatorAssignments = operatorAssignments;
         _notificationService = notificationService;
+        _claimService = claimService;
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<ExecutionHrReviewItemDto>> GetPendingAsync(
+    private async Task<IReadOnlyList<ExecutionHrReviewItemDto>> GetPendingAsyncCoreAsync(
         int userId,
         string? moduleCode,
         string? status,
@@ -53,16 +93,43 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         var actor = await _db.Users.AsNoTracking()
             .Where(x => x.Id == userId && x.IsActive != false)
-            .Select(x => new { x.EmployeeCode, x.DeptCode })
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                DeptCode = x.DeptCode,
+                Permission = x.PermissionCode,
+                FullName = x.FullName,
+                LevelApprove = x.LevelApprove,
+                IsLoggedIn = true
+            })
             .SingleAsync(cancellationToken);
+
+        var hasExecutionReview = await _authorization.HasAsync(
+            actor,
+            HrExecutionReviewFunctionCode,
+            cancellationToken);
+
+        var isAssignedOperator = await _operatorAssignments.CanOperateAsync(
+            userId,
+            actor.EmployeeCode,
+            HrExecutionReviewFunctionCode,
+            "EXECUTION_REVIEW",
+            null,
+            cancellationToken);
+
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(HrExecutionReviewFunctionCode, hasExecutionReview, isAssignedOperator))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Tài khoản không có quyền Execution Review (qua role hoặc chỉ định operator).");
 
         var scope = await _authorization.GetScopeAsync(
             userId,
             HrExecutionReviewFunctionCode,
             cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(scope)
-            || string.Equals(scope, AuthorizationScopeCodes.None, StringComparison.OrdinalIgnoreCase))
+        if (!isAssignedOperator
+            && (string.IsNullOrWhiteSpace(scope)
+                || string.Equals(scope, AuthorizationScopeCodes.None, StringComparison.OrdinalIgnoreCase)))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
                 "Execution Review chưa được cấp data scope.");
 
@@ -70,11 +137,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .Where(x => x.IsActive != false
                 && x.ReconciliationStatus != "Resolved"
                 && (x.ReconciliationStatus == "Mismatch"
-                    || x.ReconciliationStatus == "AwaitingConfirmation")
-                && _db.ExecutionPolicies.Any(p =>
-                    p.IsActive != false
-                    && p.ModuleCode == x.ModuleCode
-                    && p.ReviewMode != 0));
+                    || x.ReconciliationStatus == "AwaitingConfirmation"
+                    || x.ReconciliationStatus == "AppealReviewing"
+                    || x.ReconciliationStatus == "FinalDecisionPending"));
 
         if (!string.IsNullOrWhiteSpace(moduleCode))
             query = query.Where(x => x.ModuleCode == moduleCode.Trim().ToUpperInvariant());
@@ -85,10 +150,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (from.HasValue) query = query.Where(x => x.WorkDate >= from.Value);
         if (to.HasValue) query = query.Where(x => x.WorkDate <= to.Value);
 
-        if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+        if (!isAssignedOperator && string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             query = query.Where(x => _db.Employees.Any(e =>
                 e.Id == x.EmployeeId && e.DeptCode == actor.DeptCode && e.IsActive != false));
-        else if (string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase))
+        else if (!isAssignedOperator && string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase))
             query = query.Where(x => _db.Employees.Any(e =>
                 e.Id == x.EmployeeId && e.EmployeeCode == actor.EmployeeCode && e.IsActive != false));
 
@@ -166,11 +231,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         return result;
     }
 
-    public async Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
-        int userId,
-        string employeeCode,
-        long reconciliationId,
-        CancellationToken cancellationToken = default)
+    private async Task<ExecutionReconciliationDetailDto?> GetDetailAsyncCoreAsync(
+     int userId,
+     string employeeCode,
+     long reconciliationId,
+     CancellationToken cancellationToken = default)
     {
         await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
 
@@ -195,10 +260,22 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             target.Employee.DeptCode,
             cancellationToken);
 
-        var reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
-            .Where(x => x.Id == reconciliationId)
-            .Select(ToDto())
-            .SingleAsync(cancellationToken);
+        // Khai báo ngoài try để dùng được ở phần return bên dưới.
+        ExecutionReconciliationDto reconciliation;
+        try
+        {
+            reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
+                .Where(x => x.Id == reconciliationId)
+                .Select(ToDto())
+                .SingleAsync(cancellationToken);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex,
+                "GetDetail cancelled. ReconciliationId={Id}, TokenCanceled={Canceled}",
+                reconciliationId, cancellationToken.IsCancellationRequested);
+            throw;
+        }
 
         var confirmation = await _db.ExecutionConfirmations.AsNoTracking()
             .Where(x => x.ReconciliationId == reconciliationId && x.IsActive != false)
@@ -226,12 +303,59 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 x.Id, x.Decision, x.Reason, x.CalendarAction, x.ResolvedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
+        var employeeDecisionRow = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId)
+            .Select(x => new
+            {
+                x.EmployeeDecisionStatus,
+                x.EmployeeDecisionComment,
+                x.AppealRound,
+                x.EmployeeDecisionAt,
+                x.ReconciliationStatus,
+                x.ResolutionPolicySnapshotJson
+            })
+            .SingleAsync(cancellationToken);
+
+        var employeePolicy = string.IsNullOrWhiteSpace(employeeDecisionRow.ResolutionPolicySnapshotJson)
+            ? null
+            : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
+                employeeDecisionRow.ResolutionPolicySnapshotJson);
+
+        var employeeDecision = new ExecutionEmployeeDecisionSummaryDto(
+            employeeDecisionRow.EmployeeDecisionStatus,
+            employeeDecisionRow.EmployeeDecisionComment,
+            employeeDecisionRow.AppealRound,
+            employeeDecisionRow.EmployeeDecisionAt,
+            employeeDecisionRow.ReconciliationStatus == "AwaitingEmployeeDecision",
+            employeeDecisionRow.ReconciliationStatus == "AwaitingEmployeeDecision"
+                && employeePolicy?.AllowEmployeeAppeal == true
+                && employeeDecisionRow.AppealRound < (employeePolicy.MaxAppealRounds),
+            employeePolicy?.MaxAppealRounds ?? 0);
+
+        var history = await (
+            from h in _db.ExecutionReconciliationHistory.AsNoTracking()
+            join actor in _db.Employees.AsNoTracking()
+                on h.ActorEmployeeId equals actor.Id into actors
+            from actor in actors.DefaultIfEmpty()
+            where h.ReconciliationId == reconciliationId
+            orderby h.CreatedAt
+            select new ExecutionReconciliationHistoryDto(
+                h.Id, h.FromStatus, h.ToStatus, h.EventType, h.Reason,
+                h.ActorUserId, h.ActorEmployeeId,
+                actor == null ? null : actor.EmployeeCode,
+                h.CreatedAt))
+            .ToListAsync(cancellationToken);
+
         return new ExecutionReconciliationDetailDto(
             reconciliation,
             confirmation,
             evidence,
-            hrResolution);
+            hrResolution,
+            employeeDecision,
+            history);
     }
+
+    private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op) { try { return ServiceResult<T>.Ok(await op()); } catch (OperationCanceledException) { throw; } catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException) { return ServiceResult<T>.Fail(ex.Message); } }
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
         x => new ExecutionReconciliationDto(
@@ -240,7 +364,99 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             x.ReconciliationStatus, x.RequiresConfirmation, x.RequiresEvidence,
             x.ConfirmationId, x.ActionId);
 
-    public async Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
+    private async Task<ExecutionEvidenceFileDto> OpenEvidenceFileAsyncCoreAsync(
+        int userId,
+        string employeeCode,
+        long evidenceId,
+        CancellationToken cancellationToken = default)
+    {
+        const long maxBytes = 10 * 1024 * 1024;
+
+        await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
+
+        var evidence = await _db.ExecutionConfirmationEvidence.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == evidenceId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy evidence.");
+
+        if (!evidence.FileId.HasValue)
+            throw new KeyNotFoundException("Evidence này không có file đính kèm.");
+
+        var confirmation = await _db.ExecutionConfirmations.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == evidence.ConfirmationId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy confirmation của evidence.");
+
+        var reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == confirmation.ReconciliationId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy reconciliation của evidence.");
+
+        var employee = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
+            .Select(x => new { x.EmployeeCode, x.DeptCode })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của evidence.");
+
+        // Cùng quy tắc với GetDetail: HR không xem evidence của chính mình và phải nằm trong phạm vi được giao.
+        if (string.Equals(employee.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "HR không được xem execution review của chính mình.");
+
+        await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
+
+        var attachment = await _db.Attachments.AsNoTracking()
+            .Where(x => x.Id == evidence.FileId.Value && x.IsActive != false)
+            .Select(x => new { x.FileName, x.FilePath, x.FileExtension })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy file đính kèm.");
+
+        // FilePath được lưu tương đối so với ContentRoot (uploads/execution-evidence/yyyy/MM/...).
+        // Chỉ cho đọc file nằm trong thư mục uploads để chặn path traversal.
+        var contentRoot = Path.GetFullPath(_hostEnvironment.ContentRootPath);
+        var uploadsRoot = Path.GetFullPath(Path.Combine(contentRoot, "uploads"))
+            + Path.DirectorySeparatorChar;
+        var fullPath = Path.GetFullPath(Path.Combine(contentRoot, attachment.FilePath));
+
+        if (!fullPath.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Đường dẫn file đính kèm không hợp lệ.");
+
+        if (!File.Exists(fullPath))
+            throw new KeyNotFoundException("File đính kèm không còn tồn tại trên máy chủ.");
+
+        byte[] bytes;
+        try
+        {
+            if (new FileInfo(fullPath).Length > maxBytes)
+                throw new InvalidOperationException("File đính kèm vượt quá 10 MB.");
+
+            bytes = await File.ReadAllBytesAsync(fullPath, cancellationToken);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Cannot read execution evidence file. EvidenceId={EvidenceId}", evidenceId);
+            throw new InvalidOperationException("Không đọc được file đính kèm.");
+        }
+
+        var extension = (attachment.FileExtension ?? Path.GetExtension(attachment.FileName) ?? string.Empty)
+            .ToLowerInvariant();
+
+        var contentType = extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xls" => "application/vnd.ms-excel",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            _ => "application/octet-stream"
+        };
+
+        return new ExecutionEvidenceFileDto(
+            string.IsNullOrWhiteSpace(attachment.FileName) ? $"evidence-{evidenceId}{extension}" : attachment.FileName,
+            contentType,
+            Convert.ToBase64String(bytes));
+    }
+
+    private async Task<ExecutionEvidenceDto> ReviewEvidenceAsyncCoreAsync(
         int userId,
         string employeeCode,
         long evidenceId,
@@ -270,21 +486,24 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .FirstOrDefaultAsync(x => x.Id == confirmation.ReconciliationId && x.IsActive != false, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy reconciliation của evidence.");
 
+        await _claimService.EnsureClaimedAsync(userId, reconciliation.Id, cancellationToken);
+
         if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
 
-        var policy = await _db.ExecutionPolicies.AsNoTracking()
-            .Where(x => x.IsActive != false && x.ModuleCode == reconciliation.ModuleCode)
-            .Select(x => new
-            {
-                x.ReviewMode,
-                x.CorrectionMode
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var policy = string.IsNullOrWhiteSpace(reconciliation.ResolutionPolicySnapshotJson)
+            ? null
+            : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
+                reconciliation.ResolutionPolicySnapshotJson);
 
-        if (policy is null || policy.ReviewMode == 0)
+        if (policy is null)
             throw new InvalidOperationException(
-                $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+                "Reconciliation chưa có snapshot resolution policy.");
+
+        // Evidence review is available only while the case is still actionable.
+        if (reconciliation.ReconciliationStatus is not ("AwaitingConfirmation" or "AppealReviewing" or "FinalDecisionPending"))
+            throw new InvalidOperationException(
+                $"Trạng thái {reconciliation.ReconciliationStatus} không cho phép review evidence.");
 
         var targetEmployeeCode = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
@@ -309,6 +528,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         evidence.ModifiedBy = userId;
         evidence.ModifiedAt = DateTime.Now;
         evidence.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
+
+        // Evidence review is a step inside the HR case. The shared HR action
+        // remains open until the actual resolution/final decision is committed.
 
         // Any negative evidence review keeps the employee action open.
         if (reviewStatus == "Rejected" || reviewStatus == "NeedMoreEvidence")
@@ -371,7 +593,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             evidence.ReviewNote);
     }
 
-    public async Task<ExecutionHrResolutionDto> ResolveAsync(
+    private async Task<ExecutionHrResolutionDto> ResolveAsyncCoreAsync(
         int userId,
         string employeeCode,
         long reconciliationId,
@@ -397,18 +619,22 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .FirstOrDefaultAsync(x => x.Id == reconciliationId && x.IsActive != false, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy phản hồi đối soát.");
 
+        await _claimService.EnsureClaimedAsync(userId, reconciliationId, cancellationToken);
+
         if (reconciliation.ReconciliationStatus == "Resolved")
             throw new InvalidOperationException("Phản hồi này đã được HR giải quyết.");
 
         if (reconciliation.ReconciliationStatus != "Mismatch"
-            && reconciliation.ReconciliationStatus != "AwaitingConfirmation")
+            && reconciliation.ReconciliationStatus != "AwaitingConfirmation"
+            && reconciliation.ReconciliationStatus != "AppealReviewing"
+            && reconciliation.ReconciliationStatus != "FinalDecisionPending")
             throw new InvalidOperationException(
                 $"Trạng thái {reconciliation.ReconciliationStatus} không thuộc hàng chờ HR xử lý.");
 
         var now = DateTime.Now;
         var employee = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
-            .Select(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode })
+            .Select(x => new { x.Id, x.EmployeeCode, x.EmployeeName, x.DeptCode })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của phản hồi.");
 
@@ -417,18 +643,41 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
 
-        var policy = await _db.ExecutionPolicies.AsNoTracking()
-            .Where(x => x.IsActive != false && x.ModuleCode == reconciliation.ModuleCode)
-            .Select(x => new
-            {
-                x.ReviewMode,
-                x.CorrectionMode
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var policy = string.IsNullOrWhiteSpace(reconciliation.ResolutionPolicySnapshotJson)
+            ? null
+            : JsonSerializer.Deserialize<ExecutionResolutionPolicySnapshot>(
+                reconciliation.ResolutionPolicySnapshotJson);
 
-        if (policy is null || policy.ReviewMode == 0)
+        if (policy is null)
             throw new InvalidOperationException(
-                $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+                "Reconciliation chưa có snapshot resolution policy. Không được tự ý áp dụng policy hiện tại cho case cũ.");
+
+        if (reconciliation.ReconciliationStatus == "FinalDecisionPending")
+        {
+            var previousResolver = await _db.Set<F03ExecutionResolution>().AsNoTracking()
+                .Where(x => x.ReconciliationId == reconciliation.Id && x.IsActive != false)
+                .OrderByDescending(x => x.ResolvedAt)
+                .Select(x => (int?)x.ResolvedByUserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (previousResolver == userId)
+                throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                    "Người đã xử lý vòng trước không được tự mình đưa ra quyết định cuối.");
+        }
+
+        if (reconciliation.ReconciliationStatus == "FinalDecisionPending"
+            && policy.RequireFinalDecision
+            && !string.IsNullOrWhiteSpace(policy.FinalDecisionPositionCode))
+        {
+            var actorPosition = await _db.Employees.AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive != false)
+                .Select(x => x.PositionCode)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (!string.Equals(actorPosition, policy.FinalDecisionPositionCode, StringComparison.OrdinalIgnoreCase))
+                throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                    $"Case này yêu cầu quyết định cuối bởi PositionCode {policy.FinalDecisionPositionCode}.");
+        }
 
         var correctionMode = policy.CorrectionMode;
 
@@ -501,7 +750,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _db.Set<F03ExecutionResolution>().Add(resolution);
         await _db.SaveChangesAsync(cancellationToken);
 
-        if (decision == "OK"
+        var awaitingEmployeeDecision = reconciliation.ReconciliationStatus != "FinalDecisionPending";
+
+        if (!awaitingEmployeeDecision
+            && decision == "OK"
             && correctionMode != (byte)ExecutionCorrectionMode.None)
         {
             if (correctionMode != (byte)ExecutionCorrectionMode.AttendanceRecalculate)
@@ -566,37 +818,32 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             await _db.SaveChangesAsync(cancellationToken);
         }
         var oldStatus = reconciliation.ReconciliationStatus;
-        reconciliation.ReconciliationStatus = "Resolved";
-        reconciliation.ResolvedAt = now;
-        reconciliation.ResolvedBy = userId;
+        var isFinalDecision = oldStatus == "FinalDecisionPending";
+        reconciliation.ReconciliationStatus = isFinalDecision
+            ? "Resolved"
+            : "AwaitingEmployeeDecision";
+        reconciliation.ResolvedAt = isFinalDecision ? now : null;
+        reconciliation.ResolvedBy = isFinalDecision ? userId : null;
         reconciliation.RequiresConfirmation = false;
         reconciliation.RequiresEvidence = false;
         reconciliation.LastModifiedSource = "HR_EXECUTION_REVIEW";
 
-        if (reconciliation.ActionId.HasValue)
-        {
-            var action = await _db.ActionItems.FirstOrDefaultAsync(
-                x => x.ActionId == reconciliation.ActionId.Value, cancellationToken);
-            if (action is not null
-                && action.Status != ActionItemStatus.Completed
-                && action.Status != ActionItemStatus.Cancelled
-                && action.Status != ActionItemStatus.Expired
-                && action.Status != ActionItemStatus.Dismissed)
-            {
-                action.Status = ActionItemStatus.Completed;
-                action.CompletedAt = now;
-                action.ModifiedBy = userId;
-                action.ModifiedAt = now;
-                action.LastModifiedSource = "HR_EXECUTION_REVIEW";
-            }
-        }
+        await CompleteExecutionReviewActionsAsync(reconciliation.Id, userId, cancellationToken);
 
+        if (!isFinalDecision)
+            reconciliation.ActionId = await EnsureEmployeeResultActionAsync(
+                reconciliation, employee.Id, now, policy.EmployeeResponseHours, cancellationToken);
+
+        // The HR action is completed by CompleteExecutionReviewActionsAsync.
+        // A provisional result creates a new employee action, which must remain open.
         _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
         {
             ReconciliationId = reconciliation.Id,
             FromStatus = oldStatus,
-            ToStatus = "Resolved",
-            EventType = decision == "OK" ? "HR_RESOLUTION_OK" : "HR_RESOLUTION_NG",
+            ToStatus = reconciliation.ReconciliationStatus,
+            EventType = isFinalDecision
+                ? (decision == "OK" ? "HR_FINAL_DECISION_OK" : "HR_FINAL_DECISION_NG")
+                : (decision == "OK" ? "HR_RESOLUTION_OK_AWAITING_EMPLOYEE" : "HR_RESOLUTION_NG_AWAITING_EMPLOYEE"),
             Reason = reason,
             ActorUserId = userId,
             ActorEmployeeId = resolution.ResolvedByEmployeeId,
@@ -606,7 +853,23 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await _db.SaveChangesAsync(cancellationToken);
 
         if (calendar is not null)
-            ApplyCalendarResolution(calendar, decision, calendarAction, reason, DateTime.Now);
+        {
+            if (isFinalDecision)
+                ApplyCalendarResolution(calendar, decision, calendarAction, reason, DateTime.Now);
+            else
+            {
+                calendar.RequiresAction = true;
+                calendar.StatusCode = "HrResolvedPendingEmployee";
+                calendar.Marker = "!";
+                calendar.Severity = 2;
+                calendar.Summary = string.IsNullOrWhiteSpace(calendar.Summary)
+                    ? $"HR: {reason} | Chờ nhân viên xác nhận."
+                    : $"{calendar.Summary} | HR: {reason} | Chờ nhân viên xác nhận.";
+                calendar.CalculatedAt = DateTime.Now;
+                calendar.ModifiedAt = DateTime.Now;
+                calendar.LastModifiedSource = "EXECUTION_HR_RESOLUTION_PENDING_EMPLOYEE";
+            }
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -640,6 +903,78 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             now);
     }
 
+    private async Task<Guid> EnsureEmployeeResultActionAsync(
+        F03ExecutionReconciliation reconciliation,
+        int employeeId,
+        DateTime now,
+        int dueHours,
+        CancellationToken ct)
+    {
+        var existing = await _db.ActionItems.FirstOrDefaultAsync(x =>
+            x.IsActive != false
+            && x.ActionType == "EXECUTION_RESULT_CONFIRMATION"
+            && x.SourceId == reconciliation.Id.ToString()
+            && x.AssignedToEmployeeId == employeeId
+            && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress),
+            ct);
+
+        if (existing is not null)
+            return existing.ActionId;
+
+        var action = new F03ActionItem
+        {
+            ActionId = Guid.NewGuid(),
+            ModuleCode = reconciliation.ModuleCode,
+            SourceType = reconciliation.SourceType,
+            SourceId = reconciliation.Id.ToString(),
+            ParticipantId = reconciliation.ParticipantId,
+            EmployeeId = employeeId,
+            AssignedToEmployeeId = employeeId,
+            WorkDate = reconciliation.WorkDate,
+            ActionType = "EXECUTION_RESULT_CONFIRMATION",
+            Title = "Xác nhận kết quả đối soát công",
+            Summary = "HR đã xử lý phản hồi. Vui lòng xem kết quả và xác nhận hoặc khiếu nại.",
+            Severity = 2,
+            Priority = 40,
+            Status = ActionItemStatus.Open,
+            DueAt = now.AddHours(Math.Max(1, dueHours)),
+            DetailRoute = $"/execution?reconciliationId={reconciliation.Id}",
+            ReferenceNo = reconciliation.SourceId,
+            PayloadJson = JsonSerializer.Serialize(new { reconciliation.Id }),
+            CreatedBy = 0,
+            CreatedAt = now,
+            LastModifiedSource = "EXECUTION_HR_RESOLUTION"
+        };
+        _db.ActionItems.Add(action);
+        return action.ActionId;
+    }
+
+    private async Task CompleteExecutionReviewActionsAsync(
+        long reconciliationId,
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var actions = await _db.ActionItems
+            .Where(x => x.IsActive != false
+                && x.ActionType == "EXECUTION_EVIDENCE_REVIEW"
+                && x.SourceId == reconciliationId.ToString()
+                && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
+            .ToListAsync(cancellationToken);
+
+        if (actions.Count == 0)
+            return;
+
+        var now = DateTime.Now;
+        foreach (var action in actions)
+        {
+            action.Status = ActionItemStatus.Completed;
+            action.CompletedAt = now;
+            action.ModifiedBy = userId;
+            action.ModifiedAt = now;
+            action.LastModifiedSource = "HR_EXECUTION_REVIEW";
+        }
+    }
+
     private async Task EnsureHrPermissionAsync(
         int userId,
         bool requireAllScope,
@@ -670,8 +1005,22 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             IsLoggedIn = true
         };
 
-        if (!await _authorization.HasAsync(identity, HrExecutionReviewFunctionCode, cancellationToken))
-            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("Tài khoản không có quyền Execution Review.");
+        var hasExecutionReview = await _authorization.HasAsync(
+            identity,
+            HrExecutionReviewFunctionCode,
+            cancellationToken);
+
+        var isAssignedOperator = await _operatorAssignments.CanOperateAsync(
+            userId,
+            user.EmployeeCode,
+            HrExecutionReviewFunctionCode,
+            "EXECUTION_REVIEW",
+            null,
+            cancellationToken);
+
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(HrExecutionReviewFunctionCode, hasExecutionReview, isAssignedOperator))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Tài khoản không có quyền Execution Review (qua role hoặc chỉ định operator).");
 
         if (requireAllScope)
         {
@@ -722,7 +1071,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     private async Task EnsureHrTargetScopeAsync(
         int userId,
         string targetEmployeeCode,
-        string? targetDeptCode,
+        int? targetDeptCode,
         CancellationToken cancellationToken)
     {
         var actor = await _db.Users.AsNoTracking()
@@ -739,6 +1088,23 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new UnauthorizedAccessException("Tài khoản HR không tồn tại.");
+
+        var assignedOperator = await _operatorAssignments.CanOperateAsync(
+            userId,
+            actor.EmployeeCode,
+            HrExecutionReviewFunctionCode,
+            "EXECUTION_REVIEW",
+            null,
+            cancellationToken);
+
+        var hasExecutionReview = await _authorization.HasAsync(
+            actor,
+            HrExecutionReviewFunctionCode,
+            cancellationToken);
+
+        if (!FeatureOperatorAuthorizationPolicy.CanOperate(HrExecutionReviewFunctionCode, hasExecutionReview, assignedOperator))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Tài khoản không có quyền Execution Review (qua role hoặc chỉ định operator).");
 
         if (!await _authorization.CanAccessAsync(
                 actor,

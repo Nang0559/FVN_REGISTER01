@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.LimitRuleDtos;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Utils;
 
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -181,7 +182,7 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
     }
 
     public async Task<List<OTLimitRuleDto>> GetApplicableRulesAsync(
-        string deptCode,
+        int deptCode,
         string positionCode,
         OTLimitType limitType,
         CancellationToken ct = default)
@@ -225,7 +226,7 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
 
         model.ScopeCode = Clean(model.ScopeCode);
         model.EmployeeCode = Clean(model.EmployeeCode);
-        model.DeptCode = Clean(model.DeptCode);
+        model.DeptCode = model.DeptCode > 0 ? model.DeptCode : null;
         model.PositionCode = Clean(model.PositionCode);
         model.Description = Clean(model.Description);
 
@@ -245,12 +246,15 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
                 if (string.IsNullOrWhiteSpace(model.ScopeCode))
                     return "Phạm vi Phòng ban phải có mã phòng ban.";
 
+                if (!int.TryParse(model.ScopeCode, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var scopeDeptCode))
+                    return $"Mã phòng ban '{model.ScopeCode}' không hợp lệ.";
+
                 var deptExists = await _uow.Repository<F03Department>().Query()
-                    .AnyAsync(x => x.IsActive == true && x.DeptCode == model.ScopeCode, ct);
+                    .AnyAsync(x => x.IsActive == true && x.DeptCode == scopeDeptCode, ct);
                 if (!deptExists) return $"Phòng ban '{model.ScopeCode}' không tồn tại hoặc đã ngừng hoạt động.";
 
                 model.EmployeeCode = null;
-                model.DeptCode = model.ScopeCode;
+                model.DeptCode = scopeDeptCode;
                 model.PositionCode = null;
                 break;
 

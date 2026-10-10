@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace FVN_REGISTER.Core.Entities.Views;
 
@@ -17,7 +18,7 @@ public partial class VF03user
 
     public string? EmployeeName { get; set; }
 
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
 
     public string? DeptName { get; set; }
 

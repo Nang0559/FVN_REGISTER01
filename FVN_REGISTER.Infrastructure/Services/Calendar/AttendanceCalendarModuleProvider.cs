@@ -27,41 +27,88 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         CalendarContext context,
         CancellationToken cancellationToken = default)
     {
+        // EmployeeCode is nvarchar(100) in both attendance tables.
+        // Keep the parameter Unicode as well; converting it to varchar(50)
+        // introduces an unnecessary type/length conversion and can truncate
+        // employee codes. The EmployeeCode + WorkDate indexes support this lookup.
         var rows = await _db.Database.SqlQuery<AttendanceCalendarRow>($"""
+            WITH CurrentRows AS
+            (
+                SELECT
+                    a.WorkDate,
+                    a.HrmEmployeeId,
+                    a.EmployeeCode,
+                    a.ShiftId,
+                    a.ShiftAbbr,
+                    a.AttendanceDisplayValue,
+                    a.CheckInTime,
+                    a.CheckOutTime,
+                    a.WorkMinutesDay,
+                    a.WorkMinutesNight,
+                    a.OTMinutesDay,
+                    a.OTMinutesNight,
+                    a.OTMinutesDayTC,
+                    a.OTMinutesNightTC,
+                    a.OTRecognizedMinutesDay,
+                    a.OTRecognizedMinutesNight,
+                    a.RequiredMinutes,
+                    a.LateMinutesDay,
+                    a.LateMinutesNight,
+                    a.EarlyLeaveMinutesDay,
+                    a.EarlyLeaveMinutesNight,
+                    a.LeaveTotal,
+                    a.HrmHoliday,
+                    a.HrmEmployeeHoliday,
+                    a.HrmBCLyDoNghi,
+                    a.HrmBCGhiChu
+                FROM dbo.F03HrmAttendanceCalculated AS a
+                WHERE a.EmployeeCode = {context.EmployeeCode}
+                  AND a.WorkDate >= {context.From}
+                  AND a.WorkDate <= {context.To}
+            )
+            SELECT *
+            FROM CurrentRows
+
+            UNION ALL
+
             SELECT
-                a.WorkDate,
-                a.HrmEmployeeId,
-                a.EmployeeCode,
-                a.ShiftId,
-                a.ShiftAbbr,
-                a.AttendanceDisplayValue,
-                a.CheckInTime,
-                a.CheckOutTime,
-                a.WorkMinutesDay,
-                a.WorkMinutesNight,
-                a.OTMinutesDay,
-                a.OTMinutesNight,
-                a.OTMinutesDayTC,
-                a.OTMinutesNightTC,
-                a.OTRecognizedMinutesDay,
-                a.OTRecognizedMinutesNight,
-                a.RequiredMinutes,
-                a.LateMinutesDay,
-                a.LateMinutesNight,
-                a.EarlyLeaveMinutesDay,
-                a.EarlyLeaveMinutesNight,
-                a.LeaveTotal,
-                a.HrmHoliday,
-                a.HrmEmployeeHoliday,
-                a.HrmBCLyDoNghi,
-                a.HrmBCGhiChu
-            FROM dbo.F03HrmAttendanceCalculated AS a
-            INNER JOIN dbo.F03Employees AS e
-                ON LTRIM(RTRIM(e.EmployeeCode)) = LTRIM(RTRIM(a.EmployeeCode))
-            WHERE e.Id = {context.EmployeeId}
-              AND a.WorkDate >= {context.From}
-              AND a.WorkDate <= {context.To}
-            ORDER BY a.WorkDate
+                h.WorkDate,
+                h.HrmEmployeeId,
+                h.EmployeeCode,
+                h.ShiftId,
+                h.ShiftAbbr,
+                h.AttendanceDisplayValue,
+                h.CheckInTime,
+                h.CheckOutTime,
+                h.WorkMinutesDay,
+                h.WorkMinutesNight,
+                h.OTMinutesDay,
+                h.OTMinutesNight,
+                h.OTMinutesDayTC,
+                h.OTMinutesNightTC,
+                h.OTRecognizedMinutesDay,
+                h.OTRecognizedMinutesNight,
+                h.RequiredMinutes,
+                h.LateMinutesDay,
+                h.LateMinutesNight,
+                h.EarlyLeaveMinutesDay,
+                h.EarlyLeaveMinutesNight,
+                h.LeaveTotal,
+                h.HrmHoliday,
+                h.HrmEmployeeHoliday,
+                h.HrmBCLyDoNghi,
+                h.HrmBCGhiChu
+            FROM dbo.F03HrmAttendanceHistory AS h
+            WHERE h.EmployeeCode = {context.EmployeeCode}
+              AND h.WorkDate >= {context.From}
+              AND h.WorkDate <= {context.To}
+              AND NOT EXISTS
+              (
+                  SELECT 1
+                  FROM CurrentRows AS c
+                  WHERE c.WorkDate = h.WorkDate
+              )
+            ORDER BY WorkDate
             """).ToListAsync(cancellationToken);
 
         var reconciliationByDate = await _db.ExecutionReconciliations

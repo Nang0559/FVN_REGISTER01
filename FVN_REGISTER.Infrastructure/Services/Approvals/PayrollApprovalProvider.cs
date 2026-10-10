@@ -9,6 +9,7 @@ using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.Payroll;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -150,7 +151,7 @@ public sealed class PayrollApprovalProvider
         bool canApprove,
         CancellationToken ct)
     {
-        var deptName = string.IsNullOrWhiteSpace(subject.DeptCode)
+        var deptName = subject.DeptCode == null
             ? string.Empty
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
                 .Where(x => x.DeptCode == subject.DeptCode)
@@ -166,7 +167,7 @@ public sealed class PayrollApprovalProvider
             Kind = RequestType,
             EmployeeCode = subject.EmployeeCode,
             EmployeeName = $"Kỳ lương {subject.PeriodCode}",
-            DeptCode = subject.DeptCode ?? string.Empty,
+            DeptCode = subject.DeptCode ?? 0,
             DeptName = deptName,
             FromDate = subject.FromDate.ToDateTime(TimeOnly.MinValue),
             ToDate = subject.ToDate.ToDateTime(TimeOnly.MinValue),

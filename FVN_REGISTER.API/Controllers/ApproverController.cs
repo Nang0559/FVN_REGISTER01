@@ -44,7 +44,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> GetList([FromQuery] string? deptCode, [FromQuery] int? level, [FromQuery] RequestModule? requestType, CancellationToken ct)
+        public async Task<IActionResult> GetList([FromQuery] int? deptCode, [FromQuery] int? level, [FromQuery] RequestModule? requestType, CancellationToken ct)
         {
             if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
             return HandleResult(await _approverService.GetListAsync(deptCode, level, requestType, ct));
@@ -58,7 +58,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("employees")]
-        public async Task<IActionResult> GetEmployees([FromQuery] string? deptCode, CancellationToken ct)
+        public async Task<IActionResult> GetEmployees([FromQuery] int? deptCode, CancellationToken ct)
         {
             if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
             return HandleResult(await _approverService.GetEmployeesAsync(deptCode, ct));
@@ -131,6 +131,6 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         private async Task<bool> CanAsync(int code, CancellationToken ct) =>
-            UserInfo != null && await _authorization.HasAsync(UserInfo, code, ct);
+            UserInfo != null && await _authorization.HasManagementAsync(UserInfo, code, ct);
     }
 }
