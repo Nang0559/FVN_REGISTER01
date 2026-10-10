@@ -2,6 +2,8 @@
 
 > Dành cho Ban giám đốc và bộ phận nghiệp vụ. Không đưa số tiết kiệm giả định thành kết quả thực tế.
 
+Trước khi dùng số liệu vận hành để lập business case, xác nhận trạng thái chức năng theo [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md).
+
 ## 1. Câu hỏi đầu tư
 
 FVN REGISTER hướng tới giảm thao tác thủ công trong chuỗi:
