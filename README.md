@@ -1,6 +1,6 @@
 # FVN_REGISTER
 
-FVN_REGISTER là nền tảng đăng ký nghiệp vụ nhân sự và phê duyệt điện tử, bao gồm Nghỉ phép, Làm thêm giờ (OT), Công tác, Thiết bị, Chấm công/Đối soát, Lịch làm việc, Trung tâm công việc, Thông báo, Bảng điều khiển và Báo cáo.
+FVN_REGISTER là nền tảng đăng ký nghiệp vụ nhân sự và phê duyệt điện tử, bao gồm Nghỉ phép, Làm thêm giờ (OT), Công tác, Thiết bị, Chấm công/Đối soát, Lịch làm việc, Trung tâm công việc, Thông báo, Bảng điều khiển, Báo cáo và năng lực IT về kiểm kê/tuân thủ máy Windows (Endpoint) theo phạm vi triển khai. Mức sẵn sàng từng nghiệp vụ phải được xác nhận theo hướng dẫn trong bộ tài liệu Ban giám đốc.
 
 ## Bộ tài liệu giới thiệu và đánh giá hiệu quả
 
