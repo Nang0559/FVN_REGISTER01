@@ -53,5 +53,15 @@
   "dashboard.statusCheckedOut": "退勤打刻済み",
   "dashboard.statusCheckedIn": "出勤済み・退勤未打刻",
   "dashboard.statusMissingCheckIn": "退勤あり・出勤不足",
-  "dashboard.statusNoPunch": "計算結果に打刻なし"
+  "dashboard.statusNoPunch": "計算結果に打刻なし",
+  "dashboard.departmentOverview": "部門概要",
+  "dashboard.todayDepartmentOverview": "本日 · 承認者の担当部門",
+  "dashboard.attendanceRate": "出勤率",
+  "dashboard.presentShort": "出勤",
+  "dashboard.presentEmployees": "出勤している従業員",
+  "dashboard.people": "人",
+  "dashboard.approvedLeaveTodayNote": "承認済み",
+  "dashboard.approvedTripTodayNote": "承認済み出張予定",
+  "dashboard.approvedOTTodayNote": "承認済み残業申請",
+  "dashboard.departmentOverviewDataNote": "システムデータを集計しています。サンプルデータではありません。"
 }
