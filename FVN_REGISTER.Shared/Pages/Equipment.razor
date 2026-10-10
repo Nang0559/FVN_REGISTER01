@@ -340,14 +340,16 @@ else
     {
         var schemas = await EquipmentClient.GetSchemasAsync();
         if (!schemas.IsSuccess || schemas.Data == null) return;
-        var active = schemas.Data.Where(x => x.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) || x.IsActive)
-            .GroupBy(x => x.Id).Select(x => x.First()).ToList();
+        var allSchemas = schemas.Data.GroupBy(x => x.Id).Select(x => x.First()).ToList();
+        var active = allSchemas.Where(x => x.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) || x.IsActive).ToList();
         var usedSchemaKeys = _assets.Select(x => x.EquipmentSchemaKey)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Imported assets must keep using the schema version they were imported with,
+        // even if that schema was later retired or replaced by a newer version.
         if (usedSchemaKeys.Count > 0)
         {
-            var matching = active.Where(x => usedSchemaKeys.Contains(x.SchemaCode)).ToList();
+            var matching = allSchemas.Where(x => usedSchemaKeys.Contains(x.SchemaCode)).ToList();
             if (matching.Count > 0) active = matching;
         }
         var fields = new Dictionary<string, ExcelSchemaFieldDto>(StringComparer.OrdinalIgnoreCase);
