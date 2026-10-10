@@ -59,13 +59,31 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             AbsenceWarningDto? deptWarning = null;
             var departmentStatistics = new List<LeaveStatisticsDto>();
 
+            // F03ApprovalPolicies is the source of truth for approval department scope.
+            // Match active policy + approver position + exact approval level + request type.
+            // DeptCode is the requester department governed by the policy, not the approver's own department.
+            var activePolicies = await _uow.Repository<F03ApprovalPolicy>().Query()
+                .AsNoTracking()
+                .Where(p => p.IsActive == true
+                    && p.ApprovalPositionCode == user.PositionCode
+                    && p.Level == user.LevelApprove
+                    && (p.RequestType == RequestModule.Leave
+                        || p.RequestType == RequestModule.Overtime
+                        || p.RequestType == RequestModule.Trip))
+                .Select(p => new { p.RequestType, p.DeptCode })
+                .Distinct()
+                .ToListAsync(ct);
+
+
             var canManageDepartment = user.DeptCode != null
                 && await _authorization.CanAccessAsync(
                     user, SecurityFunctionCodes.LeaveView, null, user.DeptCode, ct);
 
             // Department rows are visible only within the authenticated user's own
             // management scope or explicitly configured Leave approval scope.
-            if (canManageDepartment)
+            // A matching approval policy takes precedence over generic LeaveView scope.
+            // Otherwise a department approver with broad View scope would see every department.
+            if (canManageDepartment && activePolicies.Count == 0)
             {
                 deptWarning = await _statistics.GetAbsenceWarningAsync(
                     user.DeptCode!.Value, ct);
@@ -85,21 +103,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                             user.DeptCode!.Value, ct));
                 }
             }
-
-            // F03ApprovalPolicies is the source of truth for approval department scope.
-            // Match active policy + approver position + exact approval level + request type.
-            // DeptCode is the requester department governed by the policy, not the approver's own department.
-            var activePolicies = await _uow.Repository<F03ApprovalPolicy>().Query()
-                .AsNoTracking()
-                .Where(p => p.IsActive == true
-                    && p.ApprovalPositionCode == user.PositionCode
-                    && p.Level == user.LevelApprove
-                    && (p.RequestType == RequestModule.Leave
-                        || p.RequestType == RequestModule.Overtime
-                        || p.RequestType == RequestModule.Trip))
-                .Select(p => new { p.RequestType, p.DeptCode })
-                .Distinct()
-                .ToListAsync(ct);
 
             var leaveDepartments = activePolicies.Where(p => p.RequestType == RequestModule.Leave)
                 .Select(p => p.DeptCode).Distinct().ToHashSet();
