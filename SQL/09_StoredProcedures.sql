@@ -190,15 +190,20 @@ BEGIN
 
     DECLARE @Now datetime2(0)=GETDATE();
 
-    DELETE FROM dbo.F03AttendanceStaging
-    WHERE WorkDate >= CAST(@WorkDate AS datetime2(0))
-      AND WorkDate < DATEADD(day,1,CAST(@WorkDate AS datetime2(0)));
-
+    /*
+      Validate required local master data BEFORE replacing the current day's staging.
+      If HRM shift sync has not run or the local master is empty, fail closed and
+      preserve the last successful staging snapshot for readers.
+    */
     IF NOT EXISTS (SELECT 1 FROM dbo.F03Shifts WHERE IsActive=1)
         THROW 51301,'F03Shifts is empty. Run dbo.usp_SyncHrmShiftMaster first.',1;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.F03ShiftSchedules WHERE IsActive=1)
         THROW 51302,'F03ShiftSchedules is empty. Run dbo.usp_SyncHrmShiftMaster first.',1;
+
+    DELETE FROM dbo.F03AttendanceStaging
+    WHERE WorkDate >= CAST(@WorkDate AS datetime2(0))
+      AND WorkDate < DATEADD(day,1,CAST(@WorkDate AS datetime2(0)));
 
     CREATE TABLE #Employees(
         EmployeeCode nvarchar(50) NOT NULL PRIMARY KEY,
