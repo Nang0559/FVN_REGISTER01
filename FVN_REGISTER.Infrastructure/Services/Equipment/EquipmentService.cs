@@ -134,7 +134,34 @@ public sealed class EquipmentService : IEquipmentService
 
     public async Task<ServiceResult<List<EquipmentAssetDto>>> GetMyAssignedAssetsAsync(CancellationToken ct = default)
     {
-        var user = RequireModuleUser(); if (string.IsNullOrWhiteSpace(user.EmployeeCode)) return ServiceResult<List<EquipmentAssetDto>>.Ok(new()); var assets = await _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x => x.IsActive == true && (x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode)).OrderBy(x => x.EquipmentName).Take(500).ToListAsync(ct); return ServiceResult<List<EquipmentAssetDto>>.Ok(assets.Select(x => new EquipmentAssetDto { Id=x.Id, EquipmentCode=x.EquipmentCode, EquipmentName=x.EquipmentName, Specification=x.Specification, SerialNumber=x.SerialNumber, AssetCode=x.AssetCode, PurchasePrice=x.PurchasePrice, PurchaseDate=x.PurchaseDate, ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode, Location=x.Location, QrToken=x.QrToken, IsQrActive=x.IsQrActive, Note=x.Note, ResponsibleEmployeeCode=x.ResponsibleEmployeeCode, ResponsibleApproverEmployeeCode=x.ResponsibleApproverEmployeeCode, ResponsibleAssignedAt=x.ResponsibleAssignedAt, OperatingResponsibleDeptCode=x.OperatingResponsibleDeptCode, OperatingResponsibleEmployeeCode=x.OperatingResponsibleEmployeeCode, OperatingResponsibleAssignedAt=x.OperatingResponsibleAssignedAt }).ToList());
+        try
+        {
+            var user = RequireModuleUser();
+            if (string.IsNullOrWhiteSpace(user.EmployeeCode))
+                return ServiceResult<List<EquipmentAssetDto>>.Ok(new());
+
+            // Include both the primary responsible employee and the operating assignee.
+            // Use the same complete mapper as the asset list so QR, schema/custom fields,
+            // endpoint state and history are not silently lost on "My Equipment".
+            var assets = await _uow.Repository<F03EquipmentAsset>().Query()
+                .AsNoTracking()
+                .Where(x => x.IsActive == true &&
+                    (x.ResponsibleEmployeeCode == user.EmployeeCode ||
+                     x.OperatingResponsibleEmployeeCode == user.EmployeeCode))
+                .OrderBy(x => x.EquipmentName)
+                .Take(500)
+                .ToListAsync(ct);
+
+            var result = new List<EquipmentAssetDto>(assets.Count);
+            foreach (var asset in assets)
+                result.Add(await MapAssetAsync(asset, ct));
+
+            return ServiceResult<List<EquipmentAssetDto>>.Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return ServiceResult<List<EquipmentAssetDto>>.Fail(ex.Message);
+        }
     }
 
     public async Task<ServiceResult<EquipmentRequestDto>> CreateRegistrationDraftAsync(CreateEquipmentRegistrationDto request, CancellationToken ct = default)
