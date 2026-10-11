@@ -74,7 +74,7 @@ style: |
 
 **Một nền tảng · Một luồng xử lý · Dữ liệu để cải tiến**
 
-Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối soát　|　Thiết bị
+Lịch làm việc & ngày công　|　Nghỉ phép　|　OT　|　Công tác　|　Thiết bị
 
 > Giảm thao tác lặp lại. Làm rõ trách nhiệm. Đo hiệu quả thực tế.
 
@@ -123,7 +123,7 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 | **Nghỉ phép** | Đăng ký, phê duyệt, theo dõi lịch và trạng thái | Giảm hỏi tiến độ và tổng hợp rời rạc |
 | **Làm thêm giờ** | Đăng ký, kiểm tra quy tắc được cấu hình, phê duyệt và đối chiếu | Làm rõ kế hoạch đã duyệt và kết quả thực tế |
 | **Công tác** | Theo dõi yêu cầu, phê duyệt và thực hiện | Tập trung tình trạng và lịch sử |
-| **Lịch / chấm công / đối soát** | Tổng hợp lịch, ca và trường hợp cần xác minh | Nhìn rõ ngoại lệ cần xử lý |
+| **Lịch làm việc & ngày công** | Một lịch cá nhân tổng hợp lịch công ty, ca làm, nghỉ phép, OT, công tác và dữ liệu chấm công đã có | Nhân viên tự xem kế hoạch và theo dõi ngày công; chủ động nhận biết ngày cần xác minh |
 | **Thiết bị** | Đăng ký, QR, nhập Excel theo schema, bàn giao, checklist, sửa chữa và lịch sử | Truy xuất trách nhiệm và vòng đời thiết bị theo phạm vi đã xác nhận |
 | **Công việc / báo cáo** | Việc cần xử lý, thông báo, bảng điều khiển và báo cáo theo quyền | Hỗ trợ theo dõi tình hình và tồn đọng |
 | **Máy tính đầu cuối (Endpoint)** | Thu thập dữ liệu kiểm kê qua tác nhân cài trên máy, đối chiếu phần mềm/dịch vụ với chính sách đã duyệt | Năng lực IT riêng; chỉ công bố vận hành sau thử nghiệm và nghiệm thu |
@@ -136,10 +136,10 @@ Nghỉ phép　|　Làm thêm giờ　|　Công tác　|　Chấm công/đối s
 
 | Vai trò | Giảm công việc thủ công | Giá trị nhận được |
 |:--|:--|:--|
-| **Nhân viên** | Chuyển phiếu, hỏi tình trạng, tìm lại nội dung | Gửi yêu cầu và tự theo dõi trạng thái |
+| **Nhân viên** | Hỏi lịch/ca/ngày công từ nhiều nơi; chuyển phiếu và hỏi tình trạng | Một lịch cá nhân để tự theo dõi ngày công, kế hoạch làm việc và trạng thái yêu cầu |
 | **Người phê duyệt** | Tìm hồ sơ qua nhiều kênh, nhắc lại thông tin | Tập trung yêu cầu cần quyết định |
 | **Quản lý bộ phận** | Hỏi từng người, ghép nhiều bảng | Theo dõi tình hình và việc tồn đọng trong phạm vi được cấp |
-| **HR** | Nhập liệu, tổng hợp, dò chênh lệch | Tập trung xác minh và xử lý ngoại lệ |
+| **HR** | Trả lời câu hỏi tra cứu lặp lại, nhập liệu, tổng hợp, dò chênh lệch | Giảm tra cứu thủ công; tập trung xác minh ngày công và xử lý ngoại lệ |
 | **Quản lý thiết bị** | Tìm mã, lịch kiểm tra, bằng chứng và lịch sử | Tra cứu hồ sơ và nhiệm vụ đã ghi nhận |
 | **IT quản lý máy tính đầu cuối** | Tập hợp dữ liệu kiểm kê máy Windows, phần mềm và dịch vụ | Theo dõi sai lệch so với chính sách sau khi thử nghiệm được xác nhận |
 | **Ban giám đốc** | Chờ các bộ phận tổng hợp số liệu | Có cơ sở đo hiệu quả và ưu tiên cải tiến |
