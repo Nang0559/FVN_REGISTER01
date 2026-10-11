@@ -64,4 +64,21 @@ BEGIN
       ON dbo.F03EquipmentChangeBatchItems(BatchId, ItemStatus);
 END;
 
+/*
+  QR tokens are long-lived identifiers. Keep them stable for an asset and prevent
+  duplicate tokens from routing scans to the wrong asset. If legacy duplicate
+  tokens exist, resolve them before applying this index.
+*/
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.F03EquipmentAssets')
+      AND name = N'UX_F03EquipmentAssets_QrToken'
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_F03EquipmentAssets_QrToken
+        ON dbo.F03EquipmentAssets(QrToken)
+        WHERE QrToken IS NOT NULL;
+END;
+
 COMMIT TRANSACTION;
