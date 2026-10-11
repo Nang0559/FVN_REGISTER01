@@ -410,7 +410,7 @@ else
     private string? GetEditingCustomValue(string fieldKey) => _editingCustom.TryGetValue(fieldKey, out var value) ? value : null;
     private void SetEditingCustomValue(string fieldKey, string? value) => _editingCustom[fieldKey] = value;
 
-    private void BeginEditAsset(EquipmentAssetDto asset)
+    private async Task BeginEditAsset(EquipmentAssetDto asset)
     {
         _editingAsset = new EquipmentAssetDto
         {
@@ -423,6 +423,12 @@ else
             ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode
         };
         _editingCustom = ReadCustomValues(asset.CustomDataJson);
+        // Load the picker for the asset's department, not the signed-in user's default department.
+        var employeeOptions = await EquipmentClient.GetAssignmentEmployeesAsync(asset.DeptCode);
+        if (employeeOptions.IsSuccess)
+            _assignmentEmployees = employeeOptions.Data ?? new();
+        else
+            Snackbar.Add(employeeOptions.Message ?? "Không tải được danh sách nhân viên của bộ phận thiết bị.", Severity.Warning);
     }
 
     private void CancelEditAsset() { _editingAsset = null; _editingCustom = new(StringComparer.OrdinalIgnoreCase); }
