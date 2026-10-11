@@ -83,6 +83,8 @@ public sealed class UpdateEquipmentAssetRequest
     public decimal PurchasePrice { get; set; }
     public DateTime PurchaseDate { get; set; }
     public DateTime ExpectedDepreciationDate { get; set; }
+    public int? DeptCode { get; set; }
+    public string? ResponsibleEmployeeCode { get; set; }
     public string? Location { get; set; }
     public string? Note { get; set; }
     public Dictionary<string, string?> CustomValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
