@@ -221,6 +221,22 @@ public sealed class EquipmentService : IEquipmentService
             if (request.ExpectedDepreciationDate < request.PurchaseDate)
                 return ServiceResult<EquipmentAssetDto>.Fail("Ngày khấu hao dự kiến không được trước ngày mua.");
 
+            // Resolve assignment against the active employee master; do not trust client-supplied codes.
+            var responsibleEmployeeCode = string.IsNullOrWhiteSpace(request.ResponsibleEmployeeCode)
+                ? asset.ResponsibleEmployeeCode
+                : request.ResponsibleEmployeeCode.Trim();
+            if (!string.IsNullOrWhiteSpace(responsibleEmployeeCode))
+            {
+                var employee = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                    .Where(e => e.EmployeeCode == responsibleEmployeeCode && e.IsActive == true && e.EndWorkingDate == null)
+                    .Select(e => new { e.EmployeeCode, e.DeptCode })
+                    .FirstOrDefaultAsync(ct);
+                if (employee == null)
+                    return ServiceResult<EquipmentAssetDto>.Fail("Nhân viên phụ trách không tồn tại hoặc đã nghỉ việc.");
+                if (employee.DeptCode != asset.DeptCode)
+                    return ServiceResult<EquipmentAssetDto>.Fail($"Nhân viên phụ trách phải thuộc bộ phận {asset.DeptCode} của thiết bị.");
+            }
+
             var code = request.EquipmentCode.Trim();
             var duplicate = await _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking()
                 .AnyAsync(x => x.Id != assetId && x.IsActive == true && x.EquipmentCode == code, ct);
@@ -266,7 +282,7 @@ public sealed class EquipmentService : IEquipmentService
                 Location = request.Location?.Trim(),
                 Note = request.Note?.Trim(),
                 CustomDataJson = customJson,
-                ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode,
+                ResponsibleEmployeeCode = responsibleEmployeeCode,
                 ResponsibleApproverEmployeeCode = asset.ResponsibleApproverEmployeeCode,
                 OperatingResponsibleDeptCode = asset.OperatingResponsibleDeptCode,
                 OperatingResponsibleEmployeeCode = asset.OperatingResponsibleEmployeeCode
