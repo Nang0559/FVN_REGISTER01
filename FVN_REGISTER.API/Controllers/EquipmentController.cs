@@ -130,6 +130,16 @@ public sealed class EquipmentController : ControllerBase
         return result.IsSuccess ? Ok(ApiResponse<EquipmentAssetDto>.FromResult(result)) : BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
     }
 
+    [HttpPost("assets/{id:int}/submit-change")]
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> SubmitAssetChange(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.SubmitAssetChangeAsync(id, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentAssetDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+    }
+
     [HttpDelete("assets/{id:int}")]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteAsset(int id, CancellationToken ct)
     {
