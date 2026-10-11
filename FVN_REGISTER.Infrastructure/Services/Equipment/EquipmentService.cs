@@ -249,7 +249,9 @@ public sealed class EquipmentService : IEquipmentService
             {
                 asset.EquipmentCode, asset.EquipmentName, asset.AssetCode, asset.SerialNumber,
                 asset.Specification, asset.PurchasePrice, asset.PurchaseDate,
-                asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson
+                asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson,
+                asset.ResponsibleEmployeeCode, asset.ResponsibleApproverEmployeeCode,
+                asset.OperatingResponsibleDeptCode, asset.OperatingResponsibleEmployeeCode
             };
             var after = new
             {
@@ -263,7 +265,11 @@ public sealed class EquipmentService : IEquipmentService
                 ExpectedDepreciationDate = (DateTime?)request.ExpectedDepreciationDate,
                 Location = request.Location?.Trim(),
                 Note = request.Note?.Trim(),
-                CustomDataJson = customJson
+                CustomDataJson = customJson,
+                ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode,
+                ResponsibleApproverEmployeeCode = asset.ResponsibleApproverEmployeeCode,
+                OperatingResponsibleDeptCode = asset.OperatingResponsibleDeptCode,
+                OperatingResponsibleEmployeeCode = asset.OperatingResponsibleEmployeeCode
             };
             var beforeJson = JsonSerializer.Serialize(before);
             var afterJson = JsonSerializer.Serialize(after);
@@ -271,7 +277,9 @@ public sealed class EquipmentService : IEquipmentService
             {
                 asset.EquipmentCode, asset.EquipmentName, asset.AssetCode, asset.SerialNumber,
                 asset.Specification, asset.PurchasePrice, asset.PurchaseDate,
-                asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson
+                asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson,
+                asset.ResponsibleEmployeeCode, asset.ResponsibleApproverEmployeeCode,
+                asset.OperatingResponsibleDeptCode, asset.OperatingResponsibleEmployeeCode
             });
             var beforeHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical)));
 
