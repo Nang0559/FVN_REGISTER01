@@ -28,11 +28,11 @@ Tiếp nhận đăng ký, kiểm tra theo quy tắc/hạn mức được cấu h
 ### Công tác
 Theo dõi yêu cầu, quyết định phê duyệt và trạng thái thực hiện; khi có dữ liệu thực tế phù hợp, hỗ trợ đối chiếu và làm rõ chênh lệch.
 
-### Lịch làm việc chung
-Tổng hợp lịch công ty, ca làm và thông tin nghiệp vụ liên quan theo ngày. Lịch là góc nhìn tổng hợp, không thay thế dữ liệu gốc của từng module.
+### Lịch làm việc và ngày công cá nhân — điểm khác biệt người dùng dễ cảm nhận
+Lịch tổng hợp theo ngày/tháng lịch công ty, ca làm, dữ liệu chấm công thực tế, đăng ký nghỉ phép, OT, công tác và cảnh báo/sai lệch theo dữ liệu đã có. Nhân viên có thể chủ động xem kế hoạch và thông tin ngày công của mình tại một nơi; quản lý xem nhân viên thuộc phạm vi được cấp quyền. Đây là góc nhìn tổng hợp, không thay thế dữ liệu gốc của từng module.
 
 ### Chấm công, đối soát và HR Review
-Hỗ trợ xem xét khác biệt giữa kế hoạch và dữ liệu thực tế; theo dõi trường hợp cần xác minh, trách nhiệm và bằng chứng theo chính sách. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công.
+Hiển thị dữ liệu chấm công từ nguồn chính thức, hỗ trợ so sánh kế hoạch với thực tế và đưa trường hợp thiếu/sai lệch vào quy trình xác minh. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công. Cần phân biệt rõ kế hoạch đã duyệt, dữ liệu thực tế và kết quả đã được HR xác minh.
 
 ### Thiết bị và kiểm tra
 Nghiệp vụ thiết bị gồm đăng ký/phê duyệt, QR, nhập Excel theo schema phòng ban, kiểm tra dữ liệu theo dòng trước khi ghi nhận, giao thiết bị cho người phụ trách, bàn giao trách nhiệm, checklist theo phiên bản, bằng chứng, sửa chữa, thông báo và báo cáo. Các thao tác import, camera/QR, checklist, bàn giao và notification phải được xác minh từng luồng trên môi trường nghiệm thu trước khi công bố là đã vận hành chính thức.
@@ -47,10 +47,10 @@ Năng lực IT được thiết kế để thu thập dữ liệu máy Windows, 
 
 | Vai trò | Cách làm thủ công hiện tại | Giá trị kỳ vọng |
 |---|---|---|
-| Nhân viên | Lập/chuyển phiếu, hỏi trạng thái | Gửi yêu cầu và tự theo dõi tiến độ |
+| Nhân viên | Không có góc nhìn tổng hợp ngày công; hỏi lịch/ca/trạng thái từ nhiều nơi | Tự xem lịch cá nhân, ca, đăng ký và dữ liệu chấm công đã có; theo dõi yêu cầu |
 | Người phê duyệt | Tìm phiếu, xác nhận qua nhiều kênh | Tập trung yêu cầu cần quyết định |
 | Quản lý bộ phận | Tổng hợp từ nhiều nguồn | Theo dõi tình hình và việc tồn đọng |
-| HR | Nhập, tổng hợp, đối chiếu | Tập trung xác minh ngoại lệ và kết quả |
+| HR | Trả lời câu hỏi tra cứu, nhập và ghép bảng, dò chênh lệch | Giảm tra cứu lặp lại; tập trung xác minh ngoại lệ và kết quả |
 | Quản lý thiết bị | Tìm thông tin và lịch sử rời rạc | Tra cứu theo mã QR và hồ sơ đã ghi nhận |
 | Quản trị viên | Cấp quyền/cấu hình phân tán | Quản lý quyền và cấu hình theo trách nhiệm |
 | Ban giám đốc | Nhận báo cáo sau khi tổng hợp | Có cơ sở theo dõi chỉ số sau khi đo |
