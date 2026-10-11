@@ -409,6 +409,10 @@ public sealed class EquipmentImportService : IEquipmentImportService
             return "EquipmentCode";
         if (normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name")
             return "EquipmentName";
+        // Excel exports commonly use UserID for the responsible employee code.
+        // This maps to F03Employees.EmployeeCode, not F03Users.Id.
+        if (normalized is "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach" or "responsibleemployeecode")
+            return "ResponsibleEmployeeCode";
         return null;
     }
 
@@ -426,6 +430,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
         {
             "EquipmentCode" => normalized is "equipmentcode" or "assetcode" or "machietbi" or "mataisan" or "masothietbi" or "masanpham" or "code",
             "EquipmentName" => normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name",
+            "ResponsibleEmployeeCode" => normalized is "responsibleemployeecode" or "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach",
             "AssetCode" => normalized is "assettag" or "assetcode" or "tagtaisan" or "mataisan",
             "SerialNumber" => normalized is "serialnumber" or "serialno" or "serial" or "soserial",
             "Specification" => normalized is "specification" or "thongso" or "cauhinh",
