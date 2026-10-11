@@ -227,6 +227,15 @@ else
                             <MudItem xs="12" sm="6"><MudTextField Label="Serial Number" @bind-Value="_editingAsset.SerialNumber" /></MudItem>
                             <MudItem xs="12" sm="6"><MudTextField Label="Thông số" @bind-Value="_editingAsset.Specification" /></MudItem>
                             <MudItem xs="12" sm="6"><MudTextField Label="Vị trí" @bind-Value="_editingAsset.Location" /></MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" Label="Nhân viên phụ trách" @bind-Value="_editingAsset.ResponsibleEmployeeCode" Clearable="true">
+                                    <MudSelectItem Value="@string.Empty">Không giao cá nhân</MudSelectItem>
+                                    @foreach (var employee in _assignmentEmployees)
+                                    {
+                                        <MudSelectItem Value="@employee.EmployeeCode">@employee.EmployeeCode - @employee.EmployeeName</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
                             <MudItem xs="12" sm="6"><MudNumericField T="decimal" Label="Nguyên giá" @bind-Value="_editingAsset.PurchasePrice" /></MudItem>
                             <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày mua" Date="@_editingAsset.PurchaseDate" DateChanged="@(d => _editingAsset.PurchaseDate = d ?? DateTime.Today)" /></MudItem>
                             <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày khấu hao dự kiến" Date="@_editingAsset.ExpectedDepreciationDate" DateChanged="@(d => _editingAsset.ExpectedDepreciationDate = d ?? _editingAsset.PurchaseDate.AddYears(5))" /></MudItem>
@@ -410,7 +419,8 @@ else
             PurchasePrice = asset.PurchasePrice, PurchaseDate = asset.PurchaseDate,
             ExpectedDepreciationDate = asset.ExpectedDepreciationDate, DeptCode = asset.DeptCode,
             Location = asset.Location, Note = asset.Note, EquipmentSchemaKey = asset.EquipmentSchemaKey,
-            CustomDataJson = asset.CustomDataJson
+            CustomDataJson = asset.CustomDataJson,
+            ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode
         };
         _editingCustom = ReadCustomValues(asset.CustomDataJson);
     }
@@ -429,6 +439,7 @@ else
                 AssetCode = _editingAsset.AssetCode, SerialNumber = _editingAsset.SerialNumber,
                 Specification = _editingAsset.Specification, PurchasePrice = _editingAsset.PurchasePrice,
                 PurchaseDate = _editingAsset.PurchaseDate, ExpectedDepreciationDate = _editingAsset.ExpectedDepreciationDate,
+                DeptCode = _editingAsset.DeptCode, ResponsibleEmployeeCode = _editingAsset.ResponsibleEmployeeCode,
                 Location = _editingAsset.Location, Note = _editingAsset.Note, CustomValues = new(_editingCustom, StringComparer.OrdinalIgnoreCase)
             };
             var result = await EquipmentClient.UpdateAssetAsync(_editingAsset.Id, request);
