@@ -208,6 +208,14 @@ else
                         }
                     </MudStack>
                 </MudPaper>
+                @if (_lastDraftAssetId.HasValue)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="ma-4">
+                        Đã lưu bản nháp thay đổi cho thiết bị #@_lastDraftAssetId. Dữ liệu chính thức chưa thay đổi.
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_assetEditBusy" OnClick="SubmitAssetChangeAsync">Gửi bản nháp này phê duyệt</MudButton>
+                        <MudButton Variant="Variant.Text" OnClick="@(() => _lastDraftAssetId = null)">Ẩn</MudButton>
+                    </MudAlert>
+                }
                 @if (_editingAsset != null)
                 {
                     <MudPaper Class="pa-4 ma-4" Outlined="true">
@@ -315,6 +323,7 @@ else
     private EquipmentAssetDto? _editingAsset;
     private Dictionary<string, string?> _editingCustom = new(StringComparer.OrdinalIgnoreCase);
     private bool _assetEditBusy;
+    private int? _lastDraftAssetId;
     private bool _canManageAssets => _actions?.Manage == true || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EquipmentManage);
     private bool _canEditAssets => _actions?.Edit == true || _actions?.Manage == true || _canManageAssets;
     private bool _assetsLoading;
@@ -424,8 +433,29 @@ else
             };
             var result = await EquipmentClient.UpdateAssetAsync(_editingAsset.Id, request);
             if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể cập nhật thiết bị.", Severity.Error); return; }
-            Snackbar.Add(result.Message ?? "Đã cập nhật thiết bị.", Severity.Success);
+            _lastDraftAssetId = _editingAsset.Id;
+            Snackbar.Add(result.Message ?? "Đã lưu bản nháp thay đổi thiết bị.", Severity.Success);
             CancelEditAsset();
+            await ReloadAssetsAsync();
+        }
+        finally { _assetEditBusy = false; }
+    }
+
+    private async Task SubmitAssetChangeAsync()
+    {
+        if (!_lastDraftAssetId.HasValue) return;
+        _assetEditBusy = true;
+        try
+        {
+            var assetId = _lastDraftAssetId.Value;
+            var result = await EquipmentClient.SubmitAssetChangeAsync(assetId);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể gửi bản nháp phê duyệt.", Severity.Error);
+                return;
+            }
+            Snackbar.Add(result.Message ?? "Đã gửi thay đổi thiết bị phê duyệt.", Severity.Success);
+            _lastDraftAssetId = null;
             await ReloadAssetsAsync();
         }
         finally { _assetEditBusy = false; }
