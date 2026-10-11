@@ -363,6 +363,21 @@ public sealed class EquipmentImportService : IEquipmentImportService
 
             var purchaseDate = ParseSchemaDate(GetEquipmentFieldValue(values, schema.Fields, "PurchaseDate"));
             var purchasePrice = ParseSchemaDecimal(GetEquipmentFieldValue(values, schema.Fields, "PurchasePrice"));
+            var responsibleEmployeeCode = GetEquipmentFieldValue(values, schema.Fields, "ResponsibleEmployeeCode")?.Trim();
+            if (!string.IsNullOrWhiteSpace(responsibleEmployeeCode))
+            {
+                var employee = await _uow.Repository<FVN_REGISTER.Core.Entities.HR.F03Employee>().Query()
+                    .AsNoTracking()
+                    .Where(e => e.EmployeeCode == responsibleEmployeeCode && e.IsActive == true && e.EndWorkingDate == null)
+                    .Select(e => new { e.EmployeeCode, e.DeptCode })
+                    .FirstOrDefaultAsync(ct);
+                if (employee == null || employee.DeptCode != metadata.DepartmentCode)
+                {
+                    await _db.Database.ExecuteSqlInterpolatedAsync(
+                        $"UPDATE dbo.F03ExcelImportRows SET Status=40,ErrorMessage={("UserID/Người phụ trách không tồn tại, đã nghỉ việc hoặc khác bộ phận.")} WHERE Id={row.Id}", ct);
+                    continue;
+                }
+            }
 
             await _uow.Repository<F03EquipmentAsset>().AddAsync(new F03EquipmentAsset
             {
@@ -377,7 +392,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
                     ?? (purchaseDate ?? DateTime.Today).AddYears(5),
                 Location = GetEquipmentFieldValue(values, schema.Fields, "Location")?.Trim(),
                 Note = GetEquipmentFieldValue(values, schema.Fields, "Note")?.Trim(),
-                ResponsibleEmployeeCode = GetEquipmentFieldValue(values, schema.Fields, "ResponsibleEmployeeCode")?.Trim(),
+                ResponsibleEmployeeCode = responsibleEmployeeCode,
                 EquipmentSchemaKey = schema.SchemaKey,
                 DeptCode = metadata.DepartmentCode,
                 QrToken = Guid.NewGuid().ToString("N"),
