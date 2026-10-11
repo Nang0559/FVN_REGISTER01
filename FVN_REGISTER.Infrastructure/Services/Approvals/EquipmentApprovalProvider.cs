@@ -209,6 +209,10 @@ public sealed class EquipmentApprovalProvider
                         asset.Location = ReadString(root, "Location");
                         asset.Note = ReadString(root, "Note");
                         asset.CustomDataJson = ReadString(root, "CustomDataJson") ?? asset.CustomDataJson;
+                        asset.ResponsibleEmployeeCode = ReadString(root, "ResponsibleEmployeeCode");
+                        asset.ResponsibleApproverEmployeeCode = ReadString(root, "ResponsibleApproverEmployeeCode");
+                        asset.OperatingResponsibleDeptCode = ReadInt(root, "OperatingResponsibleDeptCode") ?? asset.OperatingResponsibleDeptCode;
+                        asset.OperatingResponsibleEmployeeCode = ReadString(root, "OperatingResponsibleEmployeeCode");
                         asset.ModifiedAt = DateTime.UtcNow;
                         asset.ModifiedBy = entity.OperatorUserId;
                         entity.AssetChangeAppliedAtUtc = DateTime.UtcNow;
@@ -254,7 +258,9 @@ public sealed class EquipmentApprovalProvider
         {
             asset.EquipmentCode, asset.EquipmentName, asset.AssetCode, asset.SerialNumber,
             asset.Specification, asset.PurchasePrice, asset.PurchaseDate,
-            asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson
+            asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson,
+            asset.ResponsibleEmployeeCode, asset.ResponsibleApproverEmployeeCode,
+            asset.OperatingResponsibleDeptCode, asset.OperatingResponsibleEmployeeCode
         });
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
@@ -262,6 +268,9 @@ public sealed class EquipmentApprovalProvider
     private static string? ReadString(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null
             ? value.GetString() : null;
+
+    private static int? ReadInt(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.TryGetInt32(out var result) ? result : null;
 
     private static decimal? ReadDecimal(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.TryGetDecimal(out var result) ? result : null;
