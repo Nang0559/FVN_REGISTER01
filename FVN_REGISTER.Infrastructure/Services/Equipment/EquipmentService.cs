@@ -313,22 +313,57 @@ public sealed class EquipmentService : IEquipmentService
                 ExpectedDepreciationDate = after.ExpectedDepreciationDate,
                 Location = after.Location,
                 Note = after.Note,
-                RequestStatus = ApprovalStatus.Pending,
+                RequestStatus = ApprovalStatus.Draft,
                 CreatedBy = user.UserId
             };
             await _uow.Repository<F03EquipmentRequest>().AddAsync(requestEntity, ct);
             await _uow.SaveChangesAsync(ct);
 
-            var approvalResult = await InitApprovalAsync(requestEntity, ct);
+            // Save only as a draft. Approval is deliberately not initialized here:
+            // the manager must finish reviewing the change set before explicit submission.
+            return ServiceResult<EquipmentAssetDto>.Ok(await MapAssetAsync(asset, ct),
+                $"Đã lưu bản nháp thay đổi thiết bị #{asset.Id} (request #{requestEntity.Id}). Dữ liệu chính thức chưa bị thay đổi.");
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
+        catch (ArgumentException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
+    }
+
+    public async Task<ServiceResult<EquipmentAssetDto>> SubmitAssetChangeAsync(int assetId, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            var asset = await _uow.Repository<F03EquipmentAsset>().Query()
+                .FirstOrDefaultAsync(x => x.Id == assetId && x.IsActive == true, ct);
+            if (asset == null) return ServiceResult<EquipmentAssetDto>.Fail("Không tìm thấy thiết bị.");
+            await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentManage, null, asset.DeptCode, ct);
+
+            var draft = await _uow.Repository<F03EquipmentRequest>().Query()
+                .Where(x => x.AssetId == assetId && x.RequestKind == EquipmentRequestKind.AssetChange &&
+                    x.RequestStatus == ApprovalStatus.Draft && x.IsActive == true)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync(ct);
+            if (draft == null)
+                return ServiceResult<EquipmentAssetDto>.Fail("Không có bản nháp thay đổi để gửi duyệt.");
+
+            var alreadyPending = await _uow.Repository<F03EquipmentRequest>().Query().AsNoTracking()
+                .AnyAsync(x => x.AssetId == assetId && x.RequestKind == EquipmentRequestKind.AssetChange &&
+                    (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress), ct);
+            if (alreadyPending)
+                return ServiceResult<EquipmentAssetDto>.Fail("Thiết bị đã có yêu cầu thay đổi đang chờ duyệt.");
+
+            draft.RequestStatus = ApprovalStatus.Pending;
+            await _uow.SaveChangesAsync(ct);
+            var approvalResult = await InitApprovalAsync(draft, ct);
             if (!approvalResult.IsSuccess)
             {
-                requestEntity.RequestStatus = ApprovalStatus.Draft;
+                draft.RequestStatus = ApprovalStatus.Draft;
                 await _uow.SaveChangesAsync(ct);
-                return ServiceResult<EquipmentAssetDto>.Fail(approvalResult.Message ?? "Không thể khởi tạo luồng duyệt thay đổi thiết bị.");
+                return ServiceResult<EquipmentAssetDto>.Fail(approvalResult.Message ?? "Không thể khởi tạo luồng duyệt.");
             }
 
             return ServiceResult<EquipmentAssetDto>.Ok(await MapAssetAsync(asset, ct),
-                $"Đã gửi yêu cầu thay đổi thiết bị #{asset.Id} chờ phê duyệt (request #{requestEntity.Id}). Dữ liệu thiết bị hiện tại chưa bị thay đổi.");
+                $"Đã gửi bản nháp thay đổi thiết bị #{assetId} chờ duyệt (request #{draft.Id}).");
         }
         catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
         catch (ArgumentException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
