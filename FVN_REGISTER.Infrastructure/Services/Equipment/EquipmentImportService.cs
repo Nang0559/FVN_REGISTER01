@@ -454,7 +454,6 @@ public sealed class EquipmentImportService : IEquipmentImportService
             "ExpectedDepreciationDate" => normalized is "expecteddepreciationdate" or "ngaykhauhao" or "ngayhetkhauhao",
             "Location" => normalized is "location" or "vitri" or "noisudung",
             "Note" => normalized is "note" or "notes" or "ghichu",
-            "ResponsibleEmployeeCode" => normalized is "responsibleemployeecode" or "nguoiphutrach" or "manhanvienphutrach",
             _ => false
         };
     }
