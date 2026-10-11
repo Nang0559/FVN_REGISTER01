@@ -325,95 +325,18 @@ public sealed class EquipmentImportService : IEquipmentImportService
     public async Task<ExcelImportBatchDto?> GetBatchAsync(long id,CancellationToken ct=default){var u=User();var b=await _db.Database.SqlQueryRaw<Batch>("SELECT Id,SchemaId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows FROM dbo.F03ExcelImportBatches WHERE Id={0}",id).SingleOrDefaultAsync(ct);if(b is null)return null;var m=await Meta(b.SchemaId,ct);await Scope(u,m.DepartmentCode,ct);return new(){Id=b.Id,SchemaId=b.SchemaId,ModuleCode=b.ModuleCode,EntityCode=b.EntityCode,FileName=b.FileName,Status=((ExcelImportBatchStatus)b.Status).ToString(),TotalRows=b.TotalRows,ValidRows=b.ValidRows,InvalidRows=b.InvalidRows,ImportedRows=b.ImportedRows};}
     public async Task<ExcelImportCommitResultDto> CommitAsync(long id, CancellationToken ct = default)
     {
-        var user = User();
+        // Fail closed: importing directly into F03EquipmentAssets bypasses the shared
+        // ApprovalEngine and the immutable inventory snapshot. Do not allow this legacy
+        // endpoint to mutate official assets until the staged batch is submitted through
+        // the equipment change-batch approval workflow.
         var batch = await GetBatchAsync(id, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy import batch.");
+        var user = User();
         var metadata = await Meta(batch.SchemaId, ct);
         await Scope(user, metadata.DepartmentCode, ct);
 
-        var schema = await _excel.GetSchemaDefinitionAsync(batch.SchemaId, ct)
-            ?? throw new InvalidOperationException("Không tải được schema của batch import.");
-        if (!schema.Fields.Any(field => IsEquipmentField(field, "EquipmentCode")) ||
-            !schema.Fields.Any(field => IsEquipmentField(field, "EquipmentName")))
-            throw new InvalidOperationException("Schema cần ánh xạ cột Mã thiết bị (EquipmentCode) và Tên thiết bị (EquipmentName) trước khi import.");
-
-        var rows = await _db.Database.SqlQueryRaw<Row>(
-            "SELECT Id,NormalizedDataJson AS Data FROM dbo.F03ExcelImportRows WHERE BatchId={0} AND Status=30", id)
-            .ToListAsync(ct);
-        var imported = 0;
-        foreach (var row in rows)
-        {
-            var values = JsonSerializer.Deserialize<Dictionary<string, string?>>(row.Data ?? "{}") ?? new();
-            var code = GetEquipmentFieldValue(values, schema.Fields, "EquipmentCode")?.Trim();
-            var name = GetEquipmentFieldValue(values, schema.Fields, "EquipmentName")?.Trim();
-            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name) ||
-                await _db.EquipmentAssets.AnyAsync(asset => asset.EquipmentCode == code, ct))
-                continue;
-
-            // Preserve schema keys and expose TargetProperty keys as well. This keeps
-            // department-specific fields aligned with the schema while allowing the
-            // standard equipment list to use canonical asset columns.
-            var customValues = new Dictionary<string, string?>(values, StringComparer.OrdinalIgnoreCase);
-            foreach (var field in schema.Fields)
-            {
-                if (!string.IsNullOrWhiteSpace(field.TargetProperty) &&
-                    values.TryGetValue(field.FieldKey, out var fieldValue))
-                    customValues[field.TargetProperty] = fieldValue;
-            }
-
-            var purchaseDate = ParseSchemaDate(GetEquipmentFieldValue(values, schema.Fields, "PurchaseDate"));
-            var purchasePrice = ParseSchemaDecimal(GetEquipmentFieldValue(values, schema.Fields, "PurchasePrice"));
-            var responsibleEmployeeCode = GetEquipmentFieldValue(values, schema.Fields, "ResponsibleEmployeeCode")?.Trim();
-            if (!string.IsNullOrWhiteSpace(responsibleEmployeeCode))
-            {
-                var employee = await _uow.Repository<FVN_REGISTER.Core.Entities.HR.F03Employee>().Query()
-                    .AsNoTracking()
-                    .Where(e => e.EmployeeCode == responsibleEmployeeCode && e.IsActive == true && e.EndWorkingDate == null)
-                    .Select(e => new { e.EmployeeCode, e.DeptCode })
-                    .FirstOrDefaultAsync(ct);
-                if (employee == null || employee.DeptCode != metadata.DepartmentCode)
-                {
-                    await _db.Database.ExecuteSqlInterpolatedAsync(
-                        $"UPDATE dbo.F03ExcelImportRows SET Status=40,ErrorMessage={("UserID/Người phụ trách không tồn tại, đã nghỉ việc hoặc khác bộ phận.")} WHERE Id={row.Id}", ct);
-                    continue;
-                }
-            }
-
-            await _uow.Repository<F03EquipmentAsset>().AddAsync(new F03EquipmentAsset
-            {
-                EquipmentCode = code,
-                EquipmentName = name,
-                AssetCode = GetEquipmentFieldValue(values, schema.Fields, "AssetCode")?.Trim(),
-                SerialNumber = GetEquipmentFieldValue(values, schema.Fields, "SerialNumber")?.Trim(),
-                Specification = GetEquipmentFieldValue(values, schema.Fields, "Specification")?.Trim(),
-                PurchasePrice = purchasePrice ?? 0m,
-                PurchaseDate = purchaseDate ?? DateTime.Today,
-                ExpectedDepreciationDate = ParseSchemaDate(GetEquipmentFieldValue(values, schema.Fields, "ExpectedDepreciationDate"))
-                    ?? (purchaseDate ?? DateTime.Today).AddYears(5),
-                Location = GetEquipmentFieldValue(values, schema.Fields, "Location")?.Trim(),
-                Note = GetEquipmentFieldValue(values, schema.Fields, "Note")?.Trim(),
-                ResponsibleEmployeeCode = responsibleEmployeeCode,
-                EquipmentSchemaKey = schema.SchemaKey,
-                DeptCode = metadata.DepartmentCode,
-                QrToken = Guid.NewGuid().ToString("N"),
-                IsQrActive = true,
-                CustomDataJson = JsonSerializer.Serialize(customValues),
-                CreatedBy = user.UserId
-            }, ct);
-            await _db.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE dbo.F03ExcelImportRows SET Status=100 WHERE Id={row.Id}", ct);
-            imported++;
-        }
-
-        await _uow.SaveChangesAsync(ct);
-        await _db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE dbo.F03ExcelImportBatches SET Status=100,ImportedRows={imported},CompletedAt=SYSUTCDATETIME() WHERE Id={id}", ct);
-        return new ExcelImportCommitResultDto
-        {
-            BatchId = id,
-            ImportedRows = imported,
-            SkippedRows = rows.Count - imported
-        };
+        throw new InvalidOperationException(
+            "Không thể ghi trực tiếp thiết bị từ batch Excel. Hãy dùng quy trình gửi duyệt lô thiết bị; dữ liệu chính thức chỉ được cập nhật sau khi phê duyệt hoàn tất.");
     }
 
     public async Task<ServiceResult<bool>> DeleteDraftSchemaAsync(int id,CancellationToken ct=default){try{var u=User();var m=await Meta(id,ct);if(m.CreatedBy!=u.UserId&&!u.IsAdmin)throw new UnauthorizedAccessException("Bạn không có quyền xóa schema.");await _excel.DeleteDraftSchemaAsync(id,ct);return ServiceResult<bool>.Ok(true,"Đã xóa schema.");}catch(Exception e)when(e is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException){return ServiceResult<bool>.Fail(e.Message);}}
