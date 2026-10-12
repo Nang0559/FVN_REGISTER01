@@ -374,14 +374,22 @@ public sealed class EquipmentImportService : IEquipmentImportService
                 domainErrors.Add(("EquipmentCode", $"Mã thiết bị '{equipmentCode}' bị lặp trong file Excel.", equipmentCode));
             else
             {
-                // A staged row must not silently collide with an existing official asset.
-                // This is validation only; the approval/apply path must still re-check
-                // uniqueness inside its transaction to cover races after staging.
-                var existingAssetCount = await _db.Database.SqlQueryRaw<int>(
-                    "SELECT COUNT(1) AS Value FROM dbo.F03EquipmentAssets WHERE EquipmentCode = {0} AND IsActive = 1",
-                    equipmentCode).SingleAsync(ct);
-                if (existingAssetCount > 0)
-                    domainErrors.Add(("EquipmentCode", $"Mã thiết bị '{equipmentCode}' đã tồn tại trong danh mục chính thức.", equipmentCode));
+                // Existing codes are change candidates, not invalid rows. Persist the
+                // resolved asset identity in the staged snapshot; commit must re-check it
+                // under transaction before creating an approved change request.
+                var existingAsset = await _db.Database.SqlQueryRaw<ExistingAssetRow>(
+                    "SELECT TOP (1) Id, EquipmentCode FROM dbo.F03EquipmentAssets WHERE EquipmentCode = {0} AND IsActive = 1 ORDER BY Id",
+                    equipmentCode).SingleOrDefaultAsync(ct);
+                if (existingAsset is not null)
+                {
+                    normalized["ImportAction"] = "AssetChange";
+                    normalized["ExistingAssetId"] = existingAsset.Id.ToString(CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    normalized["ImportAction"] = "Registration";
+                    normalized["ExistingAssetId"] = null;
+                }
             }
 
             var departmentText = Value("OperatingResponsibleDeptCode") ?? Value("SourceDepartment") ?? Value("DeptCode") ?? Value("DepartmentCode") ?? Value("Department");
@@ -629,5 +637,5 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private static int Dept(int? x,int? f)=>x??f??0;
     private static ExcelSchemaDto Map(int id,ExcelSchemaDefinition d,(int DepartmentCode,int CreatedBy,string SchemaName,int FieldCount,string? SourceFileName,int Status)m,UserIdentityDto u)=>new(){Id=id,ModuleCode=d.ModuleCode,EntityCode=d.EntityCode,SchemaCode=d.SchemaKey,SchemaName=m.SchemaName,Version=d.Version,Status=((ExcelSchemaStatus)m.Status).ToString(),IsActive=m.Status==(int)ExcelSchemaStatus.Active,DepartmentCode=m.DepartmentCode,CreatedByUserId=m.CreatedBy,SourceFileName=m.SourceFileName,CreatedFromExcel=!string.IsNullOrWhiteSpace(m.SourceFileName),IsOwner=m.CreatedBy==u.UserId||u.IsAdmin,CanEdit=m.CreatedBy==u.UserId||u.IsAdmin,CanCreateVersion=m.CreatedBy==u.UserId||u.IsAdmin,CanClone=true,CreatedByUserName="",SheetIndex=d.SheetIndex,SheetName=d.SheetName,HeaderRowIndex=d.HeaderRowIndex,DataStartRowIndex=d.DataStartRowIndex,DataEndRowIndex=d.DataEndRowIndex,Fields=d.Fields.Select(Map).ToList()};
     private static ExcelSchemaFieldDto Map(ExcelSchemaField f)=>new(){FieldKey=f.FieldKey,FieldLabel=f.HeaderName??f.FieldKey,DataType=f.DataType,IsRequired=f.Required,AllowEmpty=f.AllowEmpty,SourceColumnIndex=f.SourceColumnIndex,HeaderName=f.HeaderName,ResourceKey=f.ResourceKey,TargetProperty=f.TargetProperty,Format=f.Format,ValidationRule=f.ValidationRule,DefaultValue=f.DefaultValue,MaxLength=f.MaxLength,DisplayOrder=f.DisplayOrder};
-    private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string? ErrorMessage);
+    private sealed record ExistingAssetRow(int Id,string EquipmentCode); private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string? ErrorMessage);
 }
