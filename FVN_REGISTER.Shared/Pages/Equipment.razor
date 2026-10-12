@@ -228,7 +228,16 @@ else
                             <MudItem xs="12" sm="6"><MudTextField Label="Thông số" @bind-Value="_editingAsset.Specification" /></MudItem>
                             <MudItem xs="12" sm="6"><MudTextField Label="Vị trí" @bind-Value="_editingAsset.Location" /></MudItem>
                             <MudItem xs="12" sm="6">
-                                <MudSelect T="string" Label="Nhân viên phụ trách" @bind-Value="_editingAsset.ResponsibleEmployeeCode" Clearable="true">
+                                <MudSelect T="string" Label="Kỹ thuật viên quản lý thiết bị" @bind-Value="_editingAsset.ManagedByEmployeeCode" Clearable="true">
+                                    <MudSelectItem Value="@string.Empty">Chưa phân công kỹ thuật viên</MudSelectItem>
+                                    @foreach (var employee in _assignmentEmployees)
+                                    {
+                                        <MudSelectItem Value="@employee.EmployeeCode">@employee.EmployeeCode - @employee.EmployeeName</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" Label="Người sử dụng/phụ trách thiết bị" @bind-Value="_editingAsset.ResponsibleEmployeeCode" Clearable="true">
                                     <MudSelectItem Value="@string.Empty">Không giao cá nhân</MudSelectItem>
                                     @foreach (var employee in _assignmentEmployees)
                                     {
@@ -445,7 +454,7 @@ else
                 AssetCode = _editingAsset.AssetCode, SerialNumber = _editingAsset.SerialNumber,
                 Specification = _editingAsset.Specification, PurchasePrice = _editingAsset.PurchasePrice,
                 PurchaseDate = _editingAsset.PurchaseDate, ExpectedDepreciationDate = _editingAsset.ExpectedDepreciationDate,
-                DeptCode = _editingAsset.DeptCode, ResponsibleEmployeeCode = _editingAsset.ResponsibleEmployeeCode,
+                DeptCode = _editingAsset.DeptCode, ManagedByEmployeeCode = _editingAsset.ManagedByEmployeeCode, ResponsibleEmployeeCode = _editingAsset.ResponsibleEmployeeCode,
                 Location = _editingAsset.Location, Note = _editingAsset.Note, CustomValues = new(_editingCustom, StringComparer.OrdinalIgnoreCase)
             };
             var result = await EquipmentClient.UpdateAssetAsync(_editingAsset.Id, request);
