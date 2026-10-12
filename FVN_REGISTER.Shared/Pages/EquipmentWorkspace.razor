@@ -44,7 +44,7 @@
 
             @if (_schemas.Any(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)))
             {
-                <MudSelect T="int?" Label="@Language.T("equipment.mauDuLieuPhienBan")" @bind-Value="_schemaId" Variant="Variant.Outlined" Dense="true" Class="mt-3">
+                <MudSelect T="int?" Label="@Language.T("equipment.mauDuLieuPhienBan")" @bind-Value="_schemaId" @bind-Value:after="LoadSelectedSchemaAsync" Variant="Variant.Outlined" Dense="true" Class="mt-3">
                     @foreach (var item in _schemas.Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)))
                     {
                         <MudSelectItem T="int?" Value="@((int?)item.Id)">@item.SchemaName — v@item.Version — @item.CreatedByUserName</MudSelectItem>
