@@ -59,6 +59,18 @@ else
             @if (_actions?.Create == true)
             {
                 <MudTabPanel Text="@Language.T("equipment.dangKyThietBi")">
+                    <MudPaper Class="ma-4 pa-3" Outlined="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+                            <div>
+                                <MudText Typo="Typo.subtitle1">Bản nháp đăng ký và import Excel</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Bản nháp được sửa hoặc xóa tại khu vực đăng ký; chỉ tài sản đã được duyệt mới xuất hiện ở tab Tài sản thiết bị.</MudText>
+                            </div>
+                            @if (_actions?.Import == true)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở bản nháp import Excel</MudButton>
+                            }
+                        </MudStack>
+                    </MudPaper>
                     <MudGrid Class="pa-4">
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label='@Language.T("equipment.name")' Required="true" /></MudItem>
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="@Language.T("equipment.maTaiSan")" /></MudItem>
@@ -282,24 +294,17 @@ else
                             <MudTd><b>@context.EquipmentName</b><br /><MudText Typo="Typo.caption">@context.EquipmentCode · @context.SerialNumber</MudText></MudTd>
                             <MudTd>@context.AssetCode</MudTd>
                             <MudTd>
-                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                                    <MudTooltip Text="@(_canEditAssets ? "Sửa thông tin thiết bị" : "Thiếu quyền Equipment Edit/Manage")">
-                                        <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit"
-                                                   Disabled="@(!_canEditAssets)" OnClick="@(() => BeginEditAsset(context))">Sửa</MudButton>
-                                    </MudTooltip>
-                                    <MudTooltip Text="@(_canManageAssets ? "Xóa mềm thiết bị, giữ lịch sử" : "Thiếu quyền Equipment Manage")">
-                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
-                                                   Disabled="@(!_canManageAssets)" OnClick="@(() => DeleteAssetAsync(context))">Xóa</MudButton>
-                                    </MudTooltip>
-                                    @if (!_canEditAssets && !_canManageAssets)
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
+                                               StartIcon="@Icons.Material.Filled.Inventory2"
+                                               Disabled="@(!_canManageAssets)"
+                                               OnClick="@(() => BeginLiquidationAsync(context))">Thanh lý thiết bị</MudButton>
+                                    @if (context.EndpointAgentEligible && CanEndpointManage)
                                     {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chỉ xem</MudChip>
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security"
+                                                   OnClick="@(() => Navigation.NavigateTo($"/equipment/{context.Id}/endpoint-agent"))">Thiết lập Agent</MudButton>
                                     }
                                 </MudStack>
-                                @if ((context.EndpointAgentEligible && CanEndpointManage) || CanEligibilityManage)
-                                {
-                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security" OnClick="@(() => Navigation.NavigateTo($"/equipment/{context.Id}/endpoint-agent"))">@(context.EndpointAgentEligible ? "Endpoint Agent" : "Thiết lập Agent")</MudButton>
-                                }
                             </MudTd>
                             @foreach (var field in _assetSchemaFields)
                             {
@@ -499,6 +504,13 @@ else
             await ReloadAssetsAsync();
         }
         finally { _assetEditBusy = false; }
+    }
+
+    private async Task BeginLiquidationAsync(EquipmentAssetDto asset)
+    {
+        // Liquidation must be an approval request, never a direct edit/delete of an approved asset.
+        Snackbar.Add("Luồng yêu cầu thanh lý chưa được triển khai trong phiên bản hiện tại. Tài sản chính thức chưa bị thay đổi.", Severity.Warning);
+        await Task.CompletedTask;
     }
 
     private async Task DeleteAssetAsync(EquipmentAssetDto asset)
