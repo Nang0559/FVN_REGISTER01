@@ -60,6 +60,8 @@ Current SQL directory:
 :r "48_SecurityTwoFactorSuperAdminCompatibility.sql"
 :r "49_Verify_SecurityTwoFactorSuperAdmin.sql"
 :r "50_EquipmentManageCapability.sql"
+/* Equipment technician assignment + change approval schema; requires base equipment tables. */
+:r "17_EquipmentChangeApprovalWorkflow.sql"
 :r "51_SecurityFunctionRegistryRecovery.sql"
 :r "52_Verify_SecurityFunctionRecovery.sql"
 
