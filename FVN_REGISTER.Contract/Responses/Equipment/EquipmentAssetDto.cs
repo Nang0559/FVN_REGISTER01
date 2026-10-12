@@ -29,6 +29,8 @@ public sealed class EquipmentAssetDto
     public bool EndpointHasActiveCredential { get; set; }
     public DateTimeOffset? EndpointCredentialExpiresAtUtc { get; set; }
     public int? ResponsibleDeptCode { get; set; }
+    public string? ManagedByEmployeeCode { get; set; }
+    public string? ManagedByEmployeeName { get; set; }
     public string? ResponsibleEmployeeCode { get; set; }
     public string? ResponsibleEmployeeName { get; set; }
     public string? ResponsibleApproverEmployeeCode { get; set; }
