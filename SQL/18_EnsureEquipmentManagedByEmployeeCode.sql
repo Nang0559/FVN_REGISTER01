@@ -20,9 +20,10 @@ BEGIN TRY
         WHERE object_id = OBJECT_ID(N'dbo.F03EquipmentAssets')
           AND name = N'IX_F03EquipmentAssets_ManagedByEmployeeCode'
     )
-        CREATE INDEX IX_F03EquipmentAssets_ManagedByEmployeeCode
+        EXEC sys.sp_executesql N'
+            CREATE INDEX IX_F03EquipmentAssets_ManagedByEmployeeCode
             ON dbo.F03EquipmentAssets(ManagedByEmployeeCode)
-            WHERE ManagedByEmployeeCode IS NOT NULL;
+            WHERE ManagedByEmployeeCode IS NOT NULL;';
 
     COMMIT TRANSACTION;
 END TRY
