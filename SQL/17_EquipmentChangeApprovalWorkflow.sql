@@ -16,9 +16,10 @@ IF NOT EXISTS
     WHERE object_id = OBJECT_ID(N'dbo.F03EquipmentAssets')
       AND name = N'IX_F03EquipmentAssets_ManagedByEmployeeCode'
 )
-    CREATE INDEX IX_F03EquipmentAssets_ManagedByEmployeeCode
+    EXEC sys.sp_executesql N'
+        CREATE INDEX IX_F03EquipmentAssets_ManagedByEmployeeCode
         ON dbo.F03EquipmentAssets(ManagedByEmployeeCode)
-        WHERE ManagedByEmployeeCode IS NOT NULL;
+        WHERE ManagedByEmployeeCode IS NOT NULL;';
 
 IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'AssetBeforeSnapshotJson') IS NULL
     ALTER TABLE dbo.F03EquipmentRequests ADD AssetBeforeSnapshotJson nvarchar(max) NULL;
