@@ -323,6 +323,30 @@ public sealed class EquipmentImportService : IEquipmentImportService
 
         var d = await _excel.GetSchemaDefinitionAsync(sid, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy cấu hình schema.");
+
+        // The schema is the single source of truth for business mapping. Do not silently
+        // infer a user/department mapping from column names at import time.
+        var mappedTargets = d.Fields
+            .Where(field => !string.IsNullOrWhiteSpace(field.TargetProperty))
+            .GroupBy(field => field.TargetProperty!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+        if (mappedTargets.Count > 0)
+            return ServiceResult<ExcelImportBatchDto>.Fail(
+                $"Schema có nhiều cột cùng ánh xạ vào: {string.Join(", ", mappedTargets)}. Mỗi trường nghiệp vụ chỉ được ánh xạ từ một cột.");
+
+        var missingTargets = new List<string>();
+        if (!d.Fields.Any(field => string.Equals(field.TargetProperty, "EquipmentCode", StringComparison.OrdinalIgnoreCase)))
+            missingTargets.Add("Mã thiết bị (EquipmentCode)");
+        if (!d.Fields.Any(field => string.Equals(field.TargetProperty, "EquipmentName", StringComparison.OrdinalIgnoreCase)))
+            missingTargets.Add("Tên thiết bị (EquipmentName)");
+        if (!d.Fields.Any(field => string.Equals(field.TargetProperty, "OperatingResponsibleDeptCode", StringComparison.OrdinalIgnoreCase)))
+            missingTargets.Add("Phòng ban sử dụng (OperatingResponsibleDeptCode)");
+        if (missingTargets.Count > 0)
+            return ServiceResult<ExcelImportBatchDto>.Fail(
+                $"Schema chưa cấu hình liên kết dữ liệu bắt buộc: {string.Join(", ", missingTargets)}. Hãy sửa Schema và tạo phiên bản Active mới.");
+
         var r = await _excel.ImportAsync(content, file, d, ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportBatches(SchemaId,SchemaVersionId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows,FailedRows,CreatedBy,CreatedAt) VALUES({sid},(SELECT CurrentVersionId FROM dbo.F03ExcelSchemas WHERE Id={sid}),{ModuleCode},{EntityCode},{file},40,{r.TotalRows},{r.ValidRows},{r.InvalidRows},0,0,{u.UserId.ToString()},SYSUTCDATETIME())",ct);var bid=await _db.Database.SqlQueryRaw<long>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelImportBatches WHERE SchemaId={0} AND FileName={1} ORDER BY Id DESC",sid,file).SingleAsync(ct);var activeDepartments = await _departmentLookup.GetActiveDepartmentsAsync(ct);
         var departmentCodes = activeDepartments.Select(x => x.DeptCode).ToHashSet();
         var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -532,16 +556,15 @@ public sealed class EquipmentImportService : IEquipmentImportService
         IReadOnlyList<ExcelSchemaField> fields,
         string targetProperty)
     {
-        var field = fields.FirstOrDefault(candidate => IsEquipmentField(candidate, targetProperty));
+        // Resolve values only through the explicit schema mapping. Header-name heuristics
+        // are intentionally not used because UserId/SourceDepartment semantics are configured
+        // by the schema owner and must not vary between UI and server.
+        var field = fields.FirstOrDefault(candidate =>
+            string.Equals(candidate.TargetProperty?.Trim(), targetProperty, StringComparison.OrdinalIgnoreCase));
         if (field is not null && values.TryGetValue(field.FieldKey, out var value))
             return value;
 
-        field = fields.FirstOrDefault(candidate =>
-            string.Equals(candidate.TargetProperty, targetProperty, StringComparison.OrdinalIgnoreCase));
-        if (field is not null && values.TryGetValue(field.FieldKey, out value))
-            return value;
-
-        return values.TryGetValue(targetProperty, out var directValue) ? directValue : null;
+        return null;
     }
 
     private static DateTime? ParseSchemaDate(string? value)
