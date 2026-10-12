@@ -272,7 +272,8 @@ else
                             {
                                 <MudTh>@field.FieldLabel</MudTh>
                             }
-                            <MudTh>Người phụ trách</MudTh>
+                            <MudTh>Kỹ thuật viên quản lý</MudTh>
+                            <MudTh>Người sử dụng/phụ trách</MudTh>
                             <MudTh>Endpoint Agent</MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -302,6 +303,7 @@ else
                             {
                                 <MudTd>@GetAssetCustomValue(context, field)</MudTd>
                             }
+                            <MudTd>@(string.IsNullOrWhiteSpace(context.ManagedByEmployeeCode) ? "Chưa phân công" : $"{context.ManagedByEmployeeCode} - {context.ManagedByEmployeeName}")</MudTd>
                             <MudTd>@context.ResponsibleEmployeeCode</MudTd>
                             <MudTd>
                                 @if (!context.EndpointAgentEligible)
