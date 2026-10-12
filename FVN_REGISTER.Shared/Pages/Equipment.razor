@@ -429,6 +429,8 @@ else
             ExpectedDepreciationDate = asset.ExpectedDepreciationDate, DeptCode = asset.DeptCode,
             Location = asset.Location, Note = asset.Note, EquipmentSchemaKey = asset.EquipmentSchemaKey,
             CustomDataJson = asset.CustomDataJson,
+            ManagedByEmployeeCode = asset.ManagedByEmployeeCode,
+            ManagedByEmployeeName = asset.ManagedByEmployeeName,
             ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode
         };
         _editingCustom = ReadCustomValues(asset.CustomDataJson);
