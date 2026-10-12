@@ -53,6 +53,7 @@ public interface IEquipmentClientService
     Task<ApiResponse<ExcelSchemaFieldDto>> SaveSchemaFieldAsync(SaveExcelSchemaFieldRequest request, CancellationToken ct = default);
     Task<ApiResponse<ExcelImportBatchDto>> StageImportAsync(int deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee = false, int sheetIndex = 0, CancellationToken ct = default);
     Task<ApiResponse<ExcelImportBatchDto>> StageImportAsync(int deptCode, int? schemaId, IBrowserFile file, bool assignToEmployee, CancellationToken ct);
+    Task<ApiResponse<ExcelImportBatchDto>> GetImportBatchAsync(long batchId, CancellationToken ct = default);
     Task<ApiResponse<ExcelImportCommitResultDto>> CommitImportAsync(long batchId, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentAssetDto>>> GetRegisteredInspectionAssetsAsync(int? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentInspectionTemplateDto>>> GetInspectionTemplatesAsync(int? deptCode = null, CancellationToken ct = default);
