@@ -322,7 +322,51 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var d = await _excel.GetSchemaDefinitionAsync(sid, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy cấu hình schema.");
         var r = await _excel.ImportAsync(content, file, d, ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportBatches(SchemaId,SchemaVersionId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows,FailedRows,CreatedBy,CreatedAt) VALUES({sid},(SELECT CurrentVersionId FROM dbo.F03ExcelSchemas WHERE Id={sid}),{ModuleCode},{EntityCode},{file},40,{r.TotalRows},{r.ValidRows},{r.InvalidRows},0,0,{u.UserId.ToString()},SYSUTCDATETIME())",ct);var bid=await _db.Database.SqlQueryRaw<long>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelImportBatches WHERE SchemaId={0} AND FileName={1} ORDER BY Id DESC",sid,file).SingleAsync(ct);foreach(var row in r.Rows){var n=d.Fields.ToDictionary(z=>z.FieldKey,z=>row.Cells.TryGetValue(z.SourceColumnIndex,out var v)?v:null);var er=r.Errors.Where(e=>e.RowNumber==row.RowIndex).ToList();await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportRows(BatchId,RowNumber,Status,RawDataJson,NormalizedDataJson,ErrorCount) VALUES({bid},{row.RowIndex},{(er.Count>0?20:30)},{JsonSerializer.Serialize(row.Cells)},{JsonSerializer.Serialize(n)},{er.Count})",ct);foreach(var e in er)await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportErrors(BatchId,RowNumber,ColumnIndex,FieldKey,ErrorCode,Severity,ErrorMessage,RawValue,CreatedAt) VALUES({bid},{e.RowNumber},{e.ColumnIndex},{e.FieldKey},{e.Code},{(int)e.Severity},{e.Message},{e.RawValue},SYSUTCDATETIME())",ct);}return ServiceResult<ExcelImportBatchDto>.Ok((await GetBatchAsync(bid,ct))!,"Đã staging file Excel.");}
-    public async Task<ExcelImportBatchDto?> GetBatchAsync(long id,CancellationToken ct=default){var u=User();var b=await _db.Database.SqlQueryRaw<Batch>("SELECT Id,SchemaId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows FROM dbo.F03ExcelImportBatches WHERE Id={0}",id).SingleOrDefaultAsync(ct);if(b is null)return null;var m=await Meta(b.SchemaId,ct);await Scope(u,m.DepartmentCode,ct);return new(){Id=b.Id,SchemaId=b.SchemaId,ModuleCode=b.ModuleCode,EntityCode=b.EntityCode,FileName=b.FileName,Status=((ExcelImportBatchStatus)b.Status).ToString(),TotalRows=b.TotalRows,ValidRows=b.ValidRows,InvalidRows=b.InvalidRows,ImportedRows=b.ImportedRows};}
+    public async Task<ExcelImportBatchDto?> GetBatchAsync(long id, CancellationToken ct = default)
+    {
+        var user = User();
+        var batch = await _db.Database.SqlQueryRaw<Batch>(
+            "SELECT Id,SchemaId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows FROM dbo.F03ExcelImportBatches WHERE Id={0}",
+            id).SingleOrDefaultAsync(ct);
+        if (batch is null) return null;
+
+        var metadata = await Meta(batch.SchemaId, ct);
+        await Scope(user, metadata.DepartmentCode, ct);
+
+        // Return row-level validation details with the batch. Previously the DTO exposed
+        // Rows but this method never populated it, so users could not correct bad rows
+        // before submitting the inventory for approval.
+        var rows = await _db.Database.SqlQueryRaw<ImportRow>(
+            @"SELECT r.Id, r.RowNumber, r.Status,
+                     STRING_AGG(CONVERT(nvarchar(max), e.ErrorMessage), N'; ') AS ErrorMessage
+              FROM dbo.F03ExcelImportRows r
+              LEFT JOIN dbo.F03ExcelImportErrors e
+                ON e.BatchId = r.BatchId AND e.RowNumber = r.RowNumber
+              WHERE r.BatchId = {0}
+              GROUP BY r.Id, r.RowNumber, r.Status
+              ORDER BY r.RowNumber", id).ToListAsync(ct);
+
+        return new ExcelImportBatchDto
+        {
+            Id = batch.Id,
+            SchemaId = batch.SchemaId,
+            ModuleCode = batch.ModuleCode,
+            EntityCode = batch.EntityCode,
+            FileName = batch.FileName,
+            Status = ((ExcelImportBatchStatus)batch.Status).ToString(),
+            TotalRows = batch.TotalRows,
+            ValidRows = batch.ValidRows,
+            InvalidRows = batch.InvalidRows,
+            ImportedRows = batch.ImportedRows,
+            Rows = rows.Select(row => new ExcelImportRowDto
+            {
+                Id = row.Id,
+                RowNumber = row.RowNumber,
+                Status = row.Status == 20 ? "Invalid" : row.Status == 30 ? "Valid" : row.Status.ToString(),
+                ErrorMessage = row.ErrorMessage
+            }).ToList()
+        };
+    }
     public async Task<ExcelImportCommitResultDto> CommitAsync(long id, CancellationToken ct = default)
     {
         // Fail closed: importing directly into F03EquipmentAssets bypasses the shared
@@ -443,5 +487,5 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private static int Dept(int? x,int? f)=>x??f??0;
     private static ExcelSchemaDto Map(int id,ExcelSchemaDefinition d,(int DepartmentCode,int CreatedBy,string SchemaName,int FieldCount,string? SourceFileName,int Status)m,UserIdentityDto u)=>new(){Id=id,ModuleCode=d.ModuleCode,EntityCode=d.EntityCode,SchemaCode=d.SchemaKey,SchemaName=m.SchemaName,Version=d.Version,Status=((ExcelSchemaStatus)m.Status).ToString(),IsActive=m.Status==(int)ExcelSchemaStatus.Active,DepartmentCode=m.DepartmentCode,CreatedByUserId=m.CreatedBy,SourceFileName=m.SourceFileName,CreatedFromExcel=!string.IsNullOrWhiteSpace(m.SourceFileName),IsOwner=m.CreatedBy==u.UserId||u.IsAdmin,CanEdit=m.CreatedBy==u.UserId||u.IsAdmin,CanCreateVersion=m.CreatedBy==u.UserId||u.IsAdmin,CanClone=true,SheetIndex=d.SheetIndex,SheetName=d.SheetName,HeaderRowIndex=d.HeaderRowIndex,DataStartRowIndex=d.DataStartRowIndex,DataEndRowIndex=d.DataEndRowIndex,Fields=d.Fields.Select(Map).ToList()};
     private static ExcelSchemaFieldDto Map(ExcelSchemaField f)=>new(){FieldKey=f.FieldKey,FieldLabel=f.HeaderName??f.FieldKey,DataType=f.DataType,IsRequired=f.Required,AllowEmpty=f.AllowEmpty,SourceColumnIndex=f.SourceColumnIndex,HeaderName=f.HeaderName,ResourceKey=f.ResourceKey,TargetProperty=f.TargetProperty,Format=f.Format,ValidationRule=f.ValidationRule,DefaultValue=f.DefaultValue,MaxLength=f.MaxLength,DisplayOrder=f.DisplayOrder};
-    private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status);private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows);private sealed record Row(long Id,string? Data);
+    private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string? ErrorMessage);
 }
