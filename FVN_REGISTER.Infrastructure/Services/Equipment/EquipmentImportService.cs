@@ -337,9 +337,22 @@ public sealed class EquipmentImportService : IEquipmentImportService
                 domainErrors.Add(("EquipmentCode", "Thiếu mã thiết bị.", equipmentCode));
             else if (!seenCodes.Add(equipmentCode))
                 domainErrors.Add(("EquipmentCode", $"Mã thiết bị '{equipmentCode}' bị lặp trong file Excel.", equipmentCode));
+            else
+            {
+                // A staged row must not silently collide with an existing official asset.
+                // This is validation only; the approval/apply path must still re-check
+                // uniqueness inside its transaction to cover races after staging.
+                var existingAssetCount = await _db.Database.SqlQueryRaw<int>(
+                    "SELECT COUNT(1) AS Value FROM dbo.F03EquipmentAssets WHERE EquipmentCode = {0} AND IsActive = 1",
+                    equipmentCode).SingleAsync(ct);
+                if (existingAssetCount > 0)
+                    domainErrors.Add(("EquipmentCode", $"Mã thiết bị '{equipmentCode}' đã tồn tại trong danh mục chính thức.", equipmentCode));
+            }
 
             var departmentText = Value("SourceDepartment") ?? Value("DeptCode") ?? Value("DepartmentCode") ?? Value("Department");
-            if (!string.IsNullOrWhiteSpace(departmentText))
+            if (string.IsNullOrWhiteSpace(departmentText))
+                domainErrors.Add(("DepartmentCode", "Thiếu phòng ban của thiết bị; không thể xác định phạm vi lookup.", departmentText));
+            else
             {
                 var department = activeDepartments.FirstOrDefault(item =>
                     string.Equals(item.DeptCode.ToString(CultureInfo.InvariantCulture), departmentText, StringComparison.OrdinalIgnoreCase) ||
@@ -353,9 +366,17 @@ public sealed class EquipmentImportService : IEquipmentImportService
             var employeeText = Value("ResponsibleEmployeeCode") ?? Value("UserID") ?? Value("EmployeeCode") ?? Value("Employee");
             if (!string.IsNullOrWhiteSpace(employeeText))
             {
-                var employee = await _db.Employees.AsNoTracking()
+                var employeeQuery = _db.Employees.AsNoTracking()
                     .Where(item => item.IsActive == true && item.EndWorkingDate == null)
-                    .Where(item => item.EmployeeCode == employeeText || item.EmployeeName == employeeText)
+                    .Where(item => item.EmployeeCode == employeeText || item.EmployeeName == employeeText);
+                // Resolve the employee against the device's selected department first,
+                // so duplicate names in other departments cannot bind to the wrong person.
+                var selectedDepartment = string.IsNullOrWhiteSpace(departmentText) ? null : activeDepartments.FirstOrDefault(item =>
+                    string.Equals(item.DeptCode.ToString(CultureInfo.InvariantCulture), departmentText, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(item.DeptName?.Trim(), departmentText, StringComparison.OrdinalIgnoreCase));
+                if (selectedDepartment is not null)
+                    employeeQuery = employeeQuery.Where(item => item.DeptCode == selectedDepartment.DeptCode);
+                var employee = await employeeQuery
                     .Select(item => new { item.EmployeeCode, item.EmployeeName, item.DeptCode })
                     .FirstOrDefaultAsync(ct);
                 if (employee is null)
