@@ -201,7 +201,7 @@ public sealed class EquipmentService : IEquipmentService
     private async Task EnsureTechnicianManageScopeAsync(UserIdentityDto user,F03EquipmentAsset asset,CancellationToken ct)
     {
         var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.EquipmentManage, ct);
-        if (scope is AuthorizationScopeCodes.Own or AuthorizationScopeCodes.Employee &&
+        if ((scope is AuthorizationScopeCodes.Own or AuthorizationScopeCodes.Employee) &&
             (string.IsNullOrWhiteSpace(user.EmployeeCode) || !string.Equals(asset.ManagedByEmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase)))
             throw new UnauthorizedAccessException("Thiết bị chưa được phân công cho kỹ thuật viên này. Phạm vi quản lý thiết bị dựa trên người được giao quản lý, không dựa riêng vào người sử dụng hoặc phòng ban.");
     }
