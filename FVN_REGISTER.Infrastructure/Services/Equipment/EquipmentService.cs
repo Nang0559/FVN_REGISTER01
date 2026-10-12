@@ -259,6 +259,33 @@ public sealed class EquipmentService : IEquipmentService
                     return ServiceResult<EquipmentAssetDto>.Fail("Kỹ thuật viên quản lý không tồn tại hoặc đã nghỉ việc.");
             }
 
+            var operatingResponsibleEmployeeCode = string.IsNullOrWhiteSpace(request.OperatingResponsibleEmployeeCode)
+                ? asset.OperatingResponsibleEmployeeCode
+                : request.OperatingResponsibleEmployeeCode.Trim();
+            var operatingResponsibleDeptCode = request.OperatingResponsibleDeptCode ?? asset.OperatingResponsibleDeptCode;
+
+            if (operatingResponsibleDeptCode.HasValue)
+            {
+                var departmentExists = await _uow.Repository<F03Department>().Query().AsNoTracking()
+                    .AnyAsync(d => d.DeptCode == operatingResponsibleDeptCode.Value, ct);
+                if (!departmentExists)
+                    return ServiceResult<EquipmentAssetDto>.Fail($"Phòng ban sử dụng '{operatingResponsibleDeptCode}' không tồn tại trong danh mục phòng ban HRM.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(operatingResponsibleEmployeeCode))
+            {
+                var operatingEmployee = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                    .Where(e => e.EmployeeCode == operatingResponsibleEmployeeCode && e.IsActive == true && e.EndWorkingDate == null)
+                    .Select(e => new { e.EmployeeCode, e.DeptCode })
+                    .FirstOrDefaultAsync(ct);
+                if (operatingEmployee is null)
+                    return ServiceResult<EquipmentAssetDto>.Fail("Người sử dụng thiết bị không tồn tại hoặc đã nghỉ việc.");
+                if (operatingResponsibleDeptCode.HasValue && operatingEmployee.DeptCode != operatingResponsibleDeptCode.Value)
+                    return ServiceResult<EquipmentAssetDto>.Fail("Phòng ban sử dụng phải khớp với phòng ban của nhân viên được chọn.");
+                if (!operatingResponsibleDeptCode.HasValue)
+                    operatingResponsibleDeptCode = operatingEmployee.DeptCode;
+            }
+
             var code = request.EquipmentCode.Trim();
             var duplicate = await _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking()
                 .AnyAsync(x => x.Id != assetId && x.IsActive == true && x.EquipmentCode == code, ct);
@@ -307,8 +334,8 @@ public sealed class EquipmentService : IEquipmentService
                 ManagedByEmployeeCode = managedByEmployeeCode,
                 ResponsibleEmployeeCode = responsibleEmployeeCode,
                 ResponsibleApproverEmployeeCode = asset.ResponsibleApproverEmployeeCode,
-                OperatingResponsibleDeptCode = asset.OperatingResponsibleDeptCode,
-                OperatingResponsibleEmployeeCode = asset.OperatingResponsibleEmployeeCode
+                OperatingResponsibleDeptCode = operatingResponsibleDeptCode,
+                OperatingResponsibleEmployeeCode = operatingResponsibleEmployeeCode
             };
             var beforeJson = JsonSerializer.Serialize(before);
             var afterJson = JsonSerializer.Serialize(after);
