@@ -385,7 +385,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
                 }
             }
 
-            var employeeText = Value("ResponsibleEmployeeCode") ?? Value("UserID") ?? Value("EmployeeCode") ?? Value("Employee");
+            var employeeText = Value("OperatingResponsibleEmployeeCode") ?? Value("UserID") ?? Value("NguoiSuDung") ?? Value("NhanVienSuDung");
             if (!string.IsNullOrWhiteSpace(employeeText))
             {
                 var employeeQuery = _db.Employees.AsNoTracking()
@@ -503,7 +503,9 @@ public sealed class EquipmentImportService : IEquipmentImportService
             return "ManagedByEmployeeCode";
         // Legacy Excel UserID is treated as an employee code only for the user/responsible role,
         // never as F03Users.Id and never as the technician manager.
-        if (normalized is "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach" or "responsibleemployeecode" or "nguoisudung")
+        if (normalized is "userid" or "operatingresponsibleemployeecode" or "nguoisudung" or "nhanviensudung")
+            return "OperatingResponsibleEmployeeCode";
+        if (normalized is "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach" or "responsibleemployeecode")
             return "ResponsibleEmployeeCode";
         if (normalized is "sourcedepartment" or "operatingresponsibledeptcode" or "departmentuser")
             return "OperatingResponsibleDeptCode";
@@ -526,7 +528,8 @@ public sealed class EquipmentImportService : IEquipmentImportService
             "EquipmentName" => normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name",
             "ManagedByEmployeeCode" => normalized is "managedbyemployeecode" or "technicianemployeecode" or "techniciancode" or "kythuatvienquanly" or "kythuatvien",
             "OperatingResponsibleDeptCode" => normalized is "sourcedepartment" or "operatingresponsibledeptcode" or "departmentuser",
-            "ResponsibleEmployeeCode" => normalized is "responsibleemployeecode" or "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach" or "nguoisudung",
+            "OperatingResponsibleEmployeeCode" => normalized is "operatingresponsibleemployeecode" or "userid" or "nguoisudung" or "nhanviensudung",
+            "ResponsibleEmployeeCode" => normalized is "responsibleemployeecode" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach",
             "AssetCode" => normalized is "assettag" or "assetcode" or "tagtaisan" or "mataisan",
             "SerialNumber" => normalized is "serialnumber" or "serialno" or "serial" or "soserial",
             "Specification" => normalized is "specification" or "thongso" or "cauhinh",
