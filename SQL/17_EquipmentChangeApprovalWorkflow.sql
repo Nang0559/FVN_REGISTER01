@@ -7,6 +7,19 @@
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 
+IF COL_LENGTH(N'dbo.F03EquipmentAssets', N'ManagedByEmployeeCode') IS NULL
+    ALTER TABLE dbo.F03EquipmentAssets ADD ManagedByEmployeeCode nvarchar(50) NULL;
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.F03EquipmentAssets')
+      AND name = N'IX_F03EquipmentAssets_ManagedByEmployeeCode'
+)
+    CREATE INDEX IX_F03EquipmentAssets_ManagedByEmployeeCode
+        ON dbo.F03EquipmentAssets(ManagedByEmployeeCode)
+        WHERE ManagedByEmployeeCode IS NOT NULL;
+
 IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'AssetBeforeSnapshotJson') IS NULL
     ALTER TABLE dbo.F03EquipmentRequests ADD AssetBeforeSnapshotJson nvarchar(max) NULL;
 IF COL_LENGTH(N'dbo.F03EquipmentRequests', N'AssetAfterSnapshotJson') IS NULL
