@@ -209,6 +209,7 @@ public sealed class EquipmentApprovalProvider
                         asset.Location = ReadString(root, "Location");
                         asset.Note = ReadString(root, "Note");
                         asset.CustomDataJson = ReadString(root, "CustomDataJson") ?? asset.CustomDataJson;
+                        asset.ManagedByEmployeeCode = ReadString(root, "ManagedByEmployeeCode");
                         asset.ResponsibleEmployeeCode = ReadString(root, "ResponsibleEmployeeCode");
                         asset.ResponsibleApproverEmployeeCode = ReadString(root, "ResponsibleApproverEmployeeCode");
                         asset.OperatingResponsibleDeptCode = ReadInt(root, "OperatingResponsibleDeptCode") ?? asset.OperatingResponsibleDeptCode;
@@ -259,7 +260,7 @@ public sealed class EquipmentApprovalProvider
             asset.EquipmentCode, asset.EquipmentName, asset.AssetCode, asset.SerialNumber,
             asset.Specification, asset.PurchasePrice, asset.PurchaseDate,
             asset.ExpectedDepreciationDate, asset.Location, asset.Note, asset.CustomDataJson,
-            asset.ResponsibleEmployeeCode, asset.ResponsibleApproverEmployeeCode,
+            asset.ManagedByEmployeeCode, asset.ResponsibleEmployeeCode, asset.ResponsibleApproverEmployeeCode,
             asset.OperatingResponsibleDeptCode, asset.OperatingResponsibleEmployeeCode
         });
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
