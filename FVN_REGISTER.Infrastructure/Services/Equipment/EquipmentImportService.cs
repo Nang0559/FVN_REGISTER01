@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Globalization;
 using System.Text;
 using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.Excel;
 using FVN_REGISTER.Application.Interfaces.Security;
@@ -24,8 +25,9 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private const string ModuleCode="EQUIPMENT", EntityCode="EQUIPMENT_ASSET";
     private readonly FVNWEBAPPContext _db; private readonly IExcelPlatform _excel; private readonly ICurrentUserService _users;
     private readonly IAuthorizationService _auth; private readonly IUnitOfWork _uow;
-    public EquipmentImportService(FVNWEBAPPContext db,IExcelPlatform excel,ICurrentUserService users,IAuthorizationService auth,IAuditService audit,IUnitOfWork uow)
-        =>(_db,_excel,_users,_auth,_uow)=(db,excel,users,auth,uow);
+    private readonly IDepartmentLookupService _departmentLookup;
+    public EquipmentImportService(FVNWEBAPPContext db,IExcelPlatform excel,ICurrentUserService users,IAuthorizationService auth,IAuditService audit,IUnitOfWork uow,IDepartmentLookupService departmentLookup)
+        =>(_db,_excel,_users,_auth,_uow,_departmentLookup)=(db,excel,users,auth,uow,departmentLookup);
 
     public async Task<List<ExcelSchemaSummaryDto>> GetSchemasAsync(int? departmentCode,CancellationToken ct=default)
     {
@@ -321,7 +323,69 @@ public sealed class EquipmentImportService : IEquipmentImportService
 
         var d = await _excel.GetSchemaDefinitionAsync(sid, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy cấu hình schema.");
-        var r = await _excel.ImportAsync(content, file, d, ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportBatches(SchemaId,SchemaVersionId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows,FailedRows,CreatedBy,CreatedAt) VALUES({sid},(SELECT CurrentVersionId FROM dbo.F03ExcelSchemas WHERE Id={sid}),{ModuleCode},{EntityCode},{file},40,{r.TotalRows},{r.ValidRows},{r.InvalidRows},0,0,{u.UserId.ToString()},SYSUTCDATETIME())",ct);var bid=await _db.Database.SqlQueryRaw<long>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelImportBatches WHERE SchemaId={0} AND FileName={1} ORDER BY Id DESC",sid,file).SingleAsync(ct);foreach(var row in r.Rows){var n=d.Fields.ToDictionary(z=>z.FieldKey,z=>row.Cells.TryGetValue(z.SourceColumnIndex,out var v)?v:null);var er=r.Errors.Where(e=>e.RowNumber==row.RowIndex).ToList();await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportRows(BatchId,RowNumber,Status,RawDataJson,NormalizedDataJson,ErrorCount) VALUES({bid},{row.RowIndex},{(er.Count>0?20:30)},{JsonSerializer.Serialize(row.Cells)},{JsonSerializer.Serialize(n)},{er.Count})",ct);foreach(var e in er)await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportErrors(BatchId,RowNumber,ColumnIndex,FieldKey,ErrorCode,Severity,ErrorMessage,RawValue,CreatedAt) VALUES({bid},{e.RowNumber},{e.ColumnIndex},{e.FieldKey},{e.Code},{(int)e.Severity},{e.Message},{e.RawValue},SYSUTCDATETIME())",ct);}return ServiceResult<ExcelImportBatchDto>.Ok((await GetBatchAsync(bid,ct))!,"Đã staging file Excel.");}
+        var r = await _excel.ImportAsync(content, file, d, ct);await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportBatches(SchemaId,SchemaVersionId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows,FailedRows,CreatedBy,CreatedAt) VALUES({sid},(SELECT CurrentVersionId FROM dbo.F03ExcelSchemas WHERE Id={sid}),{ModuleCode},{EntityCode},{file},40,{r.TotalRows},{r.ValidRows},{r.InvalidRows},0,0,{u.UserId.ToString()},SYSUTCDATETIME())",ct);var bid=await _db.Database.SqlQueryRaw<long>("SELECT TOP 1 Id AS Value FROM dbo.F03ExcelImportBatches WHERE SchemaId={0} AND FileName={1} ORDER BY Id DESC",sid,file).SingleAsync(ct);var activeDepartments = await _departmentLookup.GetActiveDepartmentsAsync(ct);
+        var departmentCodes = activeDepartments.Select(x => x.DeptCode).ToHashSet();
+        var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in r.Rows)
+        {
+            var normalized = d.Fields.ToDictionary(field => field.FieldKey, field => row.Cells.TryGetValue(field.SourceColumnIndex, out var value) ? value : null);
+            var errors = r.Errors.Where(error => error.RowNumber == row.RowIndex).ToList();
+            var domainErrors = new List<(string Field, string Message, string? Raw)>();
+            string? Value(string property) => GetEquipmentFieldValue(normalized, d.Fields, property)?.Trim();
+            var equipmentCode = Value("EquipmentCode");
+            if (string.IsNullOrWhiteSpace(equipmentCode))
+                domainErrors.Add(("EquipmentCode", "Thiếu mã thiết bị.", equipmentCode));
+            else if (!seenCodes.Add(equipmentCode))
+                domainErrors.Add(("EquipmentCode", $"Mã thiết bị '{equipmentCode}' bị lặp trong file Excel.", equipmentCode));
+
+            var departmentText = Value("SourceDepartment") ?? Value("DeptCode") ?? Value("DepartmentCode") ?? Value("Department");
+            if (!string.IsNullOrWhiteSpace(departmentText))
+            {
+                var department = activeDepartments.FirstOrDefault(item =>
+                    string.Equals(item.DeptCode.ToString(CultureInfo.InvariantCulture), departmentText, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(item.DeptName?.Trim(), departmentText, StringComparison.OrdinalIgnoreCase));
+                if (department is null)
+                    domainErrors.Add(("DepartmentCode", $"Phòng ban '{departmentText}' không tồn tại hoặc không còn hoạt động.", departmentText));
+                else if (department.DeptCode != dept)
+                    domainErrors.Add(("DepartmentCode", $"Phòng ban của thiết bị ({departmentText}) không khớp phòng ban đang staging ({dept}).", departmentText));
+            }
+
+            var employeeText = Value("ResponsibleEmployeeCode") ?? Value("UserID") ?? Value("EmployeeCode") ?? Value("Employee");
+            if (!string.IsNullOrWhiteSpace(employeeText))
+            {
+                var employee = await _db.Employees.AsNoTracking()
+                    .Where(item => item.EndWorkingDate == null)
+                    .Where(item => item.EmployeeCode == employeeText || item.EmployeeName == employeeText)
+                    .Select(item => new { item.EmployeeCode, item.EmployeeName, item.DeptCode })
+                    .FirstOrDefaultAsync(ct);
+                if (employee is null)
+                    domainErrors.Add(("ResponsibleEmployeeCode", $"Nhân viên '{employeeText}' không tồn tại hoặc đã nghỉ việc.", employeeText));
+                else
+                {
+                    var assignedDepartmentText = departmentText;
+                    var assignedDepartment = string.IsNullOrWhiteSpace(assignedDepartmentText) ? null : activeDepartments.FirstOrDefault(item =>
+                        string.Equals(item.DeptCode.ToString(CultureInfo.InvariantCulture), assignedDepartmentText, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(item.DeptName?.Trim(), assignedDepartmentText, StringComparison.OrdinalIgnoreCase));
+                    if (assignedDepartment is not null && employee.DeptCode != assignedDepartment.DeptCode)
+                        domainErrors.Add(("ResponsibleEmployeeCode", $"Nhân viên '{employee.EmployeeName}' thuộc phòng ban {employee.DeptCode}, không thuộc phòng ban thiết bị {assignedDepartment.DeptCode}.", employeeText));
+                }
+            }
+
+            foreach (var field in d.Fields.Where(field => field.Required && !field.AllowEmpty))
+            {
+                if (!normalized.TryGetValue(field.FieldKey, out var fieldValue) || string.IsNullOrWhiteSpace(fieldValue))
+                    domainErrors.Add((field.FieldKey, $"Trường bắt buộc '{field.HeaderName ?? field.FieldKey}' chưa có dữ liệu.", fieldValue));
+            }
+
+            await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportRows(BatchId,RowNumber,Status,RawDataJson,NormalizedDataJson,ErrorCount) VALUES({bid},{row.RowIndex},{(errors.Count + domainErrors.Count > 0 ? 20 : 30)},{JsonSerializer.Serialize(row.Cells)},{JsonSerializer.Serialize(normalized)},{errors.Count + domainErrors.Count})",ct);
+            foreach (var error in errors)
+                await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportErrors(BatchId,RowNumber,ColumnIndex,FieldKey,ErrorCode,Severity,ErrorMessage,RawValue,CreatedAt) VALUES({bid},{error.RowNumber},{error.ColumnIndex},{error.FieldKey},{error.Code},{(int)error.Severity},{error.Message},{error.RawValue},SYSUTCDATETIME())",ct);
+            foreach (var error in domainErrors)
+                await _db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.F03ExcelImportErrors(BatchId,RowNumber,ColumnIndex,FieldKey,ErrorCode,Severity,ErrorMessage,RawValue,CreatedAt) VALUES({bid},{row.RowIndex},NULL,{error.Field},N'EQUIPMENT_LOOKUP',2,{error.Message},{error.Raw},SYSUTCDATETIME())",ct);
+        }
+        // Keep batch counts consistent with domain validation errors, not just Excel parser errors.
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelImportBatches SET ValidRows=(SELECT COUNT(*) FROM dbo.F03ExcelImportRows WHERE BatchId={bid} AND Status=30),InvalidRows=(SELECT COUNT(*) FROM dbo.F03ExcelImportRows WHERE BatchId={bid} AND Status=20) WHERE Id={bid}",ct);
+        return ServiceResult<ExcelImportBatchDto>.Ok((await GetBatchAsync(bid,ct))!,"Đã staging file Excel và kiểm tra lookup thiết bị, phòng ban, nhân viên.");}
     public async Task<ExcelImportBatchDto?> GetBatchAsync(long id, CancellationToken ct = default)
     {
         var user = User();
