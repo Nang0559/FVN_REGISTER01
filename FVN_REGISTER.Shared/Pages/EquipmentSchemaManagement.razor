@@ -9,7 +9,7 @@
 @inherits AppComponentBase
 @inject IEquipmentClientService EquipmentClient
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IJSRuntime JS
 @inject NavigationManager Navigation
 
 <PageTitle>@Language.T("equipment.quanLyMauDuLieu")</PageTitle>
@@ -215,14 +215,9 @@
     private async Task CreateManualSchemaAsync(){if(_deptCode == null||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{DepartmentCode=_deptCode!.Value,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu2"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu2"),Severity.Error);}
     private async Task DeleteDraftSchemaAsync(int schemaId, string schemaName)
     {
-        bool? confirmed = await DialogService.ShowMessageBox(
-            "Xóa mẫu dữ liệu nháp",
-            (MarkupString)$"Bạn có chắc muốn xóa mẫu <b>{System.Net.WebUtility.HtmlEncode(schemaName)}</b>? Chỉ mẫu ở trạng thái Draft và do bạn sở hữu mới được xóa. Mẫu đang sử dụng/đã có dữ liệu phụ thuộc sẽ bị server từ chối xóa.",
-            yesText: "Xóa mẫu",
-            cancelText: "Hủy",
-            options: new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small });
-
-        if (confirmed != true) return;
+        var message = $"Bạn có chắc muốn xóa mẫu nháp '{schemaName}'? Chỉ mẫu ở trạng thái Draft và do bạn sở hữu mới được xóa. Mẫu đang sử dụng hoặc có dữ liệu phụ thuộc sẽ bị server từ chối xóa.";
+        var confirmed = await JS.InvokeAsync<bool>("confirm", message);
+        if (!confirmed) return;
 
         var result = await EquipmentClient.DeleteSchemaAsync(schemaId);
         if (result.IsSuccess)
