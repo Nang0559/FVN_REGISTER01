@@ -349,7 +349,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
                     domainErrors.Add(("EquipmentCode", $"Mã thiết bị '{equipmentCode}' đã tồn tại trong danh mục chính thức.", equipmentCode));
             }
 
-            var departmentText = Value("SourceDepartment") ?? Value("DeptCode") ?? Value("DepartmentCode") ?? Value("Department");
+            var departmentText = Value("OperatingResponsibleDeptCode") ?? Value("SourceDepartment") ?? Value("DeptCode") ?? Value("DepartmentCode") ?? Value("Department");
             if (string.IsNullOrWhiteSpace(departmentText))
                 domainErrors.Add(("DepartmentCode", "Thiếu phòng ban của thiết bị; không thể xác định phạm vi lookup.", departmentText));
             else
