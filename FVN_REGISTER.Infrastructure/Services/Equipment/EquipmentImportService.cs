@@ -353,6 +353,17 @@ public sealed class EquipmentImportService : IEquipmentImportService
         foreach (var row in r.Rows)
         {
             var normalized = d.Fields.ToDictionary(field => field.FieldKey, field => row.Cells.TryGetValue(field.SourceColumnIndex, out var value) ? value : null);
+            // Persist a canonical business-property view alongside the original schema keys.
+            // This lets the approval/apply stage consume exactly the same mappings used by validation.
+            foreach (var mappedField in d.Fields.Where(field => !string.IsNullOrWhiteSpace(field.TargetProperty)))
+            {
+                if (normalized.TryGetValue(mappedField.FieldKey, out var mappedValue))
+                    normalized[mappedField.TargetProperty!.Trim()] = mappedValue;
+            }
+            // Technician is a role, not the end user. If no explicit column/value is supplied,
+            // retain the authenticated operator's employee code as the default for approval.
+            if (string.IsNullOrWhiteSpace(normalized.GetValueOrDefault("ManagedByEmployeeCode")))
+                normalized["ManagedByEmployeeCode"] = u.EmployeeCode;
             var errors = r.Errors.Where(error => error.RowNumber == row.RowIndex).ToList();
             var domainErrors = new List<(string Field, string Message, string? Raw)>();
             string? Value(string property) => GetEquipmentFieldValue(normalized, d.Fields, property)?.Trim();
