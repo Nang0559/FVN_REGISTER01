@@ -144,6 +144,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                             x.RequestType == requestType &&
                             x.Level == policy.Level &&
                             x.ApproverCode != employeeCode &&
+                            x.PositionCode != null &&
                             approvalPositionCodes.Contains(x.PositionCode) &&
                             (x.ApproveForDeptCode == resolvedDeptCode ||
                              x.ApproveForDeptCode == ApproveForDept.All));
