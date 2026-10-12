@@ -19,6 +19,8 @@ public sealed class F03EquipmentAsset : BaseAuditEntity
     [Required, StringLength(128)] public string QrToken { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
+    /// <summary>Technician accountable for managing this asset, separate from its user and approver.</summary>
+    [StringLength(50)] public string? ManagedByEmployeeCode { get; set; }
     [StringLength(50)] public string? ResponsibleEmployeeCode { get; set; }
     [StringLength(50)] public string? ResponsibleApproverEmployeeCode { get; set; }
     public DateTime? ResponsibleAssignedAt { get; set; }
