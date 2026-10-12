@@ -359,13 +359,14 @@ public sealed class EquipmentImportService : IEquipmentImportService
                     string.Equals(item.DeptName?.Trim(), departmentText, StringComparison.OrdinalIgnoreCase));
                 if (department is null)
                     domainErrors.Add(("DepartmentCode", $"Phòng ban '{departmentText}' không tồn tại hoặc không còn hoạt động.", departmentText));
-                else if (department.DeptCode != dept)
-                    domainErrors.Add(("DepartmentCode", $"Phòng ban của thiết bị ({departmentText}) không khớp phòng ban đang staging ({dept}).", departmentText));
+                // SourceDepartment is the operating department selected by schema mapping.
+                // It is independent from the department that owns the schema/import workspace.
             }
 
             // Technician and equipment user are different roles; validate them independently
             // against the same HRM-synchronized employee catalog.
-            var technicianText = Value("ManagedByEmployeeCode") ?? Value("TechnicianEmployeeCode") ?? Value("TechnicianCode") ?? Value("KyThuatVienQuanLy");
+            // If no technician column is mapped (or the cell is blank), default to the operator.
+            var technicianText = Value("ManagedByEmployeeCode") ?? u.EmployeeCode;
             if (!string.IsNullOrWhiteSpace(technicianText))
             {
                 var technician = await _db.Employees.AsNoTracking()
@@ -375,17 +376,10 @@ public sealed class EquipmentImportService : IEquipmentImportService
                     .FirstOrDefaultAsync(ct);
                 if (technician is null)
                     domainErrors.Add(("ManagedByEmployeeCode", $"Kỹ thuật viên '{technicianText}' không tồn tại hoặc đã nghỉ việc.", technicianText));
-                else
-                {
-                    var selectedDepartment = string.IsNullOrWhiteSpace(departmentText) ? null : activeDepartments.FirstOrDefault(item =>
-                        string.Equals(item.DeptCode.ToString(CultureInfo.InvariantCulture), departmentText, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(item.DeptName?.Trim(), departmentText, StringComparison.OrdinalIgnoreCase));
-                    if (selectedDepartment is not null && technician.DeptCode != selectedDepartment.DeptCode)
-                        domainErrors.Add(("ManagedByEmployeeCode", $"Kỹ thuật viên '{technician.EmployeeName}' thuộc phòng ban {technician.DeptCode}; hãy xác nhận lại phân công kỹ thuật viên.", technicianText));
-                }
+                // Technicians can manage assets across departments; validate identity/activity only.
             }
 
-            var employeeText = Value("OperatingResponsibleEmployeeCode") ?? Value("UserID") ?? Value("NguoiSuDung") ?? Value("NhanVienSuDung");
+            var employeeText = Value("OperatingResponsibleEmployeeCode");
             if (!string.IsNullOrWhiteSpace(employeeText))
             {
                 var employeeQuery = _db.Employees.AsNoTracking()
@@ -402,16 +396,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
                     .Select(item => new { item.EmployeeCode, item.EmployeeName, item.DeptCode })
                     .FirstOrDefaultAsync(ct);
                 if (employee is null)
-                    domainErrors.Add(("ResponsibleEmployeeCode", $"Nhân viên '{employeeText}' không tồn tại hoặc đã nghỉ việc.", employeeText));
-                else
-                {
-                    var assignedDepartmentText = departmentText;
-                    var assignedDepartment = string.IsNullOrWhiteSpace(assignedDepartmentText) ? null : activeDepartments.FirstOrDefault(item =>
-                        string.Equals(item.DeptCode.ToString(CultureInfo.InvariantCulture), assignedDepartmentText, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(item.DeptName?.Trim(), assignedDepartmentText, StringComparison.OrdinalIgnoreCase));
-                    if (assignedDepartment is not null && employee.DeptCode != assignedDepartment.DeptCode)
-                        domainErrors.Add(("ResponsibleEmployeeCode", $"Nhân viên '{employee.EmployeeName}' thuộc phòng ban {employee.DeptCode}, không thuộc phòng ban thiết bị {assignedDepartment.DeptCode}.", employeeText));
-                }
+                    domainErrors.Add(("OperatingResponsibleEmployeeCode", $"Người sử dụng '{employeeText}' không tồn tại hoặc không thuộc phòng ban sử dụng đã chọn.", employeeText));
             }
 
             foreach (var field in d.Fields.Where(field => field.Required && !field.AllowEmpty))
