@@ -445,7 +445,7 @@ else
         if (departments.IsSuccess) _equipmentDepartments = departments.Data ?? new();
         else Snackbar.Add(departments.Message ?? "Không tải được danh mục phòng ban HRM.", Severity.Warning);
         // Load the picker for the asset's department, not the signed-in user's default department.
-        var employeeOptions = await EquipmentClient.GetAssignmentEmployeesAsync(asset.DeptCode);
+        var employeeOptions = await EquipmentClient.GetAssignmentEmployeesAsync();
         if (employeeOptions.IsSuccess)
             _assignmentEmployees = employeeOptions.Data ?? new();
         else
