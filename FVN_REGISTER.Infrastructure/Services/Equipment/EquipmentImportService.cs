@@ -465,12 +465,17 @@ public sealed class EquipmentImportService : IEquipmentImportService
         // before submitting the inventory for approval.
         var rows = await _db.Database.SqlQueryRaw<ImportRow>(
             @"SELECT r.Id, r.RowNumber, r.Status,
-                     STRING_AGG(CONVERT(nvarchar(max), e.ErrorMessage), N'; ') AS ErrorMessage
+                     COALESCE(
+                       STUFF((
+                         SELECT N'; ' + CONVERT(nvarchar(max), e.ErrorMessage)
+                         FROM dbo.F03ExcelImportErrors e
+                         WHERE e.BatchId = r.BatchId AND e.RowNumber = r.RowNumber
+                         ORDER BY e.Id
+                         FOR XML PATH(''), TYPE
+                       ).value('.', 'nvarchar(max)'), 1, 2, N''),
+                       N'') AS ErrorMessage
               FROM dbo.F03ExcelImportRows r
-              LEFT JOIN dbo.F03ExcelImportErrors e
-                ON e.BatchId = r.BatchId AND e.RowNumber = r.RowNumber
               WHERE r.BatchId = {0}
-              GROUP BY r.Id, r.RowNumber, r.Status
               ORDER BY r.RowNumber", id).ToListAsync(ct);
 
         return new ExcelImportBatchDto
