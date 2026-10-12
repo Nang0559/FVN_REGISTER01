@@ -217,17 +217,14 @@
     {
         var schema = _schemas.FirstOrDefault(x => x.Id == schemaId);
         var status = StatusText(schema?.Status);
-        var parameters = new DialogParameters
-        {
-            [nameof(ConfirmActionDialog.Title)] = "Xác nhận xóa biểu mẫu",
-            [nameof(ConfirmActionDialog.Message)] = $"Bạn có chắc chắn muốn xóa biểu mẫu “{schemaName}” không?\nTrạng thái hiện tại: {status}. Nếu biểu mẫu có lịch sử import hoặc dữ liệu phụ thuộc cần giữ, hệ thống sẽ từ chối xóa.",
-            [nameof(ConfirmActionDialog.ConfirmText)] = "Xóa biểu mẫu",
-            [nameof(ConfirmActionDialog.CancelText)] = "Hủy",
-            [nameof(ConfirmActionDialog.ConfirmColor)] = Color.Error
-        };
-        var dialog = await DialogService.ShowAsync<ConfirmActionDialog>("Xác nhận", parameters);
-        var dialogResult = await dialog.Result;
-        if (dialogResult is null || dialogResult.Canceled) return;
+        var message = $"Bạn có chắc chắn muốn xóa biểu mẫu “{schemaName}” không? Trạng thái hiện tại: {status}. Nếu biểu mẫu có lịch sử import hoặc dữ liệu phụ thuộc cần giữ, hệ thống sẽ từ chối xóa.";
+        var confirmed = await DialogService.ShowMessageBox(
+            "Xác nhận xóa biểu mẫu",
+            message,
+            yesText: "Xóa biểu mẫu",
+            cancelText: "Hủy",
+            options: new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        if (confirmed != true) return;
 
         var result = await EquipmentClient.DeleteSchemaAsync(schemaId);
         if (result.IsSuccess)
