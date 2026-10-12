@@ -89,6 +89,8 @@ public sealed class UpdateEquipmentAssetRequest
     public DateTime ExpectedDepreciationDate { get; set; }
     public int? DeptCode { get; set; }
     public string? ResponsibleEmployeeCode { get; set; }
+    public int? OperatingResponsibleDeptCode { get; set; }
+    public string? OperatingResponsibleEmployeeCode { get; set; }
     public string? Location { get; set; }
     public string? Note { get; set; }
     public Dictionary<string, string?> CustomValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
