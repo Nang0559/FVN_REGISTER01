@@ -129,6 +129,8 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
             var approvalPositionCodes = group
                 .Select(x => x.ApprovalPositionCode)
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Select(code => code!)
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
             var levelName = string.Join(" / ", group
@@ -202,7 +204,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 Level = policy.Level,
                 Sequence = policy.Sequence,
                 LevelName = levelName,
-                RoleName = policy.RoleName,
+                RoleName = policy.RoleName ?? string.Empty,
                 Required = levelRequired,
                 Candidates = candidates
             });
