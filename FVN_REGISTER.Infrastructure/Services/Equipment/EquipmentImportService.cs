@@ -354,7 +354,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
             if (!string.IsNullOrWhiteSpace(employeeText))
             {
                 var employee = await _db.Employees.AsNoTracking()
-                    .Where(item => item.EndWorkingDate == null)
+                    .Where(item => item.IsActive == true && item.EndWorkingDate == null)
                     .Where(item => item.EmployeeCode == employeeText || item.EmployeeName == employeeText)
                     .Select(item => new { item.EmployeeCode, item.EmployeeName, item.DeptCode })
                     .FirstOrDefaultAsync(ct);
