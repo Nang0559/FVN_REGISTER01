@@ -245,6 +245,8 @@ else
                                     }
                                 </MudSelect>
                             </MudItem>
+                            <MudItem xs="12" sm="6"><MudSelect T="int?" Label="Phòng ban sử dụng" @bind-Value="_editingAsset.OperatingResponsibleDeptCode" Clearable="true"><MudSelectItem T="int?" Value="@((int?)null)">Chưa xác định</MudSelectItem>@foreach (var department in _equipmentDepartments){<MudSelectItem T="int?" Value="@((int?)department.DeptCode)">@department.DeptName</MudSelectItem>}</MudSelect></MudItem>
+                            <MudItem xs="12" sm="6"><MudSelect T="string" Label="Người sử dụng thiết bị" @bind-Value="_editingAsset.OperatingResponsibleEmployeeCode" Clearable="true"><MudSelectItem Value="@string.Empty">Chưa phân công</MudSelectItem>@foreach (var employee in _assignmentEmployees){<MudSelectItem Value="@employee.EmployeeCode">@employee.EmployeeCode - @employee.EmployeeName</MudSelectItem>}</MudSelect></MudItem>
                             <MudItem xs="12" sm="6"><MudNumericField T="decimal" Label="Nguyên giá" @bind-Value="_editingAsset.PurchasePrice" /></MudItem>
                             <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày mua" Date="@_editingAsset.PurchaseDate" DateChanged="@(d => _editingAsset.PurchaseDate = d ?? DateTime.Today)" /></MudItem>
                             <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày khấu hao dự kiến" Date="@_editingAsset.ExpectedDepreciationDate" DateChanged="@(d => _editingAsset.ExpectedDepreciationDate = d ?? _editingAsset.PurchaseDate.AddYears(5))" /></MudItem>
@@ -304,7 +306,7 @@ else
                                 <MudTd>@GetAssetCustomValue(context, field)</MudTd>
                             }
                             <MudTd>@(string.IsNullOrWhiteSpace(context.ManagedByEmployeeCode) ? "Chưa phân công" : $"{context.ManagedByEmployeeCode} - {context.ManagedByEmployeeName}")</MudTd>
-                            <MudTd>@context.ResponsibleEmployeeCode</MudTd>
+                            <MudTd>@(string.IsNullOrWhiteSpace(context.ResponsibleEmployeeCode) ? "Chưa phân công" : $"{context.ResponsibleEmployeeCode} - {context.ResponsibleEmployeeName}")<br /><MudText Typo="Typo.caption">Sử dụng: @(string.IsNullOrWhiteSpace(context.OperatingResponsibleEmployeeCode) ? "Chưa phân công" : $"{context.OperatingResponsibleEmployeeCode} - {context.OperatingResponsibleEmployeeName}")<br />Phòng ban: @(context.OperatingResponsibleDeptName ?? context.OperatingResponsibleDeptCode?.ToString() ?? "Chưa xác định")</MudText></MudTd>
                             <MudTd>
                                 @if (!context.EndpointAgentEligible)
                                 { <MudChip T="string" Size="Size.Small">Không áp dụng</MudChip> }
@@ -403,6 +405,7 @@ else
     private EquipmentActionAccessDto? _actions;
     private CreateEquipmentRegistrationDto _form = new();
     private List<EquipmentHandoverEmployeeOptionDto> _assignmentEmployees = new();
+    private List<FVN_REGISTER.Contract.Dtos.Depts.DepartmentDto> _equipmentDepartments = new();
 
     private static Dictionary<string, string?> ReadCustomValues(string? json)
     {
@@ -433,9 +436,14 @@ else
             CustomDataJson = asset.CustomDataJson,
             ManagedByEmployeeCode = asset.ManagedByEmployeeCode,
             ManagedByEmployeeName = asset.ManagedByEmployeeName,
-            ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode
+            ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode,
+            OperatingResponsibleDeptCode = asset.OperatingResponsibleDeptCode,
+            OperatingResponsibleEmployeeCode = asset.OperatingResponsibleEmployeeCode
         };
         _editingCustom = ReadCustomValues(asset.CustomDataJson);
+        var departments = await EquipmentClient.GetEquipmentDepartmentsAsync();
+        if (departments.IsSuccess) _equipmentDepartments = departments.Data ?? new();
+        else Snackbar.Add(departments.Message ?? "Không tải được danh mục phòng ban HRM.", Severity.Warning);
         // Load the picker for the asset's department, not the signed-in user's default department.
         var employeeOptions = await EquipmentClient.GetAssignmentEmployeesAsync(asset.DeptCode);
         if (employeeOptions.IsSuccess)
@@ -459,6 +467,8 @@ else
                 Specification = _editingAsset.Specification, PurchasePrice = _editingAsset.PurchasePrice,
                 PurchaseDate = _editingAsset.PurchaseDate, ExpectedDepreciationDate = _editingAsset.ExpectedDepreciationDate,
                 DeptCode = _editingAsset.DeptCode, ManagedByEmployeeCode = _editingAsset.ManagedByEmployeeCode, ResponsibleEmployeeCode = _editingAsset.ResponsibleEmployeeCode,
+                OperatingResponsibleDeptCode = _editingAsset.OperatingResponsibleDeptCode,
+                OperatingResponsibleEmployeeCode = _editingAsset.OperatingResponsibleEmployeeCode,
                 Location = _editingAsset.Location, Note = _editingAsset.Note, CustomValues = new(_editingCustom, StringComparer.OrdinalIgnoreCase)
             };
             var result = await EquipmentClient.UpdateAssetAsync(_editingAsset.Id, request);
