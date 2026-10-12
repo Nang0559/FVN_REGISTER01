@@ -47,8 +47,8 @@ public sealed class EndpointWorker : BackgroundService
                     ?? throw new InvalidOperationException("Bootstrap file không hợp lệ.");
                 if (!Uri.TryCreate(bootstrap.ApiBaseUrl, UriKind.Absolute, out var bootstrapUri) || bootstrapUri.Scheme != Uri.UriSchemeHttps)
                     throw new InvalidOperationException("Bootstrap ApiBaseUrl phải dùng HTTPS.");
-                _options.LanscopeOrganizationalUnit = bootstrap.OrganizationalUnit;
-                _options.LanscopeGroup = bootstrap.Group;
+                _options.LanscopeOrganizationalUnit = bootstrap.OrganizationalUnit ?? string.Empty;
+                _options.LanscopeGroup = bootstrap.Group ?? string.Empty;
                 var enrolled = await EnrollWithRetryAsync(bootstrap, stoppingToken);
                 _options.DeviceKey = enrolled.DeviceKey;
                 apiKey = enrolled.ApiKey;
