@@ -9,7 +9,7 @@
 @inherits AppComponentBase
 @inject IEquipmentClientService EquipmentClient
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject IDialogService DialogService
 @inject NavigationManager Navigation
 
 <PageTitle>@Language.T("equipment.quanLyMauDuLieu")</PageTitle>
@@ -215,20 +215,30 @@
     private async Task CreateManualSchemaAsync(){if(_deptCode == null||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{DepartmentCode=_deptCode!.Value,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu2"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu2"),Severity.Error);}
     private async Task DeleteDraftSchemaAsync(int schemaId, string schemaName)
     {
-        var message = $"Bạn có chắc muốn xóa mẫu nháp '{schemaName}'? Chỉ mẫu ở trạng thái Draft và do bạn sở hữu mới được xóa. Mẫu đang sử dụng hoặc có dữ liệu phụ thuộc sẽ bị server từ chối xóa.";
-        var confirmed = await JS.InvokeAsync<bool>("confirm", message);
-        if (!confirmed) return;
+        var schema = _schemas.FirstOrDefault(x => x.Id == schemaId);
+        var status = StatusText(schema?.Status);
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmActionDialog.Title)] = "Xác nhận xóa biểu mẫu",
+            [nameof(ConfirmActionDialog.Message)] = $"Bạn có chắc chắn muốn xóa biểu mẫu “{schemaName}” không?\nTrạng thái hiện tại: {status}. Nếu biểu mẫu có lịch sử import hoặc dữ liệu phụ thuộc cần giữ, hệ thống sẽ từ chối xóa.",
+            [nameof(ConfirmActionDialog.ConfirmText)] = "Xóa biểu mẫu",
+            [nameof(ConfirmActionDialog.CancelText)] = "Hủy",
+            [nameof(ConfirmActionDialog.ConfirmColor)] = Color.Error
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmActionDialog>("Xác nhận", parameters);
+        var dialogResult = await dialog.Result;
+        if (dialogResult is null || dialogResult.Canceled) return;
 
         var result = await EquipmentClient.DeleteSchemaAsync(schemaId);
         if (result.IsSuccess)
         {
             if (_schema?.Id == schemaId) _schema = null;
             await LoadSchemasWithoutClosingAsync();
-            Snackbar.Add("Đã xóa mẫu nháp.", Severity.Success);
+            Snackbar.Add("Đã xóa biểu mẫu.", Severity.Success);
         }
         else
         {
-            Snackbar.Add(result.Message ?? "Không thể xóa mẫu. Kiểm tra trạng thái mẫu và dữ liệu đang tham chiếu.", Severity.Error);
+            Snackbar.Add(result.Message ?? "Không thể xóa biểu mẫu. Kiểm tra trạng thái và dữ liệu đang tham chiếu.", Severity.Error);
         }
     }
 
