@@ -209,14 +209,6 @@
             Snackbar.Add(result.Message ?? "Không thể tải lại kết quả staging.", Severity.Error);
     }
 
-    private async Task CommitAsync()
-    {
-        if (_batch == null) return;
-        var result = await EquipmentClient.CommitImportAsync(_batch.Id);
-        Snackbar.Add(result.IsSuccess ? Language.T("equipment.daNhapDuLieuThanh") : (result.Message ?? Language.T("equipment.khongTheNhapDuLieu")), result.IsSuccess ? Severity.Success : Severity.Error);
-        if (result.IsSuccess) await LoadSelectedSchemaAsync();
-    }
-
     private string DataTypeText(string? type) => type?.ToLowerInvariant() switch
     {
         "integer" => Language.T("equipment.soNguyen"),
