@@ -226,7 +226,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                     Detail = function.Detail,
                     ModuleCode = function.ModuleCode,
                     ActionCode = function.ActionCode,
-                    ScopeCode = scope,
+                    ScopeCode = scope ?? AuthorizationScopeCodes.None,
                     AccessMode = string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                         ? "Personal"
                         : "Management",
@@ -782,7 +782,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 Detail = x.Function.Detail,
                 ModuleCode = x.Function.ModuleCode,
                 ActionCode = x.Function.ActionCode,
-                ScopeCode = x.EffectiveScope,
+                ScopeCode = x.EffectiveScope ?? AuthorizationScopeCodes.None,
                 AccessMode = x.EffectiveAccessMode,
                 DisplayOrder = x.Function.DisplayOrder,
                 IsSystemCritical = x.Function.IsSystemCritical
@@ -881,7 +881,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 Detail = x.Detail,
                 ModuleCode = x.ModuleCode,
                 ActionCode = x.ActionCode,
-                ScopeCode = x.ScopeCode,
+                ScopeCode = x.ScopeCode ?? AuthorizationScopeCodes.None,
                 DisplayOrder = x.DisplayOrder,
                 IsSystemCritical = x.IsSystemCritical
             })
