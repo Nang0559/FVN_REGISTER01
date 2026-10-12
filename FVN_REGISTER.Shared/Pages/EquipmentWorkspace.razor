@@ -76,16 +76,43 @@
                 <MudText Typo="Typo.h6">@Language.T("equipment.t2CauTrucDuocDung")</MudText>
                 <MudTable Items="_schema.Fields.OrderBy(x => x.DisplayOrder)" Dense="true" Class="mt-3">
                     <HeaderContent>
-                        <MudTh>@Language.T("equipment.truongDuLieu")</MudTh><MudTh>@Language.T("equipment.kieuDuLieu")</MudTh><MudTh>@Language.T("common.required")</MudTh><MudTh>@Language.T("equipment.doDai")</MudTh><MudTh>@Language.T("equipment.giaTriMacDinh")</MudTh>
+                        <MudTh>@Language.T("equipment.truongDuLieu")</MudTh><MudTh>Cột Excel / vị trí</MudTh><MudTh>Liên kết trường nghiệp vụ</MudTh><MudTh>@Language.T("equipment.kieuDuLieu")</MudTh><MudTh>@Language.T("common.required")</MudTh><MudTh>@Language.T("equipment.doDai")</MudTh><MudTh>@Language.T("equipment.giaTriMacDinh")</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.FieldLabel <span class="mud-text-secondary">(@context.FieldKey)</span></MudTd>
+                        <MudTd>@(context.HeaderName ?? "—") <span class="mud-text-secondary">(#@(context.SourceColumnIndex + 1))</span></MudTd>
+                        <MudTd>
+                            @if (!string.IsNullOrWhiteSpace(context.TargetProperty))
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">@TargetPropertyText(context.TargetProperty)</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chưa liên kết</MudChip>
+                            }
+                        </MudTd>
                         <MudTd>@DataTypeText(context.DataType)</MudTd>
                         <MudTd>@(context.IsRequired ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
                         <MudTd>@context.MaxLength</MudTd>
                         <MudTd>@context.DefaultValue</MudTd>
                     </RowTemplate>
                 </MudTable>
+                @if (!_schema.Fields.Any(x => string.Equals(x.TargetProperty, "EquipmentCode", StringComparison.OrdinalIgnoreCase))
+                    || !_schema.Fields.Any(x => string.Equals(x.TargetProperty, "EquipmentName", StringComparison.OrdinalIgnoreCase))
+                    || !_schema.Fields.Any(x => string.Equals(x.TargetProperty, "OperatingResponsibleDeptCode", StringComparison.OrdinalIgnoreCase)))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-3">
+                        Schema chưa liên kết đủ Mã thiết bị, Tên thiết bị và Phòng ban sử dụng. Hãy cấu hình liên kết trong Quản lý mẫu dữ liệu trước khi import.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-3">
+                        Kiểm tra các liên kết bên trên trước khi chọn file. Muốn thay đổi liên kết, mở Quản lý mẫu dữ liệu, tạo phiên bản mới, cấu hình cột Excel → trường nghiệp vụ rồi kích hoạt phiên bản đó.
+                    </MudAlert>
+                }
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schema" Class="mt-2"
+                           OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">Cấu hình liên kết trường</MudButton>
             </MudPaper>
 
             <MudPaper Outlined="true" Class="pa-5">
@@ -208,6 +235,25 @@
         else
             Snackbar.Add(result.Message ?? "Không thể tải lại kết quả staging.", Severity.Error);
     }
+
+    private string TargetPropertyText(string? target) => target?.Trim() switch
+    {
+        "EquipmentCode" => "Mã thiết bị",
+        "EquipmentName" => "Tên thiết bị",
+        "ManagedByEmployeeCode" => "Kỹ thuật viên quản lý",
+        "OperatingResponsibleEmployeeCode" => "Người sử dụng thiết bị",
+        "OperatingResponsibleDeptCode" => "Phòng ban sử dụng",
+        "ResponsibleEmployeeCode" => "Người phụ trách nghiệp vụ",
+        "AssetCode" => "Mã tài sản",
+        "SerialNumber" => "Số serial",
+        "Specification" => "Thông số",
+        "PurchasePrice" => "Nguyên giá",
+        "PurchaseDate" => "Ngày mua",
+        "ExpectedDepreciationDate" => "Ngày khấu hao dự kiến",
+        "Location" => "Vị trí",
+        "Note" => "Ghi chú",
+        _ => target ?? "Chưa liên kết"
+    };
 
     private string DataTypeText(string? type) => type?.ToLowerInvariant() switch
     {
