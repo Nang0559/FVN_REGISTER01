@@ -133,19 +133,52 @@
                     <MudText Typo="Typo.subtitle1">@Language.T("equipment.loNhap", _batch.Id)</MudText>
                     <MudText>@Language.T("common.trangThai2", BatchStatusText(_batch.Status))</MudText>
                     <MudText>@Language.T("equipment.tongHopLeLoi", _batch.TotalRows, _batch.ValidRows, _batch.InvalidRows)</MudText>
-                    @if (_batch.Rows.Any(x => !string.IsNullOrWhiteSpace(x.ErrorMessage)))
+                    <MudStepper Linear="false" Class="my-4">
+                        <MudStep Title="Kiểm tra Excel" Completed="true">
+                            <MudText Typo="Typo.body2">File đã được đưa vào staging và kiểm tra dữ liệu.</MudText>
+                        </MudStep>
+                        <MudStep Title="Duyệt kết quả">
+                            <MudText Typo="Typo.body2">Rà soát từng dòng hợp lệ, lỗi và xung đột trước khi xác nhận.</MudText>
+                        </MudStep>
+                        <MudStep Title="Tạo bản nháp">
+                            <MudText Typo="Typo.body2">Các dòng được chấp nhận sẽ cần chuyển thành bản nháp đăng ký hoặc yêu cầu thay đổi thiết bị.</MudText>
+                        </MudStep>
+                        <MudStep Title="Gửi phê duyệt">
+                            <MudText Typo="Typo.body2">Danh mục chính thức chỉ được cập nhật sau khi hoàn tất phê duyệt.</MudText>
+                        </MudStep>
+                    </MudStepper>
+                    <MudGrid Class="my-2">
+                        <MudItem xs="12" sm="4"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.caption">Tổng số dòng</MudText><MudText Typo="Typo.h5">@_batch.TotalRows</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="4"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.caption">Dòng hợp lệ</MudText><MudText Typo="Typo.h5" Color="Color.Success">@_batch.ValidRows</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="4"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.caption">Dòng lỗi</MudText><MudText Typo="Typo.h5" Color="@(_batch.InvalidRows > 0 ? Color.Error : Color.Default)">@_batch.InvalidRows</MudText></MudPaper></MudItem>
+                    </MudGrid>
+                    <MudText Typo="Typo.subtitle1" Class="mt-3 mb-2">Chi tiết kiểm tra theo từng dòng</MudText>
+                    @if (_batch.Rows.Count == 0)
                     {
-                        <MudAlert Severity="Severity.Error" Class="my-3">
-                            @foreach (var row in _batch.Rows.Where(x => !string.IsNullOrWhiteSpace(x.ErrorMessage)).Take(20))
-                            {
-                                <div>@Language.T("equipment.dong", row.RowNumber, row.ErrorMessage)</div>
-                            }
-                        </MudAlert>
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Batch chưa có chi tiết từng dòng. Hãy làm mới kết quả; nếu vẫn trống, cần kiểm tra API trả dữ liệu staging.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="_batch.Rows.OrderBy(x => x.RowNumber)" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent><MudTh>Dòng Excel</MudTh><MudTh>Kết quả kiểm tra</MudTh><MudTh>Chi tiết / lỗi</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Dòng Excel">@context.RowNumber</MudTd>
+                                <MudTd DataLabel="Kết quả kiểm tra">
+                                    @if (string.Equals(context.Status, "Valid", StringComparison.OrdinalIgnoreCase)) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Hợp lệ</MudChip> }
+                                    else if (string.Equals(context.Status, "Invalid", StringComparison.OrdinalIgnoreCase)) { <MudChip T="string" Size="Size.Small" Color="Color.Error">Lỗi</MudChip> }
+                                    else { <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Status</MudChip> }
+                                </MudTd>
+                                <MudTd DataLabel="Chi tiết / lỗi">
+                                    @if (!string.IsNullOrWhiteSpace(context.ErrorMessage)) { <MudText Color="Color.Error" Typo="Typo.body2">@context.ErrorMessage</MudText> }
+                                    else { <MudText Typo="Typo.body2" Class="mud-text-secondary">Không phát hiện lỗi ở bước staging.</MudText> }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
                     }
                     <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
-                        Dữ liệu hiện mới ở bước staging. Không ghi trực tiếp vào danh mục thiết bị từ batch Excel; cần hoàn tất kiểm tra phạm vi, đối chiếu dữ liệu và gửi các thay đổi qua quy trình phê duyệt thiết bị.
+                        <b>Bước tiếp theo:</b> rà soát kết quả ở bảng trên. Hiện batch chỉ được lưu ở staging; không ghi trực tiếp vào danh mục thiết bị. API xác nhận để tạo bản nháp đăng ký/yêu cầu thay đổi và gửi phê duyệt chưa được nối vào màn hình này.
                     </MudAlert>
-                    <MudButton Variant="Variant.Outlined" Class="mt-2" Disabled="@_uploading" OnClick="RefreshBatchAsync">Làm mới kết quả kiểm tra</MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Class="mt-2" Disabled="@_uploading" OnClick="RefreshBatchAsync">Làm mới kết quả kiểm tra</MudButton>
                 }
             </MudPaper>
         }
