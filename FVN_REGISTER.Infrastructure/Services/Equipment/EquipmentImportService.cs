@@ -363,6 +363,28 @@ public sealed class EquipmentImportService : IEquipmentImportService
                     domainErrors.Add(("DepartmentCode", $"Phòng ban của thiết bị ({departmentText}) không khớp phòng ban đang staging ({dept}).", departmentText));
             }
 
+            // Technician and equipment user are different roles; validate them independently
+            // against the same HRM-synchronized employee catalog.
+            var technicianText = Value("ManagedByEmployeeCode") ?? Value("TechnicianEmployeeCode") ?? Value("TechnicianCode") ?? Value("KyThuatVienQuanLy");
+            if (!string.IsNullOrWhiteSpace(technicianText))
+            {
+                var technician = await _db.Employees.AsNoTracking()
+                    .Where(item => item.IsActive == true && item.EndWorkingDate == null)
+                    .Where(item => item.EmployeeCode == technicianText || item.EmployeeName == technicianText)
+                    .Select(item => new { item.EmployeeCode, item.EmployeeName, item.DeptCode })
+                    .FirstOrDefaultAsync(ct);
+                if (technician is null)
+                    domainErrors.Add(("ManagedByEmployeeCode", $"Kỹ thuật viên '{technicianText}' không tồn tại hoặc đã nghỉ việc.", technicianText));
+                else
+                {
+                    var selectedDepartment = string.IsNullOrWhiteSpace(departmentText) ? null : activeDepartments.FirstOrDefault(item =>
+                        string.Equals(item.DeptCode.ToString(CultureInfo.InvariantCulture), departmentText, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(item.DeptName?.Trim(), departmentText, StringComparison.OrdinalIgnoreCase));
+                    if (selectedDepartment is not null && technician.DeptCode != selectedDepartment.DeptCode)
+                        domainErrors.Add(("ManagedByEmployeeCode", $"Kỹ thuật viên '{technician.EmployeeName}' thuộc phòng ban {technician.DeptCode}; hãy xác nhận lại phân công kỹ thuật viên.", technicianText));
+                }
+            }
+
             var employeeText = Value("ResponsibleEmployeeCode") ?? Value("UserID") ?? Value("EmployeeCode") ?? Value("Employee");
             if (!string.IsNullOrWhiteSpace(employeeText))
             {
@@ -476,10 +498,15 @@ public sealed class EquipmentImportService : IEquipmentImportService
             return "EquipmentCode";
         if (normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name")
             return "EquipmentName";
-        // Excel exports commonly use UserID for the responsible employee code.
-        // This maps to F03Employees.EmployeeCode, not F03Users.Id.
-        if (normalized is "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach" or "responsibleemployeecode")
+        // Keep technician manager separate from the asset's end user.
+        if (normalized is "managedbyemployeecode" or "technicianemployeecode" or "techniciancode" or "kythuatvienquanly" or "kythuatvien")
+            return "ManagedByEmployeeCode";
+        // Legacy Excel UserID is treated as an employee code only for the user/responsible role,
+        // never as F03Users.Id and never as the technician manager.
+        if (normalized is "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach" or "responsibleemployeecode" or "nguoisudung")
             return "ResponsibleEmployeeCode";
+        if (normalized is "sourcedepartment" or "operatingresponsibledeptcode" or "departmentuser")
+            return "OperatingResponsibleDeptCode";
         return null;
     }
 
@@ -497,7 +524,9 @@ public sealed class EquipmentImportService : IEquipmentImportService
         {
             "EquipmentCode" => normalized is "equipmentcode" or "assetcode" or "machietbi" or "mataisan" or "masothietbi" or "masanpham" or "code",
             "EquipmentName" => normalized is "equipmentname" or "assetname" or "tenthietbi" or "tentaisan" or "tensanpham" or "name",
-            "ResponsibleEmployeeCode" => normalized is "responsibleemployeecode" or "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach",
+            "ManagedByEmployeeCode" => normalized is "managedbyemployeecode" or "technicianemployeecode" or "techniciancode" or "kythuatvienquanly" or "kythuatvien",
+            "OperatingResponsibleDeptCode" => normalized is "sourcedepartment" or "operatingresponsibledeptcode" or "departmentuser",
+            "ResponsibleEmployeeCode" => normalized is "responsibleemployeecode" or "userid" or "employeecode" or "employeeid" or "manhanvien" or "nguoiphutrach" or "manhanvienphutrach" or "nguoisudung",
             "AssetCode" => normalized is "assettag" or "assetcode" or "tagtaisan" or "mataisan",
             "SerialNumber" => normalized is "serialnumber" or "serialno" or "serial" or "soserial",
             "Specification" => normalized is "specification" or "thongso" or "cauhinh",
