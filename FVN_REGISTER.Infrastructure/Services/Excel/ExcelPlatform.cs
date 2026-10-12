@@ -253,13 +253,29 @@ public sealed class ExcelPlatform : IExcelPlatform
 
     public async Task DeleteDraftSchemaAsync(int schemaId, CancellationToken ct = default)
     {
-        const string sql = """
-            UPDATE dbo.F03ExcelSchemas
-            SET Status=920, IsActive=0, UpdatedAt=SYSUTCDATETIME()
-            WHERE Id=@id AND Status=0
-              AND NOT EXISTS (SELECT 1 FROM dbo.F03ExcelImportBatches WHERE SchemaId=@id AND Status IN (40,100));
+        // Equipment templates may be deleted only while Draft or Retired (Status=2).
+        // Preserve the schema/version rows as a soft delete, and never remove a schema
+        // that has any import-batch history, regardless of the batch's current status.
+        const string safeSql = """
+            UPDATE s
+            SET s.Status=920, s.IsActive=0, s.UpdatedAt=SYSUTCDATETIME()
+            FROM dbo.F03ExcelSchemas AS s
+            WHERE s.Id=@id
+              AND s.Status IN (0,2)
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.F03ExcelImportBatches AS b WHERE b.SchemaId=s.Id
+              );
             """;
-        if (await ExecuteNonQueryAsync(sql, ("@id", schemaId)) == 0) throw new InvalidOperationException("Only an unused Draft schema can be deleted.");
+        if (await ExecuteNonQueryAsync(safeSql, ("@id", schemaId)) == 0)
+        {
+            var exists = await ExecuteSingleAsync("SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.F03ExcelSchemas WHERE Id=@id AND Status<>920) THEN '1' ELSE '0' END;", ("@id", schemaId));
+            if (exists is null || exists == "0")
+                throw new InvalidOperationException("Không tìm thấy biểu mẫu hoặc biểu mẫu đã được xóa.");
+            var status = await ExecuteSingleAsync("SELECT CAST(Status AS varchar(10)) FROM dbo.F03ExcelSchemas WHERE Id=@id;", ("@id", schemaId));
+            if (status != "0" && status != "2")
+                throw new InvalidOperationException("Chỉ được xóa biểu mẫu Bản nháp hoặc Ngừng sử dụng.");
+            throw new InvalidOperationException("Không thể xóa biểu mẫu vì đã có lịch sử batch import cần được bảo toàn.");
+        }
     }
 
     private static Task<ExcelPreviewResult> ReadAsync(Stream content, string fileName, ExcelSchemaDefinition schema, CancellationToken ct)
