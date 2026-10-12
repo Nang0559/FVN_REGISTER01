@@ -77,6 +77,8 @@ public sealed class EquipmentHandoverHistoryDto
 
 public sealed class UpdateEquipmentAssetRequest
 {
+    /// <summary>Technician assigned to manage the asset; independent of its user and approver.</summary>
+    public string? ManagedByEmployeeCode { get; set; }
     public string EquipmentCode { get; set; } = string.Empty;
     public string EquipmentName { get; set; } = string.Empty;
     public string? AssetCode { get; set; }
