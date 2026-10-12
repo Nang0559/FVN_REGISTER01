@@ -43,7 +43,7 @@
 }
 else
 {
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
 
         @* ───────────── Tab 1: Email Profiles ───────────── *@
         <MudTabPanel Text="@Language.T("email.tabProfiles")" Icon="@Icons.Material.Filled.Dns">
@@ -537,9 +537,10 @@ else
         _ => mode
     };
 
-    public void Dispose()
+    public override void Dispose()
     {
         _cts.Cancel();
         _cts.Dispose();
+        base.Dispose();
     }
 }
