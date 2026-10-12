@@ -9,7 +9,6 @@
 @inherits AppComponentBase
 @inject IEquipmentClientService EquipmentClient
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
 @inject NavigationManager Navigation
 
 <PageTitle>@Language.T("equipment.quanLyMauDuLieu")</PageTitle>
@@ -109,6 +108,21 @@
         </MudGrid>
     }
 </MudContainer>
+
+@if (_showDeleteConfirmation)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="2000" AutoClose="false">
+        <MudPaper Class="pa-4" Elevation="8" Style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 32px));z-index:2001;">
+            <MudText Typo="Typo.h6">Xác nhận xóa biểu mẫu</MudText>
+            <MudText Class="mt-3">Bạn có chắc chắn muốn xóa biểu mẫu “@_pendingDeleteSchemaName” không?</MudText>
+            <MudText Class="mt-2" Color="Color.Secondary">Trạng thái: @_pendingDeleteStatus. Nếu biểu mẫu có lịch sử import hoặc dữ liệu phụ thuộc cần giữ, hệ thống sẽ từ chối xóa.</MudText>
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4" Spacing="2">
+                <MudButton Variant="Variant.Text" OnClick="CancelDeleteSchema">Hủy</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmDeleteSchemaAsync">Xóa biểu mẫu</MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudOverlay>
+}
 
 @code {
     private sealed record DataTypeOption(string Code,string Name);
@@ -213,23 +227,30 @@
         finally{_creatingFromExcel=false;}
     }
     private async Task CreateManualSchemaAsync(){if(_deptCode == null||string.IsNullOrWhiteSpace(_newSchemaName))return;var result=await EquipmentClient.SaveSchemaAsync(new ExcelSchemaUpsertRequest{DepartmentCode=_deptCode!.Value,SchemaName=_newSchemaName.Trim(),Status="Draft"});if(result.IsSuccess){_schema=result.Data;await LoadSchemasWithoutClosingAsync();Snackbar.Add(Language.T("equipment.daTaoMauDuLieu2"),Severity.Success);}else Snackbar.Add(result.Message??Language.T("equipment.khongTaoDuocMauDu2"),Severity.Error);}
-    private async Task DeleteDraftSchemaAsync(int schemaId, string schemaName)
+    private bool _showDeleteConfirmation;
+    private int _pendingDeleteSchemaId;
+    private string _pendingDeleteSchemaName = string.Empty;
+    private string _pendingDeleteStatus = string.Empty;
+
+    private Task DeleteDraftSchemaAsync(int schemaId, string schemaName)
     {
         var schema = _schemas.FirstOrDefault(x => x.Id == schemaId);
-        var status = StatusText(schema?.Status);
-        var message = $"Bạn có chắc chắn muốn xóa biểu mẫu “{schemaName}” không? Trạng thái hiện tại: {status}. Nếu biểu mẫu có lịch sử import hoặc dữ liệu phụ thuộc cần giữ, hệ thống sẽ từ chối xóa.";
-        var confirmed = await DialogService.ShowMessageBox(
-            "Xác nhận xóa biểu mẫu",
-            message,
-            yesText: "Xóa biểu mẫu",
-            cancelText: "Hủy",
-            options: new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
-        if (confirmed != true) return;
+        _pendingDeleteSchemaId = schemaId;
+        _pendingDeleteSchemaName = schemaName;
+        _pendingDeleteStatus = StatusText(schema?.Status);
+        _showDeleteConfirmation = true;
+        return Task.CompletedTask;
+    }
 
-        var result = await EquipmentClient.DeleteSchemaAsync(schemaId);
+    private void CancelDeleteSchema() => _showDeleteConfirmation = false;
+
+    private async Task ConfirmDeleteSchemaAsync()
+    {
+        _showDeleteConfirmation = false;
+        var result = await EquipmentClient.DeleteSchemaAsync(_pendingDeleteSchemaId);
         if (result.IsSuccess)
         {
-            if (_schema?.Id == schemaId) _schema = null;
+            if (_schema?.Id == _pendingDeleteSchemaId) _schema = null;
             await LoadSchemasWithoutClosingAsync();
             Snackbar.Add("Đã xóa biểu mẫu.", Severity.Success);
         }
