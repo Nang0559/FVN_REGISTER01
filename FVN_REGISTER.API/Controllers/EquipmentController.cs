@@ -171,7 +171,7 @@ public sealed class EquipmentController : ControllerBase
     {
         var canRepair = await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct);
         var user = _currentUser.GetCurrentUser();
-        var assigned = user != null && !string.IsNullOrWhiteSpace(user.EmployeeCode) && await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.IsActive == true && (x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode), ct);
+        var assigned = user != null && !string.IsNullOrWhiteSpace(user.EmployeeCode) && await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.IsActive == true && (x.ManagedByEmployeeCode == user.EmployeeCode || x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode), ct);
         if (!canRepair && !assigned) return Forbid();
         var result = await _service.GetRepairAssigneesAsync(deptCode, ct);
         return result.IsSuccess ? Ok(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result));
