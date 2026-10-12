@@ -231,21 +231,15 @@ public sealed class ExcelPlatform : IExcelPlatform
             var key = await ExecuteSingleAsync("SELECT ModuleCode + CHAR(31) + EntityCode + CHAR(31) + SchemaCode FROM dbo.F03ExcelSchemas WHERE Id=@id AND Status=0 AND CurrentVersionId IS NOT NULL;", ("@id", schemaId));
             if (key is null) throw new InvalidOperationException("Only a Draft schema with a version can be activated.");
             var parts = key.Split((char)31);
-            // Equipment schemas are scoped by department (prefix before ':') rather than the generated unique SchemaCode.
-            // Activating a second template for the same department must retire the previously active template.
-            if (string.Equals(parts[0], "EQUIPMENT", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(parts[1], "EQUIPMENT_ASSET", StringComparison.OrdinalIgnoreCase))
+            // Equipment schemas are independent templates. Activating one must not retire
+            // other schemas owned by the same department: users may keep and reuse multiple
+            // active forms. Retiring a template is an explicit lifecycle action.
+            var isEquipmentSchema =
+                string.Equals(parts[0], "EQUIPMENT", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(parts[1], "EQUIPMENT_ASSET", StringComparison.OrdinalIgnoreCase);
+            if (!isEquipmentSchema)
             {
-                await ExecuteNonQueryAsync("""
-                    UPDATE dbo.F03ExcelSchemas
-                    SET Status=2, IsActive=0, UpdatedAt=SYSUTCDATETIME()
-                    WHERE ModuleCode=@m AND EntityCode=@e AND Id<>@id AND Status=1
-                      AND LEFT(SchemaCode, CHARINDEX(':', SchemaCode + ':') - 1) =
-                          LEFT((SELECT SchemaCode FROM dbo.F03ExcelSchemas WHERE Id=@id), CHARINDEX(':', (SELECT SchemaCode FROM dbo.F03ExcelSchemas WHERE Id=@id) + ':') - 1);
-                    """, ("@m", parts[0]), ("@e", parts[1]), ("@id", schemaId));
-            }
-            else
-            {
+                // For other modules, preserve the existing single-active-schema-per-key behavior.
                 await ExecuteNonQueryAsync("UPDATE dbo.F03ExcelSchemas SET Status=2,IsActive=0,UpdatedAt=SYSUTCDATETIME() WHERE ModuleCode=@m AND EntityCode=@e AND SchemaCode=@k AND Id<>@id AND Status=1;", ("@m", parts[0]), ("@e", parts[1]), ("@k", parts[2]), ("@id", schemaId));
             }
             if (await ExecuteNonQueryAsync("UPDATE dbo.F03ExcelSchemas SET Status=1,IsActive=1,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id AND Status=0;", ("@id", schemaId)) == 0) throw new InvalidOperationException("Schema cannot be activated.");
