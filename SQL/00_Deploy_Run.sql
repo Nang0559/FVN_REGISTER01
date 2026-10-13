@@ -28,6 +28,7 @@
 :r "Excel/003_MigrateLegacyExcelSchemaJson.sql"
 :r "16_EquipmentFlexibleImport.sql"
 :r "16_EquipmentFlexibleImport_LegacyCleanup.sql"
+:r "19_EquipmentImportRequestLinks.sql"
 :r "16A_EquipmentCapabilities.sql"
 :r "17_ApprovalRouteSelection.sql"
 :r "18_ApproverConfigurationReview.sql"
