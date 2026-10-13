@@ -41,6 +41,9 @@ jobs:
         env:
           CI: "true"
           PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME || secrets.TEST_USERNAME || secrets.USERNAME }}
+          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD || secrets.TEST_PASSWORD || secrets.PASSWORD }}
+          PLAYWRIGHT_MAX_PAGES: "80"
         run: |
           if [ -z "$PLAYWRIGHT_BASE_URL" ]; then
             unset PLAYWRIGHT_BASE_URL
