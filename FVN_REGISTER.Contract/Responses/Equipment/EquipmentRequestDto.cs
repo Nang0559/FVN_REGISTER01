@@ -27,4 +27,5 @@ public sealed class EquipmentRequestDto
     public string? RepairAssigneeEmployeeCode { get; set; }
     public string? RepairFeedback { get; set; }
     public DateTime? RepairCompletedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

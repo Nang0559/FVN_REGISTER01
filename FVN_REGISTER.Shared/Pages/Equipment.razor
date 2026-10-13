@@ -67,7 +67,7 @@ else
                             </div>
                             @if (_actions?.Import == true)
                             {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Import Excel</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở màn hình import Excel</MudButton>
                             }
                         </MudStack>
                     </MudPaper>
@@ -93,7 +93,10 @@ else
                                     <MudTh>Tên thiết bị</MudTh>
                                     <MudTh>Mã tài sản</MudTh>
                                     <MudTh>Bộ phận</MudTh>
+                                    <MudTh>Người tạo</MudTh>
+                                    <MudTh>Thời gian tạo</MudTh>
                                     <MudTh>Trạng thái</MudTh>
+                                    <MudTh>Thao tác</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd DataLabel="Mã yêu cầu">#@context.Id</MudTd>
@@ -101,9 +104,38 @@ else
                                     <MudTd DataLabel="Tên thiết bị">@context.EquipmentName</MudTd>
                                     <MudTd DataLabel="Mã tài sản">@context.AssetCode</MudTd>
                                     <MudTd DataLabel="Bộ phận">@context.DeptCode</MudTd>
-                                    <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.RequestStatus</MudChip></MudTd>
+                                    <MudTd DataLabel="Người tạo">@(string.IsNullOrWhiteSpace(context.EmployeeName) ? context.EmployeeCode : $"{context.EmployeeCode} - {context.EmployeeName}")</MudTd>
+                                    <MudTd DataLabel="Thời gian tạo">@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                                    <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@DraftStatusLabel(context.RequestStatus)</MudChip></MudTd>
+                                    <MudTd DataLabel="Thao tác">
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew" OnClick="@(() => _detailDraft = context)">Mở chi tiết</MudButton>
+                                            @if (_actions?.Edit == true)
+                                            {
+                                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Send" Disabled="_busy" OnClick="@(() => SubmitDraftAsync(context))">Gửi phê duyệt</MudButton>
+                                            }
+                                        </MudStack>
+                                    </MudTd>
                                 </RowTemplate>
                             </MudTable>
+                            @if (_detailDraft != null)
+                            {
+                                <MudPaper Outlined="true" Class="mt-3 pa-3">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.subtitle1">Chi tiết yêu cầu #@_detailDraft.Id — @RequestKindLabel(_detailDraft.RequestKind)</MudText>
+                                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => _detailDraft = null)">Đóng</MudButton>
+                                    </MudStack>
+                                    <MudGrid Class="mt-1">
+                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Tên thiết bị: <b>@_detailDraft.EquipmentName</b></MudText></MudItem>
+                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Mã tài sản: <b>@_detailDraft.AssetCode</b></MudText></MudItem>
+                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Bộ phận: <b>@_detailDraft.DeptCode</b></MudText></MudItem>
+                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Trạng thái: <b>@DraftStatusLabel(_detailDraft.RequestStatus)</b></MudText></MudItem>
+                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Giá mua: <b>@_detailDraft.PurchasePrice.ToString("N0")</b></MudText></MudItem>
+                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Ngày mua: <b>@_detailDraft.PurchaseDate?.ToString("dd/MM/yyyy")</b></MudText></MudItem>
+                                    </MudGrid>
+                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-2">Đây là bản nháp. Danh mục tài sản chính thức chỉ được cập nhật sau khi yêu cầu được phê duyệt.</MudAlert>
+                                </MudPaper>
+                            }
                         }
                     </MudPaper>
 
@@ -387,6 +419,33 @@ else
         .Where(x => x.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft
             || x.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision)
         .OrderByDescending(x => x.Id);
+
+    private EquipmentRequestDto? _detailDraft;
+
+    private static string DraftStatusLabel(FVN_REGISTER.Core.Enums.ApprovalStatus status) =>
+        status == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft ? "Bản nháp" :
+        status == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision ? "Cần chỉnh sửa" : status.ToString();
+
+    private async Task SubmitDraftAsync(EquipmentRequestDto draft)
+    {
+        if (_actions?.Edit != true || _busy) return;
+        _busy = true;
+        try
+        {
+            // Registration drafts go through the registration flow; asset-change drafts through the
+            // existing asset-change flow. Neither touches the official asset catalog before approval.
+            FVN_REGISTER.Contract.Responses.ApiResponse result;
+            if (draft.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange && draft.AssetId.HasValue)
+                result = await EquipmentClient.SubmitAssetChangeAsync(draft.AssetId.Value);
+            else
+                result = await EquipmentClient.SubmitRegistrationAsync(draft.Id);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.khongTheGuiDuyet"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.daGuiDuyet"), Severity.Success);
+            if (_detailDraft?.Id == draft.Id) _detailDraft = null;
+            await LoadAsync();
+        }
+        finally { _busy = false; }
+    }
 
     private static string RequestKindLabel(FVN_REGISTER.Core.Enums.EquipmentRequestKind kind) =>
         kind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange ? "Thay đổi thiết bị" :
