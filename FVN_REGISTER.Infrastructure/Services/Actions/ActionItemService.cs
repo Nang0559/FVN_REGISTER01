@@ -96,19 +96,29 @@ public sealed class ActionItemService : IActionItemService
         int employeeId,
         CancellationToken cancellationToken)
     {
-        var actionIds = items
+        var candidates = items
             .Where(x => x.AssignedToEmployeeId == employeeId)
-            .Select(x => x.ActionId)
             .ToList();
-        if (actionIds.Count == 0) return;
+        if (candidates.Count == 0) return;
 
+        var actionIds = candidates.Select(x => x.ActionId).ToList();
+        var confirmationSourceIds = candidates
+            .Where(x => string.Equals(x.ActionType, ExecutionConfirmationActionType, StringComparison.Ordinal))
+            .Select(x => x.SourceId)
+            .Distinct()
+            .ToList();
+
+        // Khi HR xử lý xong, reconciliation.ActionId chuyển sang action "kết quả" mới, còn action xác nhận gốc
+        // (EXECUTION_CONFIRMATION) không còn được tham chiếu bằng ActionId. Vì vậy ngoài ActionId còn phải
+        // khớp action gốc theo (Module, SourceType, SourceId, Participant) để danh sách không bị kẹt trạng thái cũ.
         var reconciliations = await _db.ExecutionReconciliations
             .AsNoTracking()
             .Where(x => x.IsActive != false
                 && x.EmployeeId == employeeId
-                && x.ActionId != null
-                && actionIds.Contains(x.ActionId.Value))
-            .Select(x => new { x.Id, ActionId = x.ActionId!.Value, x.ReconciliationStatus })
+                && ((x.ActionId != null && actionIds.Contains(x.ActionId.Value))
+                    || (confirmationSourceIds.Count > 0 && confirmationSourceIds.Contains(x.SourceId))))
+            .Select(x => new ExecutionReconciliationRow(
+                x.Id, x.ActionId, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId, x.ReconciliationStatus))
             .ToListAsync(cancellationToken);
         if (reconciliations.Count == 0) return;
 
@@ -122,12 +132,26 @@ public sealed class ActionItemService : IActionItemService
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
 
         var reconciliationByAction = reconciliations
-            .GroupBy(x => x.ActionId)
+            .Where(x => x.ActionId.HasValue)
+            .GroupBy(x => x.ActionId!.Value)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
 
-        foreach (var item in items)
+        var reconciliationBySource = reconciliations
+            .GroupBy(x => ConfirmationSourceKey(x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId))
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
+
+        foreach (var item in candidates)
         {
-            if (!reconciliationByAction.TryGetValue(item.ActionId, out var reconciliation)
+            ExecutionReconciliationRow? reconciliation = null;
+            if (reconciliationByAction.TryGetValue(item.ActionId, out var byAction))
+                reconciliation = byAction;
+            else if (string.Equals(item.ActionType, ExecutionConfirmationActionType, StringComparison.Ordinal)
+                && reconciliationBySource.TryGetValue(
+                    ConfirmationSourceKey(item.ModuleCode, item.SourceType, item.SourceId, item.ParticipantId),
+                    out var bySource))
+                reconciliation = bySource;
+
+            if (reconciliation is null
                 || !confirmations.TryGetValue(reconciliation.Id, out var confirmation))
                 continue;
 
@@ -148,6 +172,20 @@ public sealed class ActionItemService : IActionItemService
                     : null;
         }
     }
+
+    private const string ExecutionConfirmationActionType = "EXECUTION_CONFIRMATION";
+
+    private static string ConfirmationSourceKey(string? moduleCode, string? sourceType, string? sourceId, string? participantId)
+        => $"{moduleCode}|{sourceType}|{sourceId}|{participantId}";
+
+    private sealed record ExecutionReconciliationRow(
+        long Id,
+        Guid? ActionId,
+        string? ModuleCode,
+        string? SourceType,
+        string? SourceId,
+        string? ParticipantId,
+        string? ReconciliationStatus);
 
     public async Task<ActionCountDto> GetCountAsync(
         string employeeCode,

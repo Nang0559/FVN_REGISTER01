@@ -867,6 +867,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         reconciliation.LastModifiedSource = "HR_EXECUTION_REVIEW";
 
         await CompleteExecutionReviewActionsAsync(reconciliation.Id, userId, cancellationToken);
+        await CompleteEmployeeConfirmationActionsAsync(reconciliation, userId, cancellationToken);
 
         if (!isFinalDecision)
             reconciliation.ActionId = await EnsureEmployeeResultActionAsync(
@@ -996,6 +997,47 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .Where(x => x.IsActive != false
                 && x.ActionType == "EXECUTION_EVIDENCE_REVIEW"
                 && x.SourceId == reconciliationId.ToString()
+                && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
+            .ToListAsync(cancellationToken);
+
+        if (actions.Count == 0)
+            return;
+
+        var now = DateTime.Now;
+        foreach (var action in actions)
+        {
+            action.Status = ActionItemStatus.Completed;
+            action.CompletedAt = now;
+            action.ModifiedBy = userId;
+            action.ModifiedAt = now;
+            action.LastModifiedSource = "HR_EXECUTION_REVIEW";
+        }
+    }
+
+    /// <summary>
+    /// Nhân viên đã phản hồi và HR đã trả lời => action xác nhận gốc (EXECUTION_CONFIRMATION) hoàn tất.
+    /// Nếu không đóng, nó mồ côi (reconciliation.ActionId chuyển sang action kết quả mới) và nằm mãi trong
+    /// "Nhiệm vụ của tôi" với trạng thái cũ, trùng với action "Xác nhận kết quả đối soát công".
+    /// </summary>
+    private async Task CompleteEmployeeConfirmationActionsAsync(
+        F03ExecutionReconciliation reconciliation,
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var moduleCode = reconciliation.ModuleCode;
+        var sourceType = reconciliation.SourceType;
+        var sourceId = reconciliation.SourceId;
+        var participantId = reconciliation.ParticipantId;
+        var employeeId = reconciliation.EmployeeId;
+
+        var actions = await _db.ActionItems
+            .Where(x => x.IsActive != false
+                && x.ActionType == "EXECUTION_CONFIRMATION"
+                && x.ModuleCode == moduleCode
+                && x.SourceType == sourceType
+                && x.SourceId == sourceId
+                && x.ParticipantId == participantId
+                && x.AssignedToEmployeeId == employeeId
                 && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
             .ToListAsync(cancellationToken);
 

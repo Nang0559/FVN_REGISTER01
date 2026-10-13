@@ -464,13 +464,41 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 ActionId = issue.ActionId,
                 DetailRoute = issue.DetailRoute,
                 RequestId = issue.RequestId,
-                // Complete: đã xong, không mời phản hồi lại. Các trạng thái khác giữ nguyên hành động.
-                Actions = complete ? Array.Empty<CalendarActionOptionDto>() : issue.Actions,
+                // Complete: đã xong, không mời phản hồi lại. HR processed: dẫn tới trang kết quả để xác nhận/khiếu nại.
+                Actions = ResolveFeedbackActions(issue, item, complete),
                 FeedbackTone = item.FeedbackTone,
                 FeedbackMarker = item.FeedbackMarker,
                 FeedbackLabel = item.FeedbackLabel
             };
         }).ToArray();
+    }
+
+    private static IReadOnlyList<CalendarActionOptionDto> ResolveFeedbackActions(
+        CalendarIssueDto issue,
+        CalendarItemDto item,
+        bool complete)
+    {
+        if (complete)
+            return Array.Empty<CalendarActionOptionDto>();
+
+        var route = string.IsNullOrWhiteSpace(item.DetailRoute) ? issue.DetailRoute : item.DetailRoute;
+        if (string.Equals(item.FeedbackTone, "hr-resolved", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(route))
+        {
+            return new[]
+            {
+                new CalendarActionOptionDto
+                {
+                    Code = "OPEN_EXECUTION_RESULT",
+                    Title = "Xem kết quả HR và xác nhận/khiếu nại",
+                    Description = "HR đã xử lý phản hồi của bạn. Mở kết quả để xác nhận hoặc khiếu nại.",
+                    Kind = "NAVIGATION",
+                    DetailRoute = route
+                }
+            };
+        }
+
+        return issue.Actions;
     }
 
     private static string? BuildAvailabilityNote(CalendarDayDto day)

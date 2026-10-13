@@ -188,6 +188,7 @@
             case "OPEN_OT":
                 NavigationManager.NavigateTo($"/ot/create?date={request.Date:yyyy-MM-dd}");
                 return;
+            case "OPEN_EXECUTION_RESULT":
             case "OPEN_OT_REQUEST":
                 if (!string.IsNullOrWhiteSpace(request.DetailRoute))
                     NavigationManager.NavigateTo(request.DetailRoute);

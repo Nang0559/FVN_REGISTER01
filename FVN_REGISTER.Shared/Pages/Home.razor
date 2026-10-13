@@ -235,6 +235,7 @@ else
     {
         "pending" => Color.Info,
         "hr-request" => Color.Warning,
+        "hr-resolved" => Color.Secondary,
         "complete" => Color.Success,
         "rejected" or "unanswered" => Color.Error,
         _ => Color.Default
@@ -358,6 +359,7 @@ else
             case "OPEN_OT":
                 Navigation.NavigateTo($"/ot/create?date={request.Date:yyyy-MM-dd}");
                 return;
+            case "OPEN_EXECUTION_RESULT":
             case "OPEN_OT_REQUEST":
                 if (!string.IsNullOrWhiteSpace(request.DetailRoute))
                     Navigation.NavigateTo(request.DetailRoute);

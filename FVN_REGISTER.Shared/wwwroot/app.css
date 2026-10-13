@@ -330,6 +330,7 @@ button.fcc-calendar-issue-marker.fcc-fb { cursor: pointer; }
 .fcc-calendar-issue-marker.fcc-fb-unanswered { background: var(--mud-palette-error); }
 .fcc-calendar-issue-marker.fcc-fb-pending { background: var(--mud-palette-info); }
 .fcc-calendar-issue-marker.fcc-fb-hr-request { background: #f9a825; color: #3e2723; }
+.fcc-calendar-issue-marker.fcc-fb-hr-resolved { background: #5c6bc0; }
 .fcc-calendar-issue-marker.fcc-fb-complete { background: var(--mud-palette-success); position: relative; }
 .fcc-calendar-issue-marker.fcc-fb-complete::after {
     content: "✓";
@@ -350,6 +351,7 @@ button.fcc-calendar-issue-marker.fcc-fb { cursor: pointer; }
 .fcc-calendar-day-line.fcc-fb-label { font-weight: 700; font-size: 11px; }
 .fcc-calendar-day-line.fcc-fb-pending { color: var(--mud-palette-info); }
 .fcc-calendar-day-line.fcc-fb-hr-request { color: #f57f17; }
+.fcc-calendar-day-line.fcc-fb-hr-resolved { color: #5c6bc0; }
 .fcc-calendar-day-line.fcc-fb-complete { color: var(--mud-palette-success); }
 .fcc-calendar-day-line.fcc-fb-rejected { color: #b71c1c; }
 .fcc-calendar-day-line.fcc-fb-unanswered { color: var(--mud-palette-error); }
