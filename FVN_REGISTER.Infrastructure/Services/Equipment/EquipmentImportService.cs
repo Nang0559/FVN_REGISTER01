@@ -511,18 +511,164 @@ public sealed class EquipmentImportService : IEquipmentImportService
     }
     public async Task<ExcelImportCommitResultDto> CommitAsync(long id, CancellationToken ct = default)
     {
-        // Fail closed: importing directly into F03EquipmentAssets bypasses the shared
-        // ApprovalEngine and the immutable inventory snapshot. Do not allow this legacy
-        // endpoint to mutate official assets until the staged batch is submitted through
-        // the equipment change-batch approval workflow.
-        var batch = await GetBatchAsync(id, ct)
-            ?? throw new KeyNotFoundException("Không tìm thấy import batch.");
         var user = User();
+        var batch = await _db.Database.SqlQueryRaw<Batch>(
+            "SELECT Id,SchemaId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows FROM dbo.F03ExcelImportBatches WHERE Id={0}", id)
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException("Không tìm thấy import batch.");
         var metadata = await Meta(batch.SchemaId, ct);
         await Scope(user, metadata.DepartmentCode, ct);
 
-        throw new InvalidOperationException(
-            "Không thể ghi trực tiếp thiết bị từ batch Excel. Hãy dùng quy trình gửi duyệt lô thiết bị; dữ liệu chính thức chỉ được cập nhật sau khi phê duyệt hoàn tất.");
+        var result = new ExcelImportCommitResultDto { BatchId = id };
+        await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        try
+        {
+            // Idempotency is enforced by a unique batch/row link, not only by UI state.
+            await _db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'dbo.F03EquipmentImportRequestLinks', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.F03EquipmentImportRequestLinks(
+        Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03EquipmentImportRequestLinks PRIMARY KEY,
+        BatchId bigint NOT NULL,
+        ImportRowId bigint NOT NULL,
+        RequestId int NOT NULL,
+        ActionKind nvarchar(30) NOT NULL,
+        CreatedBy int NOT NULL,
+        CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03EquipmentImportRequestLinks_CreatedAt DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_F03EquipmentImportRequestLinks_BatchRow UNIQUE(BatchId, ImportRowId),
+        CONSTRAINT UQ_F03EquipmentImportRequestLinks_Request UNIQUE(RequestId)
+    );
+END", ct);
+
+            var rows = await _db.Database.SqlQueryRaw<CommitSourceRow>(
+                @"SELECT r.Id, r.RowNumber, r.Status, r.NormalizedDataJson,
+                         COALESCE(JSON_VALUE(r.NormalizedDataJson,'$.ImportAction'),N'') AS ActionKind
+                  FROM dbo.F03ExcelImportRows r WITH (UPDLOCK,HOLDLOCK)
+                  WHERE r.BatchId={0} ORDER BY r.RowNumber", id).ToListAsync(ct);
+            foreach (var row in rows)
+            {
+                ct.ThrowIfCancellationRequested();
+                var linked = await _db.Database.SqlQueryRaw<int>(
+                    "SELECT COUNT(1) AS Value FROM dbo.F03EquipmentImportRequestLinks WITH (UPDLOCK,HOLDLOCK) WHERE BatchId={0} AND ImportRowId={1}",
+                    id, row.Id).SingleAsync(ct);
+                if (linked > 0) { result.SkippedRows++; continue; }
+                if (row.Status != 30) { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: dòng staging không hợp lệ, đã bỏ qua."); continue; }
+
+                Dictionary<string, string?> values;
+                try { values = JsonSerializer.Deserialize<Dictionary<string, string?>>(row.NormalizedDataJson ?? "{}") ?? new(StringComparer.OrdinalIgnoreCase); }
+                catch (JsonException) { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: dữ liệu staging không đọc được."); continue; }
+                string? V(string key) => values.TryGetValue(key, out var v) ? v?.Trim() : null;
+                var code = V("EquipmentCode");
+                var name = V("EquipmentName");
+                if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: thiếu mã hoặc tên thiết bị."); continue; }
+
+                var deptText = V("OperatingResponsibleDeptCode") ?? V("SourceDepartment") ?? V("DeptCode") ?? V("DepartmentCode");
+                var department = await _departmentLookup.GetActiveDepartmentsAsync(ct);
+                var dept = department.FirstOrDefault(d => string.Equals(d.DeptCode.ToString(CultureInfo.InvariantCulture), deptText, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(d.DeptName?.Trim(), deptText, StringComparison.OrdinalIgnoreCase));
+                if (dept is null)
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: phòng ban sử dụng '{deptText}' không tồn tại hoặc không hoạt động."); continue; }
+
+                var employeeCode = V("OperatingResponsibleEmployeeCode");
+                if (!string.IsNullOrWhiteSpace(employeeCode))
+                {
+                    var employee = await _db.Employees.AsNoTracking()
+                        .Where(e => e.IsActive == true && e.EndWorkingDate == null &&
+                            (e.EmployeeCode == employeeCode || e.EmployeeName == employeeCode))
+                        .Select(e => new { e.EmployeeCode, e.DeptCode }).FirstOrDefaultAsync(ct);
+                    if (employee is null) { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: người sử dụng '{employeeCode}' không tồn tại hoặc đã nghỉ việc."); continue; }
+                    employeeCode = employee.EmployeeCode;
+                    if (V("OperatingResponsibleDeptCode") is not null && employee.DeptCode != dept.DeptCode)
+                    { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: phòng ban sử dụng không khớp phòng ban của nhân viên '{employeeCode}'."); continue; }
+                }
+
+                var technicianCode = V("ManagedByEmployeeCode") ?? user.EmployeeCode;
+                if (string.IsNullOrWhiteSpace(technicianCode) ||
+                    !await _db.Employees.AsNoTracking().AnyAsync(e => e.EmployeeCode == technicianCode && e.IsActive == true && e.EndWorkingDate == null, ct))
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: kỹ thuật viên quản lý không tồn tại hoặc đã nghỉ việc."); continue; }
+
+                var price = ParseSchemaDecimal(V("PurchasePrice")) ?? 0m;
+                var purchaseDate = ParseSchemaDate(V("PurchaseDate")) ?? DateTime.UtcNow.Date;
+                var depreciationDate = ParseSchemaDate(V("ExpectedDepreciationDate")) ?? purchaseDate;
+                if (price < 0 || depreciationDate < purchaseDate)
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: nguyên giá hoặc ngày khấu hao không hợp lệ."); continue; }
+
+                var existing = await _db.Set<F03EquipmentAsset>().FromSqlInterpolated(
+                    $"SELECT * FROM dbo.F03EquipmentAssets WITH (UPDLOCK,HOLDLOCK) WHERE EquipmentCode={code} AND IsActive=1")
+                    .AsNoTracking().FirstOrDefaultAsync(ct);
+                var action = existing is null ? "Registration" : "AssetChange";
+                // Do not trust the staging-time classification. Re-evaluate code and identity under serializable transaction.
+                if (action == "AssetChange" && !string.Equals(row.ActionKind, "AssetChange", StringComparison.OrdinalIgnoreCase))
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: mã thiết bị đã tồn tại nhưng staging ghi nhận trạng thái khác; hãy staging lại."); continue; }
+                if (action == "Registration" && string.Equals(row.ActionKind, "AssetChange", StringComparison.OrdinalIgnoreCase))
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: thiết bị đã bị xóa/đổi mã sau staging; hãy staging lại."); continue; }
+
+                var approver = await _db.Database.SqlQueryRaw<string>(
+                    @"SELECT TOP (1) ApproverCode AS Value FROM dbo.F03Approvers
+                      WHERE RequestType=N'EQUIPMENT' AND IsActive=1
+                        AND (ApproveForDeptCode={0} OR ApproveForDeptCode=-1)
+                      ORDER BY Level, ApproverCode", dept.DeptCode).FirstOrDefaultAsync(ct);
+                if (string.IsNullOrWhiteSpace(approver))
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: chưa cấu hình người phê duyệt thiết bị cho phòng ban {dept.DeptCode}."); continue; }
+
+                var request = new F03EquipmentRequest
+                {
+                    RequestKind = action == "Registration" ? FVN_REGISTER.Core.Enums.EquipmentRequestKind.Registration : FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange,
+                    AssetId = existing?.Id,
+                    RequestStatus = FVN_REGISTER.Core.Enums.ApprovalStatus.Draft,
+                    EmployeeCode = user.EmployeeCode ?? technicianCode,
+                    DeptCode = existing?.DeptCode ?? dept.DeptCode,
+                    OperatorUserId = user.UserId,
+                    SelectedApproverCode = approver,
+                    QrToken = existing?.QrToken ?? Guid.NewGuid().ToString("N"),
+                    EquipmentName = name,
+                    Specification = V("Specification"),
+                    SerialNumber = V("SerialNumber"),
+                    AssetCode = V("AssetCode"),
+                    PurchasePrice = price,
+                    PurchaseDate = purchaseDate,
+                    ExpectedDepreciationDate = depreciationDate,
+                    Location = V("Location"),
+                    Note = V("Note"),
+                    ResponsibleEmployeeCode = V("ResponsibleEmployeeCode") ?? employeeCode,
+                    CreatedBy = user.UserId
+                };
+                if (action == "AssetChange")
+                {
+                    var before = new { existing!.EquipmentCode, existing.EquipmentName, existing.AssetCode, existing.SerialNumber, existing.Specification, existing.PurchasePrice, existing.PurchaseDate, existing.ExpectedDepreciationDate, existing.Location, existing.Note, existing.CustomDataJson, existing.ManagedByEmployeeCode, existing.ResponsibleEmployeeCode, existing.ResponsibleApproverEmployeeCode, existing.OperatingResponsibleDeptCode, existing.OperatingResponsibleEmployeeCode };
+                    var after = new
+                    {
+                        EquipmentCode = code, EquipmentName = name, AssetCode = request.AssetCode, SerialNumber = request.SerialNumber,
+                        Specification = request.Specification, PurchasePrice = price, PurchaseDate = (DateTime?)purchaseDate,
+                        ExpectedDepreciationDate = (DateTime?)depreciationDate, Location = request.Location, Note = request.Note,
+                        CustomDataJson = existing.CustomDataJson, ManagedByEmployeeCode = technicianCode,
+                        ResponsibleEmployeeCode = request.ResponsibleEmployeeCode,
+                        ResponsibleApproverEmployeeCode = existing.ResponsibleApproverEmployeeCode,
+                        OperatingResponsibleDeptCode = (int?)dept.DeptCode, OperatingResponsibleEmployeeCode = employeeCode
+                    };
+                    request.AssetBeforeSnapshotJson = JsonSerializer.Serialize(before);
+                    request.AssetAfterSnapshotJson = JsonSerializer.Serialize(after);
+                    request.AssetBeforeHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(before))));
+                    request.AssetSnapshotCapturedAtUtc = DateTime.UtcNow;
+                }
+                _db.Set<F03EquipmentRequest>().Add(request);
+                await _db.SaveChangesAsync(ct);
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"INSERT INTO dbo.F03EquipmentImportRequestLinks(BatchId,ImportRowId,RequestId,ActionKind,CreatedBy) VALUES({id},{row.Id},{request.Id},{action},{user.UserId})", ct);
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE dbo.F03ExcelImportRows SET Status=40 WHERE Id={row.Id} AND BatchId={id}", ct);
+                result.ImportedRows++;
+            }
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE dbo.F03ExcelImportBatches SET ImportedRows=(SELECT COUNT(1) FROM dbo.F03EquipmentImportRequestLinks WHERE BatchId={id}) WHERE Id={id}", ct);
+            await tx.CommitAsync(ct);
+            return result;
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
     }
 
     public async Task<ServiceResult<bool>> DeleteDraftSchemaAsync(int id,CancellationToken ct=default){try{var u=User();var m=await Meta(id,ct);if(m.CreatedBy!=u.UserId&&!u.IsAdmin)throw new UnauthorizedAccessException("Bạn không có quyền xóa schema.");await _excel.DeleteDraftSchemaAsync(id,ct);return ServiceResult<bool>.Ok(true,"Đã xóa schema.");}catch(Exception e)when(e is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException){return ServiceResult<bool>.Fail(e.Message);}}
@@ -639,5 +785,5 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private static int Dept(int? x,int? f)=>x??f??0;
     private static ExcelSchemaDto Map(int id,ExcelSchemaDefinition d,(int DepartmentCode,int CreatedBy,string SchemaName,int FieldCount,string? SourceFileName,int Status)m,UserIdentityDto u)=>new(){Id=id,ModuleCode=d.ModuleCode,EntityCode=d.EntityCode,SchemaCode=d.SchemaKey,SchemaName=m.SchemaName,Version=d.Version,Status=((ExcelSchemaStatus)m.Status).ToString(),IsActive=m.Status==(int)ExcelSchemaStatus.Active,DepartmentCode=m.DepartmentCode,CreatedByUserId=m.CreatedBy,SourceFileName=m.SourceFileName,CreatedFromExcel=!string.IsNullOrWhiteSpace(m.SourceFileName),IsOwner=m.CreatedBy==u.UserId||u.IsAdmin,CanEdit=m.CreatedBy==u.UserId||u.IsAdmin,CanCreateVersion=m.CreatedBy==u.UserId||u.IsAdmin,CanClone=true,CreatedByUserName="",SheetIndex=d.SheetIndex,SheetName=d.SheetName,HeaderRowIndex=d.HeaderRowIndex,DataStartRowIndex=d.DataStartRowIndex,DataEndRowIndex=d.DataEndRowIndex,Fields=d.Fields.Select(Map).ToList()};
     private static ExcelSchemaFieldDto Map(ExcelSchemaField f)=>new(){FieldKey=f.FieldKey,FieldLabel=f.HeaderName??f.FieldKey,DataType=f.DataType,IsRequired=f.Required,AllowEmpty=f.AllowEmpty,SourceColumnIndex=f.SourceColumnIndex,HeaderName=f.HeaderName,ResourceKey=f.ResourceKey,TargetProperty=f.TargetProperty,Format=f.Format,ValidationRule=f.ValidationRule,DefaultValue=f.DefaultValue,MaxLength=f.MaxLength,DisplayOrder=f.DisplayOrder};
-    private sealed record ExistingAssetRow(int Id,string EquipmentCode); private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string ActionKind,string? ErrorMessage);
+    private sealed record CommitSourceRow(long Id,int RowNumber,int Status,string? NormalizedDataJson,string ActionKind); private sealed record ExistingAssetRow(int Id,string EquipmentCode); private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string ActionKind,string? ErrorMessage);
 }
