@@ -32,6 +32,38 @@
     }
     else
     {
+        <MudPaper Outlined="true" Class="pa-4 mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                <div>
+                    <MudText Typo="Typo.h6">Hồ sơ import thiết bị (cha)</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Mỗi batch Excel là một hồ sơ cha; các dòng staging và yêu cầu thiết bị liên kết là hồ sơ con. Mở hồ sơ để xem lại các dòng.</MudText>
+                </div>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_uploading" OnClick="LoadMyBatchesAsync">Làm mới</MudButton>
+            </MudStack>
+            @if (_myBatches.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined">Chưa có hồ sơ import nào do bạn tạo.</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_myBatches" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                    <HeaderContent>
+                        <MudTh>Hồ sơ cha</MudTh><MudTh>File Excel</MudTh><MudTh>Tổng dòng</MudTh><MudTh>Hợp lệ</MudTh><MudTh>Lỗi</MudTh><MudTh>Đã tạo yêu cầu</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Hồ sơ cha">#@context.Id</MudTd>
+                        <MudTd DataLabel="File Excel">@context.FileName</MudTd>
+                        <MudTd DataLabel="Tổng dòng">@context.TotalRows</MudTd>
+                        <MudTd DataLabel="Hợp lệ">@context.ValidRows</MudTd>
+                        <MudTd DataLabel="Lỗi">@context.InvalidRows</MudTd>
+                        <MudTd DataLabel="Đã tạo yêu cầu">@context.ImportedRows</MudTd>
+                        <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@BatchStatusText(context.Status)</MudChip></MudTd>
+                        <MudTd><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => OpenBatchAsync(context.Id))">Mở hồ sơ</MudButton></MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+
         <MudPaper Outlined="true" Class="pa-5 mb-4">
             <MudText Typo="Typo.h6" Class="mb-3">@Language.T("equipment.t1ChonPhongBanVa")</MudText>
             <MudSelect T="int?" Label='@Language.T("common.department")' @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
@@ -216,6 +248,7 @@
     private List<ExcelSchemaSummaryDto> _schemas = new();
     private ExcelSchemaDto? _schema;
     private ExcelImportBatchDto? _batch;
+    private List<ExcelImportBatchDto> _myBatches = new();
     private ExcelImportCommitResultDto? _commitResult;
     private IBrowserFile? _file;
 
@@ -229,8 +262,27 @@
             if (departments.IsSuccess) _departments = departments.Data ?? new();
             if (_departments.Count > 0) _deptCode = _departments[0].DeptCode;
             await LoadSchemasAsync();
+            await LoadMyBatchesAsync();
         }
         _ready = true;
+    }
+
+    private async Task LoadMyBatchesAsync()
+    {
+        var result = await EquipmentClient.GetMyImportBatchesAsync();
+        if (result.IsSuccess) _myBatches = result.Data ?? new();
+        else Snackbar.Add(result.Message ?? "Không thể tải danh sách hồ sơ import.", Severity.Error);
+    }
+
+    private async Task OpenBatchAsync(long batchId)
+    {
+        var result = await EquipmentClient.GetImportBatchAsync(batchId);
+        if (result.IsSuccess && result.Data is not null)
+        {
+            _batch = result.Data;
+            _commitResult = null;
+        }
+        else Snackbar.Add(result.Message ?? "Không thể mở hồ sơ import.", Severity.Error);
     }
 
     private async Task LoadSchemasAsync()
@@ -297,6 +349,7 @@
             Snackbar.Add($"Đã tạo {_commitResult.ImportedRows} bản nháp; bỏ qua {_commitResult.SkippedRows} dòng.", 
                 _commitResult.Errors.Count == 0 ? Severity.Success : Severity.Warning);
             await RefreshBatchAsync();
+            await LoadMyBatchesAsync();
         }
         finally { _uploading = false; }
     }
