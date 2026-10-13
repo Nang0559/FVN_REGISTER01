@@ -62,7 +62,6 @@ const gallery = screenshots.map((shot, index) =>
 ).join('\n');
 const metrics = [['Tests', tests.length], ['Passed', counts.passed ?? 0], ['Failed', counts.failed ?? 0], ['Flaky', counts.flaky ?? 0], ['Screenshots', screenshots.length]]
   .map(([label, value]) => '<div class="metric"><span>' + esc(label) + '</span><strong>' + value + '</strong></div>').join('');
-const shotData = JSON.stringify(screenshots.map(({name, uri}) => ({name, uri})));
 const html = \`<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="light"><title>FVN_REGISTER – Playwright Test Report</title>
 <style>
@@ -74,14 +73,14 @@ const html = \`<!doctype html>
 <footer class="footer">Trace, video và tệp chẩn đoán vẫn có trong artifact. Kiểm thử chỉ đọc không thể xác nhận mọi luồng nghiệp vụ.</footer></main>
 <div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-label="Xem ảnh phóng to"><button class="viewer-close" id="closeViewer" type="button" aria-label="Đóng">×</button><div class="viewer-inner"><img id="largeImage" alt=""><p class="viewer-caption" id="caption"></p></div></div>
 <script>
-const shots = __SHOT_DATA__;
+const shots = Array.from(document.querySelectorAll('.shot')).map(button => ({name: button.querySelector('span').textContent, uri: button.querySelector('img').src}));
 const viewer=document.getElementById('viewer'), largeImage=document.getElementById('largeImage'), caption=document.getElementById('caption');
 function closeViewer(){viewer.classList.remove('open');largeImage.removeAttribute('src')}
 document.querySelectorAll('.shot').forEach(button=>button.addEventListener('click',()=>{const shot=shots[Number(button.dataset.image)];if(!shot)return;largeImage.src=shot.uri;largeImage.alt=shot.name;caption.textContent=shot.name;viewer.classList.add('open')}));
 document.getElementById('closeViewer').addEventListener('click',closeViewer);
 viewer.addEventListener('click',event=>{if(event.target===viewer)closeViewer()});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeViewer()});
-</script></body></html>`.replace('__SHOT_DATA__', shotData);
+</script></body></html>`;
 await writeFile(outputPath, html, 'utf8');
 const totalBytes = screenshots.reduce((sum, shot) => sum + shot.bytes, 0);
 console.log('Created mobile report with ' + screenshots.length + ' embedded screenshots (' + (totalBytes / 1024 / 1024).toFixed(1) + ' MB raw PNG): ' + outputPath);
