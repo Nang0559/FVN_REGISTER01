@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const username = process.env.PLAYWRIGHT_USERNAME?.trim() ?? '';
 const password = process.env.PLAYWRIGHT_PASSWORD ?? '';
 const screenshotDir = path.resolve('test-results/screenshots');
-const maxPages = Number.parseInt(process.env.PLAYWRIGHT_MAX_PAGES ?? '80', 10);
+const maxPages = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_PAGES ?? '180', 10) || 180);
 
 function safeFileName(value: string): string {
   const cleaned = value
@@ -14,7 +15,8 @@ function safeFileName(value: string): string {
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 100);
-  return cleaned || 'home';
+  const digest = createHash('sha1').update(value).digest('hex').slice(0, 8);
+  return (cleaned || 'home') + '-' + digest;
 }
 
 async function saveScreenshot(page: Page, route: string): Promise<void> {
@@ -111,6 +113,25 @@ async function signIn(page: Page): Promise<void> {
   }
 }
 
+async function expandNavigation(page: Page): Promise<void> {
+  const safeLabels = /^(menu|navigation|open menu|toggle menu|sidebar|side bar|expand navigation|collapse navigation|điều hướng|danh mục|mở menu|mở rộng menu|thu gọn menu)$/i;
+  const controls = page.locator('button:visible, [role="button"]:visible');
+  const count = Math.min(await controls.count().catch(() => 0), 100);
+  for (let i = 0; i < count; i++) {
+    const control = controls.nth(i);
+    const label = ((await control.getAttribute('aria-label').catch(() => null))
+      || (await control.getAttribute('title').catch(() => null))
+      || (await control.innerText().catch(() => ''))).trim();
+    if (!safeLabels.test(label)) continue;
+    try {
+      await control.click({ timeout: 1_500 });
+      await page.waitForTimeout(150);
+    } catch {
+      // A hidden/disabled navigation toggle should not stop the crawl.
+    }
+  }
+}
+
 async function collectInternalLinks(page: Page, baseOrigin: string): Promise<string[]> {
   return page.locator('a[href]').evaluateAll((anchors, origin) => {
     const ignored = /logout|log-out|signout|sign-out|đăng-xuất|dang-xuat|delete|remove|approve|reject|submit|download|export/i;
@@ -119,8 +140,8 @@ async function collectInternalLinks(page: Page, baseOrigin: string): Promise<str
     for (const anchor of anchors) {
       const element = anchor as HTMLAnchorElement;
       const href = element.href;
-      const text = (element.innerText || element.getAttribute('aria-label') || '').trim();
-      if (!href || !text || ignored.test(text) || ignored.test(href)) continue;
+      const text = (element.innerText || element.getAttribute('aria-label') || element.getAttribute('title') || '').trim();
+      if (!href || ignored.test(text) || ignored.test(href)) continue;
 
       try {
         const url = new URL(href, origin);
@@ -138,7 +159,7 @@ async function collectInternalLinks(page: Page, baseOrigin: string): Promise<str
 }
 
 test('signs in with Actions secrets and captures accessible application pages', async ({ page, baseURL }) => {
-  test.setTimeout(12 * 60 * 1000);
+  test.setTimeout(25 * 60 * 1000);
   await mkdir(screenshotDir, { recursive: true });
 
   await signIn(page);
@@ -162,11 +183,30 @@ test('signs in with Actions secrets and captures accessible application pages', 
       const response = await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 25_000 });
       if (!response || response.status() >= 500) continue;
       await page.locator('body').waitFor({ state: 'visible', timeout: 10_000 });
-      await page.waitForTimeout(350);
+      await page.waitForTimeout(700);
 
-      // Keep the crawler read-only: it follows links but never submits business forms.
+      // Keep the crawler read-only: only expand navigation controls and select semantic tabs.
       const route = normalized.pathname + normalized.search;
+      await expandNavigation(page);
       await saveScreenshot(page, route);
+
+      // Capture each tab panel separately; tabs are view switches, not business submissions.
+      const tabs = page.getByRole('tab');
+      const tabCount = Math.min(await tabs.count().catch(() => 0), 30);
+      for (let tabIndex = 0; tabIndex < tabCount; tabIndex++) {
+        const tab = tabs.nth(tabIndex);
+        if (!(await tab.isVisible().catch(() => false))) continue;
+        const tabName = (await tab.getAttribute('aria-label').catch(() => null))
+          || (await tab.innerText().catch(() => ''))
+          || `tab-${tabIndex + 1}`;
+        try {
+          await tab.click({ timeout: 2_000 });
+          await page.waitForTimeout(200);
+          await saveScreenshot(page, `${route}--tab-${tabIndex + 1}-${tabName}`);
+        } catch (error) {
+          console.warn(`Skipped tab on ${normalized.pathname}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
 
       const links = await collectInternalLinks(page, origin);
       for (const link of links) {
@@ -185,5 +225,6 @@ test('signs in with Actions secrets and captures accessible application pages', 
   }).catch(() => undefined);
 
   expect(visited.size, 'At least the signed-in landing page should have been visited').toBeGreaterThan(0);
-  console.log(`Captured ${visited.size} internal page URLs. Screenshots are in test-results/screenshots/.`);
+  console.log(`Captured ${visited.size} internal page URLs and semantic tab states. Screenshot files are in test-results/screenshots/.`);
+  if (visited.size >= maxPages) console.warn(`Reached PLAYWRIGHT_MAX_PAGES=${maxPages}; raise the workflow input/environment value to crawl more routes.`);
 });
