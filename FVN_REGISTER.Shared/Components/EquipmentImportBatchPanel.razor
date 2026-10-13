@@ -78,10 +78,11 @@ else
                     </MudStack>
                 }
 
-                 var index = 0; 
+                @{ var index = 0; }
                 @foreach (var row in children)
                 {
                     index++;
+                    var rowNumber = index; // per-row copy: nested child content renders after the loop finished
                     var request = row.RequestId.HasValue && _requestsById.TryGetValue(row.RequestId.Value, out var found) ? found : null;
                     var draft = IsDraft(row);
                     var status = RowStatus(row);
@@ -93,7 +94,7 @@ else
                                     <MudCheckBox T="bool" Value="@_selected.Contains(row.RequestId!.Value)" ValueChanged="@(v => ToggleOne(row.RequestId!.Value, v))" Disabled="_busy" />
                                 }
                                 <div>
-                                    <MudText Typo="Typo.subtitle2"><b>#@index.ToString("00") — @(request?.EquipmentName ?? Value(row, "EquipmentName") ?? $"Dòng Excel {row.RowNumber}")</b></MudText>
+                                    <MudText Typo="Typo.subtitle2"><b>#@rowNumber.ToString("00") — @(request?.EquipmentName ?? Value(row, "EquipmentName") ?? $"Dòng Excel {row.RowNumber}")</b></MudText>
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Mã thiết bị: @(Value(row, "EquipmentCode") ?? "—") · Phòng ban: @(request?.DeptCode.ToString() ?? Value(row, "DeptCode") ?? "—")@(row.RequestId.HasValue ? $" · Yêu cầu #{row.RequestId}" : string.Empty)</MudText>
                                 </div>
                             </MudStack>
@@ -105,7 +106,7 @@ else
                                 }
                                 @if (CanEdit && draft && request is not null)
                                 {
-                                    <MudTooltip Text="Sửa bản nháp"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="_busy" OnClick="@(() => BeginEdit(request))" /></MudTooltip>
+                                    <MudTooltip Text="Sửa bản nháp"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="_busy" OnClick="@(() => BeginEditAsync(batch, row, request))" /></MudTooltip>
                                     <MudTooltip Text="Xóa bản nháp"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Error" Disabled="_busy" OnClick="@(() => DeleteAsync(request))" /></MudTooltip>
                                 }
                             </MudStack>
@@ -138,6 +139,10 @@ else
                                     <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.PurchaseDate" Label="Ngày mua" /></MudItem>
                                     <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.ExpectedDepreciationDate" Label="Ngày khấu hao dự kiến" /></MudItem>
                                     <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="Ghi chú" Lines="2" /></MudItem>
+                                    @if (_customFields.Count > 0)
+                                    {
+                                        <MudItem xs="12"><EquipmentCustomFieldsEditor Fields="_customFields" Values="_customValues" /></MudItem>
+                                    }
                                     <MudItem xs="12">
                                         <MudStack Row="true" Spacing="2">
                                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SaveEditAsync">Lưu bản nháp</MudButton>
@@ -232,6 +237,26 @@ else
     private void ToggleOne(int requestId, bool on) { if (on) _selected.Add(requestId); else _selected.Remove(requestId); }
     private void ToggleAll(List<int> ids, bool on) { foreach (var id in ids) ToggleOne(id, on); }
 
+    private readonly Dictionary<int, List<ExcelSchemaFieldDto>> _schemaCustomFields = new();
+    private List<ExcelSchemaFieldDto> _customFields = new();
+    private Dictionary<string, string?> _customValues = new(StringComparer.OrdinalIgnoreCase);
+
+    private async Task<List<ExcelSchemaFieldDto>> CustomFieldsForAsync(int schemaId)
+    {
+        if (_schemaCustomFields.TryGetValue(schemaId, out var cached)) return cached;
+        var schema = await EquipmentClient.GetSchemaAsync(schemaId);
+        var fields = schema.IsSuccess ? EquipmentCustomFieldsEditor.CustomFieldsOf(schema.Data) : new List<ExcelSchemaFieldDto>();
+        if (schema.IsSuccess) _schemaCustomFields[schemaId] = fields;
+        return fields;
+    }
+
+    private async Task BeginEditAsync(ExcelImportBatchDto batch, ExcelImportRowDto row, EquipmentRequestDto request)
+    {
+        _customFields = await CustomFieldsForAsync(batch.SchemaId);
+        _customValues = EquipmentCustomFieldsEditor.BuildValues(request.CustomDataJson, row.Values, _customFields);
+        BeginEdit(request);
+    }
+
     private void BeginEdit(EquipmentRequestDto request)
     {
         _editingId = request.Id;
@@ -244,7 +269,7 @@ else
         };
     }
 
-    private void CancelEdit() { _editingId = null; _form = null; }
+    private void CancelEdit() { _editingId = null; _form = null; _customFields = new(); _customValues = new(StringComparer.OrdinalIgnoreCase); }
 
     private async Task SaveEditAsync()
     {
@@ -252,6 +277,7 @@ else
         _busy = true;
         try
         {
+            if (_customFields.Count > 0) _form.CustomValues = new Dictionary<string, string?>(_customValues, StringComparer.OrdinalIgnoreCase);
             var result = await EquipmentClient.UpdateDraftRequestAsync(_editingId.Value, _form);
             if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu bản nháp.", Severity.Error); return; }
             Snackbar.Add(result.Message ?? "Đã lưu bản nháp.", Severity.Success);

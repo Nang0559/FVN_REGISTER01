@@ -173,7 +173,7 @@ else
                                 {
                                     <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-2">Yêu cầu đã gửi duyệt hoặc đã được xử lý — khóa sửa/xóa.</MudAlert>
                                 }
-                                <EquipmentRequestDiff Request="_detailDraft" />
+                                <EquipmentRequestDiff Request="_detailDraft" CustomFields="_detailCustomFields" FallbackCustom="_detailCustomValues" />
                                 if (_editForm != null)
                                 {
                                     <MudPaper Outlined="true" Class="pa-3 mt-3">
@@ -188,6 +188,10 @@ else
                                             <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_editForm.PurchaseDate" Label="Ngày mua" /></MudItem>
                                             <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_editForm.ExpectedDepreciationDate" Label="Ngày khấu hao dự kiến" /></MudItem>
                                             <MudItem xs="12"><MudTextField @bind-Value="_editForm.Note" Label="Ghi chú" Lines="2" /></MudItem>
+                                            @if (_detailCustomFields.Count > 0)
+                                            {
+                                                <MudItem xs="12"><EquipmentCustomFieldsEditor Fields="_detailCustomFields" Values="_detailCustomValues" /></MudItem>
+                                            }
                                         </MudGrid>
                                     </MudPaper>
                                 }
@@ -540,12 +544,31 @@ else
     private async Task OpenDetailAsync(EquipmentRequestDto draft)
     {
         _editForm = null;
+        _detailCustomFields = new();
+        _detailCustomValues = new(StringComparer.OrdinalIgnoreCase);
         _detailDraft = draft;
         // Refresh batches so parent progress / child status are current when the dialog opens.
         await LoadBatchesAsync();
+        await LoadDetailCustomFieldsAsync();
     }
 
-    private void CloseDetail() { _detailDraft = null; _editForm = null; }
+    private void CloseDetail() { _detailDraft = null; _editForm = null; _detailCustomFields = new(); _detailCustomValues = new(StringComparer.OrdinalIgnoreCase); }
+
+    private List<ExcelSchemaFieldDto> _detailCustomFields = new();
+    private Dictionary<string, string?> _detailCustomValues = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Load the import schema of the parent batch so every schema field of the child can be shown/edited.</summary>
+    private async Task LoadDetailCustomFieldsAsync()
+    {
+        _detailCustomFields = new();
+        _detailCustomValues = new(StringComparer.OrdinalIgnoreCase);
+        var batch = DetailBatch;
+        if (batch is null || _detailDraft is null) return;
+        var schema = await EquipmentClient.GetSchemaAsync(batch.SchemaId);
+        if (!schema.IsSuccess) return;
+        _detailCustomFields = EquipmentCustomFieldsEditor.CustomFieldsOf(schema.Data);
+        _detailCustomValues = EquipmentCustomFieldsEditor.BuildValues(_detailDraft.CustomDataJson, DetailRow?.Values, _detailCustomFields);
+    }
 
     private async Task LoadBatchesAsync()
     {
@@ -554,7 +577,7 @@ else
         if (result.IsSuccess) _batches = result.Data ?? new();
     }
 
-    private void BeginEditDetail()
+    private async Task BeginEditDetail()
     {
         if (_detailDraft is null || !IsEditableDraft(_detailDraft)) return;
         _editForm = new UpdateEquipmentDraftRequest
@@ -569,6 +592,7 @@ else
             PurchaseDate = _detailDraft.PurchaseDate,
             ExpectedDepreciationDate = _detailDraft.ExpectedDepreciationDate
         };
+        if (_detailCustomFields.Count == 0) await LoadDetailCustomFieldsAsync();
     }
 
     private async Task SaveEditDetailAsync()
@@ -578,12 +602,14 @@ else
         try
         {
             var id = _detailDraft.Id;
+            if (_detailCustomFields.Count > 0) _editForm.CustomValues = new Dictionary<string, string?>(_detailCustomValues, StringComparer.OrdinalIgnoreCase);
             var result = await EquipmentClient.UpdateDraftRequestAsync(id, _editForm);
             if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu bản nháp.", Severity.Error); return; }
             Snackbar.Add(result.Message ?? "Đã lưu bản nháp.", Severity.Success);
             _editForm = null;
             await ReloadMineAsync();
             _detailDraft = _mine.FirstOrDefault(x => x.Id == id);
+            await LoadDetailCustomFieldsAsync();
         }
         finally { _busy = false; }
     }

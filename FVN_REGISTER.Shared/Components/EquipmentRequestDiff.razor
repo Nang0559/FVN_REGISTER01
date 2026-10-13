@@ -2,6 +2,7 @@
 @using System.Text.Json
 @using FVN_REGISTER.Contract.Dtos.Equipment
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Contract.Dtos.EquipmentImport
 
 @if (Request is not null)
 {
@@ -21,7 +22,10 @@
             <thead>
                 <tr>
                     <th>Trường</th>
-                    @if (_isChange) { <th>Trước</th> }
+                    @if (_isChange)
+                    {
+                        <th>Trước</th>
+                    }
                     <th>@(_isChange ? "Sau" : "Giá trị")</th>
                 </tr>
             </thead>
@@ -30,17 +34,31 @@
                 {
                     <tr style="@(row.Changed ? "background:rgba(255,193,7,.18)" : null)">
                         <td>@row.Label</td>
-                        @if (_isChange) { <td>@row.Before</td> }
-                        <td>@if (row.Changed) { <b>@row.After</b> } else { @row.After }</td>
-                    </tr>
-                }
-            </tbody>
-        </MudSimpleTable>
-    </div>
+                        @if (_isChange)
+                        {
+                            <td>@row.Before</td>
+                        }
+                        <td>@if (row.Changed) {
+                        <b>@row.After</b>
+                    } else
+                    {
+
+                        @row.After
+                    }
+    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+</div>
 }
 
 @code {
     [Parameter] public EquipmentRequestDto? Request { get; set; }
+    /// <summary>Schema custom fields (labels/order) of the parent import batch, when known.</summary>
+    [Parameter] public List<ExcelSchemaFieldDto>? CustomFields { get; set; }
+    /// <summary>Custom values to show when the request has no stored CustomDataJson (drafts created before it existed).</summary>
+    [Parameter] public IDictionary<string, string?>? FallbackCustom { get; set; }
 
     private sealed record DiffRow(string Label, string Before, string After, bool Changed);
 
@@ -105,7 +123,32 @@
             if (changed) _changedCount++;
             _rows.Add(new DiffRow(label, fb, fa, changed));
         }
+
+        // Schema-driven (custom) fields: asset CustomDataJson inside the snapshots, or the request's own CustomDataJson.
+        var beforeCustom = ParseCustom(before.TryGetValue("CustomDataJson", out var bc) ? bc : null);
+        var afterCustom = ParseCustom(after.TryGetValue("CustomDataJson", out var ac) ? ac : null);
+        foreach (var pair in ParseCustom(Request.CustomDataJson)) afterCustom[pair.Key] = pair.Value;
+        if (afterCustom.Count == 0 && FallbackCustom != null)
+            foreach (var pair in FallbackCustom) afterCustom[pair.Key] = pair.Value;
+
+        var customKeys = (CustomFields?.Select(f => f.FieldKey) ?? Enumerable.Empty<string>())
+            .Concat(afterCustom.Keys).Concat(beforeCustom.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var key in customKeys)
+        {
+            beforeCustom.TryGetValue(key, out var cb);
+            afterCustom.TryGetValue(key, out var ca);
+            var cfb = string.IsNullOrWhiteSpace(cb) ? "—" : cb.Trim();
+            var cfa = string.IsNullOrWhiteSpace(ca) ? "—" : ca.Trim();
+            var field = CustomFields?.FirstOrDefault(f => string.Equals(f.FieldKey, key, StringComparison.OrdinalIgnoreCase));
+            if (cfb == "—" && cfa == "—" && field is null) continue;
+            var customChanged = _isChange && _hasBefore && !string.Equals(cfb, cfa, StringComparison.Ordinal);
+            if (customChanged) _changedCount++;
+            _rows.Add(new DiffRow(field is null ? key : EquipmentCustomFieldsEditor.LabelOf(field), cfb, cfa, customChanged));
+        }
     }
+
+    private static Dictionary<string, string?> ParseCustom(string? json) => EquipmentCustomFieldsEditor.Parse(json);
 
     private static Dictionary<string, string?> Parse(string? json)
     {
