@@ -31,6 +31,10 @@ public interface IEquipmentClientService
     Task<ApiResponse<EquipmentAssetDto>> UpdateAssetAsync(int id, UpdateEquipmentAssetRequest request, CancellationToken ct = default);
     Task<ApiResponse<EquipmentAssetDto>> SubmitAssetChangeAsync(int id, CancellationToken ct = default);
     Task<ApiResponse<bool>> DeleteAssetAsync(int id, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentRequestDto>> SubmitRequestAsync(int requestId, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentRequestDto>> UpdateDraftRequestAsync(int requestId, UpdateEquipmentDraftRequest request, CancellationToken ct = default);
+    Task<ApiResponse<bool>> DeleteDraftRequestAsync(int requestId, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentBatchSubmitResultDto>> SubmitImportBatchAsync(long batchId, IEnumerable<int>? requestIds = null, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>> GetHandoverEmployeesAsync(int? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentHandoverCandidateDto>>> GetHandoverCandidatesAsync(string oldEmployeeCode, int? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<EquipmentHandoverResultDto>> HandoverAsync(EquipmentHandoverRequest request, CancellationToken ct = default);

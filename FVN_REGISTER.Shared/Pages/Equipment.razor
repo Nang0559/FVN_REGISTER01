@@ -72,6 +72,13 @@ else
                         </MudStack>
                     </MudPaper>
 
+                    @if (_actions?.Import == true)
+                    {
+                        <MudPaper Class="ma-4 pa-3" Outlined="true">
+                            <EquipmentImportBatchPanel Requests="_mine" CanEdit="CanSubmitDrafts" OnChanged="ReloadMineAsync" />
+                        </MudPaper>
+                    }
+
                     <MudPaper Class="ma-4 pa-3" Outlined="true">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
                             <div>
@@ -110,7 +117,7 @@ else
                                     <MudTd DataLabel="Thao tác">
                                         <MudStack Row="true" Spacing="1">
                                             <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew" OnClick="@(() => _detailDraft = context)">Mở chi tiết</MudButton>
-                                            @if (_actions?.Edit == true)
+                                            @if (CanSubmitDrafts)
                                             {
                                                 <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Send" Disabled="_busy" OnClick="@(() => SubmitDraftAsync(context))">Gửi phê duyệt</MudButton>
                                             }
@@ -125,14 +132,8 @@ else
                                         <MudText Typo="Typo.subtitle1">Chi tiết yêu cầu #@_detailDraft.Id — @RequestKindLabel(_detailDraft.RequestKind)</MudText>
                                         <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => _detailDraft = null)">Đóng</MudButton>
                                     </MudStack>
-                                    <MudGrid Class="mt-1">
-                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Tên thiết bị: <b>@_detailDraft.EquipmentName</b></MudText></MudItem>
-                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Mã tài sản: <b>@_detailDraft.AssetCode</b></MudText></MudItem>
-                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Bộ phận: <b>@_detailDraft.DeptCode</b></MudText></MudItem>
-                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Trạng thái: <b>@DraftStatusLabel(_detailDraft.RequestStatus)</b></MudText></MudItem>
-                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Giá mua: <b>@_detailDraft.PurchasePrice.ToString("N0")</b></MudText></MudItem>
-                                        <MudItem xs="12" md="6"><MudText Typo="Typo.body2">Ngày mua: <b>@_detailDraft.PurchaseDate?.ToString("dd/MM/yyyy")</b></MudText></MudItem>
-                                    </MudGrid>
+                                    <MudText Typo="Typo.body2" Class="mt-1 mb-2">Trạng thái: <b>@DraftStatusLabel(_detailDraft.RequestStatus)</b> · Bộ phận: <b>@_detailDraft.DeptCode</b> · Người tạo: <b>@_detailDraft.EmployeeCode</b></MudText>
+                                    <EquipmentRequestDiff Request="_detailDraft" />
                                     <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-2">Đây là bản nháp. Danh mục tài sản chính thức chỉ được cập nhật sau khi yêu cầu được phê duyệt.</MudAlert>
                                 </MudPaper>
                             }
@@ -421,6 +422,7 @@ else
         .OrderByDescending(x => x.Id);
 
     private EquipmentRequestDto? _detailDraft;
+    private bool CanSubmitDrafts => _actions?.Edit == true || _actions?.Manage == true;
 
     private static string DraftStatusLabel(FVN_REGISTER.Core.Enums.ApprovalStatus status) =>
         status == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft ? "Bản nháp" :
@@ -428,17 +430,12 @@ else
 
     private async Task SubmitDraftAsync(EquipmentRequestDto draft)
     {
-        if (_actions?.Edit != true || _busy) return;
+        if (!CanSubmitDrafts || _busy) return;
         _busy = true;
         try
         {
-            // Registration drafts go through the registration flow; asset-change drafts through the
-            // existing asset-change flow. Neither touches the official asset catalog before approval.
-            FVN_REGISTER.Contract.Responses.ApiResponse result;
-            if (draft.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange && draft.AssetId.HasValue)
-                result = await EquipmentClient.SubmitAssetChangeAsync(draft.AssetId.Value);
-            else
-                result = await EquipmentClient.SubmitRegistrationAsync(draft.Id);
+            // Always submit the exact request on this row (never "the latest draft of the asset").
+            var result = await EquipmentClient.SubmitRequestAsync(draft.Id);
             if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.khongTheGuiDuyet"), Severity.Error); return; }
             Snackbar.Add(result.Message ?? Language.T("equipment.daGuiDuyet"), Severity.Success);
             if (_detailDraft?.Id == draft.Id) _detailDraft = null;
@@ -715,6 +712,14 @@ else
         var mine = await EquipmentClient.GetMineAsync();
         if (mine.IsSuccess) _mine = mine.Data ?? new();
         else Snackbar.Add(mine.Message ?? Language.T("equipment.khongTaiDuocDanhSach"), Severity.Error);
+    }
+
+    private async Task ReloadMineAsync()
+    {
+        var mine = await EquipmentClient.GetMineAsync();
+        if (mine.IsSuccess) _mine = mine.Data ?? new();
+        else Snackbar.Add(mine.Message ?? Language.T("equipment.khongTaiDuocDanhSach"), Severity.Error);
+        StateHasChanged();
     }
 
     private async Task CreateAsync()

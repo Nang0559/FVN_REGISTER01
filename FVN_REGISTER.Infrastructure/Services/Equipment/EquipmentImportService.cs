@@ -496,8 +496,10 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var rows = await _db.Database.SqlQueryRaw<ImportRow>(
             @"SELECT r.Id, r.RowNumber, r.Status,
                      COALESCE(JSON_VALUE(r.NormalizedDataJson, '$.ImportAction'), N'') AS ActionKind,
-                     link.RequestId AS RequestId, req.AssetId AS AssetId,
-                     req.RequestStatus AS RequestStatus,
+                     CASE WHEN req.IsActive = 1 THEN link.RequestId END AS RequestId,
+                     CASE WHEN req.IsActive = 1 THEN req.AssetId END AS AssetId,
+                     CASE WHEN req.IsActive = 1 THEN req.RequestStatus END AS RequestStatus,
+                     CAST(CASE WHEN link.RequestId IS NOT NULL AND ISNULL(req.IsActive, 0) = 0 THEN 1 ELSE 0 END AS bit) AS RequestDeleted,
                      r.NormalizedDataJson AS NormalizedDataJson,
                      COALESCE(
                        STUFF((
@@ -514,8 +516,21 @@ public sealed class EquipmentImportService : IEquipmentImportService
               WHERE r.BatchId = {0}
               ORDER BY r.RowNumber", id).ToListAsync(ct);
 
+        // Approval progress of the parent is derived from its children; there is no parallel parent status table.
+        static bool In(int? status, params ApprovalStatus[] set) => status.HasValue && set.Contains((ApprovalStatus)status.Value);
+        var withRequest = rows.Where(x => x.RequestId.HasValue).ToList();
+        var draftRows = withRequest.Count(x => In(x.RequestStatus, ApprovalStatus.Draft, ApprovalStatus.NeedsRevision));
+        var pendingRows = withRequest.Count(x => In(x.RequestStatus, ApprovalStatus.Pending, ApprovalStatus.InProgress, ApprovalStatus.Escalated));
+        var approvedRows = withRequest.Count(x => In(x.RequestStatus, ApprovalStatus.Approved));
+        var rejectedRows = withRequest.Count(x => In(x.RequestStatus, ApprovalStatus.Rejected, ApprovalStatus.Cancelled));
+
         return new ExcelImportBatchDto
         {
+            DraftRows = draftRows,
+            PendingRows = pendingRows,
+            ApprovedRows = approvedRows,
+            RejectedRows = rejectedRows,
+            ApprovalProgressPercent = withRequest.Count == 0 ? 0 : (int)Math.Round(100.0 * approvedRows / withRequest.Count),
             Id = batch.Id,
             SchemaId = batch.SchemaId,
             ModuleCode = batch.ModuleCode,
@@ -534,6 +549,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
                 ActionKind = row.ActionKind,
                 ErrorMessage = row.ErrorMessage,
                 RequestId = row.RequestId,
+                RequestDeleted = row.RequestDeleted,
                 AssetId = row.AssetId,
                 RequestStatus = row.RequestStatus.HasValue ? ((ApprovalStatus)row.RequestStatus.Value).ToString() : null,
                 IsLocked = row.RequestStatus.HasValue && row.RequestStatus.Value != (int)ApprovalStatus.Draft && row.RequestStatus.Value != (int)ApprovalStatus.NeedsRevision,
@@ -848,5 +864,5 @@ END", ct);
     private static int Dept(int? x,int? f)=>x??f??0;
     private static ExcelSchemaDto Map(int id,ExcelSchemaDefinition d,(int DepartmentCode,int CreatedBy,string SchemaName,int FieldCount,string? SourceFileName,int Status)m,UserIdentityDto u)=>new(){Id=id,ModuleCode=d.ModuleCode,EntityCode=d.EntityCode,SchemaCode=d.SchemaKey,SchemaName=m.SchemaName,Version=d.Version,Status=((ExcelSchemaStatus)m.Status).ToString(),IsActive=m.Status==(int)ExcelSchemaStatus.Active,DepartmentCode=m.DepartmentCode,CreatedByUserId=m.CreatedBy,SourceFileName=m.SourceFileName,CreatedFromExcel=!string.IsNullOrWhiteSpace(m.SourceFileName),IsOwner=m.CreatedBy==u.UserId||u.IsAdmin,CanEdit=m.CreatedBy==u.UserId||u.IsAdmin,CanCreateVersion=m.CreatedBy==u.UserId||u.IsAdmin,CanClone=true,CreatedByUserName="",SheetIndex=d.SheetIndex,SheetName=d.SheetName,HeaderRowIndex=d.HeaderRowIndex,DataStartRowIndex=d.DataStartRowIndex,DataEndRowIndex=d.DataEndRowIndex,Fields=d.Fields.Select(Map).ToList()};
     private static ExcelSchemaFieldDto Map(ExcelSchemaField f)=>new(){FieldKey=f.FieldKey,FieldLabel=f.HeaderName??f.FieldKey,DataType=f.DataType,IsRequired=f.Required,AllowEmpty=f.AllowEmpty,SourceColumnIndex=f.SourceColumnIndex,HeaderName=f.HeaderName,ResourceKey=f.ResourceKey,TargetProperty=f.TargetProperty,Format=f.Format,ValidationRule=f.ValidationRule,DefaultValue=f.DefaultValue,MaxLength=f.MaxLength,DisplayOrder=f.DisplayOrder};
-    private sealed record CommitSourceRow(long Id,int RowNumber,int Status,string? NormalizedDataJson,string ActionKind); private sealed record ExistingAssetRow(int Id,string EquipmentCode); private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string ActionKind,int? RequestId,int? AssetId,int? RequestStatus,string? NormalizedDataJson,string? ErrorMessage);
+    private sealed record CommitSourceRow(long Id,int RowNumber,int Status,string? NormalizedDataJson,string ActionKind); private sealed record ExistingAssetRow(int Id,string EquipmentCode); private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string ActionKind,int? RequestId,int? AssetId,int? RequestStatus,string? NormalizedDataJson,string? ErrorMessage,bool RequestDeleted);
 }

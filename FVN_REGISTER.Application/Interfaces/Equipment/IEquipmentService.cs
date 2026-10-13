@@ -23,6 +23,9 @@ public interface IEquipmentService
     Task<ServiceResult<EquipmentAssetDto>> UpdateAssetAsync(int assetId, UpdateEquipmentAssetRequest request, CancellationToken ct = default);
     Task<ServiceResult<EquipmentAssetDto>> SubmitAssetChangeAsync(int assetId, CancellationToken ct = default);
     Task<ServiceResult<bool>> DeleteAssetAsync(int assetId, CancellationToken ct = default);
+    Task<ServiceResult<EquipmentRequestDto>> SubmitRequestAsync(int requestId, CancellationToken ct = default);
+    Task<ServiceResult<EquipmentRequestDto>> UpdateDraftRequestAsync(int requestId, UpdateEquipmentDraftRequest request, CancellationToken ct = default);
+    Task<ServiceResult<bool>> DeleteDraftRequestAsync(int requestId, CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentReportRowDto>>> GetReportAsync(EquipmentReportFilterDto filter, CancellationToken ct = default);
     Task<ServiceResult<byte[]>> ExportReportAsync(EquipmentReportFilterDto filter, CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>> GetHandoverEmployeesAsync(int? deptCode = null, CancellationToken ct = default);

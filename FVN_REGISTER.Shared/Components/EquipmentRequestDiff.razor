@@ -1,0 +1,142 @@
+@using System.Globalization
+@using System.Text.Json
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Core.Enums
+
+@if (Request is not null)
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+        <MudText Typo="Typo.subtitle2">@(_isChange ? "Dữ liệu trước / sau" : "Dữ liệu đăng ký mới")</MudText>
+        @if (_isChange)
+        {
+            <MudChip T="string" Size="Size.Small" Color="@(_changedCount > 0 ? Color.Warning : Color.Default)" Variant="Variant.Outlined">@_changedCount trường thay đổi</MudChip>
+        }
+    </MudStack>
+    @if (_isChange && !_hasBefore)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-2">Yêu cầu này chưa có snapshot dữ liệu trước. Chỉ hiển thị dữ liệu đề xuất.</MudAlert>
+    }
+    <div style="overflow-x:auto">
+        <MudSimpleTable Dense="true" Hover="true" Outlined="true">
+            <thead>
+                <tr>
+                    <th>Trường</th>
+                    @if (_isChange) { <th>Trước</th> }
+                    <th>@(_isChange ? "Sau" : "Giá trị")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    <tr style="@(row.Changed ? "background:rgba(255,193,7,.18)" : null)">
+                        <td>@row.Label</td>
+                        @if (_isChange) { <td>@row.Before</td> }
+                        <td>@if (row.Changed) { <b>@row.After</b> } else { @row.After }</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </div>
+}
+
+@code {
+    [Parameter] public EquipmentRequestDto? Request { get; set; }
+
+    private sealed record DiffRow(string Label, string Before, string After, bool Changed);
+
+    private static readonly (string Key, string Label)[] Fields =
+    {
+        ("EquipmentCode", "Mã thiết bị"),
+        ("EquipmentName", "Tên thiết bị"),
+        ("AssetCode", "Mã tài sản"),
+        ("SerialNumber", "Serial"),
+        ("Specification", "Thông số / Model"),
+        ("PurchasePrice", "Nguyên giá"),
+        ("PurchaseDate", "Ngày mua"),
+        ("ExpectedDepreciationDate", "Ngày khấu hao dự kiến"),
+        ("Location", "Vị trí"),
+        ("Note", "Ghi chú"),
+        ("ManagedByEmployeeCode", "Kỹ thuật viên quản lý"),
+        ("ResponsibleEmployeeCode", "Người phụ trách"),
+        ("OperatingResponsibleDeptCode", "Phòng ban sử dụng"),
+        ("OperatingResponsibleEmployeeCode", "Người sử dụng"),
+    };
+
+    private List<DiffRow> _rows = new();
+    private bool _isChange;
+    private bool _hasBefore;
+    private int _changedCount;
+
+    protected override void OnParametersSet()
+    {
+        _rows = new();
+        _changedCount = 0;
+        if (Request is null) return;
+
+        _isChange = Request.RequestKind == EquipmentRequestKind.AssetChange;
+        var before = Parse(Request.AssetBeforeSnapshotJson);
+        var after = Parse(Request.AssetAfterSnapshotJson);
+        _hasBefore = before.Count > 0;
+
+        // Fallback to the request's own columns when no "after" snapshot exists (registrations / legacy drafts).
+        if (after.Count == 0)
+        {
+            after["EquipmentName"] = Request.EquipmentName;
+            after["AssetCode"] = Request.AssetCode;
+            after["SerialNumber"] = Request.SerialNumber;
+            after["Specification"] = Request.Specification;
+            after["PurchasePrice"] = Request.PurchasePrice.ToString(CultureInfo.InvariantCulture);
+            after["PurchaseDate"] = Request.PurchaseDate?.ToString("o", CultureInfo.InvariantCulture);
+            after["ExpectedDepreciationDate"] = Request.ExpectedDepreciationDate?.ToString("o", CultureInfo.InvariantCulture);
+            after["Location"] = Request.Location;
+            after["Note"] = Request.Note;
+            after["ResponsibleEmployeeCode"] = Request.ResponsibleEmployeeCode;
+            after["OperatingResponsibleDeptCode"] = Request.DeptCode.ToString(CultureInfo.InvariantCulture);
+        }
+
+        foreach (var (key, label) in Fields)
+        {
+            before.TryGetValue(key, out var b);
+            after.TryGetValue(key, out var a);
+            var fb = Format(key, b);
+            var fa = Format(key, a);
+            if (fb == "—" && fa == "—") continue;
+            var changed = _isChange && _hasBefore && !string.Equals(fb, fa, StringComparison.Ordinal);
+            if (changed) _changedCount++;
+            _rows.Add(new DiffRow(label, fb, fa, changed));
+        }
+    }
+
+    private static Dictionary<string, string?> Parse(string? json)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(json)) return result;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return result;
+            foreach (var p in doc.RootElement.EnumerateObject())
+            {
+                result[p.Name] = p.Value.ValueKind switch
+                {
+                    JsonValueKind.Null or JsonValueKind.Undefined => null,
+                    JsonValueKind.String => p.Value.GetString(),
+                    _ => p.Value.GetRawText()
+                };
+            }
+        }
+        catch (JsonException) { }
+        return result;
+    }
+
+    private static string Format(string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "—";
+        if (key is "PurchaseDate" or "ExpectedDepreciationDate"
+            && DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var date))
+            return date.ToString("dd/MM/yyyy");
+        if (key == "PurchasePrice" && decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var price))
+            return price.ToString("N0");
+        return value.Trim();
+    }
+}

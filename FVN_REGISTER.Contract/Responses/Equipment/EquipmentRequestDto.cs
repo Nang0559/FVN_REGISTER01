@@ -28,4 +28,12 @@ public sealed class EquipmentRequestDto
     public string? RepairFeedback { get; set; }
     public DateTime? RepairCompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? Specification { get; set; }
+    public string? SerialNumber { get; set; }
+    public string? Location { get; set; }
+    public string? Note { get; set; }
+    /// <summary>Snapshot of the official asset when the change draft was created (AssetChange only).</summary>
+    public string? AssetBeforeSnapshotJson { get; set; }
+    /// <summary>Proposed asset values after approval (AssetChange only).</summary>
+    public string? AssetAfterSnapshotJson { get; set; }
 }

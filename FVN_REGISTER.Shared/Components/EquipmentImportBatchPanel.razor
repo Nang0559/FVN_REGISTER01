@@ -1,0 +1,322 @@
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Contract.Dtos.EquipmentImport
+@inject IEquipmentClientService EquipmentClient
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+    <div>
+        <MudText Typo="Typo.subtitle1">Hồ sơ import Excel</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Mỗi file Excel là một hồ sơ cha; từng thiết bị là hồ sơ con có dữ liệu trước/sau và trạng thái riêng. Chỉ bản nháp mới được sửa, xóa hoặc gửi duyệt.</MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="@(_loading || _busy)" OnClick="ReloadAsync">Làm mới</MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="my-2" />
+}
+else if (_batches.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">Chưa có hồ sơ import Excel nào.</MudAlert>
+}
+else
+{
+    @foreach (var batch in _batches)
+    {
+        var children = ChildrenOf(batch);
+        var childCount = children.Count(x => x.RequestId.HasValue);
+        var expanded = _expanded.Contains(batch.Id);
+        <MudPaper Outlined="true" Class="pa-4 mb-3" Style="border-radius:16px">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                <div>
+                    <MudText Typo="Typo.subtitle1"><b>#@batch.Id — @batch.FileName</b></MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@batch.TotalRows thiết bị · @childCount hồ sơ con</MudText>
+                </div>
+                @{ var state = BatchState(batch, childCount); }
+                <MudChip T="string" Size="Size.Small" Color="@state.Color">@state.Label</MudChip>
+            </MudStack>
+
+            <MudGrid Class="mt-2">
+                <MudItem xs="4"><MudText Typo="Typo.caption">Tổng thiết bị</MudText><MudText Typo="Typo.h6">@batch.TotalRows</MudText></MudItem>
+                <MudItem xs="4"><MudText Typo="Typo.caption">Hợp lệ</MudText><MudText Typo="Typo.h6" Color="Color.Success">@batch.ValidRows</MudText></MudItem>
+                <MudItem xs="4"><MudText Typo="Typo.caption">Cần kiểm tra</MudText><MudText Typo="Typo.h6" Color="@(batch.InvalidRows > 0 ? Color.Error : Color.Default)">@batch.InvalidRows</MudText></MudItem>
+            </MudGrid>
+
+            @if (childCount > 0)
+            {
+                <MudText Typo="Typo.caption" Class="mt-2">Tiến trình phê duyệt: đã duyệt @batch.ApprovedRows/@childCount · chờ duyệt @batch.PendingRows · bản nháp @batch.DraftRows · từ chối/hủy @batch.RejectedRows</MudText>
+                <MudProgressLinear Value="@batch.ApprovalProgressPercent" Max="100" Color="Color.Success" Class="mb-1" />
+            }
+
+            <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+                @if (childCount > 0)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Dark" StartIcon="@Icons.Material.Filled.List" OnClick="@(() => ToggleExpanded(batch.Id))">@(expanded ? "Ẩn danh sách thiết bị con" : $"Xem {childCount} thiết bị con")</MudButton>
+                    @if (CanEdit)
+                    {
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || batch.DraftRows == 0)" OnClick="@(() => SubmitAllAsync(batch))">Gửi duyệt toàn bộ (@batch.DraftRows)</MudButton>
+                    }
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở màn hình import để xác nhận batch</MudButton>
+                }
+            </MudStack>
+
+            @if (expanded)
+            {
+                <MudDivider Class="my-3" />
+                @if (CanEdit)
+                {
+                    var draftIds = children.Where(IsDraft).Select(x => x.RequestId!.Value).ToList();
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-2">
+                        <MudCheckBox T="bool" Value="@(draftIds.Count > 0 && draftIds.All(_selected.Contains))" ValueChanged="@(v => ToggleAll(draftIds, v))" Disabled="@(draftIds.Count == 0 || _busy)" Label="Chọn tất cả bản nháp" />
+                        @{ var selectedInBatch = draftIds.Count(_selected.Contains); }
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || selectedInBatch == 0)" OnClick="@(() => SubmitSelectedAsync(batch, draftIds))">Gửi duyệt @selectedInBatch thiết bị đã chọn</MudButton>
+                    </MudStack>
+                }
+
+                @{ var index = 0; }
+                @foreach (var row in children)
+                {
+                    index++;
+                    var request = row.RequestId.HasValue && _requestsById.TryGetValue(row.RequestId.Value, out var found) ? found : null;
+                    var draft = IsDraft(row);
+                    var status = RowStatus(row);
+                    <div class="py-2" style="border-top:1px solid var(--mud-palette-divider)">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                @if (CanEdit && draft)
+                                {
+                                    <MudCheckBox T="bool" Value="@_selected.Contains(row.RequestId!.Value)" ValueChanged="@(v => ToggleOne(row.RequestId!.Value, v))" Disabled="_busy" />
+                                }
+                                <div>
+                                    <MudText Typo="Typo.subtitle2"><b>#@index.ToString("00") — @(request?.EquipmentName ?? Value(row, "EquipmentName") ?? $"Dòng Excel {row.RowNumber}")</b></MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Mã thiết bị: @(Value(row, "EquipmentCode") ?? "—") · Phòng ban: @(request?.DeptCode.ToString() ?? Value(row, "DeptCode") ?? "—")@(row.RequestId.HasValue ? $" · Yêu cầu #{row.RequestId}" : string.Empty)</MudText>
+                                </div>
+                            </MudStack>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudChip T="string" Size="Size.Small" Color="@status.Color">@status.Label</MudChip>
+                                @if (request is not null)
+                                {
+                                    <MudTooltip Text="Xem dữ liệu trước/sau"><MudIconButton Icon="@Icons.Material.Filled.Compare" Size="Size.Small" OnClick="@(() => ToggleDiff(row.RequestId!.Value))" /></MudTooltip>
+                                }
+                                @if (CanEdit && draft && request is not null)
+                                {
+                                    <MudTooltip Text="Sửa bản nháp"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="_busy" OnClick="@(() => BeginEdit(request))" /></MudTooltip>
+                                    <MudTooltip Text="Xóa bản nháp"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Error" Disabled="_busy" OnClick="@(() => DeleteAsync(request))" /></MudTooltip>
+                                }
+                            </MudStack>
+                        </MudStack>
+
+                        @if (!string.IsNullOrWhiteSpace(row.ErrorMessage))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Error">@row.ErrorMessage</MudText>
+                        }
+                        @if (row.IsLocked)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Warning">Đã gửi duyệt hoặc đã xử lý — khóa sửa/xóa.</MudText>
+                        }
+
+                        @if (request is not null && _diffOpen.Contains(request.Id))
+                        {
+                            <div class="mt-2"><EquipmentRequestDiff Request="request" /></div>
+                        }
+
+                        @if (_editingId == row.RequestId && _form is not null)
+                        {
+                            <MudPaper Outlined="true" Class="pa-3 mt-2">
+                                <MudGrid>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label="Tên thiết bị" Required="true" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="Mã tài sản" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="Serial" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label="Vị trí" /></MudItem>
+                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="Thông số / Model" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="_form.PurchasePrice" Label="Nguyên giá" Min="0" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.PurchaseDate" Label="Ngày mua" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.ExpectedDepreciationDate" Label="Ngày khấu hao dự kiến" /></MudItem>
+                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="Ghi chú" Lines="2" /></MudItem>
+                                    <MudItem xs="12">
+                                        <MudStack Row="true" Spacing="2">
+                                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SaveEditAsync">Lưu bản nháp</MudButton>
+                                            <MudButton Variant="Variant.Text" Disabled="_busy" OnClick="CancelEdit">Hủy</MudButton>
+                                        </MudStack>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudPaper>
+                        }
+                    </div>
+                }
+            }
+        </MudPaper>
+    }
+}
+
+@code {
+    /// <summary>Requests of the current user (from /registrations/mine); source of the before/after snapshots.</summary>
+    [Parameter] public List<EquipmentRequestDto> Requests { get; set; } = new();
+    /// <summary>True when the user may edit/delete/submit drafts.</summary>
+    [Parameter] public bool CanEdit { get; set; }
+    /// <summary>Raised after any change so the host page can reload its own request list.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private List<ExcelImportBatchDto> _batches = new();
+    private Dictionary<int, EquipmentRequestDto> _requestsById = new();
+    private readonly HashSet<long> _expanded = new();
+    private readonly HashSet<int> _selected = new();
+    private readonly HashSet<int> _diffOpen = new();
+    private bool _loading;
+    private bool _busy;
+    private int? _editingId;
+    private UpdateEquipmentDraftRequest? _form;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    protected override void OnParametersSet()
+        => _requestsById = Requests.GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
+
+    public async Task ReloadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await EquipmentClient.GetMyImportBatchesAsync();
+            if (result.IsSuccess) _batches = (result.Data ?? new()).OrderByDescending(x => x.Id).ToList();
+            else Snackbar.Add(result.Message ?? "Không tải được danh sách hồ sơ import.", Severity.Warning);
+            // Drop selections that are no longer drafts after a reload.
+            var drafts = _batches.SelectMany(b => b.Rows).Where(IsDraft).Select(r => r.RequestId!.Value).ToHashSet();
+            _selected.RemoveWhere(id => !drafts.Contains(id));
+        }
+        finally { _loading = false; }
+    }
+
+    private static List<ExcelImportRowDto> ChildrenOf(ExcelImportBatchDto batch) => batch.Rows.OrderBy(x => x.RowNumber).ToList();
+
+    private static bool IsDraft(ExcelImportRowDto row)
+        => row.RequestId.HasValue && !row.RequestDeleted && !row.IsLocked;
+
+    private static string? Value(ExcelImportRowDto row, string key)
+        => row.Values.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)).Value;
+
+    private static (string Label, Color Color) RowStatus(ExcelImportRowDto row)
+    {
+        if (row.RequestDeleted) return ("Đã xóa bản nháp", Color.Default);
+        if (!row.RequestId.HasValue)
+            return string.Equals(row.Status, "Invalid", StringComparison.OrdinalIgnoreCase) ? ("Lỗi", Color.Error) : ("Hợp lệ", Color.Success);
+        return row.RequestStatus switch
+        {
+            "Draft" => ("Bản nháp", Color.Warning),
+            "NeedsRevision" => ("Cần chỉnh sửa", Color.Warning),
+            "Pending" or "InProgress" or "Escalated" => ("Chờ duyệt", Color.Info),
+            "Approved" => ("Đã duyệt", Color.Success),
+            "Rejected" => ("Từ chối", Color.Error),
+            "Cancelled" => ("Đã hủy", Color.Default),
+            _ => (row.RequestStatus ?? "Bản nháp", Color.Default)
+        };
+    }
+
+    private static (string Label, Color Color) BatchState(ExcelImportBatchDto b, int childCount)
+    {
+        if (childCount == 0) return ("Chưa xác nhận", Color.Default);
+        if (b.ApprovedRows == childCount) return ("Đã phê duyệt", Color.Success);
+        if (b.DraftRows == childCount) return ("Bản nháp", Color.Warning);
+        if (b.PendingRows > 0) return ("Đang phê duyệt", Color.Info);
+        if (b.RejectedRows > 0 && b.DraftRows == 0) return ("Có thiết bị bị từ chối", Color.Error);
+        return ("Gửi duyệt một phần", Color.Warning);
+    }
+
+    private void ToggleExpanded(long id) { if (!_expanded.Add(id)) _expanded.Remove(id); }
+    private void ToggleDiff(int requestId) { if (!_diffOpen.Add(requestId)) _diffOpen.Remove(requestId); }
+    private void ToggleOne(int requestId, bool on) { if (on) _selected.Add(requestId); else _selected.Remove(requestId); }
+    private void ToggleAll(List<int> ids, bool on) { foreach (var id in ids) ToggleOne(id, on); }
+
+    private void BeginEdit(EquipmentRequestDto request)
+    {
+        _editingId = request.Id;
+        _form = new UpdateEquipmentDraftRequest
+        {
+            EquipmentName = request.EquipmentName, AssetCode = request.AssetCode, SerialNumber = request.SerialNumber,
+            Specification = request.Specification, Location = request.Location, Note = request.Note,
+            PurchasePrice = request.PurchasePrice, PurchaseDate = request.PurchaseDate,
+            ExpectedDepreciationDate = request.ExpectedDepreciationDate
+        };
+    }
+
+    private void CancelEdit() { _editingId = null; _form = null; }
+
+    private async Task SaveEditAsync()
+    {
+        if (_editingId is null || _form is null || _busy) return;
+        _busy = true;
+        try
+        {
+            var result = await EquipmentClient.UpdateDraftRequestAsync(_editingId.Value, _form);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu bản nháp.", Severity.Error); return; }
+            Snackbar.Add(result.Message ?? "Đã lưu bản nháp.", Severity.Success);
+            CancelEdit();
+            await RefreshAllAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task DeleteAsync(EquipmentRequestDto request)
+    {
+        if (_busy) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Xóa bản nháp '{request.EquipmentName}' (#{request.Id})? Danh mục tài sản chính thức không bị ảnh hưởng.")) return;
+        _busy = true;
+        try
+        {
+            var result = await EquipmentClient.DeleteDraftRequestAsync(request.Id);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa bản nháp.", Severity.Error); return; }
+            Snackbar.Add(result.Message ?? "Đã xóa bản nháp.", Severity.Success);
+            _selected.Remove(request.Id);
+            if (_editingId == request.Id) CancelEdit();
+            await RefreshAllAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SubmitAllAsync(ExcelImportBatchDto batch)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Gửi duyệt toàn bộ {batch.DraftRows} thiết bị con đủ điều kiện của hồ sơ #{batch.Id}?")) return;
+        await SubmitAsync(batch.Id, null);
+    }
+
+    private async Task SubmitSelectedAsync(ExcelImportBatchDto batch, List<int> draftIds)
+    {
+        var ids = draftIds.Where(_selected.Contains).ToList();
+        if (ids.Count == 0) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Gửi duyệt {ids.Count} thiết bị đã chọn?")) return;
+        await SubmitAsync(batch.Id, ids);
+    }
+
+    private async Task SubmitAsync(long batchId, List<int>? ids)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            var result = await EquipmentClient.SubmitImportBatchAsync(batchId, ids);
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(result.Message ?? "Không thể gửi duyệt.", Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? $"Đã gửi duyệt {result.Data.Submitted} thiết bị.", result.Data.Failed == 0 ? Severity.Success : Severity.Warning);
+                foreach (var error in result.Data.Errors) Snackbar.Add(error, Severity.Warning);
+                foreach (var id in result.Data.SubmittedRequestIds) _selected.Remove(id);
+            }
+            await RefreshAllAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        await OnChanged.InvokeAsync();
+        await ReloadAsync();
+    }
+}

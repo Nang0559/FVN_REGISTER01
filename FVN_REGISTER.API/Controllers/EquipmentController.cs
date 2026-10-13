@@ -106,6 +106,80 @@ public sealed class EquipmentController : ControllerBase
         return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
+    // Request-level operations: act on the exact request id (not "latest draft of the asset").
+    // Fine-grained scope (Edit for registrations, Manage + technician scope for asset changes) is enforced in the service.
+    private async Task<bool> CanEditOrManageDraftAsync(CancellationToken ct)
+        => await CanPersonalAsync(SecurityFunctionCodes.EquipmentEdit, ct) || await CanAsync(SecurityFunctionCodes.EquipmentManage, ct);
+
+    [HttpPost("requests/{id:int}/submit")]
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> SubmitRequest(int id, CancellationToken ct)
+    {
+        if (!await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var result = await _service.SubmitRequestAsync(id, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpPut("requests/{id:int}")]
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> UpdateDraftRequest(int id, [FromBody] UpdateEquipmentDraftRequest request, CancellationToken ct)
+    {
+        if (!await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var result = await _service.UpdateDraftRequestAsync(id, request, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpDelete("requests/{id:int}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteDraftRequest(int id, CancellationToken ct)
+    {
+        if (!await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var result = await _service.DeleteDraftRequestAsync(id, ct);
+        var response = ApiResponse<bool>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
+    }
+
+    /// <summary>
+    /// Submit the child drafts of an import batch: all eligible children (submit whole parent) or only the selected ones.
+    /// Selected ids must belong to the batch, so a client cannot use this endpoint to submit unrelated requests.
+    /// </summary>
+    [HttpPost("import/{batchId:long}/submit")]
+    public async Task<ActionResult<ApiResponse<EquipmentBatchSubmitResultDto>>> SubmitImportBatch(long batchId, [FromBody] EquipmentBatchSubmitRequest? request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct) || !await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var batch = await _import.GetBatchAsync(batchId, ct);
+        if (batch == null) return NotFound(ApiResponse<EquipmentBatchSubmitResultDto>.Fail("Không tìm thấy hồ sơ import.", 404));
+
+        var childIds = batch.Rows.Where(x => x.RequestId.HasValue).Select(x => x.RequestId!.Value).ToHashSet();
+        var eligibleIds = batch.Rows.Where(x => x.RequestId.HasValue && !x.IsLocked && !x.RequestDeleted).Select(x => x.RequestId!.Value).ToList();
+
+        List<int> targets;
+        if (request?.RequestIds is { Count: > 0 })
+        {
+            targets = request.RequestIds.Distinct().ToList();
+            if (targets.Any(id => !childIds.Contains(id)))
+                return BadRequest(ApiResponse<EquipmentBatchSubmitResultDto>.Fail("Có thiết bị không thuộc hồ sơ import này."));
+        }
+        else targets = eligibleIds;
+
+        var result = new EquipmentBatchSubmitResultDto { BatchId = batchId };
+        if (targets.Count == 0)
+            return BadRequest(ApiResponse<EquipmentBatchSubmitResultDto>.Fail("Không có thiết bị nào đủ điều kiện gửi duyệt."));
+
+        foreach (var requestId in targets)
+        {
+            if (!eligibleIds.Contains(requestId))
+            { result.Failed++; result.Errors.Add($"Yêu cầu #{requestId}: đã khóa, đã bị xóa hoặc không còn là bản nháp."); continue; }
+            var submit = await _service.SubmitRequestAsync(requestId, ct);
+            if (submit.IsSuccess) { result.Submitted++; result.SubmittedRequestIds.Add(requestId); }
+            else { result.Failed++; result.Errors.Add($"Yêu cầu #{requestId}: {submit.Message}"); }
+        }
+
+        var message = $"Đã gửi duyệt {result.Submitted}/{targets.Count} thiết bị.";
+        return result.Submitted > 0
+            ? Ok(ApiResponse<EquipmentBatchSubmitResultDto>.Ok(result, message))
+            : BadRequest(ApiResponse<EquipmentBatchSubmitResultDto>.Fail(result.Errors.FirstOrDefault() ?? message));
+    }
+
     [HttpPut("assets/{id:int}/endpoint-agent-eligibility")]
     public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> SetEndpointAgentEligibility(int id, [FromBody] EndpointAgentEligibilityRequest request, CancellationToken ct)
     {
