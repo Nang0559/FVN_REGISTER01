@@ -190,12 +190,12 @@
                             Batch @_commitResult.BatchId: đã tạo @_commitResult.ImportedRows bản nháp; bỏ qua @_commitResult.SkippedRows dòng.
                             @if (_commitResult.Errors.Count > 0)
                             {
-                                <MudList Dense="true">
+                                <MudStack Spacing="1">
                                     @foreach (var error in _commitResult.Errors)
                                     {
-                                        <MudListItem>@error</MudListItem>
+                                        <MudText Typo="Typo.body2" Color="Color.Error">@error</MudText>
                                     }
-                                </MudList>
+                                </MudStack>
                             }
                         </MudAlert>
                     }
