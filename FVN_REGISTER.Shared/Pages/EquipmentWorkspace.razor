@@ -192,17 +192,32 @@
                     else
                     {
                         <MudTable Items="_batch.Rows.OrderBy(x => x.RowNumber)" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm">
-                            <HeaderContent><MudTh>Dòng Excel</MudTh><MudTh>Kết quả kiểm tra</MudTh><MudTh>Chi tiết / lỗi</MudTh></HeaderContent>
+                            <HeaderContent><MudTh>Dòng Excel</MudTh><MudTh>Loại</MudTh><MudTh>Staging</MudTh><MudTh>Yêu cầu con</MudTh><MudTh>Chi tiết / lỗi</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Dòng Excel">@context.RowNumber</MudTd>
-                                <MudTd DataLabel="Kết quả kiểm tra">
+                                <MudTd DataLabel="Loại">@(!string.IsNullOrWhiteSpace(context.ActionKind) ? context.ActionKind : "Chưa phân loại")</MudTd>
+                                <MudTd DataLabel="Staging">
                                     @if (string.Equals(context.Status, "Valid", StringComparison.OrdinalIgnoreCase)) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Hợp lệ</MudChip> }
                                     else if (string.Equals(context.Status, "Invalid", StringComparison.OrdinalIgnoreCase)) { <MudChip T="string" Size="Size.Small" Color="Color.Error">Lỗi</MudChip> }
                                     else { <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Status</MudChip> }
                                 </MudTd>
+                                <MudTd DataLabel="Yêu cầu con">
+                                    @if (context.RequestId.HasValue)
+                                    {
+                                        <MudText Typo="Typo.body2">#@context.RequestId</MudText>
+                                        <MudChip T="string" Size="Size.Small" Color="@(context.IsLocked ? Color.Warning : Color.Info)">@(!string.IsNullOrWhiteSpace(context.RequestStatus) ? context.RequestStatus : "Draft")</MudChip>
+                                        @if (context.IsLocked) { <MudText Typo="Typo.caption" Color="Color.Warning">Đã khóa sửa/xóa</MudText> }
+                                    }
+                                    else { <MudText Typo="Typo.caption" Class="mud-text-secondary">Chưa tạo yêu cầu</MudText> }
+                                </MudTd>
                                 <MudTd DataLabel="Chi tiết / lỗi">
                                     @if (!string.IsNullOrWhiteSpace(context.ErrorMessage)) { <MudText Color="Color.Error" Typo="Typo.body2">@context.ErrorMessage</MudText> }
                                     else { <MudText Typo="Typo.body2" Class="mud-text-secondary">Không phát hiện lỗi ở bước staging.</MudText> }
+                                </MudTd>
+                                <MudTd DataLabel="Thao tác">
+                                    @if (context.IsLocked) { <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Chỉ xem</MudChip> }
+                                    else if (context.RequestId.HasValue) { <MudText Typo="Typo.caption">Bản nháp — thao tác chỉnh sửa/xóa đang được khóa phía máy chủ cho đến khi có API cập nhật an toàn.</MudText> }
+                                    else { <MudText Typo="Typo.caption">Chưa tạo bản nháp</MudText> }
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>
