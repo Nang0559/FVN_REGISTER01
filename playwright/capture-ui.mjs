@@ -153,7 +153,37 @@ async function attemptLogin(page) {
         return { configured: true, success: false, requiresTwoFactor: true, reason: "two-factor-required" };
       }
       if (current.pathname.replace(/\/$/, "") !== "/login") {
-        return { configured: true, success: true, method: "navigated-away-from-login" };
+        // Leaving /login is not proof that authentication persisted. Verify by
+        // requesting a protected landing route in the same browser context.
+        await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
+        await waitForUi(page);
+        const verifiedUrl = new URL(page.url());
+        if (verifiedUrl.pathname.replace(/\/$/, "") === "/login") {
+          const diagnostic = {
+            configured: true,
+            success: false,
+            reason: "session-not-persisted",
+            method: "navigated-away-from-login",
+            landedOn: current.pathname,
+            verificationRedirect: verifiedUrl.pathname,
+            cookieNames: (await page.context().cookies(baseUrl)).map(cookie => cookie.name),
+            localStorageKeys: await page.evaluate(() => Object.keys(localStorage))
+              .catch(() => [])
+          };
+          failures.push({
+            url: loginUrl,
+            error: "Login form navigated away from /login, but opening the site root redirected back to /login. Authentication is not persisted/recognized by the app; check login API response, token/cookie storage, cookie domain/SameSite/Secure settings, or server-side session configuration."
+          });
+          return diagnostic;
+        }
+        return {
+          configured: true,
+          success: true,
+          method: "protected-route-verified",
+          landedOn: verifiedUrl.pathname,
+          cookieNames: (await page.context().cookies(baseUrl)).map(cookie => cookie.name),
+          localStorageKeys: await page.evaluate(() => Object.keys(localStorage)).catch(() => [])
+        };
       }
       await page.waitForTimeout(250);
     }
