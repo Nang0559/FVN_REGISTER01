@@ -113,6 +113,122 @@ async function signIn(page: Page): Promise<void> {
   }
 }
 
+const loadingSelector = [
+  '[aria-busy="true"]',
+  '[role="progressbar"]',
+  '.loading',
+  '.spinner',
+  '.skeleton',
+  '.mud-progress-circular',
+  '.e-spinner-pane',
+  '.ant-spin-spinning',
+  '.el-loading-mask',
+  '.ngx-spinner-overlay'
+].join(', ');
+
+const ignoredRequest = /signalr|\/negotiate(?:\?|$)|telemetry|analytics|hotjar|clarity|\/collect(?:\?|$)/i;
+
+function installRequestTracker(page: Page) {
+  const pending = new Set<import('@playwright/test').Request>();
+  let lastActivity = Date.now();
+  const trackable = (request: import('@playwright/test').Request) =>
+    ['fetch', 'xhr'].includes(request.resourceType()) && !ignoredRequest.test(request.url());
+
+  page.on('request', request => {
+    if (trackable(request)) {
+      pending.add(request);
+      lastActivity = Date.now();
+    }
+  });
+  const finish = (request: import('@playwright/test').Request) => {
+    if (pending.delete(request)) lastActivity = Date.now();
+  };
+  page.on('requestfinished', finish);
+  page.on('requestfailed', finish);
+
+  return {
+    pending,
+    get lastActivity() { return lastActivity; }
+  };
+}
+
+async function waitForFormReady(
+  page: Page,
+  tracker: ReturnType<typeof installRequestTracker>,
+  label: string,
+  timeoutMs = 60_000
+): Promise<void> {
+  const started = Date.now();
+  let stableSamples = 0;
+  let previousSignature = '';
+  let lastLog = 0;
+
+  // First allow navigation and the document shell to finish initializing.
+  await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+  await page.locator('body').waitFor({ state: 'visible', timeout: 15_000 });
+
+  while (Date.now() - started < timeoutMs) {
+    const elapsed = Date.now() - started;
+    const busyCount = await page.locator(loadingSelector).evaluateAll(elements =>
+      elements.filter(element => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden'
+          && Number(style.opacity || '1') > 0 && rect.width > 0 && rect.height > 0;
+      }).length
+    ).catch(() => 0);
+
+    const signature = await page.locator('body').evaluate(element => {
+      const text = (element.innerText || '').replace(/\s+/g, ' ').slice(0, 5000);
+      const forms = element.querySelectorAll('form').length;
+      const controls = element.querySelectorAll('input,select,textarea,button,[role="tab"],[role="grid"],table').length;
+      return text + '|forms:' + forms + '|controls:' + controls;
+    }).catch(() => '');
+    const networkQuiet = tracker.pending.size === 0 && Date.now() - tracker.lastActivity >= 1_500;
+
+    if (busyCount === 0 && networkQuiet && signature && signature === previousSignature) {
+      stableSamples++;
+    } else {
+      stableSamples = 0;
+    }
+    previousSignature = signature;
+
+    if (stableSamples >= 3) {
+      console.log('Page ready after ' + Math.round(elapsed / 1000) + 's: ' + label);
+      return;
+    }
+
+    if (elapsed - lastLog >= 10_000) {
+      lastLog = elapsed;
+      console.log(
+        'Waiting for page data: ' + label + '; elapsed=' + Math.round(elapsed / 1000)
+        + 's, visible loaders=' + busyCount + ', pending API requests=' + tracker.pending.size
+      );
+    }
+    await page.waitForTimeout(400);
+  }
+
+  const busyCount = await page.locator(loadingSelector).evaluateAll(elements =>
+    elements.filter(element => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden'
+        && Number(style.opacity || '1') > 0 && rect.width > 0 && rect.height > 0;
+    }).length
+  ).catch(() => 0);
+
+  if (busyCount > 0 || tracker.pending.size > 0) {
+    throw new Error(
+      'Page did not become ready within ' + Math.round(timeoutMs / 1000) + 's; visible loaders='
+      + busyCount + ', pending API requests=' + tracker.pending.size + '. Skipping screenshot to avoid capturing a partially loaded form.'
+    );
+  }
+
+  // Some screens are legitimately quiet but still render asynchronously.
+  await page.waitForTimeout(1_200);
+  console.warn('Page content did not reach a stable signature, but no loader/API request remains: ' + label);
+}
+
 async function expandNavigation(page: Page): Promise<void> {
   const safeLabels = /^(menu|navigation|open menu|toggle menu|open navigation|toggle navigation|show navigation|sidebar|side bar|expand navigation|collapse navigation|điều hướng|danh mục|mở menu|mở rộng menu|thu gọn menu)$/i;
   const controls = page.locator('button:visible, [role="button"]:visible');
@@ -159,10 +275,10 @@ async function collectInternalLinks(page: Page, baseOrigin: string): Promise<str
 }
 
 test('signs in with Actions secrets and captures accessible application pages', async ({ page, baseURL }) => {
-  test.setTimeout(25 * 60 * 1000);
+  test.setTimeout(30 * 60 * 1000);
   await mkdir(screenshotDir, { recursive: true });
 
-  await signIn(page);
+  const requestTracker = installRequestTracker(page);\n  await signIn(page);
   await expect(page.locator('body')).toBeVisible();
   await saveScreenshot(page, 'dashboard-after-login');
 
@@ -180,10 +296,10 @@ test('signs in with Actions secrets and captures accessible application pages', 
     visited.add(target);
 
     try {
-      const response = await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 25_000 });
+      const response = await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 45_000 });
       if (!response || response.status() >= 500) continue;
       await page.locator('body').waitFor({ state: 'visible', timeout: 10_000 });
-      await page.waitForTimeout(700);
+      await waitForFormReady(page, requestTracker, target);
 
       // Keep the crawler read-only: only expand navigation controls and select semantic tabs.
       const route = normalized.pathname + normalized.search;
