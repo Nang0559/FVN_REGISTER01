@@ -29,6 +29,7 @@ public interface IEquipmentImportService
     Task<ExcelSchemaFromExcelDto> PreviewSchemaFromExcelAsync(int departmentCode, string fileName, Stream content, CancellationToken ct = default);
     Task<ExcelSchemaDto> CreateSchemaFromExcelAsync(int departmentCode, string fileName, Stream content, string? schemaName, CancellationToken ct = default);
 
+    Task<List<ExcelImportBatchDto>> GetMyBatchesAsync(CancellationToken ct = default);
     Task<ExcelImportBatchDto?> GetBatchAsync(long batchId, CancellationToken ct = default);
     Task<ExcelImportCommitResultDto> CommitAsync(long batchId, CancellationToken ct = default);
     Task<ServiceResult<bool>> DeleteDraftSchemaAsync(int schemaId, CancellationToken ct = default);
