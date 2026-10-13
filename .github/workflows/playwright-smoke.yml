@@ -50,6 +50,11 @@ jobs:
           fi
           npm test
 
+      - name: Create standalone mobile-friendly report
+        if: always()
+        working-directory: tests/playwright
+        run: node scripts/create-mobile-report.mjs
+
       - name: List generated reports and screenshots
         if: always()
         run: |
@@ -74,5 +79,6 @@ jobs:
           path: |
             tests/playwright/playwright-report/
             tests/playwright/test-results/
+            tests/playwright/mobile-report.html
           if-no-files-found: warn
           retention-days: 14
