@@ -114,7 +114,7 @@ async function signIn(page: Page): Promise<void> {
 }
 
 async function expandNavigation(page: Page): Promise<void> {
-  const safeLabels = /^(menu|navigation|open menu|toggle menu|sidebar|side bar|expand navigation|collapse navigation|điều hướng|danh mục|mở menu|mở rộng menu|thu gọn menu)$/i;
+  const safeLabels = /^(menu|navigation|open menu|toggle menu|open navigation|toggle navigation|show navigation|sidebar|side bar|expand navigation|collapse navigation|điều hướng|danh mục|mở menu|mở rộng menu|thu gọn menu)$/i;
   const controls = page.locator('button:visible, [role="button"]:visible');
   const count = Math.min(await controls.count().catch(() => 0), 100);
   for (let i = 0; i < count; i++) {
