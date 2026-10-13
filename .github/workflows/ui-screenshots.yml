@@ -41,6 +41,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate capture script and route manifest
+        run: |
+          node --check playwright/capture-ui.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('playwright/ui-routes.json', 'utf8'))"
+
       - name: Validate staging URL
         shell: bash
         run: |
