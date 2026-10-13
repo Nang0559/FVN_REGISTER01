@@ -211,30 +211,34 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 page.setDefaultTimeout(timeout);
+// Discover routes independently of authentication so a login failure does not misleadingly
+// report zero routes. Protected pages are never counted as captured unless accessible.
+const manifest = await readManifest();
+const razorRoutes = await discoverRazorRoutes();
+const routeQueue = [];
+const addRoute = (href, source, label) => {
+  const url = normalize(href, baseUrl);
+  if (!url || discovered.has(url) || new URL(url).pathname.replace(/\/$/, "") === "/login") return;
+  discovered.set(url, { url, source, label: label || "" });
+  routeQueue.push(url);
+};
+addRoute(baseUrl, "base-url", "Trang chủ");
+for (const item of razorRoutes) addRoute(item.path, "razor:" + item.source, item.path);
+for (const item of manifest) {
+  if (typeof item === "string") addRoute(item, "manifest", item);
+  else if (item && typeof item.path === "string") addRoute(item.path, "manifest", item.name || item.path);
+}
+
+let pagesAttempted = 0;
 let login = { configured: false, success: null };
 try {
   login = await attemptLogin(page);
 
   if (login.success === true) {
-    const manifest = await readManifest();
-    const razorRoutes = await discoverRazorRoutes();
-    const routeQueue = [];
-    const addRoute = (href, source, label) => {
-      const url = normalize(href, baseUrl);
-      if (!url || discovered.has(url) || new URL(url).pathname.replace(/\/$/, "") === "/login") return;
-      discovered.set(url, { url, source, label: label || "" });
-      routeQueue.push(url);
-    };
-    addRoute(baseUrl, "base-url", "Trang chủ");
-    for (const item of razorRoutes) addRoute(item.path, "razor:" + item.source, item.path);
-    for (const item of manifest) {
-      if (typeof item === "string") addRoute(item, "manifest", item);
-      else if (item && typeof item.path === "string") addRoute(item.path, "manifest", item.name || item.path);
-    }
-
     let index = 0;
     while (index < routeQueue.length && index < maxPages) {
       const url = routeQueue[index++];
+      pagesAttempted++;
       let responseStatus = null;
       try {
         const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
@@ -288,7 +292,7 @@ try {
 }
 const report = {
   baseUrl, capturedAtUtc: new Date().toISOString(),
-  login, pagesDiscovered: discovered.size, pagesAttempted: Math.min(discovered.size, maxPages),
+  login, pagesDiscovered: discovered.size, pagesAttempted,
   pagesCaptured: captured.length, limit: maxPages, truncated: discovered.size > maxPages,
   screenshotCount: captured.length, failureCount: failures.length,
   screenshots: captured, failures
