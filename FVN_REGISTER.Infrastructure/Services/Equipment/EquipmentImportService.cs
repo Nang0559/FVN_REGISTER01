@@ -714,14 +714,23 @@ END", ct);
         {
             using var document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind != JsonValueKind.Object) return new(StringComparer.OrdinalIgnoreCase);
-            return document.RootElement.EnumerateObject().ToDictionary(
-                p => p.Name,
-                p => p.Value.ValueKind switch
+            // Staging JSON may contain duplicate keys that differ only by casing
+            // (for example EquipmentCode and equipmentcode). ToDictionary throws for
+            // those payloads when using an ordinal-ignore-case comparer. Keep the first
+            // key slot and deterministically let the last value win, matching the
+            // case-insensitive lookup semantics used by the importer.
+            var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                var value = property.Value.ValueKind switch
                 {
-                    JsonValueKind.String => p.Value.GetString(),
+                    JsonValueKind.String => property.Value.GetString(),
                     JsonValueKind.Null or JsonValueKind.Undefined => null,
-                    _ => p.Value.ToString()
-                }, StringComparer.OrdinalIgnoreCase);
+                    _ => property.Value.ToString()
+                };
+                values[property.Name] = value;
+            }
+            return values;
         }
         catch (JsonException) { return new(StringComparer.OrdinalIgnoreCase); }
     }
