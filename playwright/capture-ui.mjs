@@ -74,7 +74,7 @@ async function readManifest() {
   } catch { return []; }
 }
 async function discoverRazorRoutes() {
-  const roots = ["FVN_REGISTER.Web"];
+  const roots = ["FVN_REGISTER.Web", "FVN_REGISTER.Shared"];
   const routes = [];
   async function walk(dir) {
     let entries;
@@ -102,28 +102,68 @@ async function discoverRazorRoutes() {
 async function attemptLogin(page) {
   const username = process.env.UI_LOGIN_USERNAME;
   const password = process.env.UI_LOGIN_PASSWORD;
-  if (!username || !password) return { configured: false, success: null };
-  await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
-  const userSelector = process.env.UI_USERNAME_SELECTOR || 'input[name="UserName"], input[name="username"], input[type="email"], input[autocomplete="username"]';
-  const passSelector = process.env.UI_PASSWORD_SELECTOR || 'input[name="Password"], input[name="password"], input[type="password"], input[autocomplete="current-password"]';
-  const submitSelector = process.env.UI_SUBMIT_SELECTOR || 'button[type="submit"], input[type="submit"]';
-  const user = page.locator(userSelector).first();
-  const pass = page.locator(passSelector).first();
-  if (!(await user.count()) || !(await pass.count())) {
-    failures.push({ url: baseUrl, error: "Login credentials configured, but username/password selectors did not match. Configure UI_*_SELECTOR." });
-    return { configured: true, success: false };
+  if (!username || !password) {
+    const error = "UI_LOGIN_USERNAME/UI_LOGIN_PASSWORD are not configured; protected UI capture was skipped.";
+    failures.push({ url: new URL("/login", baseUrl).href, error });
+    return { configured: false, success: false, reason: "credentials-missing" };
   }
-  await user.fill(username);
-  await pass.fill(password);
-  await page.locator(submitSelector).first().click();
-  if (process.env.UI_POST_LOGIN_SELECTOR) {
-    await page.locator(process.env.UI_POST_LOGIN_SELECTOR).first().waitFor({ state: "visible", timeout: 30000 });
-  } else {
-    await page.waitForLoadState("domcontentloaded").catch(() => {});
-    await page.waitForTimeout(1200);
+
+  const loginUrl = new URL("/login", baseUrl).href;
+  const userSelector = process.env.UI_USERNAME_SELECTOR
+    || 'input[name="UserName"], input[name="username"], input[autocomplete="username"], input[type="email"], input[type="text"]';
+  const passSelector = process.env.UI_PASSWORD_SELECTOR
+    || 'input[name="Password"], input[name="password"], input[autocomplete="current-password"], input[type="password"]';
+  const submitSelector = process.env.UI_SUBMIT_SELECTOR
+    || 'form button[type="submit"], form input[type="submit"], button[type="submit"], input[type="submit"]';
+
+  try {
+    await page.goto(loginUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
+
+    // Blazor/MudBlazor renders its controls after the initial document response.
+    await page.locator(passSelector).first().waitFor({ state: "visible", timeout: 20000 });
+    const user = page.locator(userSelector).first();
+    const pass = page.locator(passSelector).first();
+    const submit = page.locator(submitSelector).first();
+
+    if (!(await user.count()) || !(await user.isVisible()) ||
+        !(await pass.count()) || !(await pass.isVisible()) ||
+        !(await submit.count()) || !(await submit.isVisible())) {
+      throw new Error("Login form rendered, but the username, password, or submit control could not be located. Configure UI_USERNAME_SELECTOR, UI_PASSWORD_SELECTOR, and UI_SUBMIT_SELECTOR.");
+    }
+
+    await user.fill(username);
+    await pass.fill(password);
+    await submit.click();
+
+    if (process.env.UI_POST_LOGIN_SELECTOR) {
+      await page.locator(process.env.UI_POST_LOGIN_SELECTOR).first().waitFor({ state: "visible", timeout: 30000 });
+      return { configured: true, success: true, method: "post-login-selector" };
+    }
+
+    // A valid login either navigates away from /login or presents the two-factor step.
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline) {
+      const current = new URL(page.url());
+      const twoFactorVisible = await page.locator('input[maxlength="6"], input[inputmode="numeric"]').first().isVisible().catch(() => false);
+      if (twoFactorVisible) {
+        const error = "Login reached the two-factor verification step. UI capture requires a test account that can complete 2FA or a configured UI_POST_LOGIN_SELECTOR after completing the flow.";
+        failures.push({ url: loginUrl, error });
+        return { configured: true, success: false, requiresTwoFactor: true, reason: "two-factor-required" };
+      }
+      if (current.pathname.replace(/\/$/, "") !== "/login") {
+        return { configured: true, success: true, method: "navigated-away-from-login" };
+      }
+      await page.waitForTimeout(250);
+    }
+
+    const error = "Login did not leave /login within 20 seconds; credentials may be invalid or the app may have displayed a validation error.";
+    failures.push({ url: loginUrl, error });
+    return { configured: true, success: false, reason: "login-not-confirmed" };
+  } catch (error) {
+    const message = String(error?.message || error).slice(0, 1000);
+    failures.push({ url: loginUrl, error: message });
+    return { configured: true, success: false, reason: "login-error", error: message };
   }
-  const stillOnLogin = await page.locator(passSelector).count().catch(() => 0);
-  return { configured: true, success: stillOnLogin === 0 };
 }
 async function safeInteractiveStates(page, url, status) {
   // Only activate non-submitting navigation controls and tabs; never click arbitrary business-action buttons.
@@ -174,41 +214,73 @@ page.setDefaultTimeout(timeout);
 let login = { configured: false, success: null };
 try {
   login = await attemptLogin(page);
-  const manifest = await readManifest();
-  const razorRoutes = await discoverRazorRoutes();
-  const routeQueue = [];
-  const addRoute = (href, source, label) => {
-    const url = normalize(href, baseUrl);
-    if (!url || discovered.has(url)) return;
-    discovered.set(url, { url, source, label: label || "" });
-    routeQueue.push(url);
-  };
-  addRoute(baseUrl, "base-url", "Trang chủ");
-  for (const item of razorRoutes) addRoute(item.path, "razor:" + item.source, item.path);
-  for (const item of manifest) {
-    if (typeof item === "string") addRoute(item, "manifest", item);
-    else if (item && typeof item.path === "string") addRoute(item.path, "manifest", item.name || item.path);
-  }
-  let index = 0;
-  while (index < routeQueue.length && index < maxPages) {
-    const url = routeQueue[index++];
-    let responseStatus = null;
-    try {
-      const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
-      responseStatus = response?.status() ?? null;
-      await waitForUi(page);
-      await capture(page, url, "default", responseStatus, { source: discovered.get(url)?.source || "link" });
-      await safeInteractiveStates(page, url, responseStatus);
-      const links = await page.locator("a[href]").evaluateAll(nodes => nodes.map(a => ({ href: a.getAttribute("href"), text: (a.innerText || a.getAttribute("aria-label") || "").trim().slice(0, 120) })).filter(a => a.href));
-      for (const link of links) {
-        const next = normalize(link.href, url);
-        if (next && !discovered.has(next) && discovered.size < maxPages * 4) {
-          discovered.set(next, { url: next, source: "link", label: link.text });
-          routeQueue.push(next);
+
+  if (login.success === true) {
+    const manifest = await readManifest();
+    const razorRoutes = await discoverRazorRoutes();
+    const routeQueue = [];
+    const addRoute = (href, source, label) => {
+      const url = normalize(href, baseUrl);
+      if (!url || discovered.has(url) || new URL(url).pathname.replace(/\/$/, "") === "/login") return;
+      discovered.set(url, { url, source, label: label || "" });
+      routeQueue.push(url);
+    };
+    addRoute(baseUrl, "base-url", "Trang chủ");
+    for (const item of razorRoutes) addRoute(item.path, "razor:" + item.source, item.path);
+    for (const item of manifest) {
+      if (typeof item === "string") addRoute(item, "manifest", item);
+      else if (item && typeof item.path === "string") addRoute(item.path, "manifest", item.name || item.path);
+    }
+
+    let index = 0;
+    while (index < routeQueue.length && index < maxPages) {
+      const url = routeQueue[index++];
+      let responseStatus = null;
+      try {
+        const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+        responseStatus = response?.status() ?? null;
+        await waitForUi(page);
+
+        const actualUrl = new URL(page.url());
+        if (actualUrl.pathname.replace(/\/$/, "") === "/login") {
+          failures.push({
+            url,
+            error: "Route redirected to /login. It was not captured as a valid authenticated page; check session persistence or route permissions."
+          });
+          continue;
         }
+
+        await capture(page, url, "default", responseStatus, { source: discovered.get(url)?.source || "link" });
+        await safeInteractiveStates(page, url, responseStatus);
+        const links = await page.locator("a[href]").evaluateAll(nodes => nodes.map(a => ({
+          href: a.getAttribute("href"),
+          text: (a.innerText || a.getAttribute("aria-label") || "").trim().slice(0, 120)
+        })).filter(a => a.href));
+        for (const link of links) {
+          const next = normalize(link.href, url);
+          if (next && !discovered.has(next) && discovered.size < maxPages * 4 &&
+              new URL(next).pathname.replace(/\/$/, "") !== "/login") {
+            discovered.set(next, { url: next, source: "link", label: link.text });
+            routeQueue.push(next);
+          }
+        }
+      } catch (error) {
+        failures.push({ url, error: String(error?.message || error).slice(0, 1000) });
       }
+    }
+  } else {
+    // Keep a diagnostic screenshot of the login form, but never crawl protected pages
+    // or report them as captured when authentication was not confirmed.
+    const loginUrl = new URL("/login", baseUrl).href;
+    try {
+      if (new URL(page.url()).pathname.replace(/\/$/, "") !== "/login") {
+        await page.goto(loginUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
+      }
+      await waitForUi(page);
+      const responseStatus = await page.locator("body").count().catch(() => 0);
+      await capture(page, loginUrl, "login-diagnostic", responseStatus ? 200 : null, { source: "login-diagnostic" });
     } catch (error) {
-      failures.push({ url, error: String(error?.message || error).slice(0, 1000) });
+      failures.push({ url: loginUrl, error: "Could not capture login diagnostic: " + String(error?.message || error).slice(0, 700) });
     }
   }
 } finally {
@@ -230,4 +302,4 @@ if (captured.length) {
 console.log("Discovered " + discovered.size + " route(s); captured " + captured.length + " screen(s); " + failures.length + " failure(s).");
 console.log("ZIP: " + zipPath);
 console.log("HTML report: " + htmlReportPath);
-if (!captured.length) process.exitCode = 1;
+if (!captured.length || login.success !== true || failures.length > 0) process.exitCode = 1;
