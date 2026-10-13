@@ -319,8 +319,8 @@ test('signs in with Actions secrets and captures accessible application pages', 
           || (await tab.innerText().catch(() => ''))
           || `tab-${tabIndex + 1}`;
         try {
-          await tab.click({ timeout: 2_000 });
-          await page.waitForTimeout(200);
+          await tab.click({ timeout: 5_000 });
+          await waitForFormReady(page, requestTracker, `${target} [tab ${tabIndex + 1}]`, 45_000);
           await saveScreenshot(page, `${route}--tab-${tabIndex + 1}-${tabName}`);
           for (const link of await collectInternalLinks(page, origin)) discoveredLinks.add(link);
         } catch (error) {
