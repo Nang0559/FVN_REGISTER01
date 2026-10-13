@@ -191,6 +191,7 @@ test('signs in with Actions secrets and captures accessible application pages', 
       await saveScreenshot(page, route);
 
       // Capture each tab panel separately; tabs are view switches, not business submissions.
+      const discoveredLinks = new Set(await collectInternalLinks(page, origin));
       const tabs = page.getByRole('tab');
       const tabCount = Math.min(await tabs.count().catch(() => 0), 30);
       for (let tabIndex = 0; tabIndex < tabCount; tabIndex++) {
@@ -203,12 +204,13 @@ test('signs in with Actions secrets and captures accessible application pages', 
           await tab.click({ timeout: 2_000 });
           await page.waitForTimeout(200);
           await saveScreenshot(page, `${route}--tab-${tabIndex + 1}-${tabName}`);
+          for (const link of await collectInternalLinks(page, origin)) discoveredLinks.add(link);
         } catch (error) {
           console.warn(`Skipped tab on ${normalized.pathname}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
-      const links = await collectInternalLinks(page, origin);
+      const links = [...discoveredLinks, ...await collectInternalLinks(page, origin)];
       for (const link of links) {
         if (!visited.has(link) && queue.length + visited.size < Math.max(1, maxPages) * 3) {
           queue.push(link);
