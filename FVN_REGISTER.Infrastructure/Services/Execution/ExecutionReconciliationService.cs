@@ -11,6 +11,7 @@ using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Entities.Common;
@@ -162,10 +163,11 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     private async Task<ExecutionReconciliationDto?> GetAsyncCoreAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
     {
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        return await _db.ExecutionReconciliations.AsNoTracking()
+        var dto = await _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.Id == reconciliationId && x.IsActive != false && x.EmployeeId == employeeId)
             .Select(ToDto())
             .FirstOrDefaultAsync(cancellationToken);
+        return dto is null ? null : (await ApplyFeedbackAsync(new[] { dto }, cancellationToken))[0];
     }
 
     private async Task<ExecutionReconciliationDetailDto?> GetDetailAsyncCoreAsync(
@@ -184,6 +186,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         if (reconciliation is null)
             return null;
+
+        reconciliation = (await ApplyFeedbackAsync(new[] { reconciliation }, cancellationToken))[0];
 
         var confirmation = await _db.ExecutionConfirmations.AsNoTracking()
             .Where(x => x.ReconciliationId == reconciliationId
@@ -271,10 +275,11 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         if (to.DayNumber - from.DayNumber > 93) throw new ArgumentException("Khoảng ngày tối đa là 94 ngày.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        return await _db.ExecutionReconciliations.AsNoTracking()
+        var rows = await _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.IsActive != false && x.EmployeeId == employeeId && x.WorkDate >= from && x.WorkDate <= to)
             .OrderBy(x => x.WorkDate).ThenBy(x => x.ModuleCode).ThenBy(x => x.SourceId).ThenBy(x => x.ParticipantId)
             .Select(ToDto()).ToListAsync(cancellationToken);
+        return await ApplyFeedbackAsync(rows, cancellationToken);
     }
 
     private async Task<ExecutionReconciliationDto> UpsertAsyncCoreAsync(
@@ -1436,6 +1441,61 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
         x => new ExecutionReconciliationDto(x.Id, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId, x.EmployeeId, x.WorkDate,
             x.PlannedState, x.ActualState, x.ReconciliationStatus, x.RequiresConfirmation, x.RequiresEvidence, x.ConfirmationId, x.ActionId);
+
+    /// <summary>
+    /// Gắn trạng thái phản hồi (Pending / HR request / HR processed / Complete / Rejected) + ý kiến HR vào DTO,
+    /// dùng chung ExecutionFeedbackStatusPolicy với "Nhiệm vụ của tôi" và lịch để 3 nơi luôn khớp nhau.
+    /// </summary>
+    private async Task<List<ExecutionReconciliationDto>> ApplyFeedbackAsync(
+        IReadOnlyList<ExecutionReconciliationDto> items,
+        CancellationToken cancellationToken)
+    {
+        if (items.Count == 0)
+            return new List<ExecutionReconciliationDto>();
+
+        var ids = items.Select(x => x.Id).ToList();
+        var confirmations = (await _db.ExecutionConfirmations.AsNoTracking()
+                .Where(x => x.IsActive != false && ids.Contains(x.ReconciliationId))
+                .Select(x => new { x.Id, x.ReconciliationId, x.Status, x.SubmittedAt, x.ReviewedAt, x.ReviewNote })
+                .ToListAsync(cancellationToken))
+            .GroupBy(x => x.ReconciliationId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
+
+        var result = new List<ExecutionReconciliationDto>(items.Count);
+        foreach (var item in items)
+        {
+            if (!confirmations.TryGetValue(item.Id, out var c))
+            {
+                result.Add(item);
+                continue;
+            }
+
+            var feedback = ExecutionFeedbackStatusPolicy.Resolve(
+                item.ReconciliationStatus, c.Status, c.SubmittedAt, c.ReviewedAt);
+            if (feedback is not { } fb)
+            {
+                result.Add(item);
+                continue;
+            }
+
+            // Chỉ hiện ý kiến HR khi HR đã review sau lần gửi gần nhất của nhân viên.
+            var note = c.ReviewedAt.HasValue
+                && (!c.SubmittedAt.HasValue || c.ReviewedAt.Value >= c.SubmittedAt.Value)
+                && !string.IsNullOrWhiteSpace(c.ReviewNote)
+                    ? c.ReviewNote
+                    : null;
+
+            result.Add(item with
+            {
+                FeedbackTone = fb.Tone,
+                FeedbackLabel = fb.Label,
+                FeedbackNote = note,
+                FeedbackRequiresEmployeeAction = fb.RequiresEmployeeAction
+            });
+        }
+
+        return result;
+    }
 
     private static ExecutionConfirmationDto ToConfirmationDto(F03ExecutionConfirmation x) =>
         new(x.Id, x.ReconciliationId, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId, x.EmployeeId, x.WorkDate,

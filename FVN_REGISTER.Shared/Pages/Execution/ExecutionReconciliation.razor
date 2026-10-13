@@ -22,7 +22,15 @@
         <MudGrid Class="mt-2">
             <MudItem xs="12" md="4">
                 <MudText Typo="Typo.body2">
-                    @Language.T("execution.trangThai") <b>@_detail.Reconciliation.ReconciliationStatus</b>
+                    @Language.T("execution.trangThai")
+                    @if (!string.IsNullOrWhiteSpace(_detail.Reconciliation.FeedbackLabel))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@GetFeedbackColor(_detail.Reconciliation.FeedbackTone)">@_detail.Reconciliation.FeedbackLabel</MudChip>
+                    }
+                    else
+                    {
+                        <b>@_detail.Reconciliation.ReconciliationStatus</b>
+                    }
                 </MudText>
             </MudItem>
             <MudItem xs="12" md="4">
@@ -214,13 +222,26 @@
                 <MudTd DataLabel="Participant">@(context.ParticipantId ?? "-")</MudTd>
                 <MudTd DataLabel='@Language.T("execution.duKien")'>@(context.PlannedState ?? "-")</MudTd>
                 <MudTd DataLabel='@Language.T("execution.thucTe")'>@(context.ActualState ?? "-")</MudTd>
-                <MudTd DataLabel='@Language.T("common.status")'>@context.ReconciliationStatus</MudTd>
+                <MudTd DataLabel='@Language.T("common.status")'>
+                    @if (!string.IsNullOrWhiteSpace(context.FeedbackLabel))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@GetFeedbackColor(context.FeedbackTone)">@context.FeedbackLabel</MudChip>
+                        @if (!string.IsNullOrWhiteSpace(context.FeedbackNote))
+                        {
+                            <MudText Typo="Typo.caption" Style="font-weight:600">HR: @context.FeedbackNote</MudText>
+                        }
+                    }
+                    else
+                    {
+                        @context.ReconciliationStatus
+                    }
+                </MudTd>
                 <MudTd>
                     <MudButton Size="Size.Small" Variant="Variant.Text"
                                OnClick="@(() => OpenDetailAsync(context.Id))">
                         @Language.T("common.detail")
                     </MudButton>
-                    @if (context.RequiresConfirmation)
+                    @if (ShowConfirmActions(context))
                     {
                         <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                             @if (context.ConfirmationId != null)
@@ -324,6 +345,26 @@
             await OpenDetailAsync(ReconciliationId.Value, adjustDateRange: true);
         }
     }
+
+    private static Color GetFeedbackColor(string? tone) => tone switch
+    {
+        "pending" => Color.Info,
+        "hr-request" => Color.Warning,
+        "hr-resolved" => Color.Secondary,
+        "complete" => Color.Success,
+        "rejected" or "unanswered" => Color.Error,
+        _ => Color.Default
+    };
+
+    // Nút XÁC NHẬN / BỔ SUNG EVIDENCE chỉ hiện khi nhân viên thực sự còn việc phải làm.
+    // pending (chờ HR), hr-resolved (xem kết quả ở Chi tiết), complete: không cho gửi xác nhận lại.
+    private static bool ShowConfirmActions(ExecutionReconciliationDto r) => r.FeedbackTone switch
+    {
+        null or "" => r.RequiresConfirmation
+            && !string.Equals(r.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase),
+        "unanswered" or "hr-request" or "rejected" => true,
+        _ => false
+    };
 
     private async Task LoadAsync()
     {
