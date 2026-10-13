@@ -62,6 +62,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          # Do not enable setup-node's npm cache until package-lock.json is committed.
+          # npm install below is intentionally used because this small tooling package
+          # currently has package.json only.
+          cache: ""
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
