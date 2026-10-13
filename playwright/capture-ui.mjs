@@ -109,8 +109,10 @@ async function attemptLogin(page) {
   }
 
   const loginUrl = new URL("/login", baseUrl).href;
+  // MudBlazor's language MudSelect also renders a readonly input[type="text"].
+  // Exclude readonly/select and numeric inputs so the username locator targets an editable field.
   const userSelector = process.env.UI_USERNAME_SELECTOR
-    || 'input[name="UserName"], input[name="username"], input[autocomplete="username"], input[type="email"], input[type="text"]';
+    || 'input[name="UserName"]:not([readonly]), input[name="username"]:not([readonly]), input[autocomplete="username"]:not([readonly]), input[type="email"]:not([readonly]), input[type="text"]:not([readonly]):not([inputmode="numeric"])';
   const passSelector = process.env.UI_PASSWORD_SELECTOR
     || 'input[name="Password"], input[name="password"], input[autocomplete="current-password"], input[type="password"]';
   const submitSelector = process.env.UI_SUBMIT_SELECTOR
