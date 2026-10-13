@@ -176,9 +176,29 @@
                         </MudTable>
                     }
                     <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
-                        <b>Bước tiếp theo:</b> rà soát kết quả ở bảng trên. Hiện batch chỉ được lưu ở staging; không ghi trực tiếp vào danh mục thiết bị. API xác nhận để tạo bản nháp đăng ký/yêu cầu thay đổi và gửi phê duyệt chưa được nối vào màn hình này.
+                        Xác nhận sẽ tạo bản nháp đăng ký cho thiết bị mới và bản nháp thay đổi có snapshot cho thiết bị đã tồn tại. Thao tác này không sửa danh mục chính thức và không tự gửi duyệt; bản nháp tiếp tục qua luồng phê duyệt thiết bị hiện hữu.
                     </MudAlert>
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Class="mt-2" Disabled="@_uploading" OnClick="RefreshBatchAsync">Làm mới kết quả kiểm tra</MudButton>
+                    <MudStack Row="true" Spacing="2" Class="mt-2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FactCheck"
+                                   Disabled="@(_uploading || _batch.ValidRows <= 0 || string.Equals(_batch.Status, "Imported", StringComparison.OrdinalIgnoreCase))"
+                                   OnClick="ConfirmBatchAsync">Xác nhận batch và tạo bản nháp</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="@_uploading" OnClick="RefreshBatchAsync">Làm mới kết quả kiểm tra</MudButton>
+                    </MudStack>
+                    @if (_commitResult != null)
+                    {
+                        <MudAlert Severity="@(_commitResult.Errors.Count == 0 ? Severity.Success : Severity.Warning)" Class="mt-3">
+                            Batch @_commitResult.BatchId: đã tạo @_commitResult.ImportedRows bản nháp; bỏ qua @_commitResult.SkippedRows dòng.
+                            @if (_commitResult.Errors.Count > 0)
+                            {
+                                <MudStack Spacing="1">
+                                    @foreach (var error in _commitResult.Errors)
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Error">@error</MudText>
+                                    }
+                                </MudStack>
+                            }
+                        </MudAlert>
+                    }
                 }
             </MudPaper>
         }
@@ -195,7 +215,7 @@
     private List<DepartmentDto> _departments = new();
     private List<ExcelSchemaSummaryDto> _schemas = new();
     private ExcelSchemaDto? _schema;
-    private ExcelImportBatchDto? _batch;
+    private ExcelImportBatchDto? _batch;\n    private ExcelImportCommitResultDto? _commitResult;
     private IBrowserFile? _file;
 
     protected override async Task OnInitializedAsync()
@@ -255,6 +275,27 @@
                 Snackbar.Add(Language.T("equipment.excelDaDuocKiemTra"), Severity.Success);
             }
             else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheKiemTraExcel"), Severity.Error);
+        }
+        finally { _uploading = false; }
+    }
+
+    private async Task ConfirmBatchAsync()
+    {
+        if (_batch is null || _uploading) return;
+        _uploading = true;
+        _commitResult = null;
+        try
+        {
+            var result = await EquipmentClient.CommitImportAsync(_batch.Id);
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(result.Message ?? "Không thể xác nhận batch.", Severity.Error);
+                return;
+            }
+            _commitResult = result.Data;
+            Snackbar.Add($"Đã tạo {_commitResult.ImportedRows} bản nháp; bỏ qua {_commitResult.SkippedRows} dòng.", 
+                _commitResult.Errors.Count == 0 ? Severity.Success : Severity.Warning);
+            await RefreshBatchAsync();
         }
         finally { _uploading = false; }
     }
