@@ -30,7 +30,10 @@ public sealed record ExecutionResolutionPolicySnapshot(
     int AppealReviewHours,
     bool RequireEvidenceOnAppeal,
     bool RequireFinalDecision,
-    string? FinalDecisionPositionCode);
+    string? FinalDecisionPositionCode,
+    // Defaults = required, so snapshots created before these flags existed follow the policy rule too.
+    bool RequireHrCommentOnReject = true,
+    bool RequireHrCommentOnNeedMore = true);
 
 public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 {
@@ -352,7 +355,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             evidence,
             hrResolution,
             employeeDecision,
-            history);
+            history,
+            new ExecutionHrCommentPolicyDto(
+                employeePolicy?.RequireHrCommentOnReject ?? true,
+                employeePolicy?.RequireHrCommentOnNeedMore ?? true));
     }
 
     private static async Task<ServiceResult<T>> GuardAsync<T>(Func<Task<T>> op) { try { return ServiceResult<T>.Ok(await op()); } catch (OperationCanceledException) { throw; } catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException or FVN_REGISTER.Core.Exceptions.ForbiddenAccessException) { return ServiceResult<T>.Fail(ex.Message); } }
@@ -500,6 +506,12 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             throw new InvalidOperationException(
                 "Reconciliation chưa có snapshot resolution policy.");
 
+        // Admin-defined rule (admin/execution-policies): HR must follow it.
+        var commentError = ExecutionReviewPolicy.ValidateHrComment(
+            reviewStatus, note, policy.RequireHrCommentOnReject, policy.RequireHrCommentOnNeedMore);
+        if (commentError is not null)
+            throw new ArgumentException(commentError);
+
         // Evidence review is available only while the case is still actionable.
         if (reconciliation.ReconciliationStatus is not ("AwaitingConfirmation" or "AppealReviewing" or "FinalDecisionPending"))
             throw new InvalidOperationException(
@@ -539,9 +551,35 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             confirmation.ReviewedBy = userId;
             confirmation.ReviewedAt = DateTime.Now;
             confirmation.ReviewNote = note;
+            confirmation.ModifiedBy = userId;
+            confirmation.ModifiedAt = DateTime.Now;
+            confirmation.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
             reconciliation.RequiresConfirmation = true;
             reconciliation.RequiresEvidence = true;
             reconciliation.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
+        }
+        else
+        {
+            // Approved: record HR's review at the feedback level once no other evidence is still open,
+            // so the employee sees HR's answer and the calendar can show "Complete".
+            var hasOpenEvidence = await _db.ExecutionConfirmationEvidence.AnyAsync(x =>
+                x.ConfirmationId == confirmation.Id
+                && x.Id != evidence.Id
+                && x.IsActive != false
+                && (x.ReviewStatus == null || x.ReviewStatus != "Approved"),
+                cancellationToken);
+
+            if (!hasOpenEvidence)
+            {
+                confirmation.Status = ExecutionReviewPolicy.ConfirmationStatusAfterEvidenceReview(reviewStatus);
+                confirmation.ReviewedBy = userId;
+                confirmation.ReviewedAt = DateTime.Now;
+                confirmation.ReviewNote = note;
+                confirmation.ModifiedBy = userId;
+                confirmation.ModifiedAt = DateTime.Now;
+                confirmation.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
+                reconciliation.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
+            }
         }
 
         var actorEmployeeId = await ResolveActorEmployeeIdAsync(employeeCode, userId, cancellationToken);
@@ -1057,13 +1095,37 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             UserId = user.Id,
             EmployeeCode = user.EmployeeCode,
             Module = module,
-            Action = reviewStatus == "Approved" ? NotificationAction.Approved : NotificationAction.Rejected,
-            Title = $"Evidence {reviewStatus}",
-            Body = note ?? $"Evidence {reviewStatus}.",
+            Action = reviewStatus switch
+            {
+                "Approved" => NotificationAction.Approved,
+                "NeedMoreEvidence" => NotificationAction.Pending,
+                _ => NotificationAction.Rejected
+            },
+            Title = reviewStatus switch
+            {
+                "Approved" => "HR đã duyệt phản hồi của bạn",
+                "NeedMoreEvidence" => "HR yêu cầu bổ sung",
+                _ => "HR đã từ chối phản hồi của bạn"
+            },
+            Body = !string.IsNullOrWhiteSpace(note)
+                ? note
+                : reviewStatus switch
+                {
+                    "Approved" => "HR đã xem và duyệt phản hồi của bạn.",
+                    "NeedMoreEvidence" => "HR yêu cầu bạn bổ sung thông tin/bằng chứng.",
+                    _ => "HR đã từ chối phản hồi của bạn."
+                },
             ActionUrl = $"/execution?reconciliationId={reconciliation.Id}",
             ActionId = reconciliation.ActionId,
             Metadata = JsonSerializer.Serialize(new { reconciliation.Id, reviewStatus, note }),
-            NotificationType = "EXECUTION_EVIDENCE_REVIEW",
+            // One type per outcome: NotificationDeduplicationPolicy drops a new notification when an
+            // unread one with the same ActionId + NotificationType exists, which hid later HR replies.
+            NotificationType = reviewStatus switch
+            {
+                "Approved" => "EXECUTION_REVIEW_APPROVED",
+                "NeedMoreEvidence" => "EXECUTION_REVIEW_NEED_MORE",
+                _ => "EXECUTION_REVIEW_REJECTED"
+            },
             IsHighPriority = reviewStatus != "Approved"
         }, cancellationToken);
     }

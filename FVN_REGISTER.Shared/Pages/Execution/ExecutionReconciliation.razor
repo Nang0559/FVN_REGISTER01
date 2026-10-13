@@ -44,6 +44,10 @@
             <MudText Typo="Typo.body2">
                 Decision: <b>@_detail.Confirmation.Decision</b> —
                 Status: <b>@_detail.Confirmation.Status</b>
+                @if (_detail.Confirmation.ReviewedAt.HasValue)
+                {
+                    <span> — HR phản hồi lúc @_detail.Confirmation.ReviewedAt.Value.ToString("dd/MM/yyyy HH:mm")</span>
+                }
             </MudText>
             @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.Comment))
             {
@@ -51,7 +55,7 @@
             }
             @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.ReviewNote))
             {
-                <MudAlert Severity="Severity.Warning" Class="mt-2">
+                <MudAlert Severity="@(_detail.Confirmation.Status == "Rejected" ? Severity.Error : _detail.Confirmation.Status == "NeedMoreEvidence" ? Severity.Warning : Severity.Success)" Class="mt-2">
                     @Language.T("execution.ghiChuReview", _detail.Confirmation.ReviewNote)
                 </MudAlert>
             }

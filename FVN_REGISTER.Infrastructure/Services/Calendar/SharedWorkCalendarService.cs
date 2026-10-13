@@ -272,7 +272,10 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                     DisplayValue = attendanceItem.Marker,
                     SourceId = attendanceItem.SourceId,
                     ActionId = attendanceItem.ActionId,
-                    DetailRoute = attendanceItem.DetailRoute
+                    DetailRoute = attendanceItem.DetailRoute,
+                    FeedbackTone = attendanceItem.FeedbackTone,
+                    FeedbackMarker = attendanceItem.FeedbackMarker,
+                    FeedbackLabel = attendanceItem.FeedbackLabel
                 };
             }
 

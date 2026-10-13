@@ -36,6 +36,11 @@ public sealed class F03ExecutionPolicy : BaseAuditEntity
     public bool RequireEvidenceOnAppeal { get; set; } = true;
     public bool RequireFinalDecision { get; set; } = true;
 
+    // HR review rules (admin-defined, HR must follow). true = HR must enter a comment
+    // when rejecting evidence / asking the employee for more evidence.
+    public bool RequireHrCommentOnReject { get; set; } = true;
+    public bool RequireHrCommentOnNeedMore { get; set; } = true;
+
     [StringLength(20)]
     public string? FinalDecisionPositionCode { get; set; }
 

@@ -26,7 +26,9 @@ public sealed record ExecutionResolutionPolicyDto(
     byte AdjustmentPeriodMode,
     DateTime? EffectiveFrom,
     DateTime? EffectiveTo,
-    bool IsActive);
+    bool IsActive,
+    bool RequireHrCommentOnReject = true,
+    bool RequireHrCommentOnNeedMore = true);
 
 public sealed class ExecutionResolutionPolicyRequest
 {
@@ -47,6 +49,8 @@ public sealed class ExecutionResolutionPolicyRequest
     public int AppealReviewHours { get; set; } = 48;
     public bool RequireEvidenceOnAppeal { get; set; } = true;
     public bool RequireFinalDecision { get; set; } = true;
+    public bool RequireHrCommentOnReject { get; set; } = true;
+    public bool RequireHrCommentOnNeedMore { get; set; } = true;
     public string? FinalDecisionPositionCode { get; set; }
     public byte PayrollCutoffMode { get; set; }
     public bool AllowReopenAfterPayroll { get; set; }

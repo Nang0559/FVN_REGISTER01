@@ -27,10 +27,13 @@ public sealed record ExecutionReconciliationHistoryDto(
     string? ActorEmployeeCode,
     DateTime CreatedAt);
 
+public sealed record ExecutionHrCommentPolicyDto(bool RequireOnReject, bool RequireOnNeedMore);
+
 public sealed record ExecutionReconciliationDetailDto(
     ExecutionReconciliationDto Reconciliation,
     ExecutionConfirmationDto? Confirmation,
     IReadOnlyList<ExecutionEvidenceDto> Evidence,
     ExecutionHrResolutionSummaryDto? HrResolution,
     ExecutionEmployeeDecisionSummaryDto? EmployeeDecision,
-    IReadOnlyList<ExecutionReconciliationHistoryDto> History);
+    IReadOnlyList<ExecutionReconciliationHistoryDto> History,
+    ExecutionHrCommentPolicyDto? HrCommentPolicy = null);

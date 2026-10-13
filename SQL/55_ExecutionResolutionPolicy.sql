@@ -45,6 +45,13 @@ IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'RequireEvidenceOnAppeal') IS NULL
 IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'RequireFinalDecision') IS NULL
     EXEC(N'ALTER TABLE dbo.F03ExecutionPolicies ADD RequireFinalDecision bit NOT NULL CONSTRAINT DF_F03ExecutionPolicies_RequireFinalDecision DEFAULT 1;');
 
+-- HR must write a comment when rejecting / asking for more evidence. Default 1 = required.
+IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'RequireHrCommentOnReject') IS NULL
+    EXEC(N'ALTER TABLE dbo.F03ExecutionPolicies ADD RequireHrCommentOnReject bit NOT NULL CONSTRAINT DF_F03ExecutionPolicies_RequireHrCommentOnReject DEFAULT 1;');
+
+IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'RequireHrCommentOnNeedMore') IS NULL
+    EXEC(N'ALTER TABLE dbo.F03ExecutionPolicies ADD RequireHrCommentOnNeedMore bit NOT NULL CONSTRAINT DF_F03ExecutionPolicies_RequireHrCommentOnNeedMore DEFAULT 1;');
+
 IF COL_LENGTH(N'dbo.F03ExecutionPolicies', N'FinalDecisionPositionCode') IS NULL
     EXEC(N'ALTER TABLE dbo.F03ExecutionPolicies ADD FinalDecisionPositionCode nvarchar(20) NULL;');
 
@@ -133,6 +140,8 @@ BEGIN
                        p.AppealReviewHours,
                        p.RequireEvidenceOnAppeal,
                        p.RequireFinalDecision,
+                       p.RequireHrCommentOnReject,
+                       p.RequireHrCommentOnNeedMore,
                        p.FinalDecisionPositionCode,
                        p.PayrollCutoffMode,
                        p.AllowReopenAfterPayroll,

@@ -94,6 +94,8 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
             AppealReviewHours = request.AppealReviewHours,
             RequireEvidenceOnAppeal = request.RequireEvidenceOnAppeal,
             RequireFinalDecision = request.RequireFinalDecision,
+            RequireHrCommentOnReject = request.RequireHrCommentOnReject,
+            RequireHrCommentOnNeedMore = request.RequireHrCommentOnNeedMore,
             FinalDecisionPositionCode = string.IsNullOrWhiteSpace(request.FinalDecisionPositionCode)
                 ? null : request.FinalDecisionPositionCode.Trim(),
             PayrollCutoffMode = request.PayrollCutoffMode,
@@ -208,5 +210,6 @@ public sealed class ExecutionResolutionPolicyService : IExecutionResolutionPolic
             x.RequireFinalDecision, x.FinalDecisionPositionCode,
             x.PayrollCutoffMode, x.AllowReopenAfterPayroll,
             x.AdjustmentPeriodMode, x.EffectiveFrom, x.EffectiveTo,
-            x.IsActive == true);
+            x.IsActive == true,
+            x.RequireHrCommentOnReject, x.RequireHrCommentOnNeedMore);
 }

@@ -222,11 +222,6 @@
 
             @if (_detail.Evidence.Count > 0)
             {
-                <MudTextField @bind-Value="_evidenceReviewNote"
-                              Label="@Language.T("execution.ghiChuReviewEvidence")"
-                              Variant="Variant.Outlined"
-                              Lines="2"
-                              Class="mt-3 mb-2" />
                 <MudTable Items="_detail.Evidence" Dense="true" Class="mt-3">
                     <HeaderContent>
                         <MudTh>@Language.T("execution.evidence2")</MudTh>
@@ -301,6 +296,13 @@
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
+                <MudTextField @bind-Value="_evidenceReviewNote"
+                              Label="Ý kiến HR (gửi cho nhân viên)"
+                              HelperText="@EvidenceNoteHelper"
+                              Variant="Variant.Outlined"
+                              Lines="3"
+                              MaxLength="2000"
+                              Class="mt-3 mb-2" />
             }
             else
             {
@@ -616,11 +618,38 @@
         }
     }
 
+    // Rule comes from admin/execution-policies (snapshot of the case); HR must follow it.
+    private bool IsHrNoteRequired(string status) => status switch
+    {
+        "Rejected" => _detail?.HrCommentPolicy?.RequireOnReject ?? true,
+        "NeedMoreEvidence" => _detail?.HrCommentPolicy?.RequireOnNeedMore ?? true,
+        _ => false
+    };
+
+    private string EvidenceNoteHelper
+    {
+        get
+        {
+            var reject = IsHrNoteRequired("Rejected");
+            var needMore = IsHrNoteRequired("NeedMoreEvidence");
+            if (reject && needMore) return "Bắt buộc nhập ý kiến khi Từ chối hoặc Cần bổ sung (theo chính sách đối soát).";
+            if (reject) return "Bắt buộc nhập ý kiến khi Từ chối (theo chính sách đối soát).";
+            if (needMore) return "Bắt buộc nhập ý kiến khi Cần bổ sung (theo chính sách đối soát).";
+            return "Ý kiến HR không bắt buộc theo chính sách đối soát.";
+        }
+    }
+
     private async Task ReviewEvidenceAsync(long evidenceId, string status)
     {
         if (_detail is null || !CanProcess(_detail.Reconciliation.Id))
         {
             Snackbar.Add("Bạn không phải người đang xử lý yêu cầu này.", Severity.Warning);
+            return;
+        }
+
+        if (IsHrNoteRequired(status) && string.IsNullOrWhiteSpace(_evidenceReviewNote))
+        {
+            Snackbar.Add("Phải nhập Ý kiến HR cho thao tác này (theo chính sách đối soát).", Severity.Warning);
             return;
         }
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Models.Calendar;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
@@ -120,12 +121,33 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                 && x.WorkDate <= context.To)
             .ToDictionaryAsync(x => x.WorkDate, cancellationToken);
 
-        return rows.Select(row => Map(row, reconciliationByDate.TryGetValue(row.WorkDate, out var reconciliation) ? reconciliation : null)).ToArray();
+        // Latest employee feedback (confirmation) per reconciliation: drives the "?" / "-" / "!" marker and label.
+        var reconciliationIds = reconciliationByDate.Values.Select(x => x.Id).ToList();
+        var confirmationByReconciliation = reconciliationIds.Count == 0
+            ? new Dictionary<long, FeedbackConfirmation>()
+            : (await _db.ExecutionConfirmations
+                .AsNoTracking()
+                .Where(x => x.IsActive != false && reconciliationIds.Contains(x.ReconciliationId))
+                .Select(x => new FeedbackConfirmation(x.Id, x.ReconciliationId, x.Status, x.SubmittedAt, x.ReviewedAt))
+                .ToListAsync(cancellationToken))
+                .GroupBy(x => x.ReconciliationId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
+
+        return rows.Select(row =>
+        {
+            reconciliationByDate.TryGetValue(row.WorkDate, out var reconciliation);
+            FeedbackConfirmation? confirmation = null;
+            if (reconciliation is not null
+                && confirmationByReconciliation.TryGetValue(reconciliation.Id, out var found))
+                confirmation = found;
+            return Map(row, reconciliation, confirmation);
+        }).ToArray();
     }
 
     private static CalendarItemDto Map(
         AttendanceCalendarRow row,
-        F03ExecutionReconciliation? reconciliation)
+        F03ExecutionReconciliation? reconciliation,
+        FeedbackConfirmation? confirmation = null)
     {
         var isLeave = (row.LeaveTotal ?? 0m) > 0m;
         var isHoliday = row.HrmHoliday == true || row.HrmEmployeeHoliday == true;
@@ -182,6 +204,8 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             earlyMinutes,
             workedMinutes);
 
+        ExecutionFeedbackStatus? feedback = null;
+
         if (reconciliation is not null)
         {
             status = reconciliation.ReconciliationStatus;
@@ -194,6 +218,19 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             requiresAction = reconciliation.RequiresConfirmation
                 && !string.Equals(status, "Resolved", StringComparison.OrdinalIgnoreCase);
             summary = BuildReconciliationSummary(row, reconciliation, lateMinutes, earlyMinutes, workedMinutes);
+
+            feedback = ExecutionFeedbackStatusPolicy.Resolve(
+                reconciliation.ReconciliationStatus,
+                confirmation?.Status,
+                confirmation?.SubmittedAt,
+                confirmation?.ReviewedAt);
+
+            if (feedback is { } fb)
+            {
+                severity = fb.Severity;
+                requiresAction = requiresAction && fb.RequiresEmployeeAction;
+                summary = $"{fb.Label} · {summary}";
+            }
         }
 
         return new CalendarItemDto
@@ -202,7 +239,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             ModuleCode = "ATTENDANCE",
             SourceType = reconciliation?.SourceType ?? "ATTENDANCE",
             StatusCode = status,
-            Marker = reconciliation?.ReconciliationStatus switch
+            Marker = feedback is { } fbMarker ? fbMarker.Marker : reconciliation?.ReconciliationStatus switch
             {
                 "Mismatch" => "?",
                 "AwaitingConfirmation" => "?",
@@ -228,6 +265,9 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             RequiredHours = requiredMinutes > 0 ? requiredMinutes / 60m : null,
             HasActual = hasCheckIn || hasCheckOut || workedMinutes > 0,
             HasActualOt = actualOtMinutes > 0 || recognizedOtMinutes > 0,
+            FeedbackTone = feedback?.Tone,
+            FeedbackMarker = feedback?.Marker,
+            FeedbackLabel = feedback?.Label,
             IsNumericVariance = decimal.TryParse(
                 row.AttendanceDisplayValue,
                 NumberStyles.Float,
@@ -338,6 +378,13 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
 
         return "Chưa có dữ liệu chấm công";
     }
+
+    private sealed record FeedbackConfirmation(
+        long Id,
+        long ReconciliationId,
+        string Status,
+        DateTime? SubmittedAt,
+        DateTime? ReviewedAt);
 
     private sealed class AttendanceCalendarRow
     {
