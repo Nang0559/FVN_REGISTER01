@@ -58,11 +58,81 @@
                         <MudTd DataLabel="Lỗi">@context.InvalidRows</MudTd>
                         <MudTd DataLabel="Đã tạo yêu cầu">@context.ImportedRows</MudTd>
                         <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@BatchStatusText(context.Status)</MudChip></MudTd>
-                        <MudTd><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => OpenBatchAsync(context.Id))">Mở hồ sơ</MudButton></MudTd>
+                        <MudTd><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => OpenBatchAsync(context.Id))" Disabled="_uploading">Mở hồ sơ</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
             }
         </MudPaper>
+
+        <MudDialog Visible="@(_viewBatch != null)" VisibleChanged="@(v => { if (!v) _viewBatch = null; })"
+                   Options="@(new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true })">
+            <TitleContent>
+                <MudText Typo="Typo.h6">Hồ sơ cha #@_viewBatch?.Id — @_viewBatch?.FileName</MudText>
+            </TitleContent>
+            <DialogContent>
+                @if (_viewBatch != null)
+                {
+                    <MudGrid Spacing="2" Class="mb-2">
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption">Trạng thái</MudText><MudText><b>@BatchStatusText(_viewBatch.Status)</b></MudText></MudItem>
+                        <MudItem xs="6" md="3"><MudText Typo="Typo.caption">Tổng thiết bị</MudText><MudText><b>@_viewBatch.TotalRows</b></MudText></MudItem>
+                        <MudItem xs="6" md="2"><MudText Typo="Typo.caption">Hợp lệ</MudText><MudText Color="Color.Success"><b>@_viewBatch.ValidRows</b></MudText></MudItem>
+                        <MudItem xs="6" md="2"><MudText Typo="Typo.caption">Lỗi</MudText><MudText Color="@(_viewBatch.InvalidRows > 0 ? Color.Error : Color.Default)"><b>@_viewBatch.InvalidRows</b></MudText></MudItem>
+                        <MudItem xs="6" md="2"><MudText Typo="Typo.caption">Đã tạo yêu cầu</MudText><MudText><b>@_viewBatch.ImportedRows</b></MudText></MudItem>
+                    </MudGrid>
+                    @if (_viewBatch.ImportedRows > 0)
+                    {
+                        <MudText Typo="Typo.caption">Tiến trình phê duyệt: đã duyệt @_viewBatch.ApprovedRows · chờ duyệt @_viewBatch.PendingRows · bản nháp @_viewBatch.DraftRows · từ chối/hủy @_viewBatch.RejectedRows</MudText>
+                        <MudProgressLinear Value="@_viewBatch.ApprovalProgressPercent" Max="100" Color="Color.Success" Class="mb-2" />
+                    }
+                    <MudText Typo="Typo.subtitle2" Class="mt-2 mb-1">Hồ sơ con (từng thiết bị)</MudText>
+                    @if (_viewBatch.Rows.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true">Hồ sơ này chưa có chi tiết từng dòng. Hãy bấm Làm mới; nếu vẫn trống, cần kiểm tra API trả dữ liệu staging.</MudAlert>
+                    }
+                    else
+                    {
+                        <div style="max-height:55vh;overflow:auto">
+                        <MudTable Items="_viewBatch.Rows.OrderBy(x => x.RowNumber)" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm" FixedHeader="true">
+                            <HeaderContent><MudTh>Dòng</MudTh><MudTh>Tên thiết bị</MudTh><MudTh>Mã thiết bị</MudTh><MudTh>Loại</MudTh><MudTh>Staging</MudTh><MudTh>Yêu cầu con</MudTh><MudTh>Lỗi</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Dòng">@context.RowNumber</MudTd>
+                                <MudTd DataLabel="Tên thiết bị">@RowValue(context, "EquipmentName")</MudTd>
+                                <MudTd DataLabel="Mã thiết bị">@RowValue(context, "EquipmentCode")</MudTd>
+                                <MudTd DataLabel="Loại">@(!string.IsNullOrWhiteSpace(context.ActionKind) ? context.ActionKind : "—")</MudTd>
+                                <MudTd DataLabel="Staging">
+                                    @if (string.Equals(context.Status, "Valid", StringComparison.OrdinalIgnoreCase)) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Hợp lệ</MudChip> }
+                                    else if (string.Equals(context.Status, "Invalid", StringComparison.OrdinalIgnoreCase)) { <MudChip T="string" Size="Size.Small" Color="Color.Error">Lỗi</MudChip> }
+                                    else { <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Status</MudChip> }
+                                </MudTd>
+                                <MudTd DataLabel="Yêu cầu con">
+                                    @if (context.RequestId.HasValue)
+                                    {
+                                        <span>#@context.RequestId </span>
+                                        <MudChip T="string" Size="Size.Small" Color="@(context.IsLocked ? Color.Warning : Color.Info)">@(context.RequestDeleted ? "Đã xóa" : (!string.IsNullOrWhiteSpace(context.RequestStatus) ? context.RequestStatus : "Draft"))</MudChip>
+                                    }
+                                    else { <MudText Typo="Typo.caption" Class="mud-text-secondary">Chưa tạo yêu cầu</MudText> }
+                                </MudTd>
+                                <MudTd DataLabel="Lỗi">@if (!string.IsNullOrWhiteSpace(context.ErrorMessage)) { <MudText Typo="Typo.caption" Color="Color.Error">@context.ErrorMessage</MudText> }</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                        </div>
+                    }
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-3">Xác nhận chỉ tạo bản nháp, không sửa danh mục tài sản chính thức và không tự gửi duyệt. Gửi duyệt toàn bộ hoặc từng thiết bị thực hiện ở tab Đăng ký thiết bị.</MudAlert>
+                }
+            </DialogContent>
+            <DialogActions>
+                @if (_viewBatch != null && _viewBatch.ValidRows > 0 && _viewBatch.ImportedRows == 0 && !string.Equals(_viewBatch.Status, "Imported", StringComparison.OrdinalIgnoreCase))
+                {
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.FactCheck" Disabled="_uploading" OnClick="ConfirmViewBatchAsync">Xác nhận batch và tạo bản nháp</MudButton>
+                }
+                @if (_viewBatch != null && _viewBatch.ImportedRows > 0)
+                {
+                    <MudButton Color="Color.Success" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.ListAlt" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Xem bản nháp / gửi duyệt</MudButton>
+                }
+                <MudButton Disabled="_uploading" OnClick="RefreshViewBatchAsync">Làm mới</MudButton>
+                <MudButton OnClick="@(() => _viewBatch = null)">Đóng</MudButton>
+            </DialogActions>
+        </MudDialog>
 
         <MudPaper Outlined="true" Class="pa-5 mb-4">
             <MudText Typo="Typo.h6" Class="mb-3">@Language.T("equipment.t1ChonPhongBanVa")</MudText>
@@ -245,6 +315,11 @@
                                 </MudStack>
                             }
                         </MudAlert>
+                        @if (_commitResult.ImportedRows > 0)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-2" StartIcon="@Icons.Material.Filled.ListAlt"
+                                       OnClick="@(() => Navigation.NavigateTo("/equipment"))">Xem bản nháp vừa tạo</MudButton>
+                        }
                     }
                 }
             </MudPaper>
@@ -289,15 +364,49 @@
         else Snackbar.Add(result.Message ?? "Không thể tải danh sách hồ sơ import.", Severity.Error);
     }
 
+    private ExcelImportBatchDto? _viewBatch;
+
+    private static string RowValue(ExcelImportRowDto row, string key)
+    {
+        var found = row.Values.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)).Value;
+        return string.IsNullOrWhiteSpace(found) ? "—" : found;
+    }
+
     private async Task OpenBatchAsync(long batchId)
     {
         var result = await EquipmentClient.GetImportBatchAsync(batchId);
         if (result.IsSuccess && result.Data is not null)
-        {
-            _batch = result.Data;
-            _commitResult = null;
-        }
+            _viewBatch = result.Data;
         else Snackbar.Add(result.Message ?? "Không thể mở hồ sơ import.", Severity.Error);
+    }
+
+    private async Task RefreshViewBatchAsync()
+    {
+        if (_viewBatch is null) return;
+        var result = await EquipmentClient.GetImportBatchAsync(_viewBatch.Id);
+        if (result.IsSuccess && result.Data is not null) _viewBatch = result.Data;
+        else Snackbar.Add(result.Message ?? "Không thể tải lại hồ sơ import.", Severity.Error);
+        await LoadMyBatchesAsync();
+    }
+
+    private async Task ConfirmViewBatchAsync()
+    {
+        if (_viewBatch is null || _uploading) return;
+        _uploading = true;
+        try
+        {
+            var result = await EquipmentClient.CommitImportAsync(_viewBatch.Id);
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(result.Message ?? "Không thể xác nhận batch.", Severity.Error);
+                return;
+            }
+            Snackbar.Add($"Đã tạo {result.Data.ImportedRows} bản nháp; bỏ qua {result.Data.SkippedRows} dòng.",
+                result.Data.Errors.Count == 0 ? Severity.Success : Severity.Warning);
+            foreach (var error in result.Data.Errors) Snackbar.Add(error, Severity.Warning);
+            await RefreshViewBatchAsync();
+        }
+        finally { _uploading = false; }
     }
 
     private async Task LoadSchemasAsync()
