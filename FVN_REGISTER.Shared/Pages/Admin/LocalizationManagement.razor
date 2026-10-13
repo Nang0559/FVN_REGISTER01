@@ -11,6 +11,7 @@
 @inject ISecurityClientService SecurityService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 
 <PageTitle>@Language.T("language.title")</PageTitle>
 
@@ -349,8 +350,10 @@
     private async Task DeleteAsync(LocalizationEntryDto entry)
     {
         if (!_canManage) return;
-        var ok = await JS.InvokeAsync<bool>("confirm", Language.T("language.confirmDelete", entry.Key));
-        if (!ok) return;
+        var ok = await DialogService.ShowMessageBoxAsync(
+            Language.T("common.confirm"), Language.T("language.confirmDelete", entry.Key),
+            yesText: Language.T("common.delete"), cancelText: Language.T("common.cancel"));
+        if (ok != true) return;
 
         var result = await SecurityService.DeleteLocalizationAsync(entry.Key);
         if (!result.IsSuccess)

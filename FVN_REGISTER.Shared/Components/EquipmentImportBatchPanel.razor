@@ -2,15 +2,17 @@
 @using FVN_REGISTER.Contract.Dtos.EquipmentImport
 @inject IEquipmentClientService EquipmentClient
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
+@inject IDialogService DialogService
+@inject ILanguageService Language
+@implements IDisposable
 @inject NavigationManager Navigation
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
     <div>
-        <MudText Typo="Typo.subtitle1">Hồ sơ import Excel</MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">Mỗi file Excel là một hồ sơ cha; từng thiết bị là hồ sơ con có dữ liệu trước/sau và trạng thái riêng. Chỉ bản nháp mới được sửa, xóa hoặc gửi duyệt.</MudText>
+        <MudText Typo="Typo.subtitle1">@Language.T("equipment.importPanel.title")</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.importPanel.subtitle")</MudText>
     </div>
-    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="@(_loading || _busy)" OnClick="ReloadAsync">Làm mới</MudButton>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="@(_loading || _busy)" OnClick="ReloadAsync">@Language.T("common.refresh")</MudButton>
 </MudStack>
 
 @if (_loading)
@@ -19,7 +21,7 @@
 }
 else if (_batches.Count == 0)
 {
-    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">Chưa có hồ sơ import Excel nào.</MudAlert>
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">@Language.T("equipment.importPanel.empty")</MudAlert>
 }
 else
 {
@@ -32,36 +34,36 @@ else
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
                 <div>
                     <MudText Typo="Typo.subtitle1"><b>#@batch.Id — @batch.FileName</b></MudText>
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@batch.TotalRows thiết bị · @childCount hồ sơ con</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.importPanel.batchSummary", batch.TotalRows, childCount)</MudText>
                 </div>
                 @{ var state = BatchState(batch, childCount); }
                 <MudChip T="string" Size="Size.Small" Color="@state.Color">@state.Label</MudChip>
             </MudStack>
 
             <MudGrid Class="mt-2">
-                <MudItem xs="4"><MudText Typo="Typo.caption">Tổng thiết bị</MudText><MudText Typo="Typo.h6">@batch.TotalRows</MudText></MudItem>
-                <MudItem xs="4"><MudText Typo="Typo.caption">Hợp lệ</MudText><MudText Typo="Typo.h6" Color="Color.Success">@batch.ValidRows</MudText></MudItem>
-                <MudItem xs="4"><MudText Typo="Typo.caption">Cần kiểm tra</MudText><MudText Typo="Typo.h6" Color="@(batch.InvalidRows > 0 ? Color.Error : Color.Default)">@batch.InvalidRows</MudText></MudItem>
+                <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("equipment.importPanel.total")</MudText><MudText Typo="Typo.h6">@batch.TotalRows</MudText></MudItem>
+                <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("equipment.importPanel.valid")</MudText><MudText Typo="Typo.h6" Color="Color.Success">@batch.ValidRows</MudText></MudItem>
+                <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("equipment.importPanel.needCheck")</MudText><MudText Typo="Typo.h6" Color="@(batch.InvalidRows > 0 ? Color.Error : Color.Default)">@batch.InvalidRows</MudText></MudItem>
             </MudGrid>
 
             @if (childCount > 0)
             {
-                <MudText Typo="Typo.caption" Class="mt-2">Tiến trình phê duyệt: đã duyệt @batch.ApprovedRows/@childCount · chờ duyệt @batch.PendingRows · bản nháp @batch.DraftRows · từ chối/hủy @batch.RejectedRows</MudText>
+                <MudText Typo="Typo.caption" Class="mt-2">@Language.T("equipment.importPanel.progress", batch.ApprovedRows, childCount, batch.PendingRows, batch.DraftRows, batch.RejectedRows)</MudText>
                 <MudProgressLinear Value="@batch.ApprovalProgressPercent" Max="100" Color="Color.Success" Class="mb-1" />
             }
 
             <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
                 @if (childCount > 0)
                 {
-                    <MudButton Variant="Variant.Filled" Color="Color.Dark" StartIcon="@Icons.Material.Filled.List" OnClick="@(() => ToggleExpanded(batch.Id))">@(expanded ? "Ẩn danh sách thiết bị con" : $"Xem {childCount} thiết bị con")</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Dark" StartIcon="@Icons.Material.Filled.List" OnClick="@(() => ToggleExpanded(batch.Id))">@(expanded ? Language.T("equipment.importPanel.hideChildren") : Language.T("equipment.importPanel.showChildren", childCount))</MudButton>
                     @if (CanEdit)
                     {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || batch.DraftRows == 0)" OnClick="@(() => SubmitAllAsync(batch))">Gửi duyệt toàn bộ (@batch.DraftRows)</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || batch.DraftRows == 0)" OnClick="@(() => SubmitAllAsync(batch))">@Language.T("equipment.importPanel.submitAll", batch.DraftRows)</MudButton>
                     }
                 }
                 else
                 {
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở màn hình import để xác nhận batch</MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">@Language.T("equipment.importPanel.openImport")</MudButton>
                 }
             </MudStack>
 
@@ -72,9 +74,9 @@ else
                 {
                     var draftIds = children.Where(IsDraft).Select(x => x.RequestId!.Value).ToList();
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-2">
-                        <MudCheckBox T="bool" Value="@(draftIds.Count > 0 && draftIds.All(_selected.Contains))" ValueChanged="@(v => ToggleAll(draftIds, v))" Disabled="@(draftIds.Count == 0 || _busy)" Label="Chọn tất cả bản nháp" />
+                        <MudCheckBox T="bool" Value="@(draftIds.Count > 0 && draftIds.All(_selected.Contains))" ValueChanged="@(v => ToggleAll(draftIds, v))" Disabled="@(draftIds.Count == 0 || _busy)" Label="@Language.T("equipment.importPanel.selectAllDrafts")" />
                         @{ var selectedInBatch = draftIds.Count(_selected.Contains); }
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || selectedInBatch == 0)" OnClick="@(() => SubmitSelectedAsync(batch, draftIds))">Gửi duyệt @selectedInBatch thiết bị đã chọn</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || selectedInBatch == 0)" OnClick="@(() => SubmitSelectedAsync(batch, draftIds))">@Language.T("equipment.importPanel.submitSelected", selectedInBatch)</MudButton>
                     </MudStack>
                 }
 
@@ -94,20 +96,20 @@ else
                                     <MudCheckBox T="bool" Value="@_selected.Contains(row.RequestId!.Value)" ValueChanged="@(v => ToggleOne(row.RequestId!.Value, v))" Disabled="_busy" />
                                 }
                                 <div>
-                                    <MudText Typo="Typo.subtitle2"><b>#@rowNumber.ToString("00") — @(request?.EquipmentName ?? Value(row, "EquipmentName") ?? $"Dòng Excel {row.RowNumber}")</b></MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Mã thiết bị: @(Value(row, "EquipmentCode") ?? "—") · Phòng ban: @(request?.DeptCode.ToString() ?? Value(row, "DeptCode") ?? "—")@(row.RequestId.HasValue ? $" · Yêu cầu #{row.RequestId}" : string.Empty)</MudText>
+                                    <MudText Typo="Typo.subtitle2"><b>#@rowNumber.ToString("00") — @(request?.EquipmentName ?? Value(row, "EquipmentName") ?? Language.T("equipment.importPanel.excelRow", row.RowNumber))</b></MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("equipment.importPanel.codeLine", Value(row, "EquipmentCode") ?? "—", request?.DeptCode.ToString() ?? Value(row, "DeptCode") ?? "—")@(row.RequestId.HasValue ? Language.T("equipment.importPanel.requestSuffix", row.RequestId) : string.Empty)</MudText>
                                 </div>
                             </MudStack>
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                 <MudChip T="string" Size="Size.Small" Color="@status.Color">@status.Label</MudChip>
                                 @if (request is not null)
                                 {
-                                    <MudTooltip Text="Xem dữ liệu trước/sau"><MudIconButton Icon="@Icons.Material.Filled.Compare" Size="Size.Small" OnClick="@(() => ToggleDiff(row.RequestId!.Value))" /></MudTooltip>
+                                    <MudTooltip Text="@Language.T("equipment.importPanel.viewDiff")"><MudIconButton Icon="@Icons.Material.Filled.Compare" Size="Size.Small" OnClick="@(() => ToggleDiff(row.RequestId!.Value))" /></MudTooltip>
                                 }
                                 @if (CanEdit && draft && request is not null)
                                 {
-                                    <MudTooltip Text="Sửa bản nháp"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="_busy" OnClick="@(() => BeginEditAsync(batch, row, request))" /></MudTooltip>
-                                    <MudTooltip Text="Xóa bản nháp"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Error" Disabled="_busy" OnClick="@(() => DeleteAsync(request))" /></MudTooltip>
+                                    <MudTooltip Text="@Language.T("equipment.importPanel.editDraft")"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="_busy" OnClick="@(() => BeginEditAsync(batch, row, request))" /></MudTooltip>
+                                    <MudTooltip Text="@Language.T("equipment.importPanel.deleteDraft")"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Error" Disabled="_busy" OnClick="@(() => DeleteAsync(request))" /></MudTooltip>
                                 }
                             </MudStack>
                         </MudStack>
@@ -118,7 +120,7 @@ else
                         }
                         @if (row.IsLocked)
                         {
-                            <MudText Typo="Typo.caption" Color="Color.Warning">Đã gửi duyệt hoặc đã xử lý — khóa sửa/xóa.</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Warning">@Language.T("equipment.importPanel.locked")</MudText>
                         }
 
                         @if (request is not null && _diffOpen.Contains(request.Id))
@@ -130,23 +132,23 @@ else
                         {
                             <MudPaper Outlined="true" Class="pa-3 mt-2">
                                 <MudGrid>
-                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label="Tên thiết bị" Required="true" /></MudItem>
-                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="Mã tài sản" /></MudItem>
-                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="Serial" /></MudItem>
-                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label="Vị trí" /></MudItem>
-                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="Thông số / Model" /></MudItem>
-                                    <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="_form.PurchasePrice" Label="Nguyên giá" Min="0" /></MudItem>
-                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.PurchaseDate" Label="Ngày mua" /></MudItem>
-                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.ExpectedDepreciationDate" Label="Ngày khấu hao dự kiến" /></MudItem>
-                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="Ghi chú" Lines="2" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label="@Language.T("equipment.field.equipmentName")" Required="true" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="@Language.T("equipment.field.assetCode")" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="@Language.T("equipment.field.serial")" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label="@Language.T("equipment.field.location")" /></MudItem>
+                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="@Language.T("equipment.field.specification")" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="_form.PurchasePrice" Label="@Language.T("equipment.field.purchasePrice")" Min="0" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.PurchaseDate" Label="@Language.T("equipment.field.purchaseDate")" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.ExpectedDepreciationDate" Label="@Language.T("equipment.field.depreciationDate")" /></MudItem>
+                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="@Language.T("equipment.field.note")" Lines="2" /></MudItem>
                                     @if (_customFields.Count > 0)
                                     {
                                         <MudItem xs="12"><EquipmentCustomFieldsEditor Fields="_customFields" Values="_customValues" /></MudItem>
                                     }
                                     <MudItem xs="12">
                                         <MudStack Row="true" Spacing="2">
-                                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SaveEditAsync">Lưu bản nháp</MudButton>
-                                            <MudButton Variant="Variant.Text" Disabled="_busy" OnClick="CancelEdit">Hủy</MudButton>
+                                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SaveEditAsync">@Language.T("equipment.importPanel.saveDraft")</MudButton>
+                                            <MudButton Variant="Variant.Text" Disabled="_busy" OnClick="CancelEdit">@Language.T("common.cancel")</MudButton>
                                         </MudStack>
                                     </MudItem>
                                 </MudGrid>
@@ -177,7 +179,21 @@ else
     private int? _editingId;
     private UpdateEquipmentDraftRequest? _form;
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Language.LanguageChanged += OnLanguageChanged;
+        await ReloadAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
+
+    /// <summary>Standard in-app confirmation (MudBlazor dialog) instead of the browser's native confirm().</summary>
+    private async Task<bool> ConfirmAsync(string message, string yesKey)
+        => await DialogService.ShowMessageBoxAsync(
+               Language.T("common.confirm"), message,
+               yesText: Language.T(yesKey), cancelText: Language.T("common.cancel")) == true;
 
     protected override void OnParametersSet()
         => _requestsById = Requests.GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
@@ -189,7 +205,7 @@ else
         {
             var result = await EquipmentClient.GetMyImportBatchesAsync();
             if (result.IsSuccess) _batches = (result.Data ?? new()).OrderByDescending(x => x.Id).ToList();
-            else Snackbar.Add(result.Message ?? "Không tải được danh sách hồ sơ import.", Severity.Warning);
+            else Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.loadFailed"), Severity.Warning);
             // Drop selections that are no longer drafts after a reload.
             var drafts = _batches.SelectMany(b => b.Rows).Where(IsDraft).Select(r => r.RequestId!.Value).ToHashSet();
             _selected.RemoveWhere(id => !drafts.Contains(id));
@@ -205,31 +221,31 @@ else
     private static string? Value(ExcelImportRowDto row, string key)
         => row.Values.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)).Value;
 
-    private static (string Label, Color Color) RowStatus(ExcelImportRowDto row)
+    private (string Label, Color Color) RowStatus(ExcelImportRowDto row)
     {
-        if (row.RequestDeleted) return ("Đã xóa bản nháp", Color.Default);
+        if (row.RequestDeleted) return (Language.T("equipment.importPanel.status.deleted"), Color.Default);
         if (!row.RequestId.HasValue)
-            return string.Equals(row.Status, "Invalid", StringComparison.OrdinalIgnoreCase) ? ("Lỗi", Color.Error) : ("Hợp lệ", Color.Success);
+            return string.Equals(row.Status, "Invalid", StringComparison.OrdinalIgnoreCase) ? (Language.T("equipment.importPanel.status.error"), Color.Error) : (Language.T("equipment.importPanel.valid"), Color.Success);
         return row.RequestStatus switch
         {
-            "Draft" => ("Bản nháp", Color.Warning),
-            "NeedsRevision" => ("Cần chỉnh sửa", Color.Warning),
-            "Pending" or "InProgress" or "Escalated" => ("Chờ duyệt", Color.Info),
-            "Approved" => ("Đã duyệt", Color.Success),
-            "Rejected" => ("Từ chối", Color.Error),
-            "Cancelled" => ("Đã hủy", Color.Default),
-            _ => (row.RequestStatus ?? "Bản nháp", Color.Default)
+            "Draft" => (Language.T("equipment.importPanel.status.draft"), Color.Warning),
+            "NeedsRevision" => (Language.T("equipment.importPanel.status.needsRevision"), Color.Warning),
+            "Pending" or "InProgress" or "Escalated" => (Language.T("equipment.importPanel.status.pending"), Color.Info),
+            "Approved" => (Language.T("equipment.importPanel.status.approved"), Color.Success),
+            "Rejected" => (Language.T("equipment.importPanel.status.rejected"), Color.Error),
+            "Cancelled" => (Language.T("equipment.importPanel.status.cancelled"), Color.Default),
+            _ => (row.RequestStatus ?? Language.T("equipment.importPanel.status.draft"), Color.Default)
         };
     }
 
-    private static (string Label, Color Color) BatchState(ExcelImportBatchDto b, int childCount)
+    private (string Label, Color Color) BatchState(ExcelImportBatchDto b, int childCount)
     {
-        if (childCount == 0) return ("Chưa xác nhận", Color.Default);
-        if (b.ApprovedRows == childCount) return ("Đã phê duyệt", Color.Success);
-        if (b.DraftRows == childCount) return ("Bản nháp", Color.Warning);
-        if (b.PendingRows > 0) return ("Đang phê duyệt", Color.Info);
-        if (b.RejectedRows > 0 && b.DraftRows == 0) return ("Có thiết bị bị từ chối", Color.Error);
-        return ("Gửi duyệt một phần", Color.Warning);
+        if (childCount == 0) return (Language.T("equipment.importPanel.batch.notConfirmed"), Color.Default);
+        if (b.ApprovedRows == childCount) return (Language.T("equipment.importPanel.batch.approved"), Color.Success);
+        if (b.DraftRows == childCount) return (Language.T("equipment.importPanel.status.draft"), Color.Warning);
+        if (b.PendingRows > 0) return (Language.T("equipment.importPanel.batch.inApproval"), Color.Info);
+        if (b.RejectedRows > 0 && b.DraftRows == 0) return (Language.T("equipment.importPanel.batch.hasRejected"), Color.Error);
+        return (Language.T("equipment.importPanel.batch.partial"), Color.Warning);
     }
 
     private void ToggleExpanded(long id) { if (!_expanded.Add(id)) _expanded.Remove(id); }
@@ -279,8 +295,8 @@ else
         {
             if (_customFields.Count > 0) _form.CustomValues = new Dictionary<string, string?>(_customValues, StringComparer.OrdinalIgnoreCase);
             var result = await EquipmentClient.UpdateDraftRequestAsync(_editingId.Value, _form);
-            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu bản nháp.", Severity.Error); return; }
-            Snackbar.Add(result.Message ?? "Đã lưu bản nháp.", Severity.Success);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.saveFailed"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.saved"), Severity.Success);
             CancelEdit();
             await RefreshAllAsync();
         }
@@ -290,13 +306,13 @@ else
     private async Task DeleteAsync(EquipmentRequestDto request)
     {
         if (_busy) return;
-        if (!await JS.InvokeAsync<bool>("confirm", $"Xóa bản nháp '{request.EquipmentName}' (#{request.Id})? Danh mục tài sản chính thức không bị ảnh hưởng.")) return;
+        if (!await ConfirmAsync(Language.T("equipment.confirm.deleteDraft", request.EquipmentName, request.Id), "common.delete")) return;
         _busy = true;
         try
         {
             var result = await EquipmentClient.DeleteDraftRequestAsync(request.Id);
-            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa bản nháp.", Severity.Error); return; }
-            Snackbar.Add(result.Message ?? "Đã xóa bản nháp.", Severity.Success);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleteFailed"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleted"), Severity.Success);
             _selected.Remove(request.Id);
             if (_editingId == request.Id) CancelEdit();
             await RefreshAllAsync();
@@ -306,7 +322,7 @@ else
 
     private async Task SubmitAllAsync(ExcelImportBatchDto batch)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Gửi duyệt toàn bộ {batch.DraftRows} thiết bị con đủ điều kiện của hồ sơ #{batch.Id}?")) return;
+        if (!await ConfirmAsync(Language.T("equipment.importPanel.confirm.submitAll", batch.DraftRows, batch.Id), "equipment.importPanel.confirm.submitYes")) return;
         await SubmitAsync(batch.Id, null);
     }
 
@@ -314,7 +330,7 @@ else
     {
         var ids = draftIds.Where(_selected.Contains).ToList();
         if (ids.Count == 0) return;
-        if (!await JS.InvokeAsync<bool>("confirm", $"Gửi duyệt {ids.Count} thiết bị đã chọn?")) return;
+        if (!await ConfirmAsync(Language.T("equipment.importPanel.confirm.submitSelected", ids.Count), "equipment.importPanel.confirm.submitYes")) return;
         await SubmitAsync(batch.Id, ids);
     }
 
@@ -327,11 +343,11 @@ else
             var result = await EquipmentClient.SubmitImportBatchAsync(batchId, ids);
             if (!result.IsSuccess || result.Data is null)
             {
-                Snackbar.Add(result.Message ?? "Không thể gửi duyệt.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.submitFailed"), Severity.Error);
             }
             else
             {
-                Snackbar.Add(result.Message ?? $"Đã gửi duyệt {result.Data.Submitted} thiết bị.", result.Data.Failed == 0 ? Severity.Success : Severity.Warning);
+                Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.submitted", result.Data.Submitted), result.Data.Failed == 0 ? Severity.Success : Severity.Warning);
                 foreach (var error in result.Data.Errors) Snackbar.Add(error, Severity.Warning);
                 foreach (var id in result.Data.SubmittedRequestIds) _selected.Remove(id);
             }

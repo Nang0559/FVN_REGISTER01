@@ -1,9 +1,10 @@
 ﻿@using FVN_REGISTER.Contract.Dtos.EquipmentImport
 @using System.Text.Json
+@inject ILanguageService Language
 
 @if (Fields.Count > 0)
 {
-    <MudText Typo="Typo.subtitle2" Class="mb-1">Các trường theo mẫu (schema) khi import Excel</MudText>
+    <MudText Typo="Typo.subtitle2" Class="mb-1">@Language.T("equipment.importPanel.customFields")</MudText>
     <MudGrid Spacing="2">
         @foreach (var field in Fields)
         {
@@ -34,10 +35,10 @@
         => !string.IsNullOrWhiteSpace(f.FieldLabel) ? f.FieldLabel
             : !string.IsNullOrWhiteSpace(f.HeaderName) ? f.HeaderName! : f.FieldKey;
 
-    private static string? HelperOf(ExcelSchemaFieldDto f) => f.DataType?.ToLowerInvariant() switch
+    private string? HelperOf(ExcelSchemaFieldDto f) => f.DataType?.ToLowerInvariant() switch
     {
-        "date" or "datetime" => "Định dạng ngày (vd. 31/12/2026)",
-        "integer" or "number" or "decimal" or "currency" => "Giá trị số",
+        "date" or "datetime" => Language.T("equipment.importPanel.hint.date"),
+        "integer" or "number" or "decimal" or "currency" => Language.T("equipment.importPanel.hint.number"),
         _ => null
     };
 

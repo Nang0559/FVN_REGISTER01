@@ -14,6 +14,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
     @if (_loading)
@@ -246,7 +247,10 @@
     private async Task RevokeAsync()
     {
         if (_asset == null) return;
-        var confirmed = await JS.InvokeAsync<bool>("confirm", "Thu hồi credential của Endpoint Agent này? Agent sẽ không thể gửi inventory bằng credential hiện tại.");
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            LanguageService.T("common.confirm"),
+            LanguageService.T("equipment.confirm.revokeAgentCredential"),
+            yesText: LanguageService.T("equipment.confirm.revokeYes"), cancelText: LanguageService.T("common.cancel")) == true;
         if (!confirmed) return;
         _busy = true;
         try
