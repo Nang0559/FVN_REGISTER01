@@ -459,6 +459,26 @@ public sealed class EquipmentImportService : IEquipmentImportService
         // Keep batch counts consistent with domain validation errors, not just Excel parser errors.
         await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03ExcelImportBatches SET ValidRows=(SELECT COUNT(*) FROM dbo.F03ExcelImportRows WHERE BatchId={bid} AND Status=30),InvalidRows=(SELECT COUNT(*) FROM dbo.F03ExcelImportRows WHERE BatchId={bid} AND Status=20) WHERE Id={bid}",ct);
         return ServiceResult<ExcelImportBatchDto>.Ok((await GetBatchAsync(bid,ct))!,"Đã staging file Excel và kiểm tra lookup thiết bị, phòng ban, nhân viên.");}
+    public async Task<List<ExcelImportBatchDto>> GetMyBatchesAsync(CancellationToken ct = default)
+    {
+        var user = User();
+        // F03ExcelImportBatches is the single parent record. Its existing staged rows
+        // and F03EquipmentImportRequestLinks are the children; do not create a parallel group table.
+        var candidates = await _db.Database.SqlQueryRaw<Batch>(
+            @"SELECT TOP (200) Id,SchemaId,ModuleCode,EntityCode,FileName,Status,TotalRows,ValidRows,InvalidRows,ImportedRows
+              FROM dbo.F03ExcelImportBatches ORDER BY Id DESC").ToListAsync(ct);
+        var result = new List<ExcelImportBatchDto>();
+        foreach (var candidate in candidates)
+        {
+            var metadata = await Meta(candidate.SchemaId, ct);
+            if (!user.IsAdmin && metadata.CreatedBy != user.UserId) continue;
+            await Scope(user, metadata.DepartmentCode, ct);
+            var batch = await GetBatchAsync(candidate.Id, ct);
+            if (batch != null) result.Add(batch);
+        }
+        return result;
+    }
+
     public async Task<ExcelImportBatchDto?> GetBatchAsync(long id, CancellationToken ct = default)
     {
         var user = User();
