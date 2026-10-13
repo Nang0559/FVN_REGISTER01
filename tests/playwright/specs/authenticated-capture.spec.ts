@@ -97,8 +97,9 @@ async function signIn(page: Page): Promise<void> {
     await passwordInput.press('Enter');
   }
 
+  // Authentication can redirect through several requests; do not mistake a slow login for rejection.
+  await expect(page.locator('input[type="password"]:visible')).toHaveCount(0, { timeout: 60_000 }).catch(() => undefined);
   await page.waitForLoadState('domcontentloaded').catch(() => undefined);
-  await page.waitForTimeout(1_500);
 
   // Never continue crawling if the login form is still visible.
   const stillHasPassword = await page.locator('input[type="password"]:visible').count();
@@ -280,6 +281,7 @@ test('signs in with Actions secrets and captures accessible application pages', 
 
   const requestTracker = installRequestTracker(page);\n  await signIn(page);
   await expect(page.locator('body')).toBeVisible();
+  await waitForFormReady(page, requestTracker, 'dashboard-after-login', 90_000);
   await saveScreenshot(page, 'dashboard-after-login');
 
   const origin = new URL(baseURL!).origin;
