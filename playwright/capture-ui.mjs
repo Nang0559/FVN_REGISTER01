@@ -306,4 +306,10 @@ if (captured.length) {
 console.log("Discovered " + discovered.size + " route(s); captured " + captured.length + " screen(s); " + failures.length + " failure(s).");
 console.log("ZIP: " + zipPath);
 console.log("HTML report: " + htmlReportPath);
+for (const failure of failures) {
+  console.error("[ui:capture] " + (failure.url || baseUrl) + " — " + (failure.error || "Unknown failure"));
+}
+if (login.success !== true) {
+  console.error("[ui:capture] Authentication was not confirmed; protected routes were not captured.");
+}
 if (!captured.length || login.success !== true || failures.length > 0) process.exitCode = 1;
