@@ -54,6 +54,7 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
     public Task<ApiResponse<ExcelSchemaDto>> SaveSchemaAsync(ExcelSchemaUpsertRequest request, CancellationToken ct = default) => Post<ExcelSchemaDto>("api/equipment/schemas", request, "save schema", ct);
     public Task<ApiResponse<ExcelSchemaDto>> CloneSchemaAsync(int schemaId, ExcelSchemaCloneRequest request, CancellationToken ct = default) => Post<ExcelSchemaDto>($"api/equipment/schemas/{schemaId}/clone", request, "clone schema", ct);
     public Task<ApiResponse<ExcelSchemaFieldDto>> SaveSchemaFieldAsync(SaveExcelSchemaFieldRequest request, CancellationToken ct = default) => Put<ExcelSchemaFieldDto>("api/equipment/schemas/fields", request, "save schema field", ct);
+    public Task<ApiResponse<List<ExcelImportBatchDto>>> GetMyImportBatchesAsync(CancellationToken ct = default) => Get<List<ExcelImportBatchDto>>("api/equipment/import/batches/mine", "get my import batches", ct);
     public Task<ApiResponse<ExcelImportBatchDto>> GetImportBatchAsync(long batchId, CancellationToken ct = default) => Get<ExcelImportBatchDto>($"api/equipment/import/{batchId}", "get import batch", ct);
     public Task<ApiResponse<ExcelImportCommitResultDto>> CommitImportAsync(long batchId, CancellationToken ct = default) => Post<ExcelImportCommitResultDto>($"api/equipment/import/{batchId}/commit", new { }, "commit import", ct);
 
