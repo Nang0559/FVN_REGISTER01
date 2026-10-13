@@ -10,7 +10,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['html', { outputFolder: 'playwright-report', open: 'never', theme: 'light' }],
     ['json', { outputFile: 'test-results/results.json' }],
   ],
   use: {
