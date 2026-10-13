@@ -279,7 +279,8 @@ test('signs in with Actions secrets and captures accessible application pages', 
   test.setTimeout(30 * 60 * 1000);
   await mkdir(screenshotDir, { recursive: true });
 
-  const requestTracker = installRequestTracker(page);\n  await signIn(page);
+  const requestTracker = installRequestTracker(page);
+  await signIn(page);
   await expect(page.locator('body')).toBeVisible();
   await waitForFormReady(page, requestTracker, 'dashboard-after-login', 90_000);
   await saveScreenshot(page, 'dashboard-after-login');
