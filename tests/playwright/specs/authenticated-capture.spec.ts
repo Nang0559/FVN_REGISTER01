@@ -98,13 +98,16 @@ async function signIn(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   await page.waitForTimeout(1_500);
 
-  // Detect a rejected login without writing credentials to logs or screenshots.
+  // Never continue crawling if the login form is still visible.
   const stillHasPassword = await page.locator('input[type="password"]:visible').count();
   if (stillHasPassword) {
     const bodyText = (await page.locator('body').innerText().catch(() => '')).slice(0, 1500);
-    if (/mật khẩu|đăng nhập thất bại|sai thông tin|invalid credentials|incorrect password|login failed/i.test(bodyText)) {
-      throw new Error('The website appears to have rejected the test login. Check the Actions secrets and account status.');
-    }
+    const hasLoginError = /mật khẩu|đăng nhập thất bại|sai thông tin|invalid credentials|incorrect password|login failed/i.test(bodyText);
+    throw new Error(
+      hasLoginError
+        ? 'The website rejected the test login. Check the Actions secrets and test-account status.'
+        : 'The login form is still visible after submitting. The login selectors or sign-in flow may need adjustment.',
+    );
   }
 }
 
