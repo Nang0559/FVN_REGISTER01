@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "description": "Optional explicit routes for pages that cannot be discovered from Razor @page directives or in-app links. Use only safe, non-mutating URLs on the staging environment.",
+  "routes": [
+    { "path": "/", "name": "Trang chủ" }
+  ]
+}
