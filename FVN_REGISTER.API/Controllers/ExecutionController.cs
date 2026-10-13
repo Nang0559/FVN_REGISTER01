@@ -79,7 +79,12 @@ public sealed class ExecutionController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var result = await _execution.GetAsync(UserInfo.EmployeeCode, reconciliationId, ct);
-        return result.IsSuccess ? Ok(ApiResponse<object>.FromResult(result)) : NotFound(ApiResponse<object>.FromResult(result));
+
+        // Phải dùng đúng kiểu generic để FromResult(ServiceResult<T>) giữ lại Data.
+        // ApiResponse<object>.FromResult(result) bind vào overload không generic => IsSuccess=true, Message="Success", Data=null,
+        // khiến client coi như lỗi và hiện toast đỏ "Success".
+        var response = ApiResponse<ExecutionReconciliationDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : NotFound(response);
     }
 
     [HttpGet("me/{reconciliationId:long}/detail")]
@@ -91,7 +96,8 @@ public sealed class ExecutionController : BaseApiController
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
         var result = await _execution.GetDetailAsync(UserInfo.EmployeeCode, reconciliationId, ct);
-        return result.IsSuccess ? Ok(ApiResponse<object>.FromResult(result)) : NotFound(ApiResponse<object>.FromResult(result));
+        var response = ApiResponse<ExecutionReconciliationDetailDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : NotFound(response);
     }
 
     [HttpPost("me/{reconciliationId:long}/confirmation")]
