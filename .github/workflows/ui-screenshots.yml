@@ -26,7 +26,7 @@ jobs:
   capture:
     name: Capture staging UI
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       BASE_URL: ${{ secrets.STAGING_BASE_URL }}
       UI_LOGIN_USERNAME: ${{ secrets.UI_LOGIN_USERNAME }}
@@ -35,7 +35,8 @@ jobs:
       UI_PASSWORD_SELECTOR: ${{ vars.UI_PASSWORD_SELECTOR }}
       UI_SUBMIT_SELECTOR: ${{ vars.UI_SUBMIT_SELECTOR }}
       UI_POST_LOGIN_SELECTOR: ${{ vars.UI_POST_LOGIN_SELECTOR }}
-      UI_MAX_PAGES: "250"
+      UI_MAX_PAGES: "500"
+      UI_MAX_STATES_PER_PAGE: "8"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,10 +64,10 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Capture all discoverable UI pages
+      - name: Capture UI and generate reports
         run: npm run ui:capture
 
-      - name: Upload UI screenshots ZIP
+      - name: Upload screenshots, ZIP and reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -75,5 +76,6 @@ jobs:
             artifacts/UI_Screenshots.zip
             artifacts/ui-screenshots/
             artifacts/ui-capture-report.json
+            artifacts/index.html
           if-no-files-found: warn
           retention-days: 30
