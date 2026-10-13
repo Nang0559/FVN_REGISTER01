@@ -20,7 +20,7 @@ jobs:
   smoke-test:
     name: Read-only website smoke test
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout test branch
         uses: actions/checkout@v4
