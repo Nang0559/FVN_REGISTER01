@@ -1,0 +1,59 @@
+name: Playwright UI Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Website URL to test (leave blank to use the configured production URL)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playwright-ui-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke-test:
+    name: Read-only website smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout test branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright dependencies
+        working-directory: tests/playwright
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        working-directory: tests/playwright
+        env:
+          CI: "true"
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+        run: |
+          if [ -z "$PLAYWRIGHT_BASE_URL" ]; then
+            unset PLAYWRIGHT_BASE_URL
+          fi
+          npm test
+
+      - name: Upload Playwright report and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-smoke-results
+          path: |
+            tests/playwright/playwright-report/
+            tests/playwright/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
