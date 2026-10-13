@@ -302,6 +302,13 @@ public sealed class EquipmentController : ControllerBase
             : BadRequest(ApiResponse<ExcelImportBatchDto>.FromResult(result));
     }
 
+    [HttpGet("import/batches/mine")]
+    public async Task<ActionResult<List<ExcelImportBatchDto>>> MyImportBatches(CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        return Ok(await _import.GetMyBatchesAsync(ct));
+    }
+
     [HttpGet("import/{batchId:long}")]
     public async Task<ActionResult<ExcelImportBatchDto>> ImportBatch(long batchId, CancellationToken ct)
     {
