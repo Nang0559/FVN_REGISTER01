@@ -154,6 +154,7 @@ public sealed class EquipmentApprovalProvider
                         QrToken = entity.QrToken,
                         IsQrActive = true,
                         Note = entity.Note,
+                        CustomDataJson = string.IsNullOrWhiteSpace(entity.CustomDataJson) ? "{}" : entity.CustomDataJson,
                         EndpointAgentEligible = entity.EndpointAgentEligible,
                         EndpointOsFamily = entity.EndpointOsFamily,
                         CreatedBy = entity.OperatorUserId

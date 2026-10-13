@@ -12,6 +12,8 @@ public sealed class UpdateEquipmentDraftRequest
     public decimal PurchasePrice { get; set; }
     public DateTime? PurchaseDate { get; set; }
     public DateTime? ExpectedDepreciationDate { get; set; }
+    /// <summary>Custom (schema-driven) field values; null leaves the stored custom data unchanged.</summary>
+    public Dictionary<string, string?>? CustomValues { get; set; }
 }
 
 /// <summary>Submit child requests of an import batch. Null or empty RequestIds means "all eligible children".</summary>
