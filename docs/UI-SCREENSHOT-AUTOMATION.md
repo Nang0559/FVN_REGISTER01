@@ -1,64 +1,58 @@
-# Tự động chụp UI FVN_REGISTER bằng Playwright
+# Tự động chụp và lập danh mục giao diện FVN_REGISTER
 
-Workflow `.github/workflows/ui-screenshots.yml` chụp các trang UI cùng domain có thể khám phá từ liên kết HTML, lưu ảnh PNG full-page và đóng gói `UI_Screenshots.zip`. Workflow chạy khi push có thay đổi liên quan UI trên nhánh `feature/equipment-change-approval-workflow`, hoặc chạy thủ công trong tab **Actions → UI Screenshots → Run workflow**.
+Pipeline này chạy Playwright trên GitHub Actions, truy cập ứng dụng Staging đã triển khai, phát hiện route từ mã Razor và liên kết HTML, mở một số menu/tab an toàn, chụp PNG full-page và tạo ZIP cùng báo cáo HTML/JSON.
 
-## 1. Điều kiện bắt buộc
+## 1. Thiết lập một lần
 
-Workflow này **không tự triển khai ứng dụng lên Staging**. Nó truy cập một bản Staging đã được triển khai và đang hoạt động. Cần thiết lập repository secret:
+Vào **GitHub → Nang0559/FVN_REGISTER01 → Settings → Secrets and variables → Actions**.
 
-- `STAGING_BASE_URL`: URL gốc của ứng dụng Staging, ví dụ `https://staging.example.com`.
-
-Không dùng URL localhost của máy cá nhân trong GitHub-hosted runner. Nếu muốn pipeline tự deploy, cần bổ sung bước deploy phù hợp hạ tầng thật (IIS, Azure App Service, container...) và cấu hình quyền/secret tương ứng.
-
-## 2. Đăng nhập để chụp màn hình yêu cầu xác thực
-
-Có thể thiết lập repository secrets:
-
-- `UI_LOGIN_USERNAME`: tài khoản kiểm thử chuyên dụng.
+Thêm **Repository secrets**:
+- `STAGING_BASE_URL`: URL HTTPS của bản Staging đã chạy, ví dụ `https://staging.example.com`.
+- `UI_LOGIN_USERNAME`: tài khoản kiểm thử riêng, có quyền xem các màn hình cần tài liệu.
 - `UI_LOGIN_PASSWORD`: mật khẩu tài khoản kiểm thử.
 
-Nếu trang đăng nhập dùng selector khác mặc định, thiết lập repository Variables:
+Hai secret đăng nhập có thể bỏ trống nếu ứng dụng không cần đăng nhập, nhưng khi đó màn hình sau xác thực sẽ không được thu thập.
 
+Nếu biểu mẫu đăng nhập dùng selector khác mặc định, thêm **Repository variables**:
 - `UI_USERNAME_SELECTOR`
 - `UI_PASSWORD_SELECTOR`
 - `UI_SUBMIT_SELECTOR`
-- `UI_POST_LOGIN_SELECTOR` (selector chỉ xuất hiện sau khi đăng nhập thành công, không bắt buộc).
+- `UI_POST_LOGIN_SELECTOR`: selector xuất hiện sau khi đăng nhập thành công, khuyến nghị cấu hình.
 
-Selector mặc định dò các input username/email, password và nút submit thông dụng. Nên dùng tài khoản staging có quyền xem các màn hình cần tài liệu; không dùng tài khoản production hoặc tài khoản cá nhân. Không ghi mật khẩu vào source code, log hoặc artifacts.
+Dùng staging với dữ liệu nhân sự/thiết bị đã ẩn danh. Không dùng tài khoản production hoặc ghi thông tin bí mật vào source code.
 
-## 3. Chạy trên máy phát triển
+## 2. Chạy để lấy ZIP
 
-Yêu cầu Node.js 22 và URL Staging có thể truy cập:
+1. Mở tab **Actions** của repository.
+2. Chọn workflow **UI Screenshots**.
+3. Chọn **Run workflow** → branch `feature/equipment-change-approval-workflow` → **Run workflow**.
+4. Mở lần chạy vừa tạo, chờ job **Capture staging UI** hoàn tất.
+5. Ở phần **Artifacts**, tải `UI_Screenshots-<số lần chạy>`.
+6. Giải nén gói artifact. Bên trong có `UI_Screenshots.zip`, thư mục ảnh PNG và các báo cáo.
+7. Giải nén tiếp `UI_Screenshots.zip` để xem `ui-screenshots/`, `index.html` và `ui-capture-report.json`.
 
-```bash
-npm ci
-npx playwright install chromium
-BASE_URL=https://staging.example.com npm run ui:capture
-```
+Artifact được giữ 30 ngày. Tải ZIP về máy để lưu lâu dài hoặc đính kèm vào báo cáo/hướng dẫn sử dụng.
 
-PowerShell:
+## 3. Khi nào workflow tự chạy?
 
-```powershell
-$env:BASE_URL = "https://staging.example.com"
-npm ci
-npx playwright install chromium
-npm run ui:capture
-```
+Khi push thay đổi liên quan đến UI, Shared, Application, API, Playwright, package hoặc workflow lên nhánh `feature/equipment-change-approval-workflow`, workflow tự chạy. Có thể chạy thủ công bất cứ lúc nào qua **Actions → UI Screenshots → Run workflow**.
 
-Nếu cần đăng nhập, đặt thêm biến môi trường `UI_LOGIN_USERNAME` và `UI_LOGIN_PASSWORD`.
+**Lưu ý:** workflow chụp bản Staging hiện có; nó không tự build/deploy ứng dụng lên IIS. URL Staging phải truy cập được từ GitHub-hosted runner. URL localhost trên máy cá nhân không dùng được trong runner này.
 
-## 4. Tải kết quả từ GitHub Actions
+## 4. Phạm vi phát hiện và tương tác
 
-1. Mở repository → **Actions** → chọn lần chạy **UI Screenshots** thành công.
-2. Trong phần **Artifacts**, tải `UI_Screenshots-<run_number>`.
-3. Giải nén để lấy `UI_Screenshots.zip`, ảnh PNG và `ui-capture-report.json`.
+- Tự đọc các chỉ thị `@page` trong `FVN_REGISTER.Web/**/*.razor` để tìm route tĩnh.
+- Đi theo liên kết cùng domain được render trong HTML.
+- Thử mở các control khai báo là tab, dropdown/menu và nút mở điều hướng; không click tùy tiện các nút submit, duyệt, xóa hay cập nhật nghiệp vụ.
+- Chụp tối đa 500 route và tối đa 8 trạng thái tương tác an toàn trên mỗi trang; các ngưỡng nằm trong workflow.
+- Route chứa tham số như `/equipment/{id}` không được tự điền ID, vì vậy cần bổ sung URL dữ liệu mẫu an toàn vào `playwright/ui-routes.json` nếu muốn chụp các trang chi tiết.
+- Các màn hình phụ thuộc vai trò khác nhau cần tài khoản kiểm thử riêng và chạy riêng theo vai trò; một tài khoản không thể thấy màn hình mà nó không có quyền truy cập.
+- Một số component có điều hướng chỉ qua callback hoặc menu phức tạp vẫn cần cấu hình thêm selector/kịch bản. Kiểm tra báo cáo và xác nhận danh mục route trước khi dùng làm tài liệu chính thức.
 
-ZIP chứa thư mục ảnh và báo cáo URL/tiêu đề/trạng thái HTTP của các trang đã chụp. Artifact được lưu 30 ngày; tải về và lưu lại nếu cần dùng lâu dài.
+## 5. Đọc báo cáo
 
-## 5. Phạm vi và giới hạn
+- `index.html`: danh sách ảnh, URL, tiêu đề, trạng thái HTTP và lỗi ghi nhận; mở bằng trình duyệt sau khi giải nén ZIP.
+- `ui-capture-report.json`: dữ liệu chi tiết để xử lý tự động hoặc đối chiếu giữa các lần chạy.
+- `ui-screenshots/*.png`: ảnh full-page. Tên ảnh dựa trên route và trạng thái UI.
 
-- Script bắt đầu từ URL gốc, theo các liên kết cùng domain và chụp tối đa 250 URL (có thể đổi `UI_MAX_PAGES`).
-- Các trang chỉ mở bằng thao tác JavaScript không có liên kết HTML, các menu chưa mở, tab/modal, dữ liệu cần thao tác trước và route không được liên kết có thể không tự khám phá được. Nên bổ sung danh sách route nghiệp vụ/kịch bản tương tác rõ ràng khi cần bao phủ đầy đủ.
-- Trang cần đăng nhập sẽ chỉ được chụp sau khi cấu hình thông tin đăng nhập hợp lệ.
-- Đây là công cụ chụp ảnh tài liệu, không thay thế kiểm thử nghiệp vụ hay xác nhận rằng mọi trang đã được chụp. Kiểm tra `ui-capture-report.json` và số ảnh sau mỗi lần chạy.
-- Không đưa dữ liệu nhân sự/thiết bị thật hoặc thông tin nhạy cảm vào môi trường chụp. Dùng dữ liệu staging đã ẩn danh.
+HTTP 200 không đồng nghĩa nghiệp vụ đúng; đây là công cụ lập tài liệu giao diện, không thay thế kiểm thử chức năng.
