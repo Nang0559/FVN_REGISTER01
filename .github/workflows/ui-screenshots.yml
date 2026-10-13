@@ -1,0 +1,80 @@
+name: UI Screenshots
+
+on:
+  push:
+    branches:
+      - feature/equipment-change-approval-workflow
+    paths:
+      - "FVN_REGISTER.Web/**"
+      - "FVN_REGISTER.Shared/**"
+      - "FVN_REGISTER.Application/**"
+      - "FVN_REGISTER.API/**"
+      - "playwright/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ui-screenshots.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture staging UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+      UI_LOGIN_USERNAME: ${{ secrets.UI_LOGIN_USERNAME }}
+      UI_LOGIN_PASSWORD: ${{ secrets.UI_LOGIN_PASSWORD }}
+      UI_USERNAME_SELECTOR: ${{ vars.UI_USERNAME_SELECTOR }}
+      UI_PASSWORD_SELECTOR: ${{ vars.UI_PASSWORD_SELECTOR }}
+      UI_SUBMIT_SELECTOR: ${{ vars.UI_SUBMIT_SELECTOR }}
+      UI_POST_LOGIN_SELECTOR: ${{ vars.UI_POST_LOGIN_SELECTOR }}
+      UI_MAX_PAGES: "250"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate staging URL
+        shell: bash
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            echo "::error::Set repository secret STAGING_BASE_URL to the deployed staging URL before running this workflow."
+            exit 1
+          fi
+          case "$BASE_URL" in
+            https://*|http://localhost*|http://127.0.0.1*) ;;
+            *) echo "::error::STAGING_BASE_URL must use HTTPS (HTTP is allowed only for localhost)."; exit 1 ;;
+          esac
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture all discoverable UI pages
+        run: npm run ui:capture
+
+      - name: Upload UI screenshots ZIP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: UI_Screenshots-${{ github.run_number }}
+          path: |
+            artifacts/UI_Screenshots.zip
+            artifacts/ui-screenshots/
+            artifacts/ui-capture-report.json
+          if-no-files-found: warn
+          retention-days: 30
