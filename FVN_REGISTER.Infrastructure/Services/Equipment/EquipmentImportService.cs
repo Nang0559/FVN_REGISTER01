@@ -12,6 +12,8 @@ using FVN_REGISTER.Contract.Dtos.EquipmentImport;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Equipment;
+using FVN_REGISTER.Core.Entities.Approvers;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Excel;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Schema;
@@ -598,16 +600,19 @@ END", ct);
                     .AsNoTracking().FirstOrDefaultAsync(ct);
                 var action = existing is null ? "Registration" : "AssetChange";
                 // Do not trust the staging-time classification. Re-evaluate code and identity under serializable transaction.
-                if (action == "AssetChange" && !string.Equals(row.ActionKind, "AssetChange", StringComparison.OrdinalIgnoreCase))
-                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: mã thiết bị đã tồn tại nhưng staging ghi nhận trạng thái khác; hãy staging lại."); continue; }
-                if (action == "Registration" && string.Equals(row.ActionKind, "AssetChange", StringComparison.OrdinalIgnoreCase))
-                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: thiết bị đã bị xóa/đổi mã sau staging; hãy staging lại."); continue; }
+                var stagedAssetId = int.TryParse(V("ExistingAssetId"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedAssetId) ? parsedAssetId : (int?)null;
+                if (action == "AssetChange" &&
+                    (!string.Equals(row.ActionKind, "AssetChange", StringComparison.OrdinalIgnoreCase) || stagedAssetId != existing!.Id))
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: mã thiết bị hoặc danh tính tài sản đã thay đổi kể từ staging; hãy staging lại để tránh áp dụng snapshot cũ."); continue; }
+                if (action == "Registration" &&
+                    (string.Equals(row.ActionKind, "AssetChange", StringComparison.OrdinalIgnoreCase) || stagedAssetId.HasValue))
+                { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: trạng thái thiết bị đã thay đổi kể từ staging; hãy staging lại."); continue; }
 
-                var approver = await _db.Database.SqlQueryRaw<string>(
-                    @"SELECT TOP (1) ApproverCode AS Value FROM dbo.F03Approvers
-                      WHERE RequestType=N'EQUIPMENT' AND IsActive=1
-                        AND (ApproveForDeptCode={0} OR ApproveForDeptCode=-1)
-                      ORDER BY Level, ApproverCode", dept.DeptCode).FirstOrDefaultAsync(ct);
+                var approver = await _db.Set<F03Approver>().AsNoTracking()
+                    .Where(x => x.RequestType == RequestModule.Equipment && x.IsActive == true &&
+                        (x.ApproveForDeptCode == dept.DeptCode || x.ApproveForDeptCode == ApproveForDept.All))
+                    .OrderBy(x => x.Level).ThenBy(x => x.ApproverCode)
+                    .Select(x => x.ApproverCode).FirstOrDefaultAsync(ct);
                 if (string.IsNullOrWhiteSpace(approver))
                 { result.SkippedRows++; result.Errors.Add($"Dòng {row.RowNumber}: chưa cấu hình người phê duyệt thiết bị cho phòng ban {dept.DeptCode}."); continue; }
 
