@@ -12,5 +12,8 @@ public sealed class CalendarIssueDto
     public Guid? ActionId { get; init; }
     public string? DetailRoute { get; init; }
     public int? RequestId { get; init; }
+    public string? FeedbackTone { get; init; }
+    public string? FeedbackMarker { get; init; }
+    public string? FeedbackLabel { get; init; }
     public IReadOnlyList<CalendarActionOptionDto> Actions { get; init; } = Array.Empty<CalendarActionOptionDto>();
 }

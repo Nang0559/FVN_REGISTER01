@@ -307,8 +307,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 AvailabilityNote = baseDay.AvailabilityNote
             };
 
-            var issues = _ruleEngine.Evaluate(
-                new CalendarDayRuleContext(provisional, dateItems));
+            var issues = ApplyExecutionFeedback(
+                _ruleEngine.Evaluate(new CalendarDayRuleContext(provisional, dateItems)),
+                dateItems);
 
             days.Add(new CalendarDayDto
             {
@@ -421,6 +422,55 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         return result.IsSuccess
             ? ServiceResult<IReadOnlyList<CalendarAlertItemDto>>.Ok(result.Data?.Alerts ?? Array.Empty<CalendarAlertItemDto>())
             : ServiceResult<IReadOnlyList<CalendarAlertItemDto>>.Fail(result.Message ?? "Không thể tải cảnh báo lịch.");
+    }
+
+    /// <summary>
+    /// Phản hồi nhân viên/HR (OT, Trip, Leave) nằm ở CalendarItemDto.Feedback*; đưa nó lên issue cùng module
+    /// để dấu "?" đổi thành Pending / HR request / Complete / Rejected thay vì luôn đỏ.
+    /// </summary>
+    private static IReadOnlyList<CalendarIssueDto> ApplyExecutionFeedback(
+        IReadOnlyList<CalendarIssueDto> issues,
+        IReadOnlyList<CalendarItemDto> dateItems)
+    {
+        if (issues.Count == 0)
+            return issues;
+
+        var feedbackByModule = dateItems
+            .Where(x => !string.IsNullOrWhiteSpace(x.FeedbackTone)
+                && !string.Equals(x.ModuleCode, "ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Severity).First(), StringComparer.OrdinalIgnoreCase);
+
+        if (feedbackByModule.Count == 0)
+            return issues;
+
+        return issues.Select(issue =>
+        {
+            if (!feedbackByModule.TryGetValue(issue.ModuleCode ?? string.Empty, out var item))
+                return issue;
+
+            var complete = string.Equals(item.FeedbackTone, "complete", StringComparison.OrdinalIgnoreCase);
+            return new CalendarIssueDto
+            {
+                Code = issue.Code,
+                ModuleCode = issue.ModuleCode,
+                Severity = item.Severity,
+                Marker = item.FeedbackMarker ?? issue.Marker,
+                Title = issue.Title,
+                Summary = string.IsNullOrWhiteSpace(item.FeedbackLabel)
+                    ? issue.Summary
+                    : $"{item.FeedbackLabel} · {issue.Summary}",
+                SourceId = issue.SourceId,
+                ActionId = issue.ActionId,
+                DetailRoute = issue.DetailRoute,
+                RequestId = issue.RequestId,
+                // Complete: đã xong, không mời phản hồi lại. Các trạng thái khác giữ nguyên hành động.
+                Actions = complete ? Array.Empty<CalendarActionOptionDto>() : issue.Actions,
+                FeedbackTone = item.FeedbackTone,
+                FeedbackMarker = item.FeedbackMarker,
+                FeedbackLabel = item.FeedbackLabel
+            };
+        }).ToArray();
     }
 
     private static string? BuildAvailabilityNote(CalendarDayDto day)

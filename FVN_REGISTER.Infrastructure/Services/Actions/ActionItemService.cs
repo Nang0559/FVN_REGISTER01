@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Notifications;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Core.Entities.Common;
@@ -52,7 +53,7 @@ public sealed class ActionItemService : IActionItemService
             query = query.Where(x => x.Status == ActionItemStatus.Open
                 || x.Status == ActionItemStatus.InProgress);
 
-        return await query
+        var items = await query
             .OrderBy(x => x.Status == ActionItemStatus.Open ? 0 : 1)
             .ThenByDescending(x => x.Priority)
             .ThenBy(x => x.DueAt)
@@ -80,6 +81,72 @@ public sealed class ActionItemService : IActionItemService
                 CompletedAt = x.CompletedAt
             })
             .ToListAsync(cancellationToken);
+
+        await ApplyExecutionFeedbackAsync(items, employeeId.Value, cancellationToken);
+        return items;
+    }
+
+    /// <summary>
+    /// Action đối soát của nhân viên chỉ lưu Title/Summary cố định ("Cần xác nhận kết quả OT thực tế").
+    /// Phản hồi của nhân viên và ý kiến HR nằm ở F03ExecutionConfirmation, nên gắn trạng thái đó vào DTO
+    /// (cùng bộ quy tắc ExecutionFeedbackStatusPolicy với lịch) để danh sách phản ánh đúng thông báo.
+    /// </summary>
+    private async Task ApplyExecutionFeedbackAsync(
+        List<ActionItemDto> items,
+        int employeeId,
+        CancellationToken cancellationToken)
+    {
+        var actionIds = items
+            .Where(x => x.AssignedToEmployeeId == employeeId)
+            .Select(x => x.ActionId)
+            .ToList();
+        if (actionIds.Count == 0) return;
+
+        var reconciliations = await _db.ExecutionReconciliations
+            .AsNoTracking()
+            .Where(x => x.IsActive != false
+                && x.EmployeeId == employeeId
+                && x.ActionId != null
+                && actionIds.Contains(x.ActionId.Value))
+            .Select(x => new { x.Id, ActionId = x.ActionId!.Value, x.ReconciliationStatus })
+            .ToListAsync(cancellationToken);
+        if (reconciliations.Count == 0) return;
+
+        var reconciliationIds = reconciliations.Select(x => x.Id).ToList();
+        var confirmations = (await _db.ExecutionConfirmations
+                .AsNoTracking()
+                .Where(x => x.IsActive != false && reconciliationIds.Contains(x.ReconciliationId))
+                .Select(x => new { x.Id, x.ReconciliationId, x.Status, x.SubmittedAt, x.ReviewedAt, x.ReviewNote })
+                .ToListAsync(cancellationToken))
+            .GroupBy(x => x.ReconciliationId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
+
+        var reconciliationByAction = reconciliations
+            .GroupBy(x => x.ActionId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
+
+        foreach (var item in items)
+        {
+            if (!reconciliationByAction.TryGetValue(item.ActionId, out var reconciliation)
+                || !confirmations.TryGetValue(reconciliation.Id, out var confirmation))
+                continue;
+
+            var feedback = ExecutionFeedbackStatusPolicy.Resolve(
+                reconciliation.ReconciliationStatus,
+                confirmation.Status,
+                confirmation.SubmittedAt,
+                confirmation.ReviewedAt);
+            if (feedback is not { } fb) continue;
+
+            item.FeedbackTone = fb.Tone;
+            item.FeedbackLabel = fb.Label;
+            // Chỉ hiển thị ý kiến HR khi HR đã review sau lần gửi gần nhất của nhân viên.
+            item.FeedbackNote = confirmation.ReviewedAt.HasValue
+                && (!confirmation.SubmittedAt.HasValue || confirmation.ReviewedAt.Value >= confirmation.SubmittedAt.Value)
+                && !string.IsNullOrWhiteSpace(confirmation.ReviewNote)
+                    ? confirmation.ReviewNote
+                    : null;
+        }
     }
 
     public async Task<ActionCountDto> GetCountAsync(

@@ -15,6 +15,7 @@
 @using FVN_REGISTER.Shared.Services.Calendar
 @using FVN_REGISTER.Shared.Services.OTs
 @using FVN_REGISTER.Shared.Services.Execution
+@using FVN_REGISTER.Shared.Services.Notifications
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -26,6 +27,7 @@
 @inject IOTClientService OTClient
 @inject IExecutionReconciliationClientService ExecutionService
 @inject IWorkCalendarClientService CalendarService
+@inject INotificationClientService NotificationService
 @inject NavigationManager Navigation
 
 <PageTitle>@Language.T("home.title")</PageTitle>
@@ -115,10 +117,18 @@ else if (_model != null)
                                             <MudStack Spacing="0">
                                                 <MudText Typo="Typo.body2"><b>@action.Title</b></MudText>
                                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">@action.Summary</MudText>
+                                                @if (!string.IsNullOrWhiteSpace(action.FeedbackNote))
+                                                {
+                                                    <MudText Typo="Typo.caption" Style="font-weight:600">HR: @action.FeedbackNote</MudText>
+                                                }
                                             </MudStack>
                                             <MudStack Row="true" Spacing="1">
                                                 <MudChip T="string" Size="Size.Small">@action.ModuleCode</MudChip>
-                                                @if (action.Status == 0)
+                                                @if (!string.IsNullOrWhiteSpace(action.FeedbackLabel))
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="@GetFeedbackColor(action.FeedbackTone)">@action.FeedbackLabel</MudChip>
+                                                }
+                                                else if (action.Status == 0)
                                                 {
                                                     <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Language.T("dashboard.pending")</MudChip>
                                                 }
@@ -157,7 +167,7 @@ else if (_model != null)
                             </CardHeaderActions>
                         </MudCardHeader>
                         <MudCardContent Class="pa-2">
-                            <WorkCalendar ModuleContext="ALL" OnDaySelected="HandleCalendarDaySelected" />
+                            <WorkCalendar @ref="_calendarRef" ModuleContext="ALL" OnDaySelected="HandleCalendarDaySelected" />
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -217,6 +227,52 @@ else
     private DateTime? _loadedAt;
     private PermissionSnapshotDto? _permissions;
     private readonly CancellationTokenSource _cts = new();
+    private WorkCalendar? _calendarRef;
+    private CancellationTokenSource? _refreshDebounce;
+    private bool _notificationSubscribed;
+
+    private static Color GetFeedbackColor(string? tone) => tone switch
+    {
+        "pending" => Color.Info,
+        "hr-request" => Color.Warning,
+        "complete" => Color.Success,
+        "rejected" or "unanswered" => Color.Error,
+        _ => Color.Default
+    };
+
+    // HR trả lời phản hồi => server gửi notification. Làm mới "Nhiệm vụ của tôi" và lịch ngay,
+    // không bắt người dùng F5 mới thấy trạng thái Pending / HR request / Complete / Rejected.
+    private void OnNotificationChanged()
+    {
+        if (_cts.IsCancellationRequested) return;
+        _ = InvokeAsync(RefreshAfterNotificationAsync);
+    }
+
+    private async Task RefreshAfterNotificationAsync()
+    {
+        _refreshDebounce?.Cancel();
+        _refreshDebounce?.Dispose();
+        var debounce = _refreshDebounce = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+
+        try
+        {
+            await Task.Delay(800, debounce.Token);
+
+            var result = await DashboardService.GetDashboardDataAsync(debounce.Token);
+            if (result.IsSuccess && result.Data != null)
+            {
+                _model = result.Data;
+                _loadedAt = DateTime.Now;
+            }
+
+            if (_calendarRef is not null)
+                await _calendarRef.RefreshAsync();
+
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Console.Error.WriteLine($"Home refresh after notification failed: {ex.Message}"); }
+    }
 
     private bool Can(int functionCode) => _permissions?.Has(functionCode) == true;
     private bool CanPersonal(int functionCode) => _permissions?.HasPersonal(functionCode) == true;
@@ -242,6 +298,12 @@ else
             var permissionResult = await SecurityService.GetMyPermissionsAsync(_cts.Token);
             if (permissionResult.IsSuccess)
                 _permissions = permissionResult.Data;
+
+            if (!_notificationSubscribed)
+            {
+                NotificationService.OnChanged += OnNotificationChanged;
+                _notificationSubscribed = true;
+            }
 
             var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
             if (result.IsSuccess && result.Data != null) { _model = result.Data; _loadedAt = DateTime.Now; }
@@ -428,5 +490,5 @@ else
     private void OpenPath_equipment_workspace() => Navigation.NavigateTo("/equipment/workspace");
     private void OpenPath_equipment() => Navigation.NavigateTo("/equipment");
 
-    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
+    public override void Dispose() { if (_notificationSubscribed) NotificationService.OnChanged -= OnNotificationChanged; base.Dispose(); _cts.Cancel(); _refreshDebounce?.Dispose(); _cts.Dispose(); }
 }
