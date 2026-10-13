@@ -67,10 +67,46 @@ else
                             </div>
                             @if (_actions?.Import == true)
                             {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở bản nháp import Excel</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Import Excel</MudButton>
                             }
                         </MudStack>
                     </MudPaper>
+
+                    <MudPaper Class="ma-4 pa-3" Outlined="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                            <div>
+                                <MudText Typo="Typo.subtitle1">Bản nháp đăng ký thiết bị của tôi</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Các yêu cầu chưa gửi duyệt được hiển thị tại đây. Tài sản chính thức chỉ được cập nhật sau khi phê duyệt.</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_busy" OnClick="LoadAsync">Làm mới</MudButton>
+                        </MudStack>
+                        @if (!RegistrationDrafts.Any())
+                        {
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">Chưa có bản nháp đăng ký hoặc thay đổi thiết bị nào.</MudAlert>
+                        }
+                        else
+                        {
+                            <MudTable Items="RegistrationDrafts" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                                <HeaderContent>
+                                    <MudTh>Mã yêu cầu</MudTh>
+                                    <MudTh>Loại yêu cầu</MudTh>
+                                    <MudTh>Tên thiết bị</MudTh>
+                                    <MudTh>Mã tài sản</MudTh>
+                                    <MudTh>Bộ phận</MudTh>
+                                    <MudTh>Trạng thái</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Mã yêu cầu">#@context.Id</MudTd>
+                                    <MudTd DataLabel="Loại yêu cầu">@RequestKindLabel(context.RequestKind)</MudTd>
+                                    <MudTd DataLabel="Tên thiết bị">@context.EquipmentName</MudTd>
+                                    <MudTd DataLabel="Mã tài sản">@context.AssetCode</MudTd>
+                                    <MudTd DataLabel="Bộ phận">@context.DeptCode</MudTd>
+                                    <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.RequestStatus</MudChip></MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                    </MudPaper>
+
                     <MudGrid Class="pa-4">
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label='@Language.T("equipment.name")' Required="true" /></MudItem>
                         <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="@Language.T("equipment.maTaiSan")" /></MudItem>
@@ -345,6 +381,16 @@ else
     private DateTime? _purchase = DateTime.Today;
     private DateTime? _depreciation = DateTime.Today.AddYears(3);
     private List<EquipmentRequestDto> _mine = new();
+    private IEnumerable<EquipmentRequestDto> RegistrationDrafts => _mine
+        .Where(x => x.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.Registration
+            || x.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange)
+        .Where(x => x.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft
+            || x.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision)
+        .OrderByDescending(x => x.Id);
+
+    private static string RequestKindLabel(FVN_REGISTER.Core.Enums.EquipmentRequestKind kind) =>
+        kind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange ? "Thay đổi thiết bị" :
+        kind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.Registration ? "Đăng ký thiết bị" : kind.ToString();
     private List<EquipmentAssetDto> _assets = new();
     private List<ExcelSchemaFieldDto> _assetSchemaFields = new();
     private EquipmentAssetDto? _editingAsset;
