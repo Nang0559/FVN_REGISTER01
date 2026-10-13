@@ -497,7 +497,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
             @"SELECT r.Id, r.RowNumber, r.Status,
                      COALESCE(JSON_VALUE(r.NormalizedDataJson, '$.ImportAction'), N'') AS ActionKind,
                      link.RequestId AS RequestId, req.AssetId AS AssetId,
-                     CASE WHEN req.RequestStatus IS NULL THEN NULL ELSE CONVERT(nvarchar(40), req.RequestStatus) END AS RequestStatus,
+                     req.RequestStatus AS RequestStatus,
                      r.NormalizedDataJson AS NormalizedDataJson,
                      COALESCE(
                        STUFF((
@@ -535,8 +535,8 @@ public sealed class EquipmentImportService : IEquipmentImportService
                 ErrorMessage = row.ErrorMessage,
                 RequestId = row.RequestId,
                 AssetId = row.AssetId,
-                RequestStatus = row.RequestStatus,
-                IsLocked = row.RequestStatus is not null && row.RequestStatus != "Draft" && row.RequestStatus != "NeedsRevision",
+                RequestStatus = row.RequestStatus.HasValue ? ((ApprovalStatus)row.RequestStatus.Value).ToString() : null,
+                IsLocked = row.RequestStatus.HasValue && row.RequestStatus.Value != (int)ApprovalStatus.Draft && row.RequestStatus.Value != (int)ApprovalStatus.NeedsRevision,
                 Values = ParseStagedValues(row.NormalizedDataJson)
             }).ToList()
         };
@@ -839,5 +839,5 @@ END", ct);
     private static int Dept(int? x,int? f)=>x??f??0;
     private static ExcelSchemaDto Map(int id,ExcelSchemaDefinition d,(int DepartmentCode,int CreatedBy,string SchemaName,int FieldCount,string? SourceFileName,int Status)m,UserIdentityDto u)=>new(){Id=id,ModuleCode=d.ModuleCode,EntityCode=d.EntityCode,SchemaCode=d.SchemaKey,SchemaName=m.SchemaName,Version=d.Version,Status=((ExcelSchemaStatus)m.Status).ToString(),IsActive=m.Status==(int)ExcelSchemaStatus.Active,DepartmentCode=m.DepartmentCode,CreatedByUserId=m.CreatedBy,SourceFileName=m.SourceFileName,CreatedFromExcel=!string.IsNullOrWhiteSpace(m.SourceFileName),IsOwner=m.CreatedBy==u.UserId||u.IsAdmin,CanEdit=m.CreatedBy==u.UserId||u.IsAdmin,CanCreateVersion=m.CreatedBy==u.UserId||u.IsAdmin,CanClone=true,CreatedByUserName="",SheetIndex=d.SheetIndex,SheetName=d.SheetName,HeaderRowIndex=d.HeaderRowIndex,DataStartRowIndex=d.DataStartRowIndex,DataEndRowIndex=d.DataEndRowIndex,Fields=d.Fields.Select(Map).ToList()};
     private static ExcelSchemaFieldDto Map(ExcelSchemaField f)=>new(){FieldKey=f.FieldKey,FieldLabel=f.HeaderName??f.FieldKey,DataType=f.DataType,IsRequired=f.Required,AllowEmpty=f.AllowEmpty,SourceColumnIndex=f.SourceColumnIndex,HeaderName=f.HeaderName,ResourceKey=f.ResourceKey,TargetProperty=f.TargetProperty,Format=f.Format,ValidationRule=f.ValidationRule,DefaultValue=f.DefaultValue,MaxLength=f.MaxLength,DisplayOrder=f.DisplayOrder};
-    private sealed record CommitSourceRow(long Id,int RowNumber,int Status,string? NormalizedDataJson,string ActionKind); private sealed record ExistingAssetRow(int Id,string EquipmentCode); private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string ActionKind,int? RequestId,int? AssetId,string? RequestStatus,string? NormalizedDataJson,string? ErrorMessage);
+    private sealed record CommitSourceRow(long Id,int RowNumber,int Status,string? NormalizedDataJson,string ActionKind); private sealed record ExistingAssetRow(int Id,string EquipmentCode); private sealed record MetaRow(string Code,string Name,int ById,int Fields,string? File,int Status); private sealed record Batch(long Id,int SchemaId,string ModuleCode,string EntityCode,string FileName,int Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows); private sealed record Row(long Id,string? Data); private sealed record ImportRow(long Id,int RowNumber,int Status,string ActionKind,int? RequestId,int? AssetId,int? RequestStatus,string? NormalizedDataJson,string? ErrorMessage);
 }
