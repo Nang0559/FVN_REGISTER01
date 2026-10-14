@@ -81,7 +81,7 @@ public sealed class DocumentPipeline(
         for (var index = 0; index < Math.Min(lines.Length, 500); index++)
         {
             var line = lines[index];
-            var pageMarker = System.Text.RegularExpressions.Regex.Match(line, @"^\\[PAGE (?<page>\\d+)\\]$");
+            var pageMarker = System.Text.RegularExpressions.Regex.Match(line, @"^\[PAGE (?<page>\d+)\]$");
             if (pageMarker.Success && int.TryParse(pageMarker.Groups["page"].Value, out var parsedPage))
             {
                 pageNumber = parsedPage;
