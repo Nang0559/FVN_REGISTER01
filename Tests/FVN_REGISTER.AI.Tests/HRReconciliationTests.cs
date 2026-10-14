@@ -81,6 +81,27 @@ public sealed class HRReconciliationTests
 
 
     [Fact]
+    public async Task AnalyzeWithAuthorizedFactsAsync_ReportsRegisteredVersusActualOtIntervalDifference()
+    {
+        var workDate = new DateOnly(2026, 10, 1);
+        var facts = new OfficialHRFacts("E0001", workDate, "Approved",
+            new DateTimeOffset(2026, 10, 1, 18, 0, 0, TimeSpan.FromHours(7)),
+            new DateTimeOffset(2026, 10, 1, 20, 0, 0, TimeSpan.FromHours(7)),
+            2m,
+            new DateTimeOffset(2026, 10, 1, 18, 15, 0, TimeSpan.FromHours(7)),
+            new DateTimeOffset(2026, 10, 1, 19, 45, 0, TimeSpan.FromHours(7)),
+            1.5m, 1.5m, "HC", false, null, null, "FVN_REGISTER", "OT:REQ-001", DateTimeOffset.UtcNow);
+        await using var db = CreateDb();
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db, new UnconfiguredAIModelProvider());
+
+        var result = await service.AnalyzeWithAuthorizedFactsAsync("FCCVN", "42",
+            new AuthorizedHRCaseAnalysisRequest(
+                new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", workDate, "OT thực tế bị thiếu giờ.", null, null, ReportedHours: 2m),
+                facts));
+
+        Assert.Contains(result.Comparisons, x => x.RuleCode == "OT-INTERVAL-001" && x.Outcome == HRComparisonOutcome.Discrepancy);
+    }
+    [Fact]
     public async Task AnalyzeWithAuthorizedFactsAsync_PersistsCaseWithoutCallingUnconfiguredFactsProvider()
     {
         var facts = new OfficialHRFacts("E0001", new DateOnly(2026, 10, 1), "Approved",
