@@ -129,6 +129,25 @@ group.MapPost("/hr-cases/analyze", async (HRCaseAnalysisRequest body, HttpReques
     { return Results.Problem("Trusted FVN_REGISTER HR facts adapter is not configured.", statusCode: 503); }
 });
 
+
+group.MapPost("/hr-cases/{caseId:guid}/review", async (Guid caseId, HRCaseReviewRequest body,
+    HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var service = services.GetService<IHRCaseReviewService>();
+    if (service is null) return Results.Problem("HR case review service is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        var result = await service.ReviewAsync(tenant, actor, caseId, body, ct);
+        return Results.Ok(result);
+    }
+    catch (UnauthorizedAccessException) { return Results.Forbid(); }
+    catch (KeyNotFoundException) { return Results.NotFound(); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (InvalidOperationException ex) { return Results.Conflict(new { error = ex.Message }); }
+});
+
 app.Run();
 public sealed record FeedbackRequest(Guid? DocumentId,Guid? ExtractionId,string FeedbackType,string? BeforeJson,string? AfterJson,string? Reason);
 public sealed record ReviewRequest(string Decision,string? CorrectedPayloadJson,string? Comment);
