@@ -34,7 +34,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   h.Property(x=>x.CaseType).HasMaxLength(24).IsRequired(); h.Property(x=>x.Outcome).HasMaxLength(32).IsRequired();
   h.Property(x=>x.UserStatement).HasMaxLength(8000).IsRequired(); h.Property(x=>x.EvidenceReference).HasMaxLength(512);
   h.Property(x=>x.AnalysisJson).IsRequired(); h.Property(x=>x.SuggestedReply).HasMaxLength(4000).IsRequired();
-  h.Property(x=>x.InternalHRNote).HasMaxLength(8000).IsRequired(); h.Property(x=>x.Status).HasMaxLength(24).IsRequired();
+  h.Property(x=>x.InternalHRNote).HasMaxLength(8000).IsRequired(); h.Property(x=>x.OfficialSource).HasMaxLength(128).IsRequired(); h.Property(x=>x.OfficialRecordReference).HasMaxLength(256).IsRequired(); h.Property(x=>x.Status).HasMaxLength(24).IsRequired();
   h.Property(x=>x.CreatedBy).HasMaxLength(128).IsRequired(); h.Property(x=>x.ReviewedBy).HasMaxLength(128);
   h.Property(x=>x.ReviewDecision).HasMaxLength(16); h.HasIndex(x=>new{x.TenantCode,x.WorkDate,x.CaseType});
   h.HasIndex(x=>new{x.TenantCode,x.Status,x.CreatedAtUtc});
