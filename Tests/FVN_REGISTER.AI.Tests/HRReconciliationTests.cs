@@ -37,7 +37,7 @@ public sealed class HRReconciliationTests
             null, null, 2m, null, null, 2m, 2m, "HC", false,
             null, null, "FVN_REGISTER", "OT-REQ-002", DateTimeOffset.UtcNow);
         await using var db = CreateDb();
-        var service = new HRReconciliationService(new StubFactsProvider(facts), db);
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db, new UnconfiguredAIModelProvider());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.AnalyzeAsync("FCCVN", "hr-user",
             new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
@@ -76,6 +76,78 @@ public sealed class HRReconciliationTests
         Assert.Contains(result.EvidenceReferences, x => x == $"ai-document:{documentId}");
         Assert.Contains(result.Comparisons, x => x.RuleCode == "OT-ACTUAL-001" &&
             x.Outcome == HRComparisonOutcome.Discrepancy);
+    }
+
+
+    [Fact]
+    public async Task AnalyzeWithAuthorizedFactsAsync_PersistsCaseWithoutCallingUnconfiguredFactsProvider()
+    {
+        var facts = new OfficialHRFacts("E0001", new DateOnly(2026, 10, 1), "Approved",
+            null, null, 2m, null, null, 1.5m, 1.5m, "HC", false,
+            null, null, "FVN_REGISTER.ReportDispatcher", "OT:REQ-001", DateTimeOffset.UtcNow);
+        await using var db = CreateDb();
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db, new UnconfiguredAIModelProvider());
+
+        var result = await service.AnalyzeWithAuthorizedFactsAsync("FCCVN", "42",
+            new AuthorizedHRCaseAnalysisRequest(
+                new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
+                    "Tôi đăng ký 2 giờ nhưng công ghi nhận 1,5 giờ.", null, null, ReportedHours: 2m),
+                facts));
+
+        Assert.Equal(HRComparisonOutcome.Discrepancy, result.Outcome);
+        Assert.Single(db.HRCases);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_PersistsFinalReplyAndImmutableReviewHistory()
+    {
+        var facts = new OfficialHRFacts("E0001", new DateOnly(2026, 10, 1), "Approved",
+            null, null, 2m, null, null, 1.5m, 1.5m, "HC", false,
+            null, null, "FVN_REGISTER", "OT-REQ-001", DateTimeOffset.UtcNow);
+        await using var db = CreateDb();
+        var analysis = await new HRReconciliationService(new StubFactsProvider(facts), db,
+            new UnconfiguredAIModelProvider()).AnalyzeAsync("FCCVN", "42",
+            new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
+                "OT phản hồi", null, null, ReportedHours: 2m));
+        var reviewer = new AllowReviewer();
+        var service = new HRCaseReviewService(db, reviewer);
+
+        var result = await service.ReviewAsync("FCCVN", "hr-1", analysis.CaseId,
+            new HRCaseReviewRequest("Edited", "HR đã kiểm tra và sẽ phản hồi chính thức.", "Đã xác minh."));
+
+        Assert.Equal("Approved", result.Status);
+        Assert.Equal("Edited", result.Decision);
+        Assert.Equal("HR đã kiểm tra và sẽ phản hồi chính thức.", db.HRCases.Single().FinalReply);
+        Assert.Single(db.HRCaseReviews);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_RejectsWhenReviewerAuthorizationIsMissing()
+    {
+        var facts = new OfficialHRFacts("E0001", new DateOnly(2026, 10, 1), "Approved",
+            null, null, 2m, null, null, 1.5m, 1.5m, "HC", false,
+            null, null, "FVN_REGISTER", "OT-REQ-001", DateTimeOffset.UtcNow);
+        await using var db = CreateDb();
+        var analysis = await new HRReconciliationService(new StubFactsProvider(facts), db,
+            new UnconfiguredAIModelProvider()).AnalyzeAsync("FCCVN", "42",
+            new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
+                "OT phản hồi", null, null, ReportedHours: 2m));
+        var service = new HRCaseReviewService(db, new DenyReviewer());
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.ReviewAsync("FCCVN", "intruder",
+            analysis.CaseId, new HRCaseReviewRequest("Approved", "Không hợp lệ", null)));
+    }
+
+    private sealed class AllowReviewer : IHRCaseReviewerAuthorization
+    {
+        public Task<bool> CanReviewCaseAsync(string tenantCode, string actorId, string employeeCode,
+            HRCaseType caseType, CancellationToken cancellationToken = default) => Task.FromResult(true);
+    }
+
+    private sealed class DenyReviewer : IHRCaseReviewerAuthorization
+    {
+        public Task<bool> CanReviewCaseAsync(string tenantCode, string actorId, string employeeCode,
+            HRCaseType caseType, CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 
     private static AiPlatformDbContext CreateDb()
