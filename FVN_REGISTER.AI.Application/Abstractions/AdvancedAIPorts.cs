@@ -34,3 +34,11 @@ public interface IFeedbackService
         string feedbackType, string? beforeJson, string? afterJson, string? reason,
         CancellationToken cancellationToken = default);
 }
+
+public interface IDocumentExtractionQueryService
+{
+    Task<ExtractionReviewView?> GetLatestAsync(Guid documentId, string tenantCode, CancellationToken cancellationToken = default);
+}
+public sealed record ExtractionReviewView(Guid ExtractionId, Guid DocumentId, string DocumentType,
+    double ClassificationConfidence, string CandidateJson, string ParserVersion,
+    string? ModelProvider, string? ModelVersion, string? PromptVersion, DateTimeOffset CreatedAtUtc);
