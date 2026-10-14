@@ -7,6 +7,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
  public DbSet<AiIngestionJobRecord> IngestionJobs=>Set<AiIngestionJobRecord>();
  public DbSet<AiExtractionRecord> Extractions=>Set<AiExtractionRecord>();
  public DbSet<AiReviewRecord> Reviews=>Set<AiReviewRecord>();
+ public DbSet<AiFeedbackRecord> Feedback=>Set<AiFeedbackRecord>();
  protected override void OnModelCreating(ModelBuilder b)
  {
   var d=b.Entity<AiDocumentRecord>(); d.ToTable("AiDocuments","ai"); d.HasKey(x=>x.Id);
@@ -27,6 +28,10 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   r.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); r.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
   r.Property(x=>x.Decision).HasMaxLength(16).IsRequired(); r.Property(x=>x.OriginalPayloadJson).IsRequired();
   r.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.ReviewedAtUtc});
+  var f=b.Entity<AiFeedbackRecord>(); f.ToTable("AiFeedback","ai"); f.HasKey(x=>x.Id);
+  f.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); f.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
+  f.Property(x=>x.FeedbackType).HasMaxLength(24).IsRequired(); f.Property(x=>x.Reason).HasMaxLength(2000);
+  f.HasIndex(x=>new{x.TenantCode,x.CreatedAtUtc});
  }
 }
 public sealed class AiDocumentRecord
