@@ -30,6 +30,8 @@ public static class DependencyInjection
   services.AddScoped<IDocumentExtractionQueryService,DocumentExtractionQueryService>();
   services.AddScoped<IFeedbackService,FeedbackService>();
   services.AddScoped<IIngestionQueue,SqlIngestionQueue>();
+  services.AddScoped<ILeasedIngestionQueue,SqlIngestionQueue>();
+  services.AddScoped<IDocumentPipeline,DocumentPipeline>();
   return services;
  }
 }
