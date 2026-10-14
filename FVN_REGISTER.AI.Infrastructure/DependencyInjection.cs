@@ -27,6 +27,7 @@ public static class DependencyInjection
   services.TryAddSingleton<IMalwareScanner,UnconfiguredMalwareScanner>();
   services.AddScoped<IDocumentIngestionService,DocumentIngestionService>();
   services.AddScoped<IDocumentReviewService,DocumentReviewService>();
+  services.AddScoped<IDocumentExtractionQueryService,DocumentExtractionQueryService>();
   services.AddScoped<IFeedbackService,FeedbackService>();
   services.AddScoped<IIngestionQueue,SqlIngestionQueue>();
   return services;
