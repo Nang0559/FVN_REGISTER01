@@ -186,7 +186,7 @@ public sealed class AIHRCaseController : BaseApiController
             if (detail is null && summary is null && attendance is null) return null;
 
             var planned = Sum(otRows, "TotalOTHours");
-            var actual = summaryRow is null ? null : Number(summaryRow, "TotalActual");
+            var actual = summaryRow is null || Number(summaryRow, "ActualRecordCount") is not > 0 ? null : Number(summaryRow, "TotalActual");
             var attendanceOt = attendanceRow is null ? null : Number(attendanceRow, "OTHours");
             var statuses = string.Join(", ", otRows.Select(x => Text(x, "RequestStatus")).Where(x => x is not null).Distinct());
             var refs = string.Join(",", otRows.Select(x => Text(x, "Id")).Where(x => x is not null));
