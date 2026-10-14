@@ -65,7 +65,7 @@ Các report được gọi cho đúng nhân viên và ngày:
 | Report | Dữ liệu lấy | Nguồn report service |
 |---|---|---|
 | OTDetail | Phiếu OT, mã phiếu, trạng thái, tổng giờ đăng ký | VF03OTRequest |
-| OTSummaryByEmployee | Giờ kế hoạch, giờ thực tế, số dòng có actual | VF03OTRequestDetail |
+| OTSummaryByEmployee | Giờ kế hoạch, giờ thực tế, actual start/end và số dòng có actual | VF03OTRequestDetail |
 | AttendanceDetail | Giờ OT tính từ dữ liệu chấm công, ca, ngày lễ | F03HrmAttendanceCalculated |
 
 Các so sánh:
@@ -74,6 +74,7 @@ Các so sánh:
 - OT-ACTUAL-001: số giờ phản hồi so với actual đã ghi nhận.
 - OT-ATTENDANCE-USER-001: số giờ phản hồi so với OT tính từ chấm công.
 - OT-ATTENDANCE-001: actual đã xác nhận so với OT chấm công.
+- OT-INTERVAL-001: khoảng thời gian đăng ký so với khoảng thời gian thực tế (chỉ so sánh khi có đúng một phiếu và có đủ actual start/end).
 - OT-STATUS-001: trạng thái phiếu cần HR diễn giải theo quy trình phê duyệt.
 
 ActualRecordCount được thêm vào report OT theo nhân viên để phân biệt actual chưa có với actual thực sự bằng 0. Không dùng tổng 0 do SUM(ActualHours ?? 0) để kết luận khi chưa có dòng actual.
