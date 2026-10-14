@@ -28,13 +28,27 @@ public sealed class HRCaseReviewService(AiPlatformDbContext db, IHRCaseReviewerA
             throw new InvalidOperationException("HR case has already been reviewed.");
 
         var now = DateTimeOffset.UtcNow;
+        db.HRCaseReviews.Add(new AiHRCaseReviewRecord
+        {
+            Id = Guid.NewGuid(), CaseId = item.Id, TenantCode = tenantCode,
+            ReviewerId = actorId, Decision = decision,
+            FinalReply = decision == "Rejected" ? null : request.FinalReply!.Trim(),
+            Comment = request.Comment?.Trim(), ReviewedAtUtc = now
+        });
         item.ReviewedBy = actorId;
         item.ReviewDecision = decision;
         item.FinalReply = decision == "Rejected" ? null : request.FinalReply!.Trim();
         item.ReviewComment = request.Comment?.Trim();
         item.ReviewedAtUtc = now;
         item.Status = decision == "Rejected" ? "Rejected" : "Approved";
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException("HR case was reviewed by another user. Refresh the case before continuing.");
+        }
         return new HRCaseReviewReceipt(item.Id, item.Status, decision, now);
     }
 
