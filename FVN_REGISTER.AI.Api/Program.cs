@@ -131,6 +131,23 @@ group.MapPost("/hr-cases/analyze", async (HRCaseAnalysisRequest body, HttpReques
 
 
 
+group.MapPost("/hr-cases/analyze-authorized", async (AuthorizedHRCaseAnalysisRequest body, HttpRequest req,
+    IServiceProvider services, CancellationToken ct) =>
+{
+    var service = services.GetService<IHRReconciliationService>();
+    if (service is null) return Results.Problem("HR reconciliation service is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        var result = await service.AnalyzeWithAuthorizedFactsAsync(tenant, actor, body, ct);
+        return Results.Ok(result);
+    }
+    catch (KeyNotFoundException) { return Results.NotFound(); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
 group.MapGet("/hr-cases/pending", async (int? limit, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
 {
     var service = services.GetService<IHRCaseQueryService>();
