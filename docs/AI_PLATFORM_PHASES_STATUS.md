@@ -83,7 +83,6 @@ Run on the dedicated FVN_AI database only:
 1. SQL/AI/001_CreateAiIngestion.sql
 2. SQL/AI/002_ReliableIngestionQueue.sql
 3. SQL/AI/003_Review_Knowledge_Feedback.sql
-4. SQL/AI/004_Feedback.sql
 
 ## Validation
 
