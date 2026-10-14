@@ -1,4 +1,5 @@
 using FVN_REGISTER.AI.Application.Contracts;
+using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Infrastructure.Services;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
