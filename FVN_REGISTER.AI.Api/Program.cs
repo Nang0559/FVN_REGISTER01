@@ -73,6 +73,13 @@ group.MapGet("/documents/{id:guid}",async (Guid id,HttpRequest req,IServiceProvi
  var result=await service.GetStatusAsync(id,tenant,ct);
  return result is null?Results.NotFound():Results.Ok(result);
 });
+group.MapGet("/documents/{id:guid}/extraction",async (Guid id,HttpRequest req,IServiceProvider services,CancellationToken ct)=>{
+ var service=services.GetService<IDocumentExtractionQueryService>();
+ if(service is null) return Results.Problem("AI SQL connection is not configured.",statusCode:503);
+ var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
+ var result=await service.GetLatestAsync(id,tenant,ct);
+ return result is null?Results.NotFound():Results.Ok(result);
+});
 group.MapPost("/reviews/{extractionId:guid}",async (Guid extractionId,ReviewRequest body,HttpRequest req,IServiceProvider services,CancellationToken ct)=>{
  var service=services.GetService<IDocumentReviewService>();
  if(service is null) return Results.Problem("AI SQL connection is not configured.",statusCode:503);
