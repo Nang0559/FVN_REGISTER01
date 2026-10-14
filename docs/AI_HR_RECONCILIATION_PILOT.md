@@ -2,6 +2,10 @@
 
 ## Goal
 
+## Related HR knowledge assistant
+
+General questions about approved HR procedures (for example, how to register OT) belong to the separate [HR Policy Assistant](AI_HR_POLICY_ASSISTANT.md). The reconciliation assistant in this document handles an individual feedback case and compares its evidence with authorized official records. Do not mix personal case attachments into the shared policy knowledge base.
+
 Turn a user's HR feedback (for example, "the OT hours on my payslip/calendar are wrong") and attached evidence into a traceable case summary and a suggested HR response. The assistant is decision support; it does not approve requests, change attendance, change payroll, or write to operational tables.
 
 ## Existing FVN_REGISTER sources identified
