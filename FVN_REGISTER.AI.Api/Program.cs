@@ -73,5 +73,19 @@ group.MapGet("/documents/{id:guid}",async (Guid id,HttpRequest req,IServiceProvi
  var result=await service.GetStatusAsync(id,tenant,ct);
  return result is null?Results.NotFound():Results.Ok(result);
 });
+group.MapPost("/reviews/{extractionId:guid}",async (Guid extractionId,ReviewRequest body,HttpRequest req,IServiceProvider services,CancellationToken ct)=>{
+ var service=services.GetService<IDocumentReviewService>();
+ if(service is null) return Results.Problem("AI SQL connection is not configured.",statusCode:503);
+ var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
+ var actor=req.Headers["X-Actor-Id"].ToString().Trim();
+ try
+ {
+  var receipt=await service.ReviewAsync(extractionId,tenant,actor,body.Decision,body.CorrectedPayloadJson,body.Comment,ct);
+  return Results.Ok(receipt);
+ }
+ catch(KeyNotFoundException){return Results.NotFound();}
+ catch(ArgumentException ex){return Results.BadRequest(new{error=ex.Message});}
+});
 app.Run();
+public sealed record ReviewRequest(string Decision,string? CorrectedPayloadJson,string? Comment);
 public partial class Program { }
