@@ -351,6 +351,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpClient("FvnAi", client => client.Timeout = TimeSpan.FromSeconds(90));
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     options.JsonSerializerOptions.PropertyNamingPolicy =
