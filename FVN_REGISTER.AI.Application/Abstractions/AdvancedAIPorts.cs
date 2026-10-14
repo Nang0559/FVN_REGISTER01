@@ -37,7 +37,7 @@ public interface IFeedbackService
 
 public interface IDocumentExtractionQueryService
 {
-    Task<ExtractionReviewView?> GetLatestAsync(Guid documentId, string tenantCode, CancellationToken cancellationToken = default);
+    Task<ExtractionReviewView?> GetLatestAsync(Guid documentId, string tenantCode, string actorId, CancellationToken cancellationToken = default);
 }
 public sealed record ExtractionReviewView(Guid ExtractionId, Guid DocumentId, string DocumentType,
     double ClassificationConfidence, string CandidateJson, string ParserVersion,
