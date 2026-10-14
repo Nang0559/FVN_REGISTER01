@@ -10,16 +10,18 @@ Turn a user's HR feedback (for example, "the OT hours on my payslip/calendar are
 
 ## Current code increment — deterministic reconciliation vertical slice
 
-The branch now contains an initial application contract and deterministic comparison service:
+The branch now contains an initial application contract and deterministic comparison service, plus durable HR case and review persistence:
 
 - `HRCaseAnalysisRequest` carries case type, work date, employee hint, user statement, evidence reference and optional reported values.
 - `IAuthorizedHRFactsProvider` is the boundary for obtaining official FVN_REGISTER facts. It must enforce the trusted actor's current permissions and managed scope.
 - `HRReconciliationService` compares reported OT hours with planned/actual/attendance hours, reported attendance intervals with official check-in/out and reported leave type/days with official leave facts.
 - Each comparison returns a stable rule code, user-reported value, official value, outcome and explanation.
 - `POST /api/ai/v1/hr-cases/analyze` exposes the use case behind the same API key and signed tenant/actor context as other AI endpoints.
+- Analysis results are persisted in `ai.AiHRCases` with official source references and a `PendingHRReview` state.
+- `POST /api/ai/v1/hr-cases/{caseId}/review` stores an HR decision and final reply; the default reviewer authorization denies access until connected to FVN_REGISTER.
 - Unit tests cover an OT discrepancy and rejection of official facts for a different employee.
 
-**Important integration gate:** the default `UnconfiguredAuthorizedHRFactsProvider` intentionally fails closed. The endpoint is a contract/logic slice, not yet connected to the live FVN_REGISTER operational services. The evidence text is currently contextual input and is not yet parsed into trusted typed facts; do not treat user-supplied employee codes or numbers as authoritative. The next implementation must add a trusted FVN_REGISTER backend adapter that derives employee scope from the authenticated actor, fetches only authorized records, and returns provenance. Then add evidence-to-field mapping and HR case persistence/review UI.
+**Important integration gate:** the default `UnconfiguredAuthorizedHRFactsProvider` intentionally fails closed. The endpoint is a contract/logic slice, not yet connected to the live FVN_REGISTER operational services. The evidence text is currently contextual input and is not yet parsed into trusted typed facts; do not treat user-supplied employee codes or numbers as authoritative. The next implementation must add a trusted FVN_REGISTER backend adapter that derives employee scope from the authenticated actor, fetches only authorized records, and returns provenance. Then add evidence-to-field mapping, HR case list/detail UI and integration tests. Apply migration `004_HR_Reconciliation_Cases.sql` after migrations 001–003.
 
 ## Existing FVN_REGISTER sources identified
 
