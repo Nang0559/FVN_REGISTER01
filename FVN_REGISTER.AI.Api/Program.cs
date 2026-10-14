@@ -38,9 +38,14 @@ group.MapPost("/documents",async (HttpRequest req,IDocumentIngestionService serv
  if(file is null||file.Length<=0) return Results.BadRequest(new{error="A non-empty file field is required."});
  var max=(long)Math.Clamp(o.Value.MaximumFileSizeMb,1,250)*1024*1024;
  if(file.Length>max) return Results.StatusCode(413);
- await using var stream=file.OpenReadStream(max);
- var receipt=await service.IngestAsync(tenant,actor,file.FileName,stream,ct);
- return Results.Accepted($"/api/ai/v1/documents/{receipt.DocumentId}",receipt);
+ await using var stream=file.OpenReadStream();
+ try
+ {
+  var receipt=await service.IngestAsync(tenant,actor,file.FileName,stream,ct);
+  return Results.Accepted($"/api/ai/v1/documents/{receipt.DocumentId}",receipt);
+ }
+ catch(InvalidDataException ex){return Results.BadRequest(new{error=ex.Message});}
+ catch(ArgumentException ex){return Results.BadRequest(new{error=ex.Message});}
 }).DisableAntiforgery();
 group.MapGet("/documents/{id:guid}",async (Guid id,HttpRequest req,IDocumentIngestionService service,CancellationToken ct)=>{
  var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
