@@ -269,6 +269,19 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         CompareHours(result, "ReportedHoursVsActual", request.ReportedHours, f.ActualHours, "OT-ACTUAL-001", "So sánh số giờ người dùng phản hồi với số giờ OT thực tế đã xác nhận.");
         CompareHours(result, "ReportedHoursVsAttendance", request.ReportedHours, f.AttendanceOvertimeHours, "OT-ATTENDANCE-USER-001", "So sánh số giờ người dùng phản hồi với số giờ OT được tính từ dữ liệu chấm công.");
         CompareHours(result, "ActualVsAttendance", f.ActualHours, f.AttendanceOvertimeHours, "OT-ATTENDANCE-001", "So sánh OT thực tế đã xác nhận với OT trên dữ liệu chấm công.");
+        if (f.PlannedStart.HasValue && f.PlannedEnd.HasValue && f.ActualStart.HasValue && f.ActualEnd.HasValue)
+        {
+            var intervalDiffers = IntervalsDiffer(f.PlannedStart, f.PlannedEnd, f.ActualStart, f.ActualEnd);
+            result.Add(new("PlannedVsActualInterval", FormatInterval(f.PlannedStart, f.PlannedEnd),
+                FormatInterval(f.ActualStart, f.ActualEnd), "OT-INTERVAL-001",
+                intervalDiffers ? HRComparisonOutcome.Discrepancy : HRComparisonOutcome.Matched,
+                intervalDiffers ? "Khoảng thời gian OT thực tế khác khoảng thời gian đã đăng ký." :
+                    "Khoảng thời gian OT thực tế khớp khoảng thời gian đã đăng ký."));
+        }
+        else
+            result.Add(new("PlannedVsActualInterval", FormatInterval(f.PlannedStart, f.PlannedEnd),
+                FormatInterval(f.ActualStart, f.ActualEnd), "OT-INTERVAL-001", HRComparisonOutcome.InsufficientEvidence,
+                "Thiếu giờ bắt đầu/kết thúc đăng ký hoặc thực tế để đối chiếu khoảng thời gian OT."));
         if (f.PlannedHours is null && f.ActualHours is null && f.AttendanceOvertimeHours is null)
             result.Add(new("OvertimeHours", null, null, "OT-MISSING-001", HRComparisonOutcome.InsufficientEvidence,
                 "Không có số giờ OT chính thức để đối chiếu."));
