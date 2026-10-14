@@ -39,6 +39,12 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         var effectiveRequest = request;
         if (request.EvidenceDocumentId.HasValue)
         {
+            var evidenceOwnedByActor = await db.Documents.AsNoTracking().AnyAsync(
+                x => x.Id == request.EvidenceDocumentId.Value && x.TenantCode == tenantCode && x.UploadedBy == actorId,
+                cancellationToken);
+            if (!evidenceOwnedByActor)
+                throw new KeyNotFoundException("Evidence document was not found for this actor and tenant.");
+
             var evidence = await db.Extractions.AsNoTracking()
                 .Where(x => x.DocumentId == request.EvidenceDocumentId.Value && x.TenantCode == tenantCode)
                 .OrderByDescending(x => x.CreatedAtUtc)
