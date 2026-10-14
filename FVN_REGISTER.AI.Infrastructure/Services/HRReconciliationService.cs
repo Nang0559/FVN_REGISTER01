@@ -70,6 +70,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             throw new InvalidOperationException("Official facts provider returned a different employee.");
 
         var effectiveRequest = request;
+        string? evidenceCandidateJson = null;
         if (request.EvidenceDocumentId.HasValue)
         {
             var evidenceStatus = await db.Documents.AsNoTracking()
@@ -88,7 +89,8 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
                 .FirstOrDefaultAsync(cancellationToken);
             if (evidence is null)
                 throw new InvalidOperationException("EVIDENCE_EXTRACTION_NOT_FOUND: the document has not produced an extraction candidate.");
-            if (evidence is not null && request.ReportedHours is null)
+            evidenceCandidateJson = evidence;
+            if (request.ReportedHours is null)
             {
                 var extractedHours = ReadSingleHourCandidate(evidence);
                 if (extractedHours.HasValue)
@@ -136,6 +138,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             Id = caseId, TenantCode = tenantCode, EmployeeCode = facts.EmployeeCode,
             CaseType = request.CaseType.ToString(), WorkDate = facts.WorkDate, Outcome = outcome.ToString(),
             UserStatement = request.UserStatement, EvidenceReference = effectiveRequest.EvidenceReference,
+            EvidenceCandidateJson = evidenceCandidateJson,
             AnalysisJson = JsonSerializer.Serialize(analysis), SuggestedReply = reply,
             InternalHRNote = note, OfficialSource = facts.SourceSystem,
             OfficialRecordReference = facts.SourceRecordReference, FactsRetrievedAtUtc = facts.RetrievedAtUtc,
