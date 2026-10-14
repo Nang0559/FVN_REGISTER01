@@ -10,6 +10,7 @@ BEGIN
         Outcome NVARCHAR(32) NOT NULL,
         UserStatement NVARCHAR(8000) NOT NULL,
         EvidenceReference NVARCHAR(512) NULL,
+        EvidenceCandidateJson NVARCHAR(MAX) NULL,
         AnalysisJson NVARCHAR(MAX) NOT NULL,
         SuggestedReply NVARCHAR(4000) NOT NULL,
         InternalHRNote NVARCHAR(8000) NOT NULL,
@@ -35,6 +36,12 @@ BEGIN
         ON ai.AiHRCases(TenantCode, WorkDate, CaseType);
     CREATE INDEX IX_AiHRCases_Tenant_Status_Created
         ON ai.AiHRCases(TenantCode, Status, CreatedAtUtc DESC);
+END
+GO
+
+IF OBJECT_ID(N'ai.AiHRCases',N'U') IS NOT NULL AND COL_LENGTH(N'ai.AiHRCases',N'EvidenceCandidateJson') IS NULL
+BEGIN
+    ALTER TABLE ai.AiHRCases ADD EvidenceCandidateJson NVARCHAR(MAX) NULL;
 END
 GO
 
