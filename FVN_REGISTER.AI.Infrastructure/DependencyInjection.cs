@@ -5,6 +5,7 @@ using FVN_REGISTER.AI.Infrastructure.Providers;
 using FVN_REGISTER.AI.Infrastructure.Storage;
 using FVN_REGISTER.AI.Infrastructure.Services;
 using FVN_REGISTER.AI.Infrastructure.Validation;
+using FVN_REGISTER.AI.Infrastructure.Extraction;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,7 @@ public static class DependencyInjection
   services.TryAddSingleton<IAIModelProvider,UnconfiguredAIModelProvider>();
   services.AddSingleton<IOriginalDocumentStore,FileSystemOriginalDocumentStore>();
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
+  services.AddSingleton<IDocumentTextExtractor,LocalDocumentTextExtractor>();
   services.AddScoped<IDocumentIngestionService,DocumentIngestionService>();
   services.AddScoped<IDocumentReviewService,DocumentReviewService>();
   services.AddScoped<IFeedbackService,FeedbackService>();
