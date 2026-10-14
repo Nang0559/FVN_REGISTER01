@@ -83,6 +83,24 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROCEDURE ai.usp_RenewAiIngestionLease
+    @JobId UNIQUEIDENTIFIER,
+    @WorkerId NVARCHAR(128),
+    @LeaseSeconds INT = 120
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @LeaseSeconds < 15 OR @LeaseSeconds > 3600
+        THROW 51005, 'LeaseSeconds must be between 15 and 3600.', 1;
+    UPDATE ai.AiIngestionJobs
+       SET LeaseUntilUtc = DATEADD(SECOND, @LeaseSeconds, TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))
+     WHERE Id=@JobId AND Status=N'Running' AND LeaseOwner=@WorkerId
+       AND LeaseUntilUtc > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00');
+    IF @@ROWCOUNT <> 1
+        THROW 51006, 'Lease is expired or is not owned by this worker.', 1;
+END;
+GO
+
 CREATE OR ALTER PROCEDURE ai.usp_CompleteAiIngestionJob
     @JobId UNIQUEIDENTIFIER,
     @WorkerId NVARCHAR(128),
