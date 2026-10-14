@@ -55,31 +55,64 @@ async function signIn(page: Page): Promise<void> {
   const passwordInput = page.locator('input[type="password"]:visible').first();
   await expect(passwordInput).toBeVisible({ timeout: 20_000 });
 
-  const userInput = page.locator([
-    'input[autocomplete="username"]:visible',
-    'input[name*="user" i]:visible',
-    'input[id*="user" i]:visible',
-    'input[name*="employee" i]:visible',
-    'input[id*="employee" i]:visible',
-    'input[type="email"]:visible',
-    'input[type="text"]:visible',
-  ].join(', ')).first();
-  await expect(userInput).toBeVisible({ timeout: 10_000 });
-  await userInput.fill(username);
-  await passwordInput.fill(password);
+  // Exclude readonly MudBlazor select inputs; only fill a truly editable field.
+  const userSelectors = [
+    'input[autocomplete="username"]:visible:not([readonly]):not([disabled])',
+    'input[name*="user" i]:visible:not([readonly]):not([disabled])',
+    'input[id*="user" i]:visible:not([readonly]):not([disabled])',
+    'input[name*="employee" i]:visible:not([readonly]):not([disabled])',
+    'input[id*="employee" i]:visible:not([readonly]):not([disabled])',
+    'input[type="email"]:visible:not([readonly]):not([disabled])',
+    'input[type="text"]:visible:not([readonly]):not([disabled])',
+  ];
+  let userInput = page.locator('input[autocomplete="username"]:visible').first();
+  let foundEditable = false;
+  for (const selector of userSelectors) {
+    const candidates = page.locator(selector);
+    const count = Math.min(await candidates.count().catch(() => 0), 20);
+    for (let i = 0; i < count; i++) {
+      const candidate = candidates.nth(i);
+      if (await candidate.isEditable().catch(() => false)) {
+        userInput = candidate;
+        foundEditable = true;
+        break;
+      }
+    }
+    if (foundEditable) break;
+  }
+  if (!foundEditable) {
+    await saveScreenshot(page, 'login-no-editable-username');
+    const visibleInputs = await page.locator('input:visible').evaluateAll(inputs => inputs.map(input => ({
+      type: input.getAttribute('type'), name: input.getAttribute('name'), id: input.id,
+      autocomplete: input.getAttribute('autocomplete'),
+      readonly: (input as HTMLInputElement).readOnly,
+      disabled: (input as HTMLInputElement).disabled,
+      placeholder: input.getAttribute('placeholder'),
+    })));
+    throw new Error('No editable username field found. Visible inputs: ' + JSON.stringify(visibleInputs));
+  }
+  await userInput.fill(username, { timeout: 10_000 });
+  await passwordInput.fill(password, { timeout: 10_000 });
 
-  const submit = page.locator('button[type="submit"]:visible, input[type="submit"]:visible').first();
-  if (await submit.count()) await submit.click();
-  else await passwordInput.press('Enter');
-
-  await expect(page.locator('input[type="password"]:visible')).toHaveCount(0, { timeout: 60_000 });
-  // Allow redirects and SPA auth-state initialization to settle before accepting the session.
-  await page.waitForTimeout(1_500);
+  const submitCandidates = page.locator('button[type="submit"]:visible, input[type="submit"]:visible');
+  if (await submitCandidates.count()) {
+    await submitCandidates.first().click({ timeout: 10_000 });
+  } else {
+    const loginButton = page.getByRole('button', { name: /đăng nhập|login|sign in/i }).first();
+    if (await loginButton.count()) await loginButton.click({ timeout: 10_000 });
+    else await passwordInput.press('Enter');
+  }
+  const loginDeadline = Date.now() + 45_000;
+  while (Date.now() < loginDeadline) {
+    const passwordVisible = await page.locator('input[type="password"]:visible').count().catch(() => 0);
+    if (passwordVisible === 0 && !/\/login(?:\/|$)/i.test(new URL(page.url()).pathname)) break;
+    await page.waitForTimeout(500);
+  }
   const stillOnLogin = /\/login(?:\/|$)/i.test(new URL(page.url()).pathname)
     || (await page.locator('input[type="password"]:visible').count()) > 0;
   if (stillOnLogin) {
     await saveScreenshot(page, 'login-failed');
-    throw new Error('Authentication was not established; current URL is ' + new URL(page.url()).pathname + '. Check credentials, base URL, and the app login redirect/session configuration.');
+    throw new Error('Login did not complete within 45 seconds. Inspect login-failed.png for validation errors or a different login flow.');
   }
 }
 
@@ -118,6 +151,7 @@ async function waitReady(
   let previousSignature = '';
   let stableSamples = 0;
   let lastLog = 0;
+  let idleSince = 0;
 
   await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   await page.locator('body').waitFor({ state: 'visible', timeout: 15_000 });
@@ -134,12 +168,22 @@ async function waitReady(
     const signature = await getDomSignature(page);
     const networkQuiet = tracker.pending.size === 0 && Date.now() - tracker.lastActivity >= 1_000;
 
+    if (!busy && tracker.pending.size === 0) {
+      if (!idleSince) idleSince = Date.now();
+    } else {
+      idleSince = 0;
+    }
     if (!busy && networkQuiet && signature && signature === previousSignature) stableSamples++;
     else stableSamples = 0;
     previousSignature = signature;
 
     if (stableSamples >= 3) {
       console.log(`Page ready after ${Math.round(elapsed / 1000)}s: ${label}`);
+      return;
+    }
+    // A live Blazor page can mutate continuously despite being usable.
+    if (idleSince && Date.now() - idleSince >= 5_000) {
+      console.log(`Page idle; continuing capture after ${Math.round(elapsed / 1000)}s: ${label}`);
       return;
     }
 
