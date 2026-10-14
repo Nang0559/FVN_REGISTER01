@@ -100,6 +100,40 @@ public sealed class HRReconciliationTests
     }
 
     [Fact]
+    public async Task AnalyzeAsync_FlagsEmployeeAndDateMismatchFoundInEvidence()
+    {
+        var workDate = new DateOnly(2026, 10, 1);
+        var facts = new OfficialHRFacts("E0001", workDate, "Calculated", null, null, null,
+            new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.FromHours(7)),
+            new DateTimeOffset(2026, 10, 1, 17, 0, 0, TimeSpan.FromHours(7)),
+            8m, 0m, "HC", false, null, null, "FVN_REGISTER", "ATT:E0001:20261001", DateTimeOffset.UtcNow);
+        await using var db = CreateDb();
+        var documentId = Guid.NewGuid();
+        db.Documents.Add(new AiDocumentRecord
+        {
+            Id = documentId, TenantCode = "FCCVN", UploadedBy = "employee-1",
+            FileName = "attendance-proof.txt", Extension = ".txt", MediaType = "text/plain",
+            Sha256 = new string('b', 64), StorageKey = "tenant/attendance.txt", Status = "AwaitingHumanReview"
+        });
+        db.Extractions.Add(new AiExtractionRecord
+        {
+            Id = Guid.NewGuid(), DocumentId = documentId, TenantCode = "FCCVN",
+            DocumentType = "HR.AttendanceEvidence", ClassificationConfidence = 0.8m,
+            CandidateJson = """{"extractedFields":{"employeeCode":"E0002","dateCandidates":["2026-10-02"],"timeCandidates":["08:00","17:00"]},"evidence":[]}""",
+            ParserVersion = "test-v1", CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db, new UnconfiguredAIModelProvider());
+
+        var result = await service.AnalyzeAsync("FCCVN", "employee-1",
+            new HRCaseAnalysisRequest(HRCaseType.Attendance, "E0001", workDate,
+                "Giờ vào ra trong bảng công của tôi không đúng.", null, null, EvidenceDocumentId: documentId));
+
+        Assert.Contains(result.Comparisons, x => x.RuleCode == "EVIDENCE-EMPLOYEE-001" && x.Outcome == HRComparisonOutcome.Discrepancy);
+        Assert.Contains(result.Comparisons, x => x.RuleCode == "EVIDENCE-WORKDATE-001" && x.Outcome == HRComparisonOutcome.Discrepancy);
+        Assert.Contains(result.Comparisons, x => x.RuleCode == "ATT-SOURCE-001" && x.Outcome == HRComparisonOutcome.Matched);
+    }
+    [Fact]
     public async Task ReviewAsync_PersistsFinalReplyAndImmutableReviewHistory()
     {
         var facts = new OfficialHRFacts("E0001", new DateOnly(2026, 10, 1), "Approved",
