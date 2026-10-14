@@ -12,12 +12,13 @@ Implemented:
 - Original file storage adapter, SHA-256, tenant-scoped duplicate detection.
 - SQL document/job metadata and upload/status endpoints.
 - API key plus signed tenant/actor HMAC context, timestamp tolerance and in-process nonce replay rejection.
-- SQL queue claim, lease recovery, lease renewal, complete/fail procedures with retry and dead-letter states.
-- Worker lease recovery and queue-depth monitoring.
-- Fail-closed malware scanner default (Unknown when no approved scanner is installed).
+- SQL queue claim, lease recovery, complete/fail procedures with retry and dead-letter states.
+- Worker now claims jobs, runs the document pipeline with bounded concurrency, completes jobs or records retry/dead-letter failures.
+- ClamAV clamd INSTREAM adapter is implemented; scanner remains fail-closed and returns Unknown when not configured or unavailable.
 
 Not yet production-complete:
-- Real approved antivirus/ICAP adapter and processing worker that claims jobs.
+- Configure and deploy ClamAV service; set the same scanner settings for Worker and API.
+- Lease renewal/heartbeat for long-running OCR/LLM tasks (current worker lease is 600 seconds).
 - Shared nonce cache for multiple API replicas.
 - Production object storage, encryption, retention, backup/restore and audit.
 - FVN_REGISTER backend signing implementation and secret rotation.
@@ -34,7 +35,8 @@ Implemented:
 Not yet implemented:
 - PDF text extraction and scanned PDF/image OCR.
 - Production classifier/LLM structured extractor and schema registry.
-- End-to-end worker pipeline from clean malware verdict to extraction persistence.
+- PDF text extraction and scanned PDF/image OCR (Tesseract + PDF rasterizer adapter still required).
+- Ollama LLM provider is not yet wired into the pipeline; current candidate generation is deterministic/local and intended as a runnable baseline.
 - Page/region-level provenance, confidence calibration and golden-set evaluation.
 - Vietnamese/Japanese document evaluation corpus.
 
@@ -43,6 +45,7 @@ Not yet implemented:
 Implemented:
 - Tenant-scoped extraction query endpoint.
 - Review persistence with original payload snapshot, optional corrected JSON, reviewer, decision and timestamp.
+- Corrected JSON becomes the latest candidate while the original is retained in the review audit record.
 - Document status update in the AI database only.
 - Feedback endpoint records reviewer feedback.
 
@@ -86,7 +89,7 @@ Run on the dedicated FVN_AI database only:
 
 ## Validation
 
-A GitHub Actions workflow was added to restore/build the solution and run the AI test project on Windows with .NET 9. A successful workflow result has not yet been confirmed. Do not treat this branch as production-ready until the workflow passes and the integration/security gates above are closed.
+A GitHub Actions workflow was added to restore/build the solution and run the AI test project on Windows with .NET 9. AI projects were explicitly enabled for solution builds. A successful workflow result has not yet been confirmed. Do not treat this branch as production-ready until the workflow passes and the integration/security gates above are closed.
 
 ## Architectural invariants
 
