@@ -85,3 +85,16 @@ public interface IHRCaseReviewService
     Task<HRCaseReviewReceipt> ReviewAsync(string tenantCode, string actorId, Guid caseId,
         HRCaseReviewRequest request, CancellationToken cancellationToken = default);
 }
+
+public sealed record HRCaseInboxItem(Guid CaseId, string EmployeeCode, string CaseType, DateOnly WorkDate,
+    string Outcome, string Status, string UserStatement, string SuggestedReply, string InternalHRNote,
+    string AnalysisJson, string? EvidenceReference, string OfficialSource, string OfficialRecordReference,
+    DateTimeOffset CreatedAtUtc, string CreatedBy);
+
+public interface IHRCaseQueryService
+{
+    Task<IReadOnlyList<HRCaseInboxItem>> GetPendingAsync(string tenantCode, string actorId, int limit,
+        CancellationToken cancellationToken = default);
+    Task<HRCaseInboxItem?> GetAsync(string tenantCode, string actorId, Guid caseId,
+        CancellationToken cancellationToken = default);
+}
