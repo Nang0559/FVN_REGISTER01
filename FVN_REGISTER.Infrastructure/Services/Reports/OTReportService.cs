@@ -165,6 +165,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     ActualRecordCount = g.Count(x => x.ActualHours.HasValue),
                     ActualStartTime = g.Min(x => x.ActualStartTime),
                     ActualEndTime = g.Max(x => x.ActualEndTime),
+                    ActualIntervalCount = g.Count(x => x.ActualStartTime.HasValue && x.ActualEndTime.HasValue),
                     ApprovedHours = g
                         .Where(x => x.RequestStatus == ApprovalStatus.Approved)
                         .Sum(x => x.ActualHours ?? x.OTHours),
@@ -183,6 +184,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 ["ActualRecordCount"] = x.ActualRecordCount,
                 ["ActualStartTime"] = x.ActualStartTime,
                 ["ActualEndTime"] = x.ActualEndTime,
+                ["ActualIntervalCount"] = x.ActualIntervalCount,
                 ["ApprovedHours"] = x.ApprovedHours,
             }).ToList();
 
@@ -202,6 +204,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     new() { Field = "ActualRecordCount", Header = "Số dòng có giờ thực tế", DataType = "number" },
                     new() { Field = "ActualStartTime", Header = "Giờ bắt đầu thực tế", DataType = "time" },
                     new() { Field = "ActualEndTime", Header = "Giờ kết thúc thực tế", DataType = "time" },
+                    new() { Field = "ActualIntervalCount", Header = "Số dòng có khoảng giờ thực tế", DataType = "number" },
                     new() { Field = "ApprovedHours", Header = "Giờ đã duyệt", DataType = "decimal", Format = "N1" },
                 },
                 Rows = rows,
