@@ -297,18 +297,30 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
     private static IReadOnlyList<HRFieldComparison> CompareLeave(OfficialHRFacts f, HRCaseAnalysisRequest request)
     {
         var result = new List<HRFieldComparison>();
-        if (f.LeaveType is null || f.LeaveDays is null)
+        if (f.LeaveType is null && f.LeaveDays is null)
             result.Add(new("Leave", null, null, "LEAVE-MISSING-001", HRComparisonOutcome.InsufficientEvidence,
-                "Thiếu loại nghỉ hoặc số ngày nghỉ chính thức."));
+                "Thiếu loại nghỉ và số ngày nghỉ chính thức để đối chiếu."));
         else
         {
-            var differs = (request.ReportedLeaveDays.HasValue && Math.Abs(request.ReportedLeaveDays.Value - f.LeaveDays.Value) > HoursTolerance) || (!string.IsNullOrWhiteSpace(request.ReportedLeaveType) && !string.Equals(request.ReportedLeaveType, f.LeaveType, StringComparison.OrdinalIgnoreCase));
-            result.Add(new("Leave", request.ReportedLeaveType is null && request.ReportedLeaveDays is null ? null : $"{request.ReportedLeaveType ?? "?"}: {request.ReportedLeaveDays?.ToString("0.##") ?? "?"} ngày", $"{f.LeaveType}: {f.LeaveDays:0.##} ngày", "LEAVE-SOURCE-001", differs ? HRComparisonOutcome.Discrepancy : (request.ReportedLeaveDays.HasValue || !string.IsNullOrWhiteSpace(request.ReportedLeaveType) ? HRComparisonOutcome.Matched : HRComparisonOutcome.NeedsHumanDecision), differs ? "Thông tin nghỉ người dùng cung cấp khác dữ liệu nghỉ phép chính thức." : "Dữ liệu nghỉ phép đã được truy xuất; HR cần kiểm tra trạng thái và quy tắc áp dụng."));
+            var hasReported = request.ReportedLeaveDays.HasValue || !string.IsNullOrWhiteSpace(request.ReportedLeaveType);
+            var differs = (request.ReportedLeaveDays.HasValue && f.LeaveDays.HasValue &&
+                           Math.Abs(request.ReportedLeaveDays.Value - f.LeaveDays.Value) > HoursTolerance) ||
+                          (!string.IsNullOrWhiteSpace(request.ReportedLeaveType) && f.LeaveType is not null &&
+                           !string.Equals(request.ReportedLeaveType, f.LeaveType, StringComparison.OrdinalIgnoreCase));
+            var reported = request.ReportedLeaveType ?? "?";
+            var officialType = f.LeaveType ?? "Chưa có loại nghỉ trong report source";
+            var reportedText = hasReported ? reported + ": " + (request.ReportedLeaveDays?.ToString("0.##") ?? "?") + " ngày" : null;
+            var officialText = officialType + ": " + (f.LeaveDays?.ToString("0.##") ?? "?") + " ngày";
+            var explanation = differs ? "Thông tin nghỉ người dùng cung cấp khác dữ liệu nghỉ phép chính thức." :
+                f.LeaveType is null ? "Đã đối chiếu số ngày; loại nghỉ chưa có trong report source nên HR cần xác minh." :
+                "Dữ liệu nghỉ phép đã được truy xuất; HR cần kiểm tra trạng thái và quy tắc áp dụng.";
+            var outcome = differs ? HRComparisonOutcome.Discrepancy :
+                hasReported ? HRComparisonOutcome.Matched : HRComparisonOutcome.NeedsHumanDecision;
+            result.Add(new("Leave", reportedText, officialText, "LEAVE-SOURCE-001", outcome, explanation));
         }
         AddEvidenceIdentityComparisons(result, request, f);
         return result;
     }
-
     private static void AddEvidenceIdentityComparisons(List<HRFieldComparison> result, HRCaseAnalysisRequest request, OfficialHRFacts facts)
     {
         if (!string.IsNullOrWhiteSpace(request.EvidenceEmployeeCode))
