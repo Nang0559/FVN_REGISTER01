@@ -20,6 +20,12 @@
     {
         <MudNavLink href="/execution" Icon="@Icons.Material.Filled.FactCheck">@Language.T("nav.executionReconciliation")</MudNavLink>
     }
+    @if (CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.AttendanceView) ||
+         CanPersonal(SecurityFunctionCodes.LeaveView) || CanAny(SecurityFunctionCodes.OTReconcile,
+             SecurityFunctionCodes.AttendanceFeedback, SecurityFunctionCodes.LeaveApprove))
+    {
+        <MudNavLink href="/ai/hr-assistant" Icon="@Icons.Material.Filled.Psychology">Trợ lý AI – HR</MudNavLink>
+    }
     @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
     {
         <MudNavLink href="/work/inbox" Icon="@Icons.Material.Filled.Inbox">@Language.T("nav.workInbox")</MudNavLink>
