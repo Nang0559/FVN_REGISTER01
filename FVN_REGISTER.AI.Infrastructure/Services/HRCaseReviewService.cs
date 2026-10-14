@@ -14,7 +14,7 @@ public sealed class HRCaseReviewService(AiPlatformDbContext db, IHRCaseReviewerA
         var decision = Required(request.Decision, 16, nameof(request.Decision));
         if (decision is not ("Approved" or "Rejected" or "Edited"))
             throw new ArgumentException("Decision must be Approved, Rejected or Edited.", nameof(request));
-        if (decision is "Approved" or "Edited" && string.IsNullOrWhiteSpace(request.FinalReply))
+        if ((decision is "Approved" or "Edited") && string.IsNullOrWhiteSpace(request.FinalReply))
             throw new ArgumentException("FinalReply is required for Approved or Edited decisions.", nameof(request));
         if (request.FinalReply?.Length > 4000 || request.Comment?.Length > 2000)
             throw new ArgumentException("Review text exceeds the permitted length.", nameof(request));
