@@ -19,11 +19,12 @@ public sealed class LocalDocumentTextExtractorTests
     }
 
     [Fact]
-    public async Task ExtractTextAsync_RejectsPdfWhenNoPdfProviderIsConfigured()
+    public async Task ExtractTextAsync_RejectsMalformedPdfAndRestoresStreamPosition()
     {
         await using var stream = new MemoryStream("%PDF-test"u8.ToArray());
-        await Assert.ThrowsAsync<NotSupportedException>(() =>
+        await Assert.ThrowsAnyAsync<Exception>(() =>
             new LocalDocumentTextExtractor().ExtractTextAsync(stream, "application/pdf"));
+        Assert.Equal(0, stream.Position);
     }
 
     [Fact]
