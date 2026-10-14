@@ -24,11 +24,19 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             throw new ArgumentException("User statement must contain 1 to 8000 characters.", nameof(request));
         if (request.EvidenceText?.Length > 100_000)
             throw new ArgumentException("Evidence text exceeds the permitted length.", nameof(request));
+        if (request.ReportedHours is < 0 or > 24 || request.ReportedLeaveDays is < 0 or > 31)
+            throw new ArgumentException("Reported hours or leave days are outside the permitted range.", nameof(request));
+        if (request.ReportedStart.HasValue != request.ReportedEnd.HasValue ||
+            (request.ReportedStart.HasValue && request.ReportedEnd <= request.ReportedStart))
+            throw new ArgumentException("Reported attendance interval is invalid.", nameof(request));
 
         var facts = await factsProvider.GetFactsAsync(tenantCode, actorId, request.CaseType,
             request.EmployeeCode, request.WorkDate, cancellationToken);
         if (facts is null)
             throw new KeyNotFoundException("No authorized official HR facts were found for this employee and date.");
+        if (string.IsNullOrWhiteSpace(facts.EmployeeCode) || string.IsNullOrWhiteSpace(facts.SourceSystem) ||
+            string.IsNullOrWhiteSpace(facts.SourceRecordReference))
+            throw new InvalidOperationException("Official HR facts provider returned incomplete provenance.");
 
         if (facts.WorkDate != request.WorkDate)
             throw new InvalidOperationException("Official facts provider returned a different work date.");
