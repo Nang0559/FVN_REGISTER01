@@ -163,6 +163,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     TotalPlanned = g.Sum(x => x.OTHours),
                     TotalActual = g.Sum(x => x.ActualHours ?? 0),
                     ActualRecordCount = g.Count(x => x.ActualHours.HasValue),
+                    ActualStartTime = g.Min(x => x.ActualStartTime),
+                    ActualEndTime = g.Max(x => x.ActualEndTime),
                     ApprovedHours = g
                         .Where(x => x.RequestStatus == ApprovalStatus.Approved)
                         .Sum(x => x.ActualHours ?? x.OTHours),
@@ -179,6 +181,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 ["TotalPlanned"] = x.TotalPlanned,
                 ["TotalActual"] = x.TotalActual,
                 ["ActualRecordCount"] = x.ActualRecordCount,
+                ["ActualStartTime"] = x.ActualStartTime,
+                ["ActualEndTime"] = x.ActualEndTime,
                 ["ApprovedHours"] = x.ApprovedHours,
             }).ToList();
 
@@ -196,6 +200,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     new() { Field = "TotalPlanned",  Header = "Giờ kế hoạch", DataType = "decimal", Format = "N1" },
                     new() { Field = "TotalActual",   Header = "Giờ thực tế",  DataType = "decimal", Format = "N1" },
                     new() { Field = "ActualRecordCount", Header = "Số dòng có giờ thực tế", DataType = "number" },
+                    new() { Field = "ActualStartTime", Header = "Giờ bắt đầu thực tế", DataType = "time" },
+                    new() { Field = "ActualEndTime", Header = "Giờ kết thúc thực tế", DataType = "time" },
                     new() { Field = "ApprovedHours", Header = "Giờ đã duyệt", DataType = "decimal", Format = "N1" },
                 },
                 Rows = rows,
@@ -244,6 +250,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 ["DeptCode"] = x.DeptCode,
                 ["OTTypeCode"] = x.OTTypeName ?? x.OTTypeCode,
                 ["TotalOTHours"] = x.TotalOTHours,
+                ["StartTime"] = x.StartTime,
+                ["EndTime"] = x.EndTime,
                 ["OTReasonSummary"] = x.OTReasonSummary,
                 ["RequestStatus"] = x.RequestStatus.ToDisplayName(),
                 ["Approver_Lv1"] = x.Id.HasValue ? GetApproverName(stepsMap, x.Id.Value, level: 1) : null,
@@ -264,6 +272,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     new() { Field = "DeptCode",        Header = "Phòng ban" },
                     new() { Field = "OTTypeCode",      Header = "Loại OT" },
                     new() { Field = "TotalOTHours",    Header = "Tổng giờ OT", DataType = "decimal", Format = "N1" },
+                    new() { Field = "StartTime",       Header = "Bắt đầu", DataType = "time" },
+                    new() { Field = "EndTime",         Header = "Kết thúc", DataType = "time" },
                     new() { Field = "OTReasonSummary", Header = "Lý do" },
                     new() { Field = "RequestStatus",   Header = "Trạng thái" },
                     new() { Field = "Approver_Lv1",    Header = "Người duyệt cấp 1" },
