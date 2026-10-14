@@ -69,7 +69,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             !string.Equals(facts.EmployeeCode, request.EmployeeCode, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Official facts provider returned a different employee.");
 
-        var effectiveRequest = request;
+        var effectiveRequest = request with { EvidenceEmployeeCode = null, EvidenceWorkDate = null };
         string? evidenceCandidateJson = null;
         if (request.EvidenceDocumentId.HasValue)
         {
@@ -90,14 +90,19 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             if (evidence is null)
                 throw new InvalidOperationException("EVIDENCE_EXTRACTION_NOT_FOUND: the document has not produced an extraction candidate.");
             evidenceCandidateJson = evidence;
-            if (request.ReportedHours is null)
-            {
-                var extractedHours = ReadSingleHourCandidate(evidence);
-                if (extractedHours.HasValue)
-                    effectiveRequest = request with { ReportedHours = extractedHours };
-            }
+            var extractedHours = ReadSingleDecimalCandidate(evidence, "hourCandidates", 0, 24);
+            var extractedDays = ReadSingleDecimalCandidate(evidence, "dayCandidates", 0, 31);
+            var extractedLeaveType = ReadSingleStringCandidate(evidence, "leaveTypeCandidates");
+            var extractedTimes = ReadSingleTimePair(evidence, request.WorkDate);
             effectiveRequest = effectiveRequest with
             {
+                ReportedHours = request.ReportedHours ?? (request.CaseType == HRCaseType.Overtime ? extractedHours : null),
+                ReportedLeaveDays = request.ReportedLeaveDays ?? (request.CaseType == HRCaseType.Leave ? extractedDays : null),
+                ReportedLeaveType = request.ReportedLeaveType ?? (request.CaseType == HRCaseType.Leave ? extractedLeaveType : null),
+                ReportedStart = request.ReportedStart ?? (request.CaseType == HRCaseType.Attendance ? extractedTimes.Start : null),
+                ReportedEnd = request.ReportedEnd ?? (request.CaseType == HRCaseType.Attendance ? extractedTimes.End : null),
+                EvidenceEmployeeCode = ReadSingleStringCandidate(evidence, "employeeCode"),
+                EvidenceWorkDate = ReadSingleDateCandidate(evidence),
                 EvidenceReference = request.EvidenceReference ?? $"ai-document:{request.EvidenceDocumentId.Value}"
             };
         }
@@ -186,30 +191,67 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         }
     }
 
-    private static decimal? ReadSingleHourCandidate(string candidateJson)
+    private static decimal? ReadSingleDecimalCandidate(string candidateJson, string field, decimal minimum, decimal maximum)
     {
         try
         {
             using var document = JsonDocument.Parse(candidateJson);
             if (!document.RootElement.TryGetProperty("extractedFields", out var fields) ||
-                !fields.TryGetProperty("hourCandidates", out var candidates) ||
-                candidates.ValueKind != JsonValueKind.Array)
+                !fields.TryGetProperty(field, out var candidates) || candidates.ValueKind != JsonValueKind.Array)
                 return null;
             var values = candidates.EnumerateArray()
                 .Where(x => x.ValueKind == JsonValueKind.String)
                 .Select(x => decimal.TryParse(x.GetString()?.Replace(',', '.'), NumberStyles.Number,
                     CultureInfo.InvariantCulture, out var value) ? (decimal?)value : null)
-                .Where(x => x.HasValue)
-                .Select(x => x!.Value)
-                .Distinct()
-                .Take(2)
-                .ToArray();
-            return values.Length == 1 && values[0] >= 0 && values[0] <= 24 ? values[0] : null;
+                .Where(x => x.HasValue).Select(x => x!.Value).Distinct().Take(2).ToArray();
+            return values.Length == 1 && values[0] >= minimum && values[0] <= maximum ? values[0] : null;
         }
-        catch (JsonException)
+        catch (JsonException) { return null; }
+    }
+
+    private static string? ReadSingleStringCandidate(string candidateJson, string field)
+    {
+        try
         {
-            return null;
+            using var document = JsonDocument.Parse(candidateJson);
+            if (!document.RootElement.TryGetProperty("extractedFields", out var fields) ||
+                !fields.TryGetProperty(field, out var candidates)) return null;
+            if (candidates.ValueKind == JsonValueKind.String) return candidates.GetString();
+            if (candidates.ValueKind != JsonValueKind.Array) return null;
+            var values = candidates.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String)
+                .Select(x => x.GetString()?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase).Take(2).ToArray();
+            return values.Length == 1 ? values[0] : null;
         }
+        catch (JsonException) { return null; }
+    }
+
+    private static DateOnly? ReadSingleDateCandidate(string candidateJson)
+    {
+        var raw = ReadSingleStringCandidate(candidateJson, "dateCandidates");
+        if (raw is null) return null;
+        var formats = new[] { "yyyy-MM-dd", "yyyy/M/d", "yyyy/M/dd", "d/M/yyyy", "dd/MM/yyyy", "d-M-yyyy", "dd-MM-yyyy" };
+        return DateOnly.TryParseExact(raw, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+            ? date : null;
+    }
+
+    private static (DateTimeOffset? Start, DateTimeOffset? End) ReadSingleTimePair(string candidateJson, DateOnly workDate)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(candidateJson);
+            if (!document.RootElement.TryGetProperty("extractedFields", out var fields) ||
+                !fields.TryGetProperty("timeCandidates", out var candidates) || candidates.ValueKind != JsonValueKind.Array)
+                return (null, null);
+            var values = candidates.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String)
+                .Select(x => TimeOnly.TryParse(x.GetString(), CultureInfo.InvariantCulture, out var time) ? (TimeOnly?)time : null)
+                .Where(x => x.HasValue).Select(x => x!.Value).Distinct().Take(3).ToArray();
+            if (values.Length != 2 || values[1] <= values[0]) return (null, null);
+            var offset = TimeSpan.FromHours(7);
+            return (new DateTimeOffset(workDate.ToDateTime(values[0]), offset),
+                new DateTimeOffset(workDate.ToDateTime(values[1]), offset));
+        }
+        catch (JsonException) { return (null, null); }
     }
 
     private static IReadOnlyList<HRFieldComparison> CompareOvertime(OfficialHRFacts f, HRCaseAnalysisRequest request)
