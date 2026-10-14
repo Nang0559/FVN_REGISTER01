@@ -4,6 +4,8 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
 {
  public DbSet<AiDocumentRecord> Documents=>Set<AiDocumentRecord>();
  public DbSet<AiIngestionJobRecord> IngestionJobs=>Set<AiIngestionJobRecord>();
+ public DbSet<AiExtractionRecord> Extractions=>Set<AiExtractionRecord>();
+ public DbSet<AiReviewRecord> Reviews=>Set<AiReviewRecord>();
  protected override void OnModelCreating(ModelBuilder b)
  {
   var d=b.Entity<AiDocumentRecord>(); d.ToTable("AiDocuments","ai"); d.HasKey(x=>x.Id);
@@ -16,6 +18,14 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   j.Property(x=>x.Status).HasMaxLength(24).IsRequired(); j.Property(x=>x.FailureCode).HasMaxLength(128);
   j.HasIndex(x=>new{x.Status,x.CreatedAtUtc}); j.HasIndex(x=>x.DocumentId).IsUnique();
   j.HasOne<AiDocumentRecord>().WithMany().HasForeignKey(x=>x.DocumentId).OnDelete(DeleteBehavior.Restrict);
+  var e=b.Entity<AiExtractionRecord>(); e.ToTable("AiExtractions","ai"); e.HasKey(x=>x.Id);
+  e.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); e.Property(x=>x.DocumentType).HasMaxLength(128).IsRequired();
+  e.Property(x=>x.CandidateJson).IsRequired(); e.Property(x=>x.ParserVersion).HasMaxLength(64).IsRequired();
+  e.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.CreatedAtUtc});
+  var r=b.Entity<AiReviewRecord>(); r.ToTable("AiReviews","ai"); r.HasKey(x=>x.Id);
+  r.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); r.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
+  r.Property(x=>x.Decision).HasMaxLength(16).IsRequired(); r.Property(x=>x.OriginalPayloadJson).IsRequired();
+  r.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.ReviewedAtUtc});
  }
 }
 public sealed class AiDocumentRecord
