@@ -1,4 +1,5 @@
 using System.Text;
+using System.IO.Compression;
 using FVN_REGISTER.AI.Application.Abstractions;
 namespace FVN_REGISTER.AI.Infrastructure.Validation;
 public sealed class UploadContentValidator:IUploadContentValidator
@@ -18,7 +19,20 @@ public sealed class UploadContentValidator:IUploadContentValidator
    if(ext.Equals(".pdf",StringComparison.OrdinalIgnoreCase))
    {if(count<5||!header.AsSpan(0,5).SequenceEqual("%PDF-"u8))throw new InvalidDataException("File signature is not PDF.");return new(safe,"application/pdf",".pdf");}
    if(ext.Equals(".xlsx",StringComparison.OrdinalIgnoreCase))
-   {if(count<4||header[0]!=0x50||header[1]!=0x4B||header[2] is not(0x03 or 0x05 or 0x07)||header[3] is not(0x04 or 0x06 or 0x08))throw new InvalidDataException("File signature is not an XLSX ZIP container.");return new(safe,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",".xlsx");}
+   {
+    if(count<4||header[0]!=0x50||header[1]!=0x4B||header[2] is not(0x03 or 0x05 or 0x07)||header[3] is not(0x04 or 0x06 or 0x08))
+     throw new InvalidDataException("File signature is not an XLSX ZIP container.");
+    try
+    {
+     using var archive=new ZipArchive(stream,ZipArchiveMode.Read,true);
+     var hasContentTypes=archive.GetEntry("[Content_Types].xml") is not null;
+     var hasWorkbook=archive.GetEntry("xl/workbook.xml") is not null;
+     if(!hasContentTypes||!hasWorkbook)throw new InvalidDataException("ZIP file is not a valid XLSX workbook.");
+    }
+    catch(InvalidDataException){throw;}
+    catch(Exception ex) when(ex is IOException or ArgumentException){throw new InvalidDataException("XLSX archive is corrupt.",ex);}
+    return new(safe,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",".xlsx");
+   }
    var sample=new byte[(int)Math.Min(4096,stream.Length-start)];var n=await stream.ReadAsync(sample.AsMemory(),ct);stream.Position=start;
    if(n==0||sample.AsSpan(0,n).Contains((byte)0))throw new InvalidDataException("Text file is empty or contains binary data.");
    try{var text=Utf8.GetString(sample,0,n);if(text.Count(c=>char.IsControl(c)&&c is not('\r' or '\n' or '\t' or '\f'))>Math.Max(2,text.Length/100))throw new InvalidDataException("Text file contains binary control characters.");}
