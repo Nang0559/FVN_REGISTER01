@@ -72,17 +72,22 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         var effectiveRequest = request;
         if (request.EvidenceDocumentId.HasValue)
         {
-            var evidenceOwnedByActor = await db.Documents.AsNoTracking().AnyAsync(
-                x => x.Id == request.EvidenceDocumentId.Value && x.TenantCode == tenantCode && x.UploadedBy == actorId,
-                cancellationToken);
-            if (!evidenceOwnedByActor)
+            var evidenceStatus = await db.Documents.AsNoTracking()
+                .Where(x => x.Id == request.EvidenceDocumentId.Value && x.TenantCode == tenantCode && x.UploadedBy == actorId)
+                .Select(x => x.Status)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (evidenceStatus is null)
                 throw new KeyNotFoundException("Evidence document was not found for this actor and tenant.");
+            if (evidenceStatus is not ("AwaitingHumanReview" or "Approved"))
+                throw new InvalidOperationException("EVIDENCE_NOT_READY: wait for malware scan and extraction to finish before analysis.");
 
             var evidence = await db.Extractions.AsNoTracking()
                 .Where(x => x.DocumentId == request.EvidenceDocumentId.Value && x.TenantCode == tenantCode)
                 .OrderByDescending(x => x.CreatedAtUtc)
                 .Select(x => x.CandidateJson)
                 .FirstOrDefaultAsync(cancellationToken);
+            if (evidence is null)
+                throw new InvalidOperationException("EVIDENCE_EXTRACTION_NOT_FOUND: the document has not produced an extraction candidate.");
             if (evidence is not null && request.ReportedHours is null)
             {
                 var extractedHours = ReadSingleHourCandidate(evidence);
