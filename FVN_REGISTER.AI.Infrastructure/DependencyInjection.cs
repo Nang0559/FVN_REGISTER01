@@ -6,6 +6,7 @@ using FVN_REGISTER.AI.Infrastructure.Storage;
 using FVN_REGISTER.AI.Infrastructure.Services;
 using FVN_REGISTER.AI.Infrastructure.Validation;
 using FVN_REGISTER.AI.Infrastructure.Extraction;
+using FVN_REGISTER.AI.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,7 @@ public static class DependencyInjection
   services.AddSingleton<IOriginalDocumentStore,FileSystemOriginalDocumentStore>();
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
   services.AddSingleton<IDocumentTextExtractor,LocalDocumentTextExtractor>();
+  services.TryAddSingleton<IMalwareScanner,UnconfiguredMalwareScanner>();
   services.AddScoped<IDocumentIngestionService,DocumentIngestionService>();
   services.AddScoped<IDocumentReviewService,DocumentReviewService>();
   services.AddScoped<IFeedbackService,FeedbackService>();
