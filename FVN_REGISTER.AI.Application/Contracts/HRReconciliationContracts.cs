@@ -78,7 +78,7 @@ public sealed record HRCaseReviewReceipt(Guid CaseId, string Status, string Deci
 
 public interface IHRCaseReviewerAuthorization
 {
-    Task<bool> CanReviewEmployeeAsync(string tenantCode, string actorId, string employeeCode, CancellationToken cancellationToken = default);
+    Task<bool> CanReviewCaseAsync(string tenantCode, string actorId, string employeeCode, HRCaseType caseType, CancellationToken cancellationToken = default);
 }
 
 public interface IHRCaseReviewService
