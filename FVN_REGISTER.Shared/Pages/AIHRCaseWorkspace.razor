@@ -47,11 +47,16 @@
                 @if (_evidenceDocumentId.HasValue)
                 {
                     <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">
-                        Đã nhận tệp: @_evidenceFileName. Mã hồ sơ: @_evidenceDocumentId
+                        Đã nhận tệp: @_evidenceFileName. Trạng thái: @_evidenceStatus. Mã hồ sơ: @_evidenceDocumentId
                     </MudAlert>
                 }
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="mt-2" OnClick="CheckEvidenceStatusAsync">
+                        Kiểm tra trạng thái xử lý bằng chứng
+                    </MudButton>
+                }
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                           Disabled="_analyzing || string.IsNullOrWhiteSpace(_statement) || _workDate is null"
+                           Disabled="_analyzing || string.IsNullOrWhiteSpace(_statement) || _workDate is null ||
+                               (_evidenceDocumentId.HasValue && _evidenceStatus is not ("AwaitingHumanReview" or "Approved"))"
                            OnClick="AnalyzeAsync" Class="mt-4">
                     @if (_analyzing)
                     {
@@ -152,6 +157,7 @@
     private string _statement = string.Empty;
     private Guid? _evidenceDocumentId;
     private string? _evidenceFileName;
+    private string _evidenceStatus = "NotUploaded";
     private bool _loading;
     private bool _analyzing;
     private bool _reviewing;
@@ -199,7 +205,26 @@
             }
             _evidenceDocumentId = documentId;
             _evidenceFileName = file.Name;
+            _evidenceStatus = "Quarantined";
+            await CheckEvidenceStatusAsync();
             Snackbar.Add("Đã tải bằng chứng lên khu vực AI an toàn.", Severity.Success);
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task CheckEvidenceStatusAsync()
+    {
+        if (!_evidenceDocumentId.HasValue) return;
+        try
+        {
+            var response = await Http.GetAsync<JsonElement>($"api/ai/hr-cases/evidence/{_evidenceDocumentId.Value:D}");
+            if (!response.IsSuccess || response.Data.ValueKind != JsonValueKind.Object)
+            {
+                _error = response.Message ?? "Không đọc được trạng thái bằng chứng.";
+                return;
+            }
+            _evidenceStatus = response.Data.TryGetProperty("status", out var status)
+                ? status.GetString() ?? "Unknown" : "Unknown";
         }
         catch (Exception ex) { _error = ex.Message; }
     }
@@ -225,6 +250,7 @@
             _statement = string.Empty;
             _evidenceDocumentId = null;
             _evidenceFileName = null;
+            _evidenceStatus = "NotUploaded";
             await LoadPendingAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
