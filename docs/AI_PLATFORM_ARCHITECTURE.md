@@ -227,19 +227,20 @@ The example is an answer shape, not a statement of FCC Vietnam's actual OT rules
 
 ## 8. HR feedback evidence and reconciliation assistant
 
-This is a separate workflow from general policy Q&A.
+This workflow is separate from general policy Q&A and is now implemented as the first HR case workflow.
 
-- User submits a feedback message and evidence.
-- AI extracts employee/date/time/value candidates with source locations.
-- Trusted FVN_REGISTER service obtains only authorized official facts.
-- Deterministic, versioned rules compare registration, approval, actual attendance and relevant calendar/shift context.
-- LLM explains differences and drafts a suggested HR reply with evidence citations.
-- HR reviews and approves the reply.
-- Any correction is executed only through an existing FVN_REGISTER command after fresh RBAC and domain validation.
+- Employee submits a case and optional evidence through the Blazor workspace at `/ai/hr-assistant`.
+- FVN_REGISTER API authenticates the user, checks the case-type function and employee managed scope, then obtains official facts through `IReportDispatcher`.
+- AI Worker scans the original file, extracts PDF text/XLSX/CSV/TXT candidates and preserves page/line provenance.
+- Evidence identity/date candidates are checked against the requested employee and official work date. Ambiguous candidates are not guessed.
+- Deterministic rules compare reported hours with OT plan, confirmed actual and calculated attendance OT; attendance compares check-in/out; leave compares request status/type/days where the report source exposes them.
+- Optional Ollama provider drafts the Vietnamese HR reply from official facts and deterministic comparisons only. If Ollama is unavailable, a safe template is used.
+- HR sees the original candidate text, provenance, comparison rule/explanation and editable draft; approve/edit/reject is stored with review audit and rowversion concurrency.
+- No business table is modified and no reply is automatically sent.
 
-Initial entities identified for OT/attendance/leave pilot include `F03OTRequests`, `F03OTEmployees`, `F03AttendanceStaging` and `F03LeaveDays`. The AI service never connects directly to the operational DbContext.
+The gateway reads OTDetail, OTSummaryByEmployee, AttendanceDetail and LeaveDetail reports. Their report services use the operational OT/attendance/leave views; the AI service does not connect directly to the operational DbContext.
 
-See [AI HR Reconciliation Pilot](AI_HR_RECONCILIATION_PILOT.md).
+See [HR Case Assistant implementation](AI_HR_CASE_ASSISTANT_IMPLEMENTATION.md) and [AI HR Reconciliation Pilot](AI_HR_RECONCILIATION_PILOT.md).
 
 ## 9. HR reporting chatbot
 
