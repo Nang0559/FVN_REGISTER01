@@ -98,7 +98,7 @@ Design: [AI_HR_RECONCILIATION_PILOT.md](AI_HR_RECONCILIATION_PILOT.md)
 
 Pilot: analyze OT/attendance/leave evidence against authorized FVN_REGISTER facts, show deterministic differences and prepare a suggested HR reply. Human HR review remains mandatory.
 
-Not yet implemented: FVN_REGISTER authorized facts adapter, deterministic reconciliation rules service, case UI and reply approval workflow.
+Implemented baseline: typed HR case contracts, deterministic OT/attendance/leave comparison service, signed-context API endpoint `POST /api/ai/v1/hr-cases/analyze`, safe unconfigured facts-provider default and unit tests for OT discrepancy / employee mismatch.\n\nStill required: trusted FVN_REGISTER authorized facts adapter, evidence-candidate-to-case field mapping, durable case/review/reply persistence, HR case UI and reply approval workflow. The API deliberately returns 503 until the trusted facts adapter is configured.
 
 ### HR reporting chatbot
 Design direction: natural-language intent/parameter extraction mapped to existing allowlisted report operations. It must not generate arbitrary SQL or bypass ReportController/IReportDispatcher authorization. Chat UI and report-query contract remain unimplemented.
