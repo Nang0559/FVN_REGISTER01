@@ -24,13 +24,17 @@ public sealed class SqlIngestionQueue(AiPlatformDbContext db) : IIngestionQueue,
         return row is null ? null : new LeasedIngestionJob(row.JobId, row.DocumentId, row.AttemptCount, row.LeaseOwner, row.LeaseUntilUtc);
     }
 
-    public Task CompleteAsync(Guid jobId, string workerId, string documentStatus, CancellationToken cancellationToken = default) =>
-        db.Database.ExecuteSqlInterpolatedAsync(
+    public async Task CompleteAsync(Guid jobId, string workerId, string documentStatus, CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync(
             $"EXEC ai.usp_CompleteAiIngestionJob @JobId={jobId}, @WorkerId={workerId}, @DocumentStatus={documentStatus}", cancellationToken);
+    }
 
-    public Task FailAsync(Guid jobId, string workerId, string failureCode, bool retryable, CancellationToken cancellationToken = default) =>
-        db.Database.ExecuteSqlInterpolatedAsync(
+    public async Task FailAsync(Guid jobId, string workerId, string failureCode, bool retryable, CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync(
             $"EXEC ai.usp_FailAiIngestionJob @JobId={jobId}, @WorkerId={workerId}, @FailureCode={failureCode}, @Retryable={retryable}", cancellationToken);
+    }
 
     private sealed class ClaimedJob
     {
