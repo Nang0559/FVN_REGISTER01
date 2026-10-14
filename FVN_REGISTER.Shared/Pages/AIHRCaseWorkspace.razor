@@ -194,7 +194,7 @@
         if (file is null) return;
         try
         {
-            await using var stream = file.OpenReadStream(25 * 1024 * 1024);
+            await using var stream = file.OpenReadStream(20 * 1024 * 1024);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
             var upload = new
