@@ -71,3 +71,17 @@ public interface IHRReconciliationService
     Task<HRReconciliationAnalysis> AnalyzeAsync(string tenantCode, string actorId,
         HRCaseAnalysisRequest request, CancellationToken cancellationToken = default);
 }
+
+public sealed record HRCaseReviewRequest(string Decision, string? FinalReply, string? Comment);
+public sealed record HRCaseReviewReceipt(Guid CaseId, string Status, string Decision, DateTimeOffset ReviewedAtUtc);
+
+public interface IHRCaseReviewerAuthorization
+{
+    Task<bool> CanReviewAsync(string tenantCode, string actorId, CancellationToken cancellationToken = default);
+}
+
+public interface IHRCaseReviewService
+{
+    Task<HRCaseReviewReceipt> ReviewAsync(string tenantCode, string actorId, Guid caseId,
+        HRCaseReviewRequest request, CancellationToken cancellationToken = default);
+}
