@@ -150,7 +150,7 @@ public sealed class AIHRCaseController : BaseApiController
     }
 
     [HttpPost("evidence/base64")]
-    [RequestSizeLimit(36 * 1024 * 1024)]
+    [RequestSizeLimit(28 * 1024 * 1024)]
     public async Task<IActionResult> UploadEvidenceBase64([FromBody] EvidenceUploadRequest upload, CancellationToken ct)
     {
         var user = UserInfo;
@@ -161,7 +161,7 @@ public sealed class AIHRCaseController : BaseApiController
         byte[] bytes;
         try { bytes = Convert.FromBase64String(upload.ContentBase64); }
         catch (FormatException) { return BadRequest(new { error = "Evidence content is not valid base64." }); }
-        var maxBytes = (long)Math.Clamp(_configuration.GetValue<int>("AIPlatform:MaximumFileSizeMb", 25), 1, 25) * 1024 * 1024;
+        var maxBytes = (long)Math.Clamp(_configuration.GetValue<int>("AIPlatform:MaximumFileSizeMb", 20), 1, 20) * 1024 * 1024;
         if (bytes.Length == 0 || bytes.LongLength > maxBytes)
             return BadRequest(new { error = $"Evidence file must be between 1 byte and {maxBytes / 1024 / 1024} MB." });
 
