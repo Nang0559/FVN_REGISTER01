@@ -18,6 +18,7 @@ The branch now contains an initial application contract and deterministic compar
 - Each comparison returns a stable rule code, user-reported value, official value, outcome and explanation.
 - `POST /api/ai/v1/hr-cases/analyze` exposes the use case behind the same API key and signed tenant/actor context as other AI endpoints.
 - Analysis results are persisted in `ai.AiHRCases` with official source references and a `PendingHRReview` state.
+- `GET /api/ai/v1/hr-cases/pending` and `GET /api/ai/v1/hr-cases/{caseId}` provide the HR inbox/detail read model, both gated by reviewer authorization.
 - `POST /api/ai/v1/hr-cases/{caseId}/review` stores an HR decision and final reply; the default reviewer authorization denies access until connected to FVN_REGISTER.
 - Unit tests cover an OT discrepancy and rejection of official facts for a different employee.
 
