@@ -68,7 +68,15 @@ public sealed class AIHRCaseController : BaseApiController
         if (viewFunction == 0 || !await _authorization.CanAccessAsync(user, viewFunction, employeeCode, null, ct))
             return Forbid();
 
-        var facts = await LoadOfficialFactsAsync(request.CaseType, employeeCode, request.WorkDate, user, ct);
+        OfficialHRFacts? facts;
+        try
+        {
+            facts = await LoadOfficialFactsAsync(request.CaseType, employeeCode, request.WorkDate, user, ct);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("OFFICIAL_HR_REPORT_UNAVAILABLE", StringComparison.Ordinal))
+        {
+            return Problem("Nguồn báo cáo HR của FVN_REGISTER hiện không khả dụng.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
         if (facts is null)
             return UnprocessableEntity(new { error = "Không tìm thấy dữ liệu HR chính thức đủ điều kiện đối chiếu cho nhân viên/ngày đã chọn." });
 
