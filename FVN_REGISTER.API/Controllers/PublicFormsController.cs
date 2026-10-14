@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.PublicForms;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -20,20 +21,46 @@ public sealed class PublicFormsController : BaseApiController
 {
     private const int AdministrationDepartmentCode = 13;
 
+    private const string PublicFormResourceType = "PUBLIC_FORM";
+
     private readonly IPublicFormService _service;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
     public PublicFormsController(
         IPublicFormService service,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operators,
         ILogger<PublicFormsController> logger,
         IOptionsMonitor<AuthDebugOptions> options)
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
         _authorization = authorization;
+        _operators = operators;
+    }
+
+    /// <summary>
+    /// UI bootstrap: tells the Public pages/menu which buttons to render. Mirrors the exact checks the
+    /// endpoints below perform, so a button is shown if and only if the call will be accepted.
+    /// </summary>
+    [HttpGet("capabilities")]
+    public async Task<IActionResult> Capabilities(CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+
+        var dto = new Contract.Dtos.PublicForms.PublicCapabilitiesDto
+        {
+            CanRegister = await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.PublicFormView, ct),
+            CanManageForms = await CanAnyManagementAsync(ct,
+                SecurityFunctionCodes.PublicFormCreate,
+                SecurityFunctionCodes.PublicFormEdit,
+                SecurityFunctionCodes.PublicFormAssignAudience),
+            CanViewResults = await CanManagementAsync(SecurityFunctionCodes.PublicFormResultView, ct)
+        };
+        return Ok(ApiResponse<Contract.Dtos.PublicForms.PublicCapabilitiesDto>.Ok(dto));
     }
 
     [HttpGet("manage")]
@@ -238,10 +265,7 @@ public sealed class PublicFormsController : BaseApiController
         if (!await CanManagementAsync(SecurityFunctionCodes.PublicFormResultView, ct))
             return Forbid();
 
-        var scope = await _authorization.GetScopeAsync(
-            UserInfo!.UserId,
-            SecurityFunctionCodes.PublicFormResultView,
-            ct);
+        var scope = await ResolveScopeAsync(SecurityFunctionCodes.PublicFormResultView, ct);
 
         if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             query.DepartmentCode = UserInfo.DeptCode;
@@ -258,10 +282,7 @@ public sealed class PublicFormsController : BaseApiController
         if (!await CanManagementAsync(SecurityFunctionCodes.PublicFormResultView, ct))
             return Forbid();
 
-        var scope = await _authorization.GetScopeAsync(
-            UserInfo!.UserId,
-            SecurityFunctionCodes.PublicFormResultView,
-            ct);
+        var scope = await ResolveScopeAsync(SecurityFunctionCodes.PublicFormResultView, ct);
 
         if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             query.DepartmentCode = UserInfo.DeptCode;
@@ -278,10 +299,7 @@ public sealed class PublicFormsController : BaseApiController
         if (!await CanManagementAsync(SecurityFunctionCodes.PublicFormResultExport, ct))
             return Forbid();
 
-        var scope = await _authorization.GetScopeAsync(
-            UserInfo!.UserId,
-            SecurityFunctionCodes.PublicFormResultExport,
-            ct);
+        var scope = await ResolveScopeAsync(SecurityFunctionCodes.PublicFormResultExport, ct);
 
         if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             query.DepartmentCode = UserInfo.DeptCode;
@@ -305,13 +323,23 @@ public sealed class PublicFormsController : BaseApiController
         return HandleResult(await _service.GetAuditHistoryAsync(id, ct));
     }
 
+    /// <summary>
+    /// A management action is allowed when EITHER
+    ///  (a) the user holds the fine-grained Management capability AND belongs to the administration
+    ///      department (legacy rule, kept for backward compatibility), OR
+    ///  (b) the user holds the module RBAC function AND was explicitly assigned as operator in
+    ///      Admin/Security -> Feature operators (PUBLIC_FORM). Assigning an operator was previously a
+    ///      no-op for this controller, which is why assigned people could not create forms.
+    /// </summary>
     private async Task<bool> CanManagementAsync(int functionCode, CancellationToken ct)
     {
-        if (UserInfo == null ||
-            !await _authorization.HasManagementAsync(UserInfo, functionCode, ct))
-            return false;
+        if (UserInfo == null) return false;
 
-        return UserInfo.DeptCode == AdministrationDepartmentCode;
+        if (UserInfo.DeptCode == AdministrationDepartmentCode &&
+            await _authorization.HasManagementAsync(UserInfo, functionCode, ct))
+            return true;
+
+        return await IsAssignedOperatorAsync(OperatorFunctionFor(functionCode), ct);
     }
 
     private async Task<bool> CanAnyManagementAsync(CancellationToken ct, params int[] functionCodes)
@@ -321,5 +349,36 @@ public sealed class PublicFormsController : BaseApiController
                 return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// RBAC scope for the capability when the user holds it through role grants; assigned operators who
+    /// pass through the operator path see all results of the forms they operate.
+    /// </summary>
+    private async Task<string> ResolveScopeAsync(int functionCode, CancellationToken ct)
+    {
+        if (UserInfo!.DeptCode == AdministrationDepartmentCode &&
+            await _authorization.HasManagementAsync(UserInfo, functionCode, ct))
+            return await _authorization.GetScopeAsync(UserInfo.UserId, functionCode, ct);
+
+        return AuthorizationScopeCodes.All;
+    }
+
+    private static int OperatorFunctionFor(int functionCode) => functionCode switch
+    {
+        SecurityFunctionCodes.PublicFormResultView => SecurityFunctionCodes.PublicFormSubmissionView,
+        SecurityFunctionCodes.PublicFormResultExport => SecurityFunctionCodes.PublicFormExport,
+        _ => SecurityFunctionCodes.PublicFormManage
+    };
+
+    /// <summary>Explicit module-level assignment only (no "nobody assigned => everybody" fallback).</summary>
+    private async Task<bool> IsAssignedOperatorAsync(int operatorFunctionCode, CancellationToken ct)
+    {
+        var employeeCode = UserInfo?.EmployeeCode?.Trim();
+        if (UserInfo == null || string.IsNullOrEmpty(employeeCode)) return false;
+        if (!await _authorization.HasAsync(UserInfo, operatorFunctionCode, ct)) return false;
+
+        var assigned = await _operators.GetAsync(operatorFunctionCode, PublicFormResourceType, null, ct);
+        return assigned.Any(x => string.Equals(x.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase));
     }
 }

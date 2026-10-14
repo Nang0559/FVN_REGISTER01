@@ -1,6 +1,7 @@
 @page "/thong-tin-cong-khai"
 @page "/public-information"
 @using System.Text.Json
+@using FVN_REGISTER.Contract.Dtos.PublicForms
 @using FVN_REGISTER.Shared.Handlers
 @inherits AppComponentBase
 @inject IHttpClientWithAuth Http
@@ -14,18 +15,32 @@
             <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("nav.publicInformation")</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("public.thongBaoQuyDinhVa")</MudText>
         </div>
-        <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Assignment"
-                       OnClick="GoRegistration">
-                @Language.T("public.dangKyThongTin")
-            </MudButton>
-            <MudButton Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.Login"
-                       OnClick="GoLogin">
-                @Language.T("common.login")
-            </MudButton>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            @if (_caps.CanRegister)
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Assignment"
+                           OnClick="GoRegistration">
+                    @Language.T("public.dangKyThongTin")
+                </MudButton>
+            }
+            @if (_caps.CanManageInformation)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Campaign"
+                           OnClick="GoManageInformation">
+                    @Language.T("public.quanLyNoiDungCong")
+                </MudButton>
+            }
+            @if (_caps.CanManageForms)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.EditNote"
+                           OnClick="GoManageForms">
+                    @Language.T("nav.publicFormsManage")
+                </MudButton>
+            }
         </MudStack>
     </MudStack>
 
@@ -56,13 +71,13 @@
                     <MudCard Elevation="1" Class="h-100" Style="border-radius:18px">
                         <MudCardContent Class="pa-5">
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-3">
-                                <MudChip T="string" Size="Size.Small" Color="@(item.Important ? Color.Error : Color.Primary)">@GetTypeName(item.Type)</MudChip>
-                                @if (item.Important)
+                                <MudChip T="string" Size="Size.Small" Color="@(item.IsImportant ? Color.Error : Color.Primary)">@GetTypeName(item.Type)</MudChip>
+                                @if (item.IsImportant)
                                 {
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Language.T("public.quanTrong")</MudChip>
                                 }
                                 <MudSpacer />
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.PublishedAt</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.PublishedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
                             </MudStack>
                             <MudText Typo="Typo.h6" Style="font-weight:750">@item.Title</MudText>
                             @if (!string.IsNullOrWhiteSpace(item.Summary))
@@ -87,6 +102,7 @@
 
 @code {
     private readonly List<PublicItem> _items = new();
+    private PublicCapabilitiesDto _caps = new();
     private bool _loading = true;
     private string? _error;
 
@@ -94,6 +110,7 @@
     {
         try
         {
+            await LoadCapabilitiesAsync();
             var result = await Http.GetAsync<JsonElement>("api/public-information");
             if (!result.IsSuccess || result.Data.ValueKind != JsonValueKind.Array)
             {
@@ -112,6 +129,23 @@
         finally { _loading = false; }
     }
 
+    // Operators assigned in Admin/Security are NOT part of the RBAC snapshot, so ask the API what this user may do.
+    private async Task LoadCapabilitiesAsync()
+    {
+        var info = await Http.GetAsync<PublicCapabilitiesDto>("api/public-information/capabilities", showLoading: false);
+        var forms = await Http.GetAsync<PublicCapabilitiesDto>("api/public-forms/capabilities", showLoading: false);
+        _caps = new PublicCapabilitiesDto
+        {
+            CanManageInformation = info.IsSuccess && info.Data?.CanManageInformation == true,
+            CanRegister = forms.IsSuccess && forms.Data?.CanRegister == true,
+            CanManageForms = forms.IsSuccess && forms.Data?.CanManageForms == true,
+            CanViewResults = forms.IsSuccess && forms.Data?.CanViewResults == true
+        };
+    }
+
+    private void GoManageInformation() => Navigation.NavigateTo("/admin/public-information");
+    private void GoManageForms() => Navigation.NavigateTo("/admin/public-forms");
+
     private void GoRegistration()
     {
         // Public Information and Public Registration Forms remain separate modules.
@@ -120,13 +154,13 @@
         Navigation.NavigateTo("/public-forms");
     }
 
-    private void GoLogin() => Navigation.NavigateTo("/login");
-
-    private string GetTypeName(string? type) => type?.ToLowerInvariant() switch
+    // Keep in sync with the type list in Admin/PublicInformation.razor.
+    private string GetTypeName(string? type) => type switch
     {
-        "regulation" => Language.T("public.quyDinh"),
-        "guide" => Language.T("public.huongDan"),
-        "policy" => Language.T("public.chinhSach"),
+        "News" => Language.T("public.tinTuc"),
+        "HRContent" => Language.T("public.noiDungHr"),
+        "CompanyInfo" => Language.T("public.thongTinCongTy"),
+        "PublicContent" => Language.T("public.noiDungDuocCongKhai"),
         _ => Language.T("common.thongBao")
     };
 
@@ -137,8 +171,8 @@
         public string Title { get; set; } = string.Empty;
         public string Summary { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
-        public string PublishedAt { get; set; } = string.Empty;
-        public bool Important { get; set; }
-        public string AttachmentUrl { get; set; } = string.Empty;
+        public DateTime? PublishedAt { get; set; }
+        public bool IsImportant { get; set; }
+        public string? AttachmentUrl { get; set; }
     }
 }

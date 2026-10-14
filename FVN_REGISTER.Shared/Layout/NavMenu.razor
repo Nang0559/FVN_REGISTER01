@@ -1,9 +1,10 @@
-﻿@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Contract.Dtos.Security
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
 @inject ISecurityClientService SecurityService
+@inject FVN_REGISTER.Shared.Handlers.IHttpClientWithAuth PublicHttp
 @using MudBlazor
 @inject ICurrentUserClientService CurrentUser
 @implements IDisposable
@@ -27,8 +28,9 @@
     <MudNavGroup Title="@Language.T("nav.public")" Icon="@Icons.Material.Filled.Campaign" Expanded="false">
         <MudNavLink href="/public-information" Icon="@Icons.Material.Filled.Public">@Language.T("nav.publicInformation")</MudNavLink>
         <MudNavLink href="/public-forms" Icon="@Icons.Material.Filled.Assignment">@Language.T("nav.publicForms")</MudNavLink>
-        @if (CanManagement(SecurityFunctionCodes.PublicFormCreate) || CanManagement(SecurityFunctionCodes.PublicFormEdit) || CanManagement(SecurityFunctionCodes.PublicFormAssignAudience)) { <MudNavLink href="/admin/public-forms" Icon="@Icons.Material.Filled.EditNote">@Language.T("nav.publicFormsManage")</MudNavLink> }
-        @if (CanManagement(SecurityFunctionCodes.PublicFormResultView)) { <MudNavLink href="/admin/public-forms/submissions" Icon="@Icons.Material.Filled.Assessment">@Language.T("public.tongHopDangKyBieu")</MudNavLink> }
+        @if (_publicCaps?.CanManageInformation == true) { <MudNavLink href="/admin/public-information" Icon="@Icons.Material.Filled.Campaign">@Language.T("public.quanLyNoiDungCong")</MudNavLink> }
+        @if (_publicCaps?.CanManageForms == true) { <MudNavLink href="/admin/public-forms" Icon="@Icons.Material.Filled.EditNote">@Language.T("nav.publicFormsManage")</MudNavLink> }
+        @if (_publicCaps?.CanViewResults == true) { <MudNavLink href="/admin/public-forms/submissions" Icon="@Icons.Material.Filled.Assessment">@Language.T("public.tongHopDangKyBieu")</MudNavLink> }
     </MudNavGroup>
 
     @if (CanAny(SecurityFunctionCodes.SecurityAccessChangeView, SecurityFunctionCodes.SecurityAccessChangeCreate, SecurityFunctionCodes.SecurityAccessChangeApprove, SecurityFunctionCodes.SecurityAccessChangeExecute))
@@ -138,4 +140,4 @@
         </MudNavGroup>
     }
 </MudNavMenu>
-@code { private PermissionSnapshotDto? _permissions; protected override async Task OnInitializedAsync(){Language.LanguageChanged+=OnLanguageChanged;var result=await SecurityService.GetMyPermissionsAsync();if(result.IsSuccess)_permissions=result.Data;} private void OnLanguageChanged(object? sender,EventArgs e)=>_=InvokeAsync(StateHasChanged); private bool Can(int functionCode)=>_permissions?.Has(functionCode)==true; private bool CanPersonal(int functionCode)=>_permissions?.HasPersonal(functionCode)==true; private bool CanManagement(int functionCode)=>_permissions?.HasManagement(functionCode)==true; private bool CanAny(params int[] functionCodes)=>functionCodes.Any(Can); public void Dispose()=>Language.LanguageChanged-=OnLanguageChanged; }
+@code { private PermissionSnapshotDto? _permissions; private FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto? _publicCaps; protected override async Task OnInitializedAsync(){Language.LanguageChanged+=OnLanguageChanged;var result=await SecurityService.GetMyPermissionsAsync();if(result.IsSuccess)_permissions=result.Data;await LoadPublicCapabilitiesAsync();} private async Task LoadPublicCapabilitiesAsync(){try{var forms=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-forms/capabilities",showLoading:false);var info=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-information/capabilities",showLoading:false);_publicCaps=new(){CanRegister=forms.IsSuccess&&forms.Data?.CanRegister==true,CanManageForms=forms.IsSuccess&&forms.Data?.CanManageForms==true,CanViewResults=forms.IsSuccess&&forms.Data?.CanViewResults==true,CanManageInformation=info.IsSuccess&&info.Data?.CanManageInformation==true};}catch{_publicCaps=null;}} private void OnLanguageChanged(object? sender,EventArgs e)=>_=InvokeAsync(StateHasChanged); private bool Can(int functionCode)=>_permissions?.Has(functionCode)==true; private bool CanPersonal(int functionCode)=>_permissions?.HasPersonal(functionCode)==true; private bool CanManagement(int functionCode)=>_permissions?.HasManagement(functionCode)==true; private bool CanAny(params int[] functionCodes)=>functionCodes.Any(Can); public void Dispose()=>Language.LanguageChanged-=OnLanguageChanged; }

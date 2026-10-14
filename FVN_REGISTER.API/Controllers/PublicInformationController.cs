@@ -2,7 +2,9 @@ using FVN_REGISTER.Application.Interfaces.PublicInformation;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
+using FVN_REGISTER.Contract.Dtos.PublicForms;
 using FVN_REGISTER.Contract.Dtos.PublicInformation;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Requests.PublicInformation;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -29,6 +31,12 @@ public sealed class PublicInformationController : ControllerBase
     [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> Get(CancellationToken ct)
         => Ok(await _service.GetPublishedAsync(ct));
+
+    /// <summary>UI bootstrap for the Public pages: only the information-management flag is filled here.</summary>
+    [Authorize]
+    [HttpGet("capabilities")]
+    public async Task<IActionResult> Capabilities(CancellationToken ct)
+        => Ok(ApiResponse<PublicCapabilitiesDto>.Ok(new PublicCapabilitiesDto { CanManageInformation = await CanManageAsync(ct) }));
 
     [Authorize]
     [HttpGet("manage")]
@@ -102,9 +110,16 @@ public sealed class PublicInformationController : ControllerBase
             && await _operators.CanOperateAsync(user.UserId, user.EmployeeCode, SecurityFunctionCodes.PublicInformationManage, "PUBLIC_INFORMATION", id, ct);
     }
 
+    /// <summary>
+    /// Module-level gate (create / list / open the admin page): RBAC PublicInformation.Manage AND, when operators
+    /// were assigned in Admin/Security, the user must be one of them. With no assignment configured the RBAC
+    /// grant alone is enough (same fallback CanOperateAsync already applies per item).
+    /// </summary>
     private async Task<bool> CanManageAsync(CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
-        return user != null && await _authorization.HasAsync(user, SecurityFunctionCodes.PublicInformationManage, ct);
+        return user != null
+            && await _authorization.HasAsync(user, SecurityFunctionCodes.PublicInformationManage, ct)
+            && await _operators.CanOperateAsync(user.UserId, user.EmployeeCode, SecurityFunctionCodes.PublicInformationManage, "PUBLIC_INFORMATION", null, ct);
     }
 }

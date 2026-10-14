@@ -9,6 +9,7 @@
 <PageTitle>@Language.T("nav.publicForms")</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4"><b>@Language.T("public.bieuMauDangMo")</b></MudText>
 @if(_loading){<MudProgressLinear Indeterminate="true" />}
+else if(!string.IsNullOrWhiteSpace(_error)){<MudAlert Severity="Severity.Warning">@_error</MudAlert>}
 else if(!_items.Any()){<MudAlert Severity="Severity.Info">@Language.T("public.hienKhongCoBieuMau")</MudAlert>}
 else
 {
@@ -19,4 +20,4 @@ else
  }
  </MudGrid>
 }
-@code{private List<PublicFormDto> _items=new();private bool _loading=true;protected override async Task OnInitializedAsync(){var r=await Http.GetAsync<List<PublicFormDto>>("api/public-forms/available");if(r.IsSuccess)_items=r.Data??new();_loading=false;}}
+@code{private List<PublicFormDto> _items=new();private bool _loading=true;private string? _error;protected override async Task OnInitializedAsync(){var r=await Http.GetAsync<List<PublicFormDto>>("api/public-forms/available");if(r.IsSuccess)_items=r.Data??new();else _error=r.Message;_loading=false;}}
