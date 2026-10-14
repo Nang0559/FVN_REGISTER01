@@ -128,7 +128,8 @@ group.MapPost("/hr-cases/analyze", async (HRCaseAnalysisRequest body, HttpReques
     catch (InvalidOperationException ex) when (ex.Message.StartsWith("HR_FACTS_PROVIDER_NOT_CONFIGURED", StringComparison.Ordinal))
     { return Results.Problem("Trusted FVN_REGISTER HR facts adapter is not configured.", statusCode: 503); }
 });
-\napp.Run();
+
+app.Run();
 public sealed record FeedbackRequest(Guid? DocumentId,Guid? ExtractionId,string FeedbackType,string? BeforeJson,string? AfterJson,string? Reason);
 public sealed record ReviewRequest(string Decision,string? CorrectedPayloadJson,string? Comment);
 public partial class Program { }
