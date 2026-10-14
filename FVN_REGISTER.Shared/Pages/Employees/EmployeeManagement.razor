@@ -41,7 +41,7 @@
                           TextChanged="OnSearchChanged" />
         </MudItem>
         <MudItem xs="12" sm="2">
-            <MudSwitch T="bool" @bind-Value="_activeOnly" Label="@Language.T("employee.dangLamViec")" Color="Color.Success" Class="mt-1" />
+            <MudSwitch T="bool" Value="_activeOnly" ValueChanged="OnActiveOnlyChanged" Label="@Language.T("employee.dangLamViec")" Color="Color.Success" Class="mt-1" />
         </MudItem>
         <MudItem xs="12" sm="2">
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">@Language.T("dashboard.viewAll")</MudButton>
@@ -180,7 +180,7 @@ else
         try
         {
             var search = string.IsNullOrWhiteSpace(_search) ? null : _search.Trim();
-            var result = await EmployeeService.GetTreeAsync(search, _filterDept);
+            var result = await EmployeeService.GetTreeAsync(search, _filterDept, includeInactive: !_activeOnly);
             if (version != _loadVersion) return;
 
             if (result.IsSuccess && result.Data != null)
@@ -206,6 +206,13 @@ else
         if (!deptCode.HasValue) return string.Empty;
         var dept = _departments.FirstOrDefault(x => x.DeptCode == deptCode.Value);
         return dept is null ? deptCode.Value.ToString() : $"{dept.DeptCode} — {dept.DeptName}";
+    }
+
+    // Tắt "Đang làm việc" phải tải thêm nhân viên đã nghỉ từ server (server mặc định chỉ trả nhân viên đang làm việc).
+    private async Task OnActiveOnlyChanged(bool value)
+    {
+        _activeOnly = value;
+        await LoadTreeAsync();
     }
 
     private async Task OnDeptFilterChanged(int? value)

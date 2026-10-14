@@ -26,6 +26,14 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             _sessionNotifier = sessionNotifier;
         }
 
+        /// <summary>
+        /// Nhân viên còn làm việc khi HRM chưa khai ngày nghỉ hoặc ngày nghỉ chưa tới (tính cả ngày cuối).
+        /// Ngày nghỉ khai trước ở tương lai (vd. 31/12) không được coi là đã nghỉ ngay.
+        /// Cùng quy ước với PublicFormService (EndWorkingDate.Date >= hôm nay).
+        /// </summary>
+        private static bool IsEmployedOn(DateTime? endWorkingDate)
+            => !endWorkingDate.HasValue || endWorkingDate.Value.Date >= DateTime.Today;
+
         public override string EntityType => "Employee";
         public override int SyncOrder => 1;
         public override bool IsBlockingDependency => false;
@@ -63,7 +71,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             EmployeeNo = s.EmployeeNo,
             TotalLeaveDays = s.TotalLeaveDays ?? 0,
             LevelApprove = GetSuggestedLevel(s.PositionCode),
-            IsActive = !s.EndWorkingDate.HasValue,
+            IsActive = IsEmployedOn(s.EndWorkingDate),
             LastModifiedSource = SyncSourceTags.Hrm
         };
 
@@ -91,7 +99,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (e.EndWorkingDate != s.EndWorkingDate) { e.EndWorkingDate = s.EndWorkingDate; changed = true; }
             if (e.TotalLeaveDays != (s.TotalLeaveDays ?? 0)) { e.TotalLeaveDays = s.TotalLeaveDays ?? 0; changed = true; }
 
-            bool shouldBeActive = !s.EndWorkingDate.HasValue;
+            bool shouldBeActive = IsEmployedOn(s.EndWorkingDate);
             if (e.IsActive != shouldBeActive) { e.IsActive = shouldBeActive; changed = true; }
 
             if (positionChanged)
