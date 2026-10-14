@@ -41,6 +41,25 @@
                 <MudTextField @bind-Value="_statement" Label="Nội dung phản hồi"
                               Placeholder="Ví dụ: Tôi đăng ký 2 giờ OT nhưng hệ thống chỉ ghi nhận 1,5 giờ..."
                               Lines="4" Variant="Variant.Outlined" Class="mb-3" />
+                @if (_caseType == HRCaseType.Overtime)
+                {
+                    <MudNumericField T="decimal?" @bind-Value="_reportedHours" Label="Số giờ OT nhân viên phản hồi"
+                                     Min="0" Max="24" Step="0.5m" Variant="Variant.Outlined" Class="mb-3" />
+                }
+                else if (_caseType == HRCaseType.Attendance)
+                {
+                    <MudGrid Spacing="2" Class="mb-3">
+                        <MudItem xs="6"><MudTextField @bind-Value="_reportedCheckIn" Label="Giờ vào phản hồi" Placeholder="08:00" Variant="Variant.Outlined" /></MudItem>
+                        <MudItem xs="6"><MudTextField @bind-Value="_reportedCheckOut" Label="Giờ ra phản hồi" Placeholder="17:00" Variant="Variant.Outlined" /></MudItem>
+                    </MudGrid>
+                }
+                else if (_caseType == HRCaseType.Leave)
+                {
+                    <MudNumericField T="decimal?" @bind-Value="_reportedLeaveDays" Label="Số ngày nghỉ phản hồi"
+                                     Min="0" Max="31" Step="0.5m" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField @bind-Value="_reportedLeaveType" Label="Loại nghỉ theo phản hồi"
+                                  Variant="Variant.Outlined" Class="mb-3" />
+                }
                 <MudDivider Class="my-3" />
                 <MudText Typo="Typo.subtitle2" Class="mb-1">Bằng chứng đính kèm</MudText>
                 <InputFile OnChange="UploadEvidenceAsync" />
@@ -158,6 +177,11 @@
     private string _employeeCode = string.Empty;
     private DateTime? _workDate = DateTime.Today;
     private string _statement = string.Empty;
+    private decimal? _reportedHours;
+    private decimal? _reportedLeaveDays;
+    private string _reportedLeaveType = string.Empty;
+    private string _reportedCheckIn = string.Empty;
+    private string _reportedCheckOut = string.Empty;
     private Guid? _evidenceDocumentId;
     private string? _evidenceFileName;
     private string _evidenceStatus = "NotUploaded";
@@ -243,9 +267,16 @@
         _error = null;
         try
         {
+            var reportedStart = ParseReportedTime(_reportedCheckIn, _workDate.Value);
+            var reportedEnd = ParseReportedTime(_reportedCheckOut, _workDate.Value);
             var request = new HRCaseAnalysisRequest(_caseType,
                 string.IsNullOrWhiteSpace(_employeeCode) ? null : _employeeCode.Trim(),
                 DateOnly.FromDateTime(_workDate.Value), _statement.Trim(), null, null,
+                ReportedHours: _caseType == HRCaseType.Overtime ? _reportedHours : null,
+                ReportedStart: _caseType == HRCaseType.Attendance ? reportedStart : null,
+                ReportedEnd: _caseType == HRCaseType.Attendance ? reportedEnd : null,
+                ReportedLeaveDays: _caseType == HRCaseType.Leave ? _reportedLeaveDays : null,
+                ReportedLeaveType: _caseType == HRCaseType.Leave && !string.IsNullOrWhiteSpace(_reportedLeaveType) ? _reportedLeaveType.Trim() : null,
                 EvidenceDocumentId: _evidenceDocumentId);
             var response = await Http.PostAsync<HRReconciliationAnalysis>("api/ai/hr-cases/analyze", request);
             if (!response.IsSuccess || response.Data is null)
@@ -255,6 +286,11 @@
             }
             Snackbar.Add("Đã phân tích và chuyển hồ sơ vào hàng chờ HR.", Severity.Success);
             _statement = string.Empty;
+            _reportedHours = null;
+            _reportedLeaveDays = null;
+            _reportedLeaveType = string.Empty;
+            _reportedCheckIn = string.Empty;
+            _reportedCheckOut = string.Empty;
             _evidenceDocumentId = null;
             _evidenceFileName = null;
             _evidenceStatus = "NotUploaded";
@@ -309,6 +345,13 @@
         finally { _reviewing = false; }
     }
 
+    private static DateTimeOffset? ParseReportedTime(string? value, DateTime workDate)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return TimeOnly.TryParse(value.Trim(), System.Globalization.CultureInfo.InvariantCulture, out var time)
+            ? new DateTimeOffset(DateOnly.FromDateTime(workDate).ToDateTime(time), TimeSpan.FromHours(7))
+            : null;
+    }
     private static string BuildEvidencePreview(string? candidateJson)
     {
         if (string.IsNullOrWhiteSpace(candidateJson)) return string.Empty;
