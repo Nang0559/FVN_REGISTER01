@@ -35,7 +35,7 @@ public sealed class OTActualOnlyStateMachineTests
         string reason,
         bool isCancellation = true)
         => new(
-            "OT",
+            "Overtime",
             "OT_ACTUAL_ONLY",
             "E0001:2026-09-22",
             "E0001",

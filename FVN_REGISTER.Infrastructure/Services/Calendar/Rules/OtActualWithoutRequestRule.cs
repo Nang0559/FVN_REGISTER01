@@ -14,14 +14,14 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
             return Array.Empty<CalendarIssueDto>();
 
         if (context.Day.Registrations.Any(x =>
-                x.ModuleCode == "OT" && IsApproved(x.Status)))
+                x.ModuleCode == "Overtime" && IsApproved(x.Status)))
             return Array.Empty<CalendarIssueDto>();
 
         // Đã có đơn OT nhưng còn đang chờ duyệt: OT thực tế vẫn chưa được ghi nhận (giữ cảnh báo),
         // nhưng KHÔNG phải "chưa có đơn" và không mời đăng ký trùng.
         var pending = CalendarOtRegistrations.FindOpenRequest(context.Day);
 
-        var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "OT" && x.RequiresAction);
+        var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "Overtime" && x.RequiresAction);
         long? reconciliationId = long.TryParse(source?.SourceId, out var parsedReconciliationId)
             ? parsedReconciliationId
             : null;
@@ -75,7 +75,7 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
             new CalendarIssueDto
             {
                 Code = "OT_ACTUAL_WITHOUT_REQUEST",
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 Severity = (byte)(pending is null ? 3 : 2),
                 Marker = "?",
                 Title = pending is null

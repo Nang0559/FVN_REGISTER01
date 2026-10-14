@@ -15,7 +15,7 @@ public sealed class CalendarDayRuleTests
     {
         var calendarEvent = new WorkCalendarEventDto
         {
-            ModuleCode = "OT",
+            ModuleCode = "Overtime",
             Start = new DateTime(2026, 9, 22, 18, 0, 0),
             End = new DateTime(2026, 9, 22, 20, 0, 0)
         };
@@ -34,7 +34,7 @@ public sealed class CalendarDayRuleTests
     {
         var calendarEvent = new WorkCalendarEventDto
         {
-            ModuleCode = "OT",
+            ModuleCode = "Overtime",
             Start = new DateTime(2026, 9, 22, 22, 0, 0),
             End = new DateTime(2026, 9, 23, 0, 0, 0)
         };
@@ -100,7 +100,7 @@ public sealed class CalendarDayRuleTests
             {
                 new CalendarRegistrationDto
                 {
-                    ModuleCode = "OT",
+                    ModuleCode = "Overtime",
                     RequestId = 123,
                     Status = "Approved",
                     Title = "OT 18:00-20:00",
@@ -121,7 +121,7 @@ public sealed class CalendarDayRuleTests
 
         var issue = Assert.Single(issues);
         Assert.Equal("OT_NO_ACTUAL", issue.Code);
-        Assert.Equal("OT", issue.ModuleCode);
+        Assert.Equal("Overtime", issue.ModuleCode);
         Assert.Equal((byte)3, issue.Severity);
         Assert.Contains(issue.Actions, x => x.Code == "OPEN_HR_FEEDBACK");
         Assert.Contains(issue.Actions, x => x.Code == "CANCEL_OT" && x.RequestId == 123);
@@ -138,7 +138,7 @@ public sealed class CalendarDayRuleTests
             {
                 new CalendarRegistrationDto
                 {
-                    ModuleCode = "OT",
+                    ModuleCode = "Overtime",
                     RequestId = 123,
                     Status = "Pending",
                     Start = new DateTime(2026, 9, 22, 18, 0, 0),
@@ -172,7 +172,7 @@ public sealed class CalendarDayRuleTests
             {
                 new CalendarRegistrationDto
                 {
-                    ModuleCode = "OT",
+                    ModuleCode = "Overtime",
                     RequestId = 55,
                     Status = "Pending"
                 }
@@ -300,7 +300,7 @@ public sealed class CalendarDayRuleTests
         {
             new CalendarRegistrationDto
             {
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 RequestId = 55,
                 Status = status,
                 DetailRoute = detailRoute

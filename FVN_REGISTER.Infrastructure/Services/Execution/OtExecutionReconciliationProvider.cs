@@ -14,12 +14,12 @@ public sealed class OtExecutionReconciliationProvider : ExecutionReconciliationM
         ILogger<OtExecutionReconciliationProvider> logger)
         : base(db, service, logger) { }
 
-    public string ModuleCode => "OT";
+    public string ModuleCode => "Overtime";
 
     public async Task ReconcileAsync(DateOnly from, DateOnly to, byte reconciliationMode, CancellationToken ct)
     {
         var unresolved = reconciliationMode == 2
-            ? await GetUnresolvedSourceIdsAsync("OT", ct)
+            ? await GetUnresolvedSourceIdsAsync("Overtime", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var rows = await _db.OvertimeEmployees.AsNoTracking()
@@ -54,7 +54,7 @@ public sealed class OtExecutionReconciliationProvider : ExecutionReconciliationM
                     var cancelledEmployeeId = await ResolveEmployeeIdAsync(_db, row.EmployeeCode, ct);
                     var existing = await _db.ExecutionReconciliations.AsNoTracking()
                         .AnyAsync(x => x.IsActive != false
-                            && x.ModuleCode == "OT"
+                            && x.ModuleCode == "Overtime"
                             && x.SourceType == "OT_EMPLOYEE"
                             && x.SourceId == $"{row.OTCode}:{row.EmployeeCode}"
                             && x.EmployeeId == cancelledEmployeeId
@@ -76,7 +76,7 @@ public sealed class OtExecutionReconciliationProvider : ExecutionReconciliationM
                 await _service.UpsertAsync(
                     row.EmployeeCode,
                     new ExecutionReconciliationUpsertRequest(
-                        "OT",
+                        "Overtime",
                         "OT_EMPLOYEE",
                         $"{row.OTCode}:{row.EmployeeCode}",
                         row.EmployeeCode,

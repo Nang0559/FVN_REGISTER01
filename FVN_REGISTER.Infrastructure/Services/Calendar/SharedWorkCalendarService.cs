@@ -206,7 +206,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 : Array.Empty<CalendarItemDto>();
 
             var registrations = workCalendar.Events
-                .Where(x => x.ModuleCode is "LEAVE" or "OT" or "TRIP"
+                .Where(x => x.ModuleCode is "LEAVE" or "Overtime" or "TRIP"
                     && CalendarEventDateMatcher.CoversDate(x, baseDay.Date))
                 .Where(x => allowedModules is null || allowedModules.Contains(x.ModuleCode))
                 .OrderBy(x => x.ModuleCode)
@@ -301,7 +301,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 CanRegisterLeave = baseDay.CanRegisterLeave
                     && !registrations.Any(x => x.ModuleCode == "LEAVE"),
                 CanRegisterOT = baseDay.CanRegisterOT
-                    && !registrations.Any(x => x.ModuleCode == "OT"),
+                    && !registrations.Any(x => x.ModuleCode == "Overtime"),
                 CanRegisterTrip = baseDay.CanRegisterTrip
                     && !registrations.Any(x => x.ModuleCode == "TRIP"),
                 AvailabilityNote = baseDay.AvailabilityNote
@@ -543,12 +543,12 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             };
         }
 
-        if (day.CanRegisterOT && IsAllowed("OT", allowedModules))
+        if (day.CanRegisterOT && IsAllowed("Overtime", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
                 WorkDate = day.Date,
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 Title = "Đăng ký OT",
                 Route = $"/ot/create?date={day.Date:yyyy-MM-dd}",
                 IsEnabled = true

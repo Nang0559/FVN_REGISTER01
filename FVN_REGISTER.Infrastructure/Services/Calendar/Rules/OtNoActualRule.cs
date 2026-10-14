@@ -14,18 +14,18 @@ public sealed class OtNoActualRule : ICalendarDayRule
             return Array.Empty<CalendarIssueDto>();
 
         var ot = context.Day.Registrations.FirstOrDefault(x =>
-            x.ModuleCode == "OT" && IsApproved(x.Status));
+            x.ModuleCode == "Overtime" && IsApproved(x.Status));
         if (ot is null)
             return Array.Empty<CalendarIssueDto>();
 
-        var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "OT" && (x.RequiresAction || x.DetailRoute != null));
+        var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "Overtime" && (x.RequiresAction || x.DetailRoute != null));
 
         return new[]
         {
             new CalendarIssueDto
             {
                 Code = "OT_NO_ACTUAL",
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 Severity = 3,
                 Marker = "?",
                 Title = "OT chưa có giờ thực tế",

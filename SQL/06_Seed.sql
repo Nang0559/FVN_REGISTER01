@@ -482,11 +482,11 @@ SELECT 1,0,v.Module,v.Code,v.Name,v.Json,NULL
 FROM (VALUES
 (N'Leave',N'LEAVE_WORKDAY',N'Leave working-day rule',N'{"excludeSunday":true}'),
 (N'Leave',N'LEAVE_HALF_DAY',N'Leave half-day rule',N'{"morning":0.5,"afternoon":0.5}'),
-(N'OT',N'OT_DAILY_LIMIT',N'Daily OT limit',N'{"hours":4}'),
+(N'Overtime',N'OT_DAILY_LIMIT',N'Daily OT limit',N'{"hours":4}'),
 (N'Trip',N'TRIP_APPROVAL',N'Trip approval',N'{"levels":3}'),
 (N'Equipment',N'EQUIPMENT_APPROVAL',N'Equipment approval',N'{"levels":2}')
 ) AS v(Module,Code,Name,Json)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03BusinessRules b WHERE b.Module=v.Module AND b.Code=v.Code);
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03BusinessRules b WHERE b.Code=v.Code AND (b.Module=v.Module OR (v.Module=N'Overtime' AND b.Module=N'OT')));
 
 INSERT dbo.F03EscalationRules(IsActive,CreatedBy,RequestModule,Level,DeptCode,WarningHours,EscalateHours,DeadlineHour)
 SELECT 1,0,v.Module,v.Level,v.Dept,v.Warning,v.Escalate,48

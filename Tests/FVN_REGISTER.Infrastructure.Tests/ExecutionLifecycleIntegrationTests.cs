@@ -37,7 +37,7 @@ public sealed class ExecutionLifecycleIntegrationTests
         var dueAt = DateTime.Now.AddHours(48);
 
         var draft = new ActionItemDraft(
-            "OT",
+            "Overtime",
             sourceId,
             employee!.Id,
             employee.Id,
@@ -101,7 +101,7 @@ public sealed class ExecutionLifecycleIntegrationTests
         var writer = new ActionItemWriter(db);
 
         ActionItemDraft Draft(string participant) => new(
-            "OT",
+            "Overtime",
             sourceId,
             employee!.Id,
             employee.Id,

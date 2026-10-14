@@ -2,11 +2,11 @@
 ===============================================================================
 FVN_REGISTER - REQUEST MODULE CANONICALIZATION
 ===============================================================================
-Canonical RequestModule persistence codes are:
-  LEAVE, OT, TRIP, EQUIPMENT, ATTENDANCE, PAYROLL, ACCESSCHANGE, ENDPOINT
+Canonical RequestModule persistence values are the enum names:
+  Leave, Overtime, Trip, Equipment, Attendance, Payroll, AccessChange, Endpoint
 
-Older databases may contain enum/display names such as 'Overtime'. Normalize
-those values once so the database and EF converter use the same canonical code.
+Older databases may contain short codes such as 'OT' / 'LEAVE'. Normalize
+those values once so the database and EF converter use the same value.
 ===============================================================================
 */
 SET NOCOUNT ON;
@@ -16,18 +16,18 @@ IF OBJECT_ID(N'dbo.F03Approvers', N'U') IS NOT NULL
 BEGIN
     UPDATE dbo.F03Approvers
     SET RequestType = CASE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(50), RequestType))))
-        WHEN N'LEAVE' THEN N'LEAVE'
-        WHEN N'LEAVE_REQUEST' THEN N'LEAVE'
-        WHEN N'OT' THEN N'OT'
-        WHEN N'OVERTIME' THEN N'OT'
-        WHEN N'TRIP' THEN N'TRIP'
-        WHEN N'TRIP_REQUEST' THEN N'TRIP'
-        WHEN N'EQUIPMENT' THEN N'EQUIPMENT'
-        WHEN N'ATTENDANCE' THEN N'ATTENDANCE'
-        WHEN N'PAYROLL' THEN N'PAYROLL'
-        WHEN N'ACCESSCHANGE' THEN N'ACCESSCHANGE'
-        WHEN N'ACCESS_CHANGE' THEN N'ACCESSCHANGE'
-        WHEN N'ENDPOINT' THEN N'ENDPOINT'
+        WHEN N'LEAVE' THEN N'Leave'
+        WHEN N'LEAVE_REQUEST' THEN N'Leave'
+        WHEN N'OT' THEN N'Overtime'
+        WHEN N'OVERTIME' THEN N'Overtime'
+        WHEN N'TRIP' THEN N'Trip'
+        WHEN N'TRIP_REQUEST' THEN N'Trip'
+        WHEN N'EQUIPMENT' THEN N'Equipment'
+        WHEN N'ATTENDANCE' THEN N'Attendance'
+        WHEN N'PAYROLL' THEN N'Payroll'
+        WHEN N'ACCESSCHANGE' THEN N'AccessChange'
+        WHEN N'ACCESS_CHANGE' THEN N'AccessChange'
+        WHEN N'ENDPOINT' THEN N'Endpoint'
         ELSE RequestType
     END
     WHERE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(50), RequestType)))) IN
@@ -43,18 +43,18 @@ IF OBJECT_ID(N'dbo.F03ApprovalPolicies', N'U') IS NOT NULL
 BEGIN
     UPDATE dbo.F03ApprovalPolicies
     SET RequestType = CASE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(50), RequestType))))
-        WHEN N'LEAVE' THEN N'LEAVE'
-        WHEN N'LEAVE_REQUEST' THEN N'LEAVE'
-        WHEN N'OT' THEN N'OT'
-        WHEN N'OVERTIME' THEN N'OT'
-        WHEN N'TRIP' THEN N'TRIP'
-        WHEN N'TRIP_REQUEST' THEN N'TRIP'
-        WHEN N'EQUIPMENT' THEN N'EQUIPMENT'
-        WHEN N'ATTENDANCE' THEN N'ATTENDANCE'
-        WHEN N'PAYROLL' THEN N'PAYROLL'
-        WHEN N'ACCESSCHANGE' THEN N'ACCESSCHANGE'
-        WHEN N'ACCESS_CHANGE' THEN N'ACCESSCHANGE'
-        WHEN N'ENDPOINT' THEN N'ENDPOINT'
+        WHEN N'LEAVE' THEN N'Leave'
+        WHEN N'LEAVE_REQUEST' THEN N'Leave'
+        WHEN N'OT' THEN N'Overtime'
+        WHEN N'OVERTIME' THEN N'Overtime'
+        WHEN N'TRIP' THEN N'Trip'
+        WHEN N'TRIP_REQUEST' THEN N'Trip'
+        WHEN N'EQUIPMENT' THEN N'Equipment'
+        WHEN N'ATTENDANCE' THEN N'Attendance'
+        WHEN N'PAYROLL' THEN N'Payroll'
+        WHEN N'ACCESSCHANGE' THEN N'AccessChange'
+        WHEN N'ACCESS_CHANGE' THEN N'AccessChange'
+        WHEN N'ENDPOINT' THEN N'Endpoint'
         ELSE RequestType
     END
     WHERE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(50), RequestType)))) IN
@@ -75,7 +75,7 @@ BEGIN
         SELECT 1
         FROM dbo.F03Approvers
         WHERE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(50), RequestType)))) NOT IN
-              (N'LEAVE', N'OT', N'TRIP', N'EQUIPMENT', N'ATTENDANCE', N'PAYROLL', N'ACCESSCHANGE', N'ENDPOINT')
+              (N'LEAVE', N'OVERTIME', N'TRIP', N'EQUIPMENT', N'ATTENDANCE', N'PAYROLL', N'ACCESSCHANGE', N'ENDPOINT')
     )
         THROW 57001, N'F03Approvers contains an unsupported RequestType value.', 1;
 END;
@@ -88,7 +88,7 @@ BEGIN
         SELECT 1
         FROM dbo.F03ApprovalPolicies
         WHERE UPPER(LTRIM(RTRIM(CONVERT(nvarchar(50), RequestType)))) NOT IN
-              (N'LEAVE', N'OT', N'TRIP', N'EQUIPMENT', N'ATTENDANCE', N'PAYROLL', N'ACCESSCHANGE', N'ENDPOINT')
+              (N'LEAVE', N'OVERTIME', N'TRIP', N'EQUIPMENT', N'ATTENDANCE', N'PAYROLL', N'ACCESSCHANGE', N'ENDPOINT')
     )
         THROW 57002, N'F03ApprovalPolicies contains an unsupported RequestType value.', 1;
 END;

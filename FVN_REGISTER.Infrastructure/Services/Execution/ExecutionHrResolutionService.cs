@@ -1252,7 +1252,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         var module = reconciliation.ModuleCode.ToUpperInvariant() switch
         {
-            "OT" => RequestModule.Overtime,
+            "OVERTIME" or "OT" => RequestModule.Overtime,
             "LEAVE" => RequestModule.Leave,
             "TRIP" => RequestModule.Trip,
             "EQUIPMENT" => RequestModule.Equipment,

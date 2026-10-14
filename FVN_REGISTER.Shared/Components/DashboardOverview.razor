@@ -75,7 +75,7 @@ else
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("OT"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
+                    <MudPaper Elevation="0" Class="pa-3" @onclick='@(() => OpenDepartmentDetail("Overtime"))' Style="cursor:pointer;height:100%;min-height:126px;border-radius:12px;background:var(--mud-palette-background-grey)">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("dashboard.todayOT")</MudText>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
                             <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Size="Size.Large" Style="color:#7b1fa2" />
@@ -439,7 +439,7 @@ else
         "Attendance" => Language.T("dashboard.attendanceRate"),
         "Leave" => Language.T("dashboard.todayLeave"),
         "Trip" => Language.T("dashboard.todayTrip"),
-        "OT" => Language.T("dashboard.todayOT"),
+        "Overtime" => Language.T("dashboard.todayOT"),
         _ => Language.T("dashboard.departmentOverview")
     };
 

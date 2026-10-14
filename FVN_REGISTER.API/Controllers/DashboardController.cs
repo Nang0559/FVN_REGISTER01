@@ -201,14 +201,14 @@ namespace FVN_REGISTER.API.Controllers
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
 
             var normalizedKind = (kind ?? string.Empty).Trim().ToUpperInvariant();
-            if (normalizedKind is not ("ATTENDANCE" or "LEAVE" or "TRIP" or "OT"))
+            if (normalizedKind is not ("ATTENDANCE" or "LEAVE" or "TRIP" or "OVERTIME"))
                 return BadRequest(ApiResponse<object>.Fail("Loại thống kê không hợp lệ."));
 
             var canView = normalizedKind switch
             {
                 "LEAVE" => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.LeaveApprove, ct),
                 "TRIP" => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.TripApprove, ct),
-                "OT" => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.OTApprove, ct),
+                "OVERTIME" => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.OTApprove, ct),
                 _ => await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.DashboardView, ct)
                     || await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.LeaveApprove, ct)
                     || await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.OTApprove, ct)
@@ -224,7 +224,7 @@ namespace FVN_REGISTER.API.Controllers
             {
                 "LEAVE" => RequestModule.Leave,
                 "TRIP" => RequestModule.Trip,
-                "OT" => RequestModule.Overtime,
+                "OVERTIME" => RequestModule.Overtime,
                 _ => RequestModule.Leave
             };
             var allowedDepartments = await _db.ApprovalPolicies.AsNoTracking()
@@ -287,7 +287,7 @@ namespace FVN_REGISTER.API.Controllers
                     Status = ApprovalStatus.Approved.ToString(), StartTime = x.StartTime, EndTime = x.EndTime
                 }));
             }
-            else if (normalizedKind == "OT")
+            else if (normalizedKind == "OVERTIME")
             {
                 var rows = await (
                     from r in _db.OvertimeRequests.AsNoTracking()

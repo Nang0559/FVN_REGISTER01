@@ -10,7 +10,7 @@ internal static class CalendarOtRegistrations
 {
     public static CalendarRegistrationDto? FindOpenRequest(CalendarDayDto day) =>
         day.Registrations.FirstOrDefault(x =>
-            string.Equals(x.ModuleCode, "OT", StringComparison.OrdinalIgnoreCase)
+            string.Equals(x.ModuleCode, "Overtime", StringComparison.OrdinalIgnoreCase)
             && !IsClosed(x.Status)
             && !IsClosed(x.ApprovalStatus));
 
