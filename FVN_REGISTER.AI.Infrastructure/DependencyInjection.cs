@@ -17,6 +17,7 @@ public static class DependencyInjection
  public static IServiceCollection AddFvnAiInfrastructure(this IServiceCollection services,IConfiguration configuration)
  {
   services.Configure<AIPlatformOptions>(configuration.GetSection(AIPlatformOptions.SectionName));
+  services.Configure<MalwareScannerOptions>(configuration.GetSection(MalwareScannerOptions.SectionName));
   var options=configuration.GetSection(AIPlatformOptions.SectionName).Get<AIPlatformOptions>()??new AIPlatformOptions();
   var connection=configuration.GetConnectionString(options.ConnectionStringName);
   if(!string.IsNullOrWhiteSpace(connection)) services.AddDbContext<AiPlatformDbContext>(db=>db.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(3)));
@@ -24,7 +25,13 @@ public static class DependencyInjection
   services.AddSingleton<IOriginalDocumentStore,FileSystemOriginalDocumentStore>();
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
   services.AddSingleton<IDocumentTextExtractor,LocalDocumentTextExtractor>();
-  services.TryAddSingleton<IMalwareScanner,UnconfiguredMalwareScanner>();
+  services.TryAddSingleton<IMalwareScanner>(sp =>
+  {
+   var scannerOptions=sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<MalwareScannerOptions>>().Value;
+   return scannerOptions.Provider.Equals("ClamAV",StringComparison.OrdinalIgnoreCase)
+    ? new ClamDMalwareScanner(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<MalwareScannerOptions>>())
+    : new UnconfiguredMalwareScanner();
+  });
   services.AddScoped<IDocumentIngestionService,DocumentIngestionService>();
   services.AddScoped<IDocumentReviewService,DocumentReviewService>();
   services.AddScoped<IDocumentExtractionQueryService,DocumentExtractionQueryService>();
