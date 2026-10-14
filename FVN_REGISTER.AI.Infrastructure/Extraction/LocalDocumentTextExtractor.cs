@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
 using FVN_REGISTER.AI.Application.Abstractions;
+using UglyToad.PdfPig;
 
 namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 
@@ -29,9 +30,33 @@ public sealed class LocalDocumentTextExtractor : IDocumentTextExtractor
             if (mediaType.Equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", StringComparison.OrdinalIgnoreCase))
                 return ExtractXlsx(content);
 
-            throw new NotSupportedException($"No local text extractor is configured for media type '{mediaType}'. Configure an approved PDF/OCR provider.");
+            if (mediaType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                return ExtractPdf(content);
+
+            throw new NotSupportedException($"No local text extractor is configured for media type '{mediaType}'.");
         }
         finally { content.Position = start; }
+    }
+
+    private static string ExtractPdf(Stream content)
+    {
+        using var document = PdfDocument.Open(content);
+        if (document.NumberOfPages > 500)
+            throw new InvalidDataException("PDF exceeds the 500-page extraction limit.");
+
+        var output = new StringBuilder();
+        foreach (var page in document.GetPages())
+        {
+            output.AppendLine($"[PAGE {page.Number}]");
+            output.AppendLine(page.Text);
+            if (output.Length > 2_000_000)
+                throw new InvalidDataException("PDF extracted text exceeds the 2 MB limit.");
+        }
+
+        var text = output.ToString();
+        if (string.IsNullOrWhiteSpace(text))
+            throw new NotSupportedException("PDF has no embedded text. Scanned/image-only PDF requires the approved OCR service.");
+        return text;
     }
 
     private static string ExtractXlsx(Stream content)
