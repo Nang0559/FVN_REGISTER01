@@ -23,6 +23,7 @@ public static class DependencyInjection
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
   services.AddScoped<IDocumentIngestionService,DocumentIngestionService>();
   services.AddScoped<IDocumentReviewService,DocumentReviewService>();
+  services.AddScoped<IFeedbackService,FeedbackService>();
   services.AddScoped<IIngestionQueue,SqlIngestionQueue>();
   return services;
  }
