@@ -71,6 +71,8 @@ public interface IHRReconciliationService
 {
     Task<HRReconciliationAnalysis> AnalyzeAsync(string tenantCode, string actorId,
         HRCaseAnalysisRequest request, CancellationToken cancellationToken = default);
+    Task<HRReconciliationAnalysis> AnalyzeWithAuthorizedFactsAsync(string tenantCode, string actorId,
+        AuthorizedHRCaseAnalysisRequest request, CancellationToken cancellationToken = default);
 }
 
 public sealed record HRCaseReviewRequest(string Decision, string? FinalReply, string? Comment);
@@ -99,3 +101,6 @@ public interface IHRCaseQueryService
     Task<HRCaseInboxItem?> GetAsync(string tenantCode, string actorId, Guid caseId,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>Facts supplied by the authenticated FVN_REGISTER gateway after its own permission and scope checks.</summary>
+public sealed record AuthorizedHRCaseAnalysisRequest(HRCaseAnalysisRequest Request, OfficialHRFacts Facts);
