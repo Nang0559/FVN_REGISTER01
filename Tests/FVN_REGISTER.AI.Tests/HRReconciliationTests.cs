@@ -43,6 +43,40 @@ public sealed class HRReconciliationTests
                 "Check my OT", null, null)));
     }
 
+
+    [Fact]
+    public async Task AnalyzeAsync_UsesTenantAndUploaderScopedExtractionCandidate()
+    {
+        var facts = new OfficialHRFacts("E0001", new DateOnly(2026, 10, 1), "Approved",
+            null, null, 2m, null, null, 1.5m, 1.5m, "HC", false,
+            null, null, "FVN_REGISTER", "OT-REQ-001", DateTimeOffset.UtcNow);
+        await using var db = CreateDb();
+        var documentId = Guid.NewGuid();
+        db.Documents.Add(new AiDocumentRecord
+        {
+            Id = documentId, TenantCode = "FCCVN", UploadedBy = "employee-1",
+            FileName = "ot-proof.txt", Extension = ".txt", MediaType = "text/plain",
+            Sha256 = new string('a', 64), StorageKey = "tenant/doc.txt", Status = "AwaitingHumanReview"
+        });
+        db.Extractions.Add(new AiExtractionRecord
+        {
+            Id = Guid.NewGuid(), DocumentId = documentId, TenantCode = "FCCVN",
+            DocumentType = "HR.OvertimeEvidence", ClassificationConfidence = 0.8m,
+            CandidateJson = """{"extractedFields":{"hourCandidates":["2"]}}""",
+            ParserVersion = "test-v1", CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db);
+
+        var result = await service.AnalyzeAsync("FCCVN", "employee-1",
+            new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
+                "Tôi phản hồi số giờ OT.", null, null, EvidenceDocumentId: documentId));
+
+        Assert.Contains(result.EvidenceReferences, x => x == $"ai-document:{documentId}");
+        Assert.Contains(result.Comparisons, x => x.RuleCode == "OT-ACTUAL-001" &&
+            x.Outcome == HRComparisonOutcome.Discrepancy);
+    }
+
     private static AiPlatformDbContext CreateDb()
         => new(new DbContextOptionsBuilder<AiPlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
