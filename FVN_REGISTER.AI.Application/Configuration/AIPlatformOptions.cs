@@ -13,5 +13,6 @@ public sealed class AIPlatformOptions
  public string StorageRoot {get;set;}="App_Data/FvnAi";
  public string ConnectionStringName {get;set;}="FvnAi";
  public string? ApiKey {get;set;}
+ public string? ContextSigningKey {get;set;}
  public int QueuePollSeconds {get;set;}=15;
 }
