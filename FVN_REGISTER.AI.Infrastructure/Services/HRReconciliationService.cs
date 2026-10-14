@@ -34,10 +34,26 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             request.EmployeeCode, request.WorkDate, cancellationToken);
         if (facts is null)
             throw new KeyNotFoundException("No authorized official HR facts were found for this employee and date.");
+        return await AnalyzeWithFactsCoreAsync(tenantCode, actorId, request, facts, cancellationToken);
+    }
+
+    public async Task<HRReconciliationAnalysis> AnalyzeWithAuthorizedFactsAsync(string tenantCode, string actorId,
+        AuthorizedHRCaseAnalysisRequest authorized, CancellationToken cancellationToken = default)
+    {
+        tenantCode = Required(tenantCode, 64, nameof(tenantCode));
+        actorId = Required(actorId, 128, nameof(actorId));
+        ArgumentNullException.ThrowIfNull(authorized);
+        ArgumentNullException.ThrowIfNull(authorized.Request);
+        ArgumentNullException.ThrowIfNull(authorized.Facts);
+        return await AnalyzeWithFactsCoreAsync(tenantCode, actorId, authorized.Request, authorized.Facts, cancellationToken);
+    }
+
+    private async Task<HRReconciliationAnalysis> AnalyzeWithFactsCoreAsync(string tenantCode, string actorId,
+        HRCaseAnalysisRequest request, OfficialHRFacts facts, CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(facts.EmployeeCode) || string.IsNullOrWhiteSpace(facts.SourceSystem) ||
             string.IsNullOrWhiteSpace(facts.SourceRecordReference))
             throw new InvalidOperationException("Official HR facts provider returned incomplete provenance.");
-
         if (facts.WorkDate != request.WorkDate)
             throw new InvalidOperationException("Official facts provider returned a different work date.");
         if (!string.IsNullOrWhiteSpace(request.EmployeeCode) &&
