@@ -1,131 +1,164 @@
-# FVN_REGISTER AI Platform — Phase 1 to 5 delivery status
+# FVN_REGISTER AI Platform — trạng thái triển khai
 
-Branch: `feature/ai-manufacturing-data-platform`  
+Branch: feature/ai-manufacturing-data-platform  
 Runtime target: .NET 9 / SQL Server  
-Status is conservative: contracts and schemas are not marked as running capabilities until their provider and end-to-end path are verified.
+Quy ước: phân biệt rõ mã nguồn đã bổ sung với tích hợp cần cấu hình và kiểm thử trên môi trường FCC.
+
+## Tóm tắt trạng thái
+
+| Năng lực | Mã nguồn | Cần cấu hình / xác minh |
+|---|---|---|
+| Upload, lưu file, SHA-256, queue | Đã có | SQL, storage, antivirus |
+| TXT/CSV/XLSX/PDF text extraction | Đã có | Kiểm thử file thực tế; OCR scanned PDF chưa có |
+| Ollama chat provider | Đã có | Ollama endpoint/model, prompt evaluation |
+| Extraction candidate/review/feedback | API và persistence đã có | HR review UI cho extraction độc lập |
+| HR Case Assistant OT/attendance/leave | Gateway, facts mapping, case persistence và UI đã có | RBAC mapping, SQL integration, end-to-end build/test |
+| HR Policy RAG | Thiết kế | Publication, chunking, embedding, retrieval, citations, chat UI |
+| HR reporting chatbot | Thiết kế | Intent mapping, report UI |
 
 ## Phase 1 — Ingestion foundation
 
-Implemented in branch:
-- Dedicated AI projects and provider-neutral ports.
-- PDF/XLSX/CSV/TXT upload allowlist and basic signature/content validation.
-- Original file storage adapter, SHA-256 and tenant-scoped duplicate detection.
-- SQL document/job metadata and upload/status endpoints.
-- API key plus signed tenant/actor HMAC context, timestamp tolerance and in-process nonce replay rejection.
-- SQL queue claim, lease recovery, complete/fail procedures with retry and dead-letter states.
-- Worker claims jobs, runs the document pipeline with bounded concurrency and records completion/failure.
-- ClamAV `clamd INSTREAM` adapter; scanner remains fail-closed and returns Unknown when unconfigured/unavailable.
+Đã có:
+- Các project AI riêng và provider-neutral ports.
+- Allowlist PDF/XLSX/CSV/TXT, validation chữ ký file và giới hạn dung lượng.
+- Private original-document store, SHA-256, duplicate detection theo tenant.
+- SQL metadata và reliable ingestion queue.
+- Claim, retry, dead-letter, expired lease recovery, lease owner fencing.
+- Worker xử lý song song có bounded concurrency; lease được gia hạn trong lúc xử lý job dài.
+- ClamAV clamd INSTREAM adapter. Verdict không rõ hoặc scanner chưa cấu hình luôn fail-closed.
+- API key, HMAC signed tenant/actor, timestamp tolerance và nonce replay protection trong tiến trình.
 
-Still required before production:
-- Configure and deploy ClamAV; configure identical scanner settings in Worker and API.
-- Lease renewal/heartbeat for long-running OCR/LLM tasks (current worker lease is finite).
-- Shared nonce cache for multiple API replicas.
-- Shared production object storage accessible to API and Worker; encryption, retention, backup/restore and audit.
-- FVN_REGISTER backend signing implementation and secret rotation.
-- SQL/API integration, concurrency and failure-recovery tests.
-- Verify Worker/API connection strings, storage root and migration deployment.
+Cần cấu hình trước production:
+- ClamAV daemon và scanner config giống nhau ở AI API/Worker.
+- Shared nonce store nếu chạy nhiều AI API replicas.
+- Shared durable storage nếu API/Worker chạy nhiều máy; encryption, ACL, backup/restore, retention.
+- Secret rotation, TLS, firewall và network isolation.
+- SQL/API integration, concurrency, lease recovery và failure-injection tests.
 
 ## Phase 2 — Document understanding
 
-Implemented:
-- Local deterministic extraction for UTF-8 TXT/CSV and basic XLSX OpenXML cell content.
-- Provider-neutral text extraction/classification/structured extraction ports.
-- Persistence schema for extraction candidates and validation issues.
-- Candidate data remains separate from official FVN_REGISTER business records.
+Đã có:
+- UTF-8 TXT/CSV và basic XLSX OpenXML extraction.
+- PDF text-layer extraction bằng PdfPig; page marker được giữ trong evidence rows.
+- Deterministic candidate extraction: employee code, date/time/hour/day, leave type candidate.
+- Page/line evidence candidate được lưu trong extraction JSON.
+- Ollama chat model provider có cấu hình qua AIPlatform Endpoint/Model; chỉ đăng ký khi DefaultProvider=Ollama.
+- Nếu Ollama lỗi hoặc chưa cấu hình, HR reply drafting dùng safe deterministic fallback.
 
-Still required:
-- PDF text extraction and scanned PDF/image OCR (Tesseract + PDF rasterizer).
-- Wire Ollama provider into a versioned structured extraction pipeline; provider adapter alone is not an end-to-end AI extraction feature.
-- Schema registry, table/layout-aware parsing and validation rules.
-- Page/region/row-level provenance, confidence calibration and golden-set evaluation.
-- Vietnamese/Japanese document evaluation corpus.
+Còn thiếu:
+- OCR scanned/image-only PDF, PDF rasterizer và Tesseract.
+- DOC/DOCX, bảng/layout-aware extraction nâng cao.
+- Structured LLM extraction có schema validation và confidence calibration.
+- Golden corpus tiếng Việt/Nhật và evaluation pipeline.
 
-## Phase 3 — Human review
+## Phase 3 — Human review và HR Case Assistant
 
-Implemented:
-- Tenant-scoped extraction query endpoint.
-- Review persistence with original payload snapshot, optional corrected JSON, reviewer, decision and timestamp.
-- Corrected JSON becomes latest candidate while original is retained in review audit.
-- Document status update in AI database only.
-- Feedback endpoint records reviewer feedback.
+Đã có:
+- Tenant/uploader-scoped document status và extraction lookup.
+- Extraction review/feedback persistence.
+- FVN API gateway AIHRCaseController dùng JWT, IAuthorizationService và employee managed scope.
+- Facts lấy qua IReportDispatcher; AI không đọc FVN business DbContext và không ghi dữ liệu nghiệp vụ.
+- OT facts: OTDetail, OTSummaryByEmployee, AttendanceDetail. Report OT bổ sung ActualRecordCount để phân biệt actual chưa có với actual bằng 0.
+- Attendance facts: check-in/out, shift, total hours, OT hours, holiday từ AttendanceDetail.
+- Leave facts: StartDate/EndDate/TotalDay/LeaveTypeCode/RequestStatus từ LeaveDetail.
+- Missing report rows được biểu diễn thành evidence gap, không bị hiểu nhầm là lỗi server hoặc số 0.
+- HRReconciliationService so sánh OT/attendance/leave và evidence identity/date.
+- Evidence ownership, malware scan state và extraction readiness được kiểm tra trước phân tích.
+- HR case lưu facts provenance, comparison JSON, evidence candidate JSON và suggested reply.
+- HR Case inbox/detail/review API, FVN API lọc theo function permission và employee managed scope.
+- Review decision lưu cả snapshot hiện tại và bảng audit; rowversion chống hai người duyệt cùng lúc.
+- Blazor workspace tại /ai/hr-assistant: tạo case, upload/kiểm tra evidence, xem queue, evidence page/line, comparisons, sửa reply và approve/edit/reject.
+- Ollama được dùng để soạn reply, không được quyền thay đổi comparison outcome hoặc dữ liệu nghiệp vụ.
 
-Still required:
-- Blazor review UI showing original evidence beside candidate fields and source locations.
-- Fine-grained review permission integration through trusted FVN_REGISTER backend.
-- Validation-rule authoring, master-data validation and approved business command workflow.
-- FVN_REGISTER endpoint that re-authorizes and validates any approved command before writing.
-- Integration tests for review idempotency, correction audit and tenant isolation.
+Cần cấu hình/xác minh:
+- AI API TrustFvnRegisterGatewayForHRReview chỉ bật khi AI API nằm sau private gateway/firewall và secrets chỉ được giữ ở backend.
+- Xác nhận các function code OTView, AttendanceView, LeaveView, OTReconcile, AttendanceFeedback, LeaveApprove với ma trận RBAC FCC hiện hành.
+- Xác nhận report field names/semantics trên database thật; đặc biệt LeaveTypeCode và leave TotalDay.
+- Chạy SQL migrations và test thực tế với FVN_AI + FVN_REGISTER.
+- OCR, download original evidence preview và gửi final reply cho nhân viên chưa triển khai.
 
-## Phase 4 — Knowledge and RAG
+Chi tiết: [AI_HR_CASE_ASSISTANT_IMPLEMENTATION.md](AI_HR_CASE_ASSISTANT_IMPLEMENTATION.md).
 
-Implemented:
-- SQL schema for knowledge chunks, source document/review linkage, tenant/access-scope metadata and embedding metadata.
-- Provider-neutral embedding and vector-store ports.
+## Phase 4 — HR Policy Knowledge / RAG
 
-Design completed; implementation still required:
-- HR policy metadata, version/effective-date and publication workflow.
-- HR policy upload/verification/approval UI; upload must not imply publication.
-- Clause-aware chunk creation only from approved/effective policy revisions.
-- Embedding provider and Qdrant vector-store adapter.
-- Hybrid keyword/vector retrieval, reranking and ACL filtering before model context.
-- Policy Q&A API, citation validation, answer abstention and Blazor chat UI.
-- Retrieval/citation/ACL and Vietnamese/Japanese evaluation.
+Đã có:
+- Schema và provider-neutral ports cho knowledge chunks, metadata, embedding/vector store.
+- Thiết kế lifecycle policy, version/effective date, HR approval/publication, clause-level citations và ACL retrieval.
 
-## Phase 5 — Feedback and model governance
+Chưa triển khai:
+- HR policy admin UI và upload/verify/approve/publish.
+- Chunking từ policy versions đã publish.
+- Embedding provider, Qdrant adapter, hybrid retrieval và reranking.
+- ACL filtering trước khi đưa context vào model.
+- Policy Q&A API/UI, citation validator, abstention và evaluation.
 
-Implemented:
-- Tenant-scoped feedback capture with accept/reject/correct/answer-rating types.
-- Feedback data model and model deployment registry schema.
-- Feedback does not trigger automatic training.
+Không được dùng HR case evidence cá nhân làm kho quy định chung. HR Case Assistant là luồng evidence/facts; Policy RAG là bounded context khác.
 
-Still required:
-- Feedback analytics and evaluation jobs/dashboard.
-- Model deployment management API/UI, staged rollout, rollback and drift/cost monitoring.
-- Golden-set regression pipeline and approved model release process.
-- Conversation/retrieval trace governance and retention configuration.
+Chi tiết: [AI_HR_POLICY_ASSISTANT.md](AI_HR_POLICY_ASSISTANT.md).
 
-## Applied HR use cases — design status
+## Phase 5 — Feedback và model governance
 
-### HR Policy Assistant
-Design: [AI_HR_POLICY_ASSISTANT.md](AI_HR_POLICY_ASSISTANT.md)
+Đã có:
+- Feedback capture accept/reject/correct/answer-rating.
+- Model deployment registry schema.
+- Feedback không kích hoạt automatic training.
 
-Purpose: employee asks “How do I register OT?” and receives a clear step-by-step answer from the current approved HR procedure, with policy code/version/effective date/article/page citations.
-
-Not yet implemented: policy administration, HR publication approval, clause-aware indexing, Qdrant retrieval, policy chat API/UI.
-
-### HR feedback and reconciliation
-Design: [AI_HR_RECONCILIATION_PILOT.md](AI_HR_RECONCILIATION_PILOT.md)
-
-Pilot: analyze OT/attendance/leave evidence against authorized FVN_REGISTER facts, show deterministic differences and prepare a suggested HR reply. Human HR review remains mandatory.
-
-Implemented baseline: typed HR case contracts, deterministic OT/attendance/leave comparison service, optional grounded LLM reply drafting with safe deterministic fallback, tenant/uploader-scoped extraction candidate lookup for a single unambiguous OT-hour value, signed-context API endpoint `POST /api/ai/v1/hr-cases/analyze`, safe unconfigured facts-provider default and unit tests for OT discrepancy / employee mismatch.
-
-Still required: trusted FVN_REGISTER authorized facts adapter, broader evidence-candidate-to-case field mapping (employee/date/time and row/page provenance), HR case list/detail UI and integration tests. Durable case/review/reply persistence and review API are now present, but HR review authorization deliberately denies all users until a trusted FVN_REGISTER authorization adapter is configured. The API deliberately returns 503 until the trusted facts adapter is configured.
-
-### HR reporting chatbot
-Design direction: natural-language intent/parameter extraction mapped to existing allowlisted report operations. It must not generate arbitrary SQL or bypass ReportController/IReportDispatcher authorization. Chat UI and report-query contract remain unimplemented.
+Chưa triển khai:
+- Feedback analytics/evaluation dashboard.
+- Model rollout/rollback, drift/cost monitoring.
+- Golden-set regression và model release approval.
+- Conversation/retrieval trace retention policy.
 
 ## SQL migration order
 
-Run on the dedicated FVN_AI database only, in this order:
+Chạy trên database FVN_AI riêng, theo đúng thứ tự:
 
-1. `SQL/AI/001_CreateAiIngestion.sql`
-2. `SQL/AI/002_ReliableIngestionQueue.sql`
-3. `SQL/AI/003_Review_Knowledge_Feedback.sql`
-4. `SQL/AI/004_HR_Reconciliation_Cases.sql`
+1. SQL/AI/001_CreateAiIngestion.sql
+2. SQL/AI/002_ReliableIngestionQueue.sql
+3. SQL/AI/003_Review_Knowledge_Feedback.sql
+4. SQL/AI/004_HR_Reconciliation_Cases.sql
+
+Migration 004 tạo AiHRCases, AiHRCaseReviews, EvidenceCandidateJson và RowVersion. Không chạy các migration AI trên database vận hành FVN_REGISTER.
+
+## Cấu hình quan trọng
+
+FVN API:
+- AIPlatform:BaseUrl
+- AIPlatform:ApiKey
+- AIPlatform:ContextSigningKey
+- AIPlatform:TenantCode
+
+AI API:
+- ConnectionStrings:FvnAi
+- AIPlatform:ApiKey
+- AIPlatform:ContextSigningKey
+- AIPlatform:TrustFvnRegisterGatewayForHRReview
+- AIPlatform:DefaultProvider=Ollama, Endpoint và Model nếu dùng Ollama
+- AIPlatform:MalwareScanner:Provider=ClamAV, Host, Port
+
+Không commit secrets. Dùng environment variables, User Secrets hoặc secret manager.
 
 ## Validation
 
-A GitHub Actions workflow exists to restore/build the solution and run AI tests on Windows with .NET 9. AI projects were explicitly enabled for solution builds. A successful workflow result and a local build/test have not yet been confirmed. Do not treat this branch as production-ready until the workflow passes and integration/security gates are closed.
+GitHub Actions workflow .github/workflows/ai-platform-validation.yml được cấu hình restore/build solution và chạy AI tests trên Windows/.NET 9. Tại thời điểm cập nhật tài liệu, chưa có kết quả build/test thành công được xác nhận. Người triển khai cần chạy:
+
+~~~powershell
+dotnet restore FVN_REGISTER.sln
+dotnet build FVN_REGISTER.sln --configuration Release --no-restore
+dotnet test Tests/FVN_REGISTER.AI.Tests/FVN_REGISTER.AI.Tests.csproj --configuration Release
+~~~
+
+Không đánh dấu production-ready cho tới khi build/test, migration, RBAC và end-to-end test đều pass.
 
 ## Architectural invariants
 
-- AI is a separate bounded context and has its own database/schema.
-- AI does not reference the FVN_REGISTER business DbContext.
-- AI never writes directly to FVN_REGISTER business tables.
-- Tenant/actor identity must be signed by trusted FVN_REGISTER backend after RBAC checks.
-- Policy retrieval must filter status, effective dates, entity/site/audience and user ACL before model invocation.
-- Only HR-approved policy versions are eligible for current policy answers.
-- Employee evidence/case attachments are not general HR knowledge.
-- Unknown antivirus verdict, unconfigured provider or unsupported document type fails closed.
-- Model answers cannot approve policy, OT, leave or payroll decisions.
+- AI là bounded context riêng, có database riêng.
+- AI không tham chiếu FVN_REGISTER business DbContext.
+- AI không ghi trực tiếp vào bảng nghiệp vụ FVN_REGISTER.
+- Tenant/actor context được ký bởi backend đáng tin cậy.
+- Facts chính thức phải lấy qua backend có RBAC và managed scope.
+- Policy retrieval tương lai phải lọc publication status, effective dates, entity/site/audience và ACL trước model invocation.
+- Chỉ policy versions được HR publish mới dùng cho policy answers.
+- Employee evidence/case attachments không phải HR knowledge.
+- Unknown antivirus verdict hoặc unsupported document type phải fail-closed.
+- Model answer không được phê duyệt OT, leave, payroll hoặc quyết định nhân sự.
