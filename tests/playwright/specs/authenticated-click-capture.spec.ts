@@ -165,8 +165,8 @@ async function waitReady(
 }
 
 async function getDomSignature(page: Page): Promise<string> {
-  return page.locator('body').evaluate(element => {
-    const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const raw = await page.locator('body').evaluate(element => {
+    const normalize = (value: string) => value.replace(/\\s+/g, ' ').trim();
     const text = normalize(element.innerText || '').slice(0, 8000);
     const controls = [...element.querySelectorAll('a,button,[role="button"],[role="link"],[role="tab"]')]
       .slice(0, 250)
@@ -175,12 +175,10 @@ async function getDomSignature(page: Page): Promise<string> {
       ).slice(0, 160));
     const headings = [...element.querySelectorAll('h1,h2,h3,[role="heading"]')]
       .map(heading => normalize(heading.textContent || '').slice(0, 120));
-    return createHash('sha1')
-      .update(`${text}|headings:${headings.join('|')}|controls:${controls.join('|')}`)
-      .digest('hex');
+    return `${text}|headings:${headings.join('|')}|controls:${controls.join('|')}`;
   }).catch(() => '');
+  return raw ? createHash('sha1').update(raw).digest('hex') : '';
 }
-
 async function expandSafeMenus(page: Page): Promise<void> {
   const menuLabel = /^(menu|navigation|open menu|toggle menu|open navigation|toggle navigation|show navigation|sidebar|side bar|expand navigation|collapse navigation|điều hướng|danh mục|mở menu|mở rộng menu|thu gọn menu)$/i;
   const controls = page.locator('button:visible,[role="button"]:visible');
