@@ -66,6 +66,39 @@ internal sealed class IngestionWorker(
 
     private async Task ProcessAsync(LeasedIngestionJob job, CancellationToken cancellationToken)
     {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var processing = ProcessCoreAsync(job, linked.Token);
+        var leaseLost = false;
+        while (!processing.IsCompleted && !cancellationToken.IsCancellationRequested)
+        {
+            var delay = Task.Delay(TimeSpan.FromMinutes(2), linked.Token);
+            if (await Task.WhenAny(processing, delay) == processing) break;
+            try
+            {
+                using var renewScope = scopes.CreateScope();
+                var db = renewScope.ServiceProvider.GetRequiredService<AiPlatformDbContext>();
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"EXEC ai.usp_RenewAiIngestionLease @JobId={job.JobId}, @WorkerId={workerId}, @LeaseSeconds={600}",
+                    cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                leaseLost = true;
+                logger.LogError(ex, "Could not renew AI ingestion lease for job {JobId}.", job.JobId);
+                linked.Cancel();
+                break;
+            }
+        }
+
+        try { await processing; }
+        catch (OperationCanceledException) when (leaseLost && !cancellationToken.IsCancellationRequested)
+        {
+            await FailAsync(job, "INGESTION_LEASE_RENEWAL_FAILED", true, cancellationToken);
+        }
+    }
+
+    private async Task ProcessCoreAsync(LeasedIngestionJob job, CancellationToken cancellationToken)
+    {
         try
         {
             using var scope = scopes.CreateScope();
