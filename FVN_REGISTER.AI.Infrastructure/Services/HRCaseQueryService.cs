@@ -9,31 +9,38 @@ public sealed class HRCaseQueryService(AiPlatformDbContext db, IHRCaseReviewerAu
     public async Task<IReadOnlyList<HRCaseInboxItem>> GetPendingAsync(string tenantCode, string actorId, int limit,
         CancellationToken cancellationToken = default)
     {
-        await EnsureReviewerAsync(tenantCode, actorId, cancellationToken);
+        EnsureContext(tenantCode, actorId);
         limit = Math.Clamp(limit, 1, 100);
         var rows = await db.HRCases.AsNoTracking()
             .Where(x => x.TenantCode == tenantCode && x.Status == "PendingHRReview")
             .OrderBy(x => x.CreatedAtUtc)
-            .Take(limit)
+            .Take(500)
             .ToListAsync(cancellationToken);
-        return rows.Select(Map).ToArray();
+        var visible = new List<HRCaseInboxItem>();
+        foreach (var row in rows)
+        {
+            if (await authorization.CanReviewEmployeeAsync(tenantCode, actorId, row.EmployeeCode, cancellationToken))
+                visible.Add(Map(row));
+            if (visible.Count >= limit) break;
+        }
+        return visible;
     }
 
     public async Task<HRCaseInboxItem?> GetAsync(string tenantCode, string actorId, Guid caseId,
         CancellationToken cancellationToken = default)
     {
-        await EnsureReviewerAsync(tenantCode, actorId, cancellationToken);
+        EnsureContext(tenantCode, actorId);
         var row = await db.HRCases.AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == caseId && x.TenantCode == tenantCode, cancellationToken);
-        return row is null ? null : Map(row);
+        if (row is null) return null;
+        return await authorization.CanReviewEmployeeAsync(tenantCode, actorId, row.EmployeeCode, cancellationToken)
+            ? Map(row) : null;
     }
 
-    private async Task EnsureReviewerAsync(string tenantCode, string actorId, CancellationToken ct)
+    private static void EnsureContext(string tenantCode, string actorId)
     {
         if (string.IsNullOrWhiteSpace(tenantCode) || string.IsNullOrWhiteSpace(actorId))
             throw new ArgumentException("Signed tenant and actor context is required.");
-        if (!await authorization.CanReviewAsync(tenantCode, actorId, ct))
-            throw new UnauthorizedAccessException("Actor is not authorized to view HR cases.");
     }
 
     private static HRCaseInboxItem Map(AiHRCaseRecord x)
