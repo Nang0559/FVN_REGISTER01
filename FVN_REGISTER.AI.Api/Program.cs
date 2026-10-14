@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using FVN_REGISTER.AI.Api.Security;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Configuration;
 using FVN_REGISTER.AI.Infrastructure;
@@ -28,6 +29,21 @@ var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  if(!ctx.HttpContext.Request.Headers.TryGetValue("X-AI-API-Key",out var supplied)) return Results.Unauthorized();
  var a=Encoding.UTF8.GetBytes(configured); var b=Encoding.UTF8.GetBytes(supplied.ToString());
  if(a.Length!=b.Length||!CryptographicOperations.FixedTimeEquals(a,b)) return Results.Unauthorized();
+
+ var request=ctx.HttpContext.Request;
+ var tenant=request.Headers["X-Tenant-Code"].ToString().Trim();
+ var actor=request.Headers["X-Actor-Id"].ToString().Trim();
+ var timestamp=request.Headers["X-AI-Timestamp"].ToString();
+ var nonce=request.Headers["X-AI-Nonce"].ToString();
+ var signature=request.Headers["X-AI-Signature"].ToString();
+ var signingKey=app.Configuration[$"{AIPlatformOptions.SectionName}:ContextSigningKey"];
+ if(!RequestIdentitySignature.TryValidate(signingKey??string.Empty,request.Method,request.Path.Value??"/",
+     tenant,actor,timestamp,nonce,signature,DateTimeOffset.UtcNow,out var identityFailure))
+ {
+  if(string.IsNullOrWhiteSpace(signingKey)||signingKey.Length<32)
+   return Results.Problem(identityFailure,statusCode:503);
+  return Results.Unauthorized();
+ }
  return await next(ctx);
 });
 group.MapPost("/documents",async (HttpRequest req,IServiceProvider services,IOptions<AIPlatformOptions> o,CancellationToken ct)=>{
