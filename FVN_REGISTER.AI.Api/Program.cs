@@ -86,6 +86,22 @@ group.MapPost("/reviews/{extractionId:guid}",async (Guid extractionId,ReviewRequ
  catch(KeyNotFoundException){return Results.NotFound();}
  catch(ArgumentException ex){return Results.BadRequest(new{error=ex.Message});}
 });
+group.MapPost("/feedback",async (FeedbackRequest body,HttpRequest req,IServiceProvider services,CancellationToken ct)=>{
+ var service=services.GetService<IFeedbackService>();
+ if(service is null) return Results.Problem("AI SQL connection is not configured.",statusCode:503);
+ var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
+ var actor=req.Headers["X-Actor-Id"].ToString().Trim();
+ try
+ {
+  await service.RecordAsync(tenant,actor,body.DocumentId,body.ExtractionId,body.FeedbackType,
+   body.BeforeJson,body.AfterJson,body.Reason,ct);
+  return Results.Accepted();
+ }
+ catch(KeyNotFoundException){return Results.NotFound();}
+ catch(ArgumentException ex){return Results.BadRequest(new{error=ex.Message});}
+ catch(System.Text.Json.JsonException){return Results.BadRequest(new{error="Feedback payload must contain valid JSON."});}
+});
 app.Run();
+public sealed record FeedbackRequest(Guid? DocumentId,Guid? ExtractionId,string FeedbackType,string? BeforeJson,string? AfterJson,string? Reason);
 public sealed record ReviewRequest(string Decision,string? CorrectedPayloadJson,string? Comment);
 public partial class Program { }
