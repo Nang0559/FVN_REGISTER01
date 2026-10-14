@@ -3,7 +3,7 @@ using FVN_REGISTER.AI.Application.Configuration;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-namespace FVN_REGISTER.AI.Infrastructure.Storage;
+namespace FVN_REGISTER.AI.Infrastructure.Services;
 public sealed class DocumentIngestionService(AiPlatformDbContext db,IOriginalDocumentStore store,IUploadContentValidator validator,IOptions<AIPlatformOptions> options):IDocumentIngestionService
 {
  public async Task<IngestionReceipt> IngestAsync(string tenant,string actor,string fileName,Stream content,CancellationToken ct=default)
