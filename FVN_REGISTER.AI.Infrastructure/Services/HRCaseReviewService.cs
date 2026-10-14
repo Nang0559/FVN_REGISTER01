@@ -21,7 +21,7 @@ public sealed class HRCaseReviewService(AiPlatformDbContext db, IHRCaseReviewerA
 
         var item = await db.HRCases.SingleOrDefaultAsync(x => x.Id == caseId && x.TenantCode == tenantCode, cancellationToken);
         if (item is null) throw new KeyNotFoundException("HR case was not found.");
-        if (!await authorization.CanReviewEmployeeAsync(tenantCode, actorId, item.EmployeeCode, cancellationToken))
+        if (!await Enum.TryParse<HRCaseType>(item.CaseType, out var caseType) && await authorization.CanReviewCaseAsync(tenantCode, actorId, item.EmployeeCode, caseType, cancellationToken))
             throw new UnauthorizedAccessException("Actor is not authorized to review this employee's HR case.");
         if (item.Status != "PendingHRReview")
             throw new InvalidOperationException("HR case has already been reviewed.");
