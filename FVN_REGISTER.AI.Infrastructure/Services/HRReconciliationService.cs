@@ -1,4 +1,6 @@
+using System.Text.Json;
 using FVN_REGISTER.AI.Application.Abstractions;
+using FVN_REGISTER.AI.Infrastructure.Persistence;
 using FVN_REGISTER.AI.Application.Contracts;
 
 namespace FVN_REGISTER.AI.Infrastructure.Services;
@@ -7,7 +9,7 @@ namespace FVN_REGISTER.AI.Infrastructure.Services;
 /// Deterministic first-pass comparison. The language model may later explain these results,
 /// but must never change the outcome or invent official facts.
 /// </summary>
-public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProvider) : IHRReconciliationService
+public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProvider, AiPlatformDbContext db) : IHRReconciliationService
 {
     private const decimal HoursTolerance = 0.01m;
 
@@ -58,10 +60,23 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         var reply = $"Chào bạn, HR đã kiểm tra phản hồi ngày {request.WorkDate:dd/MM/yyyy}. {summary} HR sẽ xác minh các nội dung liên quan trước khi xác nhận kết quả cuối cùng.";
         var note = string.Join(Environment.NewLine, comparisons.Select(x => $"- {x.Field}: {x.Explanation} [{x.RuleCode}]"));
         if (string.IsNullOrWhiteSpace(note)) note = "Không có trường so sánh đủ dữ liệu.";
-        return new HRReconciliationAnalysis(Guid.NewGuid(), request.CaseType, facts.EmployeeCode,
+        var caseId = Guid.NewGuid();
+        var analysis = new HRReconciliationAnalysis(caseId, request.CaseType, facts.EmployeeCode,
             facts.WorkDate, outcome, comparisons, reply, note,
             string.IsNullOrWhiteSpace(request.EvidenceReference) ? Array.Empty<string>() : new[] { request.EvidenceReference },
             facts.SourceSystem, facts.SourceRecordReference, facts.RetrievedAtUtc, true);
+        db.HRCases.Add(new AiHRCaseRecord
+        {
+            Id = caseId, TenantCode = tenantCode, EmployeeCode = facts.EmployeeCode,
+            CaseType = request.CaseType.ToString(), WorkDate = facts.WorkDate, Outcome = outcome.ToString(),
+            UserStatement = request.UserStatement, EvidenceReference = request.EvidenceReference,
+            AnalysisJson = JsonSerializer.Serialize(analysis), SuggestedReply = reply,
+            InternalHRNote = note, OfficialSource = facts.SourceSystem,
+            OfficialRecordReference = facts.SourceRecordReference, FactsRetrievedAtUtc = facts.RetrievedAtUtc,
+            Status = "PendingHRReview", CreatedBy = actorId, CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        return analysis;
     }
 
     private static IReadOnlyList<HRFieldComparison> CompareOvertime(OfficialHRFacts f, HRCaseAnalysisRequest request)
