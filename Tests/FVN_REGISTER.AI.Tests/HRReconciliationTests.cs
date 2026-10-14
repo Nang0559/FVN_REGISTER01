@@ -1,5 +1,7 @@
 using FVN_REGISTER.AI.Application.Contracts;
 using FVN_REGISTER.AI.Infrastructure.Services;
+using FVN_REGISTER.AI.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.AI.Tests;
 
@@ -11,7 +13,8 @@ public sealed class HRReconciliationTests
         var facts = new OfficialHRFacts("E0001", new DateOnly(2026, 10, 1), "Approved",
             null, null, 2m, null, null, 1.5m, 1.5m, "HC", false,
             null, null, "FVN_REGISTER", "OT-REQ-001", DateTimeOffset.UtcNow);
-        var service = new HRReconciliationService(new StubFactsProvider(facts));
+        await using var db = CreateDb();
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db);
 
         var result = await service.AnalyzeAsync("FCCVN", "hr-user",
             new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
@@ -37,6 +40,10 @@ public sealed class HRReconciliationTests
             new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
                 "Check my OT", null, null)));
     }
+
+    private static AiPlatformDbContext CreateDb()
+        => new(new DbContextOptionsBuilder<AiPlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
 
     private sealed class StubFactsProvider(OfficialHRFacts facts) : IAuthorizedHRFactsProvider
     {
