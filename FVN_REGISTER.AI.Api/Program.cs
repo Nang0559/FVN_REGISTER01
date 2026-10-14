@@ -92,6 +92,7 @@ group.MapPost("/reviews/{extractionId:guid}",async (Guid extractionId,ReviewRequ
  }
  catch(KeyNotFoundException){return Results.NotFound();}
  catch(ArgumentException ex){return Results.BadRequest(new{error=ex.Message});}
+ catch(System.Text.Json.JsonException){return Results.BadRequest(new{error="Corrected payload must contain valid JSON."});}
 });
 group.MapPost("/feedback",async (FeedbackRequest body,HttpRequest req,IServiceProvider services,CancellationToken ct)=>{
  var service=services.GetService<IFeedbackService>();
