@@ -73,8 +73,13 @@ async function signIn(page: Page): Promise<void> {
   else await passwordInput.press('Enter');
 
   await expect(page.locator('input[type="password"]:visible')).toHaveCount(0, { timeout: 60_000 });
-  if (await page.locator('input[type="password"]:visible').count()) {
-    throw new Error('The login form is still visible after submitting.');
+  // Allow redirects and SPA auth-state initialization to settle before accepting the session.
+  await page.waitForTimeout(1_500);
+  const stillOnLogin = /\\/login(?:\\/|$)/i.test(new URL(page.url()).pathname)
+    || (await page.locator('input[type="password"]:visible').count()) > 0;
+  if (stillOnLogin) {
+    await saveScreenshot(page, 'login-failed');
+    throw new Error('Authentication was not established; current URL is ' + new URL(page.url()).pathname + '. Check credentials, base URL, and the app login redirect/session configuration.');
   }
 }
 
@@ -244,7 +249,9 @@ async function clickTarget(page: Page, target: ClickTarget): Promise<boolean> {
       || (await candidate.getAttribute('title').catch(() => null))
       || (await candidate.innerText().catch(() => ''))
       || (await candidate.textContent().catch(() => ''))).replace(/\s+/g, ' ').trim().slice(0, 180);
-    const href = await candidate.getAttribute('href').catch(() => '') || '';
+    const href = await candidate.evaluate(element =>
+      element instanceof HTMLAnchorElement ? element.href : (element.getAttribute('href') || ''),
+    ).catch(() => '');
     const identity = `${await candidate.evaluate(element => element.tagName)}|${label}|${href}`;
     if (`${identity}|${occurrence}` !== target.key) {
       if (identity === target.key.split('|').slice(0, -1).join('|')) occurrence++;
