@@ -328,8 +328,25 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   await mkdir(screenshotDir, { recursive: true });
 
   const tracker = installRequestTracker(page);
-  await signIn(page); // exactly one login for the whole crawl
-  await waitReady(page, tracker, 'home-dashboard-after-login', 90_000);
+  try {
+    await signIn(page); // exactly one login for the whole crawl
+  } catch (error) {
+    const diagnostic = {
+      baseUrl: process.env.PLAYWRIGHT_BASE_URL ?? 'configured base URL',
+      generatedAt: new Date().toISOString(),
+      status: 'login-failed',
+      url: page.url(),
+      error: error instanceof Error ? error.message : String(error),
+    };
+    await page.screenshot({ path: path.join(screenshotDir, 'failure-current-page.png'), fullPage: true, timeout: 15_000 }).catch(() => undefined);
+    await writeFile(path.join(screenshotDir, 'manifest.json'), JSON.stringify({
+      summary: { states: 0, screenshots: 1, clicks: 0 },
+      diagnostics: diagnostic,
+      states: [],
+    }, null, 2), 'utf8').catch(() => undefined);
+    throw error;
+  }
+  await waitReady(page, tracker, 'home-dashboard-after-login', 30_000);
   await expandSafeMenus(page);
 
   const origin = new URL(baseURL!).origin;
