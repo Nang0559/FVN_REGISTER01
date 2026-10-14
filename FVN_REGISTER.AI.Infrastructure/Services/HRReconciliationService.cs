@@ -259,6 +259,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         var result = new List<HRFieldComparison>();
         CompareHours(result, "ReportedHoursVsPlanned", request.ReportedHours, f.PlannedHours, "OT-PLAN-001", "So sánh số giờ người dùng phản hồi với số giờ đăng ký chính thức.");
         CompareHours(result, "ReportedHoursVsActual", request.ReportedHours, f.ActualHours, "OT-ACTUAL-001", "So sánh số giờ người dùng phản hồi với số giờ OT thực tế đã xác nhận.");
+        CompareHours(result, "ReportedHoursVsAttendance", request.ReportedHours, f.AttendanceOvertimeHours, "OT-ATTENDANCE-USER-001", "So sánh số giờ người dùng phản hồi với số giờ OT được tính từ dữ liệu chấm công.");
         CompareHours(result, "ActualVsAttendance", f.ActualHours, f.AttendanceOvertimeHours, "OT-ATTENDANCE-001", "So sánh OT thực tế đã xác nhận với OT trên dữ liệu chấm công.");
         if (f.PlannedHours is null && f.ActualHours is null && f.AttendanceOvertimeHours is null)
             result.Add(new("OvertimeHours", null, null, "OT-MISSING-001", HRComparisonOutcome.InsufficientEvidence,
