@@ -230,8 +230,7 @@ public sealed class AIHRCaseController : BaseApiController
             return new OfficialHRFacts(employeeCode, workDate, "No leave request found for selected employee/date",
                 null, null, null, null, null, null, null, null, null, null, null,
                 "FVN_REGISTER.ReportDispatcher", $"Leave:{employeeCode}:{workDate:yyyyMMdd}", DateTimeOffset.UtcNow);
-        var days = DateValue(leaveRow, "StartDate")?.Date == DateValue(leaveRow, "EndDate")?.Date
-            ? Number(leaveRow, "TotalDay") : null;
+        var days = Number(leaveRow, "TotalDay");
         return new OfficialHRFacts(employeeCode, workDate, Text(leaveRow, "RequestStatus"),
             null, null, null, null, null, null, null, null, null,
             Text(leaveRow, "LeaveTypeCode"), days, "FVN_REGISTER.ReportDispatcher",
