@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Configuration;
 using FVN_REGISTER.AI.Application.Contracts;
@@ -47,7 +48,9 @@ public sealed class OllamaAIModelProvider(HttpClient httpClient, IOptions<AIPlat
 
     private sealed record OllamaChatRequest(string Model, bool Stream, IReadOnlyList<OllamaMessage> Messages, OllamaOptions Options);
     private sealed record OllamaMessage(string Role, string Content);
-    private sealed record OllamaOptions(double Temperature, int NumCtx);
-    private sealed record OllamaChatResponse(OllamaMessage? Message, bool Done, string? DoneReason,
-        int? PromptEvalCount, int? EvalCount);
+    private sealed record OllamaOptions(double Temperature, [property: JsonPropertyName("num_ctx")] int NumCtx);
+    private sealed record OllamaChatResponse(OllamaMessage? Message, bool Done,
+        [property: JsonPropertyName("done_reason")] string? DoneReason,
+        [property: JsonPropertyName("prompt_eval_count")] int? PromptEvalCount,
+        [property: JsonPropertyName("eval_count")] int? EvalCount);
 }
