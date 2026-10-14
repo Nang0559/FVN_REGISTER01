@@ -26,6 +26,7 @@ public sealed class HRReconciliationTests
             x.Outcome == HRComparisonOutcome.Discrepancy);
         Assert.True(result.RequiresHumanReview);
         Assert.Equal("OT-REQ-001", result.OfficialRecordReference);
+        Assert.Single(db.HRCases);
     }
 
     [Fact]
@@ -34,7 +35,8 @@ public sealed class HRReconciliationTests
         var facts = new OfficialHRFacts("E0002", new DateOnly(2026, 10, 1), "Approved",
             null, null, 2m, null, null, 2m, 2m, "HC", false,
             null, null, "FVN_REGISTER", "OT-REQ-002", DateTimeOffset.UtcNow);
-        var service = new HRReconciliationService(new StubFactsProvider(facts));
+        await using var db = CreateDb();
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.AnalyzeAsync("FCCVN", "hr-user",
             new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
