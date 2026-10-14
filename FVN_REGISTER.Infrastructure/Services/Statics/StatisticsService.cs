@@ -239,16 +239,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
             var tomorrowStart = todayStart.AddDays(1);
             // Attendance KPI must be based on the latest calculated table, not the
             // legacy "currently present" view. Check-in alone means present today.
+            // Tử số phải cùng tập với mẫu số (employeesByDept = F03Employee đang IsActive):
+            // chỉ đếm nhân viên có check-in hôm nay VÀ tồn tại trong F03Employee active,
+            // nhóm theo phòng ban của F03Employee. Nếu không, nhân viên có trong HRM nhưng
+            // chưa đồng bộ/đã inactive ở FVN sẽ làm "có mặt" lớn hơn "tổng" (vd 13/12).
             var presentByDept = await _uow.Repository<F03HrmAttendanceCalculated>().Query()
                 .Where(x => x.WorkDate >= todayStart
                     && x.WorkDate < tomorrowStart
                     && x.CheckInTime != null
-                    && x.DeptCode != null)
+                    && x.EmployeeCode != null)
+                .Join(
+                    _uow.Repository<F03Employee>().Query().Where(e => e.IsActive == true),
+                    x => x.EmployeeCode, e => e.EmployeeCode,
+                    (x, e) => new { e.DeptCode, EmployeeId = e.Id })
                 .GroupBy(x => x.DeptCode)
                 .Select(g => new
                 {
-                    DeptCode = g.Key,
-                    Count = g.Select(x => x.HrmEmployeeId).Distinct().Count()
+                    DeptCode = (int?)g.Key,
+                    Count = g.Select(x => x.EmployeeId).Distinct().Count()
                 })
                 .ToListAsync(ct);
 
