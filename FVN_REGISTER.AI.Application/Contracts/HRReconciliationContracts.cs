@@ -10,7 +10,12 @@ public sealed record HRCaseAnalysisRequest(
     DateOnly WorkDate,
     string UserStatement,
     string? EvidenceText,
-    string? EvidenceReference);
+    string? EvidenceReference,
+    decimal? ReportedHours = null,
+    DateTimeOffset? ReportedStart = null,
+    DateTimeOffset? ReportedEnd = null,
+    decimal? ReportedLeaveDays = null,
+    string? ReportedLeaveType = null);
 
 public sealed record OfficialHRFacts(
     string EmployeeCode,
