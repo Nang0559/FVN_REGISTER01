@@ -22,7 +22,19 @@ public static class DependencyInjection
   var options=configuration.GetSection(AIPlatformOptions.SectionName).Get<AIPlatformOptions>()??new AIPlatformOptions();
   var connection=configuration.GetConnectionString(options.ConnectionStringName);
   if(!string.IsNullOrWhiteSpace(connection)) services.AddDbContext<AiPlatformDbContext>(db=>db.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(3)));
-  services.TryAddSingleton<IAIModelProvider,UnconfiguredAIModelProvider>();
+  if(options.DefaultProvider.Equals("Ollama",StringComparison.OrdinalIgnoreCase))
+  {
+   if(!Uri.TryCreate(options.Endpoint,UriKind.Absolute,out var modelEndpoint) ||
+      (modelEndpoint.Scheme!=Uri.UriSchemeHttp && modelEndpoint.Scheme!=Uri.UriSchemeHttps))
+    throw new InvalidOperationException("AIPlatform:Endpoint must be an absolute HTTP(S) URL when DefaultProvider is Ollama.");
+   services.AddHttpClient<IAIModelProvider,OllamaAIModelProvider>(client =>
+   {
+    client.BaseAddress=new Uri(options.Endpoint!.TrimEnd('/')+"/");
+    client.Timeout=TimeSpan.FromSeconds(120);
+   });
+  }
+  else
+   services.TryAddSingleton<IAIModelProvider,UnconfiguredAIModelProvider>();
   services.AddSingleton<IOriginalDocumentStore,FileSystemOriginalDocumentStore>();
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
   services.AddSingleton<IDocumentTextExtractor,LocalDocumentTextExtractor>();
