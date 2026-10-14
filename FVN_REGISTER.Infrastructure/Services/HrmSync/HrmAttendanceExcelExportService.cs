@@ -107,6 +107,10 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
             SetText(row, 0, (i + 1).ToString());
             SetText(row, 1, item.Key.EmployeeCode);
             SetText(row, 2, item.Key.FullName?.Trim());
+            // Cột 3 (Ngày Sinh) và 4 (Ngày Vào) trong template chứa dữ liệu mẫu của nhân viên khác;
+            // dataset tính công không có hai trường này nên phải xóa để không xuất sai thông tin cá nhân.
+            SetText(row, 3, string.Empty);
+            SetText(row, 4, string.Empty);
             SetText(row, 5, GetPosition(item));
             SetText(row, 6, item.Key.DeptCode?.ToString());
 
@@ -195,7 +199,9 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
             path = Path.Combine(AppContext.BaseDirectory, "Templates", "HRM", name);
 
         if (!File.Exists(path))
-            throw new FileNotFoundException($"Không tìm thấy template Excel: {name}", path);
+            throw new FileNotFoundException(
+                $"Không tìm thấy template Excel: {name} (thư mục Templates/HRM của API). Vui lòng publish lại API hoặc liên hệ quản trị hệ thống.",
+                path);
 
         return path;
     }
