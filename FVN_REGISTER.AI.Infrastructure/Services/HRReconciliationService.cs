@@ -40,10 +40,10 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             _ => throw new ArgumentOutOfRangeException(nameof(request.CaseType))
         };
 
-        var outcome = comparisons.Count == 0 || comparisons.Any(x => x.Outcome == HRComparisonOutcome.InsufficientEvidence)
-            ? HRComparisonOutcome.InsufficientEvidence
-            : comparisons.Any(x => x.Outcome == HRComparisonOutcome.Discrepancy)
-                ? HRComparisonOutcome.Discrepancy
+        var outcome = comparisons.Any(x => x.Outcome == HRComparisonOutcome.Discrepancy)
+            ? HRComparisonOutcome.Discrepancy
+            : comparisons.Count == 0 || comparisons.Any(x => x.Outcome == HRComparisonOutcome.InsufficientEvidence)
+                ? HRComparisonOutcome.InsufficientEvidence
                 : comparisons.Any(x => x.Outcome == HRComparisonOutcome.NeedsHumanDecision)
                     ? HRComparisonOutcome.NeedsHumanDecision
                     : HRComparisonOutcome.Matched;
@@ -89,10 +89,11 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             result.Add(new("AttendanceInterval", null, null, "ATT-MISSING-001", HRComparisonOutcome.InsufficientEvidence,
                 "Thiếu giờ vào hoặc giờ ra chính thức."));
         else
+            var hasReportedInterval = request.ReportedStart.HasValue && request.ReportedEnd.HasValue;
             var differs = IntervalsDiffer(request.ReportedStart, request.ReportedEnd, f.ActualStart, f.ActualEnd);
             result.Add(new("AttendanceInterval", FormatInterval(request.ReportedStart, request.ReportedEnd), $"{f.ActualStart:HH:mm} - {f.ActualEnd:HH:mm}",
-                "ATT-SOURCE-001", differs ? HRComparisonOutcome.Discrepancy : HRComparisonOutcome.Matched,
-                differs ? "Khoảng thời gian người dùng cung cấp khác dữ liệu chấm công." : "Khoảng thời gian khớp dữ liệu chấm công."));
+                "ATT-SOURCE-001", !hasReportedInterval ? HRComparisonOutcome.InsufficientEvidence : differs ? HRComparisonOutcome.Discrepancy : HRComparisonOutcome.Matched,
+                !hasReportedInterval ? "Thiếu khoảng thời gian người dùng cung cấp để đối chiếu." : differs ? "Khoảng thời gian người dùng cung cấp khác dữ liệu chấm công." : "Khoảng thời gian khớp dữ liệu chấm công."));
         if (f.ShiftCode is null)
             result.Add(new("ShiftCode", null, null, "ATT-SHIFT-001", HRComparisonOutcome.InsufficientEvidence,
                 "Thiếu mã ca làm việc."));
