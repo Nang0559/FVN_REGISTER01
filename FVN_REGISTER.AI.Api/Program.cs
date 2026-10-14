@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using FVN_REGISTER.AI.Api.Security;
 using FVN_REGISTER.AI.Application.Abstractions;
+using FVN_REGISTER.AI.Application.Contracts;
 using FVN_REGISTER.AI.Application.Configuration;
 using FVN_REGISTER.AI.Infrastructure;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
@@ -109,7 +110,25 @@ group.MapPost("/feedback",async (FeedbackRequest body,HttpRequest req,IServicePr
  catch(ArgumentException ex){return Results.BadRequest(new{error=ex.Message});}
  catch(System.Text.Json.JsonException){return Results.BadRequest(new{error="Feedback payload must contain valid JSON."});}
 });
-app.Run();
+
+group.MapPost("/hr-cases/analyze", async (HRCaseAnalysisRequest body, HttpRequest req,
+    IServiceProvider services, CancellationToken ct) =>
+{
+    var service = services.GetService<IHRReconciliationService>();
+    if (service is null) return Results.Problem("HR reconciliation service is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        var result = await service.AnalyzeAsync(tenant, actor, body, ct);
+        return Results.Ok(result);
+    }
+    catch (KeyNotFoundException) { return Results.NotFound(); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (InvalidOperationException ex) when (ex.Message.StartsWith("HR_FACTS_PROVIDER_NOT_CONFIGURED", StringComparison.Ordinal))
+    { return Results.Problem("Trusted FVN_REGISTER HR facts adapter is not configured.", statusCode: 503); }
+});
+\napp.Run();
 public sealed record FeedbackRequest(Guid? DocumentId,Guid? ExtractionId,string FeedbackType,string? BeforeJson,string? AfterJson,string? Reason);
 public sealed record ReviewRequest(string Decision,string? CorrectedPayloadJson,string? Comment);
 public partial class Program { }
