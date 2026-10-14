@@ -305,6 +305,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             var differs = (request.ReportedLeaveDays.HasValue && Math.Abs(request.ReportedLeaveDays.Value - f.LeaveDays.Value) > HoursTolerance) || (!string.IsNullOrWhiteSpace(request.ReportedLeaveType) && !string.Equals(request.ReportedLeaveType, f.LeaveType, StringComparison.OrdinalIgnoreCase));
             result.Add(new("Leave", request.ReportedLeaveType is null && request.ReportedLeaveDays is null ? null : $"{request.ReportedLeaveType ?? "?"}: {request.ReportedLeaveDays?.ToString("0.##") ?? "?"} ngày", $"{f.LeaveType}: {f.LeaveDays:0.##} ngày", "LEAVE-SOURCE-001", differs ? HRComparisonOutcome.Discrepancy : (request.ReportedLeaveDays.HasValue || !string.IsNullOrWhiteSpace(request.ReportedLeaveType) ? HRComparisonOutcome.Matched : HRComparisonOutcome.NeedsHumanDecision), differs ? "Thông tin nghỉ người dùng cung cấp khác dữ liệu nghỉ phép chính thức." : "Dữ liệu nghỉ phép đã được truy xuất; HR cần kiểm tra trạng thái và quy tắc áp dụng."));
         }
+        AddEvidenceIdentityComparisons(result, request, f);
         return result;
     }
 
