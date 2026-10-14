@@ -282,7 +282,9 @@ public sealed class AIHRCaseController : BaseApiController
             Type = type, EmployeeCode = employeeCode, FromDate = from, ToDate = to,
             PageNumber = 1, PageSize = 500, IncludeChart = false
         }, user, ct);
-        return result.IsSuccess ? result.Data : null;
+        if (!result.IsSuccess || result.Data is null)
+            throw new InvalidOperationException("OFFICIAL_HR_REPORT_UNAVAILABLE: " + (result.Message ?? type.ToString()));
+        return result.Data;
     }
 
     private static List<Dictionary<string, object?>> RowsForEmployee(ReportResultDto? report, string employeeCode)
