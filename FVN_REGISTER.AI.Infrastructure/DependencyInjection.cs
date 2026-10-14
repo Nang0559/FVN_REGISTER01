@@ -3,6 +3,7 @@ using FVN_REGISTER.AI.Application.Configuration;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using FVN_REGISTER.AI.Infrastructure.Providers;
 using FVN_REGISTER.AI.Infrastructure.Storage;
+using FVN_REGISTER.AI.Infrastructure.Services;
 using FVN_REGISTER.AI.Infrastructure.Validation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
