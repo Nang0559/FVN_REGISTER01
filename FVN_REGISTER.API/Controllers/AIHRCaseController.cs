@@ -155,7 +155,7 @@ public sealed class AIHRCaseController : BaseApiController
     {
         var user = UserInfo;
         if (user is null) return Unauthorized();
-        if (upload is null || string.IsNullOrWhiteSpace(upload.FileName) ||
+        if (upload is null || string.IsNullOrWhiteSpace(upload.FileName) || upload.FileName.Length > 260 ||
             string.IsNullOrWhiteSpace(upload.ContentBase64))
             return BadRequest(new { error = "FileName and ContentBase64 are required." });
         byte[] bytes;
@@ -170,8 +170,9 @@ public sealed class AIHRCaseController : BaseApiController
         using var form = new MultipartFormDataContent();
         using var stream = new MemoryStream(bytes, writable: false);
         using var streamContent = new StreamContent(stream);
-        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
-            string.IsNullOrWhiteSpace(upload.ContentType) ? "application/octet-stream" : upload.ContentType);
+        var mediaType = System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(upload.ContentType, out var parsedType)
+            ? parsedType : new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        streamContent.Headers.ContentType = mediaType;
         form.Add(streamContent, "file", Path.GetFileName(upload.FileName));
         using var upstream = await SendAiAsync(HttpMethod.Post, path, form, actor, ct);
         return await RelayAsync(upstream);
