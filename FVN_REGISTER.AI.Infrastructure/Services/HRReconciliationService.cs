@@ -27,7 +27,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         if (request.ReportedHours is < 0 or > 24 || request.ReportedLeaveDays is < 0 or > 31)
             throw new ArgumentException("Reported hours or leave days are outside the permitted range.", nameof(request));
         if (request.ReportedStart.HasValue != request.ReportedEnd.HasValue ||
-            (request.ReportedStart.HasValue && request.ReportedEnd <= request.ReportedStart))
+            (request.ReportedStart.HasValue && request.ReportedEnd!.Value <= request.ReportedStart.Value))
             throw new ArgumentException("Reported attendance interval is invalid.", nameof(request));
 
         var facts = await factsProvider.GetFactsAsync(tenantCode, actorId, request.CaseType,
