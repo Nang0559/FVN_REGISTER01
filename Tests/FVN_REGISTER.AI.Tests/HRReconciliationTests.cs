@@ -67,7 +67,7 @@ public sealed class HRReconciliationTests
             ParserVersion = "test-v1", CreatedAtUtc = DateTimeOffset.UtcNow
         });
         await db.SaveChangesAsync();
-        var service = new HRReconciliationService(new StubFactsProvider(facts), db);
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db, new UnconfiguredAIModelProvider());
 
         var result = await service.AnalyzeAsync("FCCVN", "employee-1",
             new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
