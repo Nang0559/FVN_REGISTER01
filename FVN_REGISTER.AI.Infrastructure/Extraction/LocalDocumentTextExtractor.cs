@@ -7,8 +7,8 @@ using UglyToad.PdfPig;
 namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 
 /// <summary>
-/// Local deterministic extractor for UTF-8 TXT/CSV and XLSX OpenXML text.
-/// PDF/OCR is deliberately delegated to an approved provider adapter.
+/// Local deterministic extractor for UTF-8 TXT/CSV, XLSX OpenXML and text-based PDF files.
+/// Image-only/scanned PDF requires a separately configured OCR service.
 /// </summary>
 public sealed class LocalDocumentTextExtractor : IDocumentTextExtractor
 {
