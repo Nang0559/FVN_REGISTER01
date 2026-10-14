@@ -81,7 +81,7 @@ public sealed class AIHRCaseController : BaseApiController
     {
         var user = UserInfo;
         if (user is null) return Unauthorized();
-        var upstream = await SendAiAsync(HttpMethod.Get, "/api/ai/v1/hr-cases/pending?limit=100", null,
+        using var upstream = await SendAiAsync(HttpMethod.Get, "/api/ai/v1/hr-cases/pending?limit=100", null,
             user.UserId.ToString(CultureInfo.InvariantCulture), ct);
         if (!upstream.IsSuccessStatusCode) return await RelayAsync(upstream);
         var items = await upstream.Content.ReadFromJsonAsync<List<HRCaseInboxItem>>(cancellationToken: ct) ?? new();
@@ -102,7 +102,7 @@ public sealed class AIHRCaseController : BaseApiController
     {
         var user = UserInfo;
         if (user is null) return Unauthorized();
-        var upstream = await SendAiAsync(HttpMethod.Get, $"/api/ai/v1/hr-cases/{caseId:D}", null,
+        using var upstream = await SendAiAsync(HttpMethod.Get, $"/api/ai/v1/hr-cases/{caseId:D}", null,
             user.UserId.ToString(CultureInfo.InvariantCulture), ct);
         if (upstream.StatusCode == HttpStatusCode.NotFound) return NotFound();
         if (!upstream.IsSuccessStatusCode) return await RelayAsync(upstream);
@@ -119,7 +119,7 @@ public sealed class AIHRCaseController : BaseApiController
         var user = UserInfo;
         if (user is null) return Unauthorized();
         var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
-        var get = await SendAiAsync(HttpMethod.Get, $"/api/ai/v1/hr-cases/{caseId:D}", null, actor, ct);
+        using var get = await SendAiAsync(HttpMethod.Get, $"/api/ai/v1/hr-cases/{caseId:D}", null, actor, ct);
         if (get.StatusCode == HttpStatusCode.NotFound) return NotFound();
         if (!get.IsSuccessStatusCode) return await RelayAsync(get);
         var item = await get.Content.ReadFromJsonAsync<HRCaseInboxItem>(cancellationToken: ct);
@@ -240,15 +240,32 @@ public sealed class AIHRCaseController : BaseApiController
     }
 
     private static string? Text(Dictionary<string, object?> row, string key)
-        => row.TryGetValue(key, out var value) && value is not null ? Convert.ToString(value, CultureInfo.InvariantCulture) : null;
+    {
+        if (!row.TryGetValue(key, out var value) || value is null) return null;
+        if (value is JsonElement json) return json.ValueKind == JsonValueKind.String ? json.GetString() : json.ToString();
+        return Convert.ToString(value, CultureInfo.InvariantCulture);
+    }
 
     private static decimal? Number(Dictionary<string, object?> row, string key)
-        => row.TryGetValue(key, out var value) && value is not null &&
-           decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Any,
-               CultureInfo.InvariantCulture, out var number) ? number : null;
+    {
+        if (!row.TryGetValue(key, out var value) || value is null) return null;
+        if (value is JsonElement json)
+        {
+            if (json.ValueKind == JsonValueKind.Number && json.TryGetDecimal(out var parsed)) return parsed;
+            value = json.ValueKind == JsonValueKind.String ? json.GetString() : null;
+        }
+        return decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Any,
+            CultureInfo.InvariantCulture, out var number) ? number : null;
+    }
 
     private static bool? Boolean(Dictionary<string, object?> row, string key)
-        => row.TryGetValue(key, out var value) && value is not null && bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out var result) ? result : null;
+    {
+        if (!row.TryGetValue(key, out var value) || value is null) return null;
+        if (value is bool boolean) return boolean;
+        if (value is JsonElement json && (json.ValueKind == JsonValueKind.True || json.ValueKind == JsonValueKind.False))
+            return json.GetBoolean();
+        return bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out var result) ? result : null;
+    }
 
     private static DateTime? DateValue(Dictionary<string, object?> row, string key)
         => row.TryGetValue(key, out var value) && value is not null
@@ -309,7 +326,7 @@ public sealed class AIHRCaseController : BaseApiController
         var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
         var canonical = string.Join("\n", method.Method.ToUpperInvariant(), path.Split('?')[0], tenant, actor, timestamp, nonce);
         var signature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingKey), Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
-        var request = new HttpRequestMessage(method, new Uri(baseUri, path.TrimStart('/'))) { Content = content };
+        using var request = new HttpRequestMessage(method, new Uri(baseUri, path.TrimStart('/'))) { Content = content };
         request.Headers.TryAddWithoutValidation("X-AI-API-Key", apiKey);
         request.Headers.TryAddWithoutValidation("X-Tenant-Code", tenant);
         request.Headers.TryAddWithoutValidation("X-Actor-Id", actor);
