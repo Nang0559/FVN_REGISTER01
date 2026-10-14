@@ -268,7 +268,7 @@ public sealed class AIHRCaseController : BaseApiController
         var days = Number(leaveRow, "TotalDay");
         return new OfficialHRFacts(employeeCode, workDate, Text(leaveRow, "RequestStatus"),
             null, null, null, null, null, null, null, null, null,
-            Text(leaveRow, "LeaveTypeCode"), days, "FVN_REGISTER.ReportDispatcher",
+            Text(leaveRow, "LeaveTypeName"), days, "FVN_REGISTER.ReportDispatcher",
             $"Leave:{Text(leaveRow, "Id") ?? employeeCode + ":" + workDate.ToString("yyyyMMdd")}",
             DateTimeOffset.UtcNow);
     }
