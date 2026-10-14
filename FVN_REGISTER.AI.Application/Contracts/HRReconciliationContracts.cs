@@ -16,7 +16,9 @@ public sealed record HRCaseAnalysisRequest(
     DateTimeOffset? ReportedEnd = null,
     decimal? ReportedLeaveDays = null,
     string? ReportedLeaveType = null,
-    Guid? EvidenceDocumentId = null);
+    Guid? EvidenceDocumentId = null,
+    string? EvidenceEmployeeCode = null,
+    DateOnly? EvidenceWorkDate = null);
 
 public sealed record OfficialHRFacts(
     string EmployeeCode,
