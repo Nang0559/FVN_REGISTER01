@@ -75,7 +75,7 @@ async function signIn(page: Page): Promise<void> {
   await expect(page.locator('input[type="password"]:visible')).toHaveCount(0, { timeout: 60_000 });
   // Allow redirects and SPA auth-state initialization to settle before accepting the session.
   await page.waitForTimeout(1_500);
-  const stillOnLogin = /\\/login(?:\\/|$)/i.test(new URL(page.url()).pathname)
+  const stillOnLogin = /\/login(?:\/|$)/i.test(new URL(page.url()).pathname)
     || (await page.locator('input[type="password"]:visible').count()) > 0;
   if (stillOnLogin) {
     await saveScreenshot(page, 'login-failed');
