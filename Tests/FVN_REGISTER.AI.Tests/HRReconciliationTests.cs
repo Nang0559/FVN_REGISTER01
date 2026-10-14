@@ -74,6 +74,7 @@ public sealed class HRReconciliationTests
                 "Tôi phản hồi số giờ OT.", null, null, EvidenceDocumentId: documentId));
 
         Assert.Contains(result.EvidenceReferences, x => x == $"ai-document:{documentId}");
+        Assert.Contains("hourCandidates", Assert.Single(db.HRCases).EvidenceCandidateJson);
         Assert.Contains(result.Comparisons, x => x.RuleCode == "OT-ACTUAL-001" &&
             x.Outcome == HRComparisonOutcome.Discrepancy);
     }
