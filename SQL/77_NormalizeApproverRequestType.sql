@@ -2,6 +2,10 @@
 ===============================================================================
 77 - Chuẩn hóa F03Approvers.RequestType về tên enum (Leave / Overtime / Trip / Equipment)
 
+LƯU Ý: nếu DB cho phép xóa dữ liệu cũ, dùng 80_PurgeLegacyApproverRequestType.sql thay cho script này.
+  Script 77 chỉ ĐỔI TÊN nên có thể tạo ra dòng trùng khóa (dòng 'Overtime' inactive cũ
+  + dòng vừa đổi từ 'OT'), và phần kiểm tra trùng ở cuối chỉ liệt kê dòng active.
+
 Vì sao:
   Quy ước thống nhất: F03Approvers.RequestType lưu đúng tên enum RequestModule
   (Leave / Overtime / Trip / Equipment). Code EF (ToStorageName) và proc
