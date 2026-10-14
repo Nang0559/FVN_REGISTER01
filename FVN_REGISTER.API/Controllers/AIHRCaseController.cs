@@ -149,6 +149,34 @@ public sealed class AIHRCaseController : BaseApiController
         return await RelayAsync(upstream);
     }
 
+    [HttpPost("evidence/base64")]
+    [RequestSizeLimit(36 * 1024 * 1024)]
+    public async Task<IActionResult> UploadEvidenceBase64([FromBody] EvidenceUploadRequest upload, CancellationToken ct)
+    {
+        var user = UserInfo;
+        if (user is null) return Unauthorized();
+        if (upload is null || string.IsNullOrWhiteSpace(upload.FileName) ||
+            string.IsNullOrWhiteSpace(upload.ContentBase64))
+            return BadRequest(new { error = "FileName and ContentBase64 are required." });
+        byte[] bytes;
+        try { bytes = Convert.FromBase64String(upload.ContentBase64); }
+        catch (FormatException) { return BadRequest(new { error = "Evidence content is not valid base64." }); }
+        var maxBytes = (long)Math.Clamp(_configuration.GetValue<int>("AIPlatform:MaximumFileSizeMb", 25), 1, 25) * 1024 * 1024;
+        if (bytes.Length == 0 || bytes.LongLength > maxBytes)
+            return BadRequest(new { error = $"Evidence file must be between 1 byte and {maxBytes / 1024 / 1024} MB." });
+
+        var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
+        var path = "/api/ai/v1/documents";
+        using var form = new MultipartFormDataContent();
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var streamContent = new StreamContent(stream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+            string.IsNullOrWhiteSpace(upload.ContentType) ? "application/octet-stream" : upload.ContentType);
+        form.Add(streamContent, "file", Path.GetFileName(upload.FileName));
+        using var upstream = await SendAiAsync(HttpMethod.Post, path, form, actor, ct);
+        return await RelayAsync(upstream);
+    }
+
     [HttpGet("evidence/{documentId:guid}")]
     public async Task<IActionResult> GetEvidenceStatus(Guid documentId, CancellationToken ct)
     {
@@ -372,3 +400,5 @@ public sealed class AIHRCaseController : BaseApiController
         };
     }
 }
+
+public sealed record EvidenceUploadRequest(string FileName, string? ContentType, string ContentBase64);
