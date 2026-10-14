@@ -1,8 +1,12 @@
 using FVN_REGISTER.AI.Infrastructure;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
 var builder=Host.CreateApplicationBuilder(args);
 builder.Services.AddFvnAiInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<Worker>();
 await builder.Build().RunAsync();
+
 internal sealed class Worker(ILogger<Worker> logger):BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
