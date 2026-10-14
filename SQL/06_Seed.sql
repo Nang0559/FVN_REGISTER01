@@ -492,9 +492,12 @@ INSERT dbo.F03EscalationRules(IsActive,CreatedBy,RequestModule,Level,DeptCode,Wa
 SELECT 1,0,v.Module,v.Level,v.Dept,v.Warning,v.Escalate,48
 FROM (VALUES
 (N'Leave',1,57,24,48),(N'Leave',2,57,24,48),(N'Leave',3,57,24,48),
-(N'OT',1,57,24,48),(N'OT',2,57,24,48)
+(N'Overtime',1,57,24,48),(N'Overtime',2,57,24,48)
 ) AS v(Module,Level,Dept,Warning,Escalate)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EscalationRules r WHERE r.RequestModule=v.Module AND r.Level=v.Level AND r.DeptCode=v.Dept);
+-- Chấp nhận dòng cũ lưu 'OT' (chưa chạy 78_NormalizeEscalationRuleRequestModule.sql) để không seed trùng.
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EscalationRules r
+                 WHERE (r.RequestModule=v.Module OR (v.Module=N'Overtime' AND r.RequestModule=N'OT'))
+                   AND r.Level=v.Level AND r.DeptCode=v.Dept);
 
 COMMIT;
 GO

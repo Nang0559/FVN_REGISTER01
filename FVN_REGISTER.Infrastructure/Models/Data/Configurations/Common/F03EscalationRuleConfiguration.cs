@@ -15,13 +15,12 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Common
             // Index: Tối ưu khi hệ thống cần kiểm tra quy tắc cho phòng ban cụ thể
             entity.HasIndex(e => new { e.RequestModule, e.Level, e.DeptCode }, "IX_EscalationRule_Lookup");
 
-            // RequestModule được lưu bằng mã canonical (LEAVE, OT, TRIP, ...) giống F03Approver
-            // và dữ liệu seed (SQL/06_Seed.sql). Không dùng HasConversion<string>() vì nó ghi/đọc
-            // theo tên enum ("Overtime") nên không đọc được giá trị 'OT' trong DB.
-            // ParseCode vẫn chấp nhận dữ liệu cũ như 'Overtime', và fail-fast nếu gặp giá trị lạ.
+            // RequestModule được lưu bằng tên enum (Leave, Overtime, Trip, Equipment) giống F03Approver
+            // và dữ liệu seed (SQL/06_Seed.sql). Đọc qua ParseCode: vẫn chấp nhận dữ liệu cũ như 'OT'
+            // và fail-fast nếu gặp giá trị lạ (không bao giờ âm thầm thành Leave).
             entity.Property(e => e.RequestModule)
                   .HasConversion(
-                      v => v.ToCode(),
+                      v => v.ToStorageName(),
                       v => RequestModuleExtensions.ParseCode(v))
                   .HasMaxLength(20)
                   .IsRequired();
