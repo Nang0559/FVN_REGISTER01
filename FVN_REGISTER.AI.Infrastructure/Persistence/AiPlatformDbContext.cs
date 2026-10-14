@@ -17,7 +17,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   d.Property(x=>x.UploadedBy).HasMaxLength(128).IsRequired(); d.Property(x=>x.Status).HasMaxLength(32).IsRequired();
   d.HasIndex(x=>new{x.TenantCode,x.Sha256}).IsUnique(); d.HasIndex(x=>new{x.TenantCode,x.ReceivedAtUtc});
   var j=b.Entity<AiIngestionJobRecord>(); j.ToTable("AiIngestionJobs","ai"); j.HasKey(x=>x.Id);
-  j.Property(x=>x.Status).HasMaxLength(24).IsRequired(); j.Property(x=>x.FailureCode).HasMaxLength(128);
+  j.Property(x=>x.Status).HasMaxLength(24).IsRequired(); j.Property(x=>x.FailureCode).HasMaxLength(128); j.Property(x=>x.LeaseOwner).HasMaxLength(128);
   j.HasIndex(x=>new{x.Status,x.CreatedAtUtc}); j.HasIndex(x=>x.DocumentId).IsUnique();
   j.HasOne<AiDocumentRecord>().WithMany().HasForeignKey(x=>x.DocumentId).OnDelete(DeleteBehavior.Restrict);
   var e=b.Entity<AiExtractionRecord>(); e.ToTable("AiExtractions","ai"); e.HasKey(x=>x.Id);
@@ -45,5 +45,6 @@ public sealed class AiIngestionJobRecord
 {
  public Guid Id{get;set;} public Guid DocumentId{get;set;} public string Status{get;set;}="Queued";
  public int AttemptCount{get;set;} public DateTimeOffset CreatedAtUtc{get;set;} public DateTimeOffset? StartedAtUtc{get;set;}
+ public string? LeaseOwner{get;set;} public DateTimeOffset? LeaseUntilUtc{get;set;} public DateTimeOffset NextAttemptAtUtc{get;set;}
  public DateTimeOffset? CompletedAtUtc{get;set;} public string? FailureCode{get;set;}
 }
