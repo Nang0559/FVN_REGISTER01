@@ -183,14 +183,17 @@ public sealed class AIHRCaseController : BaseApiController
             var otRows = RowsForEmployee(detail, employeeCode);
             var summaryRow = RowsForEmployee(summary, employeeCode).FirstOrDefault();
             var attendanceRow = RowsForEmployee(attendance, employeeCode).FirstOrDefault();
-            if (otRows.Count == 0 && summaryRow is null && attendanceRow is null) return null;
+            if (detail is null && summary is null && attendance is null) return null;
 
             var planned = Sum(otRows, "TotalOTHours");
             var actual = summaryRow is null ? null : Number(summaryRow, "TotalActual");
             var attendanceOt = attendanceRow is null ? null : Number(attendanceRow, "OTHours");
             var statuses = string.Join(", ", otRows.Select(x => Text(x, "RequestStatus")).Where(x => x is not null).Distinct());
             var refs = string.Join(",", otRows.Select(x => Text(x, "Id")).Where(x => x is not null));
-            return new OfficialHRFacts(employeeCode, workDate, string.IsNullOrWhiteSpace(statuses) ? null : statuses,
+            var requestStatus = string.IsNullOrWhiteSpace(statuses)
+                ? (otRows.Count == 0 ? "No OT request found for selected employee/date" : null)
+                : statuses;
+            return new OfficialHRFacts(employeeCode, workDate, requestStatus,
                 null, null, planned, null, null, actual, attendanceOt,
                 attendanceRow is null ? null : Text(attendanceRow, "ShiftName"),
                 attendanceRow is null ? null : Boolean(attendanceRow, "IsHoliday"),
@@ -202,17 +205,20 @@ public sealed class AIHRCaseController : BaseApiController
         if (type == HRCaseType.Attendance)
         {
             var report = await GetReportAsync(ReportType.AttendanceDetail, employeeCode, date, date, user, ct);
+            if (report is null) return null;
             var row = RowsForEmployee(report, employeeCode).FirstOrDefault();
-            if (row is null) return null;
-            return new OfficialHRFacts(employeeCode, workDate, "AttendanceCalculated",
-                null, null, null, ToOffset(row, "CheckIn", workDate), ToOffset(row, "CheckOut", workDate),
-                Number(row, "TotalHours"), Number(row, "OTHours"), Text(row, "ShiftName"),
-                Boolean(row, "IsHoliday"), null, null, "FVN_REGISTER.ReportDispatcher",
+            return new OfficialHRFacts(employeeCode, workDate, row is null ? "No attendance row found" : "AttendanceCalculated",
+                null, null, null, row is null ? null : ToOffset(row, "CheckIn", workDate),
+                row is null ? null : ToOffset(row, "CheckOut", workDate),
+                row is null ? null : Number(row, "TotalHours"), row is null ? null : Number(row, "OTHours"),
+                row is null ? null : Text(row, "ShiftName"), row is null ? null : Boolean(row, "IsHoliday"),
+                null, null, "FVN_REGISTER.ReportDispatcher",
                 $"Attendance:{employeeCode}:{workDate:yyyyMMdd}", DateTimeOffset.UtcNow);
         }
 
         var leave = await GetReportAsync(ReportType.LeaveDetail, employeeCode, date.AddYears(-1), date, user, ct);
-        var leaveRow = leave?.Rows.FirstOrDefault(x =>
+        if (leave is null) return null;
+        var leaveRow = leave.Rows.FirstOrDefault(x =>
         {
             var code = Text(x, "EmployeeCode");
             var start = DateValue(x, "StartDate");
@@ -220,7 +226,10 @@ public sealed class AIHRCaseController : BaseApiController
             return string.Equals(code, employeeCode, StringComparison.OrdinalIgnoreCase) &&
                    start.HasValue && end.HasValue && start.Value.Date <= date.Date && end.Value.Date >= date.Date;
         });
-        if (leaveRow is null) return null;
+        if (leaveRow is null)
+            return new OfficialHRFacts(employeeCode, workDate, "No leave request found for selected employee/date",
+                null, null, null, null, null, null, null, null, null, null, null,
+                "FVN_REGISTER.ReportDispatcher", $"Leave:{employeeCode}:{workDate:yyyyMMdd}", DateTimeOffset.UtcNow);
         var days = DateValue(leaveRow, "StartDate")?.Date == DateValue(leaveRow, "EndDate")?.Date
             ? Number(leaveRow, "TotalDay") : null;
         return new OfficialHRFacts(employeeCode, workDate, Text(leaveRow, "RequestStatus"),
