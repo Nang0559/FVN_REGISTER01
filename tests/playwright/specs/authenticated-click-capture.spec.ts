@@ -55,30 +55,40 @@ async function signIn(page: Page): Promise<void> {
   const passwordInput = page.locator('input[type="password"]:visible').first();
   await expect(passwordInput).toBeVisible({ timeout: 20_000 });
 
-  // Exclude readonly MudBlazor select inputs; only fill a truly editable field.
+  // Prefer the accessible label from Login.razor, then fall back to editable
+  // MudTextField inputs. MudSelect renders a readonly .mud-select-input and must
+  // never be mistaken for the username field.
+  const labelledUserInput = page.getByLabel(/username|user name|tên đăng nhập|tài khoản|mã nhân viên|ユーザー名|ログインID/i).first();
+  let userInput = labelledUserInput;
+  let foundEditable = await labelledUserInput.count().then(async count =>
+    count > 0 && await labelledUserInput.isVisible().catch(() => false)
+      && await labelledUserInput.isEditable().catch(() => false),
+  ).catch(() => false);
+
   const userSelectors = [
-    'input[autocomplete="username"]:visible:not([readonly]):not([disabled])',
-    'input[name*="user" i]:visible:not([readonly]):not([disabled])',
-    'input[id*="user" i]:visible:not([readonly]):not([disabled])',
-    'input[name*="employee" i]:visible:not([readonly]):not([disabled])',
-    'input[id*="employee" i]:visible:not([readonly]):not([disabled])',
-    'input[type="email"]:visible:not([readonly]):not([disabled])',
-    'input[type="text"]:visible:not([readonly]):not([disabled])',
+    'input[autocomplete="username"]:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
+    'input[name*="user" i]:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
+    'input[id*="user" i]:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
+    'input[name*="employee" i]:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
+    'input[id*="employee" i]:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
+    '.mud-input-control input.mud-input-slot:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
+    'input[type="email"]:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
+    'input[type="text"]:visible:not([readonly]):not([disabled]):not(.mud-select-input)',
   ];
-  let userInput = page.locator('input[autocomplete="username"]:visible').first();
-  let foundEditable = false;
-  for (const selector of userSelectors) {
-    const candidates = page.locator(selector);
-    const count = Math.min(await candidates.count().catch(() => 0), 20);
-    for (let i = 0; i < count; i++) {
-      const candidate = candidates.nth(i);
-      if (await candidate.isEditable().catch(() => false)) {
-        userInput = candidate;
-        foundEditable = true;
-        break;
+  if (!foundEditable) {
+    for (const selector of userSelectors) {
+      const candidates = page.locator(selector);
+      const count = Math.min(await candidates.count().catch(() => 0), 20);
+      for (let i = 0; i < count; i++) {
+        const candidate = candidates.nth(i);
+        if (await candidate.isEditable().catch(() => false)) {
+          userInput = candidate;
+          foundEditable = true;
+          break;
+        }
       }
+      if (foundEditable) break;
     }
-    if (foundEditable) break;
   }
   if (!foundEditable) {
     await saveScreenshot(page, 'login-no-editable-username');
@@ -112,7 +122,11 @@ async function signIn(page: Page): Promise<void> {
     || (await page.locator('input[type="password"]:visible').count()) > 0;
   if (stillOnLogin) {
     await saveScreenshot(page, 'login-failed');
-    throw new Error('Login did not complete within 45 seconds. Inspect login-failed.png for validation errors or a different login flow.');
+    const twoFactorVisible = await page.getByText(/two.factor|xác thực hai lớp|xác thực 2 lớp|mã xác minh|verification code|認証コード/i).count().catch(() => 0);
+    if (twoFactorVisible > 0) {
+      throw new Error('Login reached a two-factor verification step. This crawler currently needs a configured TOTP secret or a test account without 2FA; inspect login-failed.png.');
+    }
+    throw new Error('Login did not complete within 45 seconds. Inspect login-failed.png and failure-current-page.png for validation messages or a different login flow.');
   }
 }
 
