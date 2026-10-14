@@ -216,7 +216,7 @@ public sealed class AIHRCaseController : BaseApiController
             var planned = Sum(otRows, "TotalOTHours");
             var actual = summaryRow is null || Number(summaryRow, "ActualRecordCount") is not > 0 ? null : Number(summaryRow, "TotalActual");
             var hasActualInterval = summaryRow is not null && Number(summaryRow, "ActualRecordCount") is > 0;
-            var plannedRow = otRows.FirstOrDefault();
+            var plannedRow = otRows.Count == 1 ? otRows[0] : null;
             var plannedStart = plannedRow is null ? null : ToOffset(plannedRow, "StartTime", workDate);
             var plannedEnd = plannedRow is null ? null : ToOffset(plannedRow, "EndTime", workDate);
             var actualStart = hasActualInterval ? ToOffset(summaryRow!, "ActualStartTime", workDate) : null;
