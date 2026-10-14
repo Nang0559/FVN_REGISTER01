@@ -8,6 +8,16 @@ on:
         required: false
         type: string
         default: ""
+      max_states:
+        description: "Maximum distinct UI states to capture"
+        required: false
+        type: string
+        default: "60"
+      max_click_targets:
+        description: "Maximum safe UI interactions to explore"
+        required: false
+        type: string
+        default: "120"
 
 permissions:
   contents: read
@@ -20,7 +30,15 @@ jobs:
   smoke-test:
     name: Read-only website smoke test
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Must be longer than --global-timeout below so artifacts are always uploaded.
+    timeout-minutes: 35
+    env:
+      CI: "true"
+      PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME || secrets.TEST_USERNAME || secrets.USERNAME }}
+      PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD || secrets.TEST_PASSWORD || secrets.PASSWORD }}
+      PLAYWRIGHT_MAX_STATES: ${{ inputs.max_states || '60' }}
+      PLAYWRIGHT_MAX_CLICK_TARGETS: ${{ inputs.max_click_targets || '120' }}
+      PLAYWRIGHT_MAX_DEPTH: "4"
     steps:
       - name: Checkout test branch
         uses: actions/checkout@v4
@@ -30,30 +48,66 @@ jobs:
         with:
           node-version: 20
 
+      - name: Validate credentials
+        shell: bash
+        run: |
+          if [ -z "$PLAYWRIGHT_USERNAME" ] || [ -z "$PLAYWRIGHT_PASSWORD" ]; then
+            echo "::error::Configure PLAYWRIGHT_USERNAME and PLAYWRIGHT_PASSWORD under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
       - name: Install Playwright dependencies
         working-directory: tests/playwright
         run: |
-          npm install
+          npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
+      # Only the homepage smoke test and the click crawler run here.
+      # authenticated-capture.spec.ts is excluded on purpose: it re-opens URLs with
+      # page.goto(), which starts a new Blazor circuit and lands on the login page.
+      # --workers=1 avoids two logins with the same account at the same time,
+      # --retries=0 stops a failed 30 minute attempt from being silently re-run,
+      # --global-timeout stops the whole run before the job timeout so reports still upload.
       - name: Run smoke tests
         working-directory: tests/playwright
         env:
-          CI: "true"
           PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
-          PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME || secrets.TEST_USERNAME || secrets.USERNAME }}
-          PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD || secrets.TEST_PASSWORD || secrets.PASSWORD }}
-          PLAYWRIGHT_MAX_PAGES: "180"
         run: |
           if [ -z "$PLAYWRIGHT_BASE_URL" ]; then
             unset PLAYWRIGHT_BASE_URL
           fi
-          npm test
+          npx playwright test specs/smoke.spec.ts specs/authenticated-click-capture.spec.ts \
+            --project=chromium --workers=1 --retries=0 --global-timeout=1500000
 
       - name: Create standalone mobile-friendly report
         if: always()
         working-directory: tests/playwright
         run: node scripts/create-mobile-report.mjs
+
+      - name: Verify screenshots were produced
+        if: always()
+        working-directory: tests/playwright
+        env:
+          MIN_STATE_SCREENSHOTS: "5"
+        run: |
+          dir=test-results/screenshots
+          count=$(find "$dir" -name 'state-*.png' 2>/dev/null | wc -l)
+          total=$(find test-results -name '*.png' 2>/dev/null | wc -l)
+          {
+            echo "### Playwright UI screenshots"
+            echo "- state screenshots (clicked screens): $count"
+            echo "- all png files in test-results: $total"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$dir/manifest.json" ]; then
+            echo "=== manifest summary ==="
+            node -e "const m=JSON.parse(require('fs').readFileSync('$dir/manifest.json','utf8')); console.log(JSON.stringify(m.summary||m.diagnostics||{}))"
+          else
+            echo "manifest.json was not created."
+          fi
+          if [ "$count" -lt "$MIN_STATE_SCREENSHOTS" ]; then
+            echo "::error::Only $count clicked-screen screenshots were captured (expected at least $MIN_STATE_SCREENSHOTS). The crawler probably lost its login session or found no navigation targets; see the log lines 'safe click targets' and 'Blocked unsafe'."
+            exit 1
+          fi
 
       - name: List generated reports and screenshots
         if: always()
@@ -75,7 +129,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-smoke-results
+          name: playwright-smoke-results-${{ github.run_number }}
           path: |
             tests/playwright/playwright-report/
             tests/playwright/test-results/
