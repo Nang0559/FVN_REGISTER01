@@ -70,7 +70,7 @@ public sealed class AiHRCaseRecord
  public Guid Id{get;set;} public string TenantCode{get;set;}="";
  public string EmployeeCode{get;set;}=""; public string CaseType{get;set;}="";
  public DateOnly WorkDate{get;set;} public string Outcome{get;set;}="";
- public string UserStatement{get;set;}=""; public string? EvidenceReference{get;set;}
+ public string UserStatement{get;set;}=""; public string? EvidenceReference{get;set;} public string? EvidenceCandidateJson { get; set; }
  public string AnalysisJson{get;set;}="{}"; public string SuggestedReply{get;set;}="";
  public string InternalHRNote{get;set;}=""; public string OfficialSource{get;set;}="";
  public string OfficialRecordReference{get;set;}=""; public DateTimeOffset FactsRetrievedAtUtc{get;set;}
