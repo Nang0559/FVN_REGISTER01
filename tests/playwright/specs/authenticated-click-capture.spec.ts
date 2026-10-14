@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Locator } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -270,7 +270,7 @@ async function restore(page: Page, url: string, tracker: ReturnType<typeof insta
     // Reloading gives us a deterministic parent state after a child click.
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
   }
-  await waitReady(page, `restore:${target.pathname}`, 60_000);
+  await waitReady(page, tracker, `restore:${target.pathname}`, 60_000);
   await expandSafeMenus(page);
 }
 
@@ -280,7 +280,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
 
   const tracker = installRequestTracker(page);
   await signIn(page); // exactly one login for the whole crawl
-  await waitReady(page, 'home-dashboard-after-login', 90_000);
+  await waitReady(page, tracker, 'home-dashboard-after-login', 90_000);
   await expandSafeMenus(page);
 
   const origin = new URL(baseURL!).origin;
@@ -292,7 +292,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   async function crawlCurrentScreen(depth: number, reason: string): Promise<void> {
     if (depth > maxDepth || visitedStates.size >= maxStates || clicks >= maxClicks) return;
 
-    await waitReady(page, `depth=${depth}:${reason}`, 60_000);
+    await waitReady(page, tracker, `depth=${depth}:${reason}`, 60_000);
     await expandSafeMenus(page);
 
     const currentUrl = new URL(page.url());
@@ -334,7 +334,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
       clicks++;
 
       try {
-        await waitReady(page, `after-click:${target.label}`, 60_000);
+        await waitReady(page, tracker, `after-click:${target.label}`, 60_000);
         const childUrl = new URL(page.url());
         childUrl.hash = '';
         if (childUrl.origin !== origin || /\/login(?:\/|$)/i.test(childUrl.pathname)) {
