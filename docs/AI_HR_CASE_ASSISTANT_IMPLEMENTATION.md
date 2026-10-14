@@ -173,7 +173,7 @@ Model cần được tải trước trên máy chủ Ollama. Không mở Ollama 
 
 Trang Blazor route /ai/hr-assistant:
 
-- Tạo case OT/attendance/leave.
+- Tạo case OT/attendance/leave; nhập số giờ OT, khoảng giờ vào/ra hoặc số ngày/mã loại nghỉ mà nhân viên phản hồi.
 - Tải file evidence và kiểm tra trạng thái scan/extraction.
 - Chặn phân tích nếu file chưa ở AwaitingHumanReview hoặc Approved.
 - Hàng chờ HR lọc theo managed scope qua FVN API.
