@@ -39,6 +39,8 @@ public static class DependencyInjection
   services.AddScoped<IIngestionQueue,SqlIngestionQueue>();
   services.AddScoped<ILeasedIngestionQueue,SqlIngestionQueue>();
   services.AddScoped<IDocumentPipeline,DocumentPipeline>();
+  services.TryAddScoped<IAuthorizedHRFactsProvider,UnconfiguredAuthorizedHRFactsProvider>();
+  services.AddScoped<IHRReconciliationService,HRReconciliationService>();
   return services;
  }
 }
