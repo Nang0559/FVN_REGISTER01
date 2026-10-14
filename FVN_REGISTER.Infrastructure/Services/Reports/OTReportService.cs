@@ -162,6 +162,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     RequestCount = g.Select(x => x.OTRequestId).Distinct().Count(),
                     TotalPlanned = g.Sum(x => x.OTHours),
                     TotalActual = g.Sum(x => x.ActualHours ?? 0),
+                    ActualRecordCount = g.Count(x => x.ActualHours.HasValue),
                     ApprovedHours = g
                         .Where(x => x.RequestStatus == ApprovalStatus.Approved)
                         .Sum(x => x.ActualHours ?? x.OTHours),
@@ -177,6 +178,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 ["RequestCount"] = x.RequestCount,
                 ["TotalPlanned"] = x.TotalPlanned,
                 ["TotalActual"] = x.TotalActual,
+                ["ActualRecordCount"] = x.ActualRecordCount,
                 ["ApprovedHours"] = x.ApprovedHours,
             }).ToList();
 
@@ -193,6 +195,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     new() { Field = "RequestCount",  Header = "Số phiếu",     DataType = "number" },
                     new() { Field = "TotalPlanned",  Header = "Giờ kế hoạch", DataType = "decimal", Format = "N1" },
                     new() { Field = "TotalActual",   Header = "Giờ thực tế",  DataType = "decimal", Format = "N1" },
+                    new() { Field = "ActualRecordCount", Header = "Số dòng có giờ thực tế", DataType = "number" },
                     new() { Field = "ApprovedHours", Header = "Giờ đã duyệt", DataType = "decimal", Format = "N1" },
                 },
                 Rows = rows,
