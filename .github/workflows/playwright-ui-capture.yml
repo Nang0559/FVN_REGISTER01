@@ -29,6 +29,7 @@ jobs:
   capture:
     name: Capture authenticated UI
     runs-on: ubuntu-latest
+    # Must be longer than --global-timeout below so artifacts are always uploaded.
     timeout-minutes: 60
     env:
       PLAYWRIGHT_BASE_URL: ${{ inputs.base_url || 'https://dangkyphep.fcc-vn.com.vn' }}
@@ -73,9 +74,34 @@ jobs:
         working-directory: tests/playwright
         run: npx playwright install --with-deps chromium
 
+      # --retries=0: a failed attempt must not be silently re-run (the old run lost 30 minutes
+      # on a hung login and then "passed" on retry with nothing captured).
+      # --global-timeout (50 min) ends the run before the 60 minute job limit so artifacts upload.
       - name: Run authenticated recursive UI capture
         working-directory: tests/playwright
-        run: npx playwright test specs/authenticated-click-capture.spec.ts --project=chromium
+        run: |
+          npx playwright test specs/authenticated-click-capture.spec.ts \
+            --project=chromium --workers=1 --retries=0 --global-timeout=3000000
+
+      - name: Verify screenshots were produced
+        if: always()
+        working-directory: tests/playwright
+        env:
+          MIN_STATE_SCREENSHOTS: "5"
+        run: |
+          dir=test-results/screenshots
+          count=$(find "$dir" -name 'state-*.png' 2>/dev/null | wc -l)
+          {
+            echo "### Playwright UI capture"
+            echo "- state screenshots (clicked screens): $count"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$dir/manifest.json" ]; then
+            node -e "const m=JSON.parse(require('fs').readFileSync('$dir/manifest.json','utf8')); console.log(JSON.stringify(m.summary||m.diagnostics||{}))"
+          fi
+          if [ "$count" -lt "$MIN_STATE_SCREENSHOTS" ]; then
+            echo "::error::Only $count clicked-screen screenshots were captured (expected at least $MIN_STATE_SCREENSHOTS). Check the log lines 'safe click targets' and 'Blocked unsafe'."
+            exit 1
+          fi
 
       - name: Upload screenshots and diagnostics
         if: always()
