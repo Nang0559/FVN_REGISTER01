@@ -113,7 +113,8 @@ BEGIN
     UPDATE ai.AiIngestionJobs
        SET Status=N'Completed', CompletedAtUtc=TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'),
            LeaseOwner=NULL, LeaseUntilUtc=NULL, FailureCode=NULL
-     WHERE Id=@JobId AND Status=N'Running' AND LeaseOwner=@WorkerId;
+     WHERE Id=@JobId AND Status=N'Running' AND LeaseOwner=@WorkerId
+       AND LeaseUntilUtc > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00');
     IF @@ROWCOUNT <> 1 BEGIN ROLLBACK; THROW 51003, 'Job lease is not owned by this worker.', 1; END;
     UPDATE ai.AiDocuments SET Status=@DocumentStatus
      WHERE Id=(SELECT DocumentId FROM ai.AiIngestionJobs WHERE Id=@JobId);
