@@ -46,6 +46,6 @@ public sealed class HRCaseQueryService(AiPlatformDbContext db, IHRCaseReviewerAu
 
     private static HRCaseInboxItem Map(AiHRCaseRecord x)
         => new(x.Id, x.EmployeeCode, x.CaseType, x.WorkDate, x.Outcome, x.Status, x.UserStatement,
-            x.SuggestedReply, x.InternalHRNote, x.AnalysisJson, x.EvidenceReference,
+            x.SuggestedReply, x.InternalHRNote, x.AnalysisJson, x.EvidenceReference, x.EvidenceCandidateJson,
             x.OfficialSource, x.OfficialRecordReference, x.CreatedAtUtc, x.CreatedBy);
 }
