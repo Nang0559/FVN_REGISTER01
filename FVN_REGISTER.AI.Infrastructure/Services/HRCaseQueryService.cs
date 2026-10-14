@@ -10,11 +10,11 @@ public sealed class HRCaseQueryService(AiPlatformDbContext db, IHRCaseReviewerAu
         CancellationToken cancellationToken = default)
     {
         EnsureContext(tenantCode, actorId);
-        limit = Math.Clamp(limit, 1, 100);
+        limit = Math.Clamp(limit, 1, 500);
         var rows = await db.HRCases.AsNoTracking()
             .Where(x => x.TenantCode == tenantCode && x.Status == "PendingHRReview")
             .OrderBy(x => x.CreatedAtUtc)
-            .Take(500)
+            .Take(5000)
             .ToListAsync(cancellationToken);
         var visible = new List<HRCaseInboxItem>();
         foreach (var row in rows)
