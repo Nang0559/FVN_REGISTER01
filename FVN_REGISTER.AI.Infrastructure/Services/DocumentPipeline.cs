@@ -76,7 +76,20 @@ public sealed class DocumentPipeline(
     {
         var lines = text.Replace("\r\n", "\n").Replace('\r', '\n')
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var evidence = lines.Take(500).Select((line, index) => new { lineNumber = index + 1, text = line.Length > 4000 ? line[..4000] : line }).ToArray();
+        var evidenceRows = new List<object>();
+        var pageNumber = 1;
+        for (var index = 0; index < Math.Min(lines.Length, 500); index++)
+        {
+            var line = lines[index];
+            var pageMarker = System.Text.RegularExpressions.Regex.Match(line, @"^\\[PAGE (?<page>\\d+)\\]$");
+            if (pageMarker.Success && int.TryParse(pageMarker.Groups["page"].Value, out var parsedPage))
+            {
+                pageNumber = parsedPage;
+                continue;
+            }
+            evidenceRows.Add(new { lineNumber = index + 1, pageNumber, text = line.Length > 4000 ? line[..4000] : line });
+        }
+        var evidence = evidenceRows.ToArray();
         var fields = new Dictionary<string, object?>
         {
             ["employeeCode"] = FindValue(text, @"(?i)\bE\d{4,8}\b"),
