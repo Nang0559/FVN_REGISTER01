@@ -149,6 +149,17 @@ public sealed class AIHRCaseController : BaseApiController
         return await RelayAsync(upstream);
     }
 
+    [HttpGet("evidence/{documentId:guid}")]
+    public async Task<IActionResult> GetEvidenceStatus(Guid documentId, CancellationToken ct)
+    {
+        var user = UserInfo;
+        if (user is null) return Unauthorized();
+        var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
+        using var upstream = await SendAiAsync(HttpMethod.Get,
+            $"/api/ai/v1/documents/{documentId:D}", null, actor, ct);
+        return await RelayAsync(upstream);
+    }
+
     [HttpGet("evidence/{documentId:guid}/extraction")]
     public async Task<IActionResult> GetEvidenceExtraction(Guid documentId, CancellationToken ct)
     {
