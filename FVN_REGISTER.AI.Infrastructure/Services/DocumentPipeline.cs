@@ -81,7 +81,8 @@ public sealed class DocumentPipeline(
         {
             ["employeeCode"] = FindValue(text, @"(?i)\bE\d{4,8}\b"),
             ["dateCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"\b(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4})\b").Select(m => m.Value).Distinct().Take(100).ToArray(),
-            ["timeCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"\b(?:[01]?\d|2[0-3]):[0-5]\d\b").Select(m => m.Value).Distinct().Take(100).ToArray()
+            ["timeCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"\b(?:[01]?\d|2[0-3]):[0-5]\d\b").Select(m => m.Value).Distinct().Take(100).ToArray(),
+            ["hourCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"(?i)\b(?<hours>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:giờ|hours?|h)\b").Select(m => m.Groups["hours"].Value).Distinct().Take(50).ToArray()
         };
         return new
         {
