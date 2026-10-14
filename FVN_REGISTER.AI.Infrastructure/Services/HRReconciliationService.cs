@@ -59,13 +59,17 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             throw new ArgumentException("User statement must contain 1 to 8000 characters.", nameof(request));
         if (request.EvidenceText?.Length > 100_000)
             throw new ArgumentException("Evidence text exceeds the permitted length.", nameof(request));
+        if (request.EvidenceReference?.Length > 512 || request.EmployeeCode?.Length > 64 ||
+            request.ReportedLeaveType?.Length > 64 || request.WorkDate == default)
+            throw new ArgumentException("HR case metadata is outside the permitted range.", nameof(request));
         if (request.ReportedHours is < 0 or > 24 || request.ReportedLeaveDays is < 0 or > 31)
             throw new ArgumentException("Reported hours or leave days are outside the permitted range.", nameof(request));
         if (request.ReportedStart.HasValue != request.ReportedEnd.HasValue ||
             (request.ReportedStart.HasValue && request.ReportedEnd!.Value <= request.ReportedStart.Value))
             throw new ArgumentException("Reported attendance interval is invalid.", nameof(request));
-        if (string.IsNullOrWhiteSpace(facts.EmployeeCode) || string.IsNullOrWhiteSpace(facts.SourceSystem) ||
-            string.IsNullOrWhiteSpace(facts.SourceRecordReference))
+        if (string.IsNullOrWhiteSpace(facts.EmployeeCode) || facts.EmployeeCode.Length > 64 ||
+            string.IsNullOrWhiteSpace(facts.SourceSystem) || facts.SourceSystem.Length > 128 ||
+            string.IsNullOrWhiteSpace(facts.SourceRecordReference) || facts.SourceRecordReference.Length > 256)
             throw new InvalidOperationException("Official HR facts provider returned incomplete provenance.");
         if (facts.WorkDate != request.WorkDate)
             throw new InvalidOperationException("Official facts provider returned a different work date.");
@@ -188,7 +192,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             var draft = response.Output?.Trim();
             return !string.IsNullOrWhiteSpace(draft) && draft.Length <= 4000 ? draft : fallback;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TimeoutException)
+        catch (Exception ex) when ((ex is InvalidOperationException or HttpRequestException or TimeoutException or TaskCanceledException) && !cancellationToken.IsCancellationRequested)
         {
             // Safe deterministic fallback when the approved model provider is unavailable.
             return fallback;
