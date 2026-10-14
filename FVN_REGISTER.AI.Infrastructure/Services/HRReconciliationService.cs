@@ -269,6 +269,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         else
             result.Add(new("RequestStatus", null, f.RequestStatus, "OT-STATUS-001",
                 HRComparisonOutcome.NeedsHumanDecision, "Cần HR xem xét trạng thái yêu cầu cùng quy định phê duyệt."));
+        AddEvidenceIdentityComparisons(result, request, f);
         return result;
     }
 
@@ -289,6 +290,7 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         if (f.ShiftCode is null)
             result.Add(new("ShiftCode", null, null, "ATT-SHIFT-001", HRComparisonOutcome.InsufficientEvidence,
                 "Thiếu mã ca làm việc."));
+        AddEvidenceIdentityComparisons(result, request, f);
         return result;
     }
 
@@ -306,6 +308,24 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         return result;
     }
 
+    private static void AddEvidenceIdentityComparisons(List<HRFieldComparison> result, HRCaseAnalysisRequest request, OfficialHRFacts facts)
+    {
+        if (!string.IsNullOrWhiteSpace(request.EvidenceEmployeeCode))
+        {
+            var matches = string.Equals(request.EvidenceEmployeeCode, facts.EmployeeCode, StringComparison.OrdinalIgnoreCase);
+            result.Add(new HRFieldComparison("EvidenceEmployeeCode", request.EvidenceEmployeeCode, facts.EmployeeCode,
+                "EVIDENCE-EMPLOYEE-001", matches ? HRComparisonOutcome.Matched : HRComparisonOutcome.Discrepancy,
+                matches ? "Mã nhân viên trích xuất từ bằng chứng khớp dữ liệu HR." : "Mã nhân viên trong bằng chứng khác nhân viên của hồ sơ HR; cần kiểm tra trước khi xử lý."));
+        }
+        if (request.EvidenceWorkDate.HasValue)
+        {
+            var matches = request.EvidenceWorkDate.Value == facts.WorkDate;
+            result.Add(new HRFieldComparison("EvidenceWorkDate", request.EvidenceWorkDate.Value.ToString("dd/MM/yyyy"),
+                facts.WorkDate.ToString("dd/MM/yyyy"), "EVIDENCE-WORKDATE-001",
+                matches ? HRComparisonOutcome.Matched : HRComparisonOutcome.Discrepancy,
+                matches ? "Ngày trên bằng chứng khớp ngày cần đối chiếu." : "Ngày trích xuất từ bằng chứng khác ngày hồ sơ; cần HR xác minh."));
+        }
+    }
     private static void CompareHours(List<HRFieldComparison> result, string field, decimal? reported,
         decimal? official, string rule, string explanation)
     {
