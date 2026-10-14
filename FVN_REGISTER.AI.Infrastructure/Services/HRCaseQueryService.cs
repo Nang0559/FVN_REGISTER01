@@ -19,7 +19,7 @@ public sealed class HRCaseQueryService(AiPlatformDbContext db, IHRCaseReviewerAu
         var visible = new List<HRCaseInboxItem>();
         foreach (var row in rows)
         {
-            if (await authorization.CanReviewEmployeeAsync(tenantCode, actorId, row.EmployeeCode, cancellationToken))
+            if (await Enum.TryParse<HRCaseType>(row.CaseType, out var caseType) && await authorization.CanReviewCaseAsync(tenantCode, actorId, row.EmployeeCode, caseType, cancellationToken))
                 visible.Add(Map(row));
             if (visible.Count >= limit) break;
         }
@@ -33,7 +33,8 @@ public sealed class HRCaseQueryService(AiPlatformDbContext db, IHRCaseReviewerAu
         var row = await db.HRCases.AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == caseId && x.TenantCode == tenantCode, cancellationToken);
         if (row is null) return null;
-        return await authorization.CanReviewEmployeeAsync(tenantCode, actorId, row.EmployeeCode, cancellationToken)
+        return Enum.TryParse<HRCaseType>(row.CaseType, out var caseType) &&
+            await authorization.CanReviewCaseAsync(tenantCode, actorId, row.EmployeeCode, caseType, cancellationToken)
             ? Map(row) : null;
     }
 
