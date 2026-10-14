@@ -392,10 +392,13 @@ public sealed class AIHRCaseController : BaseApiController
         request.Headers.TryAddWithoutValidation("X-AI-Nonce", nonce);
         request.Headers.TryAddWithoutValidation("X-AI-Signature", signature);
         try { return await _httpClientFactory.CreateClient("FvnAi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct); }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
-            request.Dispose();
-            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = JsonContent.Create(new { error = "AI service unavailable.", detail = ex.Message }) };
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = JsonContent.Create(new { error = "AI service unavailable." }) };
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = JsonContent.Create(new { error = "AI service timed out." }) };
         }
     }
 
