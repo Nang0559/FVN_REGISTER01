@@ -19,11 +19,10 @@ public sealed class HRCaseReviewService(AiPlatformDbContext db, IHRCaseReviewerA
         if (request.FinalReply?.Length > 4000 || request.Comment?.Length > 2000)
             throw new ArgumentException("Review text exceeds the permitted length.", nameof(request));
 
-        if (!await authorization.CanReviewAsync(tenantCode, actorId, cancellationToken))
-            throw new UnauthorizedAccessException("Actor is not authorized to review HR cases.");
-
         var item = await db.HRCases.SingleOrDefaultAsync(x => x.Id == caseId && x.TenantCode == tenantCode, cancellationToken);
         if (item is null) throw new KeyNotFoundException("HR case was not found.");
+        if (!await authorization.CanReviewEmployeeAsync(tenantCode, actorId, item.EmployeeCode, cancellationToken))
+            throw new UnauthorizedAccessException("Actor is not authorized to review this employee's HR case.");
         if (item.Status != "PendingHRReview")
             throw new InvalidOperationException("HR case has already been reviewed.");
 
