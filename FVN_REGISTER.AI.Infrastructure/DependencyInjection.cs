@@ -42,6 +42,8 @@ public static class DependencyInjection
   services.AddScoped<IDocumentPipeline,DocumentPipeline>();
   services.TryAddScoped<IAuthorizedHRFactsProvider,UnconfiguredAuthorizedHRFactsProvider>();
   services.AddScoped<IHRReconciliationService,HRReconciliationService>();
+  services.TryAddScoped<IHRCaseReviewerAuthorization,UnconfiguredHRCaseReviewerAuthorization>();
+  services.AddScoped<IHRCaseReviewService,HRCaseReviewService>();
   return services;
  }
 }
