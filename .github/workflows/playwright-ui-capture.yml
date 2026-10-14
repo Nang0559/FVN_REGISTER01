@@ -17,12 +17,6 @@ on:
         required: false
         default: "500"
         type: string
-  push:
-    branches:
-      - test/playwright-ui
-    paths:
-      - "tests/playwright/**"
-      - ".github/workflows/playwright-ui-capture.yml"
 
 permissions:
   contents: read
