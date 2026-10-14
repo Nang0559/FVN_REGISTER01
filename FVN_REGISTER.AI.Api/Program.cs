@@ -21,7 +21,7 @@ app.MapGet("/health/ready",async (IServiceProvider sp,CancellationToken ct)=>{
 });
 app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o)=>{
  var s=o.Value;
- return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured=!string.Equals(s.DefaultProvider,"Unconfigured",StringComparison.OrdinalIgnoreCase),capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","document-understanding","structured-extraction","knowledge-rag","human-feedback"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
+ return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured=!string.Equals(s.DefaultProvider,"Unconfigured",StringComparison.OrdinalIgnoreCase),capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","human-review-persistence","feedback-capture"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
 });
 var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  var configured=app.Configuration[$"{AIPlatformOptions.SectionName}:ApiKey"];
