@@ -9,6 +9,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
  public DbSet<AiReviewRecord> Reviews=>Set<AiReviewRecord>();
  public DbSet<AiFeedbackRecord> Feedback=>Set<AiFeedbackRecord>();
  public DbSet<AiHRCaseRecord> HRCases=>Set<AiHRCaseRecord>();
+ public DbSet<AiHRCaseReviewRecord> HRCaseReviews=>Set<AiHRCaseReviewRecord>();
  protected override void OnModelCreating(ModelBuilder b)
  {
   var d=b.Entity<AiDocumentRecord>(); d.ToTable("AiDocuments","ai"); d.HasKey(x=>x.Id);
@@ -36,8 +37,14 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   h.Property(x=>x.AnalysisJson).IsRequired(); h.Property(x=>x.SuggestedReply).HasMaxLength(4000).IsRequired();
   h.Property(x=>x.InternalHRNote).HasMaxLength(8000).IsRequired(); h.Property(x=>x.OfficialSource).HasMaxLength(128).IsRequired(); h.Property(x=>x.OfficialRecordReference).HasMaxLength(256).IsRequired(); h.Property(x=>x.Status).HasMaxLength(24).IsRequired();
   h.Property(x=>x.CreatedBy).HasMaxLength(128).IsRequired(); h.Property(x=>x.ReviewedBy).HasMaxLength(128);
-  h.Property(x=>x.ReviewDecision).HasMaxLength(16); h.HasIndex(x=>new{x.TenantCode,x.WorkDate,x.CaseType});
+  h.Property(x=>x.ReviewDecision).HasMaxLength(16); h.Property(x=>x.RowVersion).IsRowVersion();
+  h.HasIndex(x=>new{x.TenantCode,x.WorkDate,x.CaseType});
   h.HasIndex(x=>new{x.TenantCode,x.Status,x.CreatedAtUtc});
+  var hr=b.Entity<AiHRCaseReviewRecord>(); hr.ToTable("AiHRCaseReviews","ai"); hr.HasKey(x=>x.Id);
+  hr.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); hr.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
+  hr.Property(x=>x.Decision).HasMaxLength(16).IsRequired(); hr.Property(x=>x.FinalReply).HasMaxLength(4000);
+  hr.Property(x=>x.Comment).HasMaxLength(2000); hr.HasIndex(x=>new{x.TenantCode,x.CaseId,x.ReviewedAtUtc});
+  hr.HasOne<AiHRCaseRecord>().WithMany().HasForeignKey(x=>x.CaseId).OnDelete(DeleteBehavior.Restrict);
   var f=b.Entity<AiFeedbackRecord>(); f.ToTable("AiFeedback","ai"); f.HasKey(x=>x.Id);
   f.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); f.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
   f.Property(x=>x.FeedbackType).HasMaxLength(24).IsRequired(); f.Property(x=>x.Reason).HasMaxLength(2000);
@@ -70,5 +77,13 @@ public sealed class AiHRCaseRecord
  public string Status{get;set;}="PendingHRReview"; public string CreatedBy{get;set;}="";
  public DateTimeOffset CreatedAtUtc{get;set;} public string? ReviewedBy{get;set;}
  public string? ReviewDecision{get;set;} public string? FinalReply{get;set;}
- public string? ReviewComment{get;set;} public DateTimeOffset? ReviewedAtUtc{get;set;}
+ public string? ReviewComment{get;set;} public DateTimeOffset? ReviewedAtUtc{get;set;} public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+}
+
+public sealed class AiHRCaseReviewRecord
+{
+ public Guid Id { get; set; } public Guid CaseId { get; set; } public string TenantCode { get; set; } = "";
+ public string ReviewerId { get; set; } = ""; public string Decision { get; set; } = "";
+ public string? FinalReply { get; set; } public string? Comment { get; set; }
+ public DateTimeOffset ReviewedAtUtc { get; set; }
 }
