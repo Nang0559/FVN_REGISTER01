@@ -2,6 +2,7 @@ using FVN_REGISTER.AI.Application.Contracts;
 using FVN_REGISTER.AI.Infrastructure.Services;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using FVN_REGISTER.AI.Infrastructure.Providers;
 
 namespace FVN_REGISTER.AI.Tests;
 
@@ -14,7 +15,7 @@ public sealed class HRReconciliationTests
             null, null, 2m, null, null, 1.5m, 1.5m, "HC", false,
             null, null, "FVN_REGISTER", "OT-REQ-001", DateTimeOffset.UtcNow);
         await using var db = CreateDb();
-        var service = new HRReconciliationService(new StubFactsProvider(facts), db);
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db, new UnconfiguredAIModelProvider());
 
         var result = await service.AnalyzeAsync("FCCVN", "hr-user",
             new HRCaseAnalysisRequest(HRCaseType.Overtime, "E0001", new DateOnly(2026, 10, 1),
