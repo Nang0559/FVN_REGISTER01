@@ -100,13 +100,12 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             evidenceCandidateJson = evidence;
             var extractedHours = ReadSingleDecimalCandidate(evidence, "hourCandidates", 0, 24);
             var extractedDays = ReadSingleDecimalCandidate(evidence, "dayCandidates", 0, 31);
-            var extractedLeaveType = ReadSingleStringCandidate(evidence, "leaveTypeCandidates");
             var extractedTimes = ReadSingleTimePair(evidence, request.WorkDate);
             effectiveRequest = effectiveRequest with
             {
                 ReportedHours = request.ReportedHours ?? (request.CaseType == HRCaseType.Overtime ? extractedHours : null),
                 ReportedLeaveDays = request.ReportedLeaveDays ?? (request.CaseType == HRCaseType.Leave ? extractedDays : null),
-                ReportedLeaveType = request.ReportedLeaveType ?? (request.CaseType == HRCaseType.Leave ? extractedLeaveType : null),
+                ReportedLeaveType = request.ReportedLeaveType,
                 ReportedStart = request.ReportedStart ?? (request.CaseType == HRCaseType.Attendance ? extractedTimes.Start : null),
                 ReportedEnd = request.ReportedEnd ?? (request.CaseType == HRCaseType.Attendance ? extractedTimes.End : null),
                 EvidenceEmployeeCode = ReadSingleStringCandidate(evidence, "employeeCode"),
