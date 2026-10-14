@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -209,7 +209,7 @@ async function collectSafeClickTargets(page: Page): Promise<ClickTarget[]> {
 
     for (let index = 0; index < elements.length; index++) {
       const element = elements[index] as HTMLElement;
-      if (!element.offsetParent || element.closest('form')) continue;
+      if (element.getClientRects().length === 0 || element.closest('form')) continue;
       if (element instanceof HTMLButtonElement && element.type.toLowerCase() === 'submit') continue;
       if (element.getAttribute('aria-disabled') === 'true' || element.hasAttribute('disabled')) continue;
 
@@ -293,6 +293,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   const origin = new URL(baseURL!).origin;
   const visitedStates = new Set<string>();
   const attemptedClicks = new Set<string>();
+  const capturedStates: Array<{ number: number; depth: number; reason: string; url: string; signature: string; screenshot: string }> = [];
   let captured = 0;
   let clicks = 0;
 
@@ -313,7 +314,16 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
     visitedStates.add(stateKey);
 
     captured++;
-    await saveScreenshot(page, `state-${captured}-depth-${depth}-${currentUrl.pathname}${currentUrl.search}`);
+    const screenshotName = `state-${captured}-depth-${depth}-${currentUrl.pathname}${currentUrl.search}`;
+    await saveScreenshot(page, screenshotName);
+    capturedStates.push({
+      number: captured,
+      depth,
+      reason,
+      url: currentUrl.href,
+      signature: domSignature,
+      screenshot: `${safeFileName(screenshotName)}.png`,
+    });
     console.log(`Captured state #${captured}: depth=${depth}, url=${currentUrl.pathname}${currentUrl.search}, signature=${domSignature}`);
 
     if (visitedStates.size >= maxStates || clicks >= maxClicks || depth >= maxDepth) return;
@@ -363,6 +373,13 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
 
   await crawlCurrentScreen(0, 'initial-login');
 
+  await writeFile(path.join(screenshotDir, 'manifest.json'), JSON.stringify({
+    baseUrl: origin,
+    generatedAt: new Date().toISOString(),
+    limits: { maxStates, maxClicks, maxDepth },
+    summary: { states: visitedStates.size, screenshots: captured, clicks },
+    states: capturedStates,
+  }, null, 2), 'utf8');
   await page.screenshot({ path: path.join(screenshotDir, 'capture-index.png'), fullPage: true }).catch(() => undefined);
   await expect(page.locator('body')).toBeVisible();
   expect(visitedStates.size, 'At least the authenticated Home/Dashboard state should be visited').toBeGreaterThan(0);
