@@ -8,6 +8,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
  public DbSet<AiExtractionRecord> Extractions=>Set<AiExtractionRecord>();
  public DbSet<AiReviewRecord> Reviews=>Set<AiReviewRecord>();
  public DbSet<AiFeedbackRecord> Feedback=>Set<AiFeedbackRecord>();
+ public DbSet<AiHRCaseRecord> HRCases=>Set<AiHRCaseRecord>();
  protected override void OnModelCreating(ModelBuilder b)
  {
   var d=b.Entity<AiDocumentRecord>(); d.ToTable("AiDocuments","ai"); d.HasKey(x=>x.Id);
@@ -28,6 +29,15 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   r.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); r.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
   r.Property(x=>x.Decision).HasMaxLength(16).IsRequired(); r.Property(x=>x.OriginalPayloadJson).IsRequired();
   r.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.ReviewedAtUtc});
+  var h=b.Entity<AiHRCaseRecord>(); h.ToTable("AiHRCases","ai"); h.HasKey(x=>x.Id);
+  h.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); h.Property(x=>x.EmployeeCode).HasMaxLength(64).IsRequired();
+  h.Property(x=>x.CaseType).HasMaxLength(24).IsRequired(); h.Property(x=>x.Outcome).HasMaxLength(32).IsRequired();
+  h.Property(x=>x.UserStatement).HasMaxLength(8000).IsRequired(); h.Property(x=>x.EvidenceReference).HasMaxLength(512);
+  h.Property(x=>x.AnalysisJson).IsRequired(); h.Property(x=>x.SuggestedReply).HasMaxLength(4000).IsRequired();
+  h.Property(x=>x.InternalHRNote).HasMaxLength(8000).IsRequired(); h.Property(x=>x.Status).HasMaxLength(24).IsRequired();
+  h.Property(x=>x.CreatedBy).HasMaxLength(128).IsRequired(); h.Property(x=>x.ReviewedBy).HasMaxLength(128);
+  h.Property(x=>x.ReviewDecision).HasMaxLength(16); h.HasIndex(x=>new{x.TenantCode,x.WorkDate,x.CaseType});
+  h.HasIndex(x=>new{x.TenantCode,x.Status,x.CreatedAtUtc});
   var f=b.Entity<AiFeedbackRecord>(); f.ToTable("AiFeedback","ai"); f.HasKey(x=>x.Id);
   f.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); f.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
   f.Property(x=>x.FeedbackType).HasMaxLength(24).IsRequired(); f.Property(x=>x.Reason).HasMaxLength(2000);
@@ -47,4 +57,18 @@ public sealed class AiIngestionJobRecord
  public int AttemptCount{get;set;} public DateTimeOffset CreatedAtUtc{get;set;} public DateTimeOffset? StartedAtUtc{get;set;}
  public string? LeaseOwner{get;set;} public DateTimeOffset? LeaseUntilUtc{get;set;}
  public DateTimeOffset? CompletedAtUtc{get;set;} public string? FailureCode{get;set;}
+}
+public sealed class AiHRCaseRecord
+{
+ public Guid Id{get;set;} public string TenantCode{get;set;}="";
+ public string EmployeeCode{get;set;}=""; public string CaseType{get;set;}="";
+ public DateOnly WorkDate{get;set;} public string Outcome{get;set;}="";
+ public string UserStatement{get;set;}=""; public string? EvidenceReference{get;set;}
+ public string AnalysisJson{get;set;}="{}"; public string SuggestedReply{get;set;}="";
+ public string InternalHRNote{get;set;}=""; public string OfficialSource{get;set;}="";
+ public string OfficialRecordReference{get;set;}=""; public DateTimeOffset FactsRetrievedAtUtc{get;set;}
+ public string Status{get;set;}="PendingHRReview"; public string CreatedBy{get;set;}="";
+ public DateTimeOffset CreatedAtUtc{get;set;} public string? ReviewedBy{get;set;}
+ public string? ReviewDecision{get;set;} public string? FinalReply{get;set;}
+ public string? ReviewComment{get;set;} public DateTimeOffset? ReviewedAtUtc{get;set;}
 }
