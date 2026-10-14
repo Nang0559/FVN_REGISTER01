@@ -22,7 +22,7 @@ public sealed class LocalDocumentTextExtractor : IDocumentTextExtractor
             if (mediaType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) ||
                 mediaType.Equals("text/csv", StringComparison.OrdinalIgnoreCase))
             {
-                using var reader = new StreamReader(content, StrictUtf8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+                using var reader = new StreamReader(content, StrictUtf8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
                 return await reader.ReadToEndAsync(cancellationToken);
             }
 
