@@ -31,7 +31,7 @@ public sealed class OllamaAIModelProvider(HttpClient httpClient, IOptions<AIPlat
                 new OllamaMessage("system", request.SystemInstruction ?? "Answer using only the supplied context."),
                 new OllamaMessage("user", request.Input)
             },
-            new OllamaOptions(0.1, 8192));
+            new OllamaOptions(0.1, 8192, 800));
 
         var stopwatch = Stopwatch.StartNew();
         using var response = await httpClient.PostAsJsonAsync("api/chat", payload, JsonOptions, cancellationToken);
@@ -48,7 +48,7 @@ public sealed class OllamaAIModelProvider(HttpClient httpClient, IOptions<AIPlat
 
     private sealed record OllamaChatRequest(string Model, bool Stream, IReadOnlyList<OllamaMessage> Messages, OllamaOptions Options);
     private sealed record OllamaMessage(string Role, string Content);
-    private sealed record OllamaOptions(double Temperature, [property: JsonPropertyName("num_ctx")] int NumCtx);
+    private sealed record OllamaOptions(double Temperature, [property: JsonPropertyName("num_ctx")] int NumCtx, [property: JsonPropertyName("num_predict")] int NumPredict);
     private sealed record OllamaChatResponse(OllamaMessage? Message, bool Done,
         [property: JsonPropertyName("done_reason")] string? DoneReason,
         [property: JsonPropertyName("prompt_eval_count")] int? PromptEvalCount,
