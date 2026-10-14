@@ -105,10 +105,12 @@
   "public.xemDanhSachTongHop": "フォームごとの登録一覧、集計、データ出力を確認します。",
   "public.xemTaiLieu": "資料を見る",
   "public.xuatExcelThatBai": "Excelの出力に失敗しました。",
-  "public.yeuCauApproval": "承認申請"
-,
+  "public.yeuCauApproval": "承認申請",
   "public.feedback": "フィードバック",
   "public.guiPhanHoi": "フィードバックを送信",
   "public.guiPhanHoiThanhCong": "フィードバックを送信しました。",
-  "public.guiPhanHoiThatBai": "フィードバックの送信に失敗しました。"
+  "public.guiPhanHoiThatBai": "フィードバックの送信に失敗しました。",
+  "public.dinhKem": "添付ファイル",
+  "public.chonFileDinhKem": "署名・押印済みの文書を添付します（PDF、画像、Word、Excel。1ファイル最大10MB）。",
+  "public.taiFileThatBai": "ファイルを取得できませんでした。"
 }

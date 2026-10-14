@@ -63,7 +63,9 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
 
     public Task<LocalizationRuntimeSnapshotDto> GetRuntimeSnapshotAsync(long? sinceVersion, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested();
+        if (ct.IsCancellationRequested)
+            return Task.FromCanceled<LocalizationRuntimeSnapshotDto>(ct);
+
         // Missing folder is not an error here: clients simply keep their embedded text.
         return Task.FromResult(RuntimeCatalog.Get(ResolveLocalizationRoot(), sinceVersion));
     }

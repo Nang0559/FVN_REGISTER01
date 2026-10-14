@@ -111,6 +111,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "70_RequestModuleCanonicalization.sql"
 :r "71_DepartmentCodeInt.sql"
 :r "73_DashboardViewShellCapability.sql"
+:r "81_PublicInformationAttachments.sql"
 /* [SEED] is intentionally late: all schema/module tables must exist before the complete seed pack runs. */
 -- [SEED] :r "06_Seed_All_Modules.sql"
 :r "14D_SecuritySchemaVerify.sql"

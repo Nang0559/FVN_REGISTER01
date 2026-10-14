@@ -96,6 +96,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03EmailProfile> EmailProfiles { get; set; }
     public DbSet<F03EmailDispatchPolicy> EmailDispatchPolicies { get; set; }
     public DbSet<F03PublicInformation> PublicInformations { get; set; }
+    public DbSet<F03PublicInformationAttachment> PublicInformationAttachments { get; set; }
     public DbSet<F03PublicForm> PublicForms { get; set; }
     public DbSet<F03PublicFormQuestion> PublicFormQuestions { get; set; }
     public DbSet<F03PublicFormQuestionOption> PublicFormQuestionOptions { get; set; }

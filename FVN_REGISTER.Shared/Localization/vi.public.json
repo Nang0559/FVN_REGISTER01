@@ -105,10 +105,12 @@
   "public.xemDanhSachTongHop": "Xem danh sách, tổng hợp và xuất dữ liệu đăng ký theo biểu mẫu.",
   "public.xemTaiLieu": "Xem tài liệu",
   "public.xuatExcelThatBai": "Xuất Excel thất bại.",
-  "public.yeuCauApproval": "Yêu cầu Approval"
-,
+  "public.yeuCauApproval": "Yêu cầu Approval",
   "public.feedback": "Phản hồi",
   "public.guiPhanHoi": "Gửi phản hồi",
   "public.guiPhanHoiThanhCong": "Đã gửi phản hồi.",
-  "public.guiPhanHoiThatBai": "Gửi phản hồi thất bại."
+  "public.guiPhanHoiThatBai": "Gửi phản hồi thất bại.",
+  "public.dinhKem": "Tệp đính kèm",
+  "public.chonFileDinhKem": "Đính kèm văn bản đã ký đóng dấu (PDF, ảnh, Word, Excel; tối đa 10 MB mỗi file).",
+  "public.taiFileThatBai": "Không tải được file."
 }

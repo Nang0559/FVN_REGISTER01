@@ -1,11 +1,15 @@
 @page "/thong-tin-cong-khai"
 @page "/public-information"
-@using System.Text.Json
+@using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Dtos.PublicForms
+@using FVN_REGISTER.Contract.Dtos.PublicInformation
+@using Microsoft.JSInterop
 @using FVN_REGISTER.Shared.Handlers
 @inherits AppComponentBase
 @inject IHttpClientWithAuth Http
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
 <PageTitle>@Language.T("nav.publicInformation")</PageTitle>
 
@@ -92,6 +96,20 @@
                             {
                                 <MudButton Href="@item.AttachmentUrl" Target="_blank" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AttachFile" Class="mt-3">@Language.T("public.xemTaiLieu")</MudButton>
                             }
+                            @if (item.Attachments.Count > 0)
+                            {
+                                <MudStack Spacing="1" Class="mt-3">
+                                    @foreach (var file in item.Attachments)
+                                    {
+                                        var itemId = item.Id; var attachment = file;
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@AttachmentIcon(attachment)"
+                                                   Style="justify-content:flex-start;text-transform:none"
+                                                   OnClick="@(() => DownloadAsync(itemId, attachment))">
+                                            @attachment.FileName
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -101,7 +119,7 @@
 </MudContainer>
 
 @code {
-    private readonly List<PublicItem> _items = new();
+    private readonly List<PublicInformationDto> _items = new();
     private PublicCapabilitiesDto _caps = new();
     private bool _loading = true;
     private string? _error;
@@ -111,15 +129,15 @@
         try
         {
             await LoadCapabilitiesAsync();
-            var result = await Http.GetAsync<JsonElement>("api/public-information");
-            if (!result.IsSuccess || result.Data.ValueKind != JsonValueKind.Array)
+            // Same DTO the API returns: no private copy to drift out of sync (Id is int, flag is IsImportant...).
+            var result = await Http.GetAsync<List<PublicInformationDto>>("api/public-information");
+            if (!result.IsSuccess)
             {
                 _error = result.Message ?? Language.T("public.khongTheTaiThongTin");
                 return;
             }
 
-            var items = JsonSerializer.Deserialize<List<PublicItem>>(result.Data.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            if (items != null) _items.AddRange(items);
+            _items.AddRange(result.Data ?? new());
         }
         catch (Exception ex)
         {
@@ -164,15 +182,22 @@
         _ => Language.T("common.thongBao")
     };
 
-    private sealed class PublicItem
+    private static string AttachmentIcon(AttachmentDto file) => (file.FileExtension ?? string.Empty).ToLowerInvariant() switch
     {
-        public string Id { get; set; } = string.Empty;
-        public string Type { get; set; } = "Announcement";
-        public string Title { get; set; } = string.Empty;
-        public string Summary { get; set; } = string.Empty;
-        public string Content { get; set; } = string.Empty;
-        public DateTime? PublishedAt { get; set; }
-        public bool IsImportant { get; set; }
-        public string? AttachmentUrl { get; set; }
+        ".pdf" => Icons.Material.Filled.PictureAsPdf,
+        ".jpg" or ".jpeg" or ".png" => Icons.Material.Filled.Image,
+        _ => Icons.Material.Filled.AttachFile
+    };
+
+    private async Task DownloadAsync(int itemId, AttachmentDto file)
+    {
+        var response = await Http.GetFileAsync($"api/public-information/{itemId}/attachments/{file.FileId}");
+        if (!response.IsSuccess || response.Data == null)
+        {
+            Snackbar.Add(response.Message ?? Language.T("public.taiFileThatBai"), Severity.Error);
+            return;
+        }
+
+        await JS.InvokeVoidAsync("fvnFileDownload.downloadBase64", file.FileName, "application/octet-stream", Convert.ToBase64String(response.Data));
     }
 }

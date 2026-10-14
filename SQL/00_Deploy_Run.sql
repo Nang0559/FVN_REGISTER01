@@ -104,6 +104,7 @@
 :r "70_RequestModuleCanonicalization.sql"
 :r "71_DepartmentCodeInt.sql"
 :r "73_DashboardViewShellCapability.sql"
+:r "81_PublicInformationAttachments.sql"
 
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"

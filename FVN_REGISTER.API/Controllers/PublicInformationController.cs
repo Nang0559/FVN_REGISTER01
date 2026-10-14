@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.PublicInformation;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.PublicForms;
 using FVN_REGISTER.Contract.Dtos.PublicInformation;
 using FVN_REGISTER.Contract.Responses;
@@ -100,6 +101,46 @@ public sealed class PublicInformationController : ControllerBase
         if (user == null) return Unauthorized();
         if (!await CanOperateAsync(id, ct)) return Forbid();
         return Ok(await _service.ArchiveAsync(id, user.UserId, ct));
+    }
+
+    // ---- attachments: signed / stamped documents ---------------------------------------------------------------
+
+    [Authorize]
+    [HttpPost("{id:int}/attachments")]
+    [RequestSizeLimit(11_000_000)]
+    public async Task<IActionResult> UploadAttachment(int id, IFormFile file, CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        if (user == null) return Unauthorized();
+        if (!await CanOperateAsync(id, ct)) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<object>.Fail("Vui lòng chọn file."));
+
+        await using var stream = file.OpenReadStream();
+        var result = await _service.AddAttachmentAsync(id, file.FileName, file.Length, stream, user.UserId, ct);
+        return result.IsSuccess ? Ok(ApiResponse<AttachmentDto>.FromResult(result)) : BadRequest(ApiResponse<AttachmentDto>.FromResult(result));
+    }
+
+    [Authorize]
+    [HttpDelete("{id:int}/attachments/{attachmentId:int}")]
+    public async Task<IActionResult> RemoveAttachment(int id, int attachmentId, CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        if (user == null) return Unauthorized();
+        if (!await CanOperateAsync(id, ct)) return Forbid();
+        var result = await _service.RemoveAttachmentAsync(id, attachmentId, user.UserId, ct);
+        return result.IsSuccess ? Ok(ApiResponse<object>.FromResult(result)) : BadRequest(ApiResponse<object>.FromResult(result));
+    }
+
+    /// <summary>Readers get files of Published items (same audience as the anonymous list); drafts/archived need an operator.</summary>
+    [AllowAnonymous]
+    [HttpGet("{id:int}/attachments/{attachmentId:int}")]
+    public async Task<IActionResult> DownloadAttachment(int id, int attachmentId, CancellationToken ct)
+    {
+        var result = await _service.OpenAttachmentAsync(id, attachmentId, publishedOnly: true, ct);
+        if (!result.IsSuccess && User.Identity?.IsAuthenticated == true && await CanOperateAsync(id, ct))
+            result = await _service.OpenAttachmentAsync(id, attachmentId, publishedOnly: false, ct);
+        if (!result.IsSuccess || result.Data == null) return NotFound(ApiResponse<object>.Fail(result.Message ?? "Không tìm thấy file.", 404));
+        return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
     }
 
     private async Task<bool> CanOperateAsync(int id, CancellationToken ct)

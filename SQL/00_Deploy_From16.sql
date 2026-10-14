@@ -96,6 +96,7 @@ Current SQL directory:
 :r "69_Endpoint_LanscopeDeployment.sql"
 :r "71_DepartmentCodeInt.sql"
 :r "73_DashboardViewShellCapability.sql"
+:r "81_PublicInformationAttachments.sql"
 
 /* Authorization schema gate for an already-established 01-15 baseline. */
 :r "14D_SecuritySchemaVerify.sql"
