@@ -336,12 +336,14 @@ async function restore(page: Page, url: string, tracker: ReturnType<typeof insta
   current.hash = '';
   target.hash = '';
   if (current.href !== target.href) {
-    // Preserve the SPA and its open navigation drawer whenever possible.
     await page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     await waitReady(page, tracker, `restore:${target.pathname}`, 30_000);
+  } else {
+    // Reset tabs/dialogs and other same-URL SPA state before the next target.
+    // expandSafeMenus below re-opens the drawer using MudBlazor's actual label.
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await waitReady(page, tracker, `restore:${target.pathname}`, 30_000);
   }
-  // Do not reload when already on the parent route: reloading collapses
-  // MudBlazor drawers and loses dynamically rendered navigation targets.
   await expandSafeMenus(page);
 }
 
