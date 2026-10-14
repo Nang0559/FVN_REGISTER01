@@ -23,6 +23,16 @@ FVN_REGISTER là nền tảng đăng ký nghiệp vụ nhân sự và phê duy�
 - **Câu hỏi thường gặp:** [FAQ](M%C3%94%20H%C3%8CNH/03_TAI_LIEU_HE_THONG/02_HUONG_DAN_SU_DUNG/06_FAQ.md)
 - **Chuẩn tài liệu:** [Documentation Standard](M%C3%94%20H%C3%8CNH/03_TAI_LIEU_HE_THONG/05_TIEU_CHUAN_TAI_LIEU/08_DOCUMENTATION_STANDARD.md)
 
+## Nền tảng AI — thiết kế và lộ trình
+
+- **Cổng tài liệu AI:** [AI Platform Documentation Index](docs/AI_PLATFORM_DOCUMENTATION_INDEX.md)
+- [Kiến trúc tổng thể FVN AI](docs/AI_PLATFORM_ARCHITECTURE.md)
+- [Trạng thái triển khai Phase 1–5](docs/AI_PLATFORM_PHASES_STATUS.md)
+- [Thiết kế HR Policy Assistant — hỏi đáp quy định nhân sự](docs/AI_HR_POLICY_ASSISTANT.md)
+- [Pilot AI phân tích bằng chứng và đối soát HR](docs/AI_HR_RECONCILIATION_PILOT.md)
+
+FVN AI là bounded context độc lập. FVN_REGISTER giữ quyền xác thực/RBAC, dữ liệu nghiệp vụ và các thao tác ghi. HR Policy Assistant chỉ trả lời theo phiên bản quy định đã được HR phê duyệt, đang có hiệu lực và phù hợp phạm vi người hỏi; mọi câu trả lời cần dẫn nguồn điều/khoản/trang. Tài liệu thiết kế phân biệt rõ phần đã có trong mã nguồn với phần còn trong backlog.
+
 ## Ranh giới kiến trúc
 
 ```mermaid
