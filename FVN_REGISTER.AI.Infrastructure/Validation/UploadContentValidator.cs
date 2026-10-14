@@ -25,12 +25,20 @@ public sealed class UploadContentValidator:IUploadContentValidator
     try
     {
      using var archive=new ZipArchive(stream,ZipArchiveMode.Read,true);
+     if(archive.Entries.Count > 2000) throw new InvalidDataException("XLSX archive contains too many entries.");
+     long expandedLength=0;
+     foreach(var entry in archive.Entries)
+     {
+      if(entry.Length > 25L*1024*1024) throw new InvalidDataException("XLSX archive entry exceeds the allowed expanded size.");
+      expandedLength=checked(expandedLength+entry.Length);
+      if(expandedLength > 100L*1024*1024) throw new InvalidDataException("XLSX archive expanded size exceeds the allowed limit.");
+     }
      var hasContentTypes=archive.GetEntry("[Content_Types].xml") is not null;
      var hasWorkbook=archive.GetEntry("xl/workbook.xml") is not null;
      if(!hasContentTypes||!hasWorkbook)throw new InvalidDataException("ZIP file is not a valid XLSX workbook.");
     }
     catch(InvalidDataException){throw;}
-    catch(Exception ex) when(ex is IOException or ArgumentException){throw new InvalidDataException("XLSX archive is corrupt.",ex);}
+    catch(Exception ex) when(ex is IOException or ArgumentException or OverflowException){throw new InvalidDataException("XLSX archive is corrupt or exceeds safe limits.",ex);}
     return new(safe,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",".xlsx");
    }
    var sample=new byte[(int)Math.Min(4096,stream.Length-start)];var n=await stream.ReadAsync(sample.AsMemory(),ct);stream.Position=start;
