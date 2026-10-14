@@ -215,6 +215,12 @@ public sealed class AIHRCaseController : BaseApiController
 
             var planned = Sum(otRows, "TotalOTHours");
             var actual = summaryRow is null || Number(summaryRow, "ActualRecordCount") is not > 0 ? null : Number(summaryRow, "TotalActual");
+            var hasActualInterval = summaryRow is not null && Number(summaryRow, "ActualRecordCount") is > 0;
+            var plannedRow = otRows.FirstOrDefault();
+            var plannedStart = plannedRow is null ? null : ToOffset(plannedRow, "StartTime", workDate);
+            var plannedEnd = plannedRow is null ? null : ToOffset(plannedRow, "EndTime", workDate);
+            var actualStart = hasActualInterval ? ToOffset(summaryRow!, "ActualStartTime", workDate) : null;
+            var actualEnd = hasActualInterval ? ToOffset(summaryRow!, "ActualEndTime", workDate) : null;
             var attendanceOt = attendanceRow is null ? null : Number(attendanceRow, "OTHours");
             var statuses = string.Join(", ", otRows.Select(x => Text(x, "RequestStatus")).Where(x => x is not null).Distinct());
             var ids = otRows.Select(x => Text(x, "Id")).Where(x => x is not null).ToArray();
@@ -223,7 +229,7 @@ public sealed class AIHRCaseController : BaseApiController
                 ? (otRows.Count == 0 ? "No OT request found for selected employee/date" : null)
                 : statuses;
             return new OfficialHRFacts(employeeCode, workDate, requestStatus,
-                null, null, planned, null, null, actual, attendanceOt,
+                plannedStart, plannedEnd, planned, actualStart, actualEnd, actual, attendanceOt,
                 attendanceRow is null ? null : Text(attendanceRow, "ShiftName"),
                 attendanceRow is null ? null : Boolean(attendanceRow, "IsHoliday"),
                 null, null, "FVN_REGISTER.ReportDispatcher",
