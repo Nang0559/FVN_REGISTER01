@@ -189,7 +189,8 @@ public sealed class AIHRCaseController : BaseApiController
             var actual = summaryRow is null || Number(summaryRow, "ActualRecordCount") is not > 0 ? null : Number(summaryRow, "TotalActual");
             var attendanceOt = attendanceRow is null ? null : Number(attendanceRow, "OTHours");
             var statuses = string.Join(", ", otRows.Select(x => Text(x, "RequestStatus")).Where(x => x is not null).Distinct());
-            var refs = string.Join(",", otRows.Select(x => Text(x, "Id")).Where(x => x is not null));
+            var ids = otRows.Select(x => Text(x, "Id")).Where(x => x is not null).ToArray();
+            var refs = string.Join(",", ids.Take(8)) + (ids.Length > 8 ? $",+{ids.Length - 8} more" : string.Empty);
             var requestStatus = string.IsNullOrWhiteSpace(statuses)
                 ? (otRows.Count == 0 ? "No OT request found for selected employee/date" : null)
                 : statuses;
