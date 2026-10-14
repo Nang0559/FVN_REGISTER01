@@ -24,6 +24,7 @@ BEGIN
         FinalReply NVARCHAR(4000) NULL,
         ReviewComment NVARCHAR(2000) NULL,
         ReviewedAtUtc DATETIMEOFFSET(7) NULL,
+        RowVersion ROWVERSION NOT NULL,
         CONSTRAINT CK_AiHRCases_CaseType CHECK(CaseType IN(N'Overtime',N'Attendance',N'Leave')),
         CONSTRAINT CK_AiHRCases_Status CHECK(Status IN(N'PendingHRReview',N'Approved',N'Rejected')),
         CONSTRAINT CK_AiHRCases_Outcome CHECK(Outcome IN(N'Matched',N'Discrepancy',N'InsufficientEvidence',N'NeedsHumanDecision')),
@@ -34,5 +35,26 @@ BEGIN
         ON ai.AiHRCases(TenantCode, WorkDate, CaseType);
     CREATE INDEX IX_AiHRCases_Tenant_Status_Created
         ON ai.AiHRCases(TenantCode, Status, CreatedAtUtc DESC);
+END
+GO
+
+IF OBJECT_ID(N'ai.AiHRCaseReviews',N'U') IS NULL
+BEGIN
+    CREATE TABLE ai.AiHRCaseReviews
+    (
+        Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_AiHRCaseReviews PRIMARY KEY,
+        CaseId UNIQUEIDENTIFIER NOT NULL,
+        TenantCode NVARCHAR(64) NOT NULL,
+        ReviewerId NVARCHAR(128) NOT NULL,
+        Decision NVARCHAR(16) NOT NULL,
+        FinalReply NVARCHAR(4000) NULL,
+        Comment NVARCHAR(2000) NULL,
+        ReviewedAtUtc DATETIMEOFFSET(7) NOT NULL,
+        CONSTRAINT FK_AiHRCaseReviews_AiHRCases FOREIGN KEY(CaseId)
+            REFERENCES ai.AiHRCases(Id),
+        CONSTRAINT CK_AiHRCaseReviews_Decision CHECK(Decision IN(N'Approved',N'Rejected',N'Edited'))
+    );
+    CREATE INDEX IX_AiHRCaseReviews_Tenant_Case_Reviewed
+        ON ai.AiHRCaseReviews(TenantCode, CaseId, ReviewedAtUtc DESC);
 END
 GO
