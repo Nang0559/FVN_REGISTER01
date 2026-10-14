@@ -116,6 +116,10 @@
                     <MudPaper Outlined="true" Class="pa-3 mt-1" Style="white-space:pre-wrap">@_selected.InternalHRNote</MudPaper>
                 </MudItem>
             </MudGrid>
+            <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Nội dung trích xuất từ bằng chứng</MudText>
+            <MudPaper Outlined="true" Class="pa-3" Style="max-height:280px;overflow:auto;white-space:pre-wrap">
+                @(_evidencePreview.Length > 0 ? _evidencePreview : "Không có candidate bằng chứng được trích xuất cho hồ sơ này.")
+            </MudPaper>
             <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Đối chiếu dữ liệu</MudText>
             <MudTable Items="_comparisons" Dense="true" Hover="true" Bordered="true">
                 <HeaderContent><MudTh>Trường</MudTh><MudTh>Người dùng phản hồi</MudTh><MudTh>Dữ liệu chính thức</MudTh><MudTh>Kết quả / giải thích</MudTh></HeaderContent>
@@ -166,6 +170,7 @@
     private List<HRFieldComparison> _comparisons = new();
     private string _finalReply = string.Empty;
     private string _reviewComment = string.Empty;
+    private string _evidencePreview = string.Empty;
 
     protected override async Task OnInitializedAsync() => await LoadPendingAsync();
 
@@ -268,6 +273,7 @@
         _selected = response.Data;
         _finalReply = _selected.SuggestedReply;
         _reviewComment = string.Empty;
+        _evidencePreview = BuildEvidencePreview(_selected.EvidenceCandidateJson);
         try
         {
             using var json = JsonDocument.Parse(_selected.AnalysisJson);
@@ -300,6 +306,26 @@
         finally { _reviewing = false; }
     }
 
+    private static string BuildEvidencePreview(string? candidateJson)
+    {
+        if (string.IsNullOrWhiteSpace(candidateJson)) return string.Empty;
+        try
+        {
+            using var json = JsonDocument.Parse(candidateJson);
+            if (!json.RootElement.TryGetProperty("evidence", out var evidence) || evidence.ValueKind != JsonValueKind.Array)
+                return string.Empty;
+            var lines = new List<string>();
+            foreach (var item in evidence.EnumerateArray().Take(100))
+            {
+                var page = item.TryGetProperty("pageNumber", out var p) ? p.ToString() : "1";
+                var line = item.TryGetProperty("lineNumber", out var l) ? l.ToString() : "?";
+                var text = item.TryGetProperty("text", out var t) ? t.GetString() : null;
+                if (!string.IsNullOrWhiteSpace(text)) lines.Add("[Trang " + page + ", dòng " + line + "] " + text);
+            }
+            return string.Join(Environment.NewLine, lines);
+        }
+        catch (JsonException) { return "Candidate bằng chứng không phải JSON hợp lệ."; }
+    }
     private static string CaseTypeText(string value) => value switch
     {
         "Overtime" => "OT",
