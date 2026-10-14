@@ -38,6 +38,8 @@ public sealed class DocumentReviewService(AiPlatformDbContext db) : IDocumentRev
         var document = await db.Documents.SingleAsync(
             x => x.Id == extraction.DocumentId && x.TenantCode == tenantCode, cancellationToken);
         document.Status = decision == "Rejected" ? "Rejected" : "Approved";
+        if (decision == "Corrected")
+            extraction.CandidateJson = correctedPayloadJson!;
         db.Reviews.Add(review);
         await db.SaveChangesAsync(cancellationToken);
         return new ReviewReceipt(review.Id, review.DocumentId, review.Decision, now);
