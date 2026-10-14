@@ -19,9 +19,17 @@ public sealed class DocumentPipeline(
 
     public async Task ProcessAsync(Guid documentId, string workerId, CancellationToken cancellationToken = default)
     {
+        var now = DateTimeOffset.UtcNow;
+        var leaseOwned = await db.IngestionJobs.AnyAsync(
+            x => x.DocumentId == documentId && x.Status == "Running" && x.LeaseOwner == workerId &&
+                 x.LeaseUntilUtc.HasValue && x.LeaseUntilUtc.Value > now, cancellationToken);
+        if (!leaseOwned) throw new InvalidOperationException("INGESTION_LEASE_LOST");
+
         var document = await db.Documents.SingleOrDefaultAsync(x => x.Id == documentId, cancellationToken)
             ?? throw new InvalidOperationException("INGESTION_DOCUMENT_NOT_FOUND");
         if (document.Status is "Approved" or "Rejected") throw new InvalidOperationException("DOCUMENT_ALREADY_REVIEWED");
+        // Idempotency: a worker may crash after persisting the candidate but before completing the queue job.
+        if (await db.Extractions.AnyAsync(x => x.DocumentId == documentId, cancellationToken)) return;
 
         await using var scanStream = await store.OpenReadAsync(document.StorageKey, cancellationToken);
         var scan = await scanner.ScanAsync(scanStream, cancellationToken);
