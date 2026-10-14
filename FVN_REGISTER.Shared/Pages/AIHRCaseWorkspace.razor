@@ -1,0 +1,303 @@
+@page "/ai/hr-assistant"
+@attribute [Authorize]
+@using System.Text.Json
+@using FVN_REGISTER.AI.Application.Contracts
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>FVN AI – Trợ lý xử lý phản hồi HR</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-5">
+    <MudStack Spacing="1" Class="mb-4">
+        <MudText Typo="Typo.h4" Style="font-weight:800">Trợ lý xử lý phản hồi HR</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Đối chiếu phản hồi với dữ liệu FVN_REGISTER, đọc bằng chứng và soạn câu trả lời để HR duyệt.
+            AI không thay đổi dữ liệu công và không tự gửi phản hồi.
+        </MudText>
+    </MudStack>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-3">@_error</MudAlert>
+    }
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" lg="5">
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Tạo yêu cầu kiểm tra</MudText>
+                <MudSelect T="HRCaseType" Label="Nghiệp vụ" @bind-Value="_caseType" Variant="Variant.Outlined" Class="mb-3">
+                    <MudSelectItem Value="@HRCaseType.Overtime">Làm thêm giờ (OT)</MudSelectItem>
+                    <MudSelectItem Value="@HRCaseType.Attendance">Chấm công</MudSelectItem>
+                    <MudSelectItem Value="@HRCaseType.Leave">Nghỉ phép</MudSelectItem>
+                </MudSelect>
+                <MudTextField @bind-Value="_employeeCode" Label="Mã nhân viên (để trống = tài khoản hiện tại)"
+                              Variant="Variant.Outlined" Class="mb-3" />
+                <MudDatePicker @bind-Date="_workDate" Label="Ngày cần kiểm tra" Variant="Variant.Outlined"
+                               DateFormat="dd/MM/yyyy" Class="mb-3" />
+                <MudTextField @bind-Value="_statement" Label="Nội dung phản hồi"
+                              Placeholder="Ví dụ: Tôi đăng ký 2 giờ OT nhưng hệ thống chỉ ghi nhận 1,5 giờ..."
+                              Lines="4" Variant="Variant.Outlined" Class="mb-3" />
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Bằng chứng đính kèm</MudText>
+                <InputFile OnChange="UploadEvidenceAsync" />
+                @if (_evidenceDocumentId.HasValue)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">
+                        Đã nhận tệp: @_evidenceFileName. Mã hồ sơ: @_evidenceDocumentId
+                    </MudAlert>
+                }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           Disabled="_analyzing || string.IsNullOrWhiteSpace(_statement) || _workDate is null"
+                           OnClick="AnalyzeAsync" Class="mt-4">
+                    @if (_analyzing)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    }
+                    Phân tích và chuyển HR
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="7">
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                    <div>
+                        <MudText Typo="Typo.h6">Hàng chờ HR</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Chỉ hiển thị hồ sơ thuộc phạm vi được phân quyền.</MudText>
+                    </div>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+                               Disabled="_loading" OnClick="LoadPendingAsync">Làm mới</MudButton>
+                </MudStack>
+                <MudTable Items="_cases" Dense="true" Hover="true" Loading="_loading" Breakpoint="Breakpoint.Sm">
+                    <HeaderContent>
+                        <MudTh>Ngày</MudTh><MudTh>Nhân viên</MudTh><MudTh>Loại</MudTh><MudTh>Kết quả</MudTh><MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Nhân viên">@context.EmployeeCode</MudTd>
+                        <MudTd DataLabel="Loại">@CaseTypeText(context.CaseType)</MudTd>
+                        <MudTd DataLabel="Kết quả"><MudChip T="string" Size="Size.Small" Color="@OutcomeColor(context.Outcome)">@OutcomeText(context.Outcome)</MudChip></MudTd>
+                        <MudTd><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => OpenCaseAsync(context.CaseId))">Xem / duyệt</MudButton></MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText Class="pa-3 mud-text-secondary">Không có hồ sơ chờ duyệt hoặc tài khoản chưa được cấp phạm vi HR.</MudText></NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @if (_selected is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <div>
+                    <MudText Typo="Typo.h6">Hồ sơ @_selected.CaseId</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        @_selected.EmployeeCode · @_selected.CaseType · @_selected.WorkDate.ToString("dd/MM/yyyy") · @_selected.OfficialSource / @_selected.OfficialRecordReference
+                    </MudText>
+                </div>
+                <MudChip T="string" Color="@OutcomeColor(_selected.Outcome)">@OutcomeText(_selected.Outcome)</MudChip>
+            </MudStack>
+            <MudDivider Class="my-3" />
+            <MudGrid Spacing="3">
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2">Phản hồi của nhân viên</MudText>
+                    <MudPaper Outlined="true" Class="pa-3 mt-1">@_selected.UserStatement</MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2">Ghi chú phân tích nội bộ</MudText>
+                    <MudPaper Outlined="true" Class="pa-3 mt-1" Style="white-space:pre-wrap">@_selected.InternalHRNote</MudPaper>
+                </MudItem>
+            </MudGrid>
+            <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Đối chiếu dữ liệu</MudText>
+            <MudTable Items="_comparisons" Dense="true" Hover="true" Bordered="true">
+                <HeaderContent><MudTh>Trường</MudTh><MudTh>Người dùng phản hồi</MudTh><MudTh>Dữ liệu chính thức</MudTh><MudTh>Kết quả / giải thích</MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Trường">@context.Field</MudTd>
+                    <MudTd DataLabel="Phản hồi">@(!string.IsNullOrWhiteSpace(context.UserReported) ? context.UserReported : "—")</MudTd>
+                    <MudTd DataLabel="Chính thức">@(!string.IsNullOrWhiteSpace(context.OfficialValue) ? context.OfficialValue : "—")</MudTd>
+                    <MudTd DataLabel="Giải thích">
+                        <MudChip T="string" Size="Size.Small" Color="@OutcomeColor(context.Outcome.ToString())">@OutcomeText(context.Outcome.ToString())</MudChip>
+                        <MudText Typo="Typo.caption">@context.Explanation (@context.RuleCode)</MudText>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+            <MudGrid Spacing="2" Class="mt-3">
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle1">Câu trả lời đề xuất – HR có thể chỉnh sửa</MudText>
+                    <MudTextField @bind-Value="_finalReply" Lines="4" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudTextField @bind-Value="_reviewComment" Label="Ghi chú duyệt (nội bộ)" Lines="2" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudStack Row="true" AlignItems="AlignItems.End" Class="h-100">
+                        <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_reviewing" OnClick="@(() => ReviewAsync("Approved"))">Duyệt</MudButton>
+                        <MudButton Color="Color.Primary" Variant="Variant.Outlined" Disabled="_reviewing || string.IsNullOrWhiteSpace(_finalReply)" OnClick="@(() => ReviewAsync("Edited"))">Lưu bản đã sửa</MudButton>
+                        <MudButton Color="Color.Error" Variant="Variant.Text" Disabled="_reviewing" OnClick="@(() => ReviewAsync("Rejected"))">Từ chối</MudButton>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private HRCaseType _caseType = HRCaseType.Overtime;
+    private string _employeeCode = string.Empty;
+    private DateTime? _workDate = DateTime.Today;
+    private string _statement = string.Empty;
+    private Guid? _evidenceDocumentId;
+    private string? _evidenceFileName;
+    private bool _loading;
+    private bool _analyzing;
+    private bool _reviewing;
+    private string? _error;
+    private List<HRCaseInboxItem> _cases = new();
+    private HRCaseInboxItem? _selected;
+    private List<HRFieldComparison> _comparisons = new();
+    private string _finalReply = string.Empty;
+    private string _reviewComment = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadPendingAsync();
+
+    private async Task LoadPendingAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var response = await Http.GetAsync<List<HRCaseInboxItem>>("api/ai/hr-cases/pending");
+            if (response.IsSuccess && response.Data is not null) _cases = response.Data;
+            else _error = string.IsNullOrWhiteSpace(response.Message) ? "Không tải được hàng chờ HR." : response.Message;
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task UploadEvidenceAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null) return;
+        try
+        {
+            await using var stream = file.OpenReadStream(100 * 1024 * 1024);
+            using var multipart = new MultipartFormDataContent();
+            using var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
+            multipart.Add(fileContent, "file", file.Name);
+            var response = await Http.PostMultipartAsync<JsonElement>("api/ai/hr-cases/evidence", multipart);
+            if (!response.IsSuccess || response.Data.ValueKind != JsonValueKind.Object ||
+                !response.Data.TryGetProperty("documentId", out var id) || !Guid.TryParse(id.GetString(), out var documentId))
+            {
+                _error = response.Message ?? "Không nhận được mã hồ sơ bằng chứng.";
+                return;
+            }
+            _evidenceDocumentId = documentId;
+            _evidenceFileName = file.Name;
+            Snackbar.Add("Đã tải bằng chứng lên khu vực AI an toàn.", Severity.Success);
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task AnalyzeAsync()
+    {
+        if (_workDate is null || string.IsNullOrWhiteSpace(_statement)) return;
+        _analyzing = true;
+        _error = null;
+        try
+        {
+            var request = new HRCaseAnalysisRequest(_caseType,
+                string.IsNullOrWhiteSpace(_employeeCode) ? null : _employeeCode.Trim(),
+                DateOnly.FromDateTime(_workDate.Value), _statement.Trim(), null, null,
+                EvidenceDocumentId: _evidenceDocumentId);
+            var response = await Http.PostAsync<HRReconciliationAnalysis>("api/ai/hr-cases/analyze", request);
+            if (!response.IsSuccess || response.Data is null)
+            {
+                _error = response.Message ?? "Không thể phân tích phản hồi.";
+                return;
+            }
+            Snackbar.Add("Đã phân tích và chuyển hồ sơ vào hàng chờ HR.", Severity.Success);
+            _statement = string.Empty;
+            _evidenceDocumentId = null;
+            _evidenceFileName = null;
+            await LoadPendingAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _analyzing = false; }
+    }
+
+    private async Task OpenCaseAsync(Guid id)
+    {
+        _error = null;
+        var response = await Http.GetAsync<HRCaseInboxItem>($"api/ai/hr-cases/{id:D}");
+        if (!response.IsSuccess || response.Data is null)
+        {
+            _error = response.Message ?? "Không tải được hồ sơ.";
+            return;
+        }
+        _selected = response.Data;
+        _finalReply = _selected.SuggestedReply;
+        _reviewComment = string.Empty;
+        try
+        {
+            using var json = JsonDocument.Parse(_selected.AnalysisJson);
+            _comparisons = json.RootElement.GetProperty("comparisons").Deserialize<List<HRFieldComparison>>() ?? new();
+        }
+        catch { _comparisons = new(); }
+    }
+
+    private async Task ReviewAsync(string decision)
+    {
+        if (_selected is null) return;
+        _reviewing = true;
+        _error = null;
+        try
+        {
+            var request = new HRCaseReviewRequest(decision,
+                decision == "Rejected" ? null : _finalReply, _reviewComment);
+            var response = await Http.PostAsync<HRCaseReviewReceipt>(
+                $"api/ai/hr-cases/{_selected.CaseId:D}/review", request);
+            if (!response.IsSuccess)
+            {
+                _error = response.Message ?? "Không lưu được quyết định HR.";
+                return;
+            }
+            Snackbar.Add(decision == "Rejected" ? "Đã từ chối hồ sơ." : "Đã lưu quyết định và câu trả lời cuối.", Severity.Success);
+            _selected = null;
+            await LoadPendingAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _reviewing = false; }
+    }
+
+    private static string CaseTypeText(string value) => value switch
+    {
+        "Overtime" => "OT",
+        "Attendance" => "Chấm công",
+        "Leave" => "Nghỉ phép",
+        _ => value
+    };
+
+    private static string OutcomeText(string value) => value switch
+    {
+        "Matched" => "Khớp",
+        "Discrepancy" => "Sai lệch",
+        "InsufficientEvidence" => "Thiếu bằng chứng",
+        "NeedsHumanDecision" => "Cần HR quyết định",
+        _ => value
+    };
+
+    private static Color OutcomeColor(string value) => value switch
+    {
+        "Matched" => Color.Success,
+        "Discrepancy" => Color.Error,
+        "InsufficientEvidence" => Color.Warning,
+        "NeedsHumanDecision" => Color.Info,
+        _ => Color.Default
+    };
+}
