@@ -5,11 +5,11 @@ SELECT  e.EmployeeCode, e.PositionCode, e.DeptCode AS EmployeeDept,
         ap.RequestType, ap.Level, ap.DeptCode AS PolicyDept,
         existing_same_dept  = (SELECT COUNT(*) FROM dbo.F03Approvers a
                                WHERE a.IsActive=1 AND a.ApproverCode=e.EmployeeCode AND a.Level=ap.Level
-                                 AND a.RequestType=CASE ap.RequestType WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime' WHEN 2 THEN N'Trip' WHEN 3 THEN N'Equipment' END
+                                 AND a.RequestType=CASE ap.RequestType WHEN 0 THEN N'LEAVE' WHEN 1 THEN N'OT' WHEN 2 THEN N'TRIP' WHEN 3 THEN N'EQUIPMENT' END
                                  AND a.ApproveForDeptCode=e.DeptCode),     -- what the proc creates
         existing_policy_dept= (SELECT COUNT(*) FROM dbo.F03Approvers a
                                WHERE a.IsActive=1 AND a.ApproverCode=e.EmployeeCode AND a.Level=ap.Level
-                                 AND a.RequestType=CASE ap.RequestType WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime' WHEN 2 THEN N'Trip' WHEN 3 THEN N'Equipment' END
+                                 AND a.RequestType=CASE ap.RequestType WHEN 0 THEN N'LEAVE' WHEN 1 THEN N'OT' WHEN 2 THEN N'TRIP' WHEN 3 THEN N'EQUIPMENT' END
                                  AND a.ApproveForDeptCode=ap.DeptCode)     -- what the old check required
 FROM dbo.F03Employees e
 JOIN dbo.F03ApprovalPolicies ap ON ap.ApprovalPositionCode=LTRIM(RTRIM(e.PositionCode)) AND ap.IsActive=1

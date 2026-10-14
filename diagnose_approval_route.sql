@@ -6,7 +6,7 @@ DECLARE @EmployeeCode nvarchar(50) = N'<MÃ NHÂN VIÊN ĐANG ĐĂNG KÝ>';
 DECLARE @RequestType  int          = 1;      -- 0 Leave (phép), 1 Overtime (OT), 2 Trip, 3 Equipment
 
 DECLARE @TypeName nvarchar(20) =
-    CASE @RequestType WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime' WHEN 2 THEN N'Trip' WHEN 3 THEN N'Equipment' END;
+    CASE @RequestType WHEN 0 THEN N'LEAVE' WHEN 1 THEN N'OT' WHEN 2 THEN N'TRIP' WHEN 3 THEN N'EQUIPMENT' END;
 
 -- 1) The requester as the route sees him (department + position come ONLY from F03Employees).
 SELECT e.EmployeeCode, e.EmployeeName, e.DeptCode, d.DeptName, e.PositionCode, p.PositionName
