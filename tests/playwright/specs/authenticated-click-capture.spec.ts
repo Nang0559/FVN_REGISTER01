@@ -238,16 +238,24 @@ async function getDomSignature(page: Page): Promise<string> {
   return raw ? createHash('sha1').update(raw).digest('hex') : '';
 }
 async function expandSafeMenus(page: Page): Promise<void> {
-  const menuLabel = /^(menu|navigation|open menu|toggle menu|open navigation|toggle navigation|show navigation|sidebar|side bar|expand navigation|collapse navigation|điều hướng|danh mục|mở menu|mở rộng menu|thu gọn menu)$/i;
-  const controls = page.locator('button:visible,[role="button"]:visible');
-  const count = Math.min(await controls.count().catch(() => 0), 80);
+  // MudBlazor's navigation toggle commonly uses labels such as
+  // "Toggle navigation menu"; matching the entire label missed it before.
+  const menuLabel = /menu|navigation|sidebar|side bar|điều hướng|danh mục|mở rộng|thu gọn/i;
+  const controls = page.locator(
+    'button:visible,[role="button"]:visible,.mud-icon-button:visible,[aria-controls]:visible',
+  );
+  const count = Math.min(await controls.count().catch(() => 0), 100);
   for (let i = 0; i < count; i++) {
     const control = controls.nth(i);
-    const label = ((await control.getAttribute('aria-label').catch(() => null))
-      || (await control.getAttribute('title').catch(() => null))
-      || (await control.innerText().catch(() => ''))).trim();
-    if (!menuLabel.test(label) || ignoredText.test(label)) continue;
+    const label = ([
+      await control.getAttribute('aria-label').catch(() => null),
+      await control.getAttribute('title').catch(() => null),
+      await control.getAttribute('data-testid').catch(() => null),
+      await control.innerText().catch(() => ''),
+    ].filter(Boolean).join(' ')).trim();
+    if (!label || !menuLabel.test(label) || ignoredText.test(label)) continue;
     await control.click({ timeout: 2_000 }).catch(() => undefined);
+    await page.waitForTimeout(150);
   }
 }
 
@@ -259,7 +267,7 @@ type ClickTarget = {
 };
 
 async function collectSafeClickTargets(page: Page): Promise<ClickTarget[]> {
-  return page.locator('a[href],button:visible,[role="button"]:visible,[role="link"]:visible,[role="tab"]:visible').evaluateAll(elements => {
+  return page.locator('a[href],.mud-nav-link:visible,.mud-tab:visible,button:visible,[role="button"]:visible,[role="link"]:visible,[role="tab"]:visible').evaluateAll(elements => {
     const result: ClickTarget[] = [];
     const occurrence = new Map<string, number>();
 
@@ -289,7 +297,7 @@ async function collectSafeClickTargets(page: Page): Promise<ClickTarget[]> {
 }
 
 async function clickTarget(page: Page, target: ClickTarget): Promise<boolean> {
-  const candidates = page.locator('a[href],button:visible,[role="button"]:visible,[role="link"]:visible,[role="tab"]:visible');
+  const candidates = page.locator('a[href],.mud-nav-link:visible,.mud-tab:visible,button:visible,[role="button"]:visible,[role="link"]:visible,[role="tab"]:visible');
   const count = Math.min(await candidates.count().catch(() => 0), 300);
   let occurrence = 0;
 
@@ -328,12 +336,12 @@ async function restore(page: Page, url: string, tracker: ReturnType<typeof insta
   current.hash = '';
   target.hash = '';
   if (current.href !== target.href) {
+    // Preserve the SPA and its open navigation drawer whenever possible.
     await page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-  } else {
-    // Reloading gives us a deterministic parent state after a child click.
-    await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await waitReady(page, tracker, `restore:${target.pathname}`, 30_000);
   }
-  await waitReady(page, tracker, `restore:${target.pathname}`, 60_000);
+  // Do not reload when already on the parent route: reloading collapses
+  // MudBlazor drawers and loses dynamically rendered navigation targets.
   await expandSafeMenus(page);
 }
 
@@ -403,6 +411,21 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
 
     const targets = await collectSafeClickTargets(page);
     console.log(`State #${captured}: ${targets.length} safe click targets.`);
+    if (targets.length) {
+      console.log(`Discovered targets: ${targets.slice(0, 80).map(target =>
+        `${target.label || '(unlabelled)'}${target.href ? ` -> ${target.href}` : ''}`,
+      ).join(' | ')}`);
+    } else {
+      const diagnostics = await page.locator('a[href],button:visible,[role="button"]:visible,[role="link"]:visible,[role="tab"]:visible')
+        .evaluateAll(elements => elements.slice(0, 100).map(element => ({
+          tag: element.tagName,
+          text: ((element as HTMLElement).innerText || element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 100),
+          href: element instanceof HTMLAnchorElement ? element.href : '',
+          ariaLabel: element.getAttribute('aria-label'),
+          visible: element.getClientRects().length > 0,
+        })));
+      console.warn(`No safe targets on state #${captured}. Visible candidate diagnostics: ${JSON.stringify(diagnostics)}`);
+    }
 
     for (const target of targets) {
       if (visitedStates.size >= maxStates || clicks >= maxClicks) break;
@@ -412,12 +435,8 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
 
       // Always restore the exact parent URL before clicking the next target.
       await restore(page, currentUrl.href, tracker);
-      const parentSignature = await getDomSignature(page);
-      if (parentSignature !== domSignature) {
-        console.warn(`Parent DOM changed during restore; skipping target ${target.label}.`);
-        continue;
-      }
-
+      // The menu may have expanded since discovery. Resolve targets again by
+      // semantic identity instead of rejecting the whole parent on DOM changes.
       if (ignoredText.test(`${target.label} ${target.href}`)) continue;
       const clicked = await clickTarget(page, target);
       if (!clicked) continue;
