@@ -78,7 +78,8 @@ group.MapGet("/documents/{id:guid}/extraction",async (Guid id,HttpRequest req,IS
  var service=services.GetService<IDocumentExtractionQueryService>();
  if(service is null) return Results.Problem("AI SQL connection is not configured.",statusCode:503);
  var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
- var result=await service.GetLatestAsync(id,tenant,ct);
+ var actor=req.Headers["X-Actor-Id"].ToString().Trim();
+ var result=await service.GetLatestAsync(id,tenant,actor,ct);
  return result is null?Results.NotFound():Results.Ok(result);
 });
 group.MapPost("/reviews/{extractionId:guid}",async (Guid extractionId,ReviewRequest body,HttpRequest req,IServiceProvider services,CancellationToken ct)=>{
