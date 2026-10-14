@@ -4,6 +4,13 @@ namespace FVN_REGISTER.Core.Extensions;
 
 public static class RequestModuleExtensions
 {
+    /// <summary>
+    /// Giá trị lưu trong DB cho cột RequestType của F03Approvers: đúng tên enum
+    /// (Leave / Overtime / Trip / Equipment). KHÁC với <see cref="ToCode"/> (LEAVE / OT / ...),
+    /// vẫn dùng cho URL lịch sử, mã template email...
+    /// </summary>
+    public static string ToStorageName(this RequestModule module) => module.ToString();
+
     public static string ToDisplayName(this RequestModule module) => module switch
     {
         RequestModule.Leave => "Nghỉ phép",
