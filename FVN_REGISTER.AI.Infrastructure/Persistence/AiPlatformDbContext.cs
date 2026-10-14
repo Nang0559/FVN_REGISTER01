@@ -45,6 +45,6 @@ public sealed class AiIngestionJobRecord
 {
  public Guid Id{get;set;} public Guid DocumentId{get;set;} public string Status{get;set;}="Queued";
  public int AttemptCount{get;set;} public DateTimeOffset CreatedAtUtc{get;set;} public DateTimeOffset? StartedAtUtc{get;set;}
- public string? LeaseOwner{get;set;} public DateTimeOffset? LeaseUntilUtc{get;set;} public DateTimeOffset NextAttemptAtUtc{get;set;}
+ public string? LeaseOwner{get;set;} public DateTimeOffset? LeaseUntilUtc{get;set;}
  public DateTimeOffset? CompletedAtUtc{get;set;} public string? FailureCode{get;set;}
 }
