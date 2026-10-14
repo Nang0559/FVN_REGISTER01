@@ -51,6 +51,15 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
     private async Task<HRReconciliationAnalysis> AnalyzeWithFactsCoreAsync(string tenantCode, string actorId,
         HRCaseAnalysisRequest request, OfficialHRFacts facts, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.UserStatement) || request.UserStatement.Length > 8000)
+            throw new ArgumentException("User statement must contain 1 to 8000 characters.", nameof(request));
+        if (request.EvidenceText?.Length > 100_000)
+            throw new ArgumentException("Evidence text exceeds the permitted length.", nameof(request));
+        if (request.ReportedHours is < 0 or > 24 || request.ReportedLeaveDays is < 0 or > 31)
+            throw new ArgumentException("Reported hours or leave days are outside the permitted range.", nameof(request));
+        if (request.ReportedStart.HasValue != request.ReportedEnd.HasValue ||
+            (request.ReportedStart.HasValue && request.ReportedEnd!.Value <= request.ReportedStart.Value))
+            throw new ArgumentException("Reported attendance interval is invalid.", nameof(request));
         if (string.IsNullOrWhiteSpace(facts.EmployeeCode) || string.IsNullOrWhiteSpace(facts.SourceSystem) ||
             string.IsNullOrWhiteSpace(facts.SourceRecordReference))
             throw new InvalidOperationException("Official HR facts provider returned incomplete provenance.");
@@ -162,9 +171,9 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             var draft = response.Output?.Trim();
             return !string.IsNullOrWhiteSpace(draft) && draft.Length <= 4000 ? draft : fallback;
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TimeoutException)
         {
-            // Safe deterministic fallback when no approved model provider is configured.
+            // Safe deterministic fallback when the approved model provider is unavailable.
             return fallback;
         }
     }
