@@ -1,3 +1,4 @@
+using FVN_REGISTER.AI.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 namespace FVN_REGISTER.AI.Infrastructure.Persistence;
 public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> options):DbContext(options)
