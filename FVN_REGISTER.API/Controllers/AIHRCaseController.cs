@@ -82,7 +82,7 @@ public sealed class AIHRCaseController : BaseApiController
     {
         var user = UserInfo;
         if (user is null) return Unauthorized();
-        using var upstream = await SendAiAsync(HttpMethod.Get, "/api/ai/v1/hr-cases/pending?limit=100", null,
+        using var upstream = await SendAiAsync(HttpMethod.Get, "/api/ai/v1/hr-cases/pending?limit=500", null,
             user.UserId.ToString(CultureInfo.InvariantCulture), ct);
         if (!upstream.IsSuccessStatusCode) return await RelayAsync(upstream);
         var items = await upstream.Content.ReadFromJsonAsync<List<HRCaseInboxItem>>(cancellationToken: ct) ?? new();
