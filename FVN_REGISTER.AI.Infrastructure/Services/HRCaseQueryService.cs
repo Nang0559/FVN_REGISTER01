@@ -19,7 +19,7 @@ public sealed class HRCaseQueryService(AiPlatformDbContext db, IHRCaseReviewerAu
         var visible = new List<HRCaseInboxItem>();
         foreach (var row in rows)
         {
-            if (await Enum.TryParse<HRCaseType>(row.CaseType, out var caseType) && await authorization.CanReviewCaseAsync(tenantCode, actorId, row.EmployeeCode, caseType, cancellationToken))
+            if (Enum.TryParse<HRCaseType>(row.CaseType, out var caseType) && await authorization.CanReviewCaseAsync(tenantCode, actorId, row.EmployeeCode, caseType, cancellationToken))
                 visible.Add(Map(row));
             if (visible.Count >= limit) break;
         }
