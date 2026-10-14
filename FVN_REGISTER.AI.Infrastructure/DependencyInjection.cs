@@ -42,7 +42,10 @@ public static class DependencyInjection
   services.AddScoped<IDocumentPipeline,DocumentPipeline>();
   services.TryAddScoped<IAuthorizedHRFactsProvider,UnconfiguredAuthorizedHRFactsProvider>();
   services.AddScoped<IHRReconciliationService,HRReconciliationService>();
-  services.TryAddScoped<IHRCaseReviewerAuthorization,UnconfiguredHRCaseReviewerAuthorization>();
+  if(configuration.GetValue<bool>("AIPlatform:TrustFvnRegisterGatewayForHRReview"))
+   services.AddScoped<IHRCaseReviewerAuthorization,GatewayHRCaseReviewerAuthorization>();
+  else
+   services.TryAddScoped<IHRCaseReviewerAuthorization,UnconfiguredHRCaseReviewerAuthorization>();
   services.AddScoped<IHRCaseReviewService,HRCaseReviewService>();
   services.AddScoped<IHRCaseQueryService,HRCaseQueryService>();
   return services;
