@@ -30,7 +30,9 @@ var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  if(a.Length!=b.Length||!CryptographicOperations.FixedTimeEquals(a,b)) return Results.Unauthorized();
  return await next(ctx);
 });
-group.MapPost("/documents",async (HttpRequest req,IDocumentIngestionService service,IOptions<AIPlatformOptions> o,CancellationToken ct)=>{
+group.MapPost("/documents",async (HttpRequest req,IServiceProvider services,IOptions<AIPlatformOptions> o,CancellationToken ct)=>{
+ var service=services.GetService<IDocumentIngestionService>();
+ if(service is null) return Results.Problem("AI SQL connection is not configured. Apply the AI schema and configure ConnectionStrings:FvnAi.",statusCode:503);
  var tenant=req.Headers["X-Tenant-Code"].ToString().Trim(); var actor=req.Headers["X-Actor-Id"].ToString().Trim();
  if(string.IsNullOrWhiteSpace(tenant)||tenant.Length>64||string.IsNullOrWhiteSpace(actor)||actor.Length>128) return Results.BadRequest(new{error="X-Tenant-Code and X-Actor-Id headers are required."});
  if(!req.HasFormContentType) return Results.BadRequest(new{error="multipart/form-data is required."});
@@ -47,7 +49,9 @@ group.MapPost("/documents",async (HttpRequest req,IDocumentIngestionService serv
  catch(InvalidDataException ex){return Results.BadRequest(new{error=ex.Message});}
  catch(ArgumentException ex){return Results.BadRequest(new{error=ex.Message});}
 }).DisableAntiforgery();
-group.MapGet("/documents/{id:guid}",async (Guid id,HttpRequest req,IDocumentIngestionService service,CancellationToken ct)=>{
+group.MapGet("/documents/{id:guid}",async (Guid id,HttpRequest req,IServiceProvider services,CancellationToken ct)=>{
+ var service=services.GetService<IDocumentIngestionService>();
+ if(service is null) return Results.Problem("AI SQL connection is not configured. Apply the AI schema and configure ConnectionStrings:FvnAi.",statusCode:503);
  var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
  if(string.IsNullOrWhiteSpace(tenant)||tenant.Length>64) return Results.BadRequest(new{error="X-Tenant-Code is required."});
  var result=await service.GetStatusAsync(id,tenant,ct);
