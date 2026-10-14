@@ -8,32 +8,34 @@ General questions about approved HR procedures (for example, how to register OT)
 
 Turn a user's HR feedback (for example, "the OT hours on my payslip/calendar are wrong") and attached evidence into a traceable case summary and a suggested HR response. The assistant is decision support; it does not approve requests, change attendance, change payroll, or write to operational tables.
 
-## Current code increment — deterministic reconciliation vertical slice
+## Current code increment — implemented vertical slice
 
-The branch now contains an initial application contract and deterministic comparison service, plus durable HR case and review persistence:
+The branch now contains the first end-to-end HR Case Assistant workflow:
 
-- `HRCaseAnalysisRequest` carries case type, work date, employee hint, user statement, evidence reference and optional reported values.
-- `IAuthorizedHRFactsProvider` is the boundary for obtaining official FVN_REGISTER facts. It must enforce the trusted actor's current permissions and managed scope.
-- `HRReconciliationService` compares reported OT hours with planned/actual/attendance hours, reported attendance intervals with official check-in/out and reported leave type/days with official leave facts.
-- Each comparison returns a stable rule code, user-reported value, official value, outcome and explanation.
-- When an approved `IAIModelProvider` is configured, the service asks it to draft a Vietnamese HR reply using only the deterministic comparison and authorized facts. A restrictive system instruction treats the user's statement as untrusted data; the draft is never sent automatically. With the unconfigured provider, a deterministic safe template is used.
-- An optional evidence document ID is resolved only within the same tenant and only when the signed actor uploaded it. The service reads the stored extraction candidate and uses an unambiguous single OT-hour candidate; multiple candidate values are not guessed.
-- `POST /api/ai/v1/hr-cases/analyze` exposes the use case behind the same API key and signed tenant/actor context as other AI endpoints.
-- Analysis results are persisted in `ai.AiHRCases` with official source references and a `PendingHRReview` state.
-- `GET /api/ai/v1/hr-cases/pending` and `GET /api/ai/v1/hr-cases/{caseId}` provide the HR inbox/detail read model, both gated by employee- and case-type-specific reviewer authorization.
-- `POST /api/ai/v1/hr-cases/{caseId}/review` stores an HR decision and final reply; the default reviewer authorization denies access until connected to FVN_REGISTER; the eventual adapter must check both the relevant function permission (OT/attendance/leave) and the employee's managed scope.
-- Unit tests cover an OT discrepancy and rejection of official facts for a different employee.
+- FVN_REGISTER.AI.Application contracts define OT, attendance, leave facts, analysis result, case inbox and review.
+- FVN_REGISTER.API/Controllers/AIHRCaseController.cs is the authenticated gateway. It uses the current JWT identity, checks function permission and employee managed scope, then obtains official data via IReportDispatcher.
+- OT facts are built from OTDetail, OTSummaryByEmployee and AttendanceDetail. Attendance facts use AttendanceDetail. Leave facts use LeaveDetail.
+- Report OT now includes ActualRecordCount so an absent actual value is not mistaken for zero.
+- HRReconciliationService performs deterministic comparisons for reported/planned/actual/attendance OT, attendance intervals, leave type/days and evidence employee/date identity.
+- Evidence is accepted only from the same tenant and signed uploader after a clean malware scan and completed extraction. Unique candidates can populate hours, leave days/type, attendance times, employee code and work date; ambiguous values are not guessed.
+- PDF text extraction via PdfPig preserves page markers. TXT/CSV and basic XLSX extraction remain supported. Scanned PDF OCR and DOCX are not implemented.
+- EvidenceCandidateJson is persisted with the HR case and shown in the Blazor review page with page/line provenance.
+- Optional Ollama provider drafts the Vietnamese reply from the official facts and deterministic comparisons. It cannot modify the comparison outcome. When Ollama is unavailable, a safe deterministic template is used.
+- HR case inbox/detail/review APIs and Blazor route /ai/hr-assistant support case creation, evidence upload/status, comparisons, draft editing, approve/edit/reject.
+- SQL stores ai.AiHRCases and immutable ai.AiHRCaseReviews. RowVersion protects concurrent review.
+- FVN API performs authorization before each detail/review; AI API reviewer authorization is enabled only when TrustFvnRegisterGatewayForHRReview is explicitly true behind the private gateway.
+- Unit tests cover OT discrepancy, evidence ownership/extraction, evidence employee/date mismatch, authorized facts and review audit/authorization. Ollama provider has a mocked HTTP contract test.
 
-**Important integration gate:** the default `UnconfiguredAuthorizedHRFactsProvider` intentionally fails closed. The endpoint is a contract/logic slice, not yet connected to the live FVN_REGISTER operational services. Evidence-to-field mapping is still intentionally narrow: the current parser can use one unambiguous extracted OT-hour value, but does not yet reconcile document employee/date/time fields or provide page/row-level citations. User-supplied employee codes and values remain untrusted; official facts must come from the backend adapter. The next implementation must add a trusted FVN_REGISTER backend adapter that derives employee scope from the authenticated actor, fetches only authorized records, and returns provenance. Then add evidence-to-field mapping, HR case list/detail UI and integration tests. Apply migration `004_HR_Reconciliation_Cases.sql` after migrations 001–003.
+**Deployment gates:** apply migrations 001–004 on FVN_AI; configure API key/HMAC secrets identically in FVN API and AI API; restrict AI API to the private gateway; configure ClamAV; configure Ollama if an LLM draft is required; validate report fields and function codes against the FCC production schema. No build/test success is claimed until the solution is run in the target environment.
 
 ## Existing FVN_REGISTER sources identified
 
 The pilot must reuse existing application services and authorization rather than introduce a second source of truth:
 
-- F03AttendanceStaging: WorkDate, EmployeeCode, CheckIn/CheckOut text and timestamps, ShiftCode/Name/Abbr, OtHours, TotalHours, IsHoliday, HolidayType, ShiftType.
-- F03LeaveDays: WorkYear, StartTime, EndTime, TotalDay, RegisterId, LeaveReason, LeaveTypeCode, TotalLeaveDay, inherited request status/audit fields.
-- F03OTRequests: OTCode, OTDate, StartTime, EndTime, PlannedHours, TotalOTHours, OTTypeCode, OTReasonSummary, inherited request status/audit fields.
-- F03OTEmployees: EmployeeCode, department, planned StartTime/EndTime, OTHours, ActualHours, ActualStartTime/ActualEndTime, ValidationStatus, ValidationMessage.
+- F03HrmAttendanceCalculated is the attendance facts source exposed through AttendanceDetail: check-in/out, shift, total hours, OT hours and holiday context. F03AttendanceStaging is an upstream/staging source and is not queried directly by the AI service.
+- F03LeaveDays contains underlying leave fields; the current gateway reads the authorized LeaveDetail report (VF03LeaveRequest) for StartDate, EndDate, TotalDay, LeaveTypeCode and request status.
+- OTDetail exposes OT request identifiers, date, planned total hours and status from VF03OTRequest.
+- OTSummaryByEmployee aggregates planned and actual values from VF03OTRequestDetail; ActualRecordCount identifies whether any actual value is present.
 - ReportController already exposes authenticated report operations through IReportDispatcher, including report lookup and export, with managed-scope checks for employee/department requests.
 
 ## Case workflow
@@ -43,23 +45,23 @@ The pilot must reuse existing application services and authorization rather than
 3. Extract — Worker creates candidate fields and evidence references. Scanned PDF/OCR is a later provider gate; unsupported input stays unprocessed rather than being guessed.
 4. Load official facts — trusted FVN_REGISTER API checks caller identity and RBAC, then obtains only the employee/date/report facts the caller is allowed to see. The AI service never connects to the operational DbContext.
 5. Reconcile deterministically — compare employee code, work date, request state, planned/actual times, hours, shift and holiday context using versioned rules. A mismatch is a fact to explain, not a value to auto-correct.
-6. Compose answer — model receives the minimum authorized facts plus evidence snippets and produces a structured explanation with citations to source file/page/row and official FVN_REGISTER record identifiers.
+6. Compose answer — deterministic rules produce comparisons and internal notes; the model receives only authorized facts and those comparisons to draft a Vietnamese reply. The HR workspace displays the extracted evidence candidate with page/line references and the official report reference.
 7. Human review — HR accepts, edits or rejects the proposed response. Feedback is persisted for evaluation.
 8. Business action — if HR chooses a correction, the trusted FVN_REGISTER application re-runs authorization and domain validation and uses its existing command/workflow. AI does not write to business tables.
 
 ## Initial pilot scope
 
 ### A. Overtime reconciliation
-- Compare OT request date and planned start/end/hours with F03OTEmployees actual start/end/hours.
-- Compare the same employee/date against F03AttendanceStaging OT/total hours and shift/holiday context.
-- Highlight missing actual time, mismatched duration, duplicate evidence, employee/date mismatch and request status.
-- Explain the calculation and show the evidence used. Do not infer an approval from an uploaded image.
+- Compare reported/evidence hours with OTDetail planned hours, OTSummaryByEmployee actual hours and AttendanceDetail OT hours.
+- Compare actual OT with attendance OT; preserve the distinction between missing actual and a real zero.
+- Flag missing values, duration mismatch, evidence employee/date mismatch and request status requiring HR review.
+- OT planned start/end and detailed employee-level actual intervals are not yet compared by this first vertical slice.
 
 ### B. Attendance / leave feedback
-- Compare reported work date and check-in/check-out evidence with F03AttendanceStaging.
-- Compare leave date range/type/total days with F03LeaveDays and its request status.
-- Identify overlaps, missing registration, date-format ambiguity and discrepancies between user evidence and official facts.
-- Keep leave-balance/payroll consequences as "needs HR verification" until the authoritative rule and source are confirmed.
+- Compare attendance check-in/out with AttendanceDetail facts; two unique evidence time candidates can be used as the reported interval.
+- Compare leave evidence day/type candidates with LeaveDetail request facts when the source exposes the values.
+- Identify missing registration and evidence employee/date mismatch.
+- Leave balance/payroll consequences and multi-day per-date allocation remain NeedsHumanDecision until the authoritative rule/source is added.
 
 ## Structured result contract
 
