@@ -36,6 +36,22 @@ public sealed class PublicInformationService : IPublicInformationService
         return await EnrichAsync(rows.Select(MapEntity).ToList(), ct);
     }
 
+    public async Task<(int Count, bool HasImportant, DateTime? LatestPublishedAt)> GetPublishedSummaryAsync(CancellationToken ct = default)
+    {
+        var now = DateTime.Now;
+        var query = _uow.Repository<F03PublicInformation>().Query().AsNoTracking()
+            .Where(x => x.Status == "Published"
+                && (!x.EffectiveFrom.HasValue || x.EffectiveFrom <= now)
+                && (!x.EffectiveTo.HasValue || x.EffectiveTo >= now));
+
+        var count = await query.CountAsync(ct);
+        if (count == 0) return (0, false, null);
+
+        var hasImportant = await query.AnyAsync(x => x.IsImportant, ct);
+        var latest = await query.MaxAsync(x => x.PublishedAt, ct);
+        return (count, hasImportant, latest);
+    }
+
     public async Task<List<PublicInformationDto>> GetManageListAsync(CancellationToken ct = default)
     {
         var rows = await _uow.Repository<F03PublicInformation>().Query().AsNoTracking()

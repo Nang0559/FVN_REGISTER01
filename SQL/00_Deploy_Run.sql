@@ -105,6 +105,7 @@
 :r "71_DepartmentCodeInt.sql"
 :r "73_DashboardViewShellCapability.sql"
 :r "81_PublicInformationAttachments.sql"
+:r "82_FixPublicFormViewCodeCollision.sql"
 
 :r "14D_SecuritySchemaVerify.sql"
 :r "12_Verify.sql"

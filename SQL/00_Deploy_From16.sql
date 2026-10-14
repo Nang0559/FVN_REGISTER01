@@ -97,6 +97,7 @@ Current SQL directory:
 :r "71_DepartmentCodeInt.sql"
 :r "73_DashboardViewShellCapability.sql"
 :r "81_PublicInformationAttachments.sql"
+:r "82_FixPublicFormViewCodeCollision.sql"
 
 /* Authorization schema gate for an already-established 01-15 baseline. */
 :r "14D_SecuritySchemaVerify.sql"

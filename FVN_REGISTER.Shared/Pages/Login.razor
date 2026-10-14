@@ -3,6 +3,8 @@
 @using FVN_REGISTER.Contract.Dtos.Authentication
 @using FVN_REGISTER.Contract.Requests.Users
 @using FVN_REGISTER.Shared.Layout
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Contract.Dtos.PublicForms
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
 
@@ -13,6 +15,7 @@
 @inject IAuthClientService AuthService
 @inject IPasswordResetRequestClientService PasswordResetRequestService
 @inject NavigationManager Navigation
+@inject IHttpClientWithAuth PublicHttp
 @inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height:100vh">
@@ -68,7 +71,15 @@
                     </MudStack>
                 </MudPaper>
             }
-            <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.Campaign" Href="/thong-tin-cong-khai">@Language.T("login.publicInfo")</MudButton>
+            @* Public notices are readable WITHOUT login (PublicInfo uses PublicLayout). Badge = effective notices + open company-wide forms;
+               the button turns warning/error coloured as soon as at least one is effective. *@
+            <MudBadge Content="@_notice.TotalCount" Overlap="true" Color="@NoticeColor" Visible="@(_notice.TotalCount > 0)" Max="99">
+                <MudButton Variant="@(_notice.TotalCount > 0 ? Variant.Filled : Variant.Text)" Color="@(_notice.TotalCount > 0 ? NoticeColor : Color.Default)" Size="Size.Small" StartIcon="@Icons.Material.Filled.Campaign" Href="/thong-tin-cong-khai">@Language.T("login.publicInfo")</MudButton>
+            </MudBadge>
+            @if (_notice.TotalCount > 0)
+            {
+                <MudText Typo="Typo.caption" Color="@NoticeColor">@Language.T("public.soDangHieuLuc", _notice.TotalCount)</MudText>
+            }
         </div>
     </MudPaper>
 </MudContainer>
@@ -78,12 +89,20 @@
     private string _forgotEmployeeCode = string.Empty; private string? _forgotRequestNote; private bool _sendingResetRequest;
     private InputType _passwordInput = InputType.Password; private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
     private bool _twoFactorPending; private string _twoFactorChallenge = string.Empty; private string _twoFactorCode = string.Empty; private TwoFactorSetupDto? _twoFactorSetup;
-    protected override async Task OnInitializedAsync() { await Language.InitializeAsync(); await base.OnInitializedAsync(); }
+    private PublicNoticeSummaryDto _notice = new();
+    private Color NoticeColor => _notice.HasImportant ? Color.Error : Color.Warning;
+    // Set by /login?returnUrl=... (e.g. from an open public form). Only same-site relative paths are honoured.
+    [Parameter, SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+    protected override async Task OnInitializedAsync() { await Language.InitializeAsync(); await base.OnInitializedAsync(); _ = LoadNoticeSummaryAsync(); }
+    // Anonymous endpoint; a failure here must never block or break the login form.
+    private async Task LoadNoticeSummaryAsync() { try { var r = await PublicHttp.GetAsync<PublicNoticeSummaryDto>("api/public-portal/summary", showLoading: false); if (r.IsSuccess && r.Data != null) { _notice = r.Data; await InvokeAsync(StateHasChanged); } } catch (Exception ex) { Logger.LogWarning(ex, "[Login] Public notice summary failed"); } }
+    // Rejects absolute URLs, protocol-relative (//host) and backslash tricks, so returnUrl cannot become an open redirect.
+    private string SafeReturnUrl() { var u = ReturnUrl?.Trim(); if (string.IsNullOrEmpty(u) || u[0] != '/' || u.StartsWith("//") || u.StartsWith("/\\") || u.StartsWith("/login", StringComparison.OrdinalIgnoreCase)) return "/"; return u; }
     private Task SetLanguageAsync(LanguageCode language) => Language.SetLanguageAsync(language);
     private void ToggleForgotPassword() => _showForgotPassword = !_showForgotPassword;
     private void TogglePasswordVisibility() { _passwordVisibility = !_passwordVisibility; _passwordInput = _passwordVisibility ? InputType.Text : InputType.Password; _passwordInputIcon = _passwordVisibility ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff; }
     private async Task SubmitForgotPasswordRequestAsync() { var employeeCode = _forgotEmployeeCode.Trim(); if (string.IsNullOrWhiteSpace(employeeCode)) return; _sendingResetRequest = true; try { var result = await PasswordResetRequestService.SubmitAsync(new FVN_REGISTER.Contract.Requests.Users.PasswordResetRequestCreateDto { EmployeeCode = employeeCode, RequestNote = string.IsNullOrWhiteSpace(_forgotRequestNote) ? null : _forgotRequestNote.Trim() }); if (result.IsSuccess) { Snackbar.Add(Language.T("login.requestSent"), Severity.Success); _forgotEmployeeCode = string.Empty; _forgotRequestNote = null; _showForgotPassword = false; } else Snackbar.Add(result.Message ?? Language.T("login.requestFailed"), Severity.Error); } catch (Exception ex) { Logger.LogError(ex, "[Login] Forgot password request failed"); Snackbar.Add(Language.T("login.requestFailed"), Severity.Error); } finally { _sendingResetRequest = false; } }
     private async Task VerifyTwoFactorAsync() { if (string.IsNullOrWhiteSpace(_twoFactorChallenge) || _twoFactorCode.Length != 6) return; _isProcessing = true; try { var request = new TwoFactorVerifyRequest { ChallengeToken = _twoFactorChallenge, Code = _twoFactorCode, RememberMe = _model.RememberMe }; var result = _twoFactorSetup != null ? await AuthService.ConfirmTwoFactorSetupAsync(request) : await AuthService.VerifyTwoFactorAsync(request); if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Token)) { await CompleteLoginAsync(result.Data); return; } Snackbar.Add(result.Message ?? Language.T("login.twoFactorInvalid"), Severity.Error); } finally { _isProcessing = false; } }
-    private async Task CompleteLoginAsync(AuthResultDto data) { await CurrentUserService.InitializeAsync(data.Token!); if (AuthStateProvider is CustomAuthStateProvider provider) provider.NotifyUserLogin(data.Token!); Snackbar.Add(Language.T("login.twoFactorSuccess"), Severity.Success); Navigation.NavigateTo("/", forceLoad: false); }
+    private async Task CompleteLoginAsync(AuthResultDto data) { await CurrentUserService.InitializeAsync(data.Token!); if (AuthStateProvider is CustomAuthStateProvider provider) provider.NotifyUserLogin(data.Token!); Snackbar.Add(Language.T("login.twoFactorSuccess"), Severity.Success); Navigation.NavigateTo(SafeReturnUrl(), forceLoad: false); }
     private async Task HandleLogin() { _isProcessing = true; try { var result = await AuthService.Login(_model.UserName, _model.Password); if (result.IsSuccess && result.Data != null && result.Data.RequiresTwoFactor) { _twoFactorPending = true; _twoFactorChallenge = result.Data.TwoFactorChallengeToken ?? string.Empty; _twoFactorCode = string.Empty; if (result.Data.TwoFactorSetupRequired) { var setup = await AuthService.SetupTwoFactorAsync(_twoFactorChallenge); if (setup.IsSuccess) _twoFactorSetup = setup.Data; else Snackbar.Add(setup.Message ?? Language.T("message.loadFailed"), Severity.Error); } else { _twoFactorSetup = null; Snackbar.Add(Language.T("login.twoFactorReady"), Severity.Info); } } else if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Token)) await CompleteLoginAsync(result.Data); else Snackbar.Add(result.Message ?? Language.T("login.invalidCredentials"), Severity.Error); } catch (Exception ex) { Logger.LogError(ex, "[{Component}] Login failed", ComponentName); Snackbar.Add(Language.T("login.connectFailed"), Severity.Error); } finally { _isProcessing = false; } }
 }
