@@ -22,7 +22,7 @@ Mặc định URL là `https://dangkyphep.fcc-vn.com.vn`. Khi chạy thủ công
 5. Chạy workflow và đợi job hoàn tất.
 6. Tải artifact có tên bắt đầu bằng `playwright-ui-capture-`. Ảnh nằm trong `test-results/screenshots/`; báo cáo HTML và trace chẩn đoán được đính kèm khi Playwright tạo ra.
 
-Workflow cũng tự chạy khi có thay đổi trong `tests/playwright/**` hoặc chính workflow trên nhánh này.
+Workflow chỉ chạy khi bạn chủ động chọn **Run workflow**, tránh tự động chạy crawler dài sau mỗi commit.
 
 ## 3. Chạy trên máy phát triển
 
