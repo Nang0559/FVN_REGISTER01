@@ -130,6 +130,33 @@ group.MapPost("/hr-cases/analyze", async (HRCaseAnalysisRequest body, HttpReques
 });
 
 
+
+group.MapGet("/hr-cases/pending", async (int? limit, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var service = services.GetService<IHRCaseQueryService>();
+    if (service is null) return Results.Problem("HR case query service is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try { return Results.Ok(await service.GetPendingAsync(tenant, actor, limit ?? 50, ct)); }
+    catch (UnauthorizedAccessException) { return Results.Forbid(); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+group.MapGet("/hr-cases/{caseId:guid}", async (Guid caseId, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var service = services.GetService<IHRCaseQueryService>();
+    if (service is null) return Results.Problem("HR case query service is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        var item = await service.GetAsync(tenant, actor, caseId, ct);
+        return item is null ? Results.NotFound() : Results.Ok(item);
+    }
+    catch (UnauthorizedAccessException) { return Results.Forbid(); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
 group.MapPost("/hr-cases/{caseId:guid}/review", async (Guid caseId, HRCaseReviewRequest body,
     HttpRequest req, IServiceProvider services, CancellationToken ct) =>
 {
