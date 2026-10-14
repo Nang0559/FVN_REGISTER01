@@ -305,8 +305,8 @@ public sealed class HrmSyncService : IHrmSyncService
             WHERE a.IsActive = 1
               AND a.ApproverCode = x.EmployeeCode
               AND a.RequestType = CASE x.RequestType
-                    WHEN 0 THEN N'LEAVE' WHEN 1 THEN N'OT'
-                    WHEN 2 THEN N'TRIP'  WHEN 3 THEN N'EQUIPMENT' END
+                    WHEN 0 THEN N'Leave' WHEN 1 THEN N'Overtime'
+                    WHEN 2 THEN N'Trip'  WHEN 3 THEN N'Equipment' END
               AND a.Level = x.Level
               AND a.ApproveForDeptCode = x.DeptCode)
         """;
