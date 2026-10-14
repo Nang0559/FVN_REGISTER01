@@ -27,6 +27,7 @@ New job fields:
 Stored procedures:
 - `ai.usp_RecoverExpiredAiIngestionLeases`: recover expired `Running` jobs; exhausted jobs become `DeadLetter`.
 - `ai.usp_ClaimAiIngestionJob`: atomically claims one eligible job and increments attempt count.
+- `ai.usp_RenewAiIngestionLease`: extends a still-valid lease owned by the calling worker.
 - `ai.usp_CompleteAiIngestionJob`: completes only when the supplied worker owns the active lease.
 - `ai.usp_FailAiIngestionJob`: retry with exponential delay or move to `DeadLetter`.
 
@@ -100,3 +101,14 @@ The SQL failure procedure applies exponential backoff (15 seconds × 2^attempt, 
 - Build and test on the target .NET 9 / SQL Server environment.
 
 Until these gates pass, deploy only to a controlled test environment. The Phase 1.1 SQL procedures and API signature check are implemented, but production readiness has not been established by a build, security test or deployment.
+
+
+## 6. Phase 2–5 groundwork now present on this branch
+
+- Local text extraction supports UTF-8 TXT/CSV and basic XLSX OpenXML cell text. PDF/OCR remains an explicit provider integration; unsupported media types fail rather than returning fabricated text.
+- Extraction candidate, validation issue, human review, knowledge chunk, feedback and model deployment persistence schemas are defined in the subsequent AI SQL migrations.
+- Tenant-scoped extraction query, human review and feedback API contracts are available. Review writes an immutable before-payload and optional corrected payload; it does not write FVN_REGISTER business tables.
+- The default malware scanner returns `Unknown`. It never reports a clean verdict when no approved scanning engine is configured.
+- CI workflow validates the solution and AI test project on Windows/.NET 9 when GitHub Actions runs.
+
+These are persistence and integration foundations. They do not yet constitute a running OCR/LLM extraction pipeline, an ACL-filtered vector retrieval service, a Blazor review UI, or a production model registry. Those require approved provider and deployment choices.
