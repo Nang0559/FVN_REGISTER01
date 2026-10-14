@@ -70,7 +70,12 @@ group.MapGet("/documents/{id:guid}",async (Guid id,HttpRequest req,IServiceProvi
  var service=services.GetService<IDocumentIngestionService>();
  if(service is null) return Results.Problem("AI SQL connection is not configured. Apply the AI schema and configure ConnectionStrings:FvnAi.",statusCode:503);
  var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
- if(string.IsNullOrWhiteSpace(tenant)||tenant.Length>64) return Results.BadRequest(new{error="X-Tenant-Code is required."});
+ var actor=req.Headers["X-Actor-Id"].ToString().Trim();
+ if(string.IsNullOrWhiteSpace(tenant)||tenant.Length>64||string.IsNullOrWhiteSpace(actor)) return Results.BadRequest(new{error="Signed tenant and actor context is required."});
+ var db=services.GetService<AiPlatformDbContext>();
+ if(db is null) return Results.Problem("AI SQL connection is not configured.",statusCode:503);
+ var owned=await db.Documents.AsNoTracking().AnyAsync(x=>x.Id==id&&x.TenantCode==tenant&&x.UploadedBy==actor,ct);
+ if(!owned) return Results.NotFound();
  var result=await service.GetStatusAsync(id,tenant,ct);
  return result is null?Results.NotFound():Results.Ok(result);
 });
