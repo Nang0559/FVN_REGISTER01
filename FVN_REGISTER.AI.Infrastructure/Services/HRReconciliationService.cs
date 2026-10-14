@@ -24,6 +24,10 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             throw new ArgumentException("User statement must contain 1 to 8000 characters.", nameof(request));
         if (request.EvidenceText?.Length > 100_000)
             throw new ArgumentException("Evidence text exceeds the permitted length.", nameof(request));
+        if (request.EvidenceReference?.Length > 512)
+            throw new ArgumentException("Evidence reference exceeds 512 characters.", nameof(request));
+        if (request.EmployeeCode?.Length > 64)
+            throw new ArgumentException("Employee code exceeds 64 characters.", nameof(request));
         if (request.ReportedHours is < 0 or > 24 || request.ReportedLeaveDays is < 0 or > 31)
             throw new ArgumentException("Reported hours or leave days are outside the permitted range.", nameof(request));
         if (request.ReportedStart.HasValue != request.ReportedEnd.HasValue ||
