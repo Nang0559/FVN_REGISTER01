@@ -17,5 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\FVN_REGISTER.AI.Application\FVN_REGISTER.AI.Application.csproj" />
     <ProjectReference Include="..\..\FVN_REGISTER.AI.Infrastructure\FVN_REGISTER.AI.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\FVN_REGISTER.AI.Api\FVN_REGISTER.AI.Api.csproj" />
   </ItemGroup>
 </Project>
