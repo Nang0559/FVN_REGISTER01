@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using FVN_REGISTER.AI.Application.Contracts;
@@ -34,11 +36,31 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             !string.Equals(facts.EmployeeCode, request.EmployeeCode, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Official facts provider returned a different employee.");
 
-        var comparisons = request.CaseType switch
+        var effectiveRequest = request;
+        if (request.EvidenceDocumentId.HasValue)
         {
-            HRCaseType.Overtime => CompareOvertime(facts, request),
-            HRCaseType.Attendance => CompareAttendance(facts, request),
-            HRCaseType.Leave => CompareLeave(facts, request),
+            var evidence = await db.Extractions.AsNoTracking()
+                .Where(x => x.DocumentId == request.EvidenceDocumentId.Value && x.TenantCode == tenantCode)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .Select(x => x.CandidateJson)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (evidence is not null && request.ReportedHours is null)
+            {
+                var extractedHours = ReadSingleHourCandidate(evidence);
+                if (extractedHours.HasValue)
+                    effectiveRequest = request with { ReportedHours = extractedHours };
+            }
+            effectiveRequest = effectiveRequest with
+            {
+                EvidenceReference = request.EvidenceReference ?? $"ai-document:{request.EvidenceDocumentId.Value}"
+            };
+        }
+
+        var comparisons = effectiveRequest.CaseType switch
+        {
+            HRCaseType.Overtime => CompareOvertime(facts, effectiveRequest),
+            HRCaseType.Attendance => CompareAttendance(facts, effectiveRequest),
+            HRCaseType.Leave => CompareLeave(facts, effectiveRequest),
             _ => throw new ArgumentOutOfRangeException(nameof(request.CaseType))
         };
 
@@ -63,13 +85,13 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         var caseId = Guid.NewGuid();
         var analysis = new HRReconciliationAnalysis(caseId, request.CaseType, facts.EmployeeCode,
             facts.WorkDate, outcome, comparisons, reply, note,
-            string.IsNullOrWhiteSpace(request.EvidenceReference) ? Array.Empty<string>() : new[] { request.EvidenceReference },
+            string.IsNullOrWhiteSpace(effectiveRequest.EvidenceReference) ? Array.Empty<string>() : new[] { effectiveRequest.EvidenceReference },
             facts.SourceSystem, facts.SourceRecordReference, facts.RetrievedAtUtc, true);
         db.HRCases.Add(new AiHRCaseRecord
         {
             Id = caseId, TenantCode = tenantCode, EmployeeCode = facts.EmployeeCode,
             CaseType = request.CaseType.ToString(), WorkDate = facts.WorkDate, Outcome = outcome.ToString(),
-            UserStatement = request.UserStatement, EvidenceReference = request.EvidenceReference,
+            UserStatement = request.UserStatement, EvidenceReference = effectiveRequest.EvidenceReference,
             AnalysisJson = JsonSerializer.Serialize(analysis), SuggestedReply = reply,
             InternalHRNote = note, OfficialSource = facts.SourceSystem,
             OfficialRecordReference = facts.SourceRecordReference, FactsRetrievedAtUtc = facts.RetrievedAtUtc,
@@ -77,6 +99,32 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
         });
         await db.SaveChangesAsync(cancellationToken);
         return analysis;
+    }
+
+    private static decimal? ReadSingleHourCandidate(string candidateJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(candidateJson);
+            if (!document.RootElement.TryGetProperty("extractedFields", out var fields) ||
+                !fields.TryGetProperty("hourCandidates", out var candidates) ||
+                candidates.ValueKind != JsonValueKind.Array)
+                return null;
+            var values = candidates.EnumerateArray()
+                .Where(x => x.ValueKind == JsonValueKind.String)
+                .Select(x => decimal.TryParse(x.GetString()?.Replace(',', '.'), NumberStyles.Number,
+                    CultureInfo.InvariantCulture, out var value) ? (decimal?)value : null)
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .Distinct()
+                .Take(2)
+                .ToArray();
+            return values.Length == 1 && values[0] >= 0 && values[0] <= 24 ? values[0] : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static IReadOnlyList<HRFieldComparison> CompareOvertime(OfficialHRFacts f, HRCaseAnalysisRequest request)
