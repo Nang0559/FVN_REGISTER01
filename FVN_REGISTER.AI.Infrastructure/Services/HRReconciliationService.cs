@@ -89,11 +89,13 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             result.Add(new("AttendanceInterval", null, null, "ATT-MISSING-001", HRComparisonOutcome.InsufficientEvidence,
                 "Thiếu giờ vào hoặc giờ ra chính thức."));
         else
+        {
             var hasReportedInterval = request.ReportedStart.HasValue && request.ReportedEnd.HasValue;
             var differs = IntervalsDiffer(request.ReportedStart, request.ReportedEnd, f.ActualStart, f.ActualEnd);
             result.Add(new("AttendanceInterval", FormatInterval(request.ReportedStart, request.ReportedEnd), $"{f.ActualStart:HH:mm} - {f.ActualEnd:HH:mm}",
                 "ATT-SOURCE-001", !hasReportedInterval ? HRComparisonOutcome.InsufficientEvidence : differs ? HRComparisonOutcome.Discrepancy : HRComparisonOutcome.Matched,
                 !hasReportedInterval ? "Thiếu khoảng thời gian người dùng cung cấp để đối chiếu." : differs ? "Khoảng thời gian người dùng cung cấp khác dữ liệu chấm công." : "Khoảng thời gian khớp dữ liệu chấm công."));
+        }
         if (f.ShiftCode is null)
             result.Add(new("ShiftCode", null, null, "ATT-SHIFT-001", HRComparisonOutcome.InsufficientEvidence,
                 "Thiếu mã ca làm việc."));
@@ -107,8 +109,10 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
             result.Add(new("Leave", null, null, "LEAVE-MISSING-001", HRComparisonOutcome.InsufficientEvidence,
                 "Thiếu loại nghỉ hoặc số ngày nghỉ chính thức."));
         else
+        {
             var differs = (request.ReportedLeaveDays.HasValue && Math.Abs(request.ReportedLeaveDays.Value - f.LeaveDays.Value) > HoursTolerance) || (!string.IsNullOrWhiteSpace(request.ReportedLeaveType) && !string.Equals(request.ReportedLeaveType, f.LeaveType, StringComparison.OrdinalIgnoreCase));
             result.Add(new("Leave", request.ReportedLeaveType is null && request.ReportedLeaveDays is null ? null : $"{request.ReportedLeaveType ?? "?"}: {request.ReportedLeaveDays?.ToString("0.##") ?? "?"} ngày", $"{f.LeaveType}: {f.LeaveDays:0.##} ngày", "LEAVE-SOURCE-001", differs ? HRComparisonOutcome.Discrepancy : (request.ReportedLeaveDays.HasValue || !string.IsNullOrWhiteSpace(request.ReportedLeaveType) ? HRComparisonOutcome.Matched : HRComparisonOutcome.NeedsHumanDecision), differs ? "Thông tin nghỉ người dùng cung cấp khác dữ liệu nghỉ phép chính thức." : "Dữ liệu nghỉ phép đã được truy xuất; HR cần kiểm tra trạng thái và quy tắc áp dụng."));
+        }
         return result;
     }
 
