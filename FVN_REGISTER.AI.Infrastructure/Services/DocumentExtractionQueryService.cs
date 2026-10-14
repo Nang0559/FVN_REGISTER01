@@ -6,11 +6,12 @@ namespace FVN_REGISTER.AI.Infrastructure.Services;
 
 public sealed class DocumentExtractionQueryService(AiPlatformDbContext db) : IDocumentExtractionQueryService
 {
-    public async Task<ExtractionReviewView?> GetLatestAsync(Guid documentId, string tenantCode,
+    public async Task<ExtractionReviewView?> GetLatestAsync(Guid documentId, string tenantCode, string actorId,
         CancellationToken cancellationToken = default)
     {
         var row = await db.Extractions.AsNoTracking()
-            .Where(x => x.DocumentId == documentId && x.TenantCode == tenantCode)
+            .Where(x => x.DocumentId == documentId && x.TenantCode == tenantCode &&
+                db.Documents.Any(d => d.Id == x.DocumentId && d.TenantCode == tenantCode && d.UploadedBy == actorId))
             .OrderByDescending(x => x.CreatedAtUtc)
             .Select(x => new
             {
