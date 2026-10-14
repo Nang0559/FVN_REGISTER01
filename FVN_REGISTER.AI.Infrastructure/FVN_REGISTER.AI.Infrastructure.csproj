@@ -5,6 +5,7 @@
 <ProjectReference Include="..\FVN_REGISTER.AI.Application\FVN_REGISTER.AI.Application.csproj" />
 <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
 <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+<PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
 <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.0" />
 <PackageReference Include="UglyToad.PdfPig" Version="0.1.9" />
 </ItemGroup></Project>
