@@ -158,7 +158,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         return null;
     }
 
-    public async Task<ServiceResult<EquipmentInspectionTemplateImportResultDto>> ImportTemplateExcelAsync(string fileName, Stream content, CancellationToken ct = default)
+    public async Task<ServiceResult<EquipmentInspectionTemplateImportResultDto>> ImportTemplateExcelAsync(string fileName, Stream content, int? selectedDeptCode = null, int? selectedSheetIndex = null, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct))
@@ -173,16 +173,68 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         byte[] bytes;
         await using (var ms = new MemoryStream()) { await content.CopyToAsync(ms, ct); bytes = ms.ToArray(); }
 
-        // Workbook reading, header detection input and required-cell checks come from the shared Excel platform
-        // (same engine as the equipment import). This service only maps columns and applies checklist business rules.
-        ExcelSheetGrid grid;
-        try { grid = await _excel.ReadGridAsync(new MemoryStream(bytes), fileName, 0, 60, ct); }
-        catch (Exception ex) { return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Không đọc được Excel checklist: {ex.Message}"); }
-        if (grid.Rows.Count == 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Excel không có dữ liệu.");
+        // Workbook/sheet inspection and cell reading are provided by the shared Excel Platform.
+        // Checklist business rules live here; the generic table importer below remains unchanged.
+        ExcelWorkbookInspection workbook;
+        try { workbook = await _excel.InspectAsync(new MemoryStream(bytes), fileName, ct); }
+        catch (Exception ex) { return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Không đọc được cấu trúc Excel checklist: {ex.Message}"); }
+        if (workbook.Sheets.Count == 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Workbook không có worksheet.");
 
-        var columns = DetectChecksheetColumns(grid, out var headerRow, out var missing);
+        var candidateSheets = selectedSheetIndex.HasValue
+            ? workbook.Sheets.Where(x => x.Index == selectedSheetIndex.Value).ToList()
+            : workbook.Sheets.ToList();
+        if (candidateSheets.Count == 0)
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Worksheet đã chọn không tồn tại.");
+
+        ExcelSheetGrid? grid = null;
+        Dictionary<string, int>? columns = null;
+        var headerRow = -1;
+        List<string> missing = ChecksheetRequiredHeaders.ToList();
+        foreach (var sheet in candidateSheets)
+        {
+            var candidate = await _excel.ReadGridAsync(new MemoryStream(bytes), fileName, sheet.Index, 2000, ct);
+            var mapped = DetectChecksheetColumns(candidate, out var candidateHeader, out var candidateMissing);
+            if (mapped != null) { grid = candidate; columns = mapped; headerRow = candidateHeader; break; }
+            if (grid == null || candidateMissing.Count < missing.Count) { grid = candidate; missing = candidateMissing; }
+        }
+
+        // Presentation-style check sheets (merged cells, repeated days and OK/NG boxes) are not flat tables.
+        // Detect this layout before reporting missing flat-table columns, and translate it into checklist items.
+        if (grid != null && columns == null && IsPresentationChecklist(grid))
+        {
+            if (selectedDeptCode is null or <= 0)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Biểu mẫu checklist dạng trình bày không có DeptCode. Hãy chọn Bộ phận ở màn hình trước khi import.");
+            var layoutItems = ExtractPresentationChecklistItems(grid);
+            if (layoutItems.Count == 0)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Đã nhận diện biểu mẫu checklist dạng trình bày nhưng chưa xác định được hạng mục. Hãy dùng mapping checklist hoặc bổ sung cột tên hạng mục.");
+            var deptExists = await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == selectedDeptCode && e.IsActive != false, ct);
+            if (!deptExists)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Bộ phận '{selectedDeptCode}' không tồn tại hoặc không có nhân viên hoạt động.");
+            var templateName = ExtractPresentationTemplateName(grid) ?? Path.GetFileNameWithoutExtension(fileName);
+            var templateCode = NormalizeInspectionExcelKey(templateName).ToUpperInvariant();
+            if (templateCode.Length > 50) templateCode = templateCode[..50];
+            var savedLayout = await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest
+            {
+                TemplateCode = string.IsNullOrWhiteSpace(templateCode) ? $"EQI-{Guid.NewGuid():N}"[..12] : templateCode,
+                TemplateName = templateName.Length > 200 ? templateName[..200] : templateName,
+                DeptCode = selectedDeptCode.Value,
+                Frequency = "Weekly",
+                Status = "Draft",
+                Description = $"Tạo từ biểu mẫu Excel dạng trình bày: {Path.GetFileName(fileName)}. Các ô đánh dấu mẫu chưa được nhập thành kết quả thực hiện.",
+                Items = layoutItems
+            }, ct);
+            if (!savedLayout.IsSuccess || savedLayout.Data == null)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(savedLayout.Message ?? "Không thể lưu checklist dạng trình bày.");
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Ok(new EquipmentInspectionTemplateImportResultDto
+            {
+                TemplateId = savedLayout.Data.Id, TemplateCode = savedLayout.Data.TemplateCode,
+                TemplateName = savedLayout.Data.TemplateName, ItemCount = layoutItems.Count
+            }, $"Đã chuyển biểu mẫu dạng trình bày thành checklist Draft ({layoutItems.Count} hạng mục). Chỉ dùng worksheet '{grid.SheetName}'; các worksheet khác chưa được gộp.");
+        }
+
+        if (grid == null || grid.Rows.Count == 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Excel không có dữ liệu.");
         if (columns == null)
-            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Thiếu cột checklist bắt buộc: {string.Join(", ", missing)}.");
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Không nhận diện được cấu trúc checklist. Thiếu cột bảng chuẩn: {string.Join(", ", missing)}. Hãy dùng file mẫu hoặc chọn worksheet có dạng bảng.");
 
         var fields = columns
             .Select(kv =>
@@ -326,7 +378,65 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", stream, "equipment-checksheet-template.xlsx"));
     }
 
+    private static bool IsPresentationChecklist(ExcelSheetGrid grid)
+    {
+        var text = string.Join(" ", grid.Rows.SelectMany(r => r.Cells).Where(c => !string.IsNullOrWhiteSpace(c)));
+        var key = NormalizeInspectionExcelKey(text);
+        return key.Contains("backupresultchecksheet") &&
+               (key.Contains("ok") || key.Contains("ng")) &&
+               (key.Contains("date") || key.Contains("period"));
+    }
+
+    private static string? ExtractPresentationTemplateName(ExcelSheetGrid grid)
+    {
+        foreach (var row in grid.Rows.Take(12))
+            foreach (var cell in row.Cells)
+                if (!string.IsNullOrWhiteSpace(cell) && NormalizeInspectionExcelKey(cell).Contains("backupresultchecksheet"))
+                    return cell.Trim();
+        return "Backup result check sheet";
+    }
+
+    private static List<EquipmentInspectionItemDto> ExtractPresentationChecklistItems(ExcelSheetGrid grid)
+    {
+        // Repeated weekly rows are collapsed into unique checklist items. Only explicit item identifiers
+        // are promoted; date/time, OK/NG boxes, confirmations and notes are not treated as checklist items.
+        var known = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["IFSBK"] = "IFSBK backup result",
+            ["IFSDB"] = "IFSDB backup result",
+            ["NAS"] = "NAS backup result",
+            ["IFSAP"] = "IFSAP backup result",
+            ["SRV01"] = "SRV01 backup result"
+        };
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in grid.Rows)
+        {
+            var rowText = string.Join(" ", row.Cells.Where(c => !string.IsNullOrWhiteSpace(c)));
+            var normalizedRow = NormalizeInspectionExcelKey(rowText);
+            if (normalizedRow.Contains("reporttothesuperiorwhenng") ||
+                normalizedRow.Contains("confirmationresult") ||
+                normalizedRow.Contains("backupresultchecksheet")) continue;
+            foreach (var code in known.Keys)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(rowText, $@"(?<![A-Za-z0-9]){System.Text.RegularExpressions.Regex.Escape(code)}(?![A-Za-z0-9])", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    found.Add(code);
+            }
+        }
+        return known.Where(x => found.Contains(x.Key)).Select((x, i) => new EquipmentInspectionItemDto
+        {
+            ItemCode = x.Key,
+            ItemLabel = x.Value,
+            InputType = "PassFail",
+            IsRequired = true,
+            RequireImage = false,
+            MinImages = 0,
+            MaxImages = 3,
+            DisplayOrder = i + 1
+        }).ToList();
+    }
+
     private static string NormalizeInspectionExcelKey(string value)
+        => new string((value ?? "").Trim().Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).Select(char.ToLowerInvariant).Where(char.IsLetterOrDigit).ToArray());    private static string NormalizeInspectionExcelKey(string value)
         => new string((value ?? "").Trim().Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).Select(char.ToLowerInvariant).Where(char.IsLetterOrDigit).ToArray());
 
     private static bool IsInspectionBool(string? value) => value?.Trim().ToLowerInvariant() is "true" or "false" or "yes" or "no" or "1" or "0" or "y" or "n" or "co" or "khong" or "có" or "không";
