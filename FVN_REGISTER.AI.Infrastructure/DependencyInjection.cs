@@ -38,6 +38,7 @@ public static class DependencyInjection
   services.AddSingleton<IOriginalDocumentStore,FileSystemOriginalDocumentStore>();
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
   services.AddSingleton<IDocumentTextExtractor,LocalDocumentTextExtractor>();
+  services.AddScoped<IDocumentClassifier,ModelDocumentClassifier>();
   services.TryAddSingleton<IMalwareScanner>(sp =>
   {
    var scannerOptions=sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<MalwareScannerOptions>>().Value;
