@@ -48,6 +48,24 @@ public sealed class LocalDocumentTextExtractorTests
         Assert.Contains("E0001", result);
     }
     [Fact]
+    public async Task ExtractTextAsync_FlattensJsonWithPropertyPaths()
+    {
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"employee":{"code":"E0001","active":true}}"""));
+        var result = await new LocalDocumentTextExtractor(new TestOcrTextExtractor()).ExtractTextAsync(stream, "application/json");
+        Assert.Contains("$.employee.code = E0001", result);
+        Assert.Contains("$.employee.active = True", result);
+    }
+
+    [Fact]
+    public async Task ExtractTextAsync_ExtractsXmlElementAndAttributeValues()
+    {
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<request id='R1'><employee>E0001</employee></request>"));
+        var result = await new LocalDocumentTextExtractor(new TestOcrTextExtractor()).ExtractTextAsync(stream, "application/xml");
+        Assert.Contains("/request/@id = R1", result);
+        Assert.Contains("/request/employee = E0001", result);
+    }
+
+    [Fact]
     public async Task ExtractTextAsync_ReadsDocxParagraphs()
     {
         await using var stream = new MemoryStream();
