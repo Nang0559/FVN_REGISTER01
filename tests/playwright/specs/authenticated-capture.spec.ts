@@ -26,6 +26,11 @@ const maxStates = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_STATES 
 const maxClicks = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_CLICK_TARGETS ?? '500', 10) || 500);
 const maxDepth = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_DEPTH ?? '12', 10) || 12);
 const budgetMinutes = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_CRAWL_BUDGET_MINUTES ?? '40', 10) || 40);
+// Phase 2 fairness: every page gets a bounded number of in-page interactions and bounded time.
+const maxTargetsPerPage = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_TARGETS_PER_PAGE ?? '30', 10) || 30);
+const pageBudgetSeconds = Math.max(15, Number.parseInt(process.env.PLAYWRIGHT_PAGE_BUDGET_SECONDS ?? '150', 10) || 150);
+// Detail pages such as /leave/detail/123: capture at most this many per route pattern.
+const MAX_PER_ROUTE_PATTERN = 2;
 const expandScrollContainers = (process.env.PLAYWRIGHT_EXPAND_SCROLL ?? 'true').toLowerCase() !== 'false';
 
 // A route that does not exist: renders the lightweight NotFound view inside MainLayout.
@@ -83,7 +88,7 @@ const TARGET_SELECTOR = 'a[href], .mud-nav-link, .mud-tab, button, [role="button
 
 class SessionLostError extends Error {}
 
-type Target = { key: string; label: string; href: string; idx: number };
+type Target = { key: string; label: string; href: string; idx: number; kind: 'tab' | 'button' | 'link' };
 type Tracker = ReturnType<typeof installTracker>;
 type Scope = 'nav' | 'content';
 
@@ -96,6 +101,12 @@ function safeFileName(value: string): string {
     .slice(0, 110);
   return `${cleaned || 'screen'}-${createHash('sha1').update(value).digest('hex').slice(0, 8)}`;
 }
+
+const slug = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd')
+  .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 40);
+const patternOf = (url: string) => new URL(url).pathname.toLowerCase()
+  .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '/:id')
+  .replace(/\/\d+(?=\/|$)/g, '/:id');
 
 const isLoginPath = (pathname: string) => /\/login(?:\/|$)/i.test(pathname);
 
@@ -477,7 +488,7 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
       return false;
     };
 
-    const result: Array<{ key: string; label: string; href: string; idx: number }> = [];
+    const result: Array<{ key: string; label: string; href: string; idx: number; kind: 'tab' | 'button' | 'link' }> = [];
     const occurrence = new Map<string, number>();
     const elements = [...document.querySelectorAll(args.selector)] as HTMLElement[];
 
@@ -530,7 +541,8 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
       occurrence.set(identity, index + 1);
       const idx = result.length;
       element.setAttribute('data-pw-i', String(idx));
-      result.push({ key: `${identity}|${index}`, label, href, idx });
+      const kind = hasRealHref ? 'link' : isTab ? 'tab' : 'button';
+      result.push({ key: `${identity}|${index}`, label, href, idx, kind });
     }
     return result;
   }, {
@@ -587,6 +599,8 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   let captured = 0;
   let clicks = 0;
   let abortReason: string | undefined;
+  const explored: Array<{ url: string; tried: number; captured: number; knownLinksSkipped: number; remaining: number; tabs: number; buttons: number; links: number }> = [];
+  const patternCounts = new Map<string, number>();
 
   const pathKeyOf = (url: string) => {
     const parsed = new URL(url);
@@ -608,6 +622,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
         notReady: capturedStates.filter(state => !state.ready).length,
         elapsedSeconds: Math.round((Date.now() - startedAt) / 1000),
       },
+      explored,
       states: capturedStates,
     }, null, 2), 'utf8').catch(() => undefined);
   }
@@ -638,7 +653,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
 
     captured++;
     await settleForScreenshot(page);
-    const screenshotName = `state-${captured}-depth-${depth}-${url.pathname}${url.search}`;
+    const screenshotName = `state-${captured}-depth-${depth}-${slug(reason)}--${url.pathname}${url.search}`;
     await saveScreenshot(page, screenshotName);
     capturedStates.push({
       number: captured, depth, reason, url: url.href, signature,
@@ -649,27 +664,65 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
     return { url, stateKey, isNew: true };
   }
 
-  // Phase 2 helper: explore tabs / in-page buttons / in-content links of one captured page.
+  const isDialogOpen = () => page.locator('.mud-dialog:visible').count().then(count => count > 0).catch(() => false);
+
+  // Phase 2: tabs first, then in-page buttons, then links. Same-page interactions (tabs, filters)
+  // do NOT restore the page between clicks, so they are cheap; the page is only restored after a
+  // navigation, a dialog that will not close, or a target that disappeared.
   async function explore(depth: number, parentUrl: string): Promise<void> {
     if (depth > maxDepth || outOfBudget()) return;
 
-    const targets = await collectTargets(page, 'content');
-    console.log(`Explore ${new URL(parentUrl).pathname}: ${targets.length} safe click targets.`);
-    if (targets.length) {
-      console.log(`Discovered targets: ${targets.slice(0, 60).map(target =>
-        `${target.label || '(unlabelled)'}${target.href ? ` -> ${target.href}` : ''}`).join(' | ')}`);
+    const parentPath = pathKeyOf(parentUrl);
+    const rank = { tab: 0, button: 1, link: 2 } as const;
+    const seenKeys = new Set<string>();
+    const queue: Target[] = [];
+    const stats = { tabs: 0, buttons: 0, links: 0, knownLinksSkipped: 0, captured: 0, tried: 0 };
+    const enqueue = (targets: Target[]) => {
+      for (const target of targets) {
+        if (seenKeys.has(target.key)) continue;
+        seenKeys.add(target.key);
+        if (target.kind === 'tab') stats.tabs++;
+        else if (target.kind === 'button') stats.buttons++;
+        else stats.links++;
+        if (target.kind === 'link' && visitedPaths.has(pathKeyOf(target.href))) {
+          stats.knownLinksSkipped++; // destination already has its own screenshot from phase 1
+          continue;
+        }
+        queue.push(target);
+      }
+      queue.sort((left, right) => rank[left.kind] - rank[right.kind]);
+    };
+
+    enqueue(await collectTargets(page, 'content'));
+    console.log(`Explore ${new URL(parentUrl).pathname}: ${queue.length} to try (tabs=${stats.tabs}, buttons=${stats.buttons}, links=${stats.links}, links to already captured pages=${stats.knownLinksSkipped}).`);
+    if (queue.length) {
+      console.log(`Discovered targets: ${queue.slice(0, 60).map(target =>
+        `[${target.kind}] ${target.label || '(unlabelled)'}${target.href ? ` -> ${target.href}` : ''}`).join(' | ')}`);
     }
 
-    const parentPath = pathKeyOf(parentUrl);
-    for (const target of targets) {
-      if (outOfBudget()) break;
+    const pageDeadline = Date.now() + pageBudgetSeconds * 1000;
+    let needsRestore = false;
+
+    while (queue.length && stats.tried < maxTargetsPerPage && Date.now() < pageDeadline && !outOfBudget()) {
+      const target = queue.shift()!;
       const clickKey = `${parentPath}|${target.key}`;
       if (attemptedClicks.has(clickKey)) continue;
       attemptedClicks.add(clickKey);
+      if (target.kind === 'link' && (patternCounts.get(patternOf(target.href)) ?? 0) >= MAX_PER_ROUTE_PATTERN) continue;
+      stats.tried++;
 
       try {
-        await restore(page, tracker, parentUrl);
-        const clicked = await clickTarget(page, target, 'content');
+        let restoredThisRound = false;
+        if (needsRestore) {
+          await restore(page, tracker, parentUrl);
+          needsRestore = false;
+          restoredThisRound = true;
+        }
+        let clicked = await clickTarget(page, target, 'content');
+        if (!clicked && !restoredThisRound) { // the DOM changed under us: reset once and retry
+          await restore(page, tracker, parentUrl);
+          clicked = await clickTarget(page, target, 'content');
+        }
         if (!clicked) continue;
         clicks++;
 
@@ -680,22 +733,47 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
         childUrl.hash = '';
         if (childUrl.origin !== origin) {
           console.warn(`Blocked unsafe destination from ${target.label}: ${childUrl.href}`);
+          needsRestore = true;
           continue;
         }
-        const navigated = pathKeyOf(childUrl.href) !== parentPath;
-        if (navigated && visitedPaths.has(pathKeyOf(childUrl.href))) continue; // already captured
 
-        const child = await captureCurrent(depth, target.label, ready);
-        if (child?.isNew && navigated) {
-          visitedPaths.add(pathKeyOf(child.url.href));
-          // Same-route states (tabs/dialogs) cannot be restored, so only real navigations recurse.
-          await explore(depth + 1, child.url.href);
+        const reason = `${target.kind}:${target.label}`;
+        if (pathKeyOf(childUrl.href) !== parentPath) {
+          needsRestore = true; // we left the parent page
+          const childKey = pathKeyOf(childUrl.href);
+          const pattern = patternOf(childUrl.href);
+          if (visitedPaths.has(childKey)) continue;
+          if ((patternCounts.get(pattern) ?? 0) >= MAX_PER_ROUTE_PATTERN) continue;
+          const child = await captureCurrent(depth, reason, ready);
+          if (child?.isNew) {
+            stats.captured++;
+            visitedPaths.add(childKey);
+            patternCounts.set(pattern, (patternCounts.get(pattern) ?? 0) + 1);
+            await explore(depth + 1, child.url.href);
+          }
+        } else {
+          // Same page: a tab, filter, accordion or dialog changed what is on screen.
+          const dialogOpen = await isDialogOpen();
+          const child = await captureCurrent(depth, reason, ready);
+          if (child?.isNew) {
+            stats.captured++;
+            if (!dialogOpen) enqueue(await collectTargets(page, 'content')); // new tabs/buttons revealed
+          }
+          await closeTransientUi(page); // close popover menus / dialogs so they do not swallow the next click
+          if (await isDialogOpen()) needsRestore = true;
         }
       } catch (error) {
         if (error instanceof SessionLostError) throw error;
+        needsRestore = true;
         console.warn(`Skipped target ${target.label}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
+
+    explored.push({
+      url: parentUrl, tried: stats.tried, captured: stats.captured, knownLinksSkipped: stats.knownLinksSkipped,
+      remaining: queue.length, tabs: stats.tabs, buttons: stats.buttons, links: stats.links,
+    });
+    if (queue.length) console.log(`Explore ${new URL(parentUrl).pathname}: stopped with ${queue.length} targets left (per-page cap or time limit).`);
   }
 
   const routes: Array<{ url: string; label: string }> = [];
