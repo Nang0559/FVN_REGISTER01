@@ -22,7 +22,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   d.Property(x=>x.Sha256).HasMaxLength(64).IsRequired(); d.Property(x=>x.StorageKey).HasMaxLength(512).IsRequired();
   d.Property(x=>x.UploadedBy).HasMaxLength(128).IsRequired(); d.Property(x=>x.Status).HasMaxLength(32).IsRequired();
   d.Property(x=>x.ModuleCode).HasMaxLength(64); d.Property(x=>x.SchemaCode).HasMaxLength(128);
-  d.HasIndex(x=>new{x.TenantCode,x.ModuleCode,x.SchemaCode,x.ReceivedAtUtc);
+  d.HasIndex(x=>new{x.TenantCode,x.ModuleCode,x.SchemaCode,x.ReceivedAtUtc});
   d.HasIndex(x=>new{x.TenantCode,x.Sha256}).IsUnique(); d.HasIndex(x=>new{x.TenantCode,x.ReceivedAtUtc});
   var j=b.Entity<AiIngestionJobRecord>(); j.ToTable("AiIngestionJobs","ai"); j.HasKey(x=>x.Id);
   j.Property(x=>x.Status).HasMaxLength(24).IsRequired(); j.Property(x=>x.FailureCode).HasMaxLength(128); j.Property(x=>x.LeaseOwner).HasMaxLength(128);
