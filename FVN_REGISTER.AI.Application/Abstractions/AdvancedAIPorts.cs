@@ -1,5 +1,4 @@
 using FVN_REGISTER.AI.Application.Contracts;
-using FVN_REGISTER.AI.Application.Contracts;
 namespace FVN_REGISTER.AI.Application.Abstractions;
 
 /// <summary>Scanner adapter must return Clean only after a positive engine verdict.</summary>
