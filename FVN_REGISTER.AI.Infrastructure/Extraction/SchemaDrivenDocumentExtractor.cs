@@ -36,7 +36,7 @@ public sealed class SchemaDrivenDocumentExtractor(IAIModelProvider modelProvider
             "schema-driven-extraction",
             input,
             "Extract only values supported by the supplied document text. Do not invent or infer missing values. " +
-            "Return only JSON in this shape: {\"fields\":[{\"path\":\"field.path\",\"value\":null,\"confidence\":0.0,\"sourceReference\":\"page or line\"}]}. " +
+            "Return only JSON in this shape: {\"fields\":[{\"path\":\"field.path\",\"value\":null,\"confidence\":0.0,\"sourceText\":\"exact verbatim excerpt from the document\"}]}. " +
             "Use JSON-native values. Omit fields with no evidence. Confidence must be between 0 and 1. " +
             "Do not apply business decisions or modify source data."), cancellationToken);
 
