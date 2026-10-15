@@ -22,6 +22,7 @@ public sealed class KnowledgeIndexingService(
         IReadOnlyCollection<string> accessScopes, CancellationToken cancellationToken = default)
     {
         tenantCode = Required(tenantCode, 64);
+        ArgumentNullException.ThrowIfNull(accessScopes);
         if (accessScopes.Count is < 1 or > 50 ||
             accessScopes.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 128))
             throw new ArgumentException("At least one valid access scope is required.", nameof(accessScopes));
