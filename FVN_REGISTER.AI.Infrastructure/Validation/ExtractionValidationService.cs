@@ -51,6 +51,9 @@ public sealed class ExtractionValidationService : IExtractionValidationService
                 candidate.Confidence < 0 || candidate.Confidence > 1)
                 issues.Add(new("INVALID_CONFIDENCE", candidate.Path, "Error",
                     "Confidence must be a finite number between 0 and 1."));
+            if (string.IsNullOrWhiteSpace(candidate.SourceReference) || string.IsNullOrWhiteSpace(candidate.EvidenceText))
+                issues.Add(new("SOURCE_EVIDENCE_NOT_VERIFIED", candidate.Path, "Warning",
+                    "The extracted value has no verifiable verbatim source locator; human review is required."));
         }
 
         foreach (var field in request.Schema.Fields)
