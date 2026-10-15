@@ -16,6 +16,7 @@ public sealed class KnowledgeSearchService(
     {
         tenantCode = Required(tenantCode, 64, nameof(tenantCode));
         actorId = Required(actorId, 128, nameof(actorId));
+        ArgumentNullException.ThrowIfNull(allowedScopes);
         if (string.IsNullOrWhiteSpace(query) || query.Length > 4000)
             throw new ArgumentException("Search query must contain 1 to 4000 characters.", nameof(query));
         if (allowedScopes.Count == 0) return [];
