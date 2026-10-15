@@ -27,9 +27,9 @@
 <MudPaper Class="pa-3 mt-3" Outlined="true"><MudText Typo="Typo.subtitle2">@Language.T("endpoint.checklistTruocKhiDuaCatalog")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("endpoint.checklistDuocLuuCungCatalog")</MudText><MudCheckBox T="bool" @bind-Value="_checkIdentity">@Language.T("endpoint.tenDinhDanhItemDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkPublisher">@Language.T("endpoint.publisherNguonPhatHanhDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkVersion">@Language.T("endpoint.versionRangeDuocXacDinh")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkScope">@Language.T("endpoint.targetWorkstationServerDaDuoc")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkEvidence">@Language.T("endpoint.nguonEvidenceVaLyDo")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkOwner">@Language.T("endpoint.daXacDinhNguoiBo")</MudCheckBox></MudPaper>
 <MudPaper Outlined="true" Class="pa-3">
 <MudText Typo="Typo.subtitle1">Tạo schema từ file Excel (dùng chung Excel Platform)</MudText>
-<MudText Typo="Typo.caption" Color="Color.Secondary">Chọn file mẫu, sheet và dòng tiêu đề; ánh xạ từng cột sang trường Catalog. Schema được tạo ở trạng thái Draft, sau đó kích hoạt để dùng cho preview/import.</MudText>
+<MudText Typo="Typo.caption" Color="Color.Secondary">Chọn file mẫu, sheet và dòng tiêu đề; ánh xạ từng cột sang trường Catalog. Schema được tạo Draft qua Excel Platform và tự kích hoạt sau khi tạo thành công để dùng ngay cho preview/import.</MudText>
 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2" Wrap="Wrap.Wrap">
-<InputFile OnChange="OnSchemaFileSelected" accept=".xlsx,.xls,.xlsm" />
+<InputFile OnChange="OnSchemaFileSelected" accept=".xlsx,.xls" />
 <MudTextField T="string" Label="Tên schema" @bind-Value="_newSchemaName" Dense="true" Style="min-width:240px" />
 <MudButton Variant="Variant.Outlined" Disabled="@(_schemaFile is null || _inspectingSchema)" OnClick="InspectSchemaFileAsync">@(_inspectingSchema ? "Đang đọc..." : "Đọc cấu trúc file")</MudButton>
 </MudStack>
@@ -51,7 +51,7 @@
 </RowTemplate>
 </MudTable>
 <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
-<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanCreateSchema)" OnClick="CreateEndpointSchemaAsync">Tạo schema Draft</MudButton>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanCreateSchema)" OnClick="CreateEndpointSchemaAsync">Tạo và kích hoạt schema</MudButton>
 <MudText Typo="Typo.caption" Color="Color.Secondary">Bắt buộc ánh xạ đúng một cột Name; không được ánh xạ trùng trường đích.</MudText>
 </MudStack>
 }
