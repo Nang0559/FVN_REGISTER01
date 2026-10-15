@@ -13,7 +13,10 @@ public sealed class DocumentPipeline(
     IOriginalDocumentStore store,
     IMalwareScanner scanner,
     IDocumentTextExtractor textExtractor,
-    IDocumentClassifier classifier) : IDocumentPipeline
+    IDocumentClassifier classifier,
+    IExtractionSchemaRegistry schemaRegistry,
+    ISchemaDrivenDocumentExtractor structuredExtractor,
+    IExtractionValidationService validationService) : IDocumentPipeline
 {
     private const string ParserVersion = "local-text-v1";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -47,16 +50,64 @@ public sealed class DocumentPipeline(
         if (text.Length > 2_000_000) text = text[..2_000_000];
 
         var (documentType, confidence) = await classifier.ClassifyAsync(text, cancellationToken);
-        var candidate = BuildCandidate(document, documentType, text);
+        object candidate;
+        IReadOnlyList<ExtractionValidationIssue> validationIssues = [];
+        var parserVersion = ParserVersion;
+        var promptVersion = "document-classification-v1";
+
+        if (!string.IsNullOrWhiteSpace(document.ModuleCode) && !string.IsNullOrWhiteSpace(document.SchemaCode))
+        {
+            var schema = await schemaRegistry.GetPublishedAsync(document.TenantCode, document.ModuleCode,
+                document.SchemaCode, cancellationToken)
+                ?? throw new InvalidOperationException("EXTRACTION_SCHEMA_NOT_PUBLISHED");
+            var extracted = await structuredExtractor.ExtractAsync(text, schema, cancellationToken);
+            var validation = await validationService.ValidateAsync(new ExtractionValidationRequest(schema, extracted), cancellationToken);
+            validationIssues = validation.Issues;
+            parserVersion = "schema-extraction-v1";
+            promptVersion = "schema-extraction-v1";
+            candidate = new
+            {
+                schemaCode = schema.SchemaCode,
+                schemaVersion = schema.Version,
+                documentId = document.Id,
+                fileName = document.FileName,
+                documentType,
+                source = new { sha256 = document.Sha256 },
+                extractedFields = extracted.Select(x => new
+                {
+                    path = x.Path, value = x.Value, confidence = x.Confidence, sourceReference = x.SourceReference
+                }).ToArray(),
+                validation = new
+                {
+                    isValid = validation.IsValid,
+                    issues = validation.Issues
+                },
+                warnings = new[] { "AI extraction is a candidate and requires human review.", "No official business data has been changed." }
+            };
+        }
+        else
+        {
+            candidate = BuildCandidate(document, documentType, text);
+        }
+
         var extraction = new AiExtractionRecord
         {
             Id = Guid.NewGuid(), DocumentId = document.Id, TenantCode = document.TenantCode,
             DocumentType = documentType, ClassificationConfidence = (decimal)confidence,
             CandidateJson = JsonSerializer.Serialize(candidate, JsonOptions),
-            ParserVersion = ParserVersion, ModelProvider = classifier.GetType().Name,
-            ModelVersion = "provider-routed", PromptVersion = "document-classification-v1", CreatedAtUtc = DateTimeOffset.UtcNow
+            ParserVersion = parserVersion, ModelProvider = classifier.GetType().Name,
+            ModelVersion = "provider-routed", PromptVersion = promptVersion, CreatedAtUtc = DateTimeOffset.UtcNow
         };
         db.Extractions.Add(extraction);
+        foreach (var issue in validationIssues)
+        {
+            db.ValidationIssues.Add(new AiValidationIssueRecord
+            {
+                Id = Guid.NewGuid(), ExtractionId = extraction.Id, FieldPath = issue.Path,
+                RuleCode = issue.Code, Severity = issue.Severity, Message = issue.Message,
+                CreatedAtUtc = DateTimeOffset.UtcNow
+            });
+        }
         document.Status = "AwaitingHumanReview";
         await db.SaveChangesAsync(cancellationToken);
     }
