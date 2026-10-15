@@ -42,9 +42,12 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db) : IVectorKno
             var scopeJson = Get(chunk.Metadata, "accessScopes") ?? "[]";
             using (var scopeDoc = JsonDocument.Parse(scopeJson))
             {
-                if (scopeDoc.RootElement.ValueKind != JsonValueKind.Array ||
-                    scopeDoc.RootElement.EnumerateArray().Any(x => x.ValueKind != JsonValueKind.String))
+                if (scopeDoc.RootElement.ValueKind != JsonValueKind.Array)
                     throw new ArgumentException("accessScopes must be a JSON array of strings.");
+                var scopes = scopeDoc.RootElement.EnumerateArray().ToArray();
+                if (scopes.Length is < 1 or > 50 || scopes.Any(x => x.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(x.GetString()) || x.GetString()!.Length > 128))
+                    throw new ArgumentException("accessScopes must contain 1 to 50 valid scope strings.");
             }
             var trustedReview = await db.Reviews.AsNoTracking().AnyAsync(x =>
                 x.Id == reviewId && x.TenantCode == tenantCode && x.DocumentId == documentId &&
@@ -83,13 +86,21 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db) : IVectorKno
         if (allowedScopes.Count == 0 || queryVector.Values.Count == 0) return [];
         if (queryVector.Values.Any(x => !float.IsFinite(x))) throw new ArgumentException("Query embedding is invalid.");
 
-        var rows = await (from chunk in db.KnowledgeChunks.AsNoTracking()
-                          join review in db.Reviews.AsNoTracking() on chunk.ReviewId equals review.Id
-                          where chunk.TenantCode == tenantCode && chunk.IsActive &&
-                                (review.Decision == "Approved" || review.Decision == "Corrected") &&
-                                chunk.EmbeddingJson != null
-                          orderby chunk.CreatedAtUtc descending
-                          select chunk).Take(MaximumCandidates).ToListAsync(cancellationToken);
+        var scopeJson = JsonSerializer.Serialize(allowedScopes.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+        var rows = await db.KnowledgeChunks
+            .FromSqlInterpolated($@"SELECT k.* FROM ai.AiKnowledgeChunks AS k
+                INNER JOIN ai.AiReviews AS r ON r.Id = k.ReviewId
+                WHERE k.TenantCode = {tenantCode} AND k.IsActive = 1
+                  AND (r.Decision = N'Approved' OR r.Decision = N'Corrected')
+                  AND k.EmbeddingJson IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM OPENJSON(k.AccessScopeJson) AS acl
+                    INNER JOIN OPENJSON({scopeJson}) AS requested ON requested.[value] = acl.[value]
+                  )")
+            .AsNoTracking()
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(MaximumCandidates)
+            .ToListAsync(cancellationToken);
 
         var allowed = new HashSet<string>(allowedScopes.Where(x => !string.IsNullOrWhiteSpace(x)), StringComparer.OrdinalIgnoreCase);
         var results = new List<KnowledgeSearchCandidate>();
