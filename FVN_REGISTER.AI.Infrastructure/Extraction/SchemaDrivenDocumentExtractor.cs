@@ -29,9 +29,11 @@ public sealed class SchemaDrivenDocumentExtractor(IAIModelProvider modelProvider
             })
         }, JsonOptions);
 
+        using var schemaDocument = JsonDocument.Parse(schemaJson);
+        var input = JsonSerializer.Serialize(new { schema = schemaDocument.RootElement, documentText = text }, JsonOptions);
         var response = await modelProvider.GenerateAsync(new AIModelRequest(
             "schema-driven-extraction",
-            JsonSerializer.Serialize(new { schema = schemaJson, documentText = text }, JsonOptions),
+            input,
             "Extract only values supported by the supplied document text. Do not invent or infer missing values. " +
             "Return only JSON in this shape: {\"fields\":[{\"path\":\"field.path\",\"value\":null,\"confidence\":0.0,\"sourceReference\":\"page or line\"}]}. " +
             "Use JSON-native values. Omit fields with no evidence. Confidence must be between 0 and 1. " +
