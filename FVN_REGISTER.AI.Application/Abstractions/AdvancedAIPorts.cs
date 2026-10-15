@@ -57,3 +57,11 @@ public interface ISchemaDrivenDocumentExtractor
     Task<IReadOnlyList<ExtractedCandidate>> ExtractAsync(string text, ExtractionSchema schema,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>Explicitly publishes a human-approved document into the tenant-scoped knowledge index.</summary>
+public interface IKnowledgeIndexingService
+{
+    Task<int> PublishApprovedDocumentAsync(string tenantCode, Guid documentId, Guid reviewId,
+        IReadOnlyCollection<string> accessScopes, CancellationToken cancellationToken = default);
+    Task UnpublishDocumentAsync(string tenantCode, Guid documentId, CancellationToken cancellationToken = default);
+}
