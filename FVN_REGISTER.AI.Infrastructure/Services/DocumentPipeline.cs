@@ -12,7 +12,8 @@ public sealed class DocumentPipeline(
     AiPlatformDbContext db,
     IOriginalDocumentStore store,
     IMalwareScanner scanner,
-    IDocumentTextExtractor textExtractor) : IDocumentPipeline
+    IDocumentTextExtractor textExtractor,
+    IDocumentClassifier classifier) : IDocumentPipeline
 {
     private const string ParserVersion = "local-text-v1";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -45,7 +46,7 @@ public sealed class DocumentPipeline(
         if (string.IsNullOrWhiteSpace(text)) throw new InvalidDataException("EXTRACTION_EMPTY_DOCUMENT");
         if (text.Length > 2_000_000) text = text[..2_000_000];
 
-        var (documentType, confidence) = Classify(document.FileName, document.Extension, text);
+        var (documentType, confidence) = await classifier.ClassifyAsync(text, cancellationToken);
         var candidate = BuildCandidate(document, documentType, text);
         var extraction = new AiExtractionRecord
         {
@@ -58,18 +59,6 @@ public sealed class DocumentPipeline(
         db.Extractions.Add(extraction);
         document.Status = "AwaitingHumanReview";
         await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private static (string Type, double Confidence) Classify(string fileName, string extension, string text)
-    {
-        var lower = (fileName + "\n" + text[..Math.Min(text.Length, 12000)]).ToLowerInvariant();
-        if (lower.Contains("đơn xin nghỉ") || lower.Contains("nghỉ phép") || lower.Contains("leave request"))
-            return ("HR.LeaveEvidence", 0.82);
-        if (lower.Contains("tăng ca") || lower.Contains("làm thêm giờ") || lower.Contains("overtime"))
-            return ("HR.OvertimeEvidence", 0.82);
-        if (lower.Contains("đối soát") || lower.Contains("chấm công") || lower.Contains("attendance"))
-            return ("HR.AttendanceEvidence", 0.78);
-        return (extension.TrimStart('.').ToUpperInvariant() switch { "CSV" => "Tabular.Csv", "XLSX" => "Tabular.Workbook", "TXT" => "Text.Document", _ => "Document.Unknown" }, 0.55);
     }
 
     private static object BuildCandidate(AiDocumentRecord document, string type, string text)
