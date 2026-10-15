@@ -20,6 +20,8 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db) : IVectorKno
         IReadOnlyCollection<EmbeddingVector> vectors, CancellationToken cancellationToken = default)
     {
         tenantCode = Required(tenantCode, 64);
+        ArgumentNullException.ThrowIfNull(chunks);
+        ArgumentNullException.ThrowIfNull(vectors);
         if (chunks.Count == 0 || chunks.Count != vectors.Count)
             throw new ArgumentException("Chunks and vectors must have the same non-zero count.");
         if (chunks.Count > 1000) throw new ArgumentException("A single knowledge upsert is limited to 1000 chunks.");
