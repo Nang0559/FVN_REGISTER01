@@ -1,16 +1,18 @@
 using System.Text;
+using System.Text.Json;
+using System.Xml.Linq;
 using System.IO.Compression;
 using FVN_REGISTER.AI.Application.Abstractions;
 namespace FVN_REGISTER.AI.Infrastructure.Validation;
 public sealed class UploadContentValidator:IUploadContentValidator
 {
- private static readonly HashSet<string> Allowed=new(StringComparer.OrdinalIgnoreCase){".pdf",".xlsx",".docx",".png",".jpg",".jpeg",".csv",".txt"};
+ private static readonly HashSet<string> Allowed=new(StringComparer.OrdinalIgnoreCase){".pdf",".xlsx",".docx",".png",".jpg",".jpeg",".csv",".txt",".json",".xml",".html",".htm",".md",".log"};
  private static readonly UTF8Encoding Utf8=new(false,true);
  public async Task<ValidatedUpload> ValidateAsync(Stream stream,string fileName,CancellationToken ct=default)
  {
   if(string.IsNullOrWhiteSpace(fileName))throw new InvalidDataException("File name required.");
   var safe=Path.GetFileName(fileName.Replace('\\','/')).Trim();var ext=Path.GetExtension(safe);
-  if(!Allowed.Contains(ext))throw new InvalidDataException("PDF, XLSX, DOCX, PNG, JPEG, CSV and TXT files are accepted.");
+  if(!Allowed.Contains(ext))throw new InvalidDataException("PDF, XLSX, DOCX, PNG, JPEG, CSV, TXT, JSON, XML, HTML, Markdown and LOG files are accepted.");
   if(!stream.CanSeek)throw new InvalidOperationException("Upload stream must support seeking.");
   var start=stream.Position;
   try
@@ -72,11 +74,26 @@ public sealed class UploadContentValidator:IUploadContentValidator
     if((ext.Equals(".jpg",StringComparison.OrdinalIgnoreCase)||ext.Equals(".jpeg",StringComparison.OrdinalIgnoreCase))&&!isJpeg)throw new InvalidDataException("File signature is not JPEG.");
     return new(safe,isPng?"image/png":"image/jpeg",ext.ToLowerInvariant());
    }
-   var sample=new byte[(int)Math.Min(4096,stream.Length-start)];var n=await stream.ReadAsync(sample.AsMemory(),ct);stream.Position=start;
-   if(n==0||sample.AsSpan(0,n).Contains((byte)0))throw new InvalidDataException("Text file is empty or contains binary data.");
-   try{var text=Utf8.GetString(sample,0,n);if(text.Count(c=>char.IsControl(c)&&c is not('\r' or '\n' or '\t' or '\f'))>Math.Max(2,text.Length/100))throw new InvalidDataException("Text file contains binary control characters.");}
-   catch(DecoderFallbackException ex){throw new InvalidDataException("CSV/TXT must be UTF-8 encoded.",ex);}
-   return new(safe,ext.Equals(".csv",StringComparison.OrdinalIgnoreCase)?"text/csv":"text/plain",ext.ToLowerInvariant());
+   if(stream.Length-start>10L*1024*1024)throw new InvalidDataException("Structured text documents are limited to 10 MB.");
+   using var reader=new StreamReader(stream,Utf8,true,8192,true);
+   var fullText=await reader.ReadToEndAsync(ct);
+   stream.Position=start;
+   if(string.IsNullOrWhiteSpace(fullText)||fullText.Contains('\0'))throw new InvalidDataException("Text file is empty or contains binary data.");
+   if(fullText.Count(ch=>char.IsControl(ch)&&ch is not('\r' or '\n' or '\t' or '\f'))>Math.Max(2,fullText.Length/100))
+    throw new InvalidDataException("Text file contains binary control characters.");
+   try
+   {
+    if(ext.Equals(".json",StringComparison.OrdinalIgnoreCase))using(JsonDocument.Parse(fullText)){}
+    if(ext.Equals(".xml",StringComparison.OrdinalIgnoreCase))XDocument.Parse(fullText);
+   }
+   catch(Exception ex) when(ex is JsonException or System.Xml.XmlException)
+   {throw new InvalidDataException("JSON/XML document is not structurally valid.",ex);}
+   var media=ext.ToLowerInvariant() switch
+   {
+    ".csv"=>"text/csv",".json"=>"application/json",".xml"=>"application/xml",
+    ".html" or ".htm"=>"text/html",".md"=>"text/markdown",".log"=>"text/plain",_=>"text/plain"
+   };
+   return new(safe,media,ext.ToLowerInvariant());
   }
   finally{stream.Position=start;}
  }
