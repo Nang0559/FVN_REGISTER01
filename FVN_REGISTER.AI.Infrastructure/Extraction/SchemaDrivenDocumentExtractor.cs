@@ -57,11 +57,26 @@ public sealed class SchemaDrivenDocumentExtractor(IAIModelProvider modelProvider
             var path = pathElement.GetString()!;
             if (!schema.Fields.Any(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
                 continue; // Never accept fields outside the caller's schema.
-            var source = field.TryGetProperty("sourceReference", out var sourceElement) &&
-                         sourceElement.ValueKind == JsonValueKind.String
-                ? sourceElement.GetString() : null;
-            candidates.Add(new ExtractedCandidate(path, value.Clone(), confidence, source));
+            var evidenceText = field.TryGetProperty("sourceText", out var evidenceElement) &&
+                               evidenceElement.ValueKind == JsonValueKind.String
+                ? evidenceElement.GetString() : null;
+            var source = FindSourceReference(text, evidenceText);
+            candidates.Add(new ExtractedCandidate(path, value.Clone(), confidence, source, evidenceText));
         }
         return candidates;
+
+    private static string? FindSourceReference(string documentText, string? evidenceText)
+    {
+        if (string.IsNullOrWhiteSpace(evidenceText) || evidenceText.Length is < 5 or > 1000)
+            return null;
+        var index = documentText.IndexOf(evidenceText, StringComparison.Ordinal);
+        if (index < 0) return null;
+        var lineNumber = 1 + documentText.AsSpan(0, index).Count('\n');
+        var pageNumber = 1;
+        var pageMarker = System.Text.RegularExpressions.Regex.Matches(documentText[..index], @"\[PAGE (?<page>\d+)\]");
+        if (pageMarker.Count > 0 && int.TryParse(pageMarker[^1].Groups["page"].Value, out var parsedPage))
+            pageNumber = parsedPage;
+        return $"page:{pageNumber};line:{lineNumber}";
+    }
     }
 }
