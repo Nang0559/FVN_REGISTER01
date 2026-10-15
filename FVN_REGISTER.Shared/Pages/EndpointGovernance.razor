@@ -28,7 +28,7 @@
 <MudPaper Class="pa-3 mt-3" Outlined="true"><MudText Typo="Typo.subtitle2">@Language.T("endpoint.checklistTruocKhiDuaCatalog")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("endpoint.checklistDuocLuuCungCatalog")</MudText><MudCheckBox T="bool" @bind-Value="_checkIdentity">@Language.T("endpoint.tenDinhDanhItemDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkPublisher">@Language.T("endpoint.publisherNguonPhatHanhDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkVersion">@Language.T("endpoint.versionRangeDuocXacDinh")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkScope">@Language.T("endpoint.targetWorkstationServerDaDuoc")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkEvidence">@Language.T("endpoint.nguonEvidenceVaLyDo")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkOwner">@Language.T("endpoint.daXacDinhNguoiBo")</MudCheckBox></MudPaper>
 <MudPaper Outlined="true" Class="pa-3">
 <MudText Typo="Typo.subtitle1">Tạo schema từ file Excel (dùng chung Excel Platform)</MudText>
-<MudText Typo="Typo.caption" Color="Color.Secondary">Chọn file mẫu, sheet và dòng tiêu đề; ánh xạ từng cột sang trường Catalog. Schema được tạo Draft qua Excel Platform và tự kích hoạt sau khi tạo thành công để dùng ngay cho preview/import.</MudText>
+<MudText Typo="Typo.caption" Color="Color.Secondary">Chọn file mẫu, sheet và dòng tiêu đề; ánh xạ từng cột sang trường Catalog. Schema được tạo ở trạng thái Draft. Hãy kiểm tra cấu hình và kích hoạt riêng trước khi dùng cho preview/import.</MudText>
 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2" Wrap="Wrap.Wrap">
 <InputFile OnChange="OnSchemaFileSelected" accept=".xlsx,.xls" />
 <MudTextField T="string" Label="Tên schema" @bind-Value="_newSchemaName" Dense="true" Style="min-width:240px" />
@@ -95,7 +95,7 @@ private Task OnSchemaHeaderChanged(int index){_schemaHeaderRow=index;BuildSchema
 private void BuildSchemaColumnMappings(){
  _schemaColumnMappings.Clear();var candidate=CurrentHeaderCandidates.FirstOrDefault(x=>x.RowIndex==_schemaHeaderRow);if(candidate is null)return;
  foreach(var entry in candidate.Values.Select((header,index)=>(header,index)).Where(x=>!string.IsNullOrWhiteSpace(x.header))){
-  var h=entry.header!.Trim();var target=h.Equals("Name",StringComparison.OrdinalIgnoreCase)||h.Contains("tên",StringComparison.OrdinalIgnoreCase)||h.Contains("name",StringComparison.OrdinalIgnoreCase)?"Name":h.Contains("publisher",StringComparison.OrdinalIgnoreCase)||h.Contains("nhà phát hành",StringComparison.OrdinalIgnoreCase)?"Publisher":h.Contains("version",StringComparison.OrdinalIgnoreCase)||h.Contains("phiên bản",StringComparison.OrdinalIgnoreCase)?"VersionConstraint":h.Contains("allow",StringComparison.OrdinalIgnoreCase)||h.Contains("cho phép",StringComparison.OrdinalIgnoreCase)?"IsAllowed":h.Contains("remark",StringComparison.OrdinalIgnoreCase)||h.Contains("ghi chú",StringComparison.OrdinalIgnoreCase)?"Remark":null;
+  var h=entry.header!.Trim();var target=(string?)null;
   _schemaColumnMappings.Add(new SchemaColumnMapping{ColumnIndex=entry.index,Header=h,TargetProperty=target});
  }
 }
@@ -110,10 +110,9 @@ private async Task CreateEndpointSchemaAsync(){
   var response=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/draft?sourceFileName={Uri.EscapeDataString(_schemaFile.Name)}",request);
   if(!response.IsSuccess||response.Data is null){Snackbar.Add(response.Message??"Không tạo được schema.",Severity.Error);return;}
   var created=response.Data;
-  var activation=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/{created.Id}/activate",new {});
-  if(!activation.IsSuccess){Snackbar.Add($"Đã tạo schema Draft #{created.Id}, nhưng chưa kích hoạt: {activation.Message}",Severity.Warning);await LoadSchemasAsync();return;}
-  _schemaId=created.Id;await LoadSchemasAsync();_schemaId=created.Id;
-  Snackbar.Add($"Đã tạo và kích hoạt schema '{created.SchemaName}' v{created.Version}.",Severity.Success);
+  await LoadSchemasAsync();
+  _schemaId=created.Id;
+  Snackbar.Add($"Đã tạo schema Draft '{created.SchemaName}' v{created.Version}. Hãy kích hoạt riêng sau khi rà soát.",Severity.Success);
  }catch(Exception ex){Snackbar.Add($"Không tạo được schema: {ex.Message}",Severity.Error);}
  finally{_creatingSchema=false;}
 }
