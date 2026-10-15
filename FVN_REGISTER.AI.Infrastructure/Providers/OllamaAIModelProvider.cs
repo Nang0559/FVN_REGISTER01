@@ -32,7 +32,7 @@ public sealed class OllamaAIModelProvider(HttpClient httpClient, IOptions<AIPlat
                 new OllamaMessage("user", request.Input)
             },
             new OllamaOptions(0.1, 8192, 800),
-            request.Task is "document-classification" or "schema-driven-extraction" ? "json" : null);
+            request.Task is "document-classification" or "schema-driven-extraction" or "rag-grounded-answer" ? "json" : null);
 
         var stopwatch = Stopwatch.StartNew();
         using var response = await httpClient.PostAsJsonAsync("api/chat", payload, JsonOptions, cancellationToken);
