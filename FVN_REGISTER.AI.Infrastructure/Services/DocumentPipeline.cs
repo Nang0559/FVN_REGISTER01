@@ -76,7 +76,7 @@ public sealed class DocumentPipeline(
                 source = new { sha256 = document.Sha256 },
                 extractedFields = extracted.Select(x => new
                 {
-                    path = x.Path, value = x.Value, confidence = x.Confidence, sourceReference = x.SourceReference
+                    path = x.Path, value = x.Value, confidence = x.Confidence, sourceReference = x.SourceReference, evidenceText = x.EvidenceText
                 }).ToArray(),
                 validation = new
                 {
