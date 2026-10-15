@@ -38,6 +38,8 @@ jobs:
       PLAYWRIGHT_MAX_STATES: ${{ inputs.max_states || '180' }}
       PLAYWRIGHT_MAX_CLICK_TARGETS: ${{ inputs.max_click_targets || '500' }}
       PLAYWRIGHT_MAX_DEPTH: "12"
+      # Soft stop (spec ends cleanly, writes manifest). Must be < --global-timeout (50 min).
+      PLAYWRIGHT_CRAWL_BUDGET_MINUTES: "42"
       CI: "true"
 
     steps:
