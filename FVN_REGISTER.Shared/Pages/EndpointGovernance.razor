@@ -26,6 +26,7 @@
 <MudItem xs="12" sm="3"><MudTextField Label='@Language.T("common.name")' @bind-Value="_newName"/></MudItem><MudItem xs="12" sm="3"><MudTextField Label="@Language.T("endpoint.publisher")" @bind-Value="_newPublisher"/></MudItem><MudItem xs="12" sm="3"><MudTextField Label="@Language.T("endpoint.versionConstraint")" Placeholder="*, =1.2.3, >=140.0" @bind-Value="_newVersionConstraint"/></MudItem><MudItem xs="12" sm="2"><MudSwitch Color="Color.Primary" @bind-Value="_newAllowed">@Language.T("endpoint.allowed")</MudSwitch></MudItem><MudItem xs="12" sm="1"><MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Disabled="!CanManage" OnClick="AddManualItem"/></MudItem></MudGrid>
 <MudTable Items="_items" Dense="true" Hover="true" Class="mt-3"><HeaderContent><MudTh>@Language.T("common.name")</MudTh><MudTh>@Language.T("endpoint.publisher")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("endpoint.allowed")</MudTh><MudTh/></HeaderContent><RowTemplate><MudTd>@context.Name</MudTd><MudTd>@context.Publisher</MudTd><MudTd>@context.VersionConstraint</MudTd><MudTd>@(context.IsAllowed?Language.T("common.yes"):Language.T("common.no"))</MudTd><MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="!CanManage" OnClick="@(()=>_items.Remove(context))"/></MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-3">@Language.T("endpoint.chuaCoItem")</MudText></NoRecordsContent></MudTable>
 <MudPaper Class="pa-3 mt-3" Outlined="true"><MudText Typo="Typo.subtitle2">@Language.T("endpoint.checklistTruocKhiDuaCatalog")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("endpoint.checklistDuocLuuCungCatalog")</MudText><MudCheckBox T="bool" @bind-Value="_checkIdentity">@Language.T("endpoint.tenDinhDanhItemDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkPublisher">@Language.T("endpoint.publisherNguonPhatHanhDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkVersion">@Language.T("endpoint.versionRangeDuocXacDinh")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkScope">@Language.T("endpoint.targetWorkstationServerDaDuoc")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkEvidence">@Language.T("endpoint.nguonEvidenceVaLyDo")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkOwner">@Language.T("endpoint.daXacDinhNguoiBo")</MudCheckBox></MudPaper>
+</MudPaper>
 <MudPaper Outlined="true" Class="pa-3">
 <MudText Typo="Typo.subtitle1">Tạo schema từ file Excel (dùng chung Excel Platform)</MudText>
 <MudText Typo="Typo.caption" Color="Color.Secondary">Chọn file mẫu, sheet và dòng tiêu đề; ánh xạ từng cột sang trường Catalog. Schema được tạo ở trạng thái Draft. Hãy kiểm tra cấu hình và kích hoạt riêng trước khi dùng cho preview/import.</MudText>
@@ -59,21 +60,38 @@
 }
 </MudPaper>
 <MudPaper Outlined="true" Class="pa-3 mt-3">
-<MudStack Spacing="2"><MudText Typo="Typo.subtitle2">Quản lý schema dùng chung</MudText>
-<MudTable Items="_schemas" Dense="true" Hover="true">
-<HeaderContent><MudTh>Tên schema</MudTh><MudTh>Module / Entity</MudTh><MudTh>Phiên bản</MudTh><MudTh>Trạng thái</MudTh><MudTh>File nguồn</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
-<RowTemplate>
-<MudTd>@context.SchemaName</MudTd><MudTd>@context.ModuleCode / @context.EntityCode</MudTd><MudTd>v@context.Version</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.SourceFileName</MudTd>
-<MudTd><MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-@if(context.Status==ExcelSchemaStatus.Draft){<MudButton Size="Size.Small" OnClick="@(()=>ActivateSchemaAsync(context.Id))">Kích hoạt</MudButton><MudButton Size="Size.Small" Color="Color.Error" OnClick="@(()=>DeleteSchemaAsync(context.Id))">Xóa Draft</MudButton><MudButton Size="Size.Small" OnClick="@(()=>EditDraftSchemaAsync(context.Id))">Sửa cấu hình</MudButton>}
-@if(context.Status==ExcelSchemaStatus.Active){<MudButton Size="Size.Small" OnClick="@(()=>CreateSchemaVersionAsync(context.Id))">Tạo phiên bản</MudButton><MudButton Size="Size.Small" Color="Color.Warning" OnClick="@(()=>RetireSchemaAsync(context.Id))">Ngừng sử dụng</MudButton>}
-@if(context.Status!=ExcelSchemaStatus.Deleted){<MudButton Size="Size.Small" OnClick="@(()=>CloneSchemaAsync(context.Id))">Nhân bản</MudButton>}
-</MudStack></MudTd>
-</RowTemplate>
-<NoRecordsContent><MudText Class="pa-3">Chưa có schema cho module/entity này.</MudText></NoRecordsContent>
-</MudTable>
-<MudText Typo="Typo.caption" Color="Color.Secondary">Endpoint chỉ hiển thị ENDPOINT và loại Catalog đang chọn; schema mới luôn là Draft, không tự kích hoạt.</MudText>
-<MudStack Spacing="2" Class="mt-3"><MudText Typo="Typo.subtitle2">Excel Schema dùng chung</MudText><MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2"><MudSelect T="int?" Label="Schema đang hoạt động" @bind-Value="_schemaId" Margin="Margin.Dense" Clearable="true" Disabled="!CanManage" Style="min-width:300px">@foreach(var schema in _schemas.Where(x=>x.Status==ExcelSchemaStatus.Active)){<MudSelectItem T="int?" Value="@((int?)schema.Id)">@schema.SchemaName v@schema.Version</MudSelectItem>}</MudSelect><MudButton Variant="Variant.Outlined" OnClick="LoadSchemasAsync">Tải schema</MudButton><InputFile OnChange="OnFileSelected" accept=".xlsx,.xls,.xlsm"/></MudStack><MudText Typo="Typo.caption" Color="Color.Secondary">Schema thuộc module ENDPOINT và đúng loại Catalog; ánh xạ TargetProperty: Name (bắt buộc), Publisher, VersionConstraint, IsAllowed, Remark.</MudText><MudStack Row="true" Spacing="2"><MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue" OnClick="PreviewExcelAsync">@Language.T("endpoint.previewExcel")</MudButton><MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue || !ChecklistCompleted" OnClick="ImportExcelAsync">@Language.T("endpoint.importExcelDraft")</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!CanManage || _items.Count==0 || !ChecklistCompleted" OnClick="SaveDraftAsync">@Language.T("endpoint.luuDraftVersion")</MudButton></MudStack></MudStack></MudPaper>
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle2">Quản lý schema dùng chung</MudText>
+        <MudTable Items="_schemas" Dense="true" Hover="true">
+            <HeaderContent><MudTh>Tên schema</MudTh><MudTh>Module / Entity</MudTh><MudTh>Phiên bản</MudTh><MudTh>Trạng thái</MudTh><MudTh>File nguồn</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.SchemaName</MudTd><MudTd>@context.ModuleCode / @context.EntityCode</MudTd><MudTd>v@context.Version</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.SourceFileName</MudTd>
+                <MudTd><MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                    @if(context.Status==ExcelSchemaStatus.Draft){<MudButton Size="Size.Small" OnClick="@(()=>ActivateSchemaAsync(context.Id))">Kích hoạt</MudButton><MudButton Size="Size.Small" Color="Color.Error" OnClick="@(()=>DeleteSchemaAsync(context.Id))">Xóa Draft</MudButton><MudButton Size="Size.Small" OnClick="@(()=>EditDraftSchemaAsync(context.Id))">Sửa cấu hình</MudButton>}
+                    @if(context.Status==ExcelSchemaStatus.Active){<MudButton Size="Size.Small" OnClick="@(()=>CreateSchemaVersionAsync(context.Id))">Tạo phiên bản</MudButton><MudButton Size="Size.Small" Color="Color.Warning" OnClick="@(()=>RetireSchemaAsync(context.Id))">Ngừng sử dụng</MudButton>}
+                    @if(context.Status!=ExcelSchemaStatus.Deleted){<MudButton Size="Size.Small" OnClick="@(()=>CloneSchemaAsync(context.Id))">Nhân bản</MudButton>}
+                </MudStack></MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText Class="pa-3">Chưa có schema cho module/entity này.</MudText></NoRecordsContent>
+        </MudTable>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Endpoint chỉ hiển thị ENDPOINT và loại Catalog đang chọn; schema mới luôn là Draft, không tự kích hoạt.</MudText>
+        <MudStack Spacing="2" Class="mt-3">
+            <MudText Typo="Typo.subtitle2">Excel Schema dùng chung</MudText>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudSelect T="int?" Label="Schema đang hoạt động" @bind-Value="_schemaId" Margin="Margin.Dense" Clearable="true" Disabled="!CanManage" Style="min-width:300px">
+                    @foreach(var schema in _schemas.Where(x=>x.Status==ExcelSchemaStatus.Active)){<MudSelectItem T="int?" Value="@((int?)schema.Id)">@schema.SchemaName v@schema.Version</MudSelectItem>}
+                </MudSelect>
+                <MudButton Variant="Variant.Outlined" OnClick="LoadSchemasAsync">Tải schema</MudButton><InputFile OnChange="OnFileSelected" accept=".xlsx,.xls,.xlsm"/>
+            </MudStack>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Schema thuộc module ENDPOINT và đúng loại Catalog; ánh xạ TargetProperty: Name (bắt buộc), Publisher, VersionConstraint, IsAllowed, Remark.</MudText>
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue" OnClick="PreviewExcelAsync">@Language.T("endpoint.previewExcel")</MudButton>
+                <MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue || !ChecklistCompleted" OnClick="ImportExcelAsync">@Language.T("endpoint.importExcelDraft")</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!CanManage || _items.Count==0 || !ChecklistCompleted" OnClick="SaveDraftAsync">@Language.T("endpoint.luuDraftVersion")</MudButton>
+            </MudStack>
+        </MudStack>
+    </MudStack>
+</MudPaper>
 @if(_preview is not null){<MudAlert Severity="@(_preview.Errors.Count==0?Severity.Success:Severity.Warning)">@Language.T("endpoint.previewDongLoi", _preview.FileName, _preview.RowCount, _preview.Errors.Count)</MudAlert>}
 <MudPaper Class="pa-4"><MudText Typo="Typo.h6">@Language.T("endpoint.catalogVersions")</MudText><MudTable Items="_policies" Dense="true" Hover="true" Striped="true" Class="mt-2"><HeaderContent><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("endpoint.name")</MudTh><MudTh>@Language.T("endpoint.type")</MudTh><MudTh>@Language.T("endpoint.target")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("common.checklist")</MudTh><MudTh>@Language.T("endpoint.workflow")</MudTh><MudTh>@Language.T("common.publish")</MudTh><MudTh>@Language.T("common.action2")</MudTh></HeaderContent><RowTemplate><MudTd>@context.PolicyCode</MudTd><MudTd>@context.PolicyName</MudTd><MudTd>@context.ItemType</MudTd><MudTd>@context.TargetType</MudTd><MudTd>v@context.Version</MudTd><MudTd>@(context.ChecklistCompleted?"OK":Language.T("endpoint.thieu"))</MudTd><MudTd>@context.WorkflowStatus</MudTd><MudTd>@(context.IsPublished?"Published":"Draft")</MudTd><MudTd>@if(!context.IsPublished&&CanSubmit(context.ItemType)&&(context.WorkflowStatus=="Draft"||context.WorkflowStatus=="Rejected")){<MudButton Size="Size.Small" Disabled="!context.ChecklistCompleted" OnClick="@(()=>SubmitAsync(context))">Submit</MudButton>}@if(!context.IsPublished&&CanPublish(context.ItemType)&&context.WorkflowStatus=="Approved"){<MudButton Size="Size.Small" Color="Color.Success" Disabled="!context.ChecklistCompleted" OnClick="@(()=>PublishAsync(context))">Publish</MudButton>}</MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-3">@Language.T("endpoint.chuaCoCatalog")</MudText></NoRecordsContent></MudTable></MudPaper>
 </MudStack></MudTabPanel>
