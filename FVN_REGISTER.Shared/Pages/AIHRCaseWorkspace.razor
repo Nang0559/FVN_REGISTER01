@@ -73,8 +73,7 @@
                     </MudButton>
                 }
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                           Disabled="_analyzing || string.IsNullOrWhiteSpace(_statement) || _workDate is null ||
-                               (_evidenceDocumentId.HasValue && _evidenceStatus is not ("AwaitingHumanReview" or "Approved"))
+                           Disabled="@IsAnalyzeDisabled"
                            OnClick="AnalyzeAsync" Class="mt-4">
                     @if (_analyzing)
                     {
