@@ -14,5 +14,7 @@ public interface IExcelPlatform
     Task<ExcelSchemaDefinition?> GetSchemaDefinitionAsync(int schemaId, CancellationToken ct = default);
     Task<ExcelSchemaSummary> CreateDraftSchemaAsync(ExcelSchemaCreateRequest request, string? sourceFileName, CancellationToken ct = default);
     Task<ExcelSchemaSummary> ActivateSchemaAsync(int schemaId, CancellationToken ct = default);
+    Task<ExcelSchemaSummary> CreateSchemaVersionAsync(int schemaId, CancellationToken ct = default);
+    Task RetireSchemaAsync(int schemaId, CancellationToken ct = default);
     Task DeleteDraftSchemaAsync(int schemaId, CancellationToken ct = default);
 }
