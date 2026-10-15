@@ -19,6 +19,7 @@ public static class DependencyInjection
  {
   services.Configure<AIPlatformOptions>(configuration.GetSection(AIPlatformOptions.SectionName));
   services.Configure<MalwareScannerOptions>(configuration.GetSection(MalwareScannerOptions.SectionName));
+  services.Configure<OcrOptions>(configuration.GetSection(OcrOptions.SectionName));
   var options=configuration.GetSection(AIPlatformOptions.SectionName).Get<AIPlatformOptions>()??new AIPlatformOptions();
   var connection=configuration.GetConnectionString(options.ConnectionStringName);
   if(!string.IsNullOrWhiteSpace(connection)) services.AddDbContext<AiPlatformDbContext>(db=>db.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(3)));
@@ -45,6 +46,7 @@ public static class DependencyInjection
   }
   services.AddSingleton<IOriginalDocumentStore,FileSystemOriginalDocumentStore>();
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
+  services.AddSingleton<IOcrTextExtractor,TesseractOcrTextExtractor>();
   services.AddSingleton<IDocumentTextExtractor,LocalDocumentTextExtractor>();
   services.AddScoped<IDocumentClassifier,ModelDocumentClassifier>();
   services.AddScoped<ISchemaDrivenDocumentExtractor,SchemaDrivenDocumentExtractor>();
