@@ -12,12 +12,12 @@ on:
         description: "Maximum distinct UI states to capture"
         required: false
         type: string
-        default: "60"
+        default: "100"
       max_click_targets:
         description: "Maximum safe UI interactions to explore"
         required: false
         type: string
-        default: "120"
+        default: "200"
 
 permissions:
   contents: read
@@ -36,9 +36,11 @@ jobs:
       CI: "true"
       PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME || secrets.TEST_USERNAME || secrets.USERNAME }}
       PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD || secrets.TEST_PASSWORD || secrets.PASSWORD }}
-      PLAYWRIGHT_MAX_STATES: ${{ inputs.max_states || '60' }}
-      PLAYWRIGHT_MAX_CLICK_TARGETS: ${{ inputs.max_click_targets || '120' }}
+      PLAYWRIGHT_MAX_STATES: ${{ inputs.max_states || '100' }}
+      PLAYWRIGHT_MAX_CLICK_TARGETS: ${{ inputs.max_click_targets || '200' }}
       PLAYWRIGHT_MAX_DEPTH: "4"
+      # Soft stop (spec ends cleanly, writes manifest). Must be < --global-timeout (25 min).
+      PLAYWRIGHT_CRAWL_BUDGET_MINUTES: "20"
     steps:
       - name: Checkout test branch
         uses: actions/checkout@v4
