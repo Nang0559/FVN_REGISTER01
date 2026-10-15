@@ -7,7 +7,7 @@ using UglyToad.PdfPig;
 namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 
 /// <summary>
-/// Local deterministic extractor for UTF-8 TXT/CSV, XLSX OpenXML and text-based PDF files.
+/// Local deterministic extractor for UTF-8 TXT/CSV, XLSX/DOCX OpenXML and text-based PDF files.
 /// Image-only/scanned PDF requires a separately configured OCR service.
 /// </summary>
 public sealed class LocalDocumentTextExtractor : IDocumentTextExtractor
@@ -33,9 +33,33 @@ public sealed class LocalDocumentTextExtractor : IDocumentTextExtractor
             if (mediaType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
                 return ExtractPdf(content);
 
+            if (mediaType.Equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document", StringComparison.OrdinalIgnoreCase))
+                return ExtractDocx(content);
+
             throw new NotSupportedException($"No local text extractor is configured for media type '{mediaType}'.");
         }
         finally { content.Position = start; }
+    }
+
+    private static string ExtractDocx(Stream content)
+    {
+        using var archive = new ZipArchive(content, ZipArchiveMode.Read, leaveOpen: true);
+        var documentEntry = archive.GetEntry("word/document.xml")
+            ?? throw new InvalidDataException("DOCX document body is missing.");
+        var output = new StringBuilder();
+        using (var stream = documentEntry.Open())
+        {
+            var xml = XDocument.Load(stream);
+            foreach (var paragraph in xml.Descendants().Where(x => x.Name.LocalName == "p"))
+            {
+                var text = string.Concat(paragraph.Descendants()
+                    .Where(x => x.Name.LocalName == "t").Select(x => x.Value));
+                if (!string.IsNullOrWhiteSpace(text)) output.AppendLine(text);
+            }
+        }
+        if (output.Length > 2_000_000)
+            throw new InvalidDataException("DOCX extracted text exceeds the 2 MB limit.");
+        return output.ToString();
     }
 
     private static string ExtractPdf(Stream content)
