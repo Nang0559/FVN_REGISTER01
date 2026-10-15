@@ -32,9 +32,17 @@ public static class DependencyInjection
     client.BaseAddress=new Uri(options.Endpoint!.TrimEnd('/')+"/");
     client.Timeout=TimeSpan.FromSeconds(120);
    });
+   services.AddHttpClient<IEmbeddingGenerator,OllamaEmbeddingGenerator>(client =>
+   {
+    client.BaseAddress=new Uri(options.Endpoint!.TrimEnd('/')+"/");
+    client.Timeout=TimeSpan.FromSeconds(120);
+   });
   }
   else
+  {
    services.TryAddSingleton<IAIModelProvider,UnconfiguredAIModelProvider>();
+   services.TryAddSingleton<IEmbeddingGenerator,UnconfiguredEmbeddingGenerator>();
+  }
   services.AddSingleton<IOriginalDocumentStore,FileSystemOriginalDocumentStore>();
   services.AddSingleton<IUploadContentValidator,UploadContentValidator>();
   services.AddSingleton<IDocumentTextExtractor,LocalDocumentTextExtractor>();
