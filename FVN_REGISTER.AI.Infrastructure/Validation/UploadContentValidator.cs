@@ -4,13 +4,13 @@ using FVN_REGISTER.AI.Application.Abstractions;
 namespace FVN_REGISTER.AI.Infrastructure.Validation;
 public sealed class UploadContentValidator:IUploadContentValidator
 {
- private static readonly HashSet<string> Allowed=new(StringComparer.OrdinalIgnoreCase){".pdf",".xlsx",".csv",".txt"};
+ private static readonly HashSet<string> Allowed=new(StringComparer.OrdinalIgnoreCase){".pdf",".xlsx",".docx",".csv",".txt"};
  private static readonly UTF8Encoding Utf8=new(false,true);
  public async Task<ValidatedUpload> ValidateAsync(Stream stream,string fileName,CancellationToken ct=default)
  {
   if(string.IsNullOrWhiteSpace(fileName))throw new InvalidDataException("File name required.");
   var safe=Path.GetFileName(fileName.Replace('\\','/')).Trim();var ext=Path.GetExtension(safe);
-  if(!Allowed.Contains(ext))throw new InvalidDataException("Only PDF, XLSX, CSV and TXT files are accepted.");
+  if(!Allowed.Contains(ext))throw new InvalidDataException("Only PDF, XLSX, DOCX, CSV and TXT files are accepted.");
   if(!stream.CanSeek)throw new InvalidOperationException("Upload stream must support seeking.");
   var start=stream.Position;
   try
@@ -40,6 +40,29 @@ public sealed class UploadContentValidator:IUploadContentValidator
     catch(InvalidDataException){throw;}
     catch(Exception ex) when(ex is IOException or ArgumentException or OverflowException){throw new InvalidDataException("XLSX archive is corrupt or exceeds safe limits.",ex);}
     return new(safe,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",".xlsx");
+   }
+   if(ext.Equals(".docx",StringComparison.OrdinalIgnoreCase))
+   {
+    if(count<4||header[0]!=0x50||header[1]!=0x4B||header[2] is not(0x03 or 0x05 or 0x07)||header[3] is not(0x04 or 0x06 or 0x08))
+     throw new InvalidDataException("File signature is not a DOCX ZIP container.");
+    try
+    {
+     using var archive=new ZipArchive(stream,ZipArchiveMode.Read,true);
+     if(archive.Entries.Count>2000) throw new InvalidDataException("DOCX archive contains too many entries.");
+     long expanded=0;
+     foreach(var entry in archive.Entries)
+     {
+      if(entry.Length>25L*1024*1024) throw new InvalidDataException("DOCX archive entry exceeds the allowed expanded size.");
+      expanded=checked(expanded+entry.Length);
+      if(expanded>100L*1024*1024) throw new InvalidDataException("DOCX archive expanded size exceeds the allowed limit.");
+     }
+     if(archive.GetEntry("[Content_Types].xml") is null||archive.GetEntry("word/document.xml") is null)
+      throw new InvalidDataException("ZIP file is not a valid DOCX document.");
+    }
+    catch(InvalidDataException){throw;}
+    catch(Exception ex) when(ex is IOException or ArgumentException or OverflowException)
+    {throw new InvalidDataException("DOCX archive is corrupt or exceeds safe limits.",ex);}
+    return new(safe,"application/vnd.openxmlformats-officedocument.wordprocessingml.document",".docx");
    }
    var sample=new byte[(int)Math.Min(4096,stream.Length-start)];var n=await stream.ReadAsync(sample.AsMemory(),ct);stream.Position=start;
    if(n==0||sample.AsSpan(0,n).Contains((byte)0))throw new InvalidDataException("Text file is empty or contains binary data.");
