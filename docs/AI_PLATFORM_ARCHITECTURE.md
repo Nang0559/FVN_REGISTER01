@@ -10,11 +10,16 @@
 
 FVN AI is a separate, independently deployable AI capability that extends FVN_REGISTER without replacing its business rules or system of record.
 
-The platform has three related product capabilities:
+The platform is designed around five reusable AI Core phases, followed by application integration:
 
-1. **Document intelligence:** ingest evidence, extract structured candidates, preserve provenance and send candidates to human review.
-2. **HR Policy Assistant:** answer employee questions about approved HR rules and procedures, such as the overtime registration process, using current controlled policy documents with citations.
-3. **HR operations assistant:** analyze employee feedback and evidence against authorized attendance/leave/OT facts; propose explanations and HR replies. A reporting chat interface may translate natural-language questions into existing authorized reports.
+1. **Universal Data Ingestion:** accept documents and structured data from multiple formats and sources with safe storage, provenance and durable processing.
+2. **AI Document Understanding:** classify documents, extract text/layout/tables and understand structure using OCR and model providers.
+3. **Data Extraction & Validation:** extract schema-bound candidates, validate fields and cross-field rules, preserve evidence and route uncertain results to human review.
+4. **RAG & Knowledge Base:** publish approved knowledge, chunk and embed it, retrieve only authorized content and answer with verifiable citations.
+5. **Active Learning:** collect human corrections, evaluate quality against reviewed datasets and govern model/prompt/schema improvements.
+6. **FVN_REGISTER applications:** consume the shared Core for registrations, data entry/import, policy Q&A, HR reconciliation and reporting. HR Assistant is one pilot application, not the platform boundary.
+
+The AI Core must not contain hard-coded OT, leave, attendance or equipment assumptions. Module-specific schemas, policies, permissions and official data adapters belong at the application/integration boundary.
 
 FVN_REGISTER remains authoritative for employee identity, permissions, requests, approvals, attendance, leave, OT, trip, equipment and reports.
 
@@ -87,8 +92,8 @@ Integration uses versioned HTTP contracts and service-to-service authentication.
 - Private filesystem/object storage for immutable originals and quarantine (shared path accessible by API and Worker); later replaceable with S3-compatible object storage.
 - ClamAV `clamd` service for malware scanning.
 - Tesseract plus PDF rasterizer for scanned documents (pending integration).
-- Ollama for local LLM and embedding models (provider adapter/configuration pending end-to-end integration).
-- Qdrant for vector retrieval (pending adapter and deployment approval).
+- Ollama for local LLM and embedding models (chat/classification/extraction and embedding adapters are present; end-to-end quality evaluation remains open).
+- SQL cosine vector retrieval is the current baseline; Qdrant remains a scale-out adapter option after workload benchmarks.
 - Network segmentation; no public exposure of AI API or model endpoints.
 
 ### Cloud use
@@ -99,7 +104,7 @@ Disabled by default. Any hosted OCR, LLM or embedding service requires data clas
 
 ```mermaid
 flowchart TD
-  U["Upload PDF / XLSX / CSV / TXT"] --> V["Extension, signature, size and archive validation"]
+  U["Upload PDF / XLSX / DOCX / CSV / TXT"] --> V["Extension, signature, size and archive validation"]
   V --> H["SHA-256 + tenant-scoped deduplication"]
   H --> S["Quarantine / immutable original"]
   S --> J[("SQL durable job queue")]
@@ -128,7 +133,7 @@ flowchart TD
 9. Validate data and retain field-level provenance, confidence, parser/model/prompt/schema version.
 10. Human review corrects or accepts; keep original candidate and all review history.
 
-Current code baseline: TXT/CSV and basic XLSX extraction, SQL queue/Worker path, ClamAV adapter and review persistence have been added. PDF/OCR, robust lease renewal for long jobs, Blazor review UI and full integration verification remain open. See phase status.
+Current code baseline: TXT/CSV, XLSX, DOCX and text-layer PDF extraction; SQL queue/Worker with lease renewal; ClamAV adapter; generic classifier; schema-driven extraction/validation ports; explicit human-reviewed knowledge publication; SQL vector search and feedback evaluation foundations. OCR for scanned/image-only files, full worker orchestration with published schemas, RAG answer/citation validation, and full integration verification remain open. See phase status.
 
 ## 7. HR Policy Assistant — controlled policy knowledge
 
