@@ -1,4 +1,5 @@
 using FVN_REGISTER.AI.Application.Contracts;
+using FVN_REGISTER.AI.Application.Contracts;
 namespace FVN_REGISTER.AI.Application.Abstractions;
 
 /// <summary>Scanner adapter must return Clean only after a positive engine verdict.</summary>
@@ -48,4 +49,11 @@ public sealed record ExtractionReviewView(Guid ExtractionId, Guid DocumentId, st
 public interface IExtractionValidationService
 {
     Task<ExtractionValidationResult> ValidateAsync(ExtractionValidationRequest request, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Extracts fields according to a caller-supplied versioned schema, without module-specific assumptions.</summary>
+public interface ISchemaDrivenDocumentExtractor
+{
+    Task<IReadOnlyList<ExtractedCandidate>> ExtractAsync(string text, ExtractionSchema schema,
+        CancellationToken cancellationToken = default);
 }
