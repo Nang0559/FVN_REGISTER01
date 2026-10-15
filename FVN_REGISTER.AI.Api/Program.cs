@@ -119,6 +119,98 @@ group.MapPost("/feedback",async (FeedbackRequest body,HttpRequest req,IServicePr
  catch(System.Text.Json.JsonException){return Results.BadRequest(new{error="Feedback payload must contain valid JSON."});}
 });
 
+group.MapGet("/schemas/{moduleCode}/{schemaCode}", async (string moduleCode, string schemaCode,
+    HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var registry = services.GetService<IExtractionSchemaRegistry>();
+    if (registry is null) return Results.Problem("Extraction schema registry is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var schema = await registry.GetPublishedAsync(tenant, moduleCode, schemaCode, ct);
+    return schema is null ? Results.NotFound() : Results.Ok(schema);
+});
+
+group.MapPost("/schemas/drafts", async (SchemaDraftRequest body, HttpRequest req,
+    IServiceProvider services, CancellationToken ct) =>
+{
+    var registry = services.GetService<IExtractionSchemaRegistry>();
+    if (registry is null) return Results.Problem("Extraction schema registry is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        var version = await registry.CreateDraftVersionAsync(tenant, body.ModuleCode, body.Schema, actor, ct);
+        return Results.Created($"/api/ai/v1/schemas/{body.ModuleCode}/{body.Schema.SchemaCode}", new { version });
+    }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+group.MapPost("/schemas/{moduleCode}/{schemaCode}/{version:int}/publish", async (string moduleCode,
+    string schemaCode, int version, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var registry = services.GetService<IExtractionSchemaRegistry>();
+    if (registry is null) return Results.Problem("Extraction schema registry is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        await registry.PublishVersionAsync(tenant, moduleCode, schemaCode, version, actor, ct);
+        return Results.Ok(new { moduleCode, schemaCode, version, status = "Published" });
+    }
+    catch (KeyNotFoundException) { return Results.NotFound(); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (InvalidOperationException ex) { return Results.Conflict(new { error = ex.Message }); }
+});
+
+group.MapPost("/knowledge/{documentId:guid}/publish", async (Guid documentId, KnowledgePublishRequest body,
+    HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var indexing = services.GetService<IKnowledgeIndexingService>();
+    if (indexing is null) return Results.Problem("Knowledge indexing is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    try
+    {
+        var count = await indexing.PublishApprovedDocumentAsync(tenant, documentId, body.ReviewId, body.AccessScopes, ct);
+        return Results.Ok(new { documentId, indexedChunks = count, status = "Published" });
+    }
+    catch (KeyNotFoundException) { return Results.NotFound(); }
+    catch (UnauthorizedAccessException) { return Results.Forbid(); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+group.MapPost("/knowledge/{documentId:guid}/unpublish", async (Guid documentId,
+    HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var indexing = services.GetService<IKnowledgeIndexingService>();
+    if (indexing is null) return Results.Problem("Knowledge indexing is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    await indexing.UnpublishDocumentAsync(tenant, documentId, ct);
+    return Results.Ok(new { documentId, status = "Unpublished" });
+});
+
+group.MapPost("/knowledge/search", async (KnowledgeSearchRequest body, HttpRequest req,
+    IServiceProvider services, CancellationToken ct) =>
+{
+    var search = services.GetService<IKnowledgeSearchService>();
+    if (search is null) return Results.Problem("Knowledge search is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        return Results.Ok(await search.SearchAsync(tenant, actor, body.AllowedScopes, body.Query, body.Limit, ct));
+    }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+group.MapPost("/feedback/evaluation", async (FeedbackEvaluationRequest body, HttpRequest req,
+    IServiceProvider services, CancellationToken ct) =>
+{
+    var evaluation = services.GetService<IFeedbackEvaluationService>();
+    if (evaluation is null) return Results.Problem("Feedback evaluation is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    try { return Results.Ok(await evaluation.GetSummaryAsync(tenant, body.FromUtc, body.ToUtc, ct)); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
 group.MapPost("/hr-cases/analyze", async (HRCaseAnalysisRequest body, HttpRequest req,
     IServiceProvider services, CancellationToken ct) =>
 {
@@ -204,3 +296,7 @@ app.Run();
 public sealed record FeedbackRequest(Guid? DocumentId,Guid? ExtractionId,string FeedbackType,string? BeforeJson,string? AfterJson,string? Reason);
 public sealed record ReviewRequest(string Decision,string? CorrectedPayloadJson,string? Comment);
 public partial class Program { }
+public sealed record SchemaDraftRequest(string ModuleCode, FVN_REGISTER.AI.Application.Contracts.ExtractionSchema Schema);
+public sealed record KnowledgePublishRequest(Guid ReviewId, IReadOnlyCollection<string> AccessScopes);
+public sealed record KnowledgeSearchRequest(string Query, int Limit, IReadOnlyCollection<string> AllowedScopes);
+public sealed record FeedbackEvaluationRequest(DateTimeOffset FromUtc, DateTimeOffset ToUtc);
