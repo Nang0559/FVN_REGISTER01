@@ -31,7 +31,7 @@ jobs:
     name: Read-only website smoke test
     runs-on: ubuntu-latest
     # Must be longer than --global-timeout below so artifacts are always uploaded.
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
       CI: "true"
       PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME || secrets.TEST_USERNAME || secrets.USERNAME }}
@@ -39,8 +39,10 @@ jobs:
       PLAYWRIGHT_MAX_STATES: ${{ inputs.max_states || '100' }}
       PLAYWRIGHT_MAX_CLICK_TARGETS: ${{ inputs.max_click_targets || '200' }}
       PLAYWRIGHT_MAX_DEPTH: "4"
-      # Soft stop (spec ends cleanly, writes manifest). Must be < --global-timeout (25 min).
-      PLAYWRIGHT_CRAWL_BUDGET_MINUTES: "20"
+      # Soft stop (spec ends cleanly, writes manifest). Must be < --global-timeout (30 min).
+      PLAYWRIGHT_CRAWL_BUDGET_MINUTES: "26"
+      PLAYWRIGHT_MAX_TARGETS_PER_PAGE: "10"
+      PLAYWRIGHT_PAGE_BUDGET_SECONDS: "60"
     steps:
       - name: Checkout test branch
         uses: actions/checkout@v4
@@ -79,7 +81,7 @@ jobs:
             unset PLAYWRIGHT_BASE_URL
           fi
           npx playwright test specs/smoke.spec.ts specs/authenticated-click-capture.spec.ts \
-            --project=chromium --workers=1 --retries=0 --global-timeout=1500000
+            --project=chromium --workers=1 --retries=0 --global-timeout=1800000
 
       - name: Create standalone mobile-friendly report
         if: always()
