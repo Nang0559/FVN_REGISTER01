@@ -21,14 +21,14 @@ This document is the single status reference for the agreed roadmap. A phase is 
 
 ### Implemented foundations
 - Separate AI Core projects, dedicated FVN_AI database and original document storage.
-- PDF, XLSX, CSV, TXT and DOCX upload validation; DOCX uses OpenXML ZIP structure checks.
+- PDF, XLSX, DOCX, PNG, JPEG, CSV and TXT upload validation; Office ZIP structures are inspected with expanded-size limits and image/PDF signatures are checked.
 - File signature checks, expanded ZIP limits, upload size limits, SHA-256 and tenant duplicate detection.
 - Quarantine-first lifecycle, malware scanning adapter and fail-closed unknown verdict.
 - SQL queue, leased workers, retry/dead-letter and expired lease recovery.
 - Tenant/actor signed gateway context and replay protection.
 
 ### Remaining
-- Scanned PDF and image OCR, additional office formats and connector-based sources.
+- Tesseract/Poppler OCR adapter is implemented for PNG/JPEG and scanned PDF; production still requires installing/configuring Tesseract language packs and Poppler on API/Worker hosts. Additional office formats and connector-based sources remain open.
 - Configurable content limits by media type, retention/deletion policies and storage encryption/backup verification.
 - Cross-replica nonce persistence and shared storage/queue operations.
 - End-to-end tests for corrupt files, ZIP bombs, malicious files, duplicate races, interrupted uploads and lease recovery.
@@ -42,7 +42,7 @@ This document is the single status reference for the agreed roadmap. A phase is 
 - Schema-driven structured extraction contract and model adapter; candidates preserve source references and confidence.
 
 ### Remaining
-- OCR for scanned/image-only content and page rasterization.
+- OCR adapter for PNG/JPEG and scanned PDF using Tesseract + Poppler; verify binaries, language packs, timeout and quality on the FCC hosts.
 - Layout-aware extraction for tables, forms, merged cells, headers/footers and multi-column documents.
 - Classification taxonomy management and confidence calibration.
 - Robust JSON/schema-constrained model output, prompt versioning and language-specific golden corpus.
@@ -51,7 +51,7 @@ This document is the single status reference for the agreed roadmap. A phase is 
 ## Phase 3 — Data Extraction & Validation
 
 ### Implemented foundations
-- Versioned schema contracts, tenant/module-scoped schema registry and SQL migration 005.
+- Versioned schema contracts, tenant/module-scoped schema registry and SQL migrations 005 and 006.
 - Draft/publish schema version lifecycle.
 - Deterministic validation for required fields, primitive types, length/range, regex, allowed values, confidence and cross-field rules.
 - Human review and correction persistence; evidence and tenant ownership checks.
@@ -75,7 +75,7 @@ This document is the single status reference for the agreed roadmap. A phase is 
 - Unpublish operation deactivates indexed chunks.
 
 ### Remaining
-- Knowledge Base administration and authorization gateway endpoints.
+- Knowledge publication, search and unpublish API endpoints are present; gateway-side authorization and admin UI remain required.
 - Policy lifecycle (draft, review, publish, effective dates, expiry, supersession and withdrawal).
 - Better chunking for headings, clauses, tables, Japanese/Vietnamese mixed content and source page/line citations.
 - Hybrid lexical/vector retrieval, reranking, deduplication and retrieval quality evaluation.
@@ -114,13 +114,15 @@ Run only against the dedicated FVN_AI database:
 3. `SQL/AI/003_Review_Knowledge_Feedback.sql`
 4. `SQL/AI/004_HR_Reconciliation_Cases.sql`
 5. `SQL/AI/005_Universal_AI_Core.sql`
+6. `SQL/AI/006_Document_Schema_Routing.sql`
 
 Do not run AI migrations against the FVN_REGISTER operational database.
 
 ## Configuration
 
 - API and Worker must share the same SQL connection, storage root (or shared durable storage), malware scanner and signing secrets.
-- `AIPlatform:DefaultProvider=Ollama`, `Endpoint`, `Model` and `EmbeddingModel` configure Ollama chat and embedding capabilities.
+- `AIPlatform:DefaultProvider=Ollama`, `Endpoint`, `Model` and `EmbeddingModel` configure Ollama chat and embedding capabilities in both API and Worker.
+- `AIPlatform:Ocr:TesseractExecutable`, `PdfToPpmExecutable`, `Languages`, `Dpi` and `TimeoutSeconds` configure local OCR in both API and Worker.
 - AI API key and HMAC signing key must be stored in a secret manager/environment variables, not committed.
 - RAG scopes must be supplied by a trusted FVN_REGISTER authorization adapter, never directly from client input.
 
