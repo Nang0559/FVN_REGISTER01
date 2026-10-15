@@ -37,8 +37,8 @@ public sealed class ExtractionValidationTests
         [new("REQUIRED_TOGETHER", "code,quantity", "Both fields must be supplied.")]);
         var candidates = new[]
         {
-            new ExtractedCandidate("code", first.RootElement.Clone(), 0.95),
-            new ExtractedCandidate("quantity", second.RootElement.Clone(), 0.91)
+            new ExtractedCandidate("code", first.RootElement.Clone(), 0.95, "page:1;line:1", "FCC-001"),
+            new ExtractedCandidate("quantity", second.RootElement.Clone(), 0.91, "page:1;line:2", "12")
         };
 
         var result = await new ExtractionValidationService().ValidateAsync(new(schema, candidates));
