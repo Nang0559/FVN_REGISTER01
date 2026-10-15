@@ -201,6 +201,21 @@ group.MapPost("/knowledge/search", async (KnowledgeSearchRequest body, HttpReque
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
 
+group.MapPost("/rag/answer", async (RagAnswerRequest body, HttpRequest req,
+    IServiceProvider services, CancellationToken ct) =>
+{
+    var rag = services.GetService<IRagAnswerService>();
+    if (rag is null) return Results.Problem("RAG answer service is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    try
+    {
+        return Results.Ok(await rag.AnswerAsync(tenant, actor, body.AllowedScopes, body.Query,
+            body.RetrievalLimit, ct));
+    }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
 group.MapPost("/feedback/evaluation", async (FeedbackEvaluationRequest body, HttpRequest req,
     IServiceProvider services, CancellationToken ct) =>
 {
@@ -300,3 +315,4 @@ public sealed record SchemaDraftRequest(string ModuleCode, FVN_REGISTER.AI.Appli
 public sealed record KnowledgePublishRequest(Guid ReviewId, IReadOnlyCollection<string> AccessScopes);
 public sealed record KnowledgeSearchRequest(string Query, int Limit, IReadOnlyCollection<string> AllowedScopes);
 public sealed record FeedbackEvaluationRequest(DateTimeOffset FromUtc, DateTimeOffset ToUtc);
+public sealed record RagAnswerRequest(string Query, int RetrievalLimit, IReadOnlyCollection<string> AllowedScopes);
