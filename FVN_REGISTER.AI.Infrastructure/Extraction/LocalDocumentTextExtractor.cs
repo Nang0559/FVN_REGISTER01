@@ -21,7 +21,8 @@ public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumen
         try
         {
             if (mediaType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) ||
-                mediaType.Equals("text/csv", StringComparison.OrdinalIgnoreCase))
+                mediaType.Equals("text/csv", StringComparison.OrdinalIgnoreCase) ||
+                mediaType.Equals("text/markdown", StringComparison.OrdinalIgnoreCase))
             {
                 using var reader = new StreamReader(content, StrictUtf8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
                 return await reader.ReadToEndAsync(cancellationToken);
@@ -29,6 +30,15 @@ public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumen
 
             if (mediaType.Equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", StringComparison.OrdinalIgnoreCase))
                 return ExtractXlsx(content);
+
+            if (mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase))
+                return ExtractJson(content);
+
+            if (mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase))
+                return ExtractXml(content);
+
+            if (mediaType.Equals("text/html", StringComparison.OrdinalIgnoreCase))
+                return await ExtractHtmlAsync(content, cancellationToken);
 
             if (mediaType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
             {
@@ -50,6 +60,75 @@ public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumen
             throw new NotSupportedException($"No local text extractor is configured for media type '{mediaType}'.");
         }
         finally { content.Position = start; }
+    }
+
+    private static string ExtractJson(Stream content)
+    {
+        using var document = JsonDocument.Parse(content);
+        var output = new StringBuilder();
+        Append(document.RootElement, "$");
+        if (output.Length > 2_000_000) throw new InvalidDataException("JSON extracted text exceeds the 2 MB limit.");
+        return output.ToString();
+
+        void Append(JsonElement element, string path)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (var property in element.EnumerateObject()) Append(property.Value, path + "." + property.Name);
+                    break;
+                case JsonValueKind.Array:
+                    var index = 0;
+                    foreach (var item in element.EnumerateArray()) Append(item, $"{path}[{index++}]");
+                    break;
+                case JsonValueKind.String:
+                    output.Append(path).Append(" = ").AppendLine(element.GetString());
+                    break;
+                case JsonValueKind.Number:
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    output.Append(path).Append(" = ").AppendLine(element.ToString());
+                    break;
+                case JsonValueKind.Null:
+                    output.Append(path).AppendLine(" = null");
+                    break;
+            }
+        }
+    }
+
+    private static string ExtractXml(Stream content)
+    {
+        var document = XDocument.Load(content);
+        var output = new StringBuilder();
+        if (document.Root is null) return "";
+        Append(document.Root, "/" + document.Root.Name.LocalName);
+        if (output.Length > 2_000_000) throw new InvalidDataException("XML extracted text exceeds the 2 MB limit.");
+        return output.ToString();
+
+        void Append(XElement element, string path)
+        {
+            foreach (var attribute in element.Attributes())
+                output.Append(path).Append("/@").Append(attribute.Name.LocalName).Append(" = ").AppendLine(attribute.Value);
+            var children = element.Elements().ToArray();
+            if (children.Length == 0 && !string.IsNullOrWhiteSpace(element.Value))
+                output.Append(path).Append(" = ").AppendLine(element.Value.Trim());
+            foreach (var child in children) Append(child, path + "/" + child.Name.LocalName);
+        }
+    }
+
+    private static async Task<string> ExtractHtmlAsync(Stream content, CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(content, StrictUtf8, true, 4096, leaveOpen: true);
+        var html = await reader.ReadToEndAsync(cancellationToken);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"(?is)<(script|style)\b[^>]*>.*?</\1\s*>", " ",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"(?s)<!--.*?-->|<[^>]+>", " ",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
+        var text = System.Net.WebUtility.HtmlDecode(html);
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250)).Trim();
+        if (text.Length > 2_000_000) throw new InvalidDataException("HTML extracted text exceeds the 2 MB limit.");
+        return text;
     }
 
     private static string ExtractDocx(Stream content)
