@@ -52,7 +52,7 @@
 </RowTemplate>
 </MudTable>
 <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
-<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanCreateSchema)" OnClick="CreateEndpointSchemaAsync">Tạo và kích hoạt schema</MudButton>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanCreateSchema)" OnClick="CreateEndpointSchemaAsync">@(_editingSchemaId.HasValue ? "Lưu thay đổi Draft" : "Tạo Draft schema")</MudButton>
 <MudText Typo="Typo.caption" Color="Color.Secondary">Bắt buộc ánh xạ đúng một cột Name; không được ánh xạ trùng trường đích.</MudText>
 </MudStack>
 }
@@ -127,12 +127,12 @@ private async Task EditDraftSchemaAsync(int id){
  Snackbar.Add("Đã nạp cấu hình Draft. Chỉnh ánh xạ rồi bấm Lưu thay đổi schema.",Severity.Info);
 }
 private async Task CreateEndpointSchemaAsync(){
- if(!CanCreateSchema||_schemaFile is null||_schemaInspection is null)return;
+ if(!CanCreateSchema||(!_editingSchemaId.HasValue&&(_schemaFile is null||_schemaInspection is null)))return;
  _creatingSchema=true;
  try{
   var mapped=_schemaColumnMappings.Where(x=>!string.IsNullOrWhiteSpace(x.TargetProperty)).OrderBy(x=>x.ColumnIndex).ToList();
   var fields=mapped.Select((x,i)=>new ExcelSchemaField(x.TargetProperty!,x.TargetProperty=="IsAllowed"?"Boolean":"Text",x.TargetProperty=="Name",x.ColumnIndex,x.Header,null,null,x.TargetProperty,i+1,x.TargetProperty!="Name",x.TargetProperty=="Name"?500:null,null,null)).ToList();
-  var sheet=_schemaInspection.Sheets.First(x=>x.Index==_schemaSheetIndex);
+  var sheet=_schemaInspection?.Sheets.FirstOrDefault(x=>x.Index==_schemaSheetIndex);
   var module="ENDPOINT";var entity=_editorType.ToString();
   ExcelSchemaCreateRequest request;
   if(_editingSchemaId.HasValue){
@@ -142,6 +142,7 @@ private async Task CreateEndpointSchemaAsync(){
    request=new ExcelSchemaCreateRequest(module,entity,d.SchemaKey,_newSchemaName.Trim(),d.SheetIndex,d.SheetName,d.HeaderRowIndex,d.DataStartRowIndex,d.DataEndRowIndex,d.SelectedColumnIndexes,fields,d.Culture);
   }else{
    if(_schemaFile is null||_schemaInspection is null)return;
+   if(sheet is null)return;
    request=new ExcelSchemaCreateRequest(module,entity,$"ENDPOINT-{_editorType}-{DateTime.UtcNow.Ticks}",_newSchemaName.Trim(),sheet.Index,sheet.Name,_schemaHeaderRow,_schemaHeaderRow+1,sheet.LastRowIndex,mapped.Select(x=>x.ColumnIndex).ToArray(),fields);
   }
   var response=_editingSchemaId.HasValue
