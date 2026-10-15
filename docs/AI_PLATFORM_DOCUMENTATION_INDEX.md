@@ -1,22 +1,30 @@
-# FVN_REGISTER AI — Documentation Index
+# FVN_REGISTER AI Center — Documentation Index
 
-This index is the entry point for the AI platform design on branch `feature/ai-manufacturing-data-platform`.
+This index describes the reusable AI Core roadmap on branch `feature/ai-manufacturing-data-platform`.
 
 | Document | Purpose |
 |---|---|
-| [AI Platform Architecture](AI_PLATFORM_ARCHITECTURE.md) | Overall architecture, boundaries, ingestion pipeline, security and roadmap |
-| [AI Platform Phase Status](AI_PLATFORM_PHASES_STATUS.md) | Implemented vs pending code, migration order and verification state |
-| [HR Policy Assistant Design](AI_HR_POLICY_ASSISTANT.md) | Upload, approve, version and ask questions about HR policies with citations |
-| [HR Evidence Reconciliation Pilot](AI_HR_RECONCILIATION_PILOT.md) | Initial pilot scope and integration boundary |
-| [HR Case Assistant Implementation](AI_HR_CASE_ASSISTANT_IMPLEMENTATION.md) | Implemented evidence-to-facts reconciliation, HR workspace, review audit, SQL and deployment configuration |
- 
-## Product capabilities
+| [AI Platform Architecture](AI_PLATFORM_ARCHITECTURE.md) | Module-neutral architecture, boundaries, security, integration and deployment |
+| [AI Platform Phase Status](AI_PLATFORM_PHASES_STATUS.md) | The authoritative status of Phase 1–5 Core and Phase 6 applications |
+| [AI Platform Implementation Plan](AI_PLATFORM_IMPLEMENTATION_PLAN.md) | Work packages, dependencies and exit gates |
+| [HR Policy Assistant Design](AI_HR_POLICY_ASSISTANT.md) | HR policy knowledge lifecycle and future RAG application |
+| [HR Evidence Reconciliation Pilot](AI_HR_RECONCILIATION_PILOT.md) | HR pilot scope and integration boundary |
+| [HR Case Assistant Implementation](AI_HR_CASE_ASSISTANT_IMPLEMENTATION.md) | HR facts gateway, evidence reconciliation, review workflow and deployment details |
 
-1. Document intelligence — ingest files and create reviewable extraction candidates.
-2. HR Policy Assistant — retrieve approved, current HR rules and explain procedures such as OT registration.
-3. HR Case Assistant — implemented FVN-gateway facts retrieval, evidence extraction, deterministic comparisons, Ollama draft support, HR workspace and review audit. OCR and notification delivery remain pending.
-4. HR reporting chatbot — natural-language access to existing authorized reports.
+## Agreed roadmap
 
-## Important status note
+### AI Core
+1. Universal Data Ingestion.
+2. AI Document Understanding.
+3. Data Extraction & Validation.
+4. RAG & Knowledge Base.
+5. Active Learning.
 
-The documents distinguish target design from implemented code. HR Case Assistant is the first operational AI workflow. HR Policy RAG (policy administration, approval/publication, vector retrieval, ACL citations and policy chat UI) remains a separate backlog; scanned-PDF OCR and employee notification delivery are also pending.
+### Applications
+6. FVN_REGISTER AI applications: registration assistant, data entry/import, policy assistant, HR assistant, reporting assistant and future modules.
+
+## Architectural rule
+
+Phase 1–5 must remain reusable and module-neutral. OT, leave, attendance, trip, equipment and other business semantics belong in published schemas, validation profiles and FVN_REGISTER adapters. HR Case Assistant is a Phase 6 pilot; it is not the architecture template for every module.
+
+The [Phase Status](AI_PLATFORM_PHASES_STATUS.md) document is the single source of truth for implementation status. A design or SQL table alone does not mean a capability is complete.
