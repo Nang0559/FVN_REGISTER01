@@ -4,7 +4,8 @@
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Core.Excel
 @using System.Net.Http.Json
-@inject HttpClient Http
+@inject FVN_REGISTER.Shared.Handlers.IHttpClientWithAuth ExcelHttp
+
 @using FVN_REGISTER.Shared.Services.Security
 @using Microsoft.AspNetCore.Components.Forms
 @inject IEndpointGovernanceClientService Governance
@@ -71,7 +72,7 @@ private bool _loading=true,_openOnly=true,_inspectingSchema,_creatingSchema;priv
 private bool ChecklistCompleted=>_checkIdentity&&_checkPublisher&&_checkVersion&&_checkScope&&_checkEvidence&&_checkOwner;private bool CanManage=>_permissions.Contains(_editorType==EndpointGovernanceItemType.Software?SecurityFunctionCodes.EndpointSoftwareCatalogManage:SecurityFunctionCodes.EndpointServiceCatalogManage);private bool CanReview=>_permissions.Contains(SecurityFunctionCodes.EndpointSoftwareSecurityReview)||_permissions.Contains(SecurityFunctionCodes.EndpointServiceSecurityReview)||_permissions.Contains(SecurityFunctionCodes.EndpointInstallRequestApprove)||_permissions.Contains(SecurityFunctionCodes.EndpointExceptionApprove);private bool CanSubmit(EndpointGovernanceItemType type)=>_permissions.Contains(type==EndpointGovernanceItemType.Software?SecurityFunctionCodes.EndpointSoftwarePolicySubmit:SecurityFunctionCodes.EndpointServicePolicySubmit);private bool CanPublish(EndpointGovernanceItemType type)=>_permissions.Contains(type==EndpointGovernanceItemType.Software?SecurityFunctionCodes.EndpointSoftwarePolicyApprove:SecurityFunctionCodes.EndpointServicePolicyApprove);
 protected override async Task OnInitializedAsync(){await LoadSchemasAsync();await ReloadAsync();}
 private async Task OnEditorTypeChanged(EndpointGovernanceItemType value){_editorType=value;_schemaId=null;await LoadSchemasAsync();}
-private async Task LoadSchemasAsync(){try{_schemas=await Http.GetFromJsonAsync<List<ExcelSchemaSummary>>($"api/excel/schemas?moduleCode=ENDPOINT&entityCode={_editorType}")??new();if(_schemaId.HasValue&&!_schemas.Any(x=>x.Id==_schemaId.Value&&x.Status==ExcelSchemaStatus.Active))_schemaId=null;}catch(Exception ex){Snackbar.Add($"Không tải được Excel Schema: {ex.Message}",Severity.Error);}}
+private async Task LoadSchemasAsync(){try{var response=await ExcelHttp.GetAsync<List<ExcelSchemaSummary>>($"api/excel/schemas?moduleCode=ENDPOINT&entityCode={_editorType}");if(!response.IsSuccess){Snackbar.Add(response.Message??"Không tải được Excel Schema.",Severity.Error);return;}_schemas=response.Data??new();if(_schemaId.HasValue&&!_schemas.Any(x=>x.Id==_schemaId.Value&&x.Status==ExcelSchemaStatus.Active))_schemaId=null;}catch(Exception ex){Snackbar.Add($"Không tải được Excel Schema: {ex.Message}",Severity.Error);}}
 private static readonly (string Code,string Label)[] EndpointSchemaTargets=[("Name","Name (bắt buộc)"),("Publisher","Publisher"),("VersionConstraint","VersionConstraint"),("IsAllowed","IsAllowed"),("Remark","Remark")];
 private IEnumerable<ExcelHeaderCandidate> CurrentHeaderCandidates => _schemaInspection?.Sheets.FirstOrDefault(x=>x.Index==_schemaSheetIndex)?.HeaderCandidates ?? Array.Empty<ExcelHeaderCandidate>();
 private bool CanCreateSchema => CanManage && !_creatingSchema && !string.IsNullOrWhiteSpace(_newSchemaName) && _schemaColumnMappings.Any(x=>x.TargetProperty=="Name") && _schemaColumnMappings.Where(x=>x.TargetProperty!=null).GroupBy(x=>x.TargetProperty,StringComparer.OrdinalIgnoreCase).All(g=>g.Count()==1);
@@ -81,9 +82,9 @@ private async Task InspectSchemaFileAsync(){
  try{
   await using var stream=_schemaFile.OpenReadStream(25*1024*1024);
   using var form=new MultipartFormDataContent();using var content=new StreamContent(stream);form.Add(content,"file",_schemaFile.Name);
-  using var response=await Http.PostAsync("api/excel/inspect",form);
-  if(!response.IsSuccessStatusCode){Snackbar.Add(await response.Content.ReadAsStringAsync(),Severity.Error);return;}
-  _schemaInspection=await response.Content.ReadFromJsonAsync<ExcelWorkbookInspection>();
+  var response=await ExcelHttp.PostMultipartAsync<ExcelWorkbookInspection>("api/excel/inspect",form);
+  if(!response.IsSuccess){Snackbar.Add(response.Message??"Không đọc được cấu trúc Excel.",Severity.Error);return;}
+  _schemaInspection=response.Data;
   if(_schemaInspection?.Sheets.Count>0){_schemaSheetIndex=_schemaInspection.Sheets[0].Index;var candidate=CurrentHeaderCandidates.OrderByDescending(x=>x.Score).FirstOrDefault();_schemaHeaderRow=candidate?.RowIndex??_schemaInspection.Sheets[0].FirstRowIndex;BuildSchemaColumnMappings();}
   if(string.IsNullOrWhiteSpace(_newSchemaName))_newSchemaName=Path.GetFileNameWithoutExtension(_schemaFile.Name)+" Endpoint";
  }catch(Exception ex){Snackbar.Add($"Không đọc được cấu trúc Excel: {ex.Message}",Severity.Error);}
@@ -106,12 +107,11 @@ private async Task CreateEndpointSchemaAsync(){
   var fields=mapped.Select((x,i)=>new ExcelSchemaField(x.TargetProperty!,x.TargetProperty=="IsAllowed"?"Boolean":"Text",x.TargetProperty=="Name",x.ColumnIndex,x.Header,null,null,x.TargetProperty,i+1,x.TargetProperty!="Name",x.TargetProperty=="Name"?500:null,null,null)).ToList();
   var sheet=_schemaInspection.Sheets.First(x=>x.Index==_schemaSheetIndex);
   var request=new ExcelSchemaCreateRequest("ENDPOINT",_editorType.ToString(),$"ENDPOINT-{_editorType}-{DateTime.UtcNow.Ticks}",_newSchemaName.Trim(),sheet.Index,sheet.Name,_schemaHeaderRow,_schemaHeaderRow+1,sheet.LastRowIndex,mapped.Select(x=>x.ColumnIndex).ToArray(),fields);
-  using var response=await Http.PostAsJsonAsync($"api/excel/schemas/draft?sourceFileName={Uri.EscapeDataString(_schemaFile.Name)}",request);
-  if(!response.IsSuccessStatusCode){Snackbar.Add(await response.Content.ReadAsStringAsync(),Severity.Error);return;}
-  var created=await response.Content.ReadFromJsonAsync<ExcelSchemaSummary>();
-  if(created is null){Snackbar.Add("API không trả về schema đã tạo.",Severity.Error);return;}
-  using var activate=await Http.PostAsync($"api/excel/schemas/{created.Id}/activate",null);
-  if(!activate.IsSuccessStatusCode){Snackbar.Add($"Đã tạo schema Draft #{created.Id}, nhưng chưa kích hoạt: {await activate.Content.ReadAsStringAsync()}",Severity.Warning);await LoadSchemasAsync();return;}
+  var response=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/draft?sourceFileName={Uri.EscapeDataString(_schemaFile.Name)}",request);
+  if(!response.IsSuccess||response.Data is null){Snackbar.Add(response.Message??"Không tạo được schema.",Severity.Error);return;}
+  var created=response.Data;
+  var activation=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/{created.Id}/activate",new {});
+  if(!activation.IsSuccess){Snackbar.Add($"Đã tạo schema Draft #{created.Id}, nhưng chưa kích hoạt: {activation.Message}",Severity.Warning);await LoadSchemasAsync();return;}
   _schemaId=created.Id;await LoadSchemasAsync();_schemaId=created.Id;
   Snackbar.Add($"Đã tạo và kích hoạt schema '{created.SchemaName}' v{created.Version}.",Severity.Success);
  }catch(Exception ex){Snackbar.Add($"Không tạo được schema: {ex.Message}",Severity.Error);}
