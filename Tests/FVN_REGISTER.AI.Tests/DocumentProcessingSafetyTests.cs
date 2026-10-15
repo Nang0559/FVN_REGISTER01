@@ -42,7 +42,7 @@ public sealed class LocalDocumentTextExtractorTests
                 await writer.WriteAsync("<worksheet><sheetData><row><c t='s'><v>0</v></c><c t='s'><v>1</v></c></row></sheetData></worksheet>");
         }
         stream.Position = 0;
-        var result = await new LocalDocumentTextExtractor().ExtractTextAsync(stream,
+        var result = await new LocalDocumentTextExtractor(new TestOcrTextExtractor()).ExtractTextAsync(stream,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         Assert.Contains("EmployeeCode", result);
         Assert.Contains("E0001", result);
