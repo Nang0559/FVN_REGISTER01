@@ -61,6 +61,10 @@ public sealed class ExcelController : ControllerBase
     public async Task<ActionResult<ExcelSchemaSummary>> Schema(int id,CancellationToken ct)
     { var item=await _excel.GetSchemaAsync(id,ct); return item is null?NotFound():Ok(item); }
 
+    [HttpGet("schemas/{id:int}/definition")]
+    public async Task<ActionResult<ExcelSchemaDefinition>> Definition(int id, CancellationToken ct)
+    { var schema = await _excel.GetSchemaDefinitionAsync(id, ct); return schema is null ? NotFound() : Ok(schema); }
+
     [HttpPost("schemas/draft")]
     public async Task<ActionResult<ExcelSchemaSummary>> Draft([FromBody] ExcelSchemaCreateRequest request,[FromQuery] string? sourceFileName,CancellationToken ct)
     { var item=await _excel.CreateDraftSchemaAsync(request,sourceFileName,ct); return CreatedAtAction(nameof(Schema),new{id=item.Id},item); }
