@@ -38,7 +38,7 @@ public sealed class KnowledgeSearchService(
                 var pageText = x.Chunk.Metadata.TryGetValue("pageNumber", out var page) && !string.IsNullOrWhiteSpace(page)
                     ? $", page {page}" : "";
                 var citation = $"{documents[documentId]}{pageText}, chunk {x.Chunk.Metadata.GetValueOrDefault("chunkOrdinal", "0")}";
-                return new KnowledgeSearchHit(documentId.ToString(), documents[documentId],
+                return new KnowledgeSearchHit(x.Chunk.ChunkId, documentId.ToString(), documents[documentId],
                     int.TryParse(page, out var pageNumber) ? pageNumber : null,
                     x.Chunk.Text, x.Score, citation);
             }).ToArray();
