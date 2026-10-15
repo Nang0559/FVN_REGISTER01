@@ -102,6 +102,7 @@ public sealed class ExtractionSchemaRegistry(AiPlatformDbContext db) : IExtracti
     private static void ValidateDefinition(ExtractionSchema schema)
     {
         ArgumentNullException.ThrowIfNull(schema);
+        ArgumentNullException.ThrowIfNull(schema.Fields);
         _ = Required(schema.SchemaCode, 128);
         _ = Required(schema.DisplayName, 256);
         if (schema.Fields.Count is < 1 or > 500) throw new ArgumentException("Schema must define between 1 and 500 fields.");
