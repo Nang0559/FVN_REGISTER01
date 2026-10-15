@@ -132,11 +132,11 @@
                     <HeaderContent>
                         <MudTh>Tên phần mềm / dịch vụ</MudTh><MudTh>Publisher</MudTh><MudTh>Phiên bản</MudTh><MudTh>Cho phép</MudTh>
                     </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@(context.DisplayName ?? context.NormalizedName)</MudTd>
-                        <MudTd>@(context.Publisher ?? "—")</MudTd>
-                        <MudTd>@(context.VersionConstraint ?? "—")</MudTd>
-                        <MudTd>@(context.IsAllowed ? "Có" : "Không")</MudTd>
+                    <RowTemplate Context="catalogItem">
+                        <MudTd>@(catalogItem.DisplayName ?? catalogItem.NormalizedName)</MudTd>
+                        <MudTd>@(catalogItem.Publisher ?? "—")</MudTd>
+                        <MudTd>@(catalogItem.VersionConstraint ?? "—")</MudTd>
+                        <MudTd>@(catalogItem.IsAllowed ? "Có" : "Không")</MudTd>
                     </RowTemplate>
                     <NoRecordsContent><MudText Typo="Typo.caption">Chưa có item.</MudText></NoRecordsContent>
                 </MudTable>
