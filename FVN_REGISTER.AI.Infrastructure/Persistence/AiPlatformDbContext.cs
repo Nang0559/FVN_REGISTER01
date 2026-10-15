@@ -11,6 +11,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
  public DbSet<AiKnowledgeChunkRecord> KnowledgeChunks=>Set<AiKnowledgeChunkRecord>();
  public DbSet<AiExtractionSchemaRecord> ExtractionSchemas=>Set<AiExtractionSchemaRecord>();
  public DbSet<AiExtractionSchemaVersionRecord> ExtractionSchemaVersions=>Set<AiExtractionSchemaVersionRecord>();
+ public DbSet<AiValidationIssueRecord> ValidationIssues=>Set<AiValidationIssueRecord>();
  public DbSet<AiHRCaseRecord> HRCases=>Set<AiHRCaseRecord>();
  public DbSet<AiHRCaseReviewRecord> HRCaseReviews=>Set<AiHRCaseReviewRecord>();
  protected override void OnModelCreating(ModelBuilder b)
@@ -20,6 +21,8 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   d.Property(x=>x.Extension).HasMaxLength(12).IsRequired(); d.Property(x=>x.MediaType).HasMaxLength(128).IsRequired();
   d.Property(x=>x.Sha256).HasMaxLength(64).IsRequired(); d.Property(x=>x.StorageKey).HasMaxLength(512).IsRequired();
   d.Property(x=>x.UploadedBy).HasMaxLength(128).IsRequired(); d.Property(x=>x.Status).HasMaxLength(32).IsRequired();
+  d.Property(x=>x.ModuleCode).HasMaxLength(64); d.Property(x=>x.SchemaCode).HasMaxLength(128);
+  d.HasIndex(x=>new{x.TenantCode,x.ModuleCode,x.SchemaCode,x.ReceivedAtUtc);
   d.HasIndex(x=>new{x.TenantCode,x.Sha256}).IsUnique(); d.HasIndex(x=>new{x.TenantCode,x.ReceivedAtUtc});
   var j=b.Entity<AiIngestionJobRecord>(); j.ToTable("AiIngestionJobs","ai"); j.HasKey(x=>x.Id);
   j.Property(x=>x.Status).HasMaxLength(24).IsRequired(); j.Property(x=>x.FailureCode).HasMaxLength(128); j.Property(x=>x.LeaseOwner).HasMaxLength(128);
@@ -29,6 +32,10 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   e.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); e.Property(x=>x.DocumentType).HasMaxLength(128).IsRequired();
   e.Property(x=>x.CandidateJson).IsRequired(); e.Property(x=>x.ParserVersion).HasMaxLength(64).IsRequired();
   e.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.CreatedAtUtc});
+  var vi=b.Entity<AiValidationIssueRecord>(); vi.ToTable("AiValidationIssues","ai"); vi.HasKey(x=>x.Id);
+  vi.Property(x=>x.FieldPath).HasMaxLength(256); vi.Property(x=>x.RuleCode).HasMaxLength(128).IsRequired();
+  vi.Property(x=>x.Severity).HasMaxLength(16).IsRequired(); vi.Property(x=>x.Message).HasMaxLength(1000).IsRequired();
+  vi.HasIndex(x=>new{x.ExtractionId,x.Severity}); vi.HasOne<AiExtractionRecord>().WithMany().HasForeignKey(x=>x.ExtractionId).OnDelete(DeleteBehavior.Restrict);
   var r=b.Entity<AiReviewRecord>(); r.ToTable("AiReviews","ai"); r.HasKey(x=>x.Id);
   r.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); r.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
   r.Property(x=>x.Decision).HasMaxLength(16).IsRequired(); r.Property(x=>x.OriginalPayloadJson).IsRequired();
@@ -76,6 +83,7 @@ public sealed class AiDocumentRecord
  public Guid Id{get;set;} public string TenantCode{get;set;}=string.Empty; public string FileName{get;set;}=string.Empty;
  public string Extension{get;set;}=string.Empty; public string MediaType{get;set;}=string.Empty; public long Length{get;set;}
  public string Sha256{get;set;}=string.Empty; public string StorageKey{get;set;}=string.Empty; public string UploadedBy{get;set;}=string.Empty;
+ public string? ModuleCode{get;set;} public string? SchemaCode{get;set;}
  public DateTimeOffset ReceivedAtUtc{get;set;} public string Status{get;set;}="Quarantined";
 }
 public sealed class AiIngestionJobRecord
@@ -130,4 +138,11 @@ public sealed class AiExtractionSchemaVersionRecord
  public Guid Id{get;set;} public Guid SchemaId{get;set;} public int Version{get;set;}
  public string DefinitionJson{get;set;}="{}"; public string Status{get;set;}="Draft";
  public string CreatedBy{get;set;}=""; public DateTimeOffset CreatedAtUtc{get;set;} public DateTimeOffset? PublishedAtUtc{get;set;}
+}
+
+public sealed class AiValidationIssueRecord
+{
+ public Guid Id{get;set;} public Guid ExtractionId{get;set;} public string? FieldPath{get;set;}
+ public string RuleCode{get;set;}=""; public string Severity{get;set;}="Error";
+ public string Message{get;set;}=""; public DateTimeOffset CreatedAtUtc{get;set;}
 }
