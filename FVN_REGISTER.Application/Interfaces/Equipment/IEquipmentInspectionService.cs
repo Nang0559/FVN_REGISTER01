@@ -8,7 +8,7 @@ public interface IEquipmentInspectionService
     Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(int? deptCode, CancellationToken ct = default);
     Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(int? deptCode, CancellationToken ct = default);
     Task<ServiceResult<EquipmentInspectionTemplateDto>> GetTemplateAsync(int id, CancellationToken ct = default);
-    Task<ServiceResult<EquipmentInspectionTemplateImportResultDto>> ImportTemplateExcelAsync(string fileName, Stream content, CancellationToken ct = default);
+    Task<ServiceResult<EquipmentInspectionTemplateImportResultDto>> ImportTemplateExcelAsync(string fileName, Stream content, int? selectedDeptCode = null, int? selectedSheetIndex = null, CancellationToken ct = default);
     Task<ServiceResult<EquipmentInspectionTemplateDto>> SaveTemplateAsync(EquipmentInspectionTemplateUpsertRequest request, CancellationToken ct = default);
     Task<ServiceResult<EquipmentInspectionTemplateDto>> CloneTemplateAsync(int id, string? name, CancellationToken ct = default);
     Task<ServiceResult<EquipmentInspectionAssignmentDto>> AssignAsync(EquipmentInspectionAssignmentRequest request, CancellationToken ct = default);
