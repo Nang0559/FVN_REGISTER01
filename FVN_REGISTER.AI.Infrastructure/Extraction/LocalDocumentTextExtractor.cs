@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using System.Xml.Linq;
 using FVN_REGISTER.AI.Application.Abstractions;
 using UglyToad.PdfPig;
