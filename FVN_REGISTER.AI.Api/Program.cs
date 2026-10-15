@@ -22,7 +22,7 @@ app.MapGet("/health/ready",async (IServiceProvider sp,CancellationToken ct)=>{
 });
 app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o)=>{
  var s=o.Value;
- return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured=!string.Equals(s.DefaultProvider,"Unconfigured",StringComparison.OrdinalIgnoreCase),capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","pdf-text-extraction","human-review-persistence","feedback-capture","hr-evidence-reconciliation","hr-case-inbox","hr-case-review-audit"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
+ return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured=!string.Equals(s.DefaultProvider,"Unconfigured",StringComparison.OrdinalIgnoreCase),capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","pdf-text-extraction","docx-text-extraction","image-ocr","scanned-pdf-ocr","generic-document-classification","schema-registry","schema-driven-extraction","extraction-validation","human-review-persistence","feedback-capture","feedback-evaluation","knowledge-publication","acl-scoped-vector-search","hr-evidence-reconciliation","hr-case-inbox","hr-case-review-audit"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
 });
 var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  var configured=app.Configuration[$"{AIPlatformOptions.SectionName}:ApiKey"];
