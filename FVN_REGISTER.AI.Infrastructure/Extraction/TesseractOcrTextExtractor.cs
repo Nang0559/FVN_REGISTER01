@@ -2,6 +2,7 @@ using System.Diagnostics;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Configuration;
 using Microsoft.Extensions.Options;
+using UglyToad.PdfPig;
 
 namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 
@@ -39,11 +40,15 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options) : IO
             {
                 if (string.IsNullOrWhiteSpace(settings.PdfToPpmExecutable))
                     throw new NotSupportedException("PDF rasterizer is not configured.");
+                using (var pdf = PdfDocument.Open(input))
+                    if (pdf.NumberOfPages > MaximumPdfPages)
+                        throw new InvalidDataException("PDF_OCR_PAGE_LIMIT_EXCEEDED");
                 var prefix = Path.Combine(directory, "page");
                 await RunAsync(settings.PdfToPpmExecutable,
                     ["-f", "1", "-l", MaximumPdfPages.ToString(), "-r", Math.Clamp(settings.Dpi, 100, 300).ToString(),
                      "-png", input, prefix], directory, cancellationToken);
-                images.AddRange(Directory.GetFiles(directory, "page-*.png").OrderBy(x => x, StringComparer.Ordinal));
+                images.AddRange(Directory.GetFiles(directory, "page-*.png")
+                    .OrderBy(x => int.TryParse(Path.GetFileNameWithoutExtension(x).Split('-').Last(), out var number) ? number : int.MaxValue));
                 if (images.Count == 0) throw new InvalidDataException("PDF_RASTERIZATION_PRODUCED_NO_PAGES");
                 if (images.Count > MaximumPdfPages) throw new InvalidDataException("PDF_OCR_PAGE_LIMIT_EXCEEDED");
             }
