@@ -84,3 +84,13 @@ public interface IExtractionSchemaRegistry
     Task PublishVersionAsync(string tenantCode, string moduleCode, string schemaCode, int version,
         string actorId, CancellationToken cancellationToken = default);
 }
+
+public interface IRagAnswerService
+{
+    Task<RagAnswerResult> AnswerAsync(string tenantCode, string actorId, IReadOnlyCollection<string> allowedScopes,
+        string query, int retrievalLimit = 8, CancellationToken cancellationToken = default);
+}
+public sealed record RagCitation(string ChunkId, string DocumentId, string FileName, int? PageNumber,
+    string Citation, double RelevanceScore);
+public sealed record RagAnswerResult(string Answer, string Status, IReadOnlyList<RagCitation> Citations,
+    string? ModelProvider, string? ModelVersion);
