@@ -42,7 +42,11 @@ public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelPro
             "Return only JSON: {\"status\":\"Supported|PartiallySupported|NotFound\",\"answer\":\"...\",\"citations\":[\"chunk-guid\"]}. " +
             "Citations must contain only supplied chunkId values. If evidence is insufficient or conflicting, return NotFound and explain what is missing."), cancellationToken);
 
-        using var json = JsonDocument.Parse(response.Output);
+        JsonDocument json;
+        try { json = JsonDocument.Parse(response.Output); }
+        catch (JsonException) { return Abstain("Không thể xác minh câu trả lời do kết quả mô hình không phải JSON hợp lệ.", "InvalidModelResponse"); }
+        using (json)
+        {
         var root = json.RootElement;
         var status = root.TryGetProperty("status", out var statusValue) ? statusValue.GetString() : null;
         var answer = root.TryGetProperty("answer", out var answerValue) ? answerValue.GetString() : null;
@@ -71,6 +75,7 @@ public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelPro
                 hit.Citation, hit.Score);
         }).ToArray();
         return new RagAnswerResult(answer.Trim(), status, citations, response.Provider, response.Model);
+        }
     }
 
     private static RagAnswerResult Abstain(string message, string status) =>
