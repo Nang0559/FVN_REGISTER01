@@ -74,7 +74,7 @@
                 }
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
                            Disabled="_analyzing || string.IsNullOrWhiteSpace(_statement) || _workDate is null ||
-                               (_evidenceDocumentId.HasValue && _evidenceStatus is not ("AwaitingHumanReview" or "Approved"))"
+                               (_evidenceDocumentId.HasValue && _evidenceStatus is not ("AwaitingHumanReview" or "Approved"))
                            OnClick="AnalyzeAsync" Class="mt-4">
                     @if (_analyzing)
                     {
@@ -162,9 +162,9 @@
                 </MudItem>
                 <MudItem xs="12" md="4">
                     <MudStack Row="true" AlignItems="AlignItems.End" Class="h-100">
-                        <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_reviewing" OnClick="@(() => ReviewAsync("Approved"))">Duyệt</MudButton>
-                        <MudButton Color="Color.Primary" Variant="Variant.Outlined" Disabled="_reviewing || string.IsNullOrWhiteSpace(_finalReply)" OnClick="@(() => ReviewAsync("Edited"))">Lưu bản đã sửa</MudButton>
-                        <MudButton Color="Color.Error" Variant="Variant.Text" Disabled="_reviewing" OnClick="@(() => ReviewAsync("Rejected"))">Từ chối</MudButton>
+                        <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_reviewing" OnClick="ApproveAsync">Duyệt</MudButton>
+                        <MudButton Color="Color.Primary" Variant="Variant.Outlined" Disabled="_reviewing || string.IsNullOrWhiteSpace(_finalReply)" OnClick="SaveEditedAsync">Lưu bản đã sửa</MudButton>
+                        <MudButton Color="Color.Error" Variant="Variant.Text" Disabled="_reviewing" OnClick="RejectAsync">Từ chối</MudButton>
                     </MudStack>
                 </MudItem>
             </MudGrid>
@@ -320,6 +320,10 @@
         }
         catch { _comparisons = new(); }
     }
+
+    private Task ApproveAsync() => ReviewAsync("Approved");
+    private Task SaveEditedAsync() => ReviewAsync("Edited");
+    private Task RejectAsync() => ReviewAsync("Rejected");
 
     private async Task ReviewAsync(string decision)
     {
