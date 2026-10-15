@@ -75,3 +75,13 @@ public sealed record FeedbackVersionMetric(string? ParserVersion, string? ModelV
     int Accepted, int Rejected, int Corrected, int AnswerRatings);
 public sealed record FeedbackEvaluationSummary(int Total, int Accepted, int Rejected, int Corrected,
     int AnswerRatings, double AcceptanceRate, IReadOnlyList<FeedbackVersionMetric> ByVersion);
+
+public interface IExtractionSchemaRegistry
+{
+    Task<ExtractionSchema?> GetPublishedAsync(string tenantCode, string moduleCode, string schemaCode,
+        CancellationToken cancellationToken = default);
+    Task<int> CreateDraftVersionAsync(string tenantCode, string moduleCode, ExtractionSchema schema,
+        string actorId, CancellationToken cancellationToken = default);
+    Task PublishVersionAsync(string tenantCode, string moduleCode, string schemaCode, int version,
+        string actorId, CancellationToken cancellationToken = default);
+}
