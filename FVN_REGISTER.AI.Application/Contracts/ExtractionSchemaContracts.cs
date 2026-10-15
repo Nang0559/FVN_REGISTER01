@@ -1,6 +1,4 @@
-using System.Globalization;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace FVN_REGISTER.AI.Application.Contracts;
 
