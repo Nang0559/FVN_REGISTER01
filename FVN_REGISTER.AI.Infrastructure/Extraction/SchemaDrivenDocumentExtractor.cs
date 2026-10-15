@@ -71,10 +71,10 @@ public sealed class SchemaDrivenDocumentExtractor(IAIModelProvider modelProvider
             return null;
         var index = documentText.IndexOf(evidenceText, StringComparison.Ordinal);
         if (index < 0) return null;
-        var lineNumber = 1 + documentText.AsSpan(0, index).Count('\n');
+        var lineNumber = 1 + documentText[..index].Count(ch => ch == '\n');
         var pageNumber = 1;
         var pageMarker = System.Text.RegularExpressions.Regex.Matches(documentText[..index], @"\[PAGE (?<page>\d+)\]");
-        if (pageMarker.Count > 0 && int.TryParse(pageMarker[^1].Groups["page"].Value, out var parsedPage))
+        if (pageMarker.Count > 0 && int.TryParse(pageMarker[pageMarker.Count - 1].Groups["page"].Value, out var parsedPage))
             pageNumber = parsedPage;
         return $"page:{pageNumber};line:{lineNumber}";
     }
