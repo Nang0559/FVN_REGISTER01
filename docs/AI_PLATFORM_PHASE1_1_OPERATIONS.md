@@ -75,12 +75,12 @@ The current replay cache is process-local. For a multi-instance API deployment, 
 
 ## 3. Worker and queue operation
 
-The Worker periodically runs lease recovery and reports queue depth. The stored procedures are the atomic queue contract for the processing worker. Do not mark jobs completed merely because a file was uploaded or claimed.
+The Worker runs lease recovery, claims jobs, renews leases, invokes the document pipeline, and completes/fails jobs using the stored procedures. The pipeline verifies the lease, scans the original, extracts text/OCR, classifies the document and optionally runs schema-driven extraction/validation. Do not mark jobs completed merely because a file was uploaded or claimed.
 
 Before enabling job execution, implement and register:
 1. An antivirus adapter for the organization's approved engine (for example, a managed ICAP/ClamAV gateway or endpoint protection scanning service).
 2. A fail-closed policy: scanner unavailable, timeout, malformed response or unknown verdict must never release a file.
-3. A document-processing handler that opens the original using the storage key from the tenant-scoped document record, verifies its SHA-256 again, and processes only a clean result.
+3. The registered document pipeline, which opens the tenant-scoped original, runs the configured malware scanner, extracts text/OCR and persists candidates only after a clean verdict.
 4. Lease renewal for long-running scans/extractions; use worker identity for complete/fail calls.
 5. Dead-letter review/replay operations restricted to AI platform administrators.
 
@@ -103,12 +103,13 @@ The SQL failure procedure applies exponential backoff (15 seconds × 2^attempt, 
 Until these gates pass, deploy only to a controlled test environment. The Phase 1.1 SQL procedures and API signature check are implemented, but production readiness has not been established by a build, security test or deployment.
 
 
-## 6. Phase 2–5 groundwork now present on this branch
+## 6. Phase 2–5 implementation now present on this branch
 
-- Local text extraction supports UTF-8 TXT/CSV and basic XLSX OpenXML cell text. PDF/OCR remains an explicit provider integration; unsupported media types fail rather than returning fabricated text.
-- Extraction candidate, validation issue, human review, knowledge chunk, feedback and model deployment persistence schemas are defined in the subsequent AI SQL migrations.
-- Tenant-scoped extraction query, human review and feedback API contracts are available. Review writes an immutable before-payload and optional corrected payload; it does not write FVN_REGISTER business tables.
+- Local extraction supports TXT/CSV, XLSX, DOCX and text-layer PDF. PNG/JPEG and scanned PDF use the Tesseract + Poppler OCR adapter; binaries and language packs must be installed and verified on each processing host.
+- Schema registry, schema-driven extraction, deterministic validation, validation issue persistence, knowledge chunks, vector retrieval, feedback and review persistence are defined in AI SQL migrations 003–006.
+- AI API exposes schema draft/publish/read, knowledge publish/search/unpublish, RAG answer and feedback evaluation routes behind the signed backend request filter. FVN_REGISTER gateway authorization and ACL-scope derivation remain mandatory before production exposure.
 - The default malware scanner returns `Unknown`. It never reports a clean verdict when no approved scanning engine is configured.
+- The Ollama adapter supports chat, JSON-mode structured extraction/classification/RAG and a separate embedding model.
 - CI workflow validates the solution and AI test project on Windows/.NET 9 when GitHub Actions runs.
 
 These are persistence and integration foundations. They do not yet constitute a running OCR/LLM extraction pipeline, an ACL-filtered vector retrieval service, a Blazor review UI, or a production model registry. Those require approved provider and deployment choices.
