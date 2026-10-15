@@ -6,9 +6,12 @@ using Microsoft.Extensions.Options;
 namespace FVN_REGISTER.AI.Infrastructure.Services;
 public sealed class DocumentIngestionService(AiPlatformDbContext db,IOriginalDocumentStore store,IUploadContentValidator validator,IOptions<AIPlatformOptions> options):IDocumentIngestionService
 {
- public async Task<IngestionReceipt> IngestAsync(string tenant,string actor,string fileName,Stream content,CancellationToken ct=default)
+ public async Task<IngestionReceipt> IngestAsync(string tenant,string actor,string fileName,Stream content,CancellationToken ct=default,string? moduleCode=null,string? schemaCode=null)
  {
-  tenant=Required(tenant,64);actor=Required(actor,128);var valid=await validator.ValidateAsync(content,fileName,ct);
+  tenant=Required(tenant,64);actor=Required(actor,128);
+  if((moduleCode is null)!=(schemaCode is null))throw new ArgumentException("ModuleCode and SchemaCode must be supplied together.");
+  moduleCode=moduleCode is null?null:Required(moduleCode,64);schemaCode=schemaCode is null?null:Required(schemaCode,128);
+  var valid=await validator.ValidateAsync(content,fileName,ct);
   var max=(long)Math.Clamp(options.Value.MaximumFileSizeMb,1,250)*1024*1024;var id=Guid.NewGuid();
   var stored=await store.SaveAsync(id,new LimitStream(content,max),ct);
   try
@@ -20,7 +23,7 @@ public sealed class DocumentIngestionService(AiPlatformDbContext db,IOriginalDoc
     return new(duplicate.Id,old?.Id??Guid.Empty,duplicate.FileName,duplicate.Length,duplicate.Sha256,duplicate.Status,true);
    }
    var job=Guid.NewGuid();var now=DateTimeOffset.UtcNow;
-   db.Documents.Add(new AiDocumentRecord{Id=id,TenantCode=tenant,FileName=valid.FileName,Extension=valid.Extension,MediaType=valid.MediaType,Length=stored.Length,Sha256=stored.Sha256,StorageKey=stored.StorageKey,UploadedBy=actor,ReceivedAtUtc=now,Status="Quarantined"});
+   db.Documents.Add(new AiDocumentRecord{Id=id,TenantCode=tenant,FileName=valid.FileName,Extension=valid.Extension,MediaType=valid.MediaType,Length=stored.Length,Sha256=stored.Sha256,StorageKey=stored.StorageKey,UploadedBy=actor,ModuleCode=moduleCode,SchemaCode=schemaCode,ReceivedAtUtc=now,Status="Quarantined"});
    db.IngestionJobs.Add(new AiIngestionJobRecord{Id=job,DocumentId=id,Status="Queued",CreatedAtUtc=now});
    await db.SaveChangesAsync(ct);return new(id,job,valid.FileName,stored.Length,stored.Sha256,"Quarantined",false);
   }
