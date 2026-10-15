@@ -68,7 +68,7 @@ public sealed class EndpointGovernanceController : ControllerBase
     [HttpPost("policies/import/preview")]
     [SecurityFunctionDefinition("Endpoint.SoftwareCatalogManage", "Endpoint Governance - preview Software Catalog")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<ActionResult<ApiResponse<EndpointGovernanceExcelPreviewDto>>> PreviewExcel(IFormFile file, [FromQuery] EndpointGovernanceItemType itemType, [FromQuery] EndpointTargetType targetType, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EndpointGovernanceExcelPreviewDto>>> PreviewExcel(IFormFile file, [FromQuery] int schemaId, [FromQuery] EndpointGovernanceItemType itemType, [FromQuery] EndpointTargetType targetType, CancellationToken ct)
     {
         if (!await HasManageAsync(itemType, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("File Excel rỗng."));
@@ -76,16 +76,16 @@ public sealed class EndpointGovernanceController : ControllerBase
         try
         {
             await using var stream = file.OpenReadStream();
-            var preview = await _excelImport.PreviewAsync(stream, file.FileName, itemType, targetType, ct);
+            var preview = await _excelImport.PreviewAsync(stream, file.FileName, schemaId, itemType, targetType, ct);
             return Ok(ApiResponse<EndpointGovernanceExcelPreviewDto>.Ok(preview));
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException) { return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail(ex.Message)); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException or InvalidOperationException) { return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail(ex.Message)); }
     }
 
     [HttpPost("policies/import")]
     [SecurityFunctionDefinition("Endpoint.SoftwareCatalogManage", "Endpoint Governance - import Software Catalog")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> ImportExcel(IFormFile file, [FromForm] string policyCode, [FromForm] string policyName, [FromForm] EndpointGovernanceItemType itemType, [FromForm] EndpointTargetType targetType, [FromForm] string? remark, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> ImportExcel(IFormFile file, [FromForm] int schemaId, [FromForm] string policyCode, [FromForm] string policyName, [FromForm] EndpointGovernanceItemType itemType, [FromForm] EndpointTargetType targetType, [FromForm] string? remark, CancellationToken ct)
     {
         if (!await HasManageAsync(itemType, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail("File Excel rỗng."));
@@ -93,9 +93,9 @@ public sealed class EndpointGovernanceController : ControllerBase
         try
         {
             await using var stream = file.OpenReadStream();
-            var preview = await _excelImport.PreviewAsync(stream, file.FileName, itemType, targetType, ct);
+            var preview = await _excelImport.PreviewAsync(stream, file.FileName, schemaId, itemType, targetType, ct);
             if (preview.Errors.Count > 0) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail(string.Join(" | ", preview.Errors)));
-            var request = EndpointGovernanceExcelImportService.ToUpsert(preview, new EndpointGovernanceExcelImportRequest(policyCode, policyName, itemType, targetType, remark))
+            var request = EndpointGovernanceExcelImportService.ToUpsert(preview, new EndpointGovernanceExcelImportRequest(schemaId, policyCode, policyName, itemType, targetType, remark))
                 with { ChecklistCompleted = true, ChecklistNote = "Excel preview passed: rows, duplicates and required columns validated." };
             var result = await _service.CreateVersionAsync(request, ct);
             return result.Success ? Ok(ApiResponse<EndpointGovernancePolicyDto>.Ok(result.Data!)) : BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail(result.Message ?? "Không thể import catalog."));

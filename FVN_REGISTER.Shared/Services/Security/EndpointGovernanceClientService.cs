@@ -31,7 +31,7 @@ public sealed class EndpointGovernanceClientService : IEndpointGovernanceClientS
     public Task<ApiResponse<EndpointGovernancePolicyDto>> SubmitAsync(int policyId, CancellationToken ct = default) => PostAsync<EndpointGovernancePolicyDto>($"api/security/endpoint-governance/policies/{policyId}/submit", new { }, ct);
     public Task<ApiResponse<EndpointGovernancePolicyDto>> PublishAsync(int policyId, CancellationToken ct = default) => PostAsync<EndpointGovernancePolicyDto>($"api/security/endpoint-governance/policies/{policyId}/publish", new { }, ct);
 
-    public async Task<ApiResponse<EndpointGovernanceExcelPreviewDto>> PreviewExcelAsync(IBrowserFile file, EndpointGovernanceItemType itemType, EndpointTargetType targetType, CancellationToken ct = default)
+    public async Task<ApiResponse<EndpointGovernanceExcelPreviewDto>> PreviewExcelAsync(IBrowserFile file, int schemaId, EndpointGovernanceItemType itemType, EndpointTargetType targetType, CancellationToken ct = default)
     {
         try
         {
@@ -40,13 +40,13 @@ public sealed class EndpointGovernanceClientService : IEndpointGovernanceClientS
             using var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             content.Add(fileContent, "file", file.Name);
-            return await _http.PostMultipartAsync<EndpointGovernanceExcelPreviewDto>($"api/security/endpoint-governance/policies/import/preview?itemType={(int)itemType}&targetType={(int)targetType}", content, ct);
+            return await _http.PostMultipartAsync<EndpointGovernanceExcelPreviewDto>($"api/security/endpoint-governance/policies/import/preview?schemaId={schemaId}&itemType={(int)itemType}&targetType={(int)targetType}", content, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) { _logger.LogError(ex, "[ENDPOINT_CLIENT] Excel preview"); return ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("Không thể đọc file Excel Endpoint Governance."); }
     }
 
-    public async Task<ApiResponse<EndpointGovernancePolicyDto>> ImportExcelAsync(IBrowserFile file, string policyCode, string policyName, EndpointGovernanceItemType itemType, EndpointTargetType targetType, string? remark, CancellationToken ct = default)
+    public async Task<ApiResponse<EndpointGovernancePolicyDto>> ImportExcelAsync(IBrowserFile file, int schemaId, string policyCode, string policyName, EndpointGovernanceItemType itemType, EndpointTargetType targetType, string? remark, CancellationToken ct = default)
     {
         try
         {
@@ -55,6 +55,7 @@ public sealed class EndpointGovernanceClientService : IEndpointGovernanceClientS
             using var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             content.Add(fileContent, "file", file.Name);
+            content.Add(new StringContent(schemaId.ToString()), "schemaId");
             content.Add(new StringContent(policyCode ?? string.Empty), "policyCode");
             content.Add(new StringContent(policyName ?? string.Empty), "policyName");
             content.Add(new StringContent(((int)itemType).ToString()), "itemType");
