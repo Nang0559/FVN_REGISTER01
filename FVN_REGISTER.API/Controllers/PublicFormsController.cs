@@ -266,6 +266,7 @@ public sealed class PublicFormsController : BaseApiController
             return Forbid();
 
         var scope = await ResolveScopeAsync(SecurityFunctionCodes.PublicFormResultView, ct);
+        if (UserInfo is null) return Unauthorized();
 
         if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             query.DepartmentCode = UserInfo.DeptCode;
@@ -300,6 +301,7 @@ public sealed class PublicFormsController : BaseApiController
             return Forbid();
 
         var scope = await ResolveScopeAsync(SecurityFunctionCodes.PublicFormResultExport, ct);
+        if (UserInfo is null) return Unauthorized();
 
         if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             query.DepartmentCode = UserInfo.DeptCode;
