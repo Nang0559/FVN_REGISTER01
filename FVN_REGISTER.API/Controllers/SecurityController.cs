@@ -239,14 +239,25 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
-    private Task<bool> CanManageTwoFactorAsync(CancellationToken ct)
+    private async Task<bool> CanManageTwoFactorAsync(CancellationToken ct)
     {
         // 2FA administration is a SuperAdmin-only security operation.
         // The 2407 function remains part of the RBAC catalog for visibility/audit,
         // but a stale/missing RoleFunction row must not lock the SuperAdmin out.
-        return Task.FromResult(
-            UserInfo != null &&
-            UserInfo.Permission == UserPermissionCodes.SuperAdmin);
+        if (UserInfo == null || UserInfo.UserId <= 0)
+            return false;
+
+        // Fast path: the legacy primary role is SuperAdmin.
+        if (UserInfo.Permission == UserPermissionCodes.SuperAdmin)
+            return true;
+
+        // A user can hold SuperAdmin together with other roles while the legacy primary
+        // role (F03User.PermissionCode -> UserInfo.Permission) is something else, e.g. Approver.
+        // The permission snapshot (what the Security Center UI uses to show the 2FA tab) is
+        // computed from ALL active roles, so the API must evaluate SuperAdmin the same way,
+        // otherwise the page calls users/2fa and always gets 403 ("Ban khong co quyen...").
+        var snapshot = await _authorization.GetSnapshotAsync(UserInfo.UserId, ct);
+        return snapshot.RoleCodes.Contains(UserPermissionCodes.SuperAdmin);
     }
 
     private async Task<bool> CanManageAsync(int functionCode, CancellationToken ct)
