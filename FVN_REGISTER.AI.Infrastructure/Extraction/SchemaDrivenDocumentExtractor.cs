@@ -13,6 +13,7 @@ public sealed class SchemaDrivenDocumentExtractor(IAIModelProvider modelProvider
         string text, ExtractionSchema schema, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(schema);
+        ArgumentNullException.ThrowIfNull(schema.Fields);
         if (string.IsNullOrWhiteSpace(text) || text.Length > 100_000)
             throw new ArgumentException("Document text must contain 1 to 100000 characters.", nameof(text));
         if (schema.Fields.Count is < 1 or > 500)
@@ -64,6 +65,7 @@ public sealed class SchemaDrivenDocumentExtractor(IAIModelProvider modelProvider
             candidates.Add(new ExtractedCandidate(path, value.Clone(), confidence, source, evidenceText));
         }
         return candidates;
+    }
 
     private static string? FindSourceReference(string documentText, string? evidenceText)
     {
@@ -77,6 +79,5 @@ public sealed class SchemaDrivenDocumentExtractor(IAIModelProvider modelProvider
         if (pageMarker.Count > 0 && int.TryParse(pageMarker[pageMarker.Count - 1].Groups["page"].Value, out var parsedPage))
             pageNumber = parsedPage;
         return $"page:{pageNumber};line:{lineNumber}";
-    }
     }
 }
