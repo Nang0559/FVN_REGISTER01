@@ -16,14 +16,17 @@ export default defineConfig({
   use: {
     baseURL,
     ignoreHTTPSErrors: true,
-    trace: 'retain-on-failure',
+    // Long crawls produce huge traces/videos; keep them off on CI (set PLAYWRIGHT_TRACE=on to debug).
+    trace: process.env.PLAYWRIGHT_TRACE === 'on' ? 'retain-on-failure' : 'off',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'off',
+    actionTimeout: 15_000,
+    navigationTimeout: 45_000,
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1920, height: 1080 } },
     },
   ],
 });
