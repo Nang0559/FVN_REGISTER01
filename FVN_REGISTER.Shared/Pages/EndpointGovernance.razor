@@ -86,13 +86,33 @@
             <MudText Typo="Typo.caption" Color="Color.Secondary">Schema thuộc module ENDPOINT và đúng loại Catalog; ánh xạ TargetProperty: Name (bắt buộc), Publisher, VersionConstraint, IsAllowed, Remark.</MudText>
             <MudStack Row="true" Spacing="2">
                 <MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue" OnClick="PreviewExcelAsync">@Language.T("endpoint.previewExcel")</MudButton>
-                <MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue || !ChecklistCompleted" OnClick="ImportExcelAsync">@Language.T("endpoint.importExcelDraft")</MudButton>
+                <MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue || !ChecklistCompleted || (_preview is not null && _preview.Errors.Count > 0)" OnClick="ImportExcelAsync">@Language.T("endpoint.importExcelDraft")</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!CanManage || _items.Count==0 || !ChecklistCompleted" OnClick="SaveDraftAsync">@Language.T("endpoint.luuDraftVersion")</MudButton>
             </MudStack>
         </MudStack>
     </MudStack>
 </MudPaper>
-@if(_preview is not null){<MudAlert Severity="@(_preview.Errors.Count==0?Severity.Success:Severity.Warning)">@Language.T("endpoint.previewDongLoi", _preview.FileName, _preview.RowCount, _preview.Errors.Count)</MudAlert>}
+@if(_preview is not null)
+{
+    <MudAlert Severity="@(_preview.Errors.Count==0?Severity.Success:Severity.Warning)">
+        @Language.T("endpoint.previewDongLoi", _preview.FileName, _preview.RowCount, _preview.Errors.Count)
+    </MudAlert>
+    @if(_preview.Errors.Count > 0)
+    {
+        <MudPaper Outlined="true" Class="pa-3 mt-2">
+            <MudText Typo="Typo.subtitle2" Color="Color.Error">Chi tiết lỗi Preview (@_preview.Errors.Count)</MudText>
+            <MudList T="string" Dense="true">
+                @foreach(var error in _preview.Errors)
+                {
+                    <MudListItem T="string">
+                        <MudText Color="Color.Error">@error</MudText>
+                    </MudListItem>
+                }
+            </MudList>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Sửa các lỗi trong file Excel rồi chọn Preview Excel lại. Không thể Import Draft khi Preview còn lỗi.</MudText>
+        </MudPaper>
+    }
+}
 <MudPaper Class="pa-4"><MudText Typo="Typo.h6">@Language.T("endpoint.catalogVersions")</MudText><MudTable Items="_policies" Dense="true" Hover="true" Striped="true" Class="mt-2"><HeaderContent><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("endpoint.name")</MudTh><MudTh>@Language.T("endpoint.type")</MudTh><MudTh>@Language.T("endpoint.target")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("common.checklist")</MudTh><MudTh>@Language.T("endpoint.workflow")</MudTh><MudTh>@Language.T("common.publish")</MudTh><MudTh>@Language.T("common.action2")</MudTh></HeaderContent><RowTemplate><MudTd>@context.PolicyCode</MudTd><MudTd>@context.PolicyName</MudTd><MudTd>@context.ItemType</MudTd><MudTd>@context.TargetType</MudTd><MudTd>v@context.Version</MudTd><MudTd>@(context.ChecklistCompleted?"OK":Language.T("endpoint.thieu"))</MudTd><MudTd>@context.WorkflowStatus</MudTd><MudTd>@(context.IsPublished?"Published":"Draft")</MudTd><MudTd>@if(!context.IsPublished&&CanSubmit(context.ItemType)&&(context.WorkflowStatus=="Draft"||context.WorkflowStatus=="Rejected")){<MudButton Size="Size.Small" Disabled="!context.ChecklistCompleted" OnClick="@(()=>SubmitAsync(context))">Submit</MudButton>}@if(!context.IsPublished&&CanPublish(context.ItemType)&&context.WorkflowStatus=="Approved"){<MudButton Size="Size.Small" Color="Color.Success" Disabled="!context.ChecklistCompleted" OnClick="@(()=>PublishAsync(context))">Publish</MudButton>}</MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-3">@Language.T("endpoint.chuaCoCatalog")</MudText></NoRecordsContent></MudTable></MudPaper>
 </MudStack></MudTabPanel>
 <MudTabPanel Text="@Language.T("endpoint.requests")" Icon="@Icons.Material.Filled.Assignment">@if(CanReview){<MudPaper Class="ma-3 pa-3"><MudTextField Label="@Language.T("endpoint.securityReviewComment")" @bind-Value="_reviewComment" Lines="2"/></MudPaper>}<MudTable Items="_requests" Dense="true" Hover="true" Striped="true" Class="pa-3"><HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("endpoint.endpoint")</MudTh><MudTh>@Language.T("endpoint.item")</MudTh><MudTh>@Language.T("endpoint.workflow")</MudTh><MudTh>@Language.T("endpoint.security")</MudTh><MudTh>@Language.T("endpoint.tao")</MudTh><MudTh/></HeaderContent><RowTemplate><MudTd>@context.Id</MudTd><MudTd>@context.RequestType</MudTd><MudTd>@context.EndpointDeviceId</MudTd><MudTd>@context.ItemName</MudTd><MudTd>@context.WorkflowStatus</MudTd><MudTd>@context.SecurityReviewStatus</MudTd><MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd><MudTd>@if(CanReview&&context.SecurityReviewStatus=="Pending"){<MudButtonGroup Size="Size.Small"><MudButton Color="Color.Success" OnClick="@(()=>ReviewAsync(context,true))">Approve</MudButton><MudButton Color="Color.Error" OnClick="@(()=>ReviewAsync(context,false))">Reject</MudButton></MudButtonGroup>}</MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-4">@Language.T("endpoint.khongCoRequestPhuHop")</MudText></NoRecordsContent></MudTable></MudTabPanel>
