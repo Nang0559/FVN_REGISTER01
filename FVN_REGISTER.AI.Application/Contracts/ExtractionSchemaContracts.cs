@@ -31,7 +31,8 @@ public sealed record ExtractedCandidate(
     string Path,
     JsonElement Value,
     double Confidence,
-    string? SourceReference = null);
+    string? SourceReference = null,
+    string? EvidenceText = null);
 
 public sealed record ExtractionValidationRequest(
     ExtractionSchema Schema,
