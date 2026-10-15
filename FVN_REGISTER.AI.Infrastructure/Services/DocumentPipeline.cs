@@ -135,6 +135,8 @@ public sealed class DocumentPipeline(
             ["dateCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"\b(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4})\b").Select(m => m.Value).Distinct().Take(100).ToArray(),
             ["timeCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"\b(?:[01]?\d|2[0-3]):[0-5]\d\b").Select(m => m.Value).Distinct().Take(100).ToArray(),
             ["numericCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"(?<!\w)-?\d+(?:[.,]\d+)?").Select(m => m.Value).Distinct().Take(200).ToArray(),
+            ["hourCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"(?i)\b(?<value>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:giờ|hours?|h)\b").Select(m => m.Groups["value"].Value).Distinct().Take(100).ToArray(),
+            ["dayCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"(?i)\b(?<value>\d{1,3}(?:[.,]\d{1,2})?)\s*(?:ngày|days?)\b").Select(m => m.Groups["value"].Value).Distinct().Take(100).ToArray(),
             ["emailCandidates"] = System.Text.RegularExpressions.Regex.Matches(text, @"(?i)\b[^\s@]+@[^\s@]+\.[^\s@]+\b").Select(m => m.Value).Distinct().Take(100).ToArray()
         };
         return new
