@@ -9,6 +9,8 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
  public DbSet<AiReviewRecord> Reviews=>Set<AiReviewRecord>();
  public DbSet<AiFeedbackRecord> Feedback=>Set<AiFeedbackRecord>();
  public DbSet<AiKnowledgeChunkRecord> KnowledgeChunks=>Set<AiKnowledgeChunkRecord>();
+ public DbSet<AiExtractionSchemaRecord> ExtractionSchemas=>Set<AiExtractionSchemaRecord>();
+ public DbSet<AiExtractionSchemaVersionRecord> ExtractionSchemaVersions=>Set<AiExtractionSchemaVersionRecord>();
  public DbSet<AiHRCaseRecord> HRCases=>Set<AiHRCaseRecord>();
  public DbSet<AiHRCaseReviewRecord> HRCaseReviews=>Set<AiHRCaseReviewRecord>();
  protected override void OnModelCreating(ModelBuilder b)
@@ -59,6 +61,14 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   k.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.ChunkOrdinal}).IsUnique();
   k.HasOne<AiDocumentRecord>().WithMany().HasForeignKey(x=>x.DocumentId).OnDelete(DeleteBehavior.Restrict);
   k.HasOne<AiReviewRecord>().WithMany().HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Restrict);
+  var s=b.Entity<AiExtractionSchemaRecord>(); s.ToTable("AiExtractionSchemas","ai"); s.HasKey(x=>x.Id);
+  s.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); s.Property(x=>x.ModuleCode).HasMaxLength(64).IsRequired();
+  s.Property(x=>x.SchemaCode).HasMaxLength(128).IsRequired(); s.Property(x=>x.DisplayName).HasMaxLength(256).IsRequired();
+  s.Property(x=>x.CreatedBy).HasMaxLength(128).IsRequired(); s.HasIndex(x=>new{x.TenantCode,x.ModuleCode,x.SchemaCode}).IsUnique();
+  var sv=b.Entity<AiExtractionSchemaVersionRecord>(); sv.ToTable("AiExtractionSchemaVersions","ai"); sv.HasKey(x=>x.Id);
+  sv.Property(x=>x.Status).HasMaxLength(16).IsRequired(); sv.Property(x=>x.CreatedBy).HasMaxLength(128).IsRequired();
+  sv.Property(x=>x.DefinitionJson).IsRequired(); sv.HasIndex(x=>new{x.SchemaId,x.Version}).IsUnique();
+  sv.HasOne<AiExtractionSchemaRecord>().WithMany().HasForeignKey(x=>x.SchemaId).OnDelete(DeleteBehavior.Restrict);
  }
 }
 public sealed class AiDocumentRecord
@@ -106,4 +116,18 @@ public sealed class AiKnowledgeChunkRecord
  public string ContentHash{get;set;}=""; public string AccessScopeJson{get;set;}="[]";
  public string? EmbeddingModel{get;set;} public string? EmbeddingJson{get;set;}
  public bool IsActive{get;set;}=true; public DateTimeOffset CreatedAtUtc{get;set;}
+}
+
+public sealed class AiExtractionSchemaRecord
+{
+ public Guid Id{get;set;} public string TenantCode{get;set;}=""; public string ModuleCode{get;set;}="";
+ public string SchemaCode{get;set;}=""; public string DisplayName{get;set;}="";
+ public int CurrentVersion{get;set;}=1; public bool IsActive{get;set;}=true;
+ public string CreatedBy{get;set;}=""; public DateTimeOffset CreatedAtUtc{get;set;} public DateTimeOffset UpdatedAtUtc{get;set;}
+}
+public sealed class AiExtractionSchemaVersionRecord
+{
+ public Guid Id{get;set;} public Guid SchemaId{get;set;} public int Version{get;set;}
+ public string DefinitionJson{get;set;}="{}"; public string Status{get;set;}="Draft";
+ public string CreatedBy{get;set;}=""; public DateTimeOffset CreatedAtUtc{get;set;} public DateTimeOffset? PublishedAtUtc{get;set;}
 }
