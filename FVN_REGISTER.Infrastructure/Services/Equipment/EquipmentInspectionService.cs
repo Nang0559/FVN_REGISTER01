@@ -228,28 +228,55 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (index, data) in rows)
         {
-            var code = V(data, "ItemCode").ToUpperInvariant();
-            var label = V(data, "ItemLabel");
-            var input = V(data, "InputType");
-            if (string.IsNullOrWhiteSpace(code)) { /* already reported as REQUIRED by the platform */ }
+            var code = V(data, "ItemCode").Trim().ToUpperInvariant();
+            var label = V(data, "ItemLabel").Trim();
+            var input = V(data, "InputType").Trim();
+            if (string.IsNullOrWhiteSpace(code)) errors.Add($"Dòng {index}: bắt buộc có ItemCode.");
             else if (!seen.Add(code)) errors.Add($"Dòng {index}: ItemCode '{code}' bị trùng.");
-            if (!new[] { "PassFail", "YesNo", "Number", "Text", "Select" }.Contains(input, StringComparer.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(input))
-                errors.Add($"Dòng {index}: InputType '{input}' không hợp lệ.");
-            if (!int.TryParse(V(data, "DisplayOrder"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var order) && !string.IsNullOrWhiteSpace(V(data, "DisplayOrder")))
-                errors.Add($"Dòng {index}: DisplayOrder phải là số.");
-            var required = ParseInspectionBool(V(data, "IsRequired"));
-            var image = ParseInspectionBool(V(data, "RequireImage"));
-            var minImages = int.TryParse(V(data, "MinImages"), out var mi) ? mi : 0;
-            var maxImages = int.TryParse(V(data, "MaxImages"), out var ma) ? ma : 3;
-            decimal? min = decimal.TryParse(V(data, "MinValue"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var mn) ? mn : null;
-            decimal? max = decimal.TryParse(V(data, "MaxValue"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var mx) ? mx : null;
+            if (string.IsNullOrWhiteSpace(label)) errors.Add($"Dòng {index}: bắt buộc có ItemLabel.");
+            var validInputTypes = new[] { "PassFail", "YesNo", "Number", "Text", "Select" };
+            if (!validInputTypes.Contains(input, StringComparer.OrdinalIgnoreCase))
+                errors.Add($"Dòng {index}: InputType '{input}' không hợp lệ. Giá trị hợp lệ: {string.Join(", ", validInputTypes)}.");
+            if (!int.TryParse(V(data, "DisplayOrder"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var order) || order < 1)
+                errors.Add($"Dòng {index}: DisplayOrder bắt buộc là số nguyên lớn hơn 0.");
+            var requiredText = V(data, "IsRequired");
+            var imageText = V(data, "RequireImage");
+            var required = ParseInspectionBool(requiredText);
+            var image = ParseInspectionBool(imageText);
+            if (!string.IsNullOrWhiteSpace(requiredText) && !IsInspectionBool(requiredText))
+                errors.Add($"Dòng {index}: IsRequired phải là true/false, yes/no, 1/0 hoặc có/không.");
+            if (!string.IsNullOrWhiteSpace(imageText) && !IsInspectionBool(imageText))
+                errors.Add($"Dòng {index}: RequireImage phải là true/false, yes/no, 1/0 hoặc có/không.");
+            var minImagesText = V(data, "MinImages");
+            var maxImagesText = V(data, "MaxImages");
+            var minImages = int.TryParse(minImagesText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var mi) ? mi : 0;
+            var maxImages = int.TryParse(maxImagesText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ma) ? ma : 3;
+            if (!string.IsNullOrWhiteSpace(minImagesText) && (!int.TryParse(minImagesText, out _) || minImages < 0))
+                errors.Add($"Dòng {index}: MinImages phải là số nguyên không âm.");
+            if (!string.IsNullOrWhiteSpace(maxImagesText) && (!int.TryParse(maxImagesText, out _) || maxImages < 1))
+                errors.Add($"Dòng {index}: MaxImages phải là số nguyên lớn hơn 0.");
+            decimal? min = null, max = null;
+            var minText = V(data, "MinValue"); var maxText = V(data, "MaxValue");
+            if (!string.IsNullOrWhiteSpace(minText))
+            {
+                if (decimal.TryParse(minText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var mn)) min = mn;
+                else errors.Add($"Dòng {index}: MinValue phải là số.");
+            }
+            if (!string.IsNullOrWhiteSpace(maxText))
+            {
+                if (decimal.TryParse(maxText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var mx)) max = mx;
+                else errors.Add($"Dòng {index}: MaxValue phải là số.");
+            }
             if (image && minImages < 1) errors.Add($"Dòng {index}: RequireImage=true phải có MinImages >= 1.");
+            if (minImages > maxImages) errors.Add($"Dòng {index}: MinImages không được lớn hơn MaxImages.");
             if (input.Equals("Number", StringComparison.OrdinalIgnoreCase) && min.HasValue && max.HasValue && min > max)
                 errors.Add($"Dòng {index}: MinValue không được lớn hơn MaxValue.");
+            if (input.Equals("Select", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(V(data, "OptionsJson")))
+                errors.Add($"Dòng {index}: InputType=Select bắt buộc có OptionsJson.");
             items.Add(new EquipmentInspectionItemDto
             {
                 ItemCode = code, ItemLabel = label, InputType = input, IsRequired = required, RequireImage = image,
-                MinImages = Math.Max(0, minImages), MaxImages = Math.Max(Math.Max(1, maxImages), minImages),
+                MinImages = Math.Max(0, minImages), MaxImages = Math.Max(1, maxImages),
                 MinValue = min, MaxValue = max, Unit = V(data, "Unit"), OptionsJson = V(data, "OptionsJson"), DisplayOrder = order
             });
         }
@@ -301,6 +328,8 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
 
     private static string NormalizeInspectionExcelKey(string value)
         => new string((value ?? "").Trim().Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).Select(char.ToLowerInvariant).Where(char.IsLetterOrDigit).ToArray());
+
+    private static bool IsInspectionBool(string? value) => value?.Trim().ToLowerInvariant() is "true" or "false" or "yes" or "no" or "1" or "0" or "y" or "n" or "co" or "khong" or "có" or "không";
 
     private static bool ParseInspectionBool(string value)
         => value.Trim().ToLowerInvariant() is "true" or "1" or "yes" or "y" or "co" or "có" or "x";
