@@ -30,7 +30,7 @@ public sealed class DocumentIngestionService(AiPlatformDbContext db,IOriginalDoc
   catch(DbUpdateException)
   {
    await store.DeleteAsync(stored.StorageKey,CancellationToken.None);
-   var old=await db.Documents.AsNoTracking().FirstOrDefaultAsync(x=>x.TenantCode==tenant&&x.Sha256==stored.Sha256,ct);
+   var old=await db.Documents.AsNoTracking().FirstOrDefaultAsync(x=>x.TenantCode==tenant&&x.Sha256==stored.Sha256&&x.ModuleCode==moduleCode&&x.SchemaCode==schemaCode,ct);
    if(old is null)throw;
    var job=await db.IngestionJobs.AsNoTracking().FirstOrDefaultAsync(x=>x.DocumentId==old.Id,ct);
    return new(old.Id,job?.Id??Guid.Empty,old.FileName,old.Length,old.Sha256,old.Status,true);
