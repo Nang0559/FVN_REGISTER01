@@ -5,7 +5,12 @@ public interface IDocumentTextExtractor { Task<string> ExtractTextAsync(Stream c
 public interface IDocumentClassifier { Task<(string DocumentType,double Confidence)> ClassifyAsync(string text,CancellationToken cancellationToken=default); }
 public interface IDocumentStructuredExtractor { Task<DocumentExtractionResult> ExtractAsync(string text,string documentType,CancellationToken cancellationToken=default); }
 public interface IEmbeddingGenerator { Task<EmbeddingVector> GenerateAsync(string text,CancellationToken cancellationToken=default); }
-public interface IVectorKnowledgeStore { Task UpsertAsync(IReadOnlyCollection<KnowledgeChunk> chunks,IReadOnlyCollection<EmbeddingVector> vectors,CancellationToken cancellationToken=default); Task<IReadOnlyList<KnowledgeChunk>> SearchAsync(string query,int limit,IReadOnlyDictionary<string,string>? filters=null,CancellationToken cancellationToken=default); }
+public interface IVectorKnowledgeStore
+{
+ Task UpsertAsync(string tenantCode,IReadOnlyCollection<KnowledgeChunk> chunks,IReadOnlyCollection<EmbeddingVector> vectors,CancellationToken cancellationToken=default);
+ Task<IReadOnlyList<KnowledgeSearchCandidate>> SearchAsync(string tenantCode,EmbeddingVector queryVector,int limit,IReadOnlyCollection<string> allowedScopes,CancellationToken cancellationToken=default);
+}
+public sealed record KnowledgeSearchCandidate(KnowledgeChunk Chunk,double Score);
 public interface IOriginalDocumentStore { Task<StoredDocument> SaveAsync(Guid documentId,Stream content,CancellationToken cancellationToken=default); Task<Stream> OpenReadAsync(string storageKey,CancellationToken cancellationToken=default); Task DeleteAsync(string storageKey,CancellationToken cancellationToken=default); }
 public sealed record StoredDocument(string StorageKey,long Length,string Sha256);
 public interface IUploadContentValidator { Task<ValidatedUpload> ValidateAsync(Stream content,string fileName,CancellationToken cancellationToken=default); }
