@@ -53,8 +53,8 @@ public sealed class DocumentPipeline(
             Id = Guid.NewGuid(), DocumentId = document.Id, TenantCode = document.TenantCode,
             DocumentType = documentType, ClassificationConfidence = (decimal)confidence,
             CandidateJson = JsonSerializer.Serialize(candidate, JsonOptions),
-            ParserVersion = ParserVersion, ModelProvider = "DeterministicLocal",
-            ModelVersion = ParserVersion, PromptVersion = null, CreatedAtUtc = DateTimeOffset.UtcNow
+            ParserVersion = ParserVersion, ModelProvider = classifier.GetType().Name,
+            ModelVersion = "provider-routed", PromptVersion = "document-classification-v1", CreatedAtUtc = DateTimeOffset.UtcNow
         };
         db.Extractions.Add(extraction);
         document.Status = "AwaitingHumanReview";
