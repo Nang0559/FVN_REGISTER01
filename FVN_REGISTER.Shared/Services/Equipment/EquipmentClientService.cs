@@ -66,7 +66,7 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
     public Task<ApiResponse<List<EquipmentInspectionTemplateDto>>> GetInspectionTemplatesAsync(int? deptCode = null, CancellationToken ct = default) => Get<List<EquipmentInspectionTemplateDto>>(deptCode == null ? "api/equipment-inspections/templates" : $"api/equipment-inspections/templates?deptCode={deptCode}", "inspection templates", ct);
     public Task<ApiResponse<EquipmentInspectionTemplateDto>> GetInspectionTemplateAsync(int id, CancellationToken ct = default) => Get<EquipmentInspectionTemplateDto>($"api/equipment-inspections/templates/{id}", "inspection template", ct);
 
-    public async Task<ApiResponse<EquipmentInspectionTemplateImportResultDto>> ImportInspectionTemplateExcelAsync(IBrowserFile file, CancellationToken ct = default)
+    public async Task<ApiResponse<EquipmentInspectionTemplateImportResultDto>> ImportInspectionTemplateExcelAsync(IBrowserFile file, int? deptCode = null, int? sheetIndex = null, CancellationToken ct = default)
     {
         try
         {
@@ -75,6 +75,8 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
             using var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             form.Add(fileContent, "file", file.Name);
+            if (deptCode.HasValue) form.Add(new StringContent(deptCode.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)), "deptCode");
+            if (sheetIndex.HasValue) form.Add(new StringContent(sheetIndex.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)), "sheetIndex");
             return await _http.PostMultipartAsync<EquipmentInspectionTemplateImportResultDto>("api/equipment-inspections/templates/import", form, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
