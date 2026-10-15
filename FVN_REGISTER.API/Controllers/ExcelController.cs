@@ -69,6 +69,14 @@ public sealed class ExcelController : ControllerBase
     public async Task<ActionResult<ExcelSchemaSummary>> Activate(int id,CancellationToken ct)
     { try{return Ok(await _excel.ActivateSchemaAsync(id,ct));}catch(InvalidOperationException ex){return BadRequest(ex.Message);} }
 
+    [HttpPost("schemas/{id:int}/version")]
+    public async Task<ActionResult<ExcelSchemaSummary>> CreateVersion(int id, CancellationToken ct)
+    { try { return Ok(await _excel.CreateSchemaVersionAsync(id, ct)); } catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); } }
+
+    [HttpPost("schemas/{id:int}/retire")]
+    public async Task<ActionResult<ExcelSchemaSummary>> Retire(int id, CancellationToken ct)
+    { try { await _excel.RetireSchemaAsync(id, ct); return Ok(await _excel.GetSchemaAsync(id, ct)); } catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); } }
+
     [HttpDelete("schemas/{id:int}")]
     public async Task<IActionResult> DeleteDraft(int id,CancellationToken ct)
     { try{await _excel.DeleteDraftSchemaAsync(id,ct);return NoContent();}catch(InvalidOperationException ex){return Conflict(ex.Message);} }
