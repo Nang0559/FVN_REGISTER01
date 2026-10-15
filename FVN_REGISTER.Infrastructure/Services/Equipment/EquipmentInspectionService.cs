@@ -210,13 +210,13 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             var deptExists = await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == selectedDeptCode && e.IsActive != false, ct);
             if (!deptExists)
                 return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Bộ phận '{selectedDeptCode}' không tồn tại hoặc không có nhân viên hoạt động.");
-            var templateName = ExtractPresentationTemplateName(grid) ?? Path.GetFileNameWithoutExtension(fileName);
-            var templateCode = NormalizeInspectionExcelKey(templateName).ToUpperInvariant();
-            if (templateCode.Length > 50) templateCode = templateCode[..50];
+            var layoutTemplateName = ExtractPresentationTemplateName(grid) ?? Path.GetFileNameWithoutExtension(fileName);
+            var layoutTemplateCode = NormalizeInspectionExcelKey(layoutTemplateName).ToUpperInvariant();
+            if (layoutTemplateCode.Length > 50) layoutTemplateCode = layoutTemplateCode[..50];
             var savedLayout = await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest
             {
-                TemplateCode = string.IsNullOrWhiteSpace(templateCode) ? $"EQI-{Guid.NewGuid():N}"[..12] : templateCode,
-                TemplateName = templateName.Length > 200 ? templateName[..200] : templateName,
+                TemplateCode = string.IsNullOrWhiteSpace(layoutTemplateCode) ? $"EQI-{Guid.NewGuid():N}"[..12] : layoutTemplateCode,
+                TemplateName = layoutTemplateName.Length > 200 ? layoutTemplateName[..200] : layoutTemplateName,
                 DeptCode = selectedDeptCode.Value,
                 Frequency = "Weekly",
                 Status = "Draft",
