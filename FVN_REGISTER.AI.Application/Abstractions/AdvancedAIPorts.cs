@@ -26,7 +26,7 @@ public interface IKnowledgeSearchService
     Task<IReadOnlyList<KnowledgeSearchHit>> SearchAsync(string tenantCode, string actorId,
         IReadOnlyCollection<string> allowedScopes, string query, int limit, CancellationToken cancellationToken = default);
 }
-public sealed record KnowledgeSearchHit(string DocumentId, string FileName, int? PageNumber,
+public sealed record KnowledgeSearchHit(string ChunkId, string DocumentId, string FileName, int? PageNumber,
     string Text, double Score, string Citation);
 
 public interface IFeedbackService
