@@ -1,3 +1,4 @@
+using FVN_REGISTER.AI.Application.Abstractions;
 using System.IO.Compression;
 using System.Text;
 using FVN_REGISTER.AI.Infrastructure.Extraction;
@@ -13,7 +14,7 @@ public sealed class LocalDocumentTextExtractorTests
         var bytes = Encoding.UTF8.GetBytes("FCC Việt Nam\nAI platform");
         await using var stream = new MemoryStream(bytes);
         stream.Position = 2;
-        var result = await new LocalDocumentTextExtractor().ExtractTextAsync(stream, "text/plain");
+        var result = await new LocalDocumentTextExtractor(new TestOcrTextExtractor()).ExtractTextAsync(stream, "text/plain");
         Assert.Contains("FCC Việt Nam", result);
         Assert.Equal(2, stream.Position);
     }
@@ -46,6 +47,29 @@ public sealed class LocalDocumentTextExtractorTests
         Assert.Contains("EmployeeCode", result);
         Assert.Contains("E0001", result);
     }
+    [Fact]
+    public async Task ExtractTextAsync_ReadsDocxParagraphs()
+    {
+        await using var stream = new MemoryStream();
+        using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, true))
+        {
+            var document = zip.CreateEntry("word/document.xml");
+            await using var writer = new StreamWriter(document.Open());
+            await writer.WriteAsync("<document><body><p><r><t>Equipment request</t></r></p><p><r><t>Quantity 5</t></r></p></body></document>");
+        }
+        stream.Position = 0;
+        var result = await new LocalDocumentTextExtractor(new TestOcrTextExtractor()).ExtractTextAsync(stream,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        Assert.Contains("Equipment request", result);
+        Assert.Contains("Quantity 5", result);
+    }
+
+    private sealed class TestOcrTextExtractor : IOcrTextExtractor
+    {
+        public Task<string> ExtractTextAsync(Stream content, string mediaType, CancellationToken cancellationToken = default) =>
+            Task.FromResult("OCR test text");
+    }
+
 }
 
 public sealed class UnconfiguredMalwareScannerTests
