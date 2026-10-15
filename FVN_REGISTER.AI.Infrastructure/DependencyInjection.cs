@@ -63,6 +63,7 @@ public static class DependencyInjection
   services.AddScoped<IKnowledgeSearchService,KnowledgeSearchService>();
   services.AddScoped<IKnowledgeIndexingService,KnowledgeIndexingService>();
   services.AddScoped<IFeedbackService,FeedbackService>();
+  services.AddScoped<IFeedbackEvaluationService,FeedbackEvaluationService>();
   services.AddScoped<IIngestionQueue,SqlIngestionQueue>();
   services.AddScoped<ILeasedIngestionQueue,SqlIngestionQueue>();
   services.AddScoped<IDocumentPipeline,DocumentPipeline>();
