@@ -46,6 +46,11 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db) : IVectorKno
                     scopeDoc.RootElement.EnumerateArray().Any(x => x.ValueKind != JsonValueKind.String))
                     throw new ArgumentException("accessScopes must be a JSON array of strings.");
             }
+            var trustedReview = await db.Reviews.AsNoTracking().AnyAsync(x =>
+                x.Id == reviewId && x.TenantCode == tenantCode && x.DocumentId == documentId &&
+                (x.Decision == "Approved" || x.Decision == "Corrected"), cancellationToken);
+            if (!trustedReview)
+                throw new UnauthorizedAccessException("Only a human-approved extraction for this tenant and document can enter the knowledge base.");
             var ordinal = int.TryParse(Get(chunk.Metadata, "chunkOrdinal"), out var parsedOrdinal) ? parsedOrdinal : i;
             var existing = await db.KnowledgeChunks.SingleOrDefaultAsync(x =>
                 x.TenantCode == tenantCode && x.DocumentId == documentId && x.ChunkOrdinal == ordinal,
