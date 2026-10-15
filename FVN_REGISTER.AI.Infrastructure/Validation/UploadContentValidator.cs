@@ -4,13 +4,13 @@ using FVN_REGISTER.AI.Application.Abstractions;
 namespace FVN_REGISTER.AI.Infrastructure.Validation;
 public sealed class UploadContentValidator:IUploadContentValidator
 {
- private static readonly HashSet<string> Allowed=new(StringComparer.OrdinalIgnoreCase){".pdf",".xlsx",".docx",".csv",".txt"};
+ private static readonly HashSet<string> Allowed=new(StringComparer.OrdinalIgnoreCase){".pdf",".xlsx",".docx",".png",".jpg",".jpeg",".csv",".txt"};
  private static readonly UTF8Encoding Utf8=new(false,true);
  public async Task<ValidatedUpload> ValidateAsync(Stream stream,string fileName,CancellationToken ct=default)
  {
   if(string.IsNullOrWhiteSpace(fileName))throw new InvalidDataException("File name required.");
   var safe=Path.GetFileName(fileName.Replace('\\','/')).Trim();var ext=Path.GetExtension(safe);
-  if(!Allowed.Contains(ext))throw new InvalidDataException("Only PDF, XLSX, DOCX, CSV and TXT files are accepted.");
+  if(!Allowed.Contains(ext))throw new InvalidDataException("PDF, XLSX, DOCX, PNG, JPEG, CSV and TXT files are accepted.");
   if(!stream.CanSeek)throw new InvalidOperationException("Upload stream must support seeking.");
   var start=stream.Position;
   try
@@ -63,6 +63,14 @@ public sealed class UploadContentValidator:IUploadContentValidator
     catch(Exception ex) when(ex is IOException or ArgumentException or OverflowException)
     {throw new InvalidDataException("DOCX archive is corrupt or exceeds safe limits.",ex);}
     return new(safe,"application/vnd.openxmlformats-officedocument.wordprocessingml.document",".docx");
+   }
+   if(ext.Equals(".png",StringComparison.OrdinalIgnoreCase) || ext.Equals(".jpg",StringComparison.OrdinalIgnoreCase) || ext.Equals(".jpeg",StringComparison.OrdinalIgnoreCase))
+   {
+    var isPng=count>=8&&header.AsSpan(0,8).SequenceEqual(new byte[]{0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A});
+    var isJpeg=count>=3&&header[0]==0xFF&&header[1]==0xD8&&header[2]==0xFF;
+    if(ext.Equals(".png",StringComparison.OrdinalIgnoreCase)&&!isPng)throw new InvalidDataException("File signature is not PNG.");
+    if((ext.Equals(".jpg",StringComparison.OrdinalIgnoreCase)||ext.Equals(".jpeg",StringComparison.OrdinalIgnoreCase))&&!isJpeg)throw new InvalidDataException("File signature is not JPEG.");
+    return new(safe,isPng?"image/png":"image/jpeg",ext.ToLowerInvariant());
    }
    var sample=new byte[(int)Math.Min(4096,stream.Length-start)];var n=await stream.ReadAsync(sample.AsMemory(),ct);stream.Position=start;
    if(n==0||sample.AsSpan(0,n).Contains((byte)0))throw new InvalidDataException("Text file is empty or contains binary data.");
