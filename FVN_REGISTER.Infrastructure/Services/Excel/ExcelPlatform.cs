@@ -223,6 +223,57 @@ public sealed class ExcelPlatform : IExcelPlatform
         catch { await transaction.RollbackAsync(ct); throw; }
     }
 
+    public async Task<ExcelSchemaSummary> UpdateDraftSchemaAsync(ExcelSchemaUpdateRequest request, CancellationToken ct = default)
+    {
+        if (request.Id <= 0) throw new InvalidOperationException("Schema ID không hợp lệ.");
+        var schema = request.Schema;
+        if (string.IsNullOrWhiteSpace(schema.SchemaName) || schema.Fields.Count == 0)
+            throw new InvalidOperationException("Tên schema và ít nhất một trường ánh xạ là bắt buộc.");
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            var currentVersionId = await ExecuteSingleAsync("SELECT CAST(CurrentVersionId AS varchar(20)) FROM dbo.F03ExcelSchemas WHERE Id=@id AND Status=0;", ("@id", request.Id));
+            if (currentVersionId is null) throw new InvalidOperationException("Chỉ được sửa schema đang ở trạng thái Draft.");
+            var versionId = int.Parse(currentVersionId, System.Globalization.CultureInfo.InvariantCulture);
+            await ExecuteNonQueryAsync("""
+                UPDATE dbo.F03ExcelSchemaVersions SET SheetIndex=@si,SheetName=@sn,HeaderRowIndex=@hr,
+                    DataStartRowIndex=@ds,DataEndRowIndex=@de,SelectedColumnsJson=@cols,Culture=@culture
+                WHERE Id=@v AND SchemaId=@id AND Status=0;
+                UPDATE dbo.F03ExcelSchemas SET SchemaName=@name,UpdatedAt=SYSUTCDATETIME() WHERE Id=@id AND Status=0;
+                DELETE FROM dbo.F03ExcelSchemaFields WHERE SchemaVersionId=@v;
+                """, ("@si", schema.SheetIndex), ("@sn", schema.SheetName), ("@hr", schema.HeaderRowIndex),
+                ("@ds", schema.DataStartRowIndex), ("@de", schema.DataEndRowIndex ?? (object)DBNull.Value),
+                ("@cols", JsonSerializer.Serialize(schema.SelectedColumnIndexes)), ("@culture", schema.Culture),
+                ("@v", versionId), ("@id", request.Id), ("@name", schema.SchemaName.Trim()));
+            foreach (var field in schema.Fields)
+                await ExecuteNonQueryAsync("""
+                    INSERT INTO dbo.F03ExcelSchemaFields
+                    (SchemaVersionId,FieldKey,DataType,SourceColumnIndex,HeaderName,ResourceKey,TargetProperty,Format,ValidationRule,DefaultValue,IsRequired,AllowEmpty,MaxLength,DisplayOrder)
+                    VALUES(@v,@key,@type,@col,@header,@resource,@target,@format,@rule,@defaultValue,@required,@allow,@maxLength,@order);
+                    """, ("@v", versionId), ("@key", field.FieldKey), ("@type", field.DataType),
+                    ("@col", field.SourceColumnIndex), ("@header", field.HeaderName ?? (object)DBNull.Value),
+                    ("@resource", field.ResourceKey ?? (object)DBNull.Value), ("@target", field.TargetProperty ?? (object)DBNull.Value),
+                    ("@format", field.Format ?? (object)DBNull.Value), ("@rule", field.ValidationRule ?? (object)DBNull.Value),
+                    ("@defaultValue", field.DefaultValue ?? (object)DBNull.Value), ("@required", field.Required),
+                    ("@allow", field.AllowEmpty), ("@maxLength", field.MaxLength ?? (object)DBNull.Value), ("@order", field.DisplayOrder));
+            await transaction.CommitAsync(ct);
+            return (await GetSchemaAsync(request.Id, ct)) ?? throw new InvalidOperationException("Không thể tải lại schema.");
+        }
+        catch { await transaction.RollbackAsync(ct); throw; }
+    }
+
+    public async Task<ExcelSchemaSummary> CloneSchemaAsync(int schemaId, string newName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(newName)) throw new InvalidOperationException("Tên schema nhân bản không được để trống.");
+        var definition = await GetSchemaDefinitionAsync(schemaId, ct) ?? throw new InvalidOperationException("Không tìm thấy schema nguồn.");
+        var source = await GetSchemaAsync(schemaId, ct) ?? throw new InvalidOperationException("Không tìm thấy schema nguồn.");
+        var request = new ExcelSchemaCreateRequest(definition.ModuleCode, definition.EntityCode,
+            $"{definition.SchemaKey}-COPY-{Guid.NewGuid():N}", newName.Trim(), definition.SheetIndex,
+            definition.SheetName, definition.HeaderRowIndex, definition.DataStartRowIndex, definition.DataEndRowIndex,
+            definition.SelectedColumnIndexes, definition.Fields, definition.Culture);
+        return await CreateDraftSchemaAsync(request, source.SourceFileName, ct);
+    }
+
     public async Task<ExcelSchemaSummary> CreateSchemaVersionAsync(int schemaId, CancellationToken ct = default)
     {
         var definition = await GetSchemaDefinitionAsync(schemaId, ct) ?? throw new InvalidOperationException("Không tìm thấy schema.");
