@@ -8,6 +8,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
  public DbSet<AiExtractionRecord> Extractions=>Set<AiExtractionRecord>();
  public DbSet<AiReviewRecord> Reviews=>Set<AiReviewRecord>();
  public DbSet<AiFeedbackRecord> Feedback=>Set<AiFeedbackRecord>();
+ public DbSet<AiKnowledgeChunkRecord> KnowledgeChunks=>Set<AiKnowledgeChunkRecord>();
  public DbSet<AiHRCaseRecord> HRCases=>Set<AiHRCaseRecord>();
  public DbSet<AiHRCaseReviewRecord> HRCaseReviews=>Set<AiHRCaseReviewRecord>();
  protected override void OnModelCreating(ModelBuilder b)
@@ -49,6 +50,14 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   f.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); f.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
   f.Property(x=>x.FeedbackType).HasMaxLength(24).IsRequired(); f.Property(x=>x.Reason).HasMaxLength(2000);
   f.HasIndex(x=>new{x.TenantCode,x.CreatedAtUtc});
+  var k=b.Entity<AiKnowledgeChunkRecord>(); k.ToTable("AiKnowledgeChunks","ai"); k.HasKey(x=>x.Id);
+  k.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); k.Property(x=>x.SectionPath).HasMaxLength(512);
+  k.Property(x=>x.ContentHash).HasMaxLength(64).IsRequired(); k.Property(x=>x.AccessScopeJson).IsRequired();
+  k.Property(x=>x.EmbeddingModel).HasMaxLength(128); k.Property(x=>x.EmbeddingJson);
+  k.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.IsActive});
+  k.HasIndex(x=>new{x.TenantCode,x.DocumentId,x.ChunkOrdinal}).IsUnique();
+  k.HasOne<AiDocumentRecord>().WithMany().HasForeignKey(x=>x.DocumentId).OnDelete(DeleteBehavior.Restrict);
+  k.HasOne<AiReviewRecord>().WithMany().HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Restrict);
  }
 }
 public sealed class AiDocumentRecord
@@ -86,4 +95,14 @@ public sealed class AiHRCaseReviewRecord
  public string ReviewerId { get; set; } = ""; public string Decision { get; set; } = "";
  public string? FinalReply { get; set; } public string? Comment { get; set; }
  public DateTimeOffset ReviewedAtUtc { get; set; }
+}
+
+public sealed class AiKnowledgeChunkRecord
+{
+ public Guid Id{get;set;} public string TenantCode{get;set;}="";
+ public Guid DocumentId{get;set;} public Guid ReviewId{get;set;} public int ChunkOrdinal{get;set;}
+ public int? PageNumber{get;set;} public string? SectionPath{get;set;} public string Content{get;set;}="";
+ public string ContentHash{get;set;}=""; public string AccessScopeJson{get;set;}="[]";
+ public string? EmbeddingModel{get;set;} public string? EmbeddingJson{get;set;}
+ public bool IsActive{get;set;}=true; public DateTimeOffset CreatedAtUtc{get;set;}
 }
