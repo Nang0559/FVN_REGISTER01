@@ -27,12 +27,17 @@ public sealed class FeedbackService(AiPlatformDbContext db) : IFeedbackService
             x => x.Id == extractionId.Value && x.TenantCode == tenantCode, cancellationToken))
             throw new KeyNotFoundException("Extraction was not found for this tenant.");
 
+        var extraction = extractionId.HasValue
+            ? await db.Extractions.AsNoTracking().Where(x => x.Id == extractionId.Value && x.TenantCode == tenantCode)
+                .Select(x => new { x.ParserVersion, x.ModelVersion, x.PromptVersion }).SingleOrDefaultAsync(cancellationToken)
+            : null;
         db.Feedback.Add(new AiFeedbackRecord
         {
             Id = Guid.NewGuid(), TenantCode = tenantCode, ReviewerId = reviewerId,
             DocumentId = documentId, ExtractionId = extractionId, FeedbackType = feedbackType,
             BeforeJson = beforeJson, AfterJson = afterJson, Reason = reason?.Trim(),
-            CreatedAtUtc = DateTimeOffset.UtcNow
+            ParserVersion = extraction?.ParserVersion, ModelVersion = extraction?.ModelVersion,
+            PromptVersion = extraction?.PromptVersion, CreatedAtUtc = DateTimeOffset.UtcNow
         });
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -58,5 +63,8 @@ public sealed class AiFeedbackRecord
     public string? BeforeJson { get; set; }
     public string? AfterJson { get; set; }
     public string? Reason { get; set; }
+    public string? ParserVersion { get; set; }
+    public string? ModelVersion { get; set; }
+    public string? PromptVersion { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
 }
