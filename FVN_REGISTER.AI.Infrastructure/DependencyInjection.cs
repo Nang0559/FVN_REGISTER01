@@ -61,6 +61,7 @@ public static class DependencyInjection
   services.AddScoped<IExtractionValidationService,ExtractionValidationService>();
   services.AddScoped<IVectorKnowledgeStore,SqlVectorKnowledgeStore>();
   services.AddScoped<IKnowledgeSearchService,KnowledgeSearchService>();
+  services.AddScoped<IKnowledgeIndexingService,KnowledgeIndexingService>();
   services.AddScoped<IFeedbackService,FeedbackService>();
   services.AddScoped<IIngestionQueue,SqlIngestionQueue>();
   services.AddScoped<ILeasedIngestionQueue,SqlIngestionQueue>();
