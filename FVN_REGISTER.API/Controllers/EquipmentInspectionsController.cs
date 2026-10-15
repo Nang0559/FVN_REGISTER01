@@ -38,11 +38,11 @@ public sealed class EquipmentInspectionsController : ControllerBase
 
     [HttpPost("templates/import")]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> ImportTemplateExcel(IFormFile file, CancellationToken ct)
+    public async Task<IActionResult> ImportTemplateExcel(IFormFile file, [FromForm] int? deptCode, [FromForm] int? sheetIndex, CancellationToken ct)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<object>.Fail("File Excel rỗng."));
         await using var stream = file.OpenReadStream();
-        return From(await _service.ImportTemplateExcelAsync(file.FileName, stream, ct));
+        return From(await _service.ImportTemplateExcelAsync(file.FileName, stream, deptCode, sheetIndex, ct));
     }
 
     [HttpGet("templates/import-sample")]
