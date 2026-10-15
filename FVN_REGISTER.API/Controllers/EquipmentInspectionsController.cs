@@ -45,6 +45,14 @@ public sealed class EquipmentInspectionsController : ControllerBase
         return From(await _service.ImportTemplateExcelAsync(file.FileName, stream, ct));
     }
 
+    [HttpGet("templates/import-sample")]
+    public async Task<IActionResult> TemplateImportSample(CancellationToken ct)
+    {
+        var result = await _service.GetTemplateImportSampleAsync(ct);
+        if (!result.IsSuccess) return BadRequest(ApiResponse<object>.Fail(result.Message ?? "Không tạo được file mẫu."));
+        return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
+    }
+
     [HttpPost("templates")]
     public async Task<IActionResult> SaveTemplate([FromBody] EquipmentInspectionTemplateUpsertRequest request, CancellationToken ct)
         => From(await _service.SaveTemplateAsync(request, ct));
@@ -56,6 +64,14 @@ public sealed class EquipmentInspectionsController : ControllerBase
     [HttpPost("assignments")]
     public async Task<IActionResult> Assign([FromBody] EquipmentInspectionAssignmentRequest request, CancellationToken ct)
         => From(await _service.AssignAsync(request, ct));
+
+    [HttpGet("asset-groups")]
+    public async Task<IActionResult> AssetGroups([FromQuery] int? deptCode, CancellationToken ct)
+        => From(await _service.GetAssetGroupsAsync(deptCode, ct));
+
+    [HttpPost("assignments/bulk")]
+    public async Task<IActionResult> BulkAssign([FromBody] EquipmentInspectionBulkAssignmentRequest request, CancellationToken ct)
+        => From(await _service.BulkAssignAsync(request, ct));
 
     [HttpGet("assignments")]
     public async Task<IActionResult> Assignments([FromQuery] int? equipmentId, CancellationToken ct)

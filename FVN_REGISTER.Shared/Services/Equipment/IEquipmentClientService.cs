@@ -66,6 +66,9 @@ public interface IEquipmentClientService
     Task<ApiResponse<EquipmentInspectionTemplateImportResultDto>> ImportInspectionTemplateExcelAsync(IBrowserFile file, CancellationToken ct = default);
     Task<ApiResponse<EquipmentInspectionTemplateDto>> SaveInspectionTemplateAsync(EquipmentInspectionTemplateUpsertRequest request, CancellationToken ct = default);
     Task<ApiResponse<EquipmentInspectionTemplateDto>> CloneInspectionTemplateAsync(int id, string? name = null, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentInspectionAssetGroupsDto>> GetInspectionAssetGroupsAsync(int? deptCode = null, CancellationToken ct = default);
+    Task<ApiResponse<EquipmentInspectionBulkAssignmentResultDto>> BulkAssignInspectionAsync(EquipmentInspectionBulkAssignmentRequest request, CancellationToken ct = default);
+    Task<ApiResponse<byte[]>> DownloadInspectionTemplateSampleAsync(CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentInspectionAssignmentDto>>> GetInspectionAssignmentsAsync(int? equipmentId = null, CancellationToken ct = default);
     Task<ApiResponse<EquipmentInspectionAssignmentDto>> AssignInspectionAsync(EquipmentInspectionAssignmentRequest request, CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentInspectionTaskDto>>> GetInspectionTasksAsync(bool includeCompleted = false, CancellationToken ct = default);
