@@ -75,11 +75,11 @@ This document is the single status reference for the agreed roadmap. A phase is 
 - Unpublish operation deactivates indexed chunks.
 
 ### Remaining
-- Knowledge publication, search and unpublish API endpoints are present; gateway-side authorization and admin UI remain required.
+- Knowledge publication/search/unpublish and RAG answer API endpoints are present. Gateway-side authorization, admin UI, hybrid retrieval and end-to-end evaluation remain required.
 - Policy lifecycle (draft, review, publish, effective dates, expiry, supersession and withdrawal).
 - Better chunking for headings, clauses, tables, Japanese/Vietnamese mixed content and source page/line citations.
 - Hybrid lexical/vector retrieval, reranking, deduplication and retrieval quality evaluation.
-- RAG answer orchestration, grounded citations, citation validation, abstention and prompt-injection defenses.
+- Grounded answer orchestration, retrieved-chunk citation ID validation and abstention are implemented. Semantic claim-to-source verification, hybrid retrieval/reranking, prompt-injection red-team tests and RAG UI remain open.
 - ACL derivation from trusted FVN_REGISTER permissions; never accept scopes from an untrusted browser.
 - RAG conversation UI, trace/audit and retention controls.
 - SQL cosine search is a moderate-scale baseline; benchmark before production scale and introduce a vector database adapter if needed.
