@@ -49,6 +49,7 @@ public sealed class AiPlatformDbContext(DbContextOptions<AiPlatformDbContext> op
   var f=b.Entity<AiFeedbackRecord>(); f.ToTable("AiFeedback","ai"); f.HasKey(x=>x.Id);
   f.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); f.Property(x=>x.ReviewerId).HasMaxLength(128).IsRequired();
   f.Property(x=>x.FeedbackType).HasMaxLength(24).IsRequired(); f.Property(x=>x.Reason).HasMaxLength(2000);
+  f.Property(x=>x.ParserVersion).HasMaxLength(64); f.Property(x=>x.ModelVersion).HasMaxLength(128); f.Property(x=>x.PromptVersion).HasMaxLength(64);
   f.HasIndex(x=>new{x.TenantCode,x.CreatedAtUtc});
   var k=b.Entity<AiKnowledgeChunkRecord>(); k.ToTable("AiKnowledgeChunks","ai"); k.HasKey(x=>x.Id);
   k.Property(x=>x.TenantCode).HasMaxLength(64).IsRequired(); k.Property(x=>x.SectionPath).HasMaxLength(512);
