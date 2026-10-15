@@ -287,7 +287,7 @@
         var file = args.File;
         if (file == null) return;
         _importResult = null;
-        var result = await EquipmentClient.ImportInspectionTemplateExcelAsync(file);
+        var result = await EquipmentClient.ImportInspectionTemplateExcelAsync(file, _deptCode);
         if (result.IsSuccess) { _importResult = result.Data; await LoadAllAsync(); Snackbar.Add(result.Message ?? Language.T("equipment.daImportChecklist"), Severity.Success); }
         else Snackbar.Add(result.Message ?? Language.T("equipment.importChecklistThatBai"), Severity.Error);
     }
