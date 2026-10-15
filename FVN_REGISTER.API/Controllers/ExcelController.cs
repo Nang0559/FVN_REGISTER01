@@ -14,10 +14,43 @@ public sealed class ExcelController : ControllerBase
     public ExcelController(IExcelPlatform excel) => _excel = excel;
 
     [HttpPost("inspect")]
-    public async Task<ActionResult<ExcelWorkbookInspection>> Inspect(IFormFile file,CancellationToken ct)
+    [RequestSizeLimit(25 * 1024 * 1024)]
+    public async Task<ActionResult<ExcelWorkbookInspection>> Inspect(IFormFile? file, CancellationToken ct)
     {
-        if(file is null||file.Length==0)return BadRequest("File Excel rỗng.");
-        await using var s=file.OpenReadStream(); return Ok(await _excel.InspectAsync(s,file.FileName,ct));
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "Vui lòng chọn file Excel không rỗng." });
+
+        var fileName = Path.GetFileName(file.FileName);
+        var extension = Path.GetExtension(fileName);
+        if (!new[] { ".xls", ".xlsx", ".xlsm" }.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Định dạng file không được hỗ trợ. Vui lòng chọn file .xls, .xlsx hoặc .xlsm." });
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var inspection = await _excel.InspectAsync(stream, fileName, ct);
+            return Ok(inspection);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (IOException)
+        {
+            return BadRequest(new { message = "Không thể đọc file Excel. File có thể bị hỏng hoặc đang được tạo không đúng định dạng." });
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest(new { message = "Nội dung file không đúng định dạng Excel hoặc file bị hỏng." });
+        }
+        catch (Exception ex) when (ex.GetType().Namespace?.StartsWith("NPOI", StringComparison.Ordinal) == true)
+        {
+            return BadRequest(new { message = "Không đọc được file Excel. Vui lòng mở và lưu lại file bằng Excel rồi thử lại." });
+        }
     }
 
     [HttpGet("schemas")]
