@@ -30,7 +30,7 @@ jobs:
     name: Capture authenticated UI
     runs-on: ubuntu-latest
     # Must be longer than --global-timeout below so artifacts are always uploaded.
-    timeout-minutes: 60
+    timeout-minutes: 100
     env:
       PLAYWRIGHT_BASE_URL: ${{ inputs.base_url || 'https://dangkyphep.fcc-vn.com.vn' }}
       PLAYWRIGHT_USERNAME: ${{ secrets.PLAYWRIGHT_USERNAME }}
@@ -38,8 +38,10 @@ jobs:
       PLAYWRIGHT_MAX_STATES: ${{ inputs.max_states || '180' }}
       PLAYWRIGHT_MAX_CLICK_TARGETS: ${{ inputs.max_click_targets || '500' }}
       PLAYWRIGHT_MAX_DEPTH: "12"
-      # Soft stop (spec ends cleanly, writes manifest). Must be < --global-timeout (50 min).
-      PLAYWRIGHT_CRAWL_BUDGET_MINUTES: "42"
+      # Soft stop (spec ends cleanly, writes manifest). Must be < --global-timeout (90 min).
+      PLAYWRIGHT_CRAWL_BUDGET_MINUTES: "85"
+      PLAYWRIGHT_MAX_TARGETS_PER_PAGE: "30"
+      PLAYWRIGHT_PAGE_BUDGET_SECONDS: "150"
       CI: "true"
 
     steps:
@@ -78,12 +80,12 @@ jobs:
 
       # --retries=0: a failed attempt must not be silently re-run (the old run lost 30 minutes
       # on a hung login and then "passed" on retry with nothing captured).
-      # --global-timeout (50 min) ends the run before the 60 minute job limit so artifacts upload.
+      # --global-timeout (90 min) ends the run before the 100 minute job limit so artifacts upload.
       - name: Run authenticated recursive UI capture
         working-directory: tests/playwright
         run: |
           npx playwright test specs/authenticated-click-capture.spec.ts \
-            --project=chromium --workers=1 --retries=0 --global-timeout=3000000
+            --project=chromium --workers=1 --retries=0 --global-timeout=5400000
 
       - name: Verify screenshots were produced
         if: always()
