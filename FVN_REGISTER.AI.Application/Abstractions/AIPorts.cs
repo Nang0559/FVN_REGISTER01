@@ -2,6 +2,7 @@ using FVN_REGISTER.AI.Application.Contracts;
 namespace FVN_REGISTER.AI.Application.Abstractions;
 public interface IAIModelProvider { string ProviderName { get; } Task<AIModelResponse> GenerateAsync(AIModelRequest request,CancellationToken cancellationToken=default); }
 public interface IDocumentTextExtractor { Task<string> ExtractTextAsync(Stream content,string mediaType,CancellationToken cancellationToken=default); }
+public interface IOcrTextExtractor { Task<string> ExtractTextAsync(Stream content,string mediaType,CancellationToken cancellationToken=default); }
 public interface IDocumentClassifier { Task<(string DocumentType,double Confidence)> ClassifyAsync(string text,CancellationToken cancellationToken=default); }
 public interface IDocumentStructuredExtractor { Task<DocumentExtractionResult> ExtractAsync(string text,string documentType,CancellationToken cancellationToken=default); }
 public interface IEmbeddingGenerator { Task<EmbeddingVector> GenerateAsync(string text,CancellationToken cancellationToken=default); }
