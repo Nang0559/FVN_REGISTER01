@@ -16,7 +16,7 @@ public sealed class DocumentIngestionService(AiPlatformDbContext db,IOriginalDoc
   var stored=await store.SaveAsync(id,new LimitStream(content,max),ct);
   try
   {
-   var duplicate=await db.Documents.AsNoTracking().FirstOrDefaultAsync(x=>x.TenantCode==tenant&&x.Sha256==stored.Sha256,ct);
+   var duplicate=await db.Documents.AsNoTracking().FirstOrDefaultAsync(x=>x.TenantCode==tenant&&x.Sha256==stored.Sha256&&x.ModuleCode==moduleCode&&x.SchemaCode==schemaCode,ct);
    if(duplicate is not null)
    {
     await store.DeleteAsync(stored.StorageKey,ct);var old=await db.IngestionJobs.AsNoTracking().FirstOrDefaultAsync(x=>x.DocumentId==duplicate.Id,ct);
