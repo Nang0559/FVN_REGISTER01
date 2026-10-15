@@ -24,7 +24,7 @@ public sealed class LocalDocumentTextExtractorTests
     {
         await using var stream = new MemoryStream("%PDF-test"u8.ToArray());
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            new LocalDocumentTextExtractor().ExtractTextAsync(stream, "application/pdf"));
+            new LocalDocumentTextExtractor(new TestOcrTextExtractor()).ExtractTextAsync(stream, "application/pdf"));
         Assert.Equal(0, stream.Position);
     }
 
