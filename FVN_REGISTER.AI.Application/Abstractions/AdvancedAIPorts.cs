@@ -65,3 +65,13 @@ public interface IKnowledgeIndexingService
         IReadOnlyCollection<string> accessScopes, CancellationToken cancellationToken = default);
     Task UnpublishDocumentAsync(string tenantCode, Guid documentId, CancellationToken cancellationToken = default);
 }
+
+public interface IFeedbackEvaluationService
+{
+    Task<FeedbackEvaluationSummary> GetSummaryAsync(string tenantCode, DateTimeOffset fromUtc,
+        DateTimeOffset toUtc, CancellationToken cancellationToken = default);
+}
+public sealed record FeedbackVersionMetric(string? ParserVersion, string? ModelVersion, string? PromptVersion,
+    int Accepted, int Rejected, int Corrected, int AnswerRatings);
+public sealed record FeedbackEvaluationSummary(int Total, int Accepted, int Rejected, int Corrected,
+    int AnswerRatings, double AcceptanceRate, IReadOnlyList<FeedbackVersionMetric> ByVersion);
