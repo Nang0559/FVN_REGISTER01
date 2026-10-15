@@ -153,7 +153,7 @@ public sealed class AIHRCaseController : BaseApiController
         using var streamContent = new StreamContent(input);
         streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
             string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
-        form.Add(streamContent, "file", Path.GetFileName(file.FileName));
+        form.Add(streamContent, "file", System.IO.Path.GetFileName(file.FileName));
         using var upstream = await SendAiAsync(HttpMethod.Post, path, form, actor, ct);
         return await RelayAsync(upstream);
     }
@@ -182,7 +182,7 @@ public sealed class AIHRCaseController : BaseApiController
         var mediaType = System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(upload.ContentType, out var parsedType)
             ? parsedType : new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
         streamContent.Headers.ContentType = mediaType;
-        form.Add(streamContent, "file", Path.GetFileName(upload.FileName));
+        form.Add(streamContent, "file", System.IO.Path.GetFileName(upload.FileName));
         using var upstream = await SendAiAsync(HttpMethod.Post, path, form, actor, ct);
         return await RelayAsync(upstream);
     }
