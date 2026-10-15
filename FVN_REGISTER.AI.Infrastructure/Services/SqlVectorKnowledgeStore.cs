@@ -84,6 +84,8 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db) : IVectorKno
         CancellationToken cancellationToken = default)
     {
         tenantCode = Required(tenantCode, 64);
+        ArgumentNullException.ThrowIfNull(queryVector);
+        ArgumentNullException.ThrowIfNull(allowedScopes);
         limit = Math.Clamp(limit, 1, 50);
         if (allowedScopes.Count == 0 || queryVector.Values.Count == 0) return [];
         if (queryVector.Values.Any(x => !float.IsFinite(x))) throw new ArgumentException("Query embedding is invalid.");
