@@ -16,7 +16,7 @@ public interface IOriginalDocumentStore { Task<StoredDocument> SaveAsync(Guid do
 public sealed record StoredDocument(string StorageKey,long Length,string Sha256);
 public interface IUploadContentValidator { Task<ValidatedUpload> ValidateAsync(Stream content,string fileName,CancellationToken cancellationToken=default); }
 public sealed record ValidatedUpload(string FileName,string MediaType,string Extension);
-public interface IDocumentIngestionService { Task<IngestionReceipt> IngestAsync(string tenantCode,string actorId,string fileName,Stream content,CancellationToken cancellationToken=default); Task<DocumentStatusResult?> GetStatusAsync(Guid documentId,string tenantCode,CancellationToken cancellationToken=default); }
+public interface IDocumentIngestionService { Task<IngestionReceipt> IngestAsync(string tenantCode,string actorId,string fileName,Stream content,CancellationToken cancellationToken=default,string? moduleCode=null,string? schemaCode=null); Task<DocumentStatusResult?> GetStatusAsync(Guid documentId,string tenantCode,CancellationToken cancellationToken=default); }
 public sealed record IngestionReceipt(Guid DocumentId,Guid JobId,string FileName,long Length,string Sha256,string Status,bool Duplicate);
 public sealed record DocumentStatusResult(Guid DocumentId,string FileName,string Status,DateTimeOffset ReceivedAtUtc,Guid? JobId,string? JobStatus,string? FailureCode);
 public interface IIngestionQueue { Task EnqueueAsync(Guid documentId,CancellationToken cancellationToken=default); }
