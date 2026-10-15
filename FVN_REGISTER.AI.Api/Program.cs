@@ -60,7 +60,9 @@ group.MapPost("/documents",async (HttpRequest req,IServiceProvider services,IOpt
  await using var stream=file.OpenReadStream();
  try
  {
-  var receipt=await service.IngestAsync(tenant,actor,file.FileName,stream,ct);
+  var moduleCode=form["moduleCode"].FirstOrDefault();
+  var schemaCode=form["schemaCode"].FirstOrDefault();
+  var receipt=await service.IngestAsync(tenant,actor,file.FileName,stream,ct,moduleCode,schemaCode);
   return Results.Accepted($"/api/ai/v1/documents/{receipt.DocumentId}",receipt);
  }
  catch(InvalidDataException ex){return Results.BadRequest(new{error=ex.Message});}
