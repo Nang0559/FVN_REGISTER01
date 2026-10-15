@@ -32,6 +32,19 @@ public sealed class OllamaAIModelProviderTests
     }
 
     [Fact]
+    public async Task GenerateAsync_RequestsJsonModeForStructuredTasks()
+    {
+        var handler = new StubHandler("""{"message":{"role":"assistant","content":"{}"},"done":true}""");
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:11434/") };
+        var provider = new OllamaAIModelProvider(client,
+            Options.Create(new AIPlatformOptions { Model = "qwen2.5:7b" }));
+
+        await provider.GenerateAsync(new AIModelRequest("schema-driven-extraction", "{}"));
+
+        Assert.Contains("\"format\":\"json\"", handler.RequestBody);
+    }
+
+    [Fact]
     public async Task GenerateAsync_RejectsMissingModelConfiguration()
     {
         using var client = new HttpClient(new StubHandler("{}")) { BaseAddress = new Uri("http://localhost:11434/") };
