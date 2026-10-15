@@ -321,6 +321,9 @@
         catch { _comparisons = new(); }
     }
 
+    private bool IsAnalyzeDisabled => _analyzing || string.IsNullOrWhiteSpace(_statement) || _workDate is null ||
+        (_evidenceDocumentId.HasValue && _evidenceStatus != "AwaitingHumanReview" && _evidenceStatus != "Approved");
+
     private Task ApproveAsync() => ReviewAsync("Approved");
     private Task SaveEditedAsync() => ReviewAsync("Edited");
     private Task RejectAsync() => ReviewAsync("Rejected");
