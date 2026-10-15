@@ -68,8 +68,8 @@ public static class DependencyInjection
   services.AddScoped<IKnowledgeIndexingService,KnowledgeIndexingService>();
   services.AddScoped<IFeedbackService,FeedbackService>();
   services.AddScoped<IFeedbackEvaluationService,FeedbackEvaluationService>();
-  services.AddScoped<IIngestionQueue,SqlIngestionQueue>();
-  services.AddScoped<ILeasedIngestionQueue,SqlIngestionQueue>();
+  services.AddScoped<IIngestionQueue,FVN_REGISTER.AI.Infrastructure.Providers.SqlIngestionQueue>();
+  services.AddScoped<ILeasedIngestionQueue,FVN_REGISTER.AI.Infrastructure.Providers.SqlIngestionQueue>();
   services.AddScoped<IDocumentPipeline,DocumentPipeline>();
   services.TryAddScoped<IAuthorizedHRFactsProvider,UnconfiguredAuthorizedHRFactsProvider>();
   services.AddScoped<IHRReconciliationService,HRReconciliationService>();
