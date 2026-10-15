@@ -20,6 +20,8 @@ public sealed class ExtractionValidationService : IExtractionValidationService
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Schema);
+        ArgumentNullException.ThrowIfNull(request.Candidates);
+        ArgumentNullException.ThrowIfNull(request.Schema.Fields);
         if (string.IsNullOrWhiteSpace(request.Schema.SchemaCode) || request.Schema.SchemaCode.Length > 128)
             throw new ArgumentException("SchemaCode must contain 1 to 128 characters.");
         if (request.Schema.Version < 1) throw new ArgumentException("Schema version must be positive.");
