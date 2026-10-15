@@ -6,6 +6,7 @@ public sealed class AIPlatformOptions
  public string DefaultProvider {get;set;}="Unconfigured";
  public string? Endpoint {get;set;}
  public string? Model {get;set;}
+ public string? EmbeddingModel {get;set;}
  public int MaximumFileSizeMb {get;set;}=25;
  public int MaximumConcurrentJobs {get;set;}=2;
  public bool RequireHumanApprovalBeforeBusinessWrite {get;set;}=true;
