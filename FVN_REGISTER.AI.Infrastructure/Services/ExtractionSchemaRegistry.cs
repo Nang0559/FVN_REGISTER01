@@ -111,7 +111,7 @@ public sealed class ExtractionSchemaRegistry(AiPlatformDbContext db) : IExtracti
             _ = Required(field.Path, 256);
             if (!paths.Add(field.Path)) throw new ArgumentException($"Duplicate schema field path '{field.Path}'.");
             if (!Types.Contains(field.DataType)) throw new ArgumentException($"Unsupported field type '{field.DataType}'.");
-            if (field.MinLength < 0 || field.MaxLength < 0 ||
+            if (field.MinLength is < 0 || field.MaxLength is < 0 ||
                 (field.MinLength.HasValue && field.MaxLength.HasValue && field.MinLength > field.MaxLength) ||
                 (field.Minimum.HasValue && field.Maximum.HasValue && field.Minimum > field.Maximum))
                 throw new ArgumentException($"Invalid constraints for field '{field.Path}'.");
