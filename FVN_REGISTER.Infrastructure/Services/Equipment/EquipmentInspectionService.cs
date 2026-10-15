@@ -436,7 +436,6 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     }
 
     private static string NormalizeInspectionExcelKey(string value)
-        => new string((value ?? "").Trim().Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).Select(char.ToLowerInvariant).Where(char.IsLetterOrDigit).ToArray());    private static string NormalizeInspectionExcelKey(string value)
         => new string((value ?? "").Trim().Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).Select(char.ToLowerInvariant).Where(char.IsLetterOrDigit).ToArray());
 
     private static bool IsInspectionBool(string? value) => value?.Trim().ToLowerInvariant() is "true" or "false" or "yes" or "no" or "1" or "0" or "y" or "n" or "co" or "khong" or "có" or "không";
