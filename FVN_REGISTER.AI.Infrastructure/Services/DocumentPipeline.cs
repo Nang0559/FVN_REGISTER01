@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FVN_REGISTER.AI.Application.Abstractions;
+using FVN_REGISTER.AI.Application.Contracts;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
