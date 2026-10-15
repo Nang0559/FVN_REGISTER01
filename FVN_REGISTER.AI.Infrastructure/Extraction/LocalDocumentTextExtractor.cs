@@ -7,10 +7,10 @@ using UglyToad.PdfPig;
 namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 
 /// <summary>
-/// Local deterministic extractor for UTF-8 TXT/CSV, XLSX/DOCX OpenXML and text-based PDF files.
+/// Local deterministic extractor for UTF-8 TXT/CSV, XLSX/DOCX OpenXML, text-based PDFs, and OCR-backed image/scanned PDFs.
 /// Image-only/scanned PDF requires a separately configured OCR service.
 /// </summary>
-public sealed class LocalDocumentTextExtractor : IDocumentTextExtractor
+public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumentTextExtractor
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
@@ -31,7 +31,18 @@ public sealed class LocalDocumentTextExtractor : IDocumentTextExtractor
                 return ExtractXlsx(content);
 
             if (mediaType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
-                return ExtractPdf(content);
+            {
+                try { return ExtractPdf(content); }
+                catch (NotSupportedException)
+                {
+                    content.Position = start;
+                    return await ocr.ExtractTextAsync(content, mediaType, cancellationToken);
+                }
+            }
+
+            if (mediaType.Equals("image/png", StringComparison.OrdinalIgnoreCase) ||
+                mediaType.Equals("image/jpeg", StringComparison.OrdinalIgnoreCase))
+                return await ocr.ExtractTextAsync(content, mediaType, cancellationToken);
 
             if (mediaType.Equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document", StringComparison.OrdinalIgnoreCase))
                 return ExtractDocx(content);
