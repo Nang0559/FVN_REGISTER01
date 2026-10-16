@@ -6,6 +6,7 @@ on:
       - fix/hrm-holiday-symbol-sync
     paths:
       - '.github/patches/fix-normal-shift-symbol-display.patch'
+      - '.github/workflows/apply-fix-normal-shift-symbol-display.yml'
 
 permissions:
   contents: write
@@ -33,7 +34,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -f .github/patches/fix-normal-shift-symbol-display.patch .github/workflows/apply-fix-normal-shift-symbol-display.yml
-          git add FVN_REGISTER.Infrastructure/Services/Calendar/AttendanceSymbolRuleService.cs FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs .github/patches/fix-normal-shift-symbol-display.patch .github/workflows/apply-fix-normal-shift-symbol-display.yml
+          git add FVN_REGISTER.Infrastructure/Services/Calendar/AttendanceSymbolRuleService.cs FVN_REGISTER.Infrastructure/Services/HrmSync/apply-fix-normal-shift-symbol-display.yml .github/patches/fix-normal-shift-symbol-display.patch .github/workflows/apply-fix-normal-shift-symbol-display.yml 2>/dev/null || true
+          git add FVN_REGISTER.Infrastructure/Services/Calendar/AttendanceSymbolRuleService.cs FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs
           git diff --cached --check
           git commit -m "fix: allow normal shift attendance symbol refresh [skip ci]"
           git push origin HEAD:fix/hrm-holiday-symbol-sync
