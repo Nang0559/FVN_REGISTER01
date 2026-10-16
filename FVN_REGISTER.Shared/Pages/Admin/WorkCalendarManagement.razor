@@ -52,8 +52,8 @@
                 <MudTd><b>@context.YearName</b></MudTd>
                 <MudTd>@context.StartDate.ToString("dd/MM/yyyy") → @context.EndDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@context.Remark</MudTd>
-                <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? Language.T("calendar.dangMo") : Language.T("payroll.locked"))</MudChip></MudTd>
-                <MudTd Style="text-align:right"><MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditYear(context))" /><MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)" Color="@(context.IsActive ? Color.Warning : Color.Success)" OnClick="@(() => ToggleYear(context))" /></MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive? Color.Success: Color.Default)">@(context.IsActive? Language.T("calendar.dangMo") : Language.T("payroll.locked"))</MudChip></MudTd>
+                <MudTd Style="text-align:right"><MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditYear(context))" /><MudIconButton Icon="@(context.IsActive? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)" Color="@(context.IsActive? Color.Warning: Color.Success)" OnClick="@(() => ToggleYear(context))" /></MudTd>
             </RowTemplate>
             <NoRecordsContent><MudText Class="pa-4" Color="Color.Secondary">@Language.T("calendar.chuaCoNamLamViec")</MudText></NoRecordsContent>
         </MudTable>
@@ -65,7 +65,7 @@
                 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="flex-grow-1">
                     @Language.T("calendar.hrmHolidaySyncHelp")
                 </MudAlert>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync" OnClick="SyncHrm" Disabled="@_syncing">@(_syncing ? Language.T("calendar.hrmHolidaySyncing") : Language.T("calendar.hrmHolidaySync"))</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync" OnClick="SyncHrm" Disabled="@_syncing">@(_syncing? Language.T("calendar.hrmHolidaySyncing") : Language.T("calendar.hrmHolidaySync"))</MudButton>
             </MudStack>
         </MudPaper>
 
@@ -77,7 +77,7 @@
                 <MudTd>@context.Description</MudTd>
                 <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@HolidayTypeColor(context.HolidayType)" Style="@HolidayChipStyle(context)">@(string.IsNullOrWhiteSpace(context.HolidayTypeName) ? HolidayTypeLabel(context.HolidayType) : context.HolidayTypeName)</MudChip></MudTd>
                 <MudTd><b>@context.HolidaySymbol</b> <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-inline">@context.DayType</MudText></MudTd>
-                <MudTd>@(context.IsPaidLeave ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
+                <MudTd>@(context.IsPaidLeave? Language.T("common.yes") : Language.T("common.no"))</MudTd>
                 <MudTd>@(context.Source == "HRM" ? Language.T("calendar.sourceHrm") : Language.T("calendar.sourceLegacy"))</MudTd>
             </RowTemplate>
         </MudTable>
@@ -110,12 +110,14 @@
     private string HolidayTypeLabel(byte type) => FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeLabel(type);
     private Color HolidayTypeColor(byte type) => type switch { 2 => Color.Error, 4 => Color.Info, _ => Color.Success };
 
-    // Màu lấy từ HRM (DM_Loainghile.LNLMauSac, ví dụ Red/Crimson/OrangeRed). Chỉ nhận tên màu hoặc mã #hex để không chèn CSS tùy ý.
+    // Màu lấy từ HRM (DM_Loainghile.LNLMauSac, ví dụ Red/Crimson/OrangeRed). Dùng cùng CalendarColor với lịch để chip và ô lịch luôn trùng màu + chữ đọc được.
     private static string? HolidayChipStyle(CompanyHolidayDto holiday)
-        => !string.IsNullOrWhiteSpace(holiday.HolidayColor)
-           && System.Text.RegularExpressions.Regex.IsMatch(holiday.HolidayColor, "^(#[0-9A-Fa-f]{3,8}|[A-Za-z]{3,30})$")
-            ? $"background-color:{holiday.HolidayColor};color:#fff"
-            : null;
+    {
+        var bg = FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday.HolidayColor);
+        if (bg is null) return null;
+        var text = FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.ContrastText(bg) ?? "#FFFFFF";
+        return $"background-color:{bg};color:{text}";
+    }
 
     private void NewYear()
     {
@@ -123,7 +125,7 @@
         _editYear = new WorkYearDto { Year = year, YearName = string.Format(Language.T("calendar.workYearName"), year), IsActive = true };
         _start = new DateTime(year, 1, 1); _end = new DateTime(year, 12, 31);
     }
-    private void EditYear(WorkYearDto x) { _editYear = new WorkYearDto { Id=x.Id, Year=x.Year, YearName=x.YearName, StartDate=x.StartDate, EndDate=x.EndDate, IsActive=x.IsActive, Remark=x.Remark }; _start=x.StartDate; _end=x.EndDate; }
+    private void EditYear(WorkYearDto x) { _editYear = new WorkYearDto { Id = x.Id, Year = x.Year, YearName = x.YearName, StartDate = x.StartDate, EndDate = x.EndDate, IsActive = x.IsActive, Remark = x.Remark }; _start = x.StartDate; _end = x.EndDate; }
     private void CancelYear() => _editYear = null;
 
     private async Task SaveYear()

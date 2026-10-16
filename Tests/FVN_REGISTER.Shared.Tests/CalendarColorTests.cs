@@ -37,4 +37,19 @@ public sealed class CalendarColorTests
         Assert.Equal("#FFFFFF", CalendarColor.ContrastText("#0000FF"));
         Assert.Null(CalendarColor.ContrastText(null));
     }
+
+    // 3 loại nghỉ HRM hiện tại: NT=OrangeRed, CT=Red, L=Crimson -> cả ba đều nền đậm, chữ phải trắng và đồng nhất.
+    [Theory]
+    [InlineData("OrangeRed")]
+    [InlineData("Red")]
+    [InlineData("Crimson")]
+    [InlineData("#DC143C")]
+    public void ContrastText_is_white_on_all_hrm_holiday_colors(string color)
+        => Assert.Equal("#FFFFFF", CalendarColor.ContrastText(color));
+
+    [Theory]
+    [InlineData("OrangeRed", "OrangeRed")]
+    [InlineData("Color [Crimson]", "Crimson")]
+    public void Normalize_keeps_hrm_named_colors(string raw, string expected)
+        => Assert.Equal(expected, CalendarColor.Normalize(raw));
 }
