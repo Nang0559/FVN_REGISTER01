@@ -107,6 +107,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "66_CalendarHolidayClassification.sql"
 :r "67_AttendanceSymbolRules.sql"
 :r "83_HrmHolidaySync.sql"
+:r "84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql"
 :r "22_03_CalculateHrmAttendance.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
