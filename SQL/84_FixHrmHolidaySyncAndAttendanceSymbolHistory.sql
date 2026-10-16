@@ -73,6 +73,15 @@ BEGIN
 
     BEGIN TRANSACTION;
 
+    DECLARE @SyncLockResult int;
+    EXEC @SyncLockResult = sys.sp_getapplock
+        @Resource = N'FVN_REGISTER:HRM_HOLIDAY_SYNC',
+        @LockMode = N'Exclusive',
+        @LockOwner = N'Transaction',
+        @LockTimeout = 30000;
+    IF @SyncLockResult < 0
+        THROW 51481, N'Không lấy được khóa đồng bộ ngày nghỉ HRM; vui lòng thử lại.', 1;
+
     ;WITH TypeSource AS
     (
         SELECT
