@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Companies;
+using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Core.Entities.Common;
@@ -14,11 +15,20 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies;
 public sealed class CompanyHolidayManagementService : BaseService<CompanyHolidayManagementService>, ICompanyHolidayManagementService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IAttendanceSymbolRuleService _symbolRules;
     private const string ReadOnlyMessage = "Ngày nghỉ được đồng bộ từ HRM (DM_Loainghile/tblNgayNghiLe). Hãy sửa trong HRM rồi bấm \"Đồng bộ từ HRM\".";
     private static readonly bool HolidaysAreReadOnly = true;
 
-    public CompanyHolidayManagementService(IUnitOfWork uow, ILogger<CompanyHolidayManagementService> logger, IOptionsMonitor<AuthDebugOptions> options)
-        : base(logger, options) => _uow = uow;
+    public CompanyHolidayManagementService(
+        IUnitOfWork uow,
+        IAttendanceSymbolRuleService symbolRules,
+        ILogger<CompanyHolidayManagementService> logger,
+        IOptionsMonitor<AuthDebugOptions> options)
+        : base(logger, options)
+    {
+        _uow = uow;
+        _symbolRules = symbolRules;
+    }
 
     public Task<List<CompanyHolidayDto>> GetAllAsync(CancellationToken ct = default)
         => Task.FromResult(_uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(x => x.IsActive == true && x.Source == "HRM").OrderByDescending(x => x.HolidayDate).Select(ToDto).ToList());
@@ -179,6 +189,21 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
         {
             var rows = await _uow.SqlQueryRawAsync<HrmHolidaySyncRow>("EXEC dbo.usp_SyncHrmHolidays", ct);
             var r = rows.FirstOrDefault();
+            try
+            {
+                // Holiday classification may have changed. Re-resolve DayType and
+                // regenerate current symbols immediately instead of waiting for the
+                // next scheduled attendance calculation.
+                await _symbolRules.RefreshSymbolsAsync(ct);
+            }
+            catch (Exception refreshException)
+            {
+                Logger.LogError(refreshException, "[HOLIDAY] HRM sync succeeded but attendance symbol refresh failed.");
+                return ServiceResult<string>.Ok(
+                    "ok",
+                    "Đã đồng bộ ngày nghỉ HRM nhưng chưa cập nhật được ký hiệu chấm công. Vui lòng chạy tính lại chấm công.");
+            }
+
             return ServiceResult<string>.Ok(
                 "ok",
                 r is null
