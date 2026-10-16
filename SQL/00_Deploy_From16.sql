@@ -91,6 +91,8 @@ Current SQL directory:
 :r "65_SecuritySystemCriticalInvariant.sql"
 :r "66_CalendarHolidayClassification.sql"
 :r "67_AttendanceSymbolRules.sql"
+:r "83_HrmHolidaySync.sql"
+:r "22_03_CalculateHrmAttendance.sql"
 :r "55_ExecutionResolutionPolicy.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"

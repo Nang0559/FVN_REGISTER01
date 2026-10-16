@@ -92,6 +92,15 @@ public sealed class CompanyHolidayManagementController : ControllerBase
         return result.IsSuccess ? Ok(result.Message) : BadRequest(result.Message);
     }
 
+    [HttpPost("sync-hrm")]
+    public async Task<IActionResult> SyncHrm(CancellationToken ct)
+    {
+        if (!await CanManage(ct)) return Forbid();
+
+        var result = await _service.SyncFromHrmAsync(ct);
+        return result.IsSuccess ? Ok(result.Message) : BadRequest(result.Message);
+    }
+
     [HttpPost("sundays/{year:int}")]
     public async Task<IActionResult> Sundays(int year, CancellationToken ct)
     {

@@ -14,4 +14,6 @@ public interface ICompanyHolidayManagementService
     Task<ServiceResult> CreateSundaysAsync(int year, int userId, CancellationToken ct = default);
     Task<ServiceResult<string>> ImportExcelAsync(Stream content, string fileName, int userId, CancellationToken ct = default);
     Task<ServiceResult<byte[]>> DownloadTemplateAsync(CancellationToken ct = default);
+    /// <summary>Đồng bộ HRM.dbo.tblNgayNghiLe/DM_Loainghile vào F03CompanyHolidays/F03HrmHolidayTypes.</summary>
+    Task<ServiceResult<string>> SyncFromHrmAsync(CancellationToken ct = default);
 }

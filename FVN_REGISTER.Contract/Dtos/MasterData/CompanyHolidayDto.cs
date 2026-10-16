@@ -17,11 +17,11 @@ public class CompanyHolidayDto
     public byte HolidayType { get; set; } = 1;
 
     [JsonIgnore]
-    public string HolidayTypeCode => HolidayType switch
-    {
-        2 => "NATIONAL",
-        3 => "COMPENSATORY",
-        4 => "OTHER",
-        _ => "COMPANY"
-    };
+    public string HolidayTypeCode => FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeCode(HolidayType);
+
+    /// <summary>DayType (rule ký hiệu) đã ánh xạ từ loại ngày nghỉ HRM.</summary>
+    public string? DayType { get; set; }
+
+    /// <summary>HRM = đồng bộ từ HRM (nguồn chuẩn); FVN = dòng cũ tự nhập, sẽ bị thay thế.</summary>
+    public string Source { get; set; } = "HRM";
 }

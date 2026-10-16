@@ -68,8 +68,8 @@ public sealed class WorkCalendarService : IWorkCalendarService
         await ApplyApprovalInfoAsync(result.Events,ct);return result;
     }
 
-    private static string GetHolidayTypeCode(byte? holidayType)=>holidayType switch{2=>"NATIONAL",3=>"COMPENSATORY",4=>"OTHER",_=>"COMPANY"};
-    private static string GetHolidayTypeLabel(byte holidayType)=>holidayType switch{2=>"lễ quốc gia",3=>"nghỉ bù",4=>"nghỉ khác",_=>"công ty"};
+    private static string GetHolidayTypeCode(byte? holidayType)=>FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeCode(holidayType);
+    private static string GetHolidayTypeLabel(byte holidayType)=>FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeShortLabel(holidayType);
 
     public async Task<ServiceResult<WorkCalendarDto>> GetAsync(string employeeCode,int? deptCode,string? positionCode,DateTime from,DateTime to,CancellationToken ct=default){try{return ServiceResult<WorkCalendarDto>.Ok(await GetCoreAsync(employeeCode,deptCode,positionCode,from,to,ct));}catch(Exception ex) when(ex is UnauthorizedAccessException or ArgumentException or KeyNotFoundException or InvalidOperationException){return ServiceResult<WorkCalendarDto>.Fail(ex.Message);}}
 

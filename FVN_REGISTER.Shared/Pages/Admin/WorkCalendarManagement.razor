@@ -61,68 +61,35 @@
 
     <MudTabPanel Text="@Language.T("calendar.ngayNghiCongTy")" Icon="@Icons.Material.Filled.FreeBreakfast">
         <MudPaper Class="pa-4 mb-4" Outlined="true">
-            <MudGrid>
-                <MudItem xs="12" sm="3"><MudDatePicker @bind-Date="_holidayDate" Label="@Language.T("calendar.ngayNghi")" Variant="Variant.Outlined" /></MudItem>
-                <MudItem xs="12" sm="3"><MudTextField @bind-Value="_holidayDescription" Label='@Language.T("common.description")' Variant="Variant.Outlined" /></MudItem>
-                <MudItem xs="12" sm="2">
-                    <MudSelect T="byte" @bind-Value="_holidayType" Label="@Language.T("calendar.loaiNgayNghi")" Variant="Variant.Outlined">
-                        <MudSelectItem Value="@((byte)1)">@HolidayTypeLabel(1)</MudSelectItem>
-                        <MudSelectItem Value="@((byte)2)">@HolidayTypeLabel(2)</MudSelectItem>
-                        <MudSelectItem Value="@((byte)3)">@HolidayTypeLabel(3)</MudSelectItem>
-                        <MudSelectItem Value="@((byte)4)">@HolidayTypeLabel(4)</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" sm="2"><MudSwitch @bind-Value="_holidayPaid" Color="Color.Primary" Label="@Language.T("common.tinhPhep")" /></MudItem>
-                <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveHoliday">@(_editHolidayId == 0 ? Language.T("common.add") : Language.T("hrm.capNhat"))</MudButton></MudItem>
-            </MudGrid>
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
-                @Language.T("calendar.holidayTypeHint")
-            </MudAlert>
-        </MudPaper>
-
-        <MudPaper Class="pa-4 mb-4" Outlined="true">
             <MudStack Row="true" AlignItems="AlignItems.Center" Class="flex-wrap">
-                <MudStack Spacing="0"><MudText Typo="Typo.subtitle1" Style="font-weight:700">@Language.T("calendar.importNgayNghiTuExcel")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">HolidayDate + Description + Year + HolidayType + TinhPhep</MudText></MudStack>
-                <MudSpacer />
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadTemplate" Disabled="@_templateLoading">@(_templateLoading ? Language.T("calendar.dangTaoMau") : Language.T("calendar.taiMauChuan"))</MudButton>
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="flex-grow-1">
+                    Ngày nghỉ được đồng bộ từ HRM (DM_Loainghile / tblNgayNghiLe) và dùng chung cho lịch, rule ký hiệu, xuất chấm công và tính OT. Thêm / sửa / xoá ngày nghỉ ở HRM, rồi bấm "Đồng bộ từ HRM" (hệ thống cũng tự đồng bộ trước mỗi lần tính công).
+                </MudAlert>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync" OnClick="SyncHrm" Disabled="@_syncing">@(_syncing ? "Đang đồng bộ..." : "Đồng bộ từ HRM")</MudButton>
             </MudStack>
-            <MudDivider Class="my-3" />
-            <MudStack Row="true" AlignItems="AlignItems.Center" Class="flex-wrap"><InputFile OnChange="ImportExcel" accept=".xlsx" /><MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("calendar.chonFileXlsxDaDien")</MudText></MudStack>
-            <MudStack Row="true" Class="mt-3"><MudNumericField T="int" @bind-Value="_sundayYear" Label="@Language.T("calendar.namTaoChuNhat")" Variant="Variant.Outlined" /><MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.CalendarToday" OnClick="CreateSundays">@Language.T("calendar.taoChuNhat")</MudButton></MudStack>
         </MudPaper>
 
         <MudTable Items="FilteredHolidays" Dense="true" Hover="true" Striped="true">
-            <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("ot.year")</MudTh><MudTh>@Language.T("common.description")</MudTh><MudTh>@Language.T("calendar.loaiNgayNghi")</MudTh><MudTh>@Language.T("common.tinhPhep")</MudTh><MudTh></MudTh></HeaderContent>
+            <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("ot.year")</MudTh><MudTh>@Language.T("common.description")</MudTh><MudTh>@Language.T("calendar.loaiNgayNghi")</MudTh><MudTh>DayType (rule)</MudTh><MudTh>@Language.T("common.tinhPhep")</MudTh><MudTh>Nguồn</MudTh></HeaderContent>
             <RowTemplate>
                 <MudTd>@context.HolidayDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@context.Year</MudTd>
                 <MudTd>@context.Description</MudTd>
                 <MudTd><MudChip T="string" Size="Size.Small" Color="@HolidayTypeColor(context.HolidayType)">@HolidayTypeLabel(context.HolidayType)</MudChip></MudTd>
+                <MudTd>@context.DayType</MudTd>
                 <MudTd>@(context.IsPaidLeave ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
-                <MudTd Style="text-align:right"><MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditHoliday(context))" /><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteHoliday(context))" /></MudTd>
+                <MudTd>@(context.Source == "HRM" ? "HRM" : "FVN (cũ)")</MudTd>
             </RowTemplate>
         </MudTable>
     </MudTabPanel>
 </MudTabs>
 
 @code {
-    private readonly Dictionary<byte, string> _holidayTypes = new()
-    {
-        [1] = "Nghỉ công ty",
-        [2] = "Nghỉ lễ quốc gia",
-        [3] = "Nghỉ bù",
-        [4] = "Nghỉ khác"
-    };
     private List<WorkYearDto> _years = new();
     private List<CompanyHolidayDto> _holidays = new();
     private WorkYearDto? _editYear;
-    private DateTime? _start, _end, _holidayDate;
-    private string _holidayDescription = string.Empty;
-    private bool _holidayPaid = true;
-    private byte _holidayType = 1;
-    private int _editHolidayId;
-    private int _sundayYear = DateTime.Today.Year;
-    private bool _loading, _templateLoading;
+    private DateTime? _start, _end;
+    private bool _loading, _syncing;
     private IEnumerable<CompanyHolidayDto> FilteredHolidays => _holidays.OrderByDescending(x => x.HolidayDate);
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -140,7 +107,7 @@
         finally { _loading = false; }
     }
 
-    private string HolidayTypeLabel(byte type) => _holidayTypes.TryGetValue(type, out var label) ? label : "Không xác định";
+    private string HolidayTypeLabel(byte type) => FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeLabel(type);
     private Color HolidayTypeColor(byte type) => type switch { 2 => Color.Error, 3 => Color.Warning, 4 => Color.Info, _ => Color.Success };
 
     private void NewYear()
@@ -168,67 +135,16 @@
         if (result.IsSuccess) await LoadAsync();
     }
 
-    private void EditHoliday(CompanyHolidayDto x)
+    private async Task SyncHrm()
     {
-        _editHolidayId = x.Id; _holidayDate = x.HolidayDate; _holidayDescription = x.Description; _holidayPaid = x.IsPaidLeave; _holidayType = x.HolidayType is >= 1 and <= 4 ? x.HolidayType : (byte)1;
-    }
-
-    private async Task SaveHoliday()
-    {
-        if (!_holidayDate.HasValue || string.IsNullOrWhiteSpace(_holidayDescription)) { Snackbar.Add(Language.T("calendar.vuiLongNhapNgayVa"), Severity.Warning); return; }
-        if (_holidayType is < 1 or > 4) { Snackbar.Add(Language.T("calendar.holidayTypeInvalid"), Severity.Warning); return; }
-        var model = new CompanyHolidayDto { Id=_editHolidayId, HolidayDate=_holidayDate.Value.Date, Description=_holidayDescription.Trim(), IsPaidLeave=_holidayPaid, HolidayType=_holidayType, Year=_holidayDate.Value.Year };
-        var result = _editHolidayId == 0 ? await HolidayService.CreateAsync(model) : await HolidayService.UpdateAsync(_editHolidayId, model);
-        Snackbar.Add(result.IsSuccess ? Language.T("calendar.daLuuNgayNghi") : result.Message ?? Language.T("calendar.khongTheLuu"), result.IsSuccess ? Severity.Success : Severity.Error);
-        if (result.IsSuccess) { ResetHoliday(); await LoadAsync(); }
-    }
-
-    private void ResetHoliday() { _editHolidayId=0; _holidayDate=null; _holidayDescription=string.Empty; _holidayPaid=true; _holidayType=1; }
-
-    private async Task DeleteHoliday(CompanyHolidayDto x)
-    {
-        var ok = await DialogService.ShowMessageBoxAsync(Language.T("calendar.xoaNgayNghi"), Language.T("calendar.xoaNgay", x.HolidayDate, x.Description), yesText:Language.T("common.delete"), cancelText:Language.T("common.cancel"));
-        if (ok != true) return;
-        var result = await HolidayService.DeleteAsync(x.Id);
-        Snackbar.Add(result.Message ?? Language.T("common.daXoa"), result.IsSuccess ? Severity.Success : Severity.Error);
-        if (result.IsSuccess) await LoadAsync();
-    }
-
-    private async Task CreateSundays()
-    {
-        var result = await HolidayService.CreateSundaysAsync(_sundayYear);
-        Snackbar.Add(result.Message ?? Language.T("calendar.daXuLy"), result.IsSuccess ? Severity.Success : Severity.Warning);
-        if (result.IsSuccess) await LoadAsync();
-    }
-
-    private async Task DownloadTemplate()
-    {
-        _templateLoading = true;
+        _syncing = true;
         try
         {
-            var result = await HolidayService.DownloadTemplateAsync();
-            if (!result.IsSuccess || result.Data is not { Length: > 0 }) { Snackbar.Add(result.Message ?? Language.T("calendar.khongTaiDuocMauExcel"), Severity.Error); return; }
-            await JS.InvokeVoidAsync("fvnFileDownload.downloadBase64", "FCC_CompanyHoliday_Import_Template.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", Convert.ToBase64String(result.Data));
-            Snackbar.Add(Language.T("calendar.daTaiMauExcelChuan"), Severity.Success);
-        }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-        finally { _templateLoading = false; }
-    }
-
-    private async Task ImportExcel(InputFileChangeEventArgs e)
-    {
-        try
-        {
-            var file = e.File;
-            await using var stream = file.OpenReadStream(10_000_000);
-            using var content = new MultipartFormDataContent();
-            using var part = new StreamContent(stream);
-            part.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            content.Add(part, "file", file.Name);
-            var result = await HolidayService.ImportAsync(content);
-            Snackbar.Add(result.Message ?? Language.T("calendar.importHoanTat"), result.IsSuccess ? Severity.Success : Severity.Error);
+            var result = await HolidayService.SyncFromHrmAsync();
+            Snackbar.Add(result.Message ?? "Đã đồng bộ ngày nghỉ từ HRM.", result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) await LoadAsync();
         }
         catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _syncing = false; }
     }
 }

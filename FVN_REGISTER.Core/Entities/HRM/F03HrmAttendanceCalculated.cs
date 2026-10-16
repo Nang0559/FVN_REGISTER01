@@ -25,4 +25,8 @@ public sealed class F03HrmAttendanceCalculated
     public bool? HrmHoliday { get; set; }
     public string? AttendanceDisplayValue { get; set; }
     public string? OtDisplayValue { get; set; }
+    public string? DayType { get; set; }
+    public string? WorkSymbol { get; set; }
+    public string? OtSymbol { get; set; }
+    public string? SymbolRuleCode { get; set; }
 }

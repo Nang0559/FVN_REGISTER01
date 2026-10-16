@@ -37,15 +37,15 @@ public sealed class HrmAttendanceExcelExportService : IHrmAttendanceExcelExportS
 
             if (ot)
             {
-                // Dùng cùng nguồn với lịch (F03HrmAttendanceCalculated) để ký hiệu OT khớp lịch,
-                // không đọc OtDisplayValue/F03HrmOTActual vì hai nguồn đó dùng quy ước ký hiệu khác (L, 3.5, ...).
+                // Dùng cùng nguồn với lịch (F03HrmAttendanceCalculated): OtSymbol/WorkSymbol/SymbolRuleCode do rule
+                // F03AttendanceSymbolRules ghi lúc tính công, DayType do dbo.fn_ResolveDayType (ngày nghỉ HRM).
                 var rows = await _uow.SqlQueryRawAsync<OtRow>(@"
 SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        CheckInTime,CheckOutTime,
        WorkMinutesDay,WorkMinutesNight,
        OTMinutesDay,OTMinutesNight,OTMinutesDayTC,OTMinutesNightTC,
        OTRecognizedMinutesDay,OTRecognizedMinutesNight,
-       AttendanceDisplayValue
+       AttendanceDisplayValue,DayType,WorkSymbol,OtSymbol,SymbolRuleCode
 FROM dbo.F03HrmAttendanceCalculated
 WHERE CalculationBatchId=@BatchId
 ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, BatchParam(batchId));
@@ -178,13 +178,7 @@ ORDER BY HolidayDate;", ct, pFrom, pTo);
         return result;
     }
 
-    private static string GetHolidayTypeCode(byte holidayType) => holidayType switch
-    {
-        2 => "NATIONAL",
-        3 => "COMPENSATORY",
-        4 => "OTHER",
-        _ => "COMPANY"
-    };
+    private static string GetHolidayTypeCode(byte holidayType) => DayTypeCatalog.HolidayTypeCode(holidayType);
 
     private byte[] BuildAttendanceWorkbook(
         List<AttendanceRow> rows,
@@ -315,7 +309,12 @@ ORDER BY HolidayDate;", ct, pFrom, pTo);
                     + Math.Max(0, row.OTMinutesNightTC),
                 RecognizedOtMinutes = Math.Max(0, row.OTRecognizedMinutesDay)
                     + Math.Max(0, row.OTRecognizedMinutesNight),
-                DisplayValue = row.AttendanceDisplayValue
+                DisplayValue = row.AttendanceDisplayValue,
+                // Ký hiệu đã ghi theo rule lúc tính công; AttendanceSymbolCalculator chỉ còn là fallback cho batch cũ.
+                RuleWorkSymbol = row.WorkSymbol,
+                RuleOtSymbol = row.OtSymbol,
+                RuleDayType = row.DayType,
+                RuleCode = row.SymbolRuleCode
             }
         };
 
@@ -479,6 +478,10 @@ ORDER BY HolidayDate;", ct, pFrom, pTo);
         public int OTRecognizedMinutesDay { get; set; }
         public int OTRecognizedMinutesNight { get; set; }
         public string? AttendanceDisplayValue { get; set; }
+        public string? DayType { get; set; }
+        public string? WorkSymbol { get; set; }
+        public string? OtSymbol { get; set; }
+        public string? SymbolRuleCode { get; set; }
     }
 
     private sealed class RunRangeRow

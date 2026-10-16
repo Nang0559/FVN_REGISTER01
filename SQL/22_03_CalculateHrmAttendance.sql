@@ -19,6 +19,8 @@ BEGIN
  INSERT dbo.F03HrmAttendanceCalculationRun
  (CalculationBatchId,DeptCode,EmployeeCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt)
  VALUES(@BatchId,@DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE());
+ /* Ngày nghỉ lấy từ HRM (DM_Loainghile/tblNgayNghiLe) - đồng bộ trước khi tính để DayType luôn mới. */
+ EXEC dbo.usp_SyncHrmHolidays;
  CREATE TABLE #Result(
   BCNgay datetime NOT NULL,BCMaNV int NOT NULL,BCMaBP int NOT NULL,BCMaCV int NOT NULL,BCMaCa int NOT NULL,
   BCCuaDen int NULL,BCTGDen datetime NULL,BCCuaVe int NULL,BCTGVe datetime NULL,BCCuaRa int NULL,BCTGRa datetime NULL,BCCuaVao int NULL,BCTGVao datetime NULL,
@@ -109,25 +111,16 @@ BEGIN
        WHEN ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)<=0 THEN N''
        WHEN ISNULL(a.RequiredMinutes,0)>0 AND ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)=a.RequiredMinutes THEN NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N'')
        ELSE CONVERT(nvarchar(50),CONVERT(float,(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0))/60.0)) END,
-       OtDisplayValue=CASE
-       /*
-          L/holiday classification must come from the HRM attendance result
-          (BCNgayLe / BCNgayLeNV), not from tblCa.CNgaynghi (HrmHoliday).
-          CNgaynghi describes the shift calendar and can mark a regular
-          Saturday/day-off for everyone on that shift, which caused false
-          "L" values in OT exports for employees whose HRM report did not
-          classify that date as a holiday.
-       */
-       WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)<=0
-            THEN CASE WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN N'L' ELSE N'' END
-       WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN
-            CASE WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)>=480
-                 THEN N'NL'+COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'')+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
-                 ELSE N'NL'+LEFT(COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'C'),1)+CONVERT(nvarchar(20),ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)) END
-       WHEN ISNULL(a.HrmShiftDayType,0) IN (2,3) THEN
-            N'CN'+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
-       ELSE CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0)) END
-   FROM dbo.F03HrmAttendanceCalculated a WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
+       /* DayType do dbo.fn_ResolveDayType quyết định (ngày nghỉ HRM > cờ HRM > CN > T7 > thường).
+          Ký hiệu OT/ công thật (NL4, CNK4, T2 8, ...) do rule F03AttendanceSymbolRules áp ở tầng ứng dụng
+          (HrmAttendanceCalculationService.ApplySymbolRulesAsync) ngay sau proc này. Ở đây chỉ để marker 'L'
+          cho ngày nghỉ chưa có OT; không còn CASE cứng NL/CN. */
+       DayType=ds.DayType,
+       OtDisplayValue=CASE WHEN ds.IsHoliday=1 THEN N'L' ELSE NULL END,
+       WorkSymbol=NULL,OtSymbol=NULL,SymbolRuleCode=NULL
+   FROM dbo.F03HrmAttendanceCalculated a
+   CROSS APPLY dbo.fn_ResolveDayType(a.WorkDate,a.HrmBCNgayLe,a.HrmBCNgayLeNV) ds
+   WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
    FETCH NEXT FROM staff_cur INTO @StaffID;
   END
   CLOSE staff_cur;

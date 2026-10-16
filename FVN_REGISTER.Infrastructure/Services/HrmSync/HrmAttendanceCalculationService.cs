@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Utils;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Core.Utils;
 using Microsoft.Extensions.Logging;
 using System.Data;
+using System.Text.Json;
 
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync;
 
@@ -16,9 +18,10 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
  private readonly IUnitOfWork _uow;
  private readonly ILogger<HrmAttendanceCalculationService> _logger;
  private readonly FVNWEBAPPContext _db;
+ private readonly IAttendanceSymbolRuleService _symbolRules;
 
- public HrmAttendanceCalculationService(IUnitOfWork uow,ILogger<HrmAttendanceCalculationService> logger,FVNWEBAPPContext db)
- { _uow=uow; _logger=logger; _db=db; }
+ public HrmAttendanceCalculationService(IUnitOfWork uow,ILogger<HrmAttendanceCalculationService> logger,FVNWEBAPPContext db,IAttendanceSymbolRuleService symbolRules)
+ { _uow=uow; _logger=logger; _db=db; _symbolRules=symbolRules; }
 
  public async Task<ServiceResult<HrmAttendanceCalculationResultDto>> CalculateAsync(
   HrmAttendanceCalculationRequestDto request,string? triggeredBy=null,CancellationToken ct=default)
@@ -51,6 +54,11 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     ct,pDept,pEmployee,pFrom,pTo,pBy);
    var result=rows.FirstOrDefault();
 
+   // Nối rule ký hiệu (F03AttendanceSymbolRules) vào kết quả tính công thật:
+   // lịch, xuất chấm công và xuất OT đều đọc các cột WorkSymbol/OtSymbol/SymbolRuleCode/DayType này.
+   if(result != null)
+    await ApplySymbolRulesAsync(result.CalculationBatchId,ct);
+
    if(result != null && request.ReopenPayrollPeriod)
    {
     var from=DateOnly.FromDateTime(request.FromDate.Date);
@@ -80,6 +88,54 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   }
   finally { _uow.SetCommandTimeout(30); }
  }
+
+ /// <summary>
+ /// Áp rule ký hiệu cho mọi dòng đã có In/Out của batch. DayType đã được usp_CalculateHrmAttendance ghi
+ /// (dbo.fn_ResolveDayType: ngày nghỉ HRM > cờ HRM > CN > T7 > thường). Dòng không khớp rule nào để SymbolRuleCode = NULL
+ /// (lịch/xuất sẽ fallback AttendanceSymbolCalculator) và được log để bổ sung rule.
+ /// </summary>
+ private async Task ApplySymbolRulesAsync(Guid batchId,CancellationToken ct)
+ {
+  var inputs=await _db.Database.SqlQuery<SymbolInputRow>($"""
+   SELECT Id,WorkDate,ShiftId,ShiftAbbr,CheckInTime,CheckOutTime,DayType
+   FROM dbo.F03HrmAttendanceCalculated
+   WHERE CalculationBatchId={batchId} AND CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL
+   """).ToListAsync(ct);
+
+  var matched=new List<SymbolOutput>(inputs.Count);
+  var unmatched=new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase);
+  foreach(var row in inputs)
+  {
+   ct.ThrowIfCancellationRequested();
+   var dayType=string.IsNullOrWhiteSpace(row.DayType)?"NORMAL":row.DayType!;
+   var eval=await _symbolRules.EvaluateAsync(DateOnly.FromDateTime(row.WorkDate),dayType,row.ShiftAbbr,row.ShiftId,row.CheckInTime,row.CheckOutTime,null,ct);
+   if(eval.Matched&&!string.IsNullOrWhiteSpace(eval.RuleCode))
+    matched.Add(new SymbolOutput(row.Id,eval.WorkSymbol,eval.OtSymbol,eval.RuleCode));
+   else
+    unmatched[$"{dayType}/{row.ShiftAbbr}"]=unmatched.GetValueOrDefault($"{dayType}/{row.ShiftAbbr}")+1;
+  }
+
+  _db.Database.SetCommandTimeout(600);
+  foreach(var chunk in matched.Chunk(1000))
+  {
+   var json=JsonSerializer.Serialize(chunk.Select(x=>new{id=x.Id,ws=x.WorkSymbol,os=x.OtSymbol,rc=x.RuleCode}));
+   await _db.Database.ExecuteSqlInterpolatedAsync($"""
+    UPDATE a SET
+        a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
+        a.OtDisplayValue=COALESCE(j.os,a.OtDisplayValue),
+        a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND a.DayType<>N'NORMAL' AND ISNULL(a.LeaveTotal,0)=0 THEN j.ws ELSE a.AttendanceDisplayValue END
+    FROM dbo.F03HrmAttendanceCalculated AS a
+    INNER JOIN OPENJSON({json}) WITH (id bigint '$.id',ws nvarchar(50) '$.ws',os nvarchar(50) '$.os',rc nvarchar(100) '$.rc') AS j ON j.id=a.Id
+    """,ct);
+  }
+
+  if(unmatched.Count>0)
+   _logger.LogWarning("Symbol rules: {Count} dòng không khớp rule nào (DayType/Ca → số dòng): {Detail}. Bổ sung rule ở /admin/attendance-symbol-rules.",
+    unmatched.Values.Sum(),string.Join(", ",unmatched.OrderByDescending(x=>x.Value).Take(10).Select(x=>$"{x.Key}={x.Value}")));
+ }
+
+ private sealed record SymbolInputRow(long Id,DateTime WorkDate,int? ShiftId,string? ShiftAbbr,DateTime? CheckInTime,DateTime? CheckOutTime,string? DayType);
+ private sealed record SymbolOutput(long Id,string? WorkSymbol,string? OtSymbol,string RuleCode);
 
  public async Task<ServiceResult> EnsureEmployeeRangeAsync(
   string employeeCode,int? deptCode,DateOnly from,DateOnly to,CancellationToken ct=default)

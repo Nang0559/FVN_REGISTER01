@@ -14,6 +14,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies;
 public sealed class CompanyHolidayManagementService : BaseService<CompanyHolidayManagementService>, ICompanyHolidayManagementService
 {
     private readonly IUnitOfWork _uow;
+    private const string ReadOnlyMessage = "Ngày nghỉ được đồng bộ từ HRM (DM_Loainghile/tblNgayNghiLe). Hãy sửa trong HRM rồi bấm \"Đồng bộ từ HRM\".";
+    private static readonly bool HolidaysAreReadOnly = true;
 
     public CompanyHolidayManagementService(IUnitOfWork uow, ILogger<CompanyHolidayManagementService> logger, IOptionsMonitor<AuthDebugOptions> options)
         : base(logger, options) => _uow = uow;
@@ -32,6 +34,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
 
     public async Task<ServiceResult<CompanyHolidayDto>> CreateAsync(CompanyHolidayDto model, int userId, CancellationToken ct = default)
     {
+        if (HolidaysAreReadOnly) return ServiceResult<CompanyHolidayDto>.Fail(ReadOnlyMessage);
         try
         {
             if (model.HolidayType is < 1 or > 4) return ServiceResult<CompanyHolidayDto>.Fail("Loại ngày nghỉ không hợp lệ. Chỉ nhận 1-4.");
@@ -47,6 +50,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
 
     public async Task<ServiceResult<CompanyHolidayDto>> UpdateAsync(CompanyHolidayDto model, int userId, CancellationToken ct = default)
     {
+        if (HolidaysAreReadOnly) return ServiceResult<CompanyHolidayDto>.Fail(ReadOnlyMessage);
         try
         {
             if (model.HolidayType is < 1 or > 4) return ServiceResult<CompanyHolidayDto>.Fail("Loại ngày nghỉ không hợp lệ. Chỉ nhận 1-4.");
@@ -63,6 +67,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
 
     public async Task<ServiceResult> DeleteAsync(int id, CancellationToken ct = default)
     {
+        if (HolidaysAreReadOnly) return ServiceResult.Fail(ReadOnlyMessage);
         var repo=_uow.Repository<F03CompanyHoliday>(); var entity=await repo.GetByIdAsync(id,ct);
         if (entity is null) return ServiceResult.Fail("Không tìm thấy.");
         repo.Remove(entity); await _uow.SaveChangesAsync(ct); return ServiceResult.Ok();
@@ -70,6 +75,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
 
     public async Task<ServiceResult> CreateSundaysAsync(int year, int userId, CancellationToken ct = default)
     {
+        if (HolidaysAreReadOnly) return ServiceResult.Fail(ReadOnlyMessage);
         var repo=_uow.Repository<F03CompanyHoliday>(); var date=new DateTime(year,1,1);
         while(date.DayOfWeek!=DayOfWeek.Sunday) date=date.AddDays(1);
         var count=0;
@@ -87,6 +93,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
 
     public Task<ServiceResult<byte[]>> DownloadTemplateAsync(CancellationToken ct = default)
     {
+        if (HolidaysAreReadOnly) return Task.FromResult(ServiceResult<byte[]>.Fail(ReadOnlyMessage));
         try
         {
             ct.ThrowIfCancellationRequested(); using var workbook=new XLWorkbook(); var ws=workbook.Worksheets.Add("CompanyHolidays");
@@ -111,6 +118,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
 
     public async Task<ServiceResult<string>> ImportExcelAsync(Stream content,string fileName,int userId,CancellationToken ct=default)
     {
+        if (HolidaysAreReadOnly) return ServiceResult<string>.Fail(ReadOnlyMessage);
         try
         {
             using var workbook=new XLWorkbook(content); var worksheet=workbook.Worksheets.FirstOrDefault(); if(worksheet is null)return ServiceResult<string>.Fail("File Excel không có worksheet.");
@@ -160,6 +168,35 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
         Description = entity.Description,
         Year = entity.Year,
         IsPaidLeave = entity.TinhPhep,
-        HolidayType = entity.HolidayType
+        HolidayType = entity.HolidayType,
+        DayType = entity.DayType,
+        Source = entity.Source
     };
+
+    public async Task<ServiceResult<string>> SyncFromHrmAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var rows = await _uow.SqlQueryRawAsync<HrmHolidaySyncRow>("EXEC dbo.usp_SyncHrmHolidays", ct);
+            var r = rows.FirstOrDefault();
+            return ServiceResult<string>.Ok(
+                "ok",
+                r is null
+                    ? "Đã đồng bộ ngày nghỉ từ HRM."
+                    : $"Đã đồng bộ từ HRM: {r.HolidayCount} ngày nghỉ (cập nhật {r.HolidaysUpserted}, xoá {r.HolidaysDeleted}), {r.TypesUpserted} loại ngày nghỉ.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[HOLIDAY] Sync from HRM failed");
+            return ServiceResult<string>.Fail("Đồng bộ ngày nghỉ từ HRM thất bại.");
+        }
+    }
+
+    private sealed class HrmHolidaySyncRow
+    {
+        public int TypesUpserted { get; set; }
+        public int HolidaysUpserted { get; set; }
+        public int HolidaysDeleted { get; set; }
+        public int HolidayCount { get; set; }
+    }
 }

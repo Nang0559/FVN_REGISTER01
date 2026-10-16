@@ -131,6 +131,11 @@ IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmBCNgayLeNV') IS NULL ALTER 
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmShiftDayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD HrmShiftDayType smallint NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'AttendanceDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD AttendanceDisplayValue nvarchar(50) NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'OtDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD OtDisplayValue nvarchar(50) NULL;
+-- Ngày nghỉ HRM + rule ký hiệu (SQL/83): DayType do dbo.fn_ResolveDayType, WorkSymbol/OtSymbol/SymbolRuleCode do rule F03AttendanceSymbolRules.
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'DayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD DayType nvarchar(40) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'WorkSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD WorkSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'OtSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD OtSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'SymbolRuleCode') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD SymbolRuleCode nvarchar(100) NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculated') AND name=N'IX_F03HrmAttendanceCalculated_DateDept')

@@ -6,8 +6,9 @@ namespace FVN_REGISTER.Contract.Dtos.Calendar;
 public readonly record struct AttendanceSymbols(string? WorkSymbol, string? OtSymbol);
 
 /// <summary>
-/// Nguồn duy nhất để tính ký hiệu công / OT cho lịch.
-/// Ô ngày (workCalendar.js) và popup (CalendarDayDialog) đều dùng class này nên luôn khớp nhau.
+/// FALLBACK tính ký hiệu công / OT khi dữ liệu chưa có ký hiệu theo rule (batch cũ, hoặc không rule nào khớp).
+/// Nguồn chính là rule F03AttendanceSymbolRules, áp lúc tính công (HrmAttendanceCalculationService.ApplySymbolRulesAsync)
+/// và đọc qua CalendarAttendanceInfoDto.SymbolRuleCode/Symbol/OtSymbol. Không thêm logic mới vào class này.
 /// </summary>
 public static class AttendanceSymbolCalculator
 {

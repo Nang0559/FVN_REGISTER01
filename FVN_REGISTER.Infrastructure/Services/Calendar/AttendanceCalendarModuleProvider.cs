@@ -61,7 +61,11 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                     a.HrmHoliday,
                     a.HrmEmployeeHoliday,
                     a.HrmBCLyDoNghi,
-                    a.HrmBCGhiChu
+                    a.HrmBCGhiChu,
+                    a.DayType,
+                    a.WorkSymbol,
+                    a.OtSymbol,
+                    a.SymbolRuleCode
                 FROM dbo.F03HrmAttendanceCalculated AS a
                 WHERE a.EmployeeCode = {context.EmployeeCode}
                   AND a.WorkDate >= {context.From}
@@ -98,7 +102,11 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                 h.HrmHoliday,
                 h.HrmEmployeeHoliday,
                 h.HrmBCLyDoNghi,
-                h.HrmBCGhiChu
+                h.HrmBCGhiChu,
+                h.DayType,
+                h.WorkSymbol,
+                h.OtSymbol,
+                h.SymbolRuleCode
             FROM dbo.F03HrmAttendanceHistory AS h
             WHERE h.EmployeeCode = {context.EmployeeCode}
               AND h.WorkDate >= {context.From}
@@ -255,6 +263,10 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             SourceId = reconciliation?.Id.ToString() ?? $"{row.HrmEmployeeId}:{row.WorkDate:yyyyMMdd}",
             ShiftId = row.ShiftId,
             ShiftAbbr = row.ShiftAbbr,
+            DayType = row.DayType,
+            WorkSymbol = row.WorkSymbol,
+            OtMarker = row.OtSymbol,
+            SymbolRuleCode = row.SymbolRuleCode,
             CheckIn = row.CheckInTime,
             CheckOut = row.CheckOutTime,
             WorkMinutes = workedMinutes,
@@ -414,5 +426,9 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         public bool? HrmEmployeeHoliday { get; set; }
         public string? HrmBCLyDoNghi { get; set; }
         public string? HrmBCGhiChu { get; set; }
+        public string? DayType { get; set; }
+        public string? WorkSymbol { get; set; }
+        public string? OtSymbol { get; set; }
+        public string? SymbolRuleCode { get; set; }
     }
 }
