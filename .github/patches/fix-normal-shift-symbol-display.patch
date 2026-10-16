@@ -26,6 +26,25 @@ index 5545527..5d08af5 100644
                                          THEN j.ws ELSE h.AttendanceDisplayValue END
                          FROM dbo.F03HrmAttendanceHistory AS h WITH (ROWLOCK)
                          INNER JOIN OPENJSON({json})
+                            WITH (id bigint '$.id', wd date '$.wd', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
+                                  os nvarchar(50) '$.os', rc nvarchar(100) '$.rc') AS j
+                            ON h.WorkDate = j.wd AND h.HistoryId = j.id
+                        WHERE h.SymbolRuleCode IS NULL
+                        """, ct);
+                }
+            }
+        }
+        }
+        finally
+        {
+            _db.Database.SetCommandTimeout(previousTimeout);
+        }
+    }
+
+diff --git a/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs b/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs
+index 86f764f..6192237 100644
+--- a/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs
++++ b/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs
 @@ -129,7 +129,9 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationService
      UPDATE a SET
          a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
