@@ -37,6 +37,8 @@
 :r "83_HrmHolidaySync.sql"
 :r "84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql"
 :r "22_03_CalculateHrmAttendance.sql"
+:r "87_BackfillHolidaySymbols.sql"
+:r "88_RemoveLegacyDayTypes.sql"
 :r "55_ExecutionResolutionPolicy.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
