@@ -106,7 +106,7 @@ BEGIN
    WHERE r.BCMaNV=@StaffID AND CAST(r.BCNgay AS date)=@D;
    UPDATE a SET AttendanceDisplayValue=CASE
        WHEN ISNULL(a.LeaveTotal,0)>0 THEN COALESCE(NULLIF(LTRIM(RTRIM(a.HrmBCLyDoNghi)),N''),NULLIF(LTRIM(RTRIM(a.HrmBCGhiChu)),N''),N'K')
-       WHEN a.CheckInTime IS NULL AND a.CheckOutTime IS NULL THEN N''
+       WHEN a.CheckInTime IS NULL AND a.CheckOutTime IS NULL THEN COALESCE(CASE WHEN ds.IsHoliday=1 THEN ds.HolidaySymbol END,N'')
        WHEN a.CheckInTime IS NULL OR a.CheckOutTime IS NULL THEN N'?'
        WHEN ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)<=0 THEN N''
        WHEN ISNULL(a.RequiredMinutes,0)>0 AND ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)=a.RequiredMinutes THEN NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N'')
@@ -114,9 +114,9 @@ BEGIN
        /* DayType do dbo.fn_ResolveDayType quyết định (ngày nghỉ HRM > cờ HRM > CN > T7 > thường).
           Ký hiệu OT/ công thật (NL4, CNK4, T2 8, ...) do rule F03AttendanceSymbolRules áp ở tầng ứng dụng
           (HrmAttendanceCalculationService.ApplySymbolRulesAsync) ngay sau proc này. Ở đây chỉ để marker 'L'
-          cho ngày nghỉ chưa có OT; không còn CASE cứng NL/CN. */
+          cho ngày nghỉ chưa có OT; ký hiệu là LNLKyHieu của HRM (L/CT/NT...), không còn CASE cứng NL/CN. */
        DayType=ds.DayType,
-       OtDisplayValue=CASE WHEN ds.IsHoliday=1 THEN N'L' ELSE NULL END,
+       OtDisplayValue=CASE WHEN ds.IsHoliday=1 THEN COALESCE(ds.HolidaySymbol,N'L') ELSE NULL END,
        WorkSymbol=NULL,OtSymbol=NULL,SymbolRuleCode=NULL
    FROM dbo.F03HrmAttendanceCalculated a
    CROSS APPLY dbo.fn_ResolveDayType(a.WorkDate,a.HrmBCNgayLe,a.HrmBCNgayLeNV) ds

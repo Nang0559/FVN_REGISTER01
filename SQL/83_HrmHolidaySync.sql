@@ -49,6 +49,13 @@ IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HrmTypeCode') IS NULL
     ALTER TABLE dbo.F03CompanyHolidays ADD HrmTypeCode varchar(5) NULL;
 IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'DayType') IS NULL
     ALTER TABLE dbo.F03CompanyHolidays ADD DayType nvarchar(40) NULL;
+/* Ký hiệu nghỉ lấy từ HRM (DM_Loainghile.LNLKyHieu: L, CT, NT...), tên loại và màu của HRM. */
+IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidaySymbol') IS NULL
+    ALTER TABLE dbo.F03CompanyHolidays ADD HolidaySymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayTypeName') IS NULL
+    ALTER TABLE dbo.F03CompanyHolidays ADD HolidayTypeName nvarchar(200) NULL;
+IF COL_LENGTH(N'dbo.F03CompanyHolidays', N'HolidayColor') IS NULL
+    ALTER TABLE dbo.F03CompanyHolidays ADD HolidayColor varchar(50) NULL;
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_F03CompanyHolidays_HrmHolidayCode'
                AND object_id = OBJECT_ID(N'dbo.F03CompanyHolidays'))
@@ -109,8 +116,14 @@ AS
 RETURN
 (
     SELECT
+        /* Loại HRM "Chủ nhật/Nghỉ công ty" (COMPANY_HOLIDAY) rơi vào Chủ nhật/Thứ 7 thì dùng rule của
+           ngày đó (SUNDAY / COMPANY_SATURDAY); các loại khác (lễ, nghỉ bù...) giữ nguyên loại HRM. */
         DayType = COALESCE(
-            (SELECT TOP (1) h.DayType FROM dbo.F03CompanyHolidays h
+            (SELECT TOP (1)
+                    CASE WHEN h.DayType = N'COMPANY_HOLIDAY' AND DATEDIFF(day, '19000107', @WorkDate) % 7 = 0 THEN N'SUNDAY'
+                         WHEN h.DayType = N'COMPANY_HOLIDAY' AND DATEDIFF(day, '19000107', @WorkDate) % 7 = 6 THEN N'COMPANY_SATURDAY'
+                         ELSE h.DayType END
+               FROM dbo.F03CompanyHolidays h
               WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1 ORDER BY h.Id),
             CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 THEN N'NATIONAL_HOLIDAY'
                  WHEN ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'OTHER' END,
@@ -118,7 +131,12 @@ RETURN
             N'NORMAL'),
         IsHoliday = CASE WHEN EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1)
                            OR ISNULL(@HrmHolidayFlag, 0) = 1 OR ISNULL(@HrmEmployeeHolidayFlag, 0) = 1
-                         THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END
+                         THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END,
+        /* Ký hiệu nghỉ theo HRM (LNLKyHieu). Cờ HRM không có loại (ngày nghỉ riêng nhân viên) thì dùng "L". */
+        HolidaySymbol = COALESCE(
+            (SELECT TOP (1) h.HolidaySymbol FROM dbo.F03CompanyHolidays h
+              WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1 ORDER BY h.Id),
+            CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 OR ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'L' END)
 );
 GO
 

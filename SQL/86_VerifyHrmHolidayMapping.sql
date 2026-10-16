@@ -27,8 +27,8 @@ SELECT LNLMa, LNLTen, LNLLoai, DayType, DayTypeIsManual, DLocked
 FROM dbo.F03HrmHolidayTypes ORDER BY LNLMa;
 
 -- 4. Số ngày nghỉ theo DayType / nguồn
-SELECT Source, DayType, HolidayType, COUNT(*) AS Cnt, SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS ActiveCnt
-FROM dbo.F03CompanyHolidays GROUP BY Source, DayType, HolidayType ORDER BY Source, DayType;
+SELECT Source, DayType, HolidayType, HolidaySymbol, COUNT(*) AS Cnt, SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS ActiveCnt
+FROM dbo.F03CompanyHolidays GROUP BY Source, DayType, HolidayType, HolidaySymbol ORDER BY Source, DayType;
 
 -- 5. DayType của ngày nghỉ không có rule ký hiệu đang bật
 SELECT DISTINCT h.DayType

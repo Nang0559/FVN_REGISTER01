@@ -92,6 +92,10 @@ BEGIN
             t.LNLMauSac,
             DLocked = ISNULL(t.DLocked, 0),
             GuessDayType = CASE
+                /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
+                WHEN RTRIM(t.LNLMa) = N'0003' THEN N'NATIONAL_HOLIDAY'   -- Ngày lễ (L)
+                WHEN RTRIM(t.LNLMa) = N'0002' THEN N'COMPANY_HOLIDAY'    -- Chủ nhật/Nghỉ công ty (CT)
+                WHEN RTRIM(t.LNLMa) = N'0001' THEN N'OTHER'              -- Ngày nghỉ thường (NT)
                 WHEN LOWER(t.LNLTen) LIKE N'%bù%' THEN N'COMPENSATORY'
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
@@ -124,6 +128,10 @@ BEGIN
             t.LNLMauSac,
             DLocked = ISNULL(t.DLocked, 0),
             GuessDayType = CASE
+                /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
+                WHEN RTRIM(t.LNLMa) = N'0003' THEN N'NATIONAL_HOLIDAY'   -- Ngày lễ (L)
+                WHEN RTRIM(t.LNLMa) = N'0002' THEN N'COMPANY_HOLIDAY'    -- Chủ nhật/Nghỉ công ty (CT)
+                WHEN RTRIM(t.LNLMa) = N'0001' THEN N'OTHER'              -- Ngày nghỉ thường (NT)
                 WHEN LOWER(t.LNLTen) LIKE N'%bù%' THEN N'COMPENSATORY'
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
@@ -147,6 +155,8 @@ BEGIN
             LNLLoai = RTRIM(t.LNLLoai),
             t.DLocked,
             t.LNLTen,
+            t.LNLKyHieu,
+            t.LNLMauSac,
             DayType = ISNULL(t.DayType, N'NATIONAL_HOLIDAY')
         FROM dbo.F03HrmHolidayTypes AS t
     ),
@@ -157,6 +167,9 @@ BEGIN
             HolidayDate = CONVERT(date, n.NNLNgay),
             Description = LEFT(COALESCE(NULLIF(LTRIM(RTRIM(n.NNLTen)), N''), N'Ngày nghỉ HRM'), 200),
             TypeCode = RTRIM(n.NNLLoai),
+            HolidaySymbol = LEFT(NULLIF(LTRIM(RTRIM(t.LNLKyHieu)), N''), 50),
+            TypeName = LEFT(t.LNLTen, 200),
+            TypeColor = LEFT(t.LNLMauSac, 50),
             DayType = COALESCE(t.DayType, N'NATIONAL_HOLIDAY'),
             HolidayType = CONVERT(tinyint, CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
                 WHEN N'COMPANY_HOLIDAY' THEN 1
@@ -179,7 +192,7 @@ BEGIN
            mới thử LNLLoai (nhóm loại); khi đó chọn một DayType xác định để không nhân dòng. */
         OUTER APPLY
         (
-            SELECT TOP (1) x.DayType
+            SELECT TOP (1) x.DayType, x.LNLKyHieu, x.LNLTen, x.LNLMauSac
             FROM TypeSource AS x
             WHERE ISNULL(x.DLocked, 0) = 0
               AND (x.LNLMa = RTRIM(n.NNLLoai) OR x.LNLLoai = RTRIM(n.NNLLoai))
@@ -194,7 +207,7 @@ BEGIN
         WHERE ISNULL(n.DLocked, 0) = 0
           AND n.NNLNgay IS NOT NULL
     )
-    SELECT HrmCode, HolidayDate, Description, TypeCode, DayType, HolidayType
+    SELECT HrmCode, HolidayDate, Description, TypeCode, HolidaySymbol, TypeName, TypeColor, DayType, HolidayType
     INTO #HrmHolidaySource
     FROM HolidaySource
     WHERE rn = 1;
@@ -217,6 +230,9 @@ BEGIN
        SET d.Description = s.Description,
            d.Year = YEAR(s.HolidayDate),
            d.HrmTypeCode = s.TypeCode,
+           d.HolidaySymbol = s.HolidaySymbol,
+           d.HolidayTypeName = s.TypeName,
+           d.HolidayColor = s.TypeColor,
            d.DayType = s.DayType,
            d.HolidayType = s.HolidayType,
            d.Source = N'HRM',
@@ -235,12 +251,14 @@ BEGIN
     (
         IsActive, CreatedBy, LastModifiedSource, CreatedAt,
         HolidayDate, Description, Year, TinhPhep, HolidayType,
-        Source, HrmHolidayCode, HrmTypeCode, DayType
+        Source, HrmHolidayCode, HrmTypeCode, DayType,
+        HolidaySymbol, HolidayTypeName, HolidayColor
     )
     SELECT
         1, 0, N'HRM_SYNC', GETDATE(),
         s.HolidayDate, s.Description, YEAR(s.HolidayDate), 1, s.HolidayType,
-        N'HRM', s.HrmCode, s.TypeCode, s.DayType
+        N'HRM', s.HrmCode, s.TypeCode, s.DayType,
+        s.HolidaySymbol, s.TypeName, s.TypeColor
     FROM #HrmHolidaySource AS s
     WHERE NOT EXISTS
     (
