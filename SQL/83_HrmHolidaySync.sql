@@ -174,12 +174,12 @@ RETURN
     SELECT
         DayType = COALESCE(
             (SELECT TOP (1) h.DayType FROM dbo.F03CompanyHolidays h
-              WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' ORDER BY h.Id),
+              WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1 ORDER BY h.Id),
             CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 THEN N'NATIONAL_HOLIDAY'
                  WHEN ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'OTHER' END,
             CASE DATEDIFF(day, '19000107', @WorkDate) % 7 WHEN 0 THEN N'SUNDAY' WHEN 6 THEN N'COMPANY_SATURDAY' END,
             N'NORMAL'),
-        IsHoliday = CASE WHEN EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM')
+        IsHoliday = CASE WHEN EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1)
                            OR ISNULL(@HrmHolidayFlag, 0) = 1 OR ISNULL(@HrmEmployeeHolidayFlag, 0) = 1
                          THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END
 );
