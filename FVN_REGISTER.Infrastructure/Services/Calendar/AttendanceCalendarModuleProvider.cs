@@ -36,7 +36,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         // anti-semi join. Avoid a multiply-referenced CTE and SELECT * across UNION ALL.
         var employeeCode = new SqlParameter("@code", SqlDbType.NVarChar, 50)
         {
-            Value = context.EmployeeCode
+            Value = (object?)context.EmployeeCode ?? DBNull.Value
         };
         var from = new SqlParameter("@from", SqlDbType.Date)
         {
