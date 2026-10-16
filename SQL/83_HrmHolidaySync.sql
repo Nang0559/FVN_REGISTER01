@@ -79,82 +79,18 @@ END;
 CLOSE c; DEALLOCATE c;
 GO
 
-/* 4. Đồng bộ ngày nghỉ từ HRM ----------------------------------------------- */
+/* 4. Đồng bộ ngày nghỉ từ HRM -----------------------------------------------
+   Procedure triển khai chính nằm ở migration 84. Không cài phiên bản MERGE cũ
+   tại đây vì nó INSERT theo NNLMa và có thể vi phạm unique key HolidayDate khi
+   HRM có nhiều mã nghỉ cùng một ngày hoặc FVN đã có dữ liệu ngày đó.
+   Chạy SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql ngay sau script này.
+*/
 CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmHolidays
     @DeleteMissing bit = 1
 AS
 BEGIN
-    SET NOCOUNT ON; SET XACT_ABORT ON;
-    DECLARE @TypesUpserted int = 0, @HolidaysUpserted int = 0, @HolidaysDeleted int = 0;
-
-    BEGIN TRANSACTION;
-
-    /* 4.1 Loại ngày nghỉ. DayType chỉ được đoán khi dòng MỚI hoặc chưa sửa tay (DayTypeIsManual=0).
-           Đoán theo tên loại; nếu sai, sửa trực tiếp F03HrmHolidayTypes.DayType + DayTypeIsManual=1. */
-    ;WITH src AS
-    (
-        SELECT LNLMa = RTRIM(t.LNLMa), LNLTen = t.LNLTen, LNLLoai = RTRIM(t.LNLLoai), t.LNLKyHieu, t.LNLMauSac,
-               DLocked = ISNULL(t.DLocked, 0),
-               GuessDayType = CASE
-                   WHEN LOWER(t.LNLTen) LIKE N'%bù%'                           THEN N'COMPENSATORY'
-                   WHEN LOWER(t.LNLTen) LIKE N'%công ty%'                      THEN N'COMPANY_HOLIDAY'
-                   WHEN LOWER(t.LNLTen) LIKE N'%lễ%' OR LOWER(t.LNLTen) LIKE N'%tết%'
-                     OR LOWER(t.LNLTen) LIKE N'%quốc%'                         THEN N'NATIONAL_HOLIDAY'
-                   ELSE N'OTHER' END
-        FROM HRM.dbo.DM_Loainghile AS t
-    )
-    MERGE dbo.F03HrmHolidayTypes AS d
-    USING src AS s ON d.LNLMa = s.LNLMa
-    WHEN MATCHED THEN UPDATE SET
-        d.LNLTen = s.LNLTen, d.LNLLoai = s.LNLLoai, d.LNLKyHieu = s.LNLKyHieu, d.LNLMauSac = s.LNLMauSac,
-        d.DLocked = s.DLocked, d.SyncedAt = SYSUTCDATETIME(),
-        d.DayType = CASE WHEN d.DayTypeIsManual = 1 THEN d.DayType ELSE s.GuessDayType END
-    WHEN NOT MATCHED BY TARGET THEN INSERT (LNLMa, LNLTen, LNLLoai, LNLKyHieu, LNLMauSac, DLocked, DayType)
-        VALUES (s.LNLMa, s.LNLTen, s.LNLLoai, s.LNLKyHieu, s.LNLMauSac, s.DLocked, s.GuessDayType);
-    SET @TypesUpserted = @@ROWCOUNT;
-
-    /* 4.2 Ngày nghỉ. tblNgayNghiLe.NNLLoai nối DM_Loainghile.LNLLoai (cùng cách HRM tự nối). */
-    ;WITH src AS
-    (
-        SELECT HrmCode = RTRIM(n.NNLMa),
-               HolidayDate = CAST(n.NNLNgay AS date),
-               Description = LEFT(n.NNLTen, 200),
-               TypeCode = RTRIM(n.NNLLoai),
-               DayType = ISNULL(t.DayType, N'NATIONAL_HOLIDAY'),
-               HolidayType = CASE ISNULL(t.DayType, N'NATIONAL_HOLIDAY')
-                                 WHEN N'COMPANY_HOLIDAY' THEN 1 WHEN N'NATIONAL_HOLIDAY' THEN 2
-                                 WHEN N'COMPENSATORY' THEN 3 ELSE 4 END,
-               rn = ROW_NUMBER() OVER (PARTITION BY RTRIM(n.NNLMa) ORDER BY t.LNLMa)
-        FROM HRM.dbo.tblNgayNghiLe AS n
-        LEFT JOIN dbo.F03HrmHolidayTypes AS t ON t.LNLLoai = RTRIM(n.NNLLoai) AND t.DLocked = 0
-        WHERE ISNULL(n.DLocked, 0) = 0
-    )
-    MERGE dbo.F03CompanyHolidays AS d
-    USING (SELECT * FROM src WHERE rn = 1) AS s ON d.HrmHolidayCode = s.HrmCode
-    WHEN MATCHED THEN UPDATE SET
-        d.HolidayDate = s.HolidayDate, d.Description = s.Description, d.Year = YEAR(s.HolidayDate),
-        d.HrmTypeCode = s.TypeCode, d.DayType = s.DayType, d.HolidayType = s.HolidayType,
-        d.Source = N'HRM', d.IsActive = 1, d.ModifiedBy = 0, d.ModifiedAt = GETDATE(), d.LastModifiedSource = N'HRM_SYNC'
-    WHEN NOT MATCHED BY TARGET THEN INSERT
-        (IsActive, CreatedBy, LastModifiedSource, CreatedAt, HolidayDate, Description, Year, TinhPhep, HolidayType,
-         Source, HrmHolidayCode, HrmTypeCode, DayType)
-        VALUES (1, 0, N'HRM_SYNC', GETDATE(), s.HolidayDate, s.Description, YEAR(s.HolidayDate), 1, s.HolidayType,
-                N'HRM', s.HrmCode, s.TypeCode, s.DayType);
-    SET @HolidaysUpserted = @@ROWCOUNT;
-
-    IF @DeleteMissing = 1
-    BEGIN
-        DELETE d FROM dbo.F03CompanyHolidays AS d
-        WHERE d.Source = N'HRM'
-          AND NOT EXISTS (SELECT 1 FROM HRM.dbo.tblNgayNghiLe AS n
-                          WHERE RTRIM(n.NNLMa) = d.HrmHolidayCode AND ISNULL(n.DLocked, 0) = 0);
-        SET @HolidaysDeleted = @@ROWCOUNT;
-    END;
-
-    COMMIT TRANSACTION;
-
-    SELECT TypesUpserted = @TypesUpserted, HolidaysUpserted = @HolidaysUpserted, HolidaysDeleted = @HolidaysDeleted,
-           HolidayCount = (SELECT COUNT(*) FROM dbo.F03CompanyHolidays WHERE Source = N'HRM');
+    SET NOCOUNT ON;
+    THROW 51482, N'Chưa cài migration 84. Hãy chạy SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql trước khi đồng bộ ngày nghỉ.', 1;
 END;
 GO
 
