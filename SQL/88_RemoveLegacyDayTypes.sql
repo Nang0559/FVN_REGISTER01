@@ -24,26 +24,48 @@ GO
 IF OBJECT_ID(N'dbo.F03CompanyHolidays_FvnLegacyBackup', N'U') IS NULL
     SELECT TOP (0) * INTO dbo.F03CompanyHolidays_FvnLegacyBackup FROM dbo.F03CompanyHolidays;
 GO
+/* Bảng sao lưu được tạo bằng SELECT ... INTO nên có thể mang theo cột IDENTITY:
+   phải INSERT có danh sách cột và bật IDENTITY_INSERT, không dùng "SELECT *". */
 BEGIN TRANSACTION;
-    INSERT dbo.F03CompanyHolidays_FvnLegacyBackup
-    SELECT h.* FROM dbo.F03CompanyHolidays AS h
-    WHERE h.Source <> N'HRM'
-      AND NOT EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays_FvnLegacyBackup b WHERE b.Id = h.Id);
+    DECLARE @cols nvarchar(max), @sql nvarchar(max), @hasIdentity bit;
+    SELECT @cols = STUFF((SELECT N',' + QUOTENAME(c.name)
+      FROM sys.columns AS c
+      JOIN sys.columns AS b ON b.object_id = OBJECT_ID(N'dbo.F03CompanyHolidays_FvnLegacyBackup') AND b.name = c.name
+     WHERE c.object_id = OBJECT_ID(N'dbo.F03CompanyHolidays') AND c.is_computed = 0
+     ORDER BY c.column_id FOR XML PATH(N''), TYPE).value(N'.', N'nvarchar(max)'), 1, 1, N'');
+    SET @hasIdentity = CASE WHEN OBJECTPROPERTY(OBJECT_ID(N'dbo.F03CompanyHolidays_FvnLegacyBackup'), 'TableHasIdentity') = 1 THEN 1 ELSE 0 END;
+    SET @sql = CASE WHEN @hasIdentity = 1 THEN N'SET IDENTITY_INSERT dbo.F03CompanyHolidays_FvnLegacyBackup ON; ' ELSE N'' END
+             + N'INSERT dbo.F03CompanyHolidays_FvnLegacyBackup (' + @cols + N') SELECT ' + @cols
+             + N' FROM dbo.F03CompanyHolidays AS h WHERE h.Source <> N''HRM'''
+             + N' AND NOT EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays_FvnLegacyBackup AS b WHERE b.Id = h.Id);'
+             + CASE WHEN @hasIdentity = 1 THEN N' SET IDENTITY_INSERT dbo.F03CompanyHolidays_FvnLegacyBackup OFF;' ELSE N'' END;
+    EXEC sys.sp_executesql @sql;
 
     DELETE FROM dbo.F03CompanyHolidays WHERE Source <> N'HRM';
     PRINT CONCAT(N'Đã xóa ngày nghỉ FVN cũ: ', @@ROWCOUNT);
 COMMIT TRANSACTION;
 GO
 
-/* 2. Rule ký hiệu có DayType không hợp lệ (gồm Nghỉ bù) ----------------------------------------- */
+/* 2. Rule ký hiệu có DayType không hợp lệ (gồm Nghỉ bù) ---------------------- */
 IF OBJECT_ID(N'dbo.F03AttendanceSymbolRules_RemovedBackup', N'U') IS NULL
     SELECT TOP (0) * INTO dbo.F03AttendanceSymbolRules_RemovedBackup FROM dbo.F03AttendanceSymbolRules;
 GO
+/* Bảng sao lưu được tạo bằng SELECT ... INTO nên có thể mang theo cột IDENTITY:
+   phải INSERT có danh sách cột và bật IDENTITY_INSERT, không dùng "SELECT *". */
 BEGIN TRANSACTION;
-    INSERT dbo.F03AttendanceSymbolRules_RemovedBackup
-    SELECT r.* FROM dbo.F03AttendanceSymbolRules AS r
-    WHERE r.DayType NOT IN (N'NORMAL', N'COMPANY_SATURDAY', N'SUNDAY', N'COMPANY_HOLIDAY', N'NATIONAL_HOLIDAY', N'OTHER')
-      AND NOT EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules_RemovedBackup b WHERE b.Id = r.Id);
+    DECLARE @cols nvarchar(max), @sql nvarchar(max), @hasIdentity bit;
+    SELECT @cols = STUFF((SELECT N',' + QUOTENAME(c.name)
+      FROM sys.columns AS c
+      JOIN sys.columns AS b ON b.object_id = OBJECT_ID(N'dbo.F03AttendanceSymbolRules_RemovedBackup') AND b.name = c.name
+     WHERE c.object_id = OBJECT_ID(N'dbo.F03AttendanceSymbolRules') AND c.is_computed = 0
+     ORDER BY c.column_id FOR XML PATH(N''), TYPE).value(N'.', N'nvarchar(max)'), 1, 1, N'');
+    SET @hasIdentity = CASE WHEN OBJECTPROPERTY(OBJECT_ID(N'dbo.F03AttendanceSymbolRules_RemovedBackup'), 'TableHasIdentity') = 1 THEN 1 ELSE 0 END;
+    SET @sql = CASE WHEN @hasIdentity = 1 THEN N'SET IDENTITY_INSERT dbo.F03AttendanceSymbolRules_RemovedBackup ON; ' ELSE N'' END
+             + N'INSERT dbo.F03AttendanceSymbolRules_RemovedBackup (' + @cols + N') SELECT ' + @cols
+             + N' FROM dbo.F03AttendanceSymbolRules AS h WHERE h.DayType NOT IN (N''NORMAL'', N''COMPANY_SATURDAY'', N''SUNDAY'', N''COMPANY_HOLIDAY'', N''NATIONAL_HOLIDAY'', N''OTHER'')'
+             + N' AND NOT EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules_RemovedBackup AS b WHERE b.Id = h.Id);'
+             + CASE WHEN @hasIdentity = 1 THEN N' SET IDENTITY_INSERT dbo.F03AttendanceSymbolRules_RemovedBackup OFF;' ELSE N'' END;
+    EXEC sys.sp_executesql @sql;
 
     DELETE FROM dbo.F03AttendanceSymbolRules WHERE DayType NOT IN (N'NORMAL', N'COMPANY_SATURDAY', N'SUNDAY', N'COMPANY_HOLIDAY', N'NATIONAL_HOLIDAY', N'OTHER');
     PRINT CONCAT(N'Đã xóa rule có DayType không hợp lệ: ', @@ROWCOUNT);
