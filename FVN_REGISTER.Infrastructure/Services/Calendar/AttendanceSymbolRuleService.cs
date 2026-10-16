@@ -201,7 +201,17 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
     private static bool InTimeMatches(TimeSpan time,string? fromText,string? toText){if(!TimeSpan.TryParse(fromText,CultureInfo.InvariantCulture,out var from)||!TimeSpan.TryParse(toText,CultureInfo.InvariantCulture,out var to))return true;return from<=to?time>=from&&time<=to:time>=from||time<=to;}
     private static string? Normalize(string? value)=>string.IsNullOrWhiteSpace(value)?null:value.Trim();private static string NormalizeShift(string? value)=>(value??string.Empty).Trim().ToUpperInvariant().Replace(" ",string.Empty);
     private static void Validate(AttendanceSymbolRuleUpsertRequest request){if(string.IsNullOrWhiteSpace(request.RuleCode))throw new ArgumentException("RuleCode là bắt buộc.");if(string.IsNullOrWhiteSpace(request.RuleName))throw new ArgumentException("RuleName là bắt buộc.");if(request.BlockMinutes<=0)throw new ArgumentException("BlockMinutes phải lớn hơn 0.");if(request.Segments.Count==0)throw new ArgumentException("Rule phải có ít nhất một segment.");if(request.Segments.Any(x=>!TimeSpan.TryParse(x.Start,CultureInfo.InvariantCulture,out _)||!TimeSpan.TryParse(x.End,CultureInfo.InvariantCulture,out _)))throw new ArgumentException("Giờ segment không hợp lệ.");}
-    private sealed record ReapplyInput(string Store, long RowId, DateTime WorkDate, int? ShiftId, string? ShiftAbbr, DateTime? CheckInTime, DateTime? CheckOutTime, string? DayType);
+    private sealed class ReapplyInput
+    {
+        public string Store { get; set; } = string.Empty;
+        public long RowId { get; set; }
+        public DateTime WorkDate { get; set; }
+        public int? ShiftId { get; set; }
+        public string? ShiftAbbr { get; set; }
+        public DateTime? CheckInTime { get; set; }
+        public DateTime? CheckOutTime { get; set; }
+        public string? DayType { get; set; }
+    }
     private sealed record ReapplyOutput(string Store, long RowId, string? WorkSymbol, string? OtSymbol, string? RuleCode);
     private sealed class RuleRow{public int Id{get;set;}public string RuleCode{get;set;}=string.Empty;public string RuleName{get;set;}=string.Empty;public string DayType{get;set;}=string.Empty;public string? ShiftCode{get;set;}public int? ShiftId{get;set;}public int Priority{get;set;}public int? MinActualMinutes{get;set;}public int? MaxActualMinutes{get;set;}public string? CheckInFrom{get;set;}public string? CheckInTo{get;set;}public DateTime? EffectiveFrom{get;set;}public DateTime? EffectiveTo{get;set;}public string RuleJson{get;set;}=string.Empty;public bool IsActive{get;set;}}
     private sealed class RuleDocument{public int BlockMinutes{get;set;}=15;public string RoundingMode{get;set;}="FLOOR";public string AllocationMode{get;set;}="STANDARD";public int? FixedOtMinutes{get;set;}public List<AttendanceSymbolRuleSegmentDto> Segments{get;set;}=new();}
