@@ -58,7 +58,10 @@ GO
       one active row on the same date, choose one deterministic classification
       (national > company > compensatory > other) and a stable NNLMa. */
 CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmHolidays
-    @DeleteMissing bit = 1
+    @DeleteMissing bit = 1,
+    /* 0 (mặc định) = không trả result set. Bắt buộc khi gọi từ usp_CalculateHrmAttendance: EF Core chỉ đọc
+       result set ĐẦU TIÊN, nếu proc này trả thống kê trước thì mất cột CalculatedRows. */
+    @ReturnResult bit = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -293,11 +296,12 @@ BEGIN
     DROP TABLE #HrmHolidaySource;
     COMMIT TRANSACTION;
 
-    SELECT
-        TypesUpserted = @TypesUpserted,
-        HolidaysUpserted = @HolidaysUpserted,
-        HolidaysDeleted = @HolidaysDeleted,
-        HolidayCount = (SELECT COUNT(*) FROM dbo.F03CompanyHolidays WHERE Source = N'HRM');
+    IF @ReturnResult = 1
+        SELECT
+            TypesUpserted = @TypesUpserted,
+            HolidaysUpserted = @HolidaysUpserted,
+            HolidaysDeleted = @HolidaysDeleted,
+            HolidayCount = (SELECT COUNT(*) FROM dbo.F03CompanyHolidays WHERE Source = N'HRM');
 END;
 GO
 

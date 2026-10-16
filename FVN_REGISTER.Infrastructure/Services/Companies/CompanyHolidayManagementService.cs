@@ -190,7 +190,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
     {
         try
         {
-            var rows = await _uow.SqlQueryRawAsync<HrmHolidaySyncRow>("EXEC dbo.usp_SyncHrmHolidays", ct);
+            var rows = await _uow.SqlQueryRawAsync<HrmHolidaySyncRow>("EXEC dbo.usp_SyncHrmHolidays @ReturnResult = 1", ct);
             var r = rows.FirstOrDefault();
             try
             {
