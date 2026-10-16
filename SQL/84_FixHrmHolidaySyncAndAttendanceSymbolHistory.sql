@@ -253,6 +253,17 @@ BEGIN
         SET @HolidaysDeleted = @@ROWCOUNT;
     END;
 
+    /* HRM is the sole source of company holidays.
+       Rows from the former FVN-maintained calendar that were not adopted by
+       the date-based upsert must no longer affect the shared calendar. */
+    UPDATE dbo.F03CompanyHolidays
+       SET IsActive = 0,
+           ModifiedBy = 0,
+           ModifiedAt = GETDATE(),
+           LastModifiedSource = N'HRM_SYNC_LEGACY_DISABLED'
+     WHERE Source = N'FVN'
+       AND IsActive = 1;
+
     DROP TABLE #HrmHolidaySource;
     COMMIT TRANSACTION;
 
