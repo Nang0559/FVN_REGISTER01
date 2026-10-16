@@ -35,6 +35,7 @@
 :r "66_CalendarHolidayClassification.sql"
 :r "67_AttendanceSymbolRules.sql"
 :r "83_HrmHolidaySync.sql"
+:r "84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql"
 :r "22_03_CalculateHrmAttendance.sql"
 :r "55_ExecutionResolutionPolicy.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
