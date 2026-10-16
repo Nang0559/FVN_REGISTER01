@@ -105,6 +105,7 @@
 :r "87_BackfillHolidaySymbols.sql"
 :r "88_RemoveLegacyDayTypes.sql"
 :r "89_EnforceDayTypeConstraints.sql"
+:r "90_NormalizeDayTypesToHrm.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
 :r "70_RequestModuleCanonicalization.sql"

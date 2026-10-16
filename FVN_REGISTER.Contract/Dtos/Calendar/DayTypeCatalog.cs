@@ -13,14 +13,14 @@ public static class DayTypeCatalog
 {
     public static readonly IReadOnlyList<DayTypeInfo> All = new DayTypeInfo[]
     {
-        new("NORMAL",           null, "NORMAL",       "Ngày thường",           "ngày thường",   false),
-        new("COMPANY_SATURDAY", null, "SATURDAY",     "Thứ 7 nghỉ công ty",    "thứ 7",         false),
-        new("SUNDAY",           null, "SUNDAY",       "Chủ nhật",              "chủ nhật",      false),
-        // 3 loại nghỉ theo HRM DM_Loainghile: 0002 CT, 0003 L, 0001 NT. Tên/màu thật lấy từ DB (F03CompanyHolidays.HolidayTypeName/HolidayColor);
-        // các nhãn dưới đây chỉ là dự phòng khi dòng ngày nghỉ chưa có tên HRM.
-        new("COMPANY_HOLIDAY",  1,    "COMPANY",      "Chủ nhật/Nghỉ công ty", "nghỉ công ty",  true, "CT"),
-        new("NATIONAL_HOLIDAY", 2,    "NATIONAL",     "Ngày lễ",               "ngày lễ",       true, "L"),
-        new("OTHER",            4,    "OTHER",        "Ngày nghỉ thường",      "nghỉ thường",   true, "NT"),
+        // T2-T7 (kể cả Thứ 7) là ngày làm việc thường. OT: K.. (hệ số 150%).
+        new("NORMAL",           null, "NORMAL",   "Ngày thường (T2-T7)",          "ngày thường",  false),
+        // HRM 0002 CT. Chủ nhật mặc định cũng là loại này. OT: CN.. / CNK.. (hệ số 200%).
+        new("COMPANY_HOLIDAY",  1,    "COMPANY",  "Chủ nhật / Nghỉ công ty (CT)", "nghỉ công ty", true, "CT"),
+        // HRM 0003 L. OT: NL.. / NLK.. (hệ số 300%).
+        new("NATIONAL_HOLIDAY", 2,    "NATIONAL", "Ngày lễ (L)",                  "ngày lễ",      true, "L"),
+        // HRM 0001 NT: ngày thường được công ty cho nghỉ. OT: T.. / TK.. (hệ số 200%).
+        new("OTHER",            4,    "OTHER",    "Ngày nghỉ thường (NT)",        "nghỉ thường",  true, "NT"),
     };
 
     public static string[] Codes => All.Select(x => x.Code).ToArray();

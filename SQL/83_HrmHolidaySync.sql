@@ -116,18 +116,18 @@ AS
 RETURN
 (
     SELECT
-        /* Loại HRM "Chủ nhật/Nghỉ công ty" (COMPANY_HOLIDAY) rơi vào Chủ nhật/Thứ 7 thì dùng rule của
-           ngày đó (SUNDAY / COMPANY_SATURDAY); các loại khác (lễ, nghỉ bù...) giữ nguyên loại HRM. */
+        /* 4 loại ngày duy nhất (khớp HRM DM_Loainghile: 0002 CT, 0003 L, 0001 NT):
+             1) ngày nghỉ HRM đăng ký  -> DayType của loại đó (CT=COMPANY_HOLIDAY, L=NATIONAL_HOLIDAY, NT=OTHER)
+             2) cờ HRM BCNgayLe / BCNgayLeNV khi chưa đồng bộ kịp
+             3) Chủ nhật mặc định     -> COMPANY_HOLIDAY (Chủ nhật/Nghỉ công ty)
+             4) còn lại (T2-T7)       -> NORMAL. Thứ 7 là ngày làm việc thường. */
         DayType = COALESCE(
-            (SELECT TOP (1)
-                    CASE WHEN h.DayType = N'COMPANY_HOLIDAY' AND DATEDIFF(day, '19000107', @WorkDate) % 7 = 0 THEN N'SUNDAY'
-                         WHEN h.DayType = N'COMPANY_HOLIDAY' AND DATEDIFF(day, '19000107', @WorkDate) % 7 = 6 THEN N'COMPANY_SATURDAY'
-                         ELSE h.DayType END
+            (SELECT TOP (1) h.DayType
                FROM dbo.F03CompanyHolidays h
               WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1 ORDER BY h.Id),
             CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 THEN N'NATIONAL_HOLIDAY'
                  WHEN ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'OTHER' END,
-            CASE DATEDIFF(day, '19000107', @WorkDate) % 7 WHEN 0 THEN N'SUNDAY' WHEN 6 THEN N'COMPANY_SATURDAY' END,
+            CASE WHEN DATEDIFF(day, '19000107', @WorkDate) % 7 = 0 THEN N'COMPANY_HOLIDAY' END,
             N'NORMAL'),
         IsHoliday = CASE WHEN EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1)
                            OR ISNULL(@HrmHolidayFlag, 0) = 1 OR ISNULL(@HrmEmployeeHolidayFlag, 0) = 1

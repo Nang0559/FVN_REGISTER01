@@ -15,7 +15,7 @@ public sealed class DayTypeCatalogTests
     [Fact]
     public void Codes_cover_every_daytype_used_by_rules_and_sql()
         => Assert.Equal(
-            new[] { "NORMAL", "COMPANY_SATURDAY", "SUNDAY", "COMPANY_HOLIDAY", "NATIONAL_HOLIDAY", "OTHER" },
+            new[] { "NORMAL", "COMPANY_HOLIDAY", "NATIONAL_HOLIDAY", "OTHER" },
             DayTypeCatalog.Codes);
 
     [Fact]
