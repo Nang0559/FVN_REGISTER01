@@ -129,7 +129,9 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     UPDATE a SET
         a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
         a.OtDisplayValue=COALESCE(j.os,a.OtDisplayValue),
-        a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND a.DayType<>N'NORMAL' AND ISNULL(a.LeaveTotal,0)=0 THEN j.ws ELSE a.AttendanceDisplayValue END
+        a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND ISNULL(a.LeaveTotal,0)=0
+        AND (a.DayType<>N'NORMAL' OR ISNULL(a.AttendanceDisplayValue,N'')=N'' OR a.AttendanceDisplayValue=a.ShiftAbbr)
+        THEN j.ws ELSE a.AttendanceDisplayValue END
     FROM dbo.F03HrmAttendanceCalculated AS a
     INNER JOIN OPENJSON({json}) WITH (id bigint '$.id',ws nvarchar(50) '$.ws',os nvarchar(50) '$.os',rc nvarchar(100) '$.rc') AS j ON j.id=a.Id
     """,ct);

@@ -151,8 +151,10 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                a.OtDisplayValue = COALESCE(j.os, a.OtDisplayValue),
                                a.AttendanceDisplayValue =
                                    CASE WHEN j.ws IS NOT NULL
-                                             AND j.dt <> N'NORMAL'
                                              AND ISNULL(a.LeaveTotal, 0) = 0
+                                             AND (j.dt <> N'NORMAL'
+                                                  OR ISNULL(a.AttendanceDisplayValue, N'') = N''
+                                                  OR a.AttendanceDisplayValue = a.ShiftAbbr)
                                         THEN j.ws ELSE a.AttendanceDisplayValue END
                         FROM dbo.F03HrmAttendanceCalculated AS a WITH (ROWLOCK)
                         INNER JOIN OPENJSON({json})
@@ -172,8 +174,10 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                h.OtDisplayValue = COALESCE(j.os, h.OtDisplayValue),
                                h.AttendanceDisplayValue =
                                    CASE WHEN j.ws IS NOT NULL
-                                             AND j.dt <> N'NORMAL'
                                              AND ISNULL(h.LeaveTotal, 0) = 0
+                                             AND (j.dt <> N'NORMAL'
+                                                  OR ISNULL(h.AttendanceDisplayValue, N'') = N''
+                                                  OR h.AttendanceDisplayValue = h.ShiftAbbr)
                                         THEN j.ws ELSE h.AttendanceDisplayValue END
                         FROM dbo.F03HrmAttendanceHistory AS h WITH (ROWLOCK)
                         INNER JOIN OPENJSON({json})
