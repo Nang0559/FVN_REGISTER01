@@ -139,5 +139,6 @@
   "calendar.dayTypeRule": "DayType (quy tắc)",
   "calendar.source": "Nguồn dữ liệu",
   "calendar.sourceHrm": "HRM",
-  "calendar.sourceLegacy": "FVN cũ"
+  "calendar.sourceLegacy": "FVN cũ",
+  "calendar.workYearName": "Năm {0}"
 }
