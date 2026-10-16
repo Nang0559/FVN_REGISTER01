@@ -287,8 +287,8 @@ ORDER BY HolidayDate;", ct, pFrom, pTo);
 
     private static string GetOtValue(OtRow? row, IReadOnlyDictionary<DateTime, CalendarHolidayInfoDto> holidays)
     {
-        // Ký hiệu OT phải đúng với ô ngày trên lịch (K4, TK4, CN8, NLK4, ...):
-        // dùng chung AttendanceSymbolCalculator - nguồn duy nhất của lịch, không tự suy ra ở tầng Excel.
+        // Prefer the persisted rule result used by Calendar (OtSymbol/RuleCode).
+        // AttendanceSymbolCalculator is retained only as a compatibility fallback for older batches.
         if (row is null) return string.Empty;
 
         holidays.TryGetValue(row.WorkDate.Date, out var holiday);
