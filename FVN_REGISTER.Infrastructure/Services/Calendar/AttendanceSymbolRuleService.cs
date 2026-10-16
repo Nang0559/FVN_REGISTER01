@@ -41,6 +41,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                     """, ct);
             }
             _activeRows = null;
+            await ReapplyCurrentAndMissingHistorySymbolsAsync(ct);
             var rows = await LoadRowsAsync(false, ct);
             var saved = rows.FirstOrDefault(x => string.Equals(x.RuleCode,request.RuleCode.Trim(),StringComparison.OrdinalIgnoreCase));
             return saved is null ? ServiceResult<AttendanceSymbolRuleDto>.Fail("Không tìm thấy rule vừa lưu.") : ServiceResult<AttendanceSymbolRuleDto>.Ok(ToDto(saved));
@@ -50,7 +51,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
 
     public async Task<ServiceResult<object>> DeactivateAsync(int id,int actorUserId,CancellationToken ct=default)
     {
-        try { await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03AttendanceSymbolRules SET IsActive=0,ModifiedBy={actorUserId},ModifiedAt=SYSUTCDATETIME(),LastModifiedSource=N'UI' WHERE Id={id}",ct); _activeRows=null; return ServiceResult<object>.Ok(new{id,active=false}); }
+        try { await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03AttendanceSymbolRules SET IsActive=0,ModifiedBy={actorUserId},ModifiedAt=SYSUTCDATETIME(),LastModifiedSource=N'UI' WHERE Id={id}",ct); _activeRows=null; await ReapplyCurrentAndMissingHistorySymbolsAsync(ct); return ServiceResult<object>.Ok(new{id,active=false}); }
         catch(Exception ex){return ServiceResult<object>.Fail(ex.Message);}
     }
 
@@ -70,6 +71,107 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
         if(rule is null)return new(){Matched=false,DayType=dayType,RawElapsedMinutes=elapsed,Explanation="Không tìm thấy rule phù hợp."};
         var doc=Parse(rule.RuleJson);var result=Calculate(doc,workDate,checkIn.Value,checkOut.Value,elapsed);
         return new(){Matched=true,RuleCode=rule.RuleCode,DayType=rule.DayType,WorkSymbol=result.WorkSymbol,OtSymbol=result.OtSymbol,WorkMinutesForSymbol=result.WorkMinutes,OtMinutesForSymbol=result.OtMinutes,RawElapsedMinutes=elapsed,RoundedOtMinutes=result.OtMinutes,Explanation=$"Rule {rule.RuleCode}: công {result.WorkMinutes/60m:0.##}h, OT {result.OtMinutes/60m:0.##}h theo block {doc.BlockMinutes} phút / {doc.RoundingMode}."};
+    }
+
+    /// <summary>
+    /// Re-evaluate current attendance whenever a rule is changed. Archived rows are
+    /// intentionally backfilled only when their symbol snapshot is missing; an
+    /// already-populated locked-period symbol remains an immutable historical result.
+    /// </summary>
+    private async Task ReapplyCurrentAndMissingHistorySymbolsAsync(CancellationToken ct)
+    {
+        var inputs = await _db.Database.SqlQuery<ReapplyInput>($"""
+            SELECT N'CURRENT' AS Store, a.Id AS RowId, a.WorkDate, a.ShiftId, a.ShiftAbbr,
+                   a.CheckInTime, a.CheckOutTime, a.DayType
+            FROM dbo.F03HrmAttendanceCalculated AS a
+            WHERE a.WorkDate >= DATEADD(MONTH, -12, CONVERT(date, GETDATE()))
+              AND a.CheckInTime IS NOT NULL AND a.CheckOutTime IS NOT NULL
+              AND a.DayType IS NOT NULL
+            UNION ALL
+            SELECT N'HISTORY' AS Store, h.HistoryId AS RowId, h.WorkDate, h.ShiftId, h.ShiftAbbr,
+                   h.CheckInTime, h.CheckOutTime, h.DayType
+            FROM dbo.F03HrmAttendanceHistory AS h
+            WHERE (h.WorkSymbol IS NULL OR h.OtSymbol IS NULL OR h.SymbolRuleCode IS NULL)
+              AND h.CheckInTime IS NOT NULL AND h.CheckOutTime IS NOT NULL
+              AND h.DayType IS NOT NULL
+            """).ToListAsync(ct);
+
+        if (inputs.Count == 0) return;
+
+        var outputs = new List<ReapplyOutput>(inputs.Count);
+        foreach (var row in inputs)
+        {
+            ct.ThrowIfCancellationRequested();
+            var evaluated = await EvaluateAsync(
+                DateOnly.FromDateTime(row.WorkDate),
+                row.DayType!,
+                row.ShiftAbbr,
+                row.ShiftId,
+                row.CheckInTime,
+                row.CheckOutTime,
+                null,
+                ct);
+
+            outputs.Add(new ReapplyOutput(
+                row.Store,
+                row.RowId,
+                evaluated.Matched ? evaluated.WorkSymbol : null,
+                evaluated.Matched ? evaluated.OtSymbol : null,
+                evaluated.Matched ? evaluated.RuleCode : null));
+        }
+
+        _db.Database.SetCommandTimeout(600);
+        foreach (var storeGroup in outputs.GroupBy(x => x.Store))
+        {
+            foreach (var chunk in storeGroup.Chunk(500))
+            {
+                var json = JsonSerializer.Serialize(chunk.Select(x => new
+                {
+                    id = x.RowId, ws = x.WorkSymbol, os = x.OtSymbol, rc = x.RuleCode
+                }));
+
+                if (storeGroup.Key == "CURRENT")
+                {
+                    await _db.Database.ExecuteSqlInterpolatedAsync($"""
+                        UPDATE a
+                           SET a.WorkSymbol = j.ws,
+                               a.OtSymbol = j.os,
+                               a.SymbolRuleCode = j.rc,
+                               a.OtDisplayValue = COALESCE(j.os, a.OtDisplayValue),
+                               a.AttendanceDisplayValue =
+                                   CASE WHEN j.ws IS NOT NULL
+                                             AND a.DayType <> N'NORMAL'
+                                             AND ISNULL(a.LeaveTotal, 0) = 0
+                                        THEN j.ws ELSE a.AttendanceDisplayValue END
+                        FROM dbo.F03HrmAttendanceCalculated AS a
+                        INNER JOIN OPENJSON({json})
+                            WITH (id bigint '$.id', ws nvarchar(50) '$.ws',
+                                  os nvarchar(50) '$.os', rc nvarchar(100) '$.rc') AS j
+                            ON j.id = a.Id
+                        """, ct);
+                }
+                else
+                {
+                    await _db.Database.ExecuteSqlInterpolatedAsync($"""
+                        UPDATE h
+                           SET h.WorkSymbol = j.ws,
+                               h.OtSymbol = j.os,
+                               h.SymbolRuleCode = j.rc,
+                               h.OtDisplayValue = COALESCE(j.os, h.OtDisplayValue),
+                               h.AttendanceDisplayValue =
+                                   CASE WHEN j.ws IS NOT NULL
+                                             AND h.DayType <> N'NORMAL'
+                                             AND ISNULL(h.LeaveTotal, 0) = 0
+                                        THEN j.ws ELSE h.AttendanceDisplayValue END
+                        FROM dbo.F03HrmAttendanceHistory AS h
+                        INNER JOIN OPENJSON({json})
+                            WITH (id bigint '$.id', ws nvarchar(50) '$.ws',
+                                  os nvarchar(50) '$.os', rc nvarchar(100) '$.rc') AS j
+                            ON j.id = h.HistoryId
+                        """, ct);
+                }
+            }
+        }
     }
 
     private async Task<List<RuleRow>> LoadRowsAsync(bool activeOnly,CancellationToken ct)
@@ -99,6 +201,8 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
     private static bool InTimeMatches(TimeSpan time,string? fromText,string? toText){if(!TimeSpan.TryParse(fromText,CultureInfo.InvariantCulture,out var from)||!TimeSpan.TryParse(toText,CultureInfo.InvariantCulture,out var to))return true;return from<=to?time>=from&&time<=to:time>=from||time<=to;}
     private static string? Normalize(string? value)=>string.IsNullOrWhiteSpace(value)?null:value.Trim();private static string NormalizeShift(string? value)=>(value??string.Empty).Trim().ToUpperInvariant().Replace(" ",string.Empty);
     private static void Validate(AttendanceSymbolRuleUpsertRequest request){if(string.IsNullOrWhiteSpace(request.RuleCode))throw new ArgumentException("RuleCode là bắt buộc.");if(string.IsNullOrWhiteSpace(request.RuleName))throw new ArgumentException("RuleName là bắt buộc.");if(request.BlockMinutes<=0)throw new ArgumentException("BlockMinutes phải lớn hơn 0.");if(request.Segments.Count==0)throw new ArgumentException("Rule phải có ít nhất một segment.");if(request.Segments.Any(x=>!TimeSpan.TryParse(x.Start,CultureInfo.InvariantCulture,out _)||!TimeSpan.TryParse(x.End,CultureInfo.InvariantCulture,out _)))throw new ArgumentException("Giờ segment không hợp lệ.");}
+    private sealed record ReapplyInput(string Store, long RowId, DateTime WorkDate, int? ShiftId, string? ShiftAbbr, DateTime? CheckInTime, DateTime? CheckOutTime, string? DayType);
+    private sealed record ReapplyOutput(string Store, long RowId, string? WorkSymbol, string? OtSymbol, string? RuleCode);
     private sealed class RuleRow{public int Id{get;set;}public string RuleCode{get;set;}=string.Empty;public string RuleName{get;set;}=string.Empty;public string DayType{get;set;}=string.Empty;public string? ShiftCode{get;set;}public int? ShiftId{get;set;}public int Priority{get;set;}public int? MinActualMinutes{get;set;}public int? MaxActualMinutes{get;set;}public string? CheckInFrom{get;set;}public string? CheckInTo{get;set;}public DateTime? EffectiveFrom{get;set;}public DateTime? EffectiveTo{get;set;}public string RuleJson{get;set;}=string.Empty;public bool IsActive{get;set;}}
     private sealed class RuleDocument{public int BlockMinutes{get;set;}=15;public string RoundingMode{get;set;}="FLOOR";public string AllocationMode{get;set;}="STANDARD";public int? FixedOtMinutes{get;set;}public List<AttendanceSymbolRuleSegmentDto> Segments{get;set;}=new();}
     private readonly record struct Calculation(int WorkMinutes,int OtMinutes,string? WorkSymbol,string? OtSymbol);
