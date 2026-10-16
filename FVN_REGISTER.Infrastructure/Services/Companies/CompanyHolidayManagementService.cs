@@ -21,7 +21,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
         : base(logger, options) => _uow = uow;
 
     public Task<List<CompanyHolidayDto>> GetAllAsync(CancellationToken ct = default)
-        => Task.FromResult(_uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().OrderByDescending(x => x.HolidayDate).Select(ToDto).ToList());
+        => Task.FromResult(_uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(x => x.IsActive == true && x.Source == "HRM").OrderByDescending(x => x.HolidayDate).Select(ToDto).ToList());
 
     public async Task<CompanyHolidayDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
