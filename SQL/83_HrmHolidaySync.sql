@@ -85,13 +85,14 @@ GO
    HRM có nhiều mã nghỉ cùng một ngày hoặc FVN đã có dữ liệu ngày đó.
    Chạy SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql ngay sau script này.
 */
-CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmHolidays
-    @DeleteMissing bit = 1
-AS
-BEGIN
-    SET NOCOUNT ON;
-    THROW 51482, N'Chưa cài migration 84. Hãy chạy SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql trước khi đồng bộ ngày nghỉ.', 1;
-END;
+/* Chỉ tạo bản stub khi procedure CHƯA tồn tại. Không dùng CREATE OR ALTER ở đây:
+   chạy lại script 83 sau khi đã cài 84 sẽ ghi đè procedure thật bằng bản THROW
+   và làm usp_CalculateHrmAttendance (22_03) lỗi ở mọi lần tính công. */
+IF OBJECT_ID(N'dbo.usp_SyncHrmHolidays', N'P') IS NULL
+    EXEC (N'CREATE PROCEDURE dbo.usp_SyncHrmHolidays @DeleteMissing bit = 1
+            AS BEGIN SET NOCOUNT ON;
+               THROW 51482, N''Chưa cài migration 84. Hãy chạy SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql trước khi đồng bộ ngày nghỉ.'', 1;
+            END');
 GO
 
 /* 5. Một hàm duy nhất quyết định DayType -------------------------------------

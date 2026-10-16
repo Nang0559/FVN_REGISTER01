@@ -175,9 +175,22 @@ BEGIN
                     RTRIM(n.NNLMa)
             )
         FROM HRM.dbo.tblNgayNghiLe AS n
-        LEFT JOIN TypeSource AS t
-          ON t.LNLLoai = RTRIM(n.NNLLoai)
-         AND ISNULL(t.DLocked, 0) = 0
+        /* NNLLoai của tblNgayNghiLe là mã loại => khớp LNLMa trước. Chỉ khi không có LNLMa nào khớp
+           mới thử LNLLoai (nhóm loại); khi đó chọn một DayType xác định để không nhân dòng. */
+        OUTER APPLY
+        (
+            SELECT TOP (1) x.DayType
+            FROM TypeSource AS x
+            WHERE ISNULL(x.DLocked, 0) = 0
+              AND (x.LNLMa = RTRIM(n.NNLLoai) OR x.LNLLoai = RTRIM(n.NNLLoai))
+            ORDER BY CASE WHEN x.LNLMa = RTRIM(n.NNLLoai) THEN 0 ELSE 1 END,
+                     CASE x.DayType
+                         WHEN N'NATIONAL_HOLIDAY' THEN 1
+                         WHEN N'COMPANY_HOLIDAY'  THEN 2
+                         WHEN N'COMPENSATORY'     THEN 3
+                         ELSE 4 END,
+                     x.LNLMa
+        ) AS t
         WHERE ISNULL(n.DLocked, 0) = 0
           AND n.NNLNgay IS NOT NULL
     )

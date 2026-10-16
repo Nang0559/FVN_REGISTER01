@@ -85,33 +85,16 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
     {
         var inputs = await _db.Database.SqlQuery<ReapplyInput>($"""
             SELECT N'CURRENT' AS Store, a.Id AS RowId, a.WorkDate, a.ShiftId, a.ShiftAbbr,
-                   a.CheckInTime, a.CheckOutTime,
-                   COALESCE(
-                       (SELECT TOP (1) h.DayType
-                        FROM dbo.F03CompanyHolidays AS h
-                        WHERE h.HolidayDate = a.WorkDate AND h.Source = N'HRM' AND h.IsActive = 1),
-                       CASE WHEN ISNULL(a.HrmBCNgayLe, 0) = 1 THEN N'NATIONAL_HOLIDAY'
-                            WHEN ISNULL(a.HrmBCNgayLeNV, 0) = 1 THEN N'OTHER' END,
-                       CASE DATEDIFF(day, '19000107', a.WorkDate) % 7
-                            WHEN 0 THEN N'SUNDAY' WHEN 6 THEN N'COMPANY_SATURDAY' END,
-                       N'NORMAL') AS DayType
+                   a.CheckInTime, a.CheckOutTime, ds.DayType AS DayType
             FROM dbo.F03HrmAttendanceCalculated AS a
+            CROSS APPLY dbo.fn_ResolveDayType(a.WorkDate, a.HrmBCNgayLe, a.HrmBCNgayLeNV) AS ds
             WHERE a.WorkDate >= DATEADD(MONTH, -12, CONVERT(date, GETDATE()))
               AND a.CheckInTime IS NOT NULL AND a.CheckOutTime IS NOT NULL
             UNION ALL
             SELECT N'HISTORY' AS Store, h.HistoryId AS RowId, h.WorkDate, h.ShiftId, h.ShiftAbbr,
-                   h.CheckInTime, h.CheckOutTime,
-                   COALESCE(h.DayType,
-                       (SELECT TOP (1) holiday.DayType
-                        FROM dbo.F03CompanyHolidays AS holiday
-                        WHERE holiday.HolidayDate = h.WorkDate
-                          AND holiday.Source = N'HRM' AND holiday.IsActive = 1),
-                       CASE WHEN ISNULL(h.HrmBCNgayLe, 0) = 1 THEN N'NATIONAL_HOLIDAY'
-                            WHEN ISNULL(h.HrmBCNgayLeNV, 0) = 1 THEN N'OTHER' END,
-                       CASE DATEDIFF(day, '19000107', h.WorkDate) % 7
-                            WHEN 0 THEN N'SUNDAY' WHEN 6 THEN N'COMPANY_SATURDAY' END,
-                       N'NORMAL') AS DayType
+                   h.CheckInTime, h.CheckOutTime, COALESCE(h.DayType, ds.DayType) AS DayType
             FROM dbo.F03HrmAttendanceHistory AS h
+            CROSS APPLY dbo.fn_ResolveDayType(h.WorkDate, h.HrmBCNgayLe, h.HrmBCNgayLeNV) AS ds
             WHERE (h.WorkSymbol IS NULL OR h.OtSymbol IS NULL OR h.SymbolRuleCode IS NULL)
               AND h.CheckInTime IS NOT NULL AND h.CheckOutTime IS NOT NULL
             """).ToListAsync(ct);
