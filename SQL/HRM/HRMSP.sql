@@ -1968,10 +1968,19 @@ RETURN
         SELECT
             CAST(HolidayDate AS DATE) AS HDate,
             Description,
-            CASE
-                WHEN DATEPART(WEEKDAY, HolidayDate) = 1 THEN 'SUNDAY'
-                WHEN DATEPART(WEEKDAY, HolidayDate) = 7 THEN 'SATURDAY'
-                ELSE 'PUBLIC_HOLIDAY'
+            CASE COALESCE(NULLIF(LTRIM(RTRIM(DayType)), N''), CASE HolidayType
+                WHEN 1 THEN N'COMPANY_HOLIDAY'
+                WHEN 2 THEN N'NATIONAL_HOLIDAY'
+                WHEN 3 THEN N'COMPENSATORY'
+                WHEN 4 THEN N'OTHER'
+                END)
+                WHEN N'NATIONAL_HOLIDAY' THEN 'PUBLIC_HOLIDAY'
+                WHEN N'COMPANY_HOLIDAY' THEN 'COMPANY_HOLIDAY'
+                WHEN N'COMPENSATORY' THEN 'COMPENSATORY'
+                WHEN N'OTHER' THEN 'OTHER'
+                WHEN N'SUNDAY' THEN 'SUNDAY'
+                WHEN N'COMPANY_SATURDAY' THEN 'SATURDAY'
+                ELSE 'OTHER'
             END AS HolidayType
         FROM [FVNWEBAPP].[dbo].[F03CompanyHolidays]
         WHERE HolidayDate IS NOT NULL
@@ -2009,7 +2018,7 @@ RETURN
 
         CASE
             WHEN o.CheckOutDT IS NULL                              THEN 'NO_CHECKOUT'
-            WHEN h.HolidayType = 'PUBLIC_HOLIDAY'                  THEN 'OT_HOLIDAY'
+            WHEN h.HolidayType IN ('PUBLIC_HOLIDAY','COMPANY_HOLIDAY','COMPENSATORY','OTHER') THEN 'OT_HOLIDAY'
             WHEN h.HolidayType = 'SUNDAY'                          THEN 'OT_SUNDAY'
             WHEN h.HolidayType = 'SATURDAY'                        THEN 'OT_SATURDAY'
             WHEN o.CheckOutDT > DATEADD(MINUTE, i.OT_ThresholdMinutes, i.ShiftEndDT)
