@@ -113,7 +113,7 @@
     private void NewYear()
     {
         var year = DateTime.Today.Year;
-        _editYear = new WorkYearDto { Year = year, YearName = $"Năm {year}", IsActive = true };
+        _editYear = new WorkYearDto { Year = year, YearName = string.Format(Language.T("calendar.workYearName"), year), IsActive = true };
         _start = new DateTime(year, 1, 1); _end = new DateTime(year, 12, 31);
     }
     private void EditYear(WorkYearDto x) { _editYear = new WorkYearDto { Id=x.Id, Year=x.Year, YearName=x.YearName, StartDate=x.StartDate, EndDate=x.EndDate, IsActive=x.IsActive, Remark=x.Remark }; _start=x.StartDate; _end=x.EndDate; }
