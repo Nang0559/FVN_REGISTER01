@@ -201,6 +201,8 @@ WHERE r.DayType = N'NATIONAL_HOLIDAY' AND r.RuleCode LIKE N'HOL-%'
   AND NOT EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules x WHERE x.RuleCode = p.Prefix + SUBSTRING(r.RuleCode, 5, 100));
 GO
 
-/* 7. Đồng bộ lần đầu */
-IF DB_ID(N'HRM') IS NOT NULL EXEC dbo.usp_SyncHrmHolidays;
+/* 7. Đồng bộ lần đầu được chuyển sang migration 84.
+   Migration 84 thay procedure MERGE theo mã bằng upsert theo HolidayDate,
+   để không lỗi khi database đã có unique index ngày nghỉ hoặc dữ liệu FVN cũ. */
+PRINT N'Holiday sync bootstrap is executed by 84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql.';
 GO
