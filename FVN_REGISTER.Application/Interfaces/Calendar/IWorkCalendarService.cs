@@ -1,0 +1,26 @@
+using FVN_REGISTER.Contract.Dtos.Calendar;
+using FVN_REGISTER.Contract.Utils;
+
+namespace FVN_REGISTER.Application.Interfaces.Calendar;
+
+public interface IWorkCalendarService
+{
+    Task<ServiceResult<WorkCalendarDto>> GetAsync(
+        string employeeCode,
+        int? deptCode,
+        string? positionCode,
+        DateTime from,
+        DateTime to,
+        CancellationToken ct = default);
+
+    Task<ServiceResult<CalendarAvailabilityDto>> GetAvailabilityAsync(
+        string employeeCode,
+        DateTime date,
+        CancellationToken ct = default);
+
+    Task<ServiceResult<IReadOnlyList<CalendarRegistrationOpportunityDto>>> GetRegistrationOpportunitiesAsync(
+        string employeeCode,
+        DateTime from,
+        DateTime to,
+        CancellationToken ct = default);
+}

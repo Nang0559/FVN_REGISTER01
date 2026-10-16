@@ -1,33 +1,84 @@
 @page "/thong-tin-cong-khai"
 @page "/public-information"
-@using System.Text.Json
+@* Public notices must be readable BEFORE login: PublicLayout does not redirect anonymous visitors to /login (MainLayout does). *@
+@layout FVN_REGISTER.Shared.Layout.PublicLayout
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Dtos.PublicForms
+@using FVN_REGISTER.Contract.Dtos.PublicInformation
+@using Microsoft.JSInterop
 @using FVN_REGISTER.Shared.Handlers
 @inherits AppComponentBase
 @inject IHttpClientWithAuth Http
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthState
 
-<PageTitle>Thông tin công khai</PageTitle>
+<PageTitle>@Language.T("nav.publicInformation")</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-6" Wrap="Wrap.Wrap">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Thông tin công khai</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Thông báo, quy định và hướng dẫn được công ty công bố cho cán bộ nhân viên.</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("nav.publicInformation")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("public.thongBaoQuyDinhVa")</MudText>
+            @if (!_loading && string.IsNullOrWhiteSpace(_error) && EffectiveCount > 0)
+            {
+                <MudChip T="string" Size="Size.Small" Color="@(_items.Any(x => x.IsImportant) ? Color.Error : Color.Warning)" Class="mt-2 ml-0">@Language.T("public.soDangHieuLuc", EffectiveCount)</MudChip>
+            }
         </div>
-        <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Assignment"
-                       OnClick="GoRegistration">
-                Đăng ký thông tin
-            </MudButton>
-            <MudButton Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.Login"
-                       OnClick="GoLogin">
-                Đăng nhập
-            </MudButton>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            @if (_caps.CanRegister)
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Assignment"
+                           OnClick="GoRegistration">
+                    @Language.T("public.dangKyThongTin")
+                </MudButton>
+            }
+            @if (_caps.CanManageInformation)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Campaign"
+                           OnClick="GoManageInformation">
+                    @Language.T("public.quanLyNoiDungCong")
+                </MudButton>
+            }
+            @if (_caps.CanManageForms)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.EditNote"
+                           OnClick="GoManageForms">
+                    @Language.T("nav.publicFormsManage")
+                </MudButton>
+            }
         </MudStack>
     </MudStack>
+
+    @if (!_loading && _openForms.Count > 0)
+    {
+        <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">@Language.T("public.bieuMauDangKyDangMo")</MudText>
+        <MudGrid Spacing="3" Class="mb-6">
+            @foreach (var form in _openForms)
+            {
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="1" Class="h-100" Style="border-radius:18px;border-left:4px solid var(--mud-palette-warning)">
+                        <MudCardContent Class="pa-5">
+                            <MudText Typo="Typo.h6" Style="font-weight:750">@form.Title</MudText>
+                            @if (!string.IsNullOrWhiteSpace(form.Description))
+                            {
+                                <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary" Style="white-space:pre-line">@form.Description</MudText>
+                            }
+                            <MudText Typo="Typo.caption" Class="mt-3 d-block mud-text-secondary">@Language.T("public.deadline", form.EndAt?.ToString("dd/MM/yyyy HH:mm") ?? Language.T("public.noLimit"))</MudText>
+                            <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary" Href="@FormHref(form.Id)">
+                                @(_isAuthenticated ? Language.T("workspace.register") : Language.T("public.dangNhapDeDangKy"))
+                            </MudButton>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
 
     @if (_loading)
     {
@@ -39,12 +90,12 @@
     {
         <MudAlert Severity="Severity.Warning">@_error</MudAlert>
     }
-    else if (_items.Count == 0)
+    else if (_items.Count == 0 && _openForms.Count == 0)
     {
         <MudPaper Outlined="true" Class="pa-8 text-center">
             <MudIcon Icon="@Icons.Material.Filled.Campaign" Size="Size.Large" Color="Color.Secondary" />
-            <MudText Typo="Typo.h6" Class="mt-3">Hiện chưa có thông tin công khai</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Các thông báo hoặc quy định mới sẽ được đăng tại đây.</MudText>
+            <MudText Typo="Typo.h6" Class="mt-3">@Language.T("public.hienChuaCoThongTin")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("public.cacThongBaoHoacQuy")</MudText>
         </MudPaper>
     }
     else
@@ -56,13 +107,13 @@
                     <MudCard Elevation="1" Class="h-100" Style="border-radius:18px">
                         <MudCardContent Class="pa-5">
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-3">
-                                <MudChip T="string" Size="Size.Small" Color="@(item.Important ? Color.Error : Color.Primary)">@GetTypeName(item.Type)</MudChip>
-                                @if (item.Important)
+                                <MudChip T="string" Size="Size.Small" Color="@(item.IsImportant ? Color.Error : Color.Primary)">@GetTypeName(item.Type)</MudChip>
+                                @if (item.IsImportant)
                                 {
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Quan trọng</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@Language.T("public.quanTrong")</MudChip>
                                 }
                                 <MudSpacer />
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.PublishedAt</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.PublishedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
                             </MudStack>
                             <MudText Typo="Typo.h6" Style="font-weight:750">@item.Title</MudText>
                             @if (!string.IsNullOrWhiteSpace(item.Summary))
@@ -75,7 +126,21 @@
                             }
                             @if (!string.IsNullOrWhiteSpace(item.AttachmentUrl))
                             {
-                                <MudButton Href="@item.AttachmentUrl" Target="_blank" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AttachFile" Class="mt-3">Xem tài liệu</MudButton>
+                                <MudButton Href="@item.AttachmentUrl" Target="_blank" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AttachFile" Class="mt-3">@Language.T("public.xemTaiLieu")</MudButton>
+                            }
+                            @if (item.Attachments.Count > 0)
+                            {
+                                <MudStack Spacing="1" Class="mt-3">
+                                    @foreach (var file in item.Attachments)
+                                    {
+                                        var itemId = item.Id; var attachment = file;
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@AttachmentIcon(attachment)"
+                                                   Style="justify-content:flex-start;text-transform:none"
+                                                   OnClick="@(() => DownloadAsync(itemId, attachment))">
+                                            @attachment.FileName
+                                        </MudButton>
+                                    }
+                                </MudStack>
                             }
                         </MudCardContent>
                     </MudCard>
@@ -86,31 +151,79 @@
 </MudContainer>
 
 @code {
-    private readonly List<PublicItem> _items = new();
+    private readonly List<PublicInformationDto> _items = new();
+    private PublicCapabilitiesDto _caps = new();
     private bool _loading = true;
     private string? _error;
+    private bool _isAuthenticated;
+    private readonly List<PublicFormNoticeDto> _openForms = new();
+
+    // Same number the login badge shows (PublicPortalController.Summary): effective notices + open company-wide forms.
+    private int EffectiveCount => _items.Count + _openForms.Count;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var result = await Http.GetAsync<JsonElement>("api/public-information");
-            if (!result.IsSuccess || result.Data.ValueKind != JsonValueKind.Array)
+            await ResolveAuthAsync();
+            // The capability endpoints need a session; skipping them for visitors avoids useless 401 round-trips.
+            if (_isAuthenticated) await LoadCapabilitiesAsync();
+            await LoadOpenFormsAsync();
+            // Same DTO the API returns: no private copy to drift out of sync (Id is int, flag is IsImportant...).
+            var result = await Http.GetAsync<List<PublicInformationDto>>("api/public-information");
+            if (!result.IsSuccess)
             {
-                _error = result.Message ?? "Không thể tải thông tin công khai.";
+                _error = result.Message ?? Language.T("public.khongTheTaiThongTin");
                 return;
             }
 
-            var items = JsonSerializer.Deserialize<List<PublicItem>>(result.Data.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            if (items != null) _items.AddRange(items);
+            _items.AddRange(result.Data ?? new());
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "[PUBLIC-INFO] Load error");
-            _error = "Không thể kết nối đến máy chủ.";
+            _error = Language.T("public.khongTheKetNoiDen");
         }
         finally { _loading = false; }
     }
+
+    // Operators assigned in Admin/Security are NOT part of the RBAC snapshot, so ask the API what this user may do.
+    private async Task LoadCapabilitiesAsync()
+    {
+        var info = await Http.GetAsync<PublicCapabilitiesDto>("api/public-information/capabilities", showLoading: false);
+        var forms = await Http.GetAsync<PublicCapabilitiesDto>("api/public-forms/capabilities", showLoading: false);
+        _caps = new PublicCapabilitiesDto
+        {
+            CanManageInformation = info.IsSuccess && info.Data?.CanManageInformation == true,
+            CanRegister = forms.IsSuccess && forms.Data?.CanRegister == true,
+            CanManageForms = forms.IsSuccess && forms.Data?.CanManageForms == true,
+            CanViewResults = forms.IsSuccess && forms.Data?.CanViewResults == true
+        };
+    }
+
+    private async Task ResolveAuthAsync()
+    {
+        try
+        {
+            var state = await AuthState.GetAuthenticationStateAsync();
+            _isAuthenticated = state.User.Identity?.IsAuthenticated == true;
+        }
+        catch { _isAuthenticated = false; }
+    }
+
+    // Company-wide forms are public: listed without login. Submitting still needs an employee identity,
+    // so visitors are sent to /login and brought back to the form afterwards (Login honours returnUrl).
+    private async Task LoadOpenFormsAsync()
+    {
+        var result = await Http.GetAsync<List<PublicFormNoticeDto>>("api/public-portal/forms", showLoading: false);
+        if (result.IsSuccess && result.Data != null) _openForms.AddRange(result.Data);
+    }
+
+    private string FormHref(int formId)
+        => _isAuthenticated ? $"/public-forms/{formId}" : $"/login?returnUrl={Uri.EscapeDataString($"/public-forms/{formId}")}";
+
+    private void GoManageInformation() => Navigation.NavigateTo("/admin/public-information");
+    private void GoManageForms() => Navigation.NavigateTo("/admin/public-forms");
 
     private void GoRegistration()
     {
@@ -120,25 +233,32 @@
         Navigation.NavigateTo("/public-forms");
     }
 
-    private void GoLogin() => Navigation.NavigateTo("/login");
-
-    private static string GetTypeName(string? type) => type?.ToLowerInvariant() switch
+    // Keep in sync with the type list in Admin/PublicInformation.razor.
+    private string GetTypeName(string? type) => type switch
     {
-        "regulation" => "Quy định",
-        "guide" => "Hướng dẫn",
-        "policy" => "Chính sách",
-        _ => "Thông báo"
+        "News" => Language.T("public.tinTuc"),
+        "HRContent" => Language.T("public.noiDungHr"),
+        "CompanyInfo" => Language.T("public.thongTinCongTy"),
+        "PublicContent" => Language.T("public.noiDungDuocCongKhai"),
+        _ => Language.T("common.thongBao")
     };
 
-    private sealed class PublicItem
+    private static string AttachmentIcon(AttachmentDto file) => (file.FileExtension ?? string.Empty).ToLowerInvariant() switch
     {
-        public string Id { get; set; } = string.Empty;
-        public string Type { get; set; } = "Announcement";
-        public string Title { get; set; } = string.Empty;
-        public string Summary { get; set; } = string.Empty;
-        public string Content { get; set; } = string.Empty;
-        public string PublishedAt { get; set; } = string.Empty;
-        public bool Important { get; set; }
-        public string AttachmentUrl { get; set; } = string.Empty;
+        ".pdf" => Icons.Material.Filled.PictureAsPdf,
+        ".jpg" or ".jpeg" or ".png" => Icons.Material.Filled.Image,
+        _ => Icons.Material.Filled.AttachFile
+    };
+
+    private async Task DownloadAsync(int itemId, AttachmentDto file)
+    {
+        var response = await Http.GetFileAsync($"api/public-information/{itemId}/attachments/{file.FileId}");
+        if (!response.IsSuccess || response.Data == null)
+        {
+            Snackbar.Add(response.Message ?? Language.T("public.taiFileThatBai"), Severity.Error);
+            return;
+        }
+
+        await JS.InvokeVoidAsync("fvnFileDownload.downloadBase64", file.FileName, "application/octet-stream", Convert.ToBase64String(response.Data));
     }
 }

@@ -7,6 +7,6 @@ public sealed class ApprovalCandidateDto
     public string? PositionCode { get; set; }
     public string? PositionName { get; set; }
     public string? ApproverEmail { get; set; }
-    public string ApproverDeptCode { get; set; } = string.Empty;
-    public string ApproveForDeptCode { get; set; } = string.Empty;
+    public int ApproverDeptCode { get; set; }
+    public int ApproveForDeptCode { get; set; }
 }

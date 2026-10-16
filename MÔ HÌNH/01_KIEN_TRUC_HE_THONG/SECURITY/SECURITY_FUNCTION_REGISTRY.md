@@ -72,3 +72,33 @@ API chạy `SecurityFunctionDiscoveryHostedService` sau startup 15 giây và sau
 ## Nguyên tắc an toàn
 
 Discovery chỉ phát hiện và phân loại. Việc cấp quyền vẫn do Role/User Function hiện tại quyết định. Vì vậy việc thêm endpoint/capability mới không làm phát sinh quyền cho user hiện hữu.
+
+## Calendar Symbol Rule capability
+
+Calendar Symbol Rule management là một capability riêng, không dùng lại `WorkCalendar.Manage` cho mọi hành động một cách ngầm định.
+
+| FunctionCode | FunctionKey | ResourceType | Mục đích |
+|---:|---|---|---|
+| 3044 | `WorkCalendar.SymbolRuleManage` | `ATTENDANCE_SYMBOL_RULE` | Tạo/sửa/kích hoạt/deactivate Calendar Symbol Rules |
+
+Capability này không thay thế `Calendar.View=3043` và không thay đổi `WorkCalendar.Manage=3042`.
+
+### Authorization contract
+
+Endpoint quản trị Rule phải kiểm tra:
+
+```text
+RBAC capability
+      +
+ManagedScope (nếu feature áp dụng scope)
+      +
+Feature Operator Assignment (nếu đã cấu hình operator)
+      +
+Business State
+```
+
+Việc đăng ký capability trong Function Registry chỉ làm cho capability có lifecycle/discovery metadata; nó **không tự cấp quyền** cho Role/User.
+
+### Rule governance
+
+Rule thay đổi cách Calendar diễn giải dữ liệu `F03HrmAttendanceCalculated` thành symbol. Rule không được sửa hoặc thay thế HRM attendance calculation. Thay đổi ký hiệu, OT window, block 15 phút, rounding hoặc split phải thực hiện qua Rule UI và Test Rule.

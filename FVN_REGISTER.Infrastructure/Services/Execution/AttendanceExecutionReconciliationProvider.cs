@@ -26,7 +26,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
         // discover its source rows from the official attendance calculation,
         // including unresolved OT mismatches outside the normal worker window.
         var unresolvedOt = reconciliationMode == 2
-            ? await GetUnresolvedSourceIdsAsync("OT", ct)
+            ? await GetUnresolvedSourceIdsAsync("Overtime", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var unresolvedOtKeys = unresolvedOt
@@ -167,7 +167,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                     await _service.UpsertAsync(
                         row.EmployeeCode,
                         new ExecutionReconciliationUpsertRequest(
-                            "OT",
+                            "Overtime",
                             "OT_ACTUAL_ONLY",
                             sourceId,
                             row.EmployeeCode,
@@ -202,7 +202,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                     // red ? does not remain after the plan exists.
                     var actualOnly = await _db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
                         x.IsActive != false
-                        && x.ModuleCode == "OT"
+                        && x.ModuleCode == "Overtime"
                         && x.SourceType == "OT_ACTUAL_ONLY"
                         && x.SourceId == sourceId
                         && x.EmployeeId == employeeId
@@ -214,7 +214,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                         await _service.UpsertAsync(
                             row.EmployeeCode,
                             new ExecutionReconciliationUpsertRequest(
-                                "OT",
+                                "Overtime",
                                 "OT_ACTUAL_ONLY",
                                 sourceId,
                                 row.EmployeeCode,
@@ -246,7 +246,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                     // showing a stale red question mark.
                     var staleActualOnly = await _db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
                         x.IsActive != false
-                        && x.ModuleCode == "OT"
+                        && x.ModuleCode == "Overtime"
                         && x.SourceType == "OT_ACTUAL_ONLY"
                         && x.SourceId == sourceId
                         && x.EmployeeId == employeeId
@@ -258,7 +258,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                         await _service.UpsertAsync(
                             row.EmployeeCode,
                             new ExecutionReconciliationUpsertRequest(
-                                "OT",
+                                "Overtime",
                                 "OT_ACTUAL_ONLY",
                                 sourceId,
                                 row.EmployeeCode,

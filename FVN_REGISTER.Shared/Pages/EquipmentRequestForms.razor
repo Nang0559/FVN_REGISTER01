@@ -1,10 +1,14 @@
 @page "/equipment/request-forms/{AssetId:int}"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.EquipmentForms
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Equipment
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject IEquipmentClientService EquipmentClient
+@inject IApprovalRouteClientService ApprovalRouteService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -15,29 +19,29 @@
     }
     else if (_forms.Count == 0)
     {
-        <MudAlert Severity="Severity.Info">Thiết bị này hiện chưa có biểu mẫu yêu cầu được áp dụng.</MudAlert>
+        <MudAlert Severity="Severity.Info">@Language.T("equipment.thietBiNayHienChua")</MudAlert>
     }
     else
     {
         <MudStack Spacing="3">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <div>
-                    <MudText Typo="Typo.h5">Biểu mẫu yêu cầu của thiết bị</MudText>
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Các biểu mẫu dưới đây được cấu hình theo loại thiết bị và chỉ người đang được giao thiết bị mới có thể gửi.</MudText>
+                    <MudText Typo="Typo.h5">@Language.T("equipment.bieuMauYeuCauCua")</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.cacBieuMauDuoiDay")</MudText>
                 </div>
-                <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Quay lại Sổ thiết bị</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/equipment"))">@Language.T("equipment.quayLaiSoThietBi")</MudButton>
             </MudStack>
 
             <MudGrid>
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-3">
-                        <MudText Typo="Typo.subtitle1">Biểu mẫu áp dụng</MudText>
+                        <MudText Typo="Typo.subtitle1">@Language.T("equipment.bieuMauApDung")</MudText>
                         @foreach (var form in _forms)
                         {
                             <MudButton FullWidth="true" Variant="@(ReferenceEquals(form, _selectedForm) ? Variant.Filled : Variant.Text)" Class="justify-start mt-1" OnClick="@(() => SelectForm(form))">
                                 <MudStack AlignItems="AlignItems.Start">
                                     <MudText>@form.Title</MudText>
-                                    <MudText Typo="Typo.caption">@form.FormCode • v@form.Version@(form.RequireApproval ? " • Cần phê duyệt" : "")</MudText>
+                                    <MudText Typo="Typo.caption">@form.FormCode • v@form.Version@(form.RequireApproval ? Language.T("equipment.canPheDuyet") : "")</MudText>
                                 </MudStack>
                             </MudButton>
                         }
@@ -50,7 +54,7 @@
                         <MudPaper Class="pa-4">
                             <MudText Typo="Typo.h6">@_selectedForm.Title</MudText>
                             <MudText Typo="Typo.body2" Class="mb-4">@_selectedForm.Description</MudText>
-                            <MudText Typo="Typo.caption">Thiết bị: @_selectedForm.EquipmentCode - @_selectedForm.EquipmentName</MudText>
+                            <MudText Typo="Typo.caption">@Language.T("equipment.thietBi2", _selectedForm.EquipmentCode, _selectedForm.EquipmentName)</MudText>
                             <MudDivider Class="my-4" />
 
                             @foreach (var question in _selectedForm.Questions.OrderBy(x => x.Sequence))
@@ -64,7 +68,7 @@
 
                                     @if (IsChoice(question))
                                     {
-                                        <MudSelect T="string" Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label="Chọn" Variant="Variant.Outlined">
+                                        <MudSelect T="string" Value="@GetValue(question.Id)" ValueChanged="@(v => SetValue(question.Id, v))" Label='@Language.T("common.select")' Variant="Variant.Outlined">
                                             @foreach (var option in question.Options)
                                             {
                                                 <MudSelectItem Value="@option.OptionCode">@option.OptionText</MudSelectItem>
@@ -73,7 +77,7 @@
                                     }
                                     else if (string.Equals(question.QuestionType, "Boolean", StringComparison.OrdinalIgnoreCase) || string.Equals(question.QuestionType, "Bool", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <MudSwitch T="bool" Value="@GetBool(question.Id)" ValueChanged="@(v => SetBool(question.Id, v))" Color="Color.Primary">Có / Không</MudSwitch>
+                                        <MudSwitch T="bool" Value="@GetBool(question.Id)" ValueChanged="@(v => SetBool(question.Id, v))" Color="Color.Primary">@Language.T("equipment.coKhong")</MudSwitch>
                                     }
                                     else
                                     {
@@ -82,10 +86,28 @@
                                 </MudStack>
                             }
 
+                            @if (_selectedForm.RequireApproval)
+                            {
+                                @if (_approvalRoute != null)
+                                {
+                                    <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+                                }
+                                else if (_approvalRouteLoadFailed)
+                                {
+                                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-3">
+                                        @Language.T("common.khongTaiDuocLuongPhe")
+                                    </MudAlert>
+                                }
+                                else
+                                {
+                                    <MudProgressLinear Indeterminate="true" Class="mb-3" />
+                                }
+                            }
+
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
-                                @(_selectedForm.RequireApproval ? "Sau khi gửi, yêu cầu sẽ đi vào quy trình phê duyệt Equipment hiện tại." : "Biểu mẫu này không yêu cầu phê duyệt.")
+                                @(_selectedForm.RequireApproval ? Language.T("equipment.sauKhiGuiYeuCau") : Language.T("equipment.bieuMauNayKhongYeu"))
                             </MudAlert>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SubmitAsync">Gửi yêu cầu</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SubmitAsync">@Language.T("equipment.guiYeuCau")</MudButton>
                         </MudPaper>
                     }
                 </MudItem>
@@ -102,6 +124,9 @@
     private EquipmentApplicableFormDto? _selectedForm;
     private readonly Dictionary<int, string> _values = new();
     private readonly Dictionary<int, bool> _boolValues = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
+    private bool _approvalRouteLoadFailed;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -111,10 +136,11 @@
         {
             _forms = result.Data ?? new();
             _selectedForm = _forms.FirstOrDefault();
+            await LoadApprovalRouteAsync();
         }
         else
         {
-            Snackbar.Add(result.Message ?? "Không tải được biểu mẫu thiết bị.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("equipment.khongTaiDuocBieuMau"), Severity.Error);
         }
         _loading = false;
     }
@@ -124,6 +150,8 @@
         _selectedForm = form;
         _values.Clear();
         _boolValues.Clear();
+        _approvalRouteLoadFailed = false;
+        _ = LoadApprovalRouteAsync();
     }
 
     private string GetValue(int id) => _values.TryGetValue(id, out var value) ? value : string.Empty;
@@ -165,14 +193,45 @@
                 answers.Add(answer);
             }
 
-            var result = await EquipmentClient.SubmitEquipmentFormAsync(new EquipmentFormSubmissionRequest { AssetId = AssetId, FormId = _selectedForm.FormId, Answers = answers });
+            var selections = _approvalSelector?.GetSelections() ?? new();
+            if (_selectedForm.RequireApproval && selections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+            {
+                Snackbar.Add(Language.T("common.vuiLongChonNguoiPhe"), Severity.Warning);
+                return;
+            }
+
+            var result = await EquipmentClient.SubmitEquipmentFormAsync(new EquipmentFormSubmissionRequest
+            {
+                AssetId = AssetId,
+                FormId = _selectedForm.FormId,
+                Answers = answers,
+                ApprovalSelections = selections
+            });
             if (result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Đã gửi yêu cầu.", Severity.Success);
+                Snackbar.Add(result.Message ?? Language.T("equipment.daGuiYeuCau"), Severity.Success);
                 Navigation.NavigateTo("/equipment");
             }
-            else Snackbar.Add(result.Message ?? "Không thể gửi yêu cầu.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("equipment.khongTheGuiYeuCau"), Severity.Error);
         }
         finally { _busy = false; }
+    }
+
+    private async Task LoadApprovalRouteAsync()
+    {
+        _approvalRoute = null;
+        _approvalRouteLoadFailed = false;
+        if (_selectedForm?.RequireApproval != true)
+            return;
+
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Equipment);
+        if (result.IsSuccess && result.Data != null)
+            _approvalRoute = result.Data;
+        else
+        {
+            _approvalRouteLoadFailed = true;
+            Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocLuongPhe"), Severity.Warning);
+        }
+        await InvokeAsync(StateHasChanged);
     }
 }

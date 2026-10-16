@@ -1,0 +1,6 @@
+{
+  "validation.attachmentRequired": "Vui lòng đính kèm bằng chứng.",
+  "validation.invalidDate": "Ngày không hợp lệ.",
+  "validation.required": "Vui lòng nhập đầy đủ thông tin bắt buộc.",
+  "validation.startAfterEnd": "Ngày bắt đầu không được lớn hơn ngày kết thúc."
+}

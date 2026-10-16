@@ -5,27 +5,27 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">Chi tiết đơn — @Item.EmployeeName</MudText>
+        <MudText Typo="Typo.h6">@Language.T("approval.chiTietDon", Item.EmployeeName)</MudText>
     </TitleContent>
 
     <DialogContent>
         <MudSimpleTable Dense="true" Class="mb-3">
             <tbody>
-                <tr><td><b>Mã NV</b></td><td>@Item.EmployeeCode</td></tr>
-                <tr><td><b>Loại đơn</b></td><td>@GetKindDisplay(Item.Kind)</td></tr>
-                <tr><td><b>Thời gian</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
-                <tr><td><b>Số lượng</b></td><td>@Item.TotalUnits.ToString("N1") @GetUnitLabel(Item.Kind)</td></tr>
-                <tr><td><b>Phòng ban</b></td><td>@Item.DeptName</td></tr>
-                <tr><td><b>Cấp đang chờ</b></td><td>@CurrentApprovalLevel</td></tr>
-                <tr><td><b>Người duyệt</b></td><td>@(CurrentApproverName ?? "—")</td></tr>
+                <tr><td><b>@Language.T("common.employeeCode")</b></td><td>@Item.EmployeeCode</td></tr>
+                <tr><td><b>@Language.T("approval.loaiDon")</b></td><td>@GetKindDisplay(Item.Kind)</td></tr>
+                <tr><td><b>@Language.T("common.thoiGian")</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
+                <tr><td><b>@Language.T("common.soLuong")</b></td><td>@Item.TotalUnits.ToString("N1") @GetUnitLabel(Item.Kind)</td></tr>
+                <tr><td><b>@Language.T("ot.department")</b></td><td>@Item.DeptName</td></tr>
+                <tr><td><b>@Language.T("approval.capDangCho")</b></td><td>@CurrentApprovalLevel</td></tr>
+                <tr><td><b>@Language.T("approval.nguoiDuyet")</b></td><td>@(CurrentApproverName ?? "—")</td></tr>
             </tbody>
         </MudSimpleTable>
 
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Tiến trình phê duyệt</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("common.tienTrinhPheDuyet")</MudText>
         <OTApprovalProgressBar Steps="@Item.ApprovalSteps" />
 
         <MudTextField @bind-Value="_comment"
-                      Label="Ý kiến / Lý do từ chối"
+                      Label="@Language.T("approval.yKienLyDoTu")"
                       Lines="2"
                       Variant="Variant.Outlined"
                       Margin="Margin.Dense"
@@ -34,20 +34,20 @@
 
     <DialogActions>
         <MudButton OnClick="@(() => MudDialog.Cancel())"
-                   Variant="Variant.Text">Đóng</MudButton>
+                   Variant="Variant.Text">@Language.T("common.close")</MudButton>
 
         <MudButton Color="Color.Error"
                    Variant="Variant.Outlined"
                    Disabled="@(string.IsNullOrWhiteSpace(_comment) || _isBusy)"
                    OnClick="Reject">
-            Từ chối
+            @Language.T("common.reject")
         </MudButton>
 
         <MudButton Color="Color.Success"
                    Variant="Variant.Filled"
                    Disabled="_isBusy"
                    OnClick="Approve">
-            @(_isBusy ? "Đang xử lý..." : "Phê duyệt")
+            @(_isBusy ? Language.T("common.dangXuLy") : Language.T("common.approve"))
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -76,19 +76,19 @@
             .FirstOrDefault(x => x.Level == CurrentApprovalLevel)
             ?.ApproverName;
 
-    private static string GetKindDisplay(RequestModule kind) => kind switch
+    private string GetKindDisplay(RequestModule kind) => kind switch
     {
         RequestModule.Overtime => "OT",
-        RequestModule.Trip => "Công tác",
-        RequestModule.Leave => "Nghỉ phép",
+        RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.Leave => Language.T("dashboard.leaveType"),
         _ => kind.ToString()
     };
 
-    private static string GetUnitLabel(RequestModule kind) => kind switch
+    private string GetUnitLabel(RequestModule kind) => kind switch
     {
-        RequestModule.Overtime => "giờ",
-        RequestModule.Trip => "ngày",
-        _ => "ngày"
+        RequestModule.Overtime => Language.T("calendar.hours"),
+        RequestModule.Trip => Language.T("dashboard.days"),
+        _ => Language.T("dashboard.days")
     };
 
     private async Task Approve()
@@ -111,7 +111,7 @@
 
         if (level <= 0)
         {
-            Snackbar.Add("Không xác định được cấp phê duyệt hiện tại.", Severity.Warning);
+            Snackbar.Add(Language.T("approval.khongXacDinhDuocCap"), Severity.Warning);
             return;
         }
 
@@ -133,7 +133,7 @@
             if (result.IsSuccess)
             {
                 Snackbar.Add(
-                    isReject ? "Đã từ chối!" : "Đã phê duyệt!",
+                    isReject ? Language.T("approval.daTuChoi") : Language.T("approval.daPheDuyet"),
                     isReject ? Severity.Info : Severity.Success);
 
                 if (isReject)
@@ -145,7 +145,7 @@
             }
             else
             {
-                Snackbar.Add(result.Message ?? "Lỗi xử lý.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("approval.loiXuLy"), Severity.Error);
             }
         }
         finally

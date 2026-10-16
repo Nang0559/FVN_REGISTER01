@@ -8,6 +8,7 @@ using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using Microsoft.EntityFrameworkCore;
@@ -123,7 +124,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 var context = ApprovalBuildContext.ForLeave(
                     requestId: entity.Id,
                     employeeCode: user.EmployeeCode ?? "",
-                    deptCode: user.DeptCode ?? "",
+                    deptCode: user.DeptCode ?? 0,
                     positionCode: user.PositionCode ?? "",
                     year: entity.WorkYear,
                     leaveTypeCode: model.LeaveTypeCode);
@@ -135,6 +136,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                     return ServiceResult<int>.Fail(
                         approvalResult.Message ?? "Không thể khởi tạo luồng duyệt cho đơn nghỉ.");
                 }
+
+                // Creating a leave request initializes its approval snapshot. Keep the
+                // persisted request status in sync with that submitted workflow; leaving
+                // it as Draft causes ApprovalEngine to hide the valid pending snapshot.
+                entity.RequestStatus = ApprovalStatus.Pending;
+                entity.ModifiedAt = DateTime.Now;
+                await Uow.SaveChangesAsync(ct);
 
                 await tx.CommitAsync(ct);
                 Logger.LogInfoIf(Debug, "[{Component}] Created LeaveId={Id} By={User}", ComponentName, entity.Id, user.EmployeeCode);

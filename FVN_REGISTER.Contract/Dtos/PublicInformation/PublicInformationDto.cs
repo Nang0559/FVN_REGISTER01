@@ -1,3 +1,5 @@
+using FVN_REGISTER.Contract.Dtos.Approvals;
+
 namespace FVN_REGISTER.Contract.Dtos.PublicInformation;
 public sealed class PublicInformationDto
 {
@@ -12,4 +14,7 @@ public sealed class PublicInformationDto
     public bool IsImportant { get; set; }
     public string? AttachmentUrl { get; set; }
     public DateTime? PublishedAt { get; set; }
+
+    /// <summary>Signed / stamped documents. Reuses AttachmentDto; FilePath is never filled (server path stays private).</summary>
+    public List<AttachmentDto> Attachments { get; set; } = new();
 }

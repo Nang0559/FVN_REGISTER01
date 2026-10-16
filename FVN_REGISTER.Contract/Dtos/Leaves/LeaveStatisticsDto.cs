@@ -15,6 +15,12 @@ namespace FVN_REGISTER.Contract.Dtos.Leaves
         public int ApprovedLeaveCount { get; set; }
         public int PendingLeaveCount { get; set; }
 
+        // Counts for today, populated only for departments covered by the matching
+        // active approval policies.
+        public int TodayLeaveEmployeesCount { get; set; }
+        public int TodayTripEmployeesCount { get; set; }
+        public int TodayOTEmployeesCount { get; set; }
+
         public double LeaveRate { get; set; }
         public double WorkingRate { get; set; }
 

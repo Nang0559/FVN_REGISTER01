@@ -28,6 +28,11 @@ public interface IExecutionReconciliationClientService
         ExecutionConfirmationRequest request,
         CancellationToken ct = default);
 
+    Task<ApiResponse<ExecutionEmployeeResolutionDto>> DecideEmployeeResolutionAsync(
+        long reconciliationId,
+        ExecutionEmployeeDecisionRequest request,
+        CancellationToken ct = default);
+
     Task<ApiResponse<ExecutionEvidenceDto>> AddEvidenceAsync(
         long confirmationId,
         ExecutionEvidenceRequest request,

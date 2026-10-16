@@ -18,6 +18,10 @@ public sealed class F03FeatureOperatorAssignment : BaseAuditEntity
 
     public int? ResourceId { get; set; }
 
-    [StringLength(500)]
+    /// <summary>Data scope of an assignment-granted capability (All/Department/Own). Null = function default.</summary>
+    [StringLength(30)]
+    public string? ScopeCode { get; set; }
+
+    [StringLength(1000)]
     public string? Remark { get; set; }
 }

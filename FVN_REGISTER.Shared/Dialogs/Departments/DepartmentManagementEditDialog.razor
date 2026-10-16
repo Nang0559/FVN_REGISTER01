@@ -5,17 +5,17 @@
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.AddBusiness)" Class="mr-2" />
-            @(IsEdit ? "Chỉnh sửa Bộ phận" : "Thêm Bộ phận mới")
+            @(IsEdit ? Language.T("department.chinhSuaBoPhan") : Language.T("department.themBoPhanMoi"))
         </MudText>
     </TitleContent>
 
     <DialogContent>
         <MudForm @ref="_form" Model="@Model">
-            <MudTextField T="string" Label="Mã bộ phận" @bind-Value="Model.DeptCode" For="@(() => Model.DeptCode)"
+            <MudNumericField T="int" HideSpinButtons="true" Label="@Language.T("department.maBoPhan")" @bind-Value="Model.DeptCode" For="@(() => Model.DeptCode)"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="IsEdit" Class="mb-4" />
-            <MudTextField T="string" Label="Tên bộ phận" @bind-Value="Model.DeptName" For="@(() => Model.DeptName)"
+            <MudTextField T="string" Label="@Language.T("department.tenBoPhan")" @bind-Value="Model.DeptName" For="@(() => Model.DeptName)"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-            <MudSwitch T="bool" @bind-Value="Model.IsActive" Color="Color.Success" Label="Kích hoạt bộ phận" />
+            <MudSwitch T="bool" @bind-Value="Model.IsActive" Color="Color.Success" Label="@Language.T("department.kichHoatBoPhan")" />
         </MudForm>
 
         @if (!string.IsNullOrEmpty(_errorMessage))
@@ -25,9 +25,9 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton OnClick="Cancel">@Language.T("common.cancel")</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_isSaving">
-            @(_isSaving ? "Đang lưu..." : "Lưu")
+            @(_isSaving ? Language.T("common.dangLuu") : Language.T("common.save"))
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -58,7 +58,7 @@
             if (result.IsSuccess)
                 MudDialog.Close(DialogResult.Ok(true));
             else
-                _errorMessage = result.Message ?? "Có lỗi xảy ra, vui lòng thử lại.";
+                _errorMessage = result.Message ?? Language.T("department.coLoiXayRaVui");
         }
         finally { _isSaving = false; }
     }

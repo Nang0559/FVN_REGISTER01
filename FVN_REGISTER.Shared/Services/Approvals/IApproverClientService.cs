@@ -9,13 +9,13 @@ namespace FVN_REGISTER.Shared.Services.Approvals
     {
         Task<ApiResponse<List<ApproverTreeNodeDto>>> GetTreeAsync(CancellationToken ct = default);
         Task<ApiResponse<List<ApproverDto>>> GetListAsync(
-            string? deptCode,
+            int? deptCode,
             int? level,
             string? requestType,
             CancellationToken ct = default);
         Task<ApiResponse<List<DepartmentDto>>> GetDepartmentsAsync(CancellationToken ct = default);
         Task<ApiResponse<List<EmployeeSelectDto>>> GetEmployeesAsync(
-            string? deptCode,
+            int? deptCode,
             CancellationToken ct = default);
         Task<ApiResponse<object>> CreateAsync(ApproverDto model, CancellationToken ct = default);
         Task<ApiResponse<object>> UpdateAsync(int id, ApproverDto model, CancellationToken ct = default);

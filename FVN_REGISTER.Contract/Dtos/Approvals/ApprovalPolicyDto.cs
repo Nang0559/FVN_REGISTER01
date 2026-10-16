@@ -7,7 +7,7 @@ public sealed class ApprovalPolicyDto
     public int RequestType { get; set; }
     public string RequestTypeName { get; set; } = string.Empty;
 
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public string DeptName { get; set; } = string.Empty;
 
     public string? PositionCode { get; set; }

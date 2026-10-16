@@ -1,3 +1,5 @@
+using FVN_REGISTER.Contract.Requests.Approvals;
+
 namespace FVN_REGISTER.Contract.Dtos.EquipmentForms;
 
 public sealed class EquipmentFormQuestionOptionDto
@@ -68,6 +70,7 @@ public sealed class EquipmentFormSubmissionRequest
     public int AssetId { get; set; }
     public int FormId { get; set; }
     public List<EquipmentFormAnswerRequest> Answers { get; set; } = new();
+    public List<ApprovalSelectionDto> ApprovalSelections { get; set; } = new();
 }
 
 public sealed class EquipmentFormSubmissionDto

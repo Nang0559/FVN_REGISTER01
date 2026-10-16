@@ -3,102 +3,200 @@ marp: true
 theme: default
 paginate: true
 size: 16:9
+style: |
+  section {
+    font-family: "Aptos", "Yu Gothic UI", "Meiryo", sans-serif;
+    color: #183247;
+    font-size: 20px;
+    line-height: 1.25;
+    padding: 42px 56px;
+    background: #FFFFFF;
+  }
+  h1 {
+    color: #123B5D;
+    font-size: 34px;
+    margin-bottom: 14px;
+  }
+  h2 {
+    color: #187C80;
+    font-size: 24px;
+    margin-top: 8px;
+  }
+  strong { color: #123B5D; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 18px;
+    font-size: 18px;
+  }
+  th {
+    background: #123B5D;
+    color: #FFFFFF;
+    border: 1px solid #D4E0E7;
+    padding: 11px 12px;
+    text-align: left;
+  }
+  td {
+    border: 1px solid #D4E0E7;
+    padding: 10px 12px;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #F2F7F8; }
+  blockquote {
+    border-left: 8px solid #D8A45B;
+    background: #F7F1E7;
+    color: #123B5D;
+    padding: 10px 18px;
+    margin-top: 18px;
+  }
+  section.lead {
+    background: #123B5D;
+    color: #FFFFFF;
+    justify-content: center;
+  }
+  section.lead h1, section.lead h2, section.lead strong {
+    color: #FFFFFF;
+  }
+  section.lead h1 { font-size: 50px; }
+  section.lead h2 { font-size: 30px; }
+  section.lead blockquote {
+    background: transparent;
+    color: #FFFFFF;
+    border-left-color: #D8A45B;
+  }
 ---
+
+<!-- _class: lead -->
 
 # FVN REGISTER
-## TỪ HỒ SƠ → QUẢN TRỊ VÒNG ĐỜI CÔNG VIỆC
 
-**Request → Approval → Planned → Actual → Reconciliation → Action → Resolution → Reporting / Payroll**
+## Từ xử lý thủ công đến quy trình số hóa có thể kiểm soát
 
----
+**Một nền tảng · Một luồng xử lý · Dữ liệu để cải tiến**
 
-# 01 — MỘT LUỒNG DỮ LIỆU
+Lịch làm việc & ngày công　|　Nghỉ phép　|　OT　|　Công tác　|　Thiết bị
 
-```mermaid
-flowchart LR
-    A[Đăng ký số] --> B[Validation]
-    B --> C[Approval Snapshot]
-    C --> D[Approval]
-    D --> E[Planned]
-    E --> F[Actual]
-    F --> G[Reconciliation]
-    G --> H[Action / Resolution]
-    H --> I[Report / Payroll]
-```
-
-Từ nhập liệu và theo dõi thủ công sang một vòng đời có trạng thái, audit và trách nhiệm rõ ràng.
+> Giảm thao tác lặp lại. Làm rõ trách nhiệm. Đo hiệu quả thực tế.
 
 ---
 
-# 02 — PHÉP • OT • CÔNG TÁC
+# 01 — BÀI TOÁN KHÔNG CHỈ LÀ GIẤY TỜ
 
-**Đăng ký → Duyệt → Kế hoạch → HRM/Thực tế → Đối soát → Xử lý ngoại lệ**
+## Một yêu cầu thường kéo theo nhiều công đoạn
 
-- Planned và Actual không bị trộn.
-- Approval Snapshot bảo toàn lịch sử quyết định.
-- Mismatch trở thành case/action thay vì phải tự tìm bằng Excel.
+| Điểm phát sinh | Công việc thủ công | Tác động vận hành |
+|:--|:--|:--|
+| Đăng ký | Lập phiếu, bổ sung thông tin, chuyển hồ sơ | Tốn thời gian của người gửi |
+| Phê duyệt | Tìm yêu cầu, hỏi tiến độ, nhắc người xử lý | Phát sinh giao dịch và thời gian chờ |
+| Tổng hợp | Nhập lại dữ liệu vào nhiều bảng | Tăng công sức và nguy cơ sai lệch |
+| Đối chiếu | Tự tìm chênh lệch giữa kế hoạch và thực tế | Tốn công xác minh, xử lý lại |
+| Tra cứu | Tìm hồ sơ, hình ảnh và lịch sử ở nhiều nơi | Khó truy xuất và kiểm tra lại |
 
----
+> **Chi phí ẩn = xử lý lặp lại + nhập lại + tìm kiếm + nhắc việc + làm lại**
 
-# 03 — WORK CALENDAR & ACTION
-
-Một ngày có thể cho thấy:
-
-**Company Calendar → Shift → Attendance → Registration → Issue/Action → Registration Opportunity**
-
-`Calendar` là projection/navigation; business module vẫn là source of truth.
-
-`?` là marker của vấn đề cần xử lý, không phải business request mới.
+Đây là các nhóm chi phí cần đo tại nhà máy, **không phải số tiết kiệm đã được xác nhận**.
 
 ---
 
-# 04 — EQUIPMENT & CHECKLIST
+# 02 — THAY ĐỔI CÁCH LÀM VIỆC
 
-```mermaid
-flowchart LR
-    R[Equipment Request] --> A[Approval]
-    A --> AS[Asset + QR]
-    AS --> S[Schedule]
-    S --> T[Checklist Task]
-    T --> E[Evidence]
-    T --> AC[Action Center]
-    E --> H[History]
-```
+| TRƯỚC · THỦ CÔNG | CƠ CHẾ THAY ĐỔI | SAU · QUY TRÌNH SỐ HÓA |
+|:--|:--|:--|
+| Phiếu giấy, Excel, trao đổi riêng | Ghi nhận theo nghiệp vụ | Thông tin tập trung hơn |
+| Tự hỏi ai đang xử lý | Trạng thái và luồng phê duyệt | Dễ theo dõi tiến độ |
+| Nhập lại, tổng hợp nhiều lần | Tái sử dụng dữ liệu đã ghi nhận | Hạn chế thao tác lặp lại |
+| Tự dò tìm chênh lệch | Theo dõi trường hợp cần xác minh | Tập trung vào ngoại lệ |
+| Tìm chứng từ ở nhiều nơi | Lưu lịch sử theo quy trình | Tăng khả năng truy xuất |
 
-QR, schema/import Excel, checklist định kỳ, sửa chữa, bàn giao, evidence và lịch sử được quản lý trong cùng vòng đời.
+**Vòng đời kết nối**
 
----
+**01 · ĐĂNG KÝ → 02 · PHÊ DUYỆT → 03 · THỰC HIỆN**
 
-# 05 — ENDPOINT & COMPLIANCE
-
-```mermaid
-flowchart LR
-    AG[Windows Agent] --> INV[Inventory]
-    INV --> POL[Approved Policy]
-    POL --> COMP[Compliance]
-    COMP --> ALERT[Alert / Exception]
-    ALERT --> AP[Approval Engine hiện tại]
-```
-
-Agent cung cấp bằng chứng inventory; không tự thay đổi allowlist và không có remote command channel.
+**04 · ĐỐI SOÁT → 05 · XỬ LÝ SAI LỆCH → 06 · BÁO CÁO**
 
 ---
 
-# 06 — SECURITY
+# 03 — MỘT NỀN TẢNG, NHIỀU NGHIỆP VỤ
 
-**Capability = được làm gì?**  
-**Data Scope = được làm trên dữ liệu nào?**
+| Nghiệp vụ | Quy trình được hỗ trợ | Giá trị hướng tới |
+|:--|:--|:--|
+| **Nghỉ phép** | Đăng ký, phê duyệt, theo dõi lịch và trạng thái | Giảm hỏi tiến độ và tổng hợp rời rạc |
+| **Làm thêm giờ** | Đăng ký, kiểm tra quy tắc được cấu hình, phê duyệt và đối chiếu | Làm rõ kế hoạch đã duyệt và kết quả thực tế |
+| **Công tác** | Theo dõi yêu cầu, phê duyệt và thực hiện | Tập trung tình trạng và lịch sử |
+| **Lịch làm việc & ngày công** | Một lịch cá nhân tổng hợp lịch công ty, ca làm, nghỉ phép, OT, công tác và dữ liệu chấm công đã có | Nhân viên tự xem kế hoạch và theo dõi ngày công; chủ động nhận biết ngày cần xác minh |
+| **Thiết bị** | Đăng ký, QR, nhập Excel theo schema, bàn giao, checklist, sửa chữa và lịch sử | Truy xuất trách nhiệm và vòng đời thiết bị theo phạm vi đã xác nhận |
+| **Công việc / báo cáo** | Việc cần xử lý, thông báo, bảng điều khiển và báo cáo theo quyền | Hỗ trợ theo dõi tình hình và tồn đọng |
+| **Máy tính đầu cuối (Endpoint)** | Thu thập dữ liệu kiểm kê qua tác nhân cài trên máy, đối chiếu phần mềm/dịch vụ với chính sách đã duyệt | Năng lực IT riêng; chỉ công bố vận hành sau thử nghiệm và nghiệm thu |
 
-UI không cấp quyền. Server kiểm tra capability và scope trước dữ liệu, command và export.
+*HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công. Chức năng cụ thể cần được xác nhận trên môi trường nghiệm thu.*
 
 ---
 
-# 07 — GIÁ TRỊ QUẢN TRỊ
+# 04 — GIÁ TRỊ CHO TỪNG VAI TRÒ
 
-- Giảm nhập lại và tổng hợp Excel.
-- Phát hiện sai lệch sớm.
-- Có người xử lý và deadline rõ ràng.
-- Lưu snapshot, evidence, history và audit.
-- Dashboard/Report/Payroll dùng nguồn dữ liệu thống nhất.
+| Vai trò | Giảm công việc thủ công | Giá trị nhận được |
+|:--|:--|:--|
+| **Nhân viên** | Hỏi lịch/ca/ngày công từ nhiều nơi; chuyển phiếu và hỏi tình trạng | Một lịch cá nhân để tự theo dõi ngày công, kế hoạch làm việc và trạng thái yêu cầu |
+| **Người phê duyệt** | Tìm hồ sơ qua nhiều kênh, nhắc lại thông tin | Tập trung yêu cầu cần quyết định |
+| **Quản lý bộ phận** | Hỏi từng người, ghép nhiều bảng | Theo dõi tình hình và việc tồn đọng trong phạm vi được cấp |
+| **HR** | Trả lời câu hỏi tra cứu lặp lại, nhập liệu, tổng hợp, dò chênh lệch | Giảm tra cứu thủ công; tập trung xác minh ngày công và xử lý ngoại lệ |
+| **Quản lý thiết bị** | Tìm mã, lịch kiểm tra, bằng chứng và lịch sử | Tra cứu hồ sơ và nhiệm vụ đã ghi nhận |
+| **IT quản lý máy tính đầu cuối** | Tập hợp dữ liệu kiểm kê máy Windows, phần mềm và dịch vụ | Theo dõi sai lệch so với chính sách sau khi thử nghiệm được xác nhận |
+| **Ban giám đốc** | Chờ các bộ phận tổng hợp số liệu | Có cơ sở đo hiệu quả và ưu tiên cải tiến |
 
-> **Một nền tảng. Một quy trình. Một nơi để theo dõi.**
+**Lợi ích là giảm việc lặp lại và tăng khả năng kiểm soát — không phải xóa bỏ mọi thao tác của con người.**
+
+---
+
+# 05 — TỪ ĐỐI SOÁT ĐẾN KIỂM SOÁT
+
+| Bước | Nội dung | Vai trò của hệ thống |
+|:--|:--|:--|
+| **01 · Kế hoạch** | Yêu cầu đã được phê duyệt | Giữ trạng thái và lịch sử quyết định |
+| **02 · Thực tế** | Dữ liệu thực tế từ nguồn nghiệp vụ chính thức | Hiển thị dữ liệu phù hợp để đối chiếu |
+| **03 · Sai lệch** | Kế hoạch và thực tế chưa khớp | Đưa trường hợp cần xác minh vào luồng theo dõi |
+| **04 · Xử lý** | Người phụ trách, lý do và bằng chứng | Hỗ trợ ghi nhận tiến trình và kết quả |
+| **05 · Kết quả** | Trường hợp được xem xét và giải quyết | Hỗ trợ truy xuất lịch sử theo quy trình |
+
+> Không đồng nhất “đã phê duyệt” với “đã thực hiện đúng”. HRM vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công.
+
+---
+
+# 06 — HIỆU QUẢ PHẢI ĐƯỢC ĐO
+
+| Chỉ số | Đo trước và sau áp dụng |
+|:--|:--|
+| **Thời gian xử lý** | Phút lao động thực tế cho mỗi giao dịch |
+| **Thao tác lặp lại** | Lượt nhập lại, nhắc việc, tìm hồ sơ và đối chiếu |
+| **Thời gian phê duyệt** | Từ lúc gửi đến lúc quyết định; tách riêng thời gian chờ |
+| **Chất lượng xử lý** | Tỷ lệ hồ sơ phải sửa, xử lý lại hoặc quá hạn |
+| **Báo cáo / truy xuất** | Giờ tổng hợp và thời gian tìm hồ sơ/bằng chứng |
+| **Chi phí** | Khoản chi thực tế giảm trừ chi phí triển khai/vận hành |
+
+### Công thức quy đổi giờ công
+
+**Giờ công giải phóng = Số giao dịch × (Phút lao động trước − Phút lao động sau) ÷ 60**
+
+*Giờ công giải phóng là năng lực có thể chuyển sang việc khác; không mặc nhiên là tiết kiệm tiền mặt. Không công bố ROI khi chưa xác nhận số liệu và chi phí.*
+
+---
+
+# 07 — ĐỀ XUẤT: ĐO THỬ, XÁC NHẬN, MỞ RỘNG
+
+| Giai đoạn | Việc cần làm | Kết quả cần có |
+|:--|:--|:--|
+| **01 · Đo cơ sở** | Ghi khối lượng giao dịch và thời gian xử lý thủ công | Số liệu trước áp dụng |
+| **02 · Thử nghiệm** | Chọn nghiệp vụ đã xác nhận sẵn sàng, hướng dẫn người dùng | Phạm vi và cách đo thống nhất |
+| **03 · Đo lại** | Dùng cùng định nghĩa KPI và phạm vi so sánh | Kết quả sau áp dụng |
+| **04 · Xác nhận** | Bộ phận nghiệp vụ và người phụ trách số liệu kiểm tra | Lợi ích, chi phí và tồn tại đã được xác nhận |
+| **05 · Quyết định** | Đánh giá kết quả và phần việc còn thủ công | Duy trì, cải tiến hoặc mở rộng |
+
+---
+
+<!-- _class: lead -->
+
+# FVN REGISTER
+
+## Giảm thao tác lặp lại. Tăng minh bạch. Cải tiến dựa trên dữ liệu.
+
+> Hiệu quả định lượng sẽ được xác nhận bằng kết quả đo trước và sau áp dụng.

@@ -151,6 +151,13 @@ BEGIN
     IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD ModifiedBy int NULL;
     IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD ModifiedAt datetime2(0) NULL;
 END;
+/* Role-specific scope override: one capability can be personal for User role and management-scoped for Approver/Manager role. */
+IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ScopeCode') IS NULL
+    ALTER TABLE dbo.F03RoleFunctions ADD ScopeCode nvarchar(30) NULL;
+IF COL_LENGTH(N'dbo.F03RoleFunctions',N'AccessMode') IS NULL
+    ALTER TABLE dbo.F03RoleFunctions ADD AccessMode nvarchar(20) NULL;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03RoleFunctions_Role_Function' AND object_id=OBJECT_ID(N'dbo.F03RoleFunctions'))
     CREATE UNIQUE INDEX UX_F03RoleFunctions_Role_Function ON dbo.F03RoleFunctions(IdRole,IdFunction);
 
@@ -234,7 +241,7 @@ FROM (VALUES
 (2602,N'Security.ManageRoles',N'Quản lý role',N'Security',N'ManageRoles',N'All',620),
 (2603,N'Security.ManageFunctions',N'Quản lý function/action',N'Security',N'ManageFunctions',N'All',630),
 (2604,N'Security.Audit',N'Xem audit security',N'Security',N'Audit',N'All',640),
-(2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'Own',710),
+(2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'All',710),
 (2307,N'Equipment.Export',N'Xuất báo cáo thiết bị',N'Equipment',N'Export',N'Department',360),
 (2901,N'Attendance.View',N'Xem báo cáo chấm công',N'Attendance',N'View',N'All',810),
 (2902,N'Attendance.Export',N'Xuất báo cáo chấm công',N'Attendance',N'Export',N'All',820)
@@ -248,7 +255,7 @@ SET ModuleCode=LEFT(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')-1),
     ActionCode=SUBSTRING(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')+1,50),
     ScopeCode=CASE
         WHEN f.FunctionCode IN (2005,2006,2105,2107,2205,2301,2304,2305) THEN N'Department'
-        WHEN f.FunctionCode IN (2106,2401,2402,2403,2404,2405,2406,2501,2502,2503,2504,2601,2602,2603,2604) THEN N'All'
+        WHEN f.FunctionCode IN (2106,2401,2402,2403,2404,2405,2406,2501,2502,2503,2504,2601,2602,2603,2604,2701) THEN N'All'
         WHEN f.FunctionCode BETWEEN 2001 AND 2999 THEN N'Own'
         ELSE f.ScopeCode
     END
@@ -310,6 +317,73 @@ WHERE r.IsActive=1
   );
 GO
 
+/*
+  Scope normalization:
+  - User role = personal/self-service.
+  - Approver role = management/approval only.
+  - Role-specific scope overrides do not change FunctionCode; they refine the data scope
+    granted by each Role -> Function/Action edge.
+*/
+UPDATE rf
+SET AccessMode = CASE WHEN r.RoleCode = 4 THEN N'Management' WHEN r.RoleCode = 5 THEN N'Personal' ELSE rf.AccessMode END,
+    ScopeCode = CASE
+    WHEN r.RoleCode = 5 THEN N'Own'
+    WHEN r.RoleCode = 4 AND f.ActionCode IN(N'View',N'Approve') THEN N'Department'
+    ELSE rf.ScopeCode
+END
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode IN(4,5)
+  AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment');
+
+/* Standard self-service / management capabilities for calendar and attendance. */
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+SELECT r.Id,f.Id,N'Own',N'Personal'
+FROM dbo.F03Roles r
+JOIN dbo.F03Functions f ON f.FunctionCode=2901
+WHERE r.RoleCode=5
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+UPDATE rf
+SET ScopeCode=N'Own', AccessMode=N'Personal'
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode=5 AND f.FunctionCode=2901;
+
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+SELECT r.Id,f.Id,N'Own',N'Personal'
+FROM dbo.F03Roles r
+JOIN dbo.F03Functions f ON f.FunctionCode=3043
+WHERE r.RoleCode=5
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
+SELECT r.Id,f.Id,N'Department',N'Management'
+FROM dbo.F03Roles r
+JOIN dbo.F03Functions f ON f.FunctionCode=3043
+WHERE r.RoleCode=4
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
+UPDATE rf
+SET ScopeCode=N'Department', AccessMode=N'Management'
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode=4 AND f.FunctionCode=3043;
+
+-- Approver is a management/approval role; it must not inherit personal registration actions.
+DELETE rf
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode=4
+  AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment')
+  AND f.ActionCode IN(N'Create',N'Edit',N'Cancel');
+
+GO
+
 /* Migrate the legacy primary role into the normalized multi-role table. */
 INSERT dbo.F03UserRoles(IdUser,IdRole,IsPrimary,CreatedBy)
 SELECT u.Id,r.Id,1,0
@@ -367,6 +441,10 @@ WHERE r.RoleCode IN (1,2,3,4)
 GO
 
 /* OT export and attendance view/export are Department scoped. */
+UPDATE rf SET AccessMode=N'Management'
+FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode IN(1,2,3,4) AND f.FunctionCode=2901;
+GO
 UPDATE dbo.F03Functions SET ScopeCode=N'Department'
 WHERE FunctionCode IN (2107,2901,2902);
 GO
@@ -398,8 +476,10 @@ WHERE r.RoleCode IN(1,2) AND f.FunctionCode IN(3081,3082)
 AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
 
-/* Attendance.View is for management/approval roles; normal User must not inherit the Department scope. */
-DELETE rf
+/* Attendance.View has two independent capability modes:
+   User = Personal/Own; Approver/manager = Management/Department. */
+UPDATE rf
+SET ScopeCode=N'Own', AccessMode=N'Personal'
 FROM dbo.F03RoleFunctions rf
 JOIN dbo.F03Roles r ON r.Id=rf.IdRole
 JOIN dbo.F03Functions f ON f.Id=rf.IdFunction

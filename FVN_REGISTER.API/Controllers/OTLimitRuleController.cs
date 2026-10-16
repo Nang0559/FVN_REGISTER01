@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.OTLimitRules;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.LimitRuleDtos;
 using FVN_REGISTER.Core.Constants;
@@ -18,6 +19,7 @@ public sealed class OTLimitRuleController : BaseApiController
 {
     private readonly IOTLimitRuleManagementService _service;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
     public OTLimitRuleController(
         IOTLimitRuleManagementService service,
@@ -25,15 +27,22 @@ public sealed class OTLimitRuleController : BaseApiController
         IUserLogService userLog,
         ILogger<OTLimitRuleController> logger,
         IOptionsMonitor<AuthDebugOptions> options,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operators)
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
         _authorization = authorization;
+        _operators = operators;
     }
 
     private async Task<bool> CanManageAsync(CancellationToken ct)
-        => UserInfo != null && await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTLimitManage, ct);
+    {
+        if (UserInfo is null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTLimitManage, ct))
+            return false;
+        return await _operators.CanOperateAsync(UserInfo.UserId, UserInfo.EmployeeCode,
+            SecurityFunctionCodes.OTLimitManage, FeatureOperatorCatalog.OtLimitRule, null, ct);
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)

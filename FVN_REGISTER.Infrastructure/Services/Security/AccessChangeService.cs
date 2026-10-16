@@ -237,7 +237,7 @@ public sealed class AccessChangeService : IAccessChangeService
                 RequesterEmployeeCode = requesterCode,
                 OldEmployeeCode = oldCode,
                 NewEmployeeCode = requesterCode,
-                DeptCode = requester.DeptCode ?? string.Empty,
+                DeptCode = requester.DeptCode,
                 NewPositionCode = requester.PositionCode,
                 Reason = request.Reason.Trim(),
                 RequestedFunctionCodesJson = JsonSerializer.Serialize(selectedFunctions),

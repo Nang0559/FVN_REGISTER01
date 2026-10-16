@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Contract.Dtos.MasterData
     {
         public RequestModule RequestType { get; set; }
         public int Level { get; set; }
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public decimal WarningHours { get; set; }
         public decimal EscalateHours { get; set; }
         public int DeadlineHour { get; set; }

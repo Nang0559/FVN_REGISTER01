@@ -10,31 +10,31 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<PageTitle>Quản lý Bộ phận - FCC</PageTitle>
+<PageTitle>@Language.T("department.quanLyBoPhanFcc")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" Size="Size.Large" />
     <div>
-        <MudText Typo="Typo.h5" Style="font-weight:700">Quản lý Bộ Phận</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary">Cấu hình danh sách bộ phận trong công ty</MudText>
+        <MudText Typo="Typo.h5" Style="font-weight:700">@Language.T("department.quanLyBoPhan")</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("department.cauHinhDanhSachBo")</MudText>
     </div>
     <MudSpacer />
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AddBusiness" OnClick="OpenCreateDialog">
-        Thêm Bộ Phận
+        @Language.T("department.themBoPhan")
     </MudButton>
 </MudStack>
 
 <MudPaper Elevation="1" Class="pa-3 mb-4" Style="border-radius:12px">
     <MudGrid>
         <MudItem xs="12" sm="6">
-            <MudSelect T="bool?" Label="Lọc theo trạng thái" Value="_filterActive" ValueChanged="OnActiveFilterChanged"
+            <MudSelect T="bool?" Label="@Language.T("department.locTheoTrangThai")" Value="_filterActive" ValueChanged="OnActiveFilterChanged"
                        Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                <MudSelectItem T="bool?" Value="@((bool?)true)">Đang hoạt động</MudSelectItem>
-                <MudSelectItem T="bool?" Value="@((bool?)false)">Đã ngừng hoạt động</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)true)">@Language.T("common.enabled")</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)false)">@Language.T("department.daNgungHoatDong")</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">Xem tất cả</MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">@Language.T("dashboard.viewAll")</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
@@ -48,12 +48,12 @@ else
     <MudPaper Elevation="1" Style="border-radius:12px; overflow:hidden">
         <MudTable Items="_departments" Dense="true" Hover="true" Striped="true">
             <HeaderContent>
-                <MudTh>Mã bộ phận</MudTh>
-                <MudTh>Tên bộ phận</MudTh>
-                <MudTh Style="text-align:center">Nhân viên</MudTh>
-                <MudTh>Ngày tạo</MudTh>
-                <MudTh>Trạng thái</MudTh>
-                <MudTh Style="text-align:center">Thao tác</MudTh>
+                <MudTh>@Language.T("department.maBoPhan")</MudTh>
+                <MudTh>@Language.T("department.tenBoPhan")</MudTh>
+                <MudTh Style="text-align:center">@Language.T("ot.employee")</MudTh>
+                <MudTh>@Language.T("common.createdAt")</MudTh>
+                <MudTh>@Language.T("common.status")</MudTh>
+                <MudTh Style="text-align:center">@Language.T("security.actions")</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd><MudText Typo="Typo.body2" Style="font-weight:600">@context.DeptCode</MudText></MudTd>
@@ -62,7 +62,7 @@ else
                 <MudTd>@context.CreatedAt.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>
                     <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
-                        @(context.IsActive ? "Đang hoạt động" : "Đã ngừng")
+                        @(context.IsActive ? Language.T("common.enabled") : Language.T("department.daNgung"))
                     </MudChip>
                 </MudTd>
                 <MudTd Style="text-align:center">
@@ -72,7 +72,7 @@ else
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => ConfirmDelete(context))" />
                 </MudTd>
             </RowTemplate>
-            <NoRecordsContent><MudText Color="Color.Secondary" Class="pa-6">Không có bộ phận.</MudText></NoRecordsContent>
+            <NoRecordsContent><MudText Color="Color.Secondary" Class="pa-6">@Language.T("department.khongCoBoPhan")</MudText></NoRecordsContent>
         </MudTable>
     </MudPaper>
 }
@@ -100,7 +100,7 @@ else
             if (result.IsSuccess && result.Data != null)
                 _departments = result.Data;
             else
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("common.loiTaiDuLieu2"), Severity.Error);
         }
         finally { _isLoading = false; }
     }
@@ -126,7 +126,7 @@ else
         var dialog = await DialogService.ShowAsync<DepartmentManagementEditDialog>(string.Empty, parameters, DialogOptions);
         if ((await dialog.Result) is { Canceled: false })
         {
-            Snackbar.Add("Đã thêm bộ phận thành công!", Severity.Success);
+            Snackbar.Add(Language.T("department.daThemBoPhanThanh"), Severity.Success);
             await LoadAsync();
         }
     }
@@ -144,7 +144,7 @@ else
         var dialog = await DialogService.ShowAsync<DepartmentManagementEditDialog>(string.Empty, parameters, DialogOptions);
         if ((await dialog.Result) is { Canceled: false })
         {
-            Snackbar.Add("Đã cập nhật bộ phận thành công!", Severity.Success);
+            Snackbar.Add(Language.T("department.daCapNhatBoPhan"), Severity.Success);
             await LoadAsync();
         }
     }
@@ -152,7 +152,7 @@ else
     private async Task ToggleDepartment(DepartmentDto item)
     {
         var result = await DepartmentService.ToggleAsync(item.Id);
-        Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã cập nhật" : "Có lỗi xảy ra"), result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? Language.T("common.daCapNhat2") : Language.T("common.coLoiXayRa")), result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) await LoadAsync();
     }
 
@@ -168,9 +168,9 @@ else
         var result = await DepartmentService.DeleteAsync(item.Id);
         if (result.IsSuccess)
         {
-            Snackbar.Add("Đã xóa bộ phận", Severity.Success);
+            Snackbar.Add(Language.T("department.daXoaBoPhan"), Severity.Success);
             await LoadAsync();
         }
-        else Snackbar.Add(result.Message ?? "Lỗi xóa", Severity.Error);
+        else Snackbar.Add(result.Message ?? Language.T("common.loiXoa2"), Severity.Error);
     }
 }

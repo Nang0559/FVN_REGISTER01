@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Contract.Responses;
@@ -21,13 +22,15 @@ public sealed class EndpointGovernanceController : ControllerBase
     private readonly EndpointGovernanceExcelImportService _excelImport;
     private readonly ICurrentUserService _currentUser;
     private readonly AppAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
-    public EndpointGovernanceController(IEndpointGovernanceService service, EndpointGovernanceExcelImportService excelImport, ICurrentUserService currentUser, AppAuthorizationService authorization)
+    public EndpointGovernanceController(IEndpointGovernanceService service, EndpointGovernanceExcelImportService excelImport, ICurrentUserService currentUser, AppAuthorizationService authorization, IFeatureOperatorAssignmentService operators)
     {
         _service = service;
         _excelImport = excelImport;
         _currentUser = currentUser;
         _authorization = authorization;
+        _operators = operators;
     }
 
     [HttpGet("policies")]
@@ -65,34 +68,34 @@ public sealed class EndpointGovernanceController : ControllerBase
     [HttpPost("policies/import/preview")]
     [SecurityFunctionDefinition("Endpoint.SoftwareCatalogManage", "Endpoint Governance - preview Software Catalog")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<ActionResult<ApiResponse<EndpointGovernanceExcelPreviewDto>>> PreviewExcel(IFormFile file, [FromQuery] EndpointGovernanceItemType itemType, [FromQuery] EndpointTargetType targetType, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EndpointGovernanceExcelPreviewDto>>> PreviewExcel(IFormFile file, [FromQuery] int schemaId, [FromQuery] EndpointGovernanceItemType itemType, [FromQuery] EndpointTargetType targetType, CancellationToken ct)
     {
         if (!await HasManageAsync(itemType, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("File Excel rỗng."));
-        if (!string.Equals(Path.GetExtension(file.FileName), ".xlsx", StringComparison.OrdinalIgnoreCase)) return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("Chỉ hỗ trợ .xlsx."));
+        if (!IsSupportedExcelFile(file.FileName)) return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail("Chỉ hỗ trợ .xls hoặc .xlsx."));
         try
         {
             await using var stream = file.OpenReadStream();
-            var preview = await _excelImport.PreviewAsync(stream, file.FileName, itemType, targetType, ct);
+            var preview = await _excelImport.PreviewAsync(stream, file.FileName, schemaId, itemType, targetType, ct);
             return Ok(ApiResponse<EndpointGovernanceExcelPreviewDto>.Ok(preview));
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException) { return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail(ex.Message)); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException or InvalidOperationException) { return BadRequest(ApiResponse<EndpointGovernanceExcelPreviewDto>.Fail(ex.Message)); }
     }
 
     [HttpPost("policies/import")]
     [SecurityFunctionDefinition("Endpoint.SoftwareCatalogManage", "Endpoint Governance - import Software Catalog")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> ImportExcel(IFormFile file, [FromForm] string policyCode, [FromForm] string policyName, [FromForm] EndpointGovernanceItemType itemType, [FromForm] EndpointTargetType targetType, [FromForm] string? remark, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EndpointGovernancePolicyDto>>> ImportExcel(IFormFile file, [FromForm] int schemaId, [FromForm] string policyCode, [FromForm] string policyName, [FromForm] EndpointGovernanceItemType itemType, [FromForm] EndpointTargetType targetType, [FromForm] string? remark, CancellationToken ct)
     {
         if (!await HasManageAsync(itemType, ct)) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail("File Excel rỗng."));
-        if (!string.Equals(Path.GetExtension(file.FileName), ".xlsx", StringComparison.OrdinalIgnoreCase)) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail("Chỉ hỗ trợ .xlsx."));
+        if (!IsSupportedExcelFile(file.FileName)) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail("Chỉ hỗ trợ .xls hoặc .xlsx."));
         try
         {
             await using var stream = file.OpenReadStream();
-            var preview = await _excelImport.PreviewAsync(stream, file.FileName, itemType, targetType, ct);
+            var preview = await _excelImport.PreviewAsync(stream, file.FileName, schemaId, itemType, targetType, ct);
             if (preview.Errors.Count > 0) return BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail(string.Join(" | ", preview.Errors)));
-            var request = EndpointGovernanceExcelImportService.ToUpsert(preview, new EndpointGovernanceExcelImportRequest(policyCode, policyName, itemType, targetType, remark))
+            var request = EndpointGovernanceExcelImportService.ToUpsert(preview, new EndpointGovernanceExcelImportRequest(schemaId, policyCode, policyName, itemType, targetType, remark))
                 with { ChecklistCompleted = true, ChecklistNote = "Excel preview passed: rows, duplicates and required columns validated." };
             var result = await _service.CreateVersionAsync(request, ct);
             return result.Success ? Ok(ApiResponse<EndpointGovernancePolicyDto>.Ok(result.Data!)) : BadRequest(ApiResponse<EndpointGovernancePolicyDto>.Fail(result.Message ?? "Không thể import catalog."));
@@ -140,13 +143,36 @@ public sealed class EndpointGovernanceController : ControllerBase
         return result.Success ? Ok(ApiResponse<IReadOnlyList<EndpointComplianceFindingDto>>.Ok(result.Data!)) : StatusCode(403, ApiResponse<IReadOnlyList<EndpointComplianceFindingDto>>.Fail(result.Message ?? "Không có quyền."));
     }
 
+    private static bool IsSupportedExcelFile(string fileName)
+    {
+        var extension = Path.GetExtension(fileName);
+        return string.Equals(extension, ".xls", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<bool> HasManageAsync(EndpointGovernanceItemType itemType, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
         if (user?.IsAdmin == true) return true;
         if (user == null) return false;
-        var capability = itemType == EndpointGovernanceItemType.WindowsService ? SecurityFunctionCodes.EndpointServiceCatalogManage : SecurityFunctionCodes.EndpointSoftwareCatalogManage;
-        return await _authorization.HasAsync(user, capability, ct);
+
+        var capability = itemType == EndpointGovernanceItemType.WindowsService
+            ? SecurityFunctionCodes.EndpointServiceCatalogManage
+            : SecurityFunctionCodes.EndpointSoftwareCatalogManage;
+
+        if (!await _authorization.HasAsync(user, capability, ct))
+            return false;
+
+        if (itemType != EndpointGovernanceItemType.Software)
+            return true;
+
+        return await _operators.CanOperateAsync(
+            user.UserId,
+            user.EmployeeCode,
+            SecurityFunctionCodes.EndpointSoftwareCatalogManage,
+            "ENDPOINT_SOFTWARE_CATALOG",
+            null,
+            ct);
     }
 
     public sealed record EndpointSecurityReviewRequest(bool Approved, string? Comment);

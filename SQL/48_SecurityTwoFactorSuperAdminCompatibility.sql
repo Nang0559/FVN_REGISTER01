@@ -5,16 +5,12 @@ SET XACT_ABORT ON;
 
 /*
   Security compatibility fix:
-  E0001 is intentionally provisioned as a legacy direct-grant SuperAdmin so
-  Security Center remains reachable even when F03UserRoles has not yet been
-  created by HRM synchronization.
+  E0001 is a legacy direct-grant SuperAdmin when that account already exists.
 
-  Function 2407 (UserManagement.ManageTwoFactor) was previously granted only
-  through F03RoleFunctions. That left legacy-only SuperAdmin accounts without
-  the capability and caused the 2FA user-management panel to stay unavailable.
-
-  Do NOT create a role assignment here. Preserve the existing legacy access
-  model and add only the missing direct function grant for E0001.
+  This script is intentionally seed-safe. HRM provisioning is the owner of
+  employee/user creation, so a fresh database must not fail merely because
+  E0001 has not been provisioned yet. When E0001 exists, grant Function 2407
+  (UserManagement.ManageTwoFactor) directly with the SuperAdmin permission.
 */
 
 IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
@@ -45,8 +41,15 @@ WHERE p.PermissionCode = 1
   AND ISNULL(p.IsActive, 1) = 1
 ORDER BY p.Id;
 
+/*
+  Do not manufacture a user here. F03Users is provisioned from HRM and this
+  compatibility patch must not create an account with an unknown credential.
+*/
 IF @UserId IS NULL
-    THROW 51482, N'SuperAdmin seed user E0001 was not found. Run the user seed/provisioning before this compatibility migration.', 1;
+BEGIN
+    PRINT N'48_SecurityTwoFactorSuperAdminCompatibility: E0001 is not provisioned yet; direct 2FA grant deferred to HRM user provisioning.';
+    RETURN;
+END;
 
 IF @FunctionId IS NULL
     THROW 51483, N'Function 2407 UserManagement.ManageTwoFactor was not found. Apply 41_SecurityFunctionCleanup before this migration.', 1;
@@ -94,4 +97,6 @@ BEGIN
       AND IdFunction = @FunctionId
       AND IdPermission = @PermissionId;
 END;
+
+PRINT N'48_SecurityTwoFactorSuperAdminCompatibility: direct SuperAdmin 2FA grant verified for E0001.';
 GO

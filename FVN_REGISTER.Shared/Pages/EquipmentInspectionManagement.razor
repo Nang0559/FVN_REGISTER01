@@ -11,31 +11,34 @@
 @inject IEquipmentClientService EquipmentClient
 @inject IEmployeeManagementClientService EmployeeClient
 @inject ISnackbar Snackbar
+@inject Microsoft.JSInterop.IJSRuntime JS
 
-<PageTitle>Quản lý Checklist thiết bị</PageTitle>
+<PageTitle>@Language.T("equipment.quanLyChecklistThietBi")</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
-    <MudText Typo="Typo.h4">Quản lý Checklist thiết bị</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">Checklist là tùy chọn theo từng thiết bị đã đăng ký. Không thể tạo phân công cho thiết bị chưa đăng ký.</MudText>
+    <MudText Typo="Typo.h4">@Language.T("equipment.quanLyChecklistThietBi")</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">@Language.T("equipment.checklistLaTuyChonTheo")</MudText>
 
     <MudTabs Rounded="true" Elevation="1">
-        <MudTabPanel Text="Thiết kế Checklist">
+        <MudTabPanel Text="@Language.T("equipment.thietKeChecklist")">
             <MudPaper Class="pa-4 ma-4" Outlined="true">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                     <div>
-                        <MudText Typo="Typo.h6">Import Checklist từ Excel</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Một schema dùng cho nhiều loại checklist; tất cả dòng phải hợp lệ thì mới tạo template Draft.</MudText>
+                        <MudText Typo="Typo.h6">@Language.T("equipment.importChecklistTuExcel")</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.motSchemaDungChoNhieu")</MudText>
                     </div>
-                    <InputFile OnChange="ImportChecklistAsync" accept=".xls,.xlsx,.xlsm" />
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadSampleAsync">@Language.T("equipment.taiFileMau")</MudButton>
+                        <InputFile OnChange="ImportChecklistAsync" accept=".xls,.xlsx,.xlsm" />
+                    </MudStack>
                 </MudStack>
                 <MudAlert Severity="Severity.Info" Class="mt-3">
-                    Cột bắt buộc: TemplateCode, TemplateName, DeptCode, Frequency, ItemCode, ItemLabel, InputType, DisplayOrder.
-                    Cột tùy chọn: Description, IsRequired, RequireImage, MinImages, MaxImages, MinValue, MaxValue, Unit, OptionsJson.
+                    @Language.T("equipment.cotBatBuocTemplatecode")
                 </MudAlert>
                 @if (_importResult != null)
                 {
                     <MudAlert Severity="@(_importResult.Errors.Count == 0 ? Severity.Success : Severity.Error)" Class="mt-3">
-                        @(_importResult.Errors.Count == 0 ? $"Đã import {_importResult.ItemCount} hạng mục vào template {_importResult.TemplateCode} ở Draft." : string.Join(" ", _importResult.Errors))
+                        @(_importResult.Errors.Count == 0 ? Language.T("equipment.daImportHangMucVao", _importResult.ItemCount, _importResult.TemplateCode) : string.Join(" ", _importResult.Errors))
                     </MudAlert>
                 }
             </MudPaper>
@@ -43,33 +46,33 @@
             <MudGrid Class="pa-4">
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-4" Outlined="true">
-                        <MudText Typo="Typo.h6">Thông tin checklist</MudText>
-                        <MudSelect T="string" Label="Department" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
+                        <MudText Typo="Typo.h6">@Language.T("equipment.thongTinChecklist")</MudText>
+                        <MudSelect T="int?" Label="@Language.T("common.department2")" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
                             @foreach (var d in _departments)
                             {
-                                <MudSelectItem Value="@d.DeptCode">@d.DeptCode – @d.DeptName</MudSelectItem>
+                                <MudSelectItem T="int?" Value="@((int?)d.DeptCode)">@d.DeptCode – @d.DeptName</MudSelectItem>
                             }
                         </MudSelect>
-                        <MudTextField @bind-Value="_template.TemplateCode" Label="Template Code" Variant="Variant.Outlined" Class="mt-3" />
-                        <MudTextField @bind-Value="_template.TemplateName" Label="Tên checklist" Variant="Variant.Outlined" Class="mt-3" Required="true" />
-                        <MudSelect T="string" @bind-Value="_template.Frequency" Label="Chu kỳ" Variant="Variant.Outlined" Class="mt-3">
-                            <MudSelectItem Value="@("Daily")">Hàng ngày</MudSelectItem>
-                            <MudSelectItem Value="@("Weekly")">Hàng tuần</MudSelectItem>
-                            <MudSelectItem Value="@("Monthly")">Hàng tháng</MudSelectItem>
-                            <MudSelectItem Value="@("Quarterly")">Hàng quý</MudSelectItem>
-                            <MudSelectItem Value="@("Yearly")">Hàng năm</MudSelectItem>
+                        <MudTextField @bind-Value="_template.TemplateCode" Label="@Language.T("equipment.templateCode")" Variant="Variant.Outlined" Class="mt-3" />
+                        <MudTextField @bind-Value="_template.TemplateName" Label="@Language.T("equipment.tenChecklist")" Variant="Variant.Outlined" Class="mt-3" Required="true" />
+                        <MudSelect T="string" @bind-Value="_template.Frequency" Label="@Language.T("equipment.chuKy")" Variant="Variant.Outlined" Class="mt-3">
+                            <MudSelectItem Value="@("Daily")">@Language.T("equipment.hangNgay")</MudSelectItem>
+                            <MudSelectItem Value="@("Weekly")">@Language.T("equipment.hangTuan")</MudSelectItem>
+                            <MudSelectItem Value="@("Monthly")">@Language.T("equipment.hangThang")</MudSelectItem>
+                            <MudSelectItem Value="@("Quarterly")">@Language.T("equipment.hangQuy")</MudSelectItem>
+                            <MudSelectItem Value="@("Yearly")">@Language.T("equipment.hangNam")</MudSelectItem>
                         </MudSelect>
-                        <MudSelect T="string" @bind-Value="_template.Status" Label="Trạng thái" Variant="Variant.Outlined" Class="mt-3">
-                            <MudSelectItem Value="@("Draft")">Draft</MudSelectItem>
-                            <MudSelectItem Value="@("Active")">Active</MudSelectItem>
-                            <MudSelectItem Value="@("Inactive")">Inactive</MudSelectItem>
+                        <MudSelect T="string" @bind-Value="_template.Status" Label='@Language.T("common.status")' Variant="Variant.Outlined" Class="mt-3">
+                            <MudSelectItem Value="@("Draft")">@Language.T("equipment.draft")</MudSelectItem>
+                            <MudSelectItem Value="@("Active")">@Language.T("common.active2")</MudSelectItem>
+                            <MudSelectItem Value="@("Inactive")">@Language.T("equipment.inactive")</MudSelectItem>
                         </MudSelect>
-                        <MudTextField @bind-Value="_template.Description" Label="Mô tả" Lines="3" Variant="Variant.Outlined" Class="mt-3" />
+                        <MudTextField @bind-Value="_template.Description" Label='@Language.T("common.description")' Lines="3" Variant="Variant.Outlined" Class="mt-3" />
                         <MudStack Row="true" Class="mt-4">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTemplateAsync">Lưu</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTemplateAsync">@Language.T("common.save")</MudButton>
                             @if (_template.Id > 0)
                             {
-                                <MudButton Variant="Variant.Outlined" OnClick="CloneTemplateAsync">Nhân bản version</MudButton>
+                                <MudButton Variant="Variant.Outlined" OnClick="CloneTemplateAsync">@Language.T("equipment.nhanBanVersion")</MudButton>
                             }
                         </MudStack>
                     </MudPaper>
@@ -78,45 +81,45 @@
                 <MudItem xs="12" md="8">
                     <MudPaper Class="pa-4" Outlined="true">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                            <MudText Typo="Typo.h6">Các hạng mục kiểm tra</MudText>
-                            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Outlined" OnClick="AddItem">Thêm hạng mục</MudButton>
+                            <MudText Typo="Typo.h6">@Language.T("equipment.cacHangMucKiemTra")</MudText>
+                            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Outlined" OnClick="AddItem">@Language.T("equipment.themHangMuc")</MudButton>
                         </MudStack>
                         @foreach (var item in _template.Items.OrderBy(x => x.DisplayOrder))
                         {
                             <MudPaper Class="pa-3 my-3" Outlined="true">
                                 <MudGrid>
-                                    <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.ItemCode" Label="Code" /></MudItem>
-                                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="item.ItemLabel" Label="Hạng mục" /></MudItem>
+                                    <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.ItemCode" Label="@Language.T("common.code2")" /></MudItem>
+                                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="item.ItemLabel" Label="@Language.T("common.hangMuc")" /></MudItem>
                                     <MudItem xs="12" sm="3">
-                                        <MudSelect T="string" @bind-Value="item.InputType" Label="Kiểu" Dense="true">
-                                            <MudSelectItem Value="@("PassFail")">Đạt / Không đạt</MudSelectItem>
-                                            <MudSelectItem Value="@("YesNo")">Có / Không</MudSelectItem>
-                                            <MudSelectItem Value="@("Number")">Số</MudSelectItem>
-                                            <MudSelectItem Value="@("Text")">Text</MudSelectItem>
-                                            <MudSelectItem Value="@("Select")">Danh sách</MudSelectItem>
+                                        <MudSelect T="string" @bind-Value="item.InputType" Label="@Language.T("equipment.kieu")" Dense="true">
+                                            <MudSelectItem Value="@("PassFail")">@Language.T("equipment.datKhongDat")</MudSelectItem>
+                                            <MudSelectItem Value="@("YesNo")">@Language.T("equipment.coKhong")</MudSelectItem>
+                                            <MudSelectItem Value="@("Number")">@Language.T("equipment.so")</MudSelectItem>
+                                            <MudSelectItem Value="@("Text")">@Language.T("equipment.text")</MudSelectItem>
+                                            <MudSelectItem Value="@("Select")">@Language.T("calendar.list")</MudSelectItem>
                                         </MudSelect>
                                     </MudItem>
                                     <MudItem xs="12" sm="1"><MudNumericField T="int" @bind-Value="item.DisplayOrder" Label="STT" /></MudItem>
                                     <MudItem xs="12" sm="2">
-                                        <MudCheckBox @bind-Value="item.IsRequired" Label="Required" Dense="true" />
-                                        <MudCheckBox @bind-Value="item.RequireImage" Label="Ảnh" Dense="true" />
+                                        <MudCheckBox @bind-Value="item.IsRequired" Label="@Language.T("common.required2")" Dense="true" />
+                                        <MudCheckBox @bind-Value="item.RequireImage" Label="@Language.T("equipment.anh")" Dense="true" />
                                     </MudItem>
                                     @if (item.InputType == "Number")
                                     {
-                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MinValue" Label="Min" /></MudItem>
-                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MaxValue" Label="Max" /></MudItem>
-                                        <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.Unit" Label="Đơn vị" /></MudItem>
+                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MinValue" Label="@Language.T("equipment.min")" /></MudItem>
+                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MaxValue" Label="@Language.T("equipment.max")" /></MudItem>
+                                        <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.Unit" Label="@Language.T("equipment.donVi")" /></MudItem>
                                     }
                                     @if (item.RequireImage)
                                     {
-                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MinImages" Label="Ảnh tối thiểu" Min="1" /></MudItem>
-                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MaxImages" Label="Ảnh tối đa" Min="1" /></MudItem>
+                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MinImages" Label="@Language.T("equipment.anhToiThieu")" Min="1" /></MudItem>
+                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MaxImages" Label="@Language.T("equipment.anhToiDa")" Min="1" /></MudItem>
                                     }
                                     @if (item.InputType == "Select")
                                     {
-                                        <MudItem xs="12"><MudTextField @bind-Value="item.OptionsJson" Label="Options JSON" HelperText='Ví dụ: ["OK","NG","N/A"]' /></MudItem>
+                                        <MudItem xs="12"><MudTextField @bind-Value="item.OptionsJson" Label="@Language.T("equipment.optionsJson")" HelperText='@Language.T("equipment.viDuOkNgN")' /></MudItem>
                                     }
-                                    <MudItem xs="12"><MudButton Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveItem(item))">Xóa hạng mục</MudButton></MudItem>
+                                    <MudItem xs="12"><MudButton Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveItem(item))">@Language.T("equipment.xoaHangMuc")</MudButton></MudItem>
                                 </MudGrid>
                             </MudPaper>
                         }
@@ -125,81 +128,152 @@
             </MudGrid>
 
             <MudPaper Class="pa-4 ma-4" Outlined="true">
-                <MudText Typo="Typo.h6">Checklist hiện có</MudText>
+                <MudText Typo="Typo.h6">@Language.T("equipment.checklistHienCo")</MudText>
                 <MudTable Items="_templates" Dense="true" Hover="true">
-                    <HeaderContent><MudTh>Department</MudTh><MudTh>Tên</MudTh><MudTh>Version</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
+                    <HeaderContent><MudTh>@Language.T("common.department2")</MudTh><MudTh>@Language.T("common.name")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("equipment.chuKy")</MudTh><MudTh>@Language.T("common.status2")</MudTh><MudTh></MudTh></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.DeptCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>v@context.Version</MudTd><MudTd>@context.Frequency</MudTd><MudTd>@context.Status</MudTd>
-                        <MudTd><MudButton Size="Size.Small" OnClick="@(() => EditTemplate(context))">Mở</MudButton><MudButton Size="Size.Small" OnClick="@(() => CloneExistingAsync(context))">Nhân bản</MudButton></MudTd>
+                        <MudTd><MudButton Size="Size.Small" OnClick="@(() => EditTemplate(context))">@Language.T("common.mo")</MudButton><MudButton Size="Size.Small" OnClick="@(() => CloneExistingAsync(context))">@Language.T("email.nhanBan")</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
         </MudTabPanel>
 
-        <MudTabPanel Text="Phân công thiết bị">
+        <MudTabPanel Text="@Language.T("equipment.phanCongThietBi")">
             <MudPaper Class="pa-4" Outlined="true">
-                <MudAlert Severity="Severity.Info" Class="mb-4">Chỉ thiết bị đã đăng ký và đang Active mới xuất hiện trong danh sách.</MudAlert>
+                <MudAlert Severity="Severity.Info" Class="mb-4">@Language.T("equipment.chiThietBiDaDang")</MudAlert>
+
+                @* 1. Which checklist *@
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="int" @bind-Value="_assignment.EquipmentId" Label="Thiết bị" Variant="Variant.Outlined">
-                            @foreach (var a in _assets) { <MudSelectItem Value="@a.Id">@a.EquipmentCode – @a.EquipmentName</MudSelectItem> }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudSelect T="int" Value="@_assignment.TemplateId" ValueChanged="OnTemplateChanged" Label="Checklist Active" Variant="Variant.Outlined">
+                        <MudSelect T="int" Value="@_assignment.TemplateId" ValueChanged="OnTemplateChanged" Label="@Language.T("equipment.checklistActive")" Variant="Variant.Outlined">
                             @foreach (var t in _templates.Where(x => x.Status == "Active")) { <MudSelectItem Value="@t.Id">@t.DeptCode – @t.TemplateName v@t.Version</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" md="3"><MudTextField Value="@_assignment.Frequency" Label="Chu kỳ theo checklist" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
-                    <MudItem xs="12" md="3"><MudTextField @bind-Value="_dueTime" Label="Giờ đến hạn (HH:mm)" Variant="Variant.Outlined" /></MudItem>
-                    <MudItem xs="12" md="3"><MudNumericField T="int" @bind-Value="_assignment.ReminderHoursBefore" Label="Nhắc trước (giờ)" Min="0" Max="168" /></MudItem>
-                    <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleDayOfMonth" Label="Ngày trong tháng" Min="1" Max="31" /></MudItem>
-                    @if (_assignment.Frequency == "Weekly")
-                    {
-                        <MudItem xs="12" md="3"><MudSelect T="int?" @bind-Value="_assignment.ScheduleDayOfWeek" Label="Thứ"><MudSelectItem Value="@((int?)1)">Thứ 2</MudSelectItem><MudSelectItem Value="@((int?)2)">Thứ 3</MudSelectItem><MudSelectItem Value="@((int?)3)">Thứ 4</MudSelectItem><MudSelectItem Value="@((int?)4)">Thứ 5</MudSelectItem><MudSelectItem Value="@((int?)5)">Thứ 6</MudSelectItem><MudSelectItem Value="@((int?)6)">Thứ 7</MudSelectItem><MudSelectItem Value="@((int?)0)">Chủ nhật</MudSelectItem></MudSelect></MudItem>
-                    }
-                    @if (_assignment.Frequency == "Quarterly" || _assignment.Frequency == "Yearly")
-                    {
-                        <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleMonth" Label="@(_assignment.Frequency == "Quarterly" ? "Tháng neo trong quý (1-3)" : "Tháng (1-12)")" Min="1" Max="12" /></MudItem>
-                    }
-                    <MudItem xs="12" md="6">
-                        <MudSelect T="string" @bind-Value="_assignment.InspectorEmployeeCode" Label="Người check" Variant="Variant.Outlined">
-                            @foreach (var e in _employees) { <MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode – @e.EmployeeName</MudSelectItem> }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudSelect T="string" @bind-Value="_assignment.ApproverEmployeeCode" Label="Người approve" Variant="Variant.Outlined">
-                            @foreach (var e in _employees) { <MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode – @e.EmployeeName</MudSelectItem> }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AssignAsync">Gán checklist cho thiết bị</MudButton></MudItem>
                 </MudGrid>
+
+                @* 2. Which equipment: whole import batch (Cha), a type group, or hand-picked equipment *@
+                <MudText Typo="Typo.subtitle1" Class="mt-4">@Language.T("equipment.phamViApDung")</MudText>
+                <MudRadioGroup T="string" Value="_scope" ValueChanged="OnScopeChanged">
+                    <MudRadio Value="@("Batch")" Color="Color.Primary">@Language.T("equipment.phamViLoCha")</MudRadio>
+                    <MudRadio Value="@("Group")" Color="Color.Primary">@Language.T("equipment.phamViNhomLoai")</MudRadio>
+                    <MudRadio Value="@("Assets")" Color="Color.Primary">@Language.T("equipment.phamViChonTay")</MudRadio>
+                </MudRadioGroup>
+                <MudGrid>
+                    <MudItem xs="12" md="8">
+                        @if (_scope == "Batch")
+                        {
+                            <MudSelect T="long?" @bind-Value="_batchId" Label="@Language.T("equipment.chonLoCha")" Variant="Variant.Outlined" Clearable="true">
+                                @foreach (var b in _groups.Batches) { <MudSelectItem T="long?" Value="@((long?)b.BatchId)">#@b.BatchId – @b.FileName (@b.AssetCount)</MudSelectItem> }
+                            </MudSelect>
+                        }
+                        else if (_scope == "Group")
+                        {
+                            <MudSelect T="string" @bind-Value="_schemaKey" Label="@Language.T("equipment.chonNhomLoai")" Variant="Variant.Outlined" Clearable="true">
+                                @foreach (var g in _groups.Types) { <MudSelectItem T="string" Value="@g.SchemaKey">@g.SchemaKey (@g.AssetCount)</MudSelectItem> }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudSelect T="int" MultiSelection="true" SelectedValues="_selectedAssetIds" SelectedValuesChanged="AssetsChanged" Label="@Language.T("equipment.chonThietBiApDung")" Variant="Variant.Outlined">
+                                @foreach (var a in AssignableAssets) { <MudSelectItem T="int" Value="@a.Id">@a.EquipmentCode – @a.EquipmentName</MudSelectItem> }
+                            </MudSelect>
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="4" Class="d-flex align-center">
+                        <MudChip T="string" Color="@(TargetCount > 0 ? Color.Primary : Color.Default)">@Language.T("equipment.soThietBiSeGan", TargetCount.ToString())</MudChip>
+                    </MudItem>
+                </MudGrid>
+
+                @* 3. Frequency for this group + schedule *@
+                <MudGrid Class="mt-2">
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="string" Value="@_frequency" ValueChanged="OnFrequencyChanged" Label="@Language.T("equipment.chuKy")" HelperText="@Language.T("equipment.chuKyMacDinhTheoChecklist")" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("Daily")">@Language.T("equipment.hangNgay")</MudSelectItem>
+                            <MudSelectItem Value="@("Weekly")">@Language.T("equipment.hangTuan")</MudSelectItem>
+                            <MudSelectItem Value="@("Monthly")">@Language.T("equipment.hangThang")</MudSelectItem>
+                            <MudSelectItem Value="@("Quarterly")">@Language.T("equipment.hangQuy")</MudSelectItem>
+                            <MudSelectItem Value="@("Yearly")">@Language.T("equipment.hangNam")</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    @if (_frequency == "Weekly")
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="int?" @bind-Value="_assignment.ScheduleDayOfWeek" Label="@Language.T("equipment.thu")" Variant="Variant.Outlined">
+                                <MudSelectItem Value="@((int?)1)">@Language.T("equipment.thu2")</MudSelectItem>
+                                <MudSelectItem Value="@((int?)2)">@Language.T("equipment.thu3")</MudSelectItem>
+                                <MudSelectItem Value="@((int?)3)">@Language.T("equipment.thu4")</MudSelectItem>
+                                <MudSelectItem Value="@((int?)4)">@Language.T("equipment.thu5")</MudSelectItem>
+                                <MudSelectItem Value="@((int?)5)">@Language.T("equipment.thu6")</MudSelectItem>
+                                <MudSelectItem Value="@((int?)6)">@Language.T("equipment.thu7")</MudSelectItem>
+                                <MudSelectItem Value="@((int?)0)">@Language.T("equipment.chuNhat")</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                    }
+                    @if (_frequency is "Monthly" or "Quarterly" or "Yearly")
+                    {
+                        <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleDayOfMonth" Label="@Language.T("equipment.ngayTrongThang")" Min="1" Max="31" Variant="Variant.Outlined" /></MudItem>
+                    }
+                    @if (_frequency is "Quarterly" or "Yearly")
+                    {
+                        <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleMonth" Label="@(_frequency == "Quarterly" ? Language.T("equipment.thangNeoTrongQuy1") : Language.T("equipment.thang112"))" Min="1" Max="12" Variant="Variant.Outlined" /></MudItem>
+                    }
+                    <MudItem xs="12" md="3"><MudTextField @bind-Value="_dueTime" Label="@Language.T("equipment.gioDenHanHhMm")" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudNumericField T="int" @bind-Value="_assignment.ReminderHoursBefore" Label="@Language.T("equipment.nhacTruocGio")" Min="0" Max="168" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudDatePicker @bind-Date="_effectiveFrom" Label="@Language.T("equipment.hieuLucTu")" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudDatePicker @bind-Date="_effectiveTo" Label="@Language.T("equipment.hieuLucDen")" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="_assignment.InspectorEmployeeCode" Label="@Language.T("equipment.nguoiCheck")" Variant="Variant.Outlined">
+                            @foreach (var e in _employees) { <MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode – @e.EmployeeName</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="_assignment.ApproverEmployeeCode" Label="@Language.T("equipment.nguoiApprove")" Variant="Variant.Outlined">
+                            @foreach (var e in _employees) { <MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode – @e.EmployeeName</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="AssignAsync">@Language.T("equipment.ganChecklistChoThietBi")</MudButton></MudItem>
+                </MudGrid>
+
+                @if (_bulkResult != null)
+                {
+                    <MudText Typo="Typo.subtitle1" Class="mt-4">@Language.T("equipment.ketQuaPhanCong")</MudText>
+                    <MudTable Items="_bulkResult.Rows" Dense="true" Class="mt-1">
+                        <HeaderContent><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.EquipmentCode @context.EquipmentName</MudTd>
+                            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.Status == "Created" ? Color.Success : context.Status == "Skipped" ? Color.Warning : Color.Error)">@StatusText(context.Status)</MudChip></MudTd>
+                            <MudTd>@context.Message</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+
                 <MudTable Items="_assignments" Dense="true" Class="mt-4">
-                    <HeaderContent><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Check</MudTh><MudTh>Approve</MudTh></HeaderContent>
+                    <HeaderContent><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("common.checklist")</MudTh><MudTh>@Language.T("equipment.chuKy")</MudTh><MudTh>@Language.T("equipment.check")</MudTh><MudTh>@Language.T("equipment.approve")</MudTh></HeaderContent>
                     <RowTemplate><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>@context.Frequency</MudTd><MudTd>@context.InspectorEmployeeCode</MudTd><MudTd>@context.ApproverEmployeeCode</MudTd></RowTemplate>
                 </MudTable>
             </MudPaper>
         </MudTabPanel>
 
-        <MudTabPanel Text="Báo cáo">
+        <MudTabPanel Text='@Language.T("nav.report")'>
             <MudPaper Class="pa-4" Outlined="true">
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
-                    <MudDatePicker @bind-Date="_from" Label="Từ ngày" />
-                    <MudDatePicker @bind-Date="_to" Label="Đến ngày" />
-                    <MudButton Variant="Variant.Filled" OnClick="LoadReportAsync">Xem báo cáo</MudButton>
+                    <MudDatePicker @bind-Date="_from" Label='@Language.T("common.startDate")' />
+                    <MudDatePicker @bind-Date="_to" Label='@Language.T("common.endDate")' />
+                    <MudButton Variant="Variant.Filled" OnClick="LoadReportAsync">@Language.T("equipment.xemBaoCao")</MudButton>
                 </MudStack>
                 @if (_report != null)
                 {
                     <MudGrid Class="mt-4">
-                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tổng<br/><b>@_report.Total</b></MudPaper></MudItem>
-                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Hoàn thành<br/><b>@_report.Completed</b></MudPaper></MudItem>
-                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Chờ xử lý<br/><b>@_report.Pending</b></MudPaper></MudItem>
-                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Quá hạn<br/><b>@_report.Overdue</b></MudPaper></MudItem>
-                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tỷ lệ hoàn thành<br/><b>@_report.CompletionRate%</b></MudPaper></MudItem>
-                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tỷ lệ đạt<br/><b>@_report.PassRate%</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">@Language.T("equipment.tong")<br/><b>@_report.Total</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">@Language.T("equipment.hoanThanh")<br/><b>@_report.Completed</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">@Language.T("status.pending")<br/><b>@_report.Pending</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">@Language.T("equipment.quaHan")<br/><b>@_report.Overdue</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">@Language.T("equipment.tyLeHoanThanh")<br/><b>@_report.CompletionRate%</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">@Language.T("equipment.tyLeDat")<br/><b>@_report.PassRate%</b></MudPaper></MudItem>
                     </MudGrid>
                     <MudTable Items="_report.Rows" Dense="true" Class="mt-4">
-                        <HeaderContent><MudTh>Ngày</MudTh><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Người check</MudTh><MudTh>Trạng thái</MudTh><MudTh>Kết quả</MudTh></HeaderContent>
+                        <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("common.checklist")</MudTh><MudTh>@Language.T("equipment.nguoiCheck")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("hrm.result")</MudTh></HeaderContent>
                         <RowTemplate><MudTd>@context.ScheduledDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>@context.InspectorEmployeeCode</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.Result</MudTd></RowTemplate>
                     </MudTable>
                 }
@@ -213,12 +287,12 @@
         var file = args.File;
         if (file == null) return;
         _importResult = null;
-        var result = await EquipmentClient.ImportInspectionTemplateExcelAsync(file);
-        if (result.IsSuccess) { _importResult = result.Data; await LoadAllAsync(); Snackbar.Add(result.Message ?? "Đã import checklist.", Severity.Success); }
-        else Snackbar.Add(result.Message ?? "Import checklist thất bại.", Severity.Error);
+        var result = await EquipmentClient.ImportInspectionTemplateExcelAsync(file, _deptCode);
+        if (result.IsSuccess) { _importResult = result.Data; await LoadAllAsync(); Snackbar.Add(result.Message ?? Language.T("equipment.daImportChecklist"), Severity.Success); }
+        else Snackbar.Add(result.Message ?? Language.T("equipment.importChecklistThatBai"), Severity.Error);
     }
     private EquipmentInspectionTemplateImportResultDto? _importResult;
-    private string _deptCode = "";
+    private int? _deptCode;
     private List<DepartmentDto> _departments = new();
     private List<EquipmentInspectionTemplateDto> _templates = new();
     private List<EquipmentAssetDto> _assets = new();
@@ -226,6 +300,16 @@
     private List<EquipmentInspectionAssignmentDto> _assignments = new();
     private EquipmentInspectionTemplateUpsertRequest _template = NewTemplate();
     private EquipmentInspectionAssignmentRequest _assignment = new();
+    private string _scope = "Assets";
+    private long? _batchId;
+    private string? _schemaKey;
+    private HashSet<int> _selectedAssetIds = new();
+    private string _frequency = "Daily";
+    private DateTime? _effectiveFrom = DateTime.Today;
+    private DateTime? _effectiveTo;
+    private bool _busy;
+    private EquipmentInspectionAssetGroupsDto _groups = new();
+    private EquipmentInspectionBulkAssignmentResultDto? _bulkResult;
     private string _dueTime = "08:00";
     private DateTime? _from = DateTime.Today.AddDays(-30);
     private DateTime? _to = DateTime.Today;
@@ -257,6 +341,7 @@
         var t = await EquipmentClient.GetInspectionTemplatesAsync(); if (t.IsSuccess) _templates = t.Data ?? new();
         var a = await EquipmentClient.GetRegisteredInspectionAssetsAsync(); if (a.IsSuccess) _assets = a.Data ?? new();
         var x = await EquipmentClient.GetInspectionAssignmentsAsync(); if (x.IsSuccess) _assignments = x.Data ?? new();
+        var g = await EquipmentClient.GetInspectionAssetGroupsAsync(); if (g.IsSuccess) _groups = g.Data ?? new();
     }
     private static EquipmentInspectionTemplateUpsertRequest NewTemplate() => new() { Frequency="Daily", Status="Draft" };
     private void AddItem() => _template.Items.Add(new EquipmentInspectionItemDto { ItemCode=$"ITEM-{_template.Items.Count+1:000}", DisplayOrder=_template.Items.Count+1, InputType="PassFail", MaxImages=3 });
@@ -264,47 +349,95 @@
     private void EditTemplate(EquipmentInspectionTemplateDto x) => _template = new EquipmentInspectionTemplateUpsertRequest { Id=x.Id, TemplateCode=x.TemplateCode, TemplateName=x.TemplateName, DeptCode=x.DeptCode, Frequency=x.Frequency, Status=x.Status, Description=x.Description, Items=x.Items.Select(i=>new EquipmentInspectionItemDto { Id=i.Id, ItemCode=i.ItemCode, ItemLabel=i.ItemLabel, InputType=i.InputType, IsRequired=i.IsRequired, RequireImage=i.RequireImage, MinImages=i.MinImages, MaxImages=i.MaxImages, MinValue=i.MinValue, MaxValue=i.MaxValue, Unit=i.Unit, OptionsJson=i.OptionsJson, DisplayOrder=i.DisplayOrder }).ToList() };
     private async Task SaveTemplateAsync()
     {
-        _template.DeptCode = _deptCode;
-        if (string.IsNullOrWhiteSpace(_template.TemplateName)) { Snackbar.Add("Tên checklist là bắt buộc.", Severity.Warning); return; }
+        _template.DeptCode = _deptCode.GetValueOrDefault();
+        if (string.IsNullOrWhiteSpace(_template.TemplateName)) { Snackbar.Add(Language.T("equipment.tenChecklistLaBatBuoc"), Severity.Warning); return; }
         var r = await EquipmentClient.SaveInspectionTemplateAsync(_template);
-        Snackbar.Add(r.IsSuccess ? "Đã lưu checklist." : (r.Message ?? "Không thể lưu checklist."), r.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(r.IsSuccess ? Language.T("equipment.daLuuChecklist") : (r.Message ?? Language.T("equipment.khongTheLuuChecklist")), r.IsSuccess ? Severity.Success : Severity.Error);
         if (r.IsSuccess) { _template = NewTemplate(); await LoadAllAsync(); }
     }
     private async Task CloneTemplateAsync()
     {
         var r = await EquipmentClient.CloneInspectionTemplateAsync(_template.Id ?? 0, _template.TemplateName + " - Draft");
-        Snackbar.Add(r.IsSuccess ? "Đã nhân bản checklist." : (r.Message ?? "Không thể nhân bản."), r.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(r.IsSuccess ? Language.T("equipment.daNhanBanChecklist") : (r.Message ?? Language.T("equipment.khongTheNhanBan")), r.IsSuccess ? Severity.Success : Severity.Error);
         if (r.IsSuccess) await LoadAllAsync();
     }
     private async Task CloneExistingAsync(EquipmentInspectionTemplateDto x)
     {
         var r = await EquipmentClient.CloneInspectionTemplateAsync(x.Id);
-        Snackbar.Add(r.IsSuccess ? "Đã nhân bản checklist." : (r.Message ?? "Không thể nhân bản."), r.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(r.IsSuccess ? Language.T("equipment.daNhanBanChecklist") : (r.Message ?? Language.T("equipment.khongTheNhanBan")), r.IsSuccess ? Severity.Success : Severity.Error);
         if (r.IsSuccess) await LoadAllAsync();
+    }
+    private EquipmentInspectionTemplateDto? SelectedTemplate => _templates.FirstOrDefault(x => x.Id == _assignment.TemplateId);
+    // Equipment can only receive a checklist of its own department, so the picker hides the others.
+    private IEnumerable<EquipmentAssetDto> AssignableAssets => SelectedTemplate == null ? _assets : _assets.Where(a => a.DeptCode == SelectedTemplate.DeptCode);
+    private int TargetCount => _scope switch
+    {
+        "Batch" => _groups.Batches.FirstOrDefault(x => x.BatchId == _batchId)?.AssetCount ?? 0,
+        "Group" => _groups.Types.FirstOrDefault(x => x.SchemaKey == _schemaKey)?.AssetCount ?? 0,
+        _ => _selectedAssetIds.Count
+    };
+    private string StatusText(string status) => status switch
+    {
+        "Created" => Language.T("equipment.ganThanhCong"),
+        "Skipped" => Language.T("equipment.ganBoQua"),
+        _ => Language.T("equipment.ganLoi")
+    };
+
+    private Task OnScopeChanged(string value) { _scope = value; _bulkResult = null; return Task.CompletedTask; }
+    private void AssetsChanged(IEnumerable<int> values) => _selectedAssetIds = values.ToHashSet();
+    private Task OnFrequencyChanged(string value)
+    {
+        _frequency = value;
+        // A cadence only keeps the schedule fields it uses.
+        if (value != "Weekly") _assignment.ScheduleDayOfWeek = null;
+        if (value is not ("Monthly" or "Quarterly" or "Yearly")) _assignment.ScheduleDayOfMonth = null;
+        if (value is not ("Quarterly" or "Yearly")) _assignment.ScheduleMonth = null;
+        return Task.CompletedTask;
     }
     private Task OnTemplateChanged(int value)
     {
         _assignment.TemplateId = value;
         var template = _templates.FirstOrDefault(x => x.Id == value);
-        _assignment.Frequency = template?.Frequency ?? "Daily";
+        _ = OnFrequencyChanged(template?.Frequency ?? "Daily");
+        _selectedAssetIds.RemoveWhere(id => !AssignableAssets.Any(a => a.Id == id));
         return Task.CompletedTask;
     }
     private async Task AssignAsync()
     {
-        var selectedTemplate = _templates.FirstOrDefault(x => x.Id == _assignment.TemplateId && x.Status == "Active");
-        if (selectedTemplate == null) { Snackbar.Add("Hãy chọn checklist Active.", Severity.Warning); return; }
-        _assignment.Frequency = selectedTemplate.Frequency;
-        if (!TimeSpan.TryParse(_dueTime, out var time)) { Snackbar.Add("Giờ đến hạn không hợp lệ.", Severity.Warning); return; }
-        _assignment.Frequency = _assignment.Frequency.Trim();
-        _assignment.DueTime = time;
-        _assignment.EffectiveFrom = DateTime.Today;
-        var r = await EquipmentClient.AssignInspectionAsync(_assignment);
-        Snackbar.Add(r.IsSuccess ? "Đã gán checklist." : (r.Message ?? "Không thể gán checklist."), r.IsSuccess ? Severity.Success : Severity.Error);
-        if (r.IsSuccess) { _assignment = new(); _dueTime = "08:00"; await LoadAllAsync(); }
+        var template = SelectedTemplate;
+        if (template == null || template.Status != "Active") { Snackbar.Add(Language.T("equipment.hayChonChecklistActive"), Severity.Warning); return; }
+        if (!TimeSpan.TryParse(_dueTime, out var time)) { Snackbar.Add(Language.T("equipment.gioDenHanKhongHop"), Severity.Warning); return; }
+        if (TargetCount == 0) { Snackbar.Add(Language.T("equipment.chuaChonPhamVi"), Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_assignment.InspectorEmployeeCode) || string.IsNullOrWhiteSpace(_assignment.ApproverEmployeeCode))
+        { Snackbar.Add(Language.T("equipment.chonNguoiCheckApprove"), Severity.Warning); return; }
+
+        var request = new EquipmentInspectionBulkAssignmentRequest
+        {
+            TemplateId = template.Id, Scope = _scope, ImportBatchId = _batchId, SchemaKey = _schemaKey,
+            EquipmentIds = _selectedAssetIds.ToList(), Frequency = _frequency, DueTime = time,
+            ReminderHoursBefore = _assignment.ReminderHoursBefore, ScheduleDayOfWeek = _assignment.ScheduleDayOfWeek,
+            ScheduleDayOfMonth = _assignment.ScheduleDayOfMonth, ScheduleMonth = _assignment.ScheduleMonth,
+            InspectorEmployeeCode = _assignment.InspectorEmployeeCode, ApproverEmployeeCode = _assignment.ApproverEmployeeCode,
+            EffectiveFrom = (_effectiveFrom ?? DateTime.Today).Date, EffectiveTo = _effectiveTo?.Date
+        };
+        _busy = true;
+        try
+        {
+            var r = await EquipmentClient.BulkAssignInspectionAsync(request);
+            if (r.IsSuccess) { _bulkResult = r.Data; Snackbar.Add(r.Message ?? Language.T("equipment.daGanChecklist"), Severity.Success); await LoadAllAsync(); }
+            else Snackbar.Add(r.Message ?? Language.T("equipment.khongTheGanChecklist"), Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+    private async Task DownloadSampleAsync()
+    {
+        var r = await EquipmentClient.DownloadInspectionTemplateSampleAsync();
+        if (!r.IsSuccess || r.Data == null) { Snackbar.Add(r.Message ?? Language.T("equipment.khongTaiDuocFileMau"), Severity.Error); return; }
+        await JS.InvokeVoidAsync("fvnFileDownload.downloadBase64", "equipment-checksheet-template.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", Convert.ToBase64String(r.Data));
     }
     private async Task LoadReportAsync()
     {
         var r = await EquipmentClient.GetInspectionDashboardAsync(_from ?? DateTime.Today.AddDays(-30), _to ?? DateTime.Today, _deptCode);
-        if (r.IsSuccess) _report = r.Data; else Snackbar.Add(r.Message ?? "Không tải được báo cáo.", Severity.Error);
+        if (r.IsSuccess) _report = r.Data; else Snackbar.Add(r.Message ?? Language.T("equipment.khongTaiDuocBaoCao"), Severity.Error);
     }
 }

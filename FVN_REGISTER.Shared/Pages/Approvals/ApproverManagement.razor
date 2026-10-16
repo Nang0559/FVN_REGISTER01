@@ -5,59 +5,131 @@
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Dialogs.Approvals
 @using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Shared.Services.Loading
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
-
 @inject IApproverClientService ApproverService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ILoadingService Loading
 
-<PageTitle>Quản lý Approver - FCC</PageTitle>
+<PageTitle>@Language.T("approval.quanLyApproverFcc")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Primary" Size="Size.Large" />
-    <div><MudText Typo="Typo.h5">Quản lý Người Phê Duyệt</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">Cấu hình approver theo bộ phận và cấp duyệt</MudText></div>
+    <div>
+        <MudText Typo="Typo.h5">@Language.T("approval.quanLyNguoiPheDuyet")</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("approval.cauHinhApproverTheoBo")</MudText>
+    </div>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenCreateDialog">Thêm Approver</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenCreateDialog">
+        @Language.T("approval.themApprover")
+    </MudButton>
 </MudStack>
 
 @if (_proposals.Count > 0)
 {
     <MudAlert Severity="Severity.Warning" Class="mb-3" Icon="@Icons.Material.Filled.SyncProblem">
-        Có @_proposals.Count thay đổi HRM đang chờ kiểm duyệt cấu hình Approver.
+        @Language.T("approval.coThayDoiHrmDang", _proposals.Count)
     </MudAlert>
     <MudPaper Elevation="1" Class="pa-3 mb-4">
-        <MudText Typo="Typo.h6" Class="mb-2">Đề xuất thay đổi từ HRM</MudText>
+        <MudText Typo="Typo.h6" Class="mb-2">@Language.T("approval.deXuatThayDoiTu")</MudText>
         <MudTable Items="_proposals" Dense="true" Hover="true" Striped="true">
-            <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>HRM cũ → mới</MudTh><MudTh>Cấu hình hiện tại</MudTh><MudTh>HRM đề xuất</MudTh><MudTh></MudTh></HeaderContent>
+            <HeaderContent>
+                <MudTh>@Language.T("ot.employee")</MudTh>
+                <MudTh>@Language.T("approval.hrmCuMoi")</MudTh>
+                <MudTh>@Language.T("approval.cauHinhHienTai")</MudTh>
+                <MudTh>@Language.T("approval.hrmDeXuat")</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
             <RowTemplate>
-                <MudTd><b>@context.EmployeeCode</b><br/>@context.ChangeType</MudTd>
-                <MudTd>@context.OldDeptCode / @context.OldPositionCode<br/>→ @context.NewDeptCode / @context.NewPositionCode</MudTd>
-                <MudTd>@context.CurrentApproverCode / L@context.CurrentLevel<br/>@context.CurrentApproveForDeptCode</MudTd>
-                <MudTd>@(context.SuggestedApproverCode ?? "Chưa xác định duy nhất") / L@(context.SuggestedLevel?.ToString() ?? "-")<br/>@context.SuggestedApproveForDeptCode</MudTd>
+                <MudTd><b>@context.EmployeeCode</b><br />@context.ChangeType</MudTd>
+                <MudTd>@context.OldDeptCode / @context.OldPositionCode<br />→ @context.NewDeptCode / @context.NewPositionCode</MudTd>
+                <MudTd>@context.CurrentApproverCode / L@context.CurrentLevel<br />@context.CurrentApproveForDeptCode</MudTd>
+                <MudTd>@(context.SuggestedApproverCode ?? Language.T("approval.chuaXacDinhDuyNhat")) / L@(context.SuggestedLevel?.ToString() ?? "-")<br />@context.SuggestedApproveForDeptCode</MudTd>
                 <MudTd>
-                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="@string.IsNullOrWhiteSpace(context.SuggestedApproverCode)" OnClick="@(()=>AcceptProposal(context))">Áp dụng HRM</MudButton>
-                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>KeepProposal(context))">Giữ hiện tại</MudButton>
+                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled"
+                               Disabled="@string.IsNullOrWhiteSpace(context.SuggestedApproverCode)"
+                               OnClick="@(() => AcceptProposal(context))">@Language.T("approval.apDungHrm")</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                               OnClick="@(() => KeepProposal(context))">@Language.T("approval.giuHienTai")</MudButton>
                 </MudTd>
             </RowTemplate>
         </MudTable>
     </MudPaper>
 }
+
 <MudPaper Elevation="1" Class="pa-3 mb-4">
     <MudGrid>
-        <MudItem xs="12" sm="4"><MudSelect T="string" Label="Bộ phận" @bind-Value="_filterDept" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            @foreach (var dept in _departments) { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
-        </MudSelect></MudItem>
-        <MudItem xs="12" sm="3"><MudSelect T="int?" Label="Cấp duyệt" @bind-Value="_filterLevel" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            @for (var level = 1; level <= 7; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">Cấp @l</MudSelectItem> }
-        </MudSelect></MudItem>
-        <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="Loại đơn" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">OT</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">Công tác</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Equipment)">Thiết bị / Requirement</MudSelectItem>
-        </MudSelect></MudItem>
-        <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Outlined" OnClick="ResetFilter">Tất cả</MudButton></MudItem>
+        @* Hàng 1: phòng người duyệt / phòng áp dụng / chức vụ người duyệt / loại đơn / cấp *@
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="int?" Label="Phòng người phê duyệt" Value="_filterDept" ValueChanged="@((int? v) => ApplyFilterAsync(() => _filterDept = v))"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                @foreach (var dept in _departments)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)dept.DeptCode)">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="int?" Label="Phòng áp dụng" Value="_filterApplyDept" ValueChanged="@((int? v) => ApplyFilterAsync(() => _filterApplyDept = v))"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                @foreach (var dept in _departments)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)dept.DeptCode)">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="2">
+            <MudSelect T="string" Label="Chức vụ người duyệt" Value="_filterPosition" ValueChanged="@((string? v) => ApplyFilterAsync(() => _filterPosition = v))"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                @foreach (var opt in PositionOptions)
+                {
+                    <MudSelectItem T="string" Value="@opt.Code">@opt.Code (@opt.Count)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="2">
+            <MudSelect T="RequestModule?" Label="@Language.T("approval.loaiDon")" Value="_filterType" ValueChanged="@((RequestModule? v) => ApplyFilterAsync(() => _filterType = v))"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">@Language.T("nav.reportLeave")</MudSelectItem>
+                <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">@Language.T("nav.reportOt")</MudSelectItem>
+                <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">@Language.T("trip.title")</MudSelectItem>
+                <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Equipment)">@Language.T("approval.thietBiRequirement")</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="2">
+            <MudSelect T="int?" Label='@Language.T("approval.level")' Value="_filterLevel" ValueChanged="@((int? v) => ApplyFilterAsync(() => _filterLevel = v))"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                @for (var level = 1; level <= 7; level++)
+                {
+                    var l = level;
+                    <MudSelectItem T="int?" Value="@((int?)l)">@Language.T("approval.levelN", l)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        @* Hàng 2: tìm kiếm / trạng thái / nút *@
+        <MudItem xs="12" sm="6" md="5">
+            <MudTextField T="string" Label="Tìm theo mã / tên / email người duyệt" Value="_search" ValueChanged="@((string? v) => ApplyFilterAsync(() => _search = v))"
+                          Immediate="true" DebounceInterval="400" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="bool?" Label='@Language.T("common.status")' Value="_filterActive" ValueChanged="@((bool? v) => ApplyFilterAsync(() => _filterActive = v))"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem T="bool?" Value="@((bool?)true)">@Language.T("common.active")</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)false)">@Language.T("approval.tat")</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd">
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FilterAltOff"
+                           OnClick="@(() => ApplyFilterAsync(ResetFilter))">@Language.T("common.all")</MudButton>
+            </MudStack>
+        </MudItem>
     </MudGrid>
 </MudPaper>
 
@@ -67,18 +139,54 @@
 }
 else
 {
-    <MudTable Items="FilteredItems" Dense="true" Hover="true" Striped="true">
-        <HeaderContent><MudTh>Bộ phận</MudTh><MudTh>Loại đơn</MudTh><MudTh>Cấp</MudTh><MudTh>Approver</MudTh><MudTh>Email</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh></HeaderContent>
+    var rows = FilteredItems.ToList();
+
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">
+        Hiển thị @rows.Count / @_items.Count
+    </MudText>
+
+    <MudTable Items="rows" Dense="true" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Phòng người phê duyệt</MudTh>
+            <MudTh>Phòng áp dụng</MudTh>
+            <MudTh>@Language.T("approval.loaiDon")</MudTh>
+            <MudTh>@Language.T("approval.cap")</MudTh>
+            <MudTh>@Language.T("nav.approvers")</MudTh>
+            <MudTh>@Language.T("common.email")</MudTh>
+            <MudTh>@Language.T("common.status")</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.ApproveForDeptName (@context.ApproveForDeptCode)</MudTd>
+            <MudTd>
+                <b>@context.DeptName (@context.DeptCode)</b>
+                <MudText Typo="Typo.caption">@context.PositionCode</MudText>
+            </MudTd>
+            <MudTd>
+                <b>@context.ApproveForDeptName (@context.ApproveForDeptCode)</b>
+                <MudText Typo="Typo.caption">Phạm vi policy</MudText>
+            </MudTd>
             <MudTd>@context.RequestType</MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Level)">@(context.RoleName ?? $"Cấp {context.Level}")</MudChip></MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Level)">
+                    @(context.RoleName ?? Language.T("approval.levelN", context.Level))
+                </MudChip>
+            </MudTd>
             <MudTd>@context.ApproverName <MudText Typo="Typo.caption">@context.ApproverCode</MudText></MudTd>
             <MudTd>@context.ApproverEmail</MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Hoạt động" : "Tắt")</MudChip></MudTd>
-            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(context))" /><MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" Size="Size.Small" OnClick="@(() => ToggleApprover(context))" /><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmDelete(context))" /></MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@(context.IsActive? Color.Success: Color.Default)">
+                    @(context.IsActive? Language.T("common.active") : Language.T("approval.tat"))
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(context))" />
+                <MudIconButton Icon="@(context.IsActive? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" Size="Size.Small" OnClick="@(() => ToggleApprover(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmDelete(context))" />
+            </MudTd>
         </RowTemplate>
-        <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">Không có approver phù hợp.</MudText></NoRecordsContent>
+        <NoRecordsContent>
+            <MudText Class="pa-6" Color="Color.Secondary">@Language.T("approval.khongCoApproverPhuHop")</MudText>
+        </NoRecordsContent>
     </MudTable>
 }
 
@@ -86,15 +194,70 @@ else
     private List<ApproverDto> _items = new();
     private List<DepartmentDto> _departments = new();
     private bool _loading;
-    private string? _filterDept;
-    private int? _filterLevel;
+
+    // Bộ lọc (lọc ngay trên danh sách đã tải, không gọi lại server)
+    private int? _filterDept;          // phòng của người phê duyệt
+    private int? _filterApplyDept;     // phòng áp dụng (ApproveForDept)
+    private string? _filterPosition;   // chức vụ người phê duyệt
     private RequestModule? _filterType;
+    private int? _filterLevel;
+    private bool? _filterActive;
+    private string? _search;
+
     private List<ApproverSyncProposalDto> _proposals = new();
 
-    private IEnumerable<ApproverDto> FilteredItems => _items;
+    // So sánh mã phòng không phụ thuộc kiểu dữ liệu của DTO (int hoặc string)
+    private static bool SameDept(object? value, int filter)
+        => int.TryParse(Convert.ToString(value)?.Trim(), out var v) && v == filter;
+
+    private static string PosKey(ApproverDto x) => Convert.ToString(x.PositionCode)?.Trim() ?? "";
+
+    private IEnumerable<(string Code, int Count)> PositionOptions =>
+        _items.GroupBy(PosKey)
+              .Where(g => g.Key.Length > 0)
+              .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+              .Select(g => (g.Key, g.Count()));
+
+    private IEnumerable<ApproverDto> FilteredItems
+    {
+        get
+        {
+            IEnumerable<ApproverDto> q = _items;
+
+            if (_filterDept.HasValue)
+                q = q.Where(x => SameDept(x.DeptCode, _filterDept.Value));
+
+            if (_filterApplyDept.HasValue)
+                q = q.Where(x => SameDept(x.ApproveForDeptCode, _filterApplyDept.Value));
+
+            if (!string.IsNullOrWhiteSpace(_filterPosition))
+                q = q.Where(x => string.Equals(PosKey(x), _filterPosition, StringComparison.OrdinalIgnoreCase));
+
+            if (_filterType.HasValue)
+                q = q.Where(x => x.RequestType == _filterType.Value);
+
+            if (_filterLevel.HasValue)
+                q = q.Where(x => x.Level == _filterLevel.Value);
+
+            if (_filterActive.HasValue)
+                q = q.Where(x => x.IsActive == _filterActive.Value);
+
+            if (!string.IsNullOrWhiteSpace(_search))
+            {
+                var s = _search.Trim();
+                q = q.Where(x =>
+                    (x.ApproverCode?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.ApproverName?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.ApproverEmail?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            return q;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        using var overlay = Loading.Begin();
         await LoadDepartments();
         await LoadAsync();
         await LoadProposalsAsync();
@@ -102,22 +265,28 @@ else
 
     private async Task LoadProposalsAsync()
     {
-        var result=await ApproverService.GetSyncProposalsAsync();
-        if(result.IsSuccess&&result.Data!=null) _proposals=result.Data;
+        var result = await ApproverService.GetSyncProposalsAsync();
+        if (result.IsSuccess && result.Data != null) _proposals = result.Data;
     }
 
     private async Task AcceptProposal(ApproverSyncProposalDto item)
     {
-        var result=await ApproverService.AcceptSyncProposalAsync(item.Id);
-        Snackbar.Add(result.IsSuccess?result.Message??"Đã áp dụng.":result.Message??"Không thể áp dụng.",result.IsSuccess?Severity.Success:Severity.Error);
-        if(result.IsSuccess){await LoadProposalsAsync();await LoadAsync();}
+        using var overlay = Loading.Begin();
+        var result = await ApproverService.AcceptSyncProposalAsync(item.Id);
+        Snackbar.Add(
+            result.IsSuccess ? result.Message ?? Language.T("approval.daApDung") : result.Message ?? Language.T("approval.khongTheApDung"),
+            result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) { await LoadProposalsAsync(); await LoadAsync(); }
     }
 
     private async Task KeepProposal(ApproverSyncProposalDto item)
     {
-        var result=await ApproverService.KeepSyncProposalAsync(item.Id);
-        Snackbar.Add(result.IsSuccess?result.Message??"Đã giữ cấu hình.":result.Message??"Lỗi.",result.IsSuccess?Severity.Success:Severity.Error);
-        if(result.IsSuccess) await LoadProposalsAsync();
+        using var overlay = Loading.Begin();
+        var result = await ApproverService.KeepSyncProposalAsync(item.Id);
+        Snackbar.Add(
+            result.IsSuccess ? result.Message ?? Language.T("approval.daGiuCauHinh") : result.Message ?? Language.T("common.loi"),
+            result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await LoadProposalsAsync();
     }
 
     private async Task LoadDepartments()
@@ -126,21 +295,39 @@ else
         if (result.IsSuccess && result.Data != null) _departments = result.Data;
     }
 
+    // Tải TOÀN BỘ approver một lần; các bộ lọc áp dụng ngay trên màn hình
     private async Task LoadAsync()
     {
+        using var overlay = Loading.Begin();
         _loading = true;
         try
         {
-            var result = await ApproverService.GetListAsync(_filterDept, _filterLevel, _filterType?.ToString());
+            var result = await ApproverService.GetListAsync(null, null, null);
             if (result.IsSuccess && result.Data != null) _items = result.Data;
-            else Snackbar.Add(result.Message ?? "Lỗi tải approver.", Severity.Error);
+            else Snackbar.Add(result.Message ?? Language.T("approval.loiTaiApprover"), Severity.Error);
         }
         finally { _loading = false; }
     }
 
-    private async Task ResetFilter()
+    private void ResetFilter()
     {
-        _filterDept = null; _filterLevel = null; _filterType = null; await LoadAsync();
+        _filterDept = null;
+        _filterApplyDept = null;
+        _filterPosition = null;
+        _filterType = null;
+        _filterLevel = null;
+        _filterActive = null;
+        _search = null;
+    }
+
+    // Lọc/reset trên dữ liệu đã tải không gọi API nên overlay toàn cục không tự bật.
+    // Bật overlay thủ công, chờ một nhịp để trình duyệt vẽ overlay trước khi render nặng.
+    private async Task ApplyFilterAsync(Action apply)
+    {
+        using var overlay = Loading.Begin();
+        await Task.Delay(60);
+        apply();
+        await Task.Yield();
     }
 
     private async Task OpenCreateDialog()
@@ -157,26 +344,44 @@ else
         {
             { x => x.Model, model }, { x => x.Departments, _departments }, { x => x.LockDept, lockDept }
         };
-        var dialog = await DialogService.ShowAsync<ApproverEditDialog>("", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        var dialog = await DialogService.ShowAsync<ApproverEditDialog>("", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         var result = await dialog.Result;
         if (result is { Canceled: false }) await LoadAsync();
     }
 
     private async Task ToggleApprover(ApproverDto item)
     {
+        using var overlay = Loading.Begin();
         var result = await ApproverService.ToggleAsync(item.Id);
-        Snackbar.Add(result.IsSuccess ? result.Message ?? "Đã cập nhật." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(
+            result.IsSuccess ? result.Message ?? Language.T("common.daCapNhat") : result.Message ?? Language.T("common.loi"),
+            result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) await LoadAsync();
     }
 
     private async Task ConfirmDelete(ApproverDto item)
     {
-        var confirm = await DialogService.ShowMessageBoxAsync("Xác nhận xóa", $"Xóa approver {item.ApproverName}?", yesText: "Xóa", cancelText: "Hủy");
+        var confirm = await DialogService.ShowMessageBoxAsync(
+            Language.T("department.xacNhanXoa"),
+            Language.T("approval.xoaApprover", item.ApproverName),
+            yesText: Language.T("common.delete"), cancelText: Language.T("common.cancel"));
         if (confirm != true) return;
+
+        using var overlay = Loading.Begin();
         var result = await ApproverService.DeleteAsync(item.Id);
-        Snackbar.Add(result.IsSuccess ? "Đã xóa approver." : result.Message ?? "Lỗi xóa.", result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(
+            result.IsSuccess ? Language.T("approval.daXoaApprover") : result.Message ?? Language.T("common.loiXoa"),
+            result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) await LoadAsync();
     }
 
-    private static Color GetLevelColor(int level) => level switch { 1 => Color.Info, 2 => Color.Primary, 3 => Color.Warning, 4 => Color.Error, _ => Color.Default };
+    private static Color GetLevelColor(int level) => level switch
+    {
+        1 => Color.Info,
+        2 => Color.Primary,
+        3 => Color.Warning,
+        4 => Color.Error,
+        _ => Color.Default
+    };
 }

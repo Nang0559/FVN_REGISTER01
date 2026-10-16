@@ -344,3 +344,37 @@ Chỉ coi tính năng hoàn thành khi:
 - không phụ thuộc AD;
 - deployment/runbook đã cập nhật;
 - test end-to-end đạt yêu cầu.
+
+
+## 15. Equipment-first lifecycle (current)
+
+Từ branch hiện tại, Equipment là business entry point của Endpoint Agent:
+
+Equipment Asset → Endpoint Agent eligibility → Endpoint Device + DeviceKey → Credential (one-time secret) → Agent installation → Heartbeat + Inventory → Compliance + Alert.
+
+### Eligibility
+Không phải mọi Equipment đều là Endpoint. Chỉ tài sản có OS/Agent capability mới được bật EndpointAgentEligible. UI phải ẩn credential controls khi Equipment không eligible.
+
+### Identity invariant
+Employee identity ≠ Asset identity ≠ Endpoint identity.
+- Employee: HRM/EmployeeCode.
+- Asset: Equipment Asset/AssetCode/Id.
+- Endpoint: DeviceKey + hardware/agent identity.
+
+Đổi người sử dụng không tạo DeviceKey mới. Reinstall có thể đổi AgentInstallationId. Đổi ComputerName không tự tạo Endpoint mới. Thay đổi hardware identity cần IT review.
+
+### Credential invariant
+Credential chỉ xác thực machine; không cấp quyền cho user. Server hash secret, chỉ trả plaintext khi provision/rotate, audit provision/rotate/revoke và không ghi secret vào log/inventory.
+
+### Software/service compliance
+Inventory thực tế không đồng nghĩa Allowlist. Policy/Catalog/Exception vẫn đi qua Security Review + Approval Engine dùng chung.
+
+## 16. Current implementation boundary
+- Equipment UI: entry point và eligibility.
+- Endpoint Credential service/controller: credential lifecycle.
+- Endpoint Inventory service: heartbeat/inventory/device identity.
+- Compliance service: policy result/alerts.
+- Security Center: capability + scope.
+- SQL 68_EndpointEquipmentAgentIntegration.sql: tích hợp Equipment ↔ Endpoint schema.
+
+Không tạo EndpointApprovalEngine, EndpointNotificationEngine hoặc permission system riêng.

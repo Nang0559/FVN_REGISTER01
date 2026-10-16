@@ -3,6 +3,7 @@ using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Approvals;
 using FVN_REGISTER.Shared.Services.Security;
 using FVN_REGISTER.Shared.Services.HrmSync;
+using FVN_REGISTER.Shared.Services.Jobs;
 using FVN_REGISTER.Shared.Services.Calendar;
 using FVN_REGISTER.Shared.Services.Dashboards;
 using FVN_REGISTER.Shared.Services.Departments;
@@ -16,6 +17,7 @@ using FVN_REGISTER.Shared.Services.Notifications;
 using FVN_REGISTER.Shared.Services.OTs;
 using FVN_REGISTER.Shared.Services.Trips;
 using FVN_REGISTER.Shared.Services.Users;
+using FVN_REGISTER.Shared.Services.Loading;
 using FVN_REGISTER.Shared.Utils;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
@@ -50,7 +52,7 @@ namespace FVN_REGISTER
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => { var ex = e.ExceptionObject as Exception; System.Diagnostics.Debug.WriteLine("=== [UNHANDLED EXCEPTION] ==="); System.Diagnostics.Debug.WriteLine($"Message : {ex?.Message}"); System.Diagnostics.Debug.WriteLine($"Stack   :\n{ex?.StackTrace}"); };
             TaskScheduler.UnobservedTaskException += (sender, e) => { System.Diagnostics.Debug.WriteLine("=== [TASK EXCEPTION] ==="); System.Diagnostics.Debug.WriteLine($"Message : {e.Exception?.Message}"); e.SetObserved(); };
 #endif
-            builder.Services.AddMudServices(); builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState();
+            builder.Services.AddMudServices(); builder.Services.AddScoped<ILoadingService, LoadingService>(); builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<ITokenStorage, SecureTokenService>(); builder.Services.AddScoped<CustomAuthStateProvider>(); builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
             builder.Services.AddTransient<AuthHeaderHandler>();
             string baseUrl = "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
@@ -64,6 +66,7 @@ namespace FVN_REGISTER
             builder.Services.AddScoped<IApprovalPolicyClientService, ApprovalPolicyClientService>();
             builder.Services.AddScoped<ISecurityClientService, SecurityClientService>();
             builder.Services.AddScoped<IHrmSyncClientService, HrmSyncClientService>();
+            builder.Services.AddScoped<IBackgroundJobClientService, BackgroundJobClientService>();
             builder.Services.AddScoped<IHrmSyncReviewClientService, HrmSyncReviewClientService>();
             builder.Services.AddScoped<IHrmAttendanceCalculationClientService, HrmAttendanceCalculationClientService>();
             builder.Services.AddScoped<IHrmUserRoleRuleClientService, HrmUserRoleRuleClientService>();
@@ -75,10 +78,11 @@ namespace FVN_REGISTER
             builder.Services.AddScoped<IWorkYearManagementClientService, WorkYearManagementClientService>();
             builder.Services.AddScoped<ICompanyHolidayManagementClientService, CompanyHolidayManagementClientService>();
             builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
+            builder.Services.AddScoped<IPushClientService, PushClientService>();
             builder.Services.AddScoped<IDeptClientService, DeptClientService>();
             builder.Services.AddScoped<IOTClientService, OTClientService>();
             builder.Services.AddScoped<IOTLimitRuleManagementClientService, OTLimitRuleManagementClientService>();
-            builder.Services.AddScoped<IDepartmentStatusClientService, DepartmentStatusClientService>(); builder.Services.AddScoped<IUserManagementClientService, UserManagementClientService>(); builder.Services.AddScoped<IPasswordResetRequestClientService, PasswordResetRequestClientService>(); builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>(); builder.Services.AddScoped<IApproverClientService, ApproverClientService>(); builder.Services.AddScoped<IHistoryClientService, HistoryClientService>(); builder.Services.AddScoped<IEmailTemplateClientService, EmailTemplateClientService>(); builder.Services.AddScoped<IEmailQueueClientService, EmailQueueClientService>(); builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementClientService>(); builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>(); builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>(); builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
+            builder.Services.AddScoped<IDepartmentStatusClientService, DepartmentStatusClientService>(); builder.Services.AddScoped<IUserManagementClientService, UserManagementClientService>(); builder.Services.AddScoped<IPasswordResetRequestClientService, PasswordResetRequestClientService>(); builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>(); builder.Services.AddScoped<IApproverClientService, ApproverClientService>(); builder.Services.AddScoped<IHistoryClientService, HistoryClientService>(); builder.Services.AddScoped<IEmailTemplateClientService, EmailTemplateClientService>(); builder.Services.AddScoped<IEmailQueueClientService, EmailQueueClientService>(); builder.Services.AddScoped<IEmailAdminClientService, EmailAdminClientService>(); builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementClientService>(); builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>(); builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>(); builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
             builder.Services.AddScoped<FVN_REGISTER.Shared.Services.Equipment.IEquipmentClientService, FVN_REGISTER.Shared.Services.Equipment.EquipmentClientService>();
             return builder.Build();
 

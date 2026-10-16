@@ -14,7 +14,7 @@ public sealed class F03HrmAttendanceCalculated
     public int HrmEmployeeId { get; set; }
     public string? EmployeeCode { get; set; }
     public string? FullName { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? ShiftAbbr { get; set; }
     public DateTime? CheckInTime { get; set; }
     public DateTime? CheckOutTime { get; set; }
@@ -25,4 +25,8 @@ public sealed class F03HrmAttendanceCalculated
     public bool? HrmHoliday { get; set; }
     public string? AttendanceDisplayValue { get; set; }
     public string? OtDisplayValue { get; set; }
+    public string? DayType { get; set; }
+    public string? WorkSymbol { get; set; }
+    public string? OtSymbol { get; set; }
+    public string? SymbolRuleCode { get; set; }
 }

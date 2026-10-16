@@ -30,6 +30,9 @@ public sealed class CompanyHolidayManagementClientService : ICompanyHolidayManag
     public Task<ApiResponse<string>> DeleteAsync(int id, CancellationToken ct = default)
         => _http.DeleteAsync<string>($"api/company-holidays/{id}", ct);
 
+    public Task<ApiResponse<string>> SyncFromHrmAsync(CancellationToken ct = default)
+        => _http.PostAsync<string>("api/company-holidays/sync-hrm", new { }, ct);
+
     public Task<ApiResponse<string>> CreateSundaysAsync(
         int year,
         CancellationToken ct = default)

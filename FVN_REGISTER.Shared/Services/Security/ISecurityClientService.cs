@@ -12,7 +12,7 @@ public interface ISecurityClientService
     Task<ApiResponse<List<SecurityFunctionDto>>> GetFunctionsAsync(CancellationToken ct = default);
     Task<ApiResponse<PermissionSnapshotDto>> GetUserPermissionsAsync(int userId, CancellationToken ct = default);
     Task<ApiResponse<PermissionSnapshotDto>> SetUserRolesAsync(int userId, List<int> roleCodes, CancellationToken ct = default);
-    Task<ApiResponse<SecurityRoleDto>> SetRoleFunctionsAsync(int roleCode, List<int> functionCodes, CancellationToken ct = default);
+    Task<ApiResponse<SecurityRoleDto>> SetRoleFunctionsAsync(int roleCode, List<int> functionCodes, Dictionary<int, string?> scopeOverrides, Dictionary<int, string?> accessModeOverrides, CancellationToken ct = default);
     Task<ApiResponse<List<ManagedScopeDto>>> GetManagedScopesAsync(int userId, CancellationToken ct = default);
     Task<ApiResponse<PermissionSnapshotDto>> SetManagedScopesAsync(int userId, List<ManagedScopeRequest> scopes, CancellationToken ct = default);
     Task<ApiResponse<List<ManagedEmployeeDto>>> GetManagedEmployeesAsync(int userId, CancellationToken ct = default);
@@ -38,4 +38,10 @@ public interface ISecurityClientService
     Task<ApiResponse<object>> DeleteSecurityFunctionAsync(int id, CancellationToken ct = default);
     Task<ApiResponse<object>> UpsertSecurityRoleAsync(SecurityRoleUpsertRequest request, CancellationToken ct = default);
     Task<ApiResponse<object>> DeleteSecurityRoleAsync(int id, CancellationToken ct = default);
+    Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationCatalogDto>> GetLocalizationCatalogAsync(CancellationToken ct = default);
+    Task<ApiResponse<object>> UpsertLocalizationAsync(FVN_REGISTER.Contract.Dtos.Language.LocalizationUpsertRequest request, CancellationToken ct = default);
+    Task<ApiResponse<object>> DeleteLocalizationAsync(string key, CancellationToken ct = default);
+    Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationAuditResultDto>> AuditLocalizationAsync(CancellationToken ct = default);
+    Task<ApiResponse<byte[]>> ExportLocalizationAsync(CancellationToken ct = default);
+    Task<ApiResponse<FVN_REGISTER.Contract.Dtos.Language.LocalizationImportResultDto>> ImportLocalizationAsync(MultipartFormDataContent content, CancellationToken ct = default);
 }

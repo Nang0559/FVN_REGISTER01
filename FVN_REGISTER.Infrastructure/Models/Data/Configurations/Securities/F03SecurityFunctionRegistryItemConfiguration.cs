@@ -8,7 +8,13 @@ public sealed class F03SecurityFunctionRegistryItemConfiguration : IEntityTypeCo
 {
     public void Configure(EntityTypeBuilder<F03SecurityFunctionRegistryItem> builder)
     {
-        builder.ToTable("F03SecurityFunctionRegistry");
+        builder.ToTable("F03SecurityFunctionRegistry", table =>
+        {
+            // The registry can also be deployed with audit/business triggers.
+            // Prevent EF Core 9 from generating DML OUTPUT clauses.
+            table.UseSqlOutputClause(false);
+            table.HasTrigger("TR_F03SecurityFunctionRegistry_EFCore");
+        });
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.FunctionKey).IsUnique();
         builder.Property(x => x.FunctionKey).IsRequired().HasMaxLength(150);

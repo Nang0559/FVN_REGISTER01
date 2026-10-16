@@ -212,3 +212,150 @@ h1:focus {
         font-size: 11px;
     }
 }
+
+
+
+/* Work Calendar — responsive header */
+.fc .fc-header-toolbar {
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.fc .fc-toolbar-chunk {
+    min-width: 0;
+}
+
+.fc .fc-toolbar-title {
+    margin: 0;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.fc .fc-button {
+    font-weight: 650;
+}
+
+@media (max-width: 700px) {
+    .fc .fc-header-toolbar {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 7px;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+
+    /* Keep the month/year title on its own row so navigation never overlaps it. */
+    .fc .fc-toolbar-chunk:nth-child(2) {
+        order: 1;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(1) {
+        order: 2;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(3) {
+        order: 3;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 1.08rem;
+        line-height: 1.25;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .fc .fc-toolbar-chunk .fc-button {
+        min-height: 34px;
+        padding: 5px 10px;
+        font-size: .78rem;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(1) .fc-button {
+        min-width: 42px;
+    }
+
+    .fc .fc-toolbar-chunk:nth-child(3) .fc-button {
+        min-width: 74px;
+    }
+}
+
+@media (max-width: 360px) {
+    .fc .fc-toolbar-title {
+        font-size: 1rem;
+    }
+
+    .fc .fc-toolbar-chunk .fc-button {
+        padding: 5px 8px;
+        font-size: .75rem;
+    }
+}
+
+/* Global application loading state */
+.fcc-global-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .18);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
+}
+
+.fcc-global-loading-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 180px;
+    max-width: min(90vw, 420px);
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--mud-palette-surface);
+    color: var(--mud-palette-text-primary);
+    box-shadow: var(--mud-elevation-8);
+}
+
+/* ---- Trạng thái phản hồi đối soát (?, -, !, ✕) ---- */
+.fcc-calendar-issue-marker.fcc-fb { cursor: default; }
+button.fcc-calendar-issue-marker.fcc-fb { cursor: pointer; }
+.fcc-calendar-issue-marker.fcc-fb-unanswered { background: var(--mud-palette-error); }
+.fcc-calendar-issue-marker.fcc-fb-pending { background: var(--mud-palette-info); }
+.fcc-calendar-issue-marker.fcc-fb-hr-request { background: #f9a825; color: #3e2723; }
+.fcc-calendar-issue-marker.fcc-fb-hr-resolved { background: #5c6bc0; }
+.fcc-calendar-issue-marker.fcc-fb-complete { background: var(--mud-palette-success); position: relative; }
+.fcc-calendar-issue-marker.fcc-fb-complete::after {
+    content: "✓";
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    width: 12px;
+    height: 12px;
+    line-height: 12px;
+    font-size: 9px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--mud-palette-success);
+    box-shadow: 0 0 0 1px var(--mud-palette-success);
+}
+.fcc-calendar-issue-marker.fcc-fb-rejected { background: #b71c1c; }
+
+.fcc-calendar-day-line.fcc-fb-label { font-weight: 700; font-size: 11px; }
+.fcc-calendar-day-line.fcc-fb-pending { color: var(--mud-palette-info); }
+.fcc-calendar-day-line.fcc-fb-hr-request { color: #f57f17; }
+.fcc-calendar-day-line.fcc-fb-hr-resolved { color: #5c6bc0; }
+.fcc-calendar-day-line.fcc-fb-complete { color: var(--mud-palette-success); }
+.fcc-calendar-day-line.fcc-fb-rejected { color: #b71c1c; }
+.fcc-calendar-day-line.fcc-fb-unanswered { color: var(--mud-palette-error); }
+
+.fcc-calendar-legend { border-top: 1px solid var(--mud-palette-lines-default); padding-top: 8px; font-size: 13px; }
+.fcc-calendar-legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 6px 16px; }
+.fcc-calendar-legend-grid .fcc-calendar-issue-marker { display: inline-block; vertical-align: middle; margin: 0 6px 0 0; cursor: default; }

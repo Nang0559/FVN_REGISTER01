@@ -7,7 +7,7 @@ namespace FVN_REGISTER.Contract.Dtos.Employees
         public int Id { get; set; }
         public string EmployeeCode { get; set; } = "";
         public string EmployeeName { get; set; } = "";
-        public string DeptCode { get; set; } = "";
+        public int DeptCode { get; set; }
         public string? PositionCode { get; set; }
         public string EmailAddress { get; set; } = "";
         public string? PhoneNumber { get; set; }

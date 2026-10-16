@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Contract.Dtos.Approvals;
@@ -21,18 +22,21 @@ public sealed class ApprovalPoliciesController : BaseApiController
 {
     private readonly IApprovalPolicyService _service;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
     public ApprovalPoliciesController(
         IApprovalPolicyService service,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operators,
         ILogger<ApprovalPoliciesController> logger,
         IOptionsMonitor<AuthDebugOptions> options)
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
         _authorization = authorization;
+        _operators = operators;
     }
 
     [HttpGet]
@@ -72,6 +76,11 @@ public sealed class ApprovalPoliciesController : BaseApiController
         return HandleResult(await _service.DeleteAsync(id, UserInfo!.UserId, ct));
     }
 
-    private Task<bool> CanManageAsync(CancellationToken ct)
-        => UserInfo != null ? _authorization.HasAsync(UserInfo, SecurityFunctionCodes.ApprovalPolicyManage, ct) : Task.FromResult(false);
+    private async Task<bool> CanManageAsync(CancellationToken ct)
+    {
+        if (UserInfo is null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.ApprovalPolicyManage, ct))
+            return false;
+        return await _operators.CanOperateAsync(UserInfo.UserId, UserInfo.EmployeeCode,
+            SecurityFunctionCodes.ApprovalPolicyManage, FeatureOperatorCatalog.ApprovalPolicy, null, ct);
+    }
 }

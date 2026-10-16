@@ -4,5 +4,6 @@ public enum EquipmentRequestKind
 {
     Registration = 1,
     Repair = 2,
-    Form = 3
+    Form = 3,
+    AssetChange = 4
 }

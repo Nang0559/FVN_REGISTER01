@@ -34,7 +34,7 @@ BEGIN
         EmployeeCode nvarchar(50) NULL,
         FullName nvarchar(200) NULL,
         HrmDeptId int NULL,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
         HrmPositionId int NULL,
         ShiftId int NULL,
         ShiftAbbr nvarchar(10) NULL,
@@ -131,6 +131,11 @@ IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmBCNgayLeNV') IS NULL ALTER 
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmShiftDayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD HrmShiftDayType smallint NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'AttendanceDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD AttendanceDisplayValue nvarchar(50) NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'OtDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD OtDisplayValue nvarchar(50) NULL;
+-- Ngày nghỉ HRM + rule ký hiệu (SQL/83): DayType do dbo.fn_ResolveDayType, WorkSymbol/OtSymbol/SymbolRuleCode do rule F03AttendanceSymbolRules.
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'DayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD DayType nvarchar(40) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'WorkSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD WorkSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'OtSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD OtSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'SymbolRuleCode') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD SymbolRuleCode nvarchar(100) NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculated') AND name=N'IX_F03HrmAttendanceCalculated_DateDept')
@@ -147,7 +152,7 @@ BEGIN
         WorkDate date NOT NULL,
         HrmEmployeeId int NOT NULL,
         EmployeeCode nvarchar(50) NULL,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
         ActualStartTime datetime2(0) NULL,
         ActualEndTime datetime2(0) NULL,
         ActualMinutes int NOT NULL DEFAULT 0,
@@ -298,7 +303,8 @@ BEGIN
     CREATE TABLE dbo.F03HrmAttendanceCalculationRun
     (
         CalculationBatchId uniqueidentifier NOT NULL CONSTRAINT PK_F03HrmAttendanceCalculationRun PRIMARY KEY,
-        DeptCode nvarchar(20) NULL,
+        DeptCode int NULL,
+        EmployeeCode nvarchar(50) NULL,
         FromDate date NOT NULL,
         ToDate date NOT NULL,
         TriggeredBy nvarchar(100) NOT NULL,
@@ -313,12 +319,16 @@ BEGIN
 END;
 GO
 
+/* Employee-scoped coverage metadata for calendar lazy backfill. */
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'EmployeeCode') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD EmployeeCode nvarchar(50) NULL;
+GO
 IF NOT EXISTS
 (
     SELECT 1 FROM sys.indexes
     WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun')
-      AND name=N'IX_F03HrmAttendanceCalculationRun_DateStatus'
+      AND name=N'IX_F03HrmAttendanceCalculationRun_Scope'
 )
-    CREATE INDEX IX_F03HrmAttendanceCalculationRun_DateStatus
-        ON dbo.F03HrmAttendanceCalculationRun(FromDate,ToDate,Status,StartedAt DESC);
+    CREATE INDEX IX_F03HrmAttendanceCalculationRun_Scope
+        ON dbo.F03HrmAttendanceCalculationRun(Status,EmployeeCode,DeptCode,FromDate,ToDate);
 GO

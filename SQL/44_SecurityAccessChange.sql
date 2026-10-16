@@ -20,7 +20,7 @@ BEGIN
         RequesterEmployeeCode nvarchar(50) NOT NULL,
         OldEmployeeCode nvarchar(50) NOT NULL,
         NewEmployeeCode nvarchar(50) NOT NULL,
-        DeptCode nvarchar(20) NOT NULL,
+        DeptCode int NOT NULL,
         NewPositionCode nvarchar(20) NULL,
         Reason nvarchar(500) NOT NULL,
         RequestedFunctionCodesJson nvarchar(max) NOT NULL CONSTRAINT DF_F03AccessChangeRequests_Functions DEFAULT(N'[]'),

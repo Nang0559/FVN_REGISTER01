@@ -16,21 +16,47 @@ IF OBJECT_ID(N'dbo.F03SecurityFunctionRegistry', N'U') IS NULL
 IF COL_LENGTH(N'dbo.F03SecurityFunctionRegistry', N'IsIgnored') IS NULL
     ALTER TABLE dbo.F03SecurityFunctionRegistry ADD IsIgnored bit NOT NULL CONSTRAINT DF_F03SecurityFunctionRegistry_IsIgnored_Recovery DEFAULT 0;
 
-/* Không cho phép thao tác xóa chức năng thông thường làm mất bản ghi phát hiện.
-   Bản ghi Registry là bằng chứng để khôi phục chức năng từ mã nguồn. */
+/*
+  Discovery có thể tạo candidate chưa được đăng ký, trong đó FunctionCode = 0.
+  Đây là trạng thái "chưa ánh xạ", không phải lỗi schema/deploy và không được phép
+  làm dừng toàn bộ deployment. Giữ nguyên record để SuperAdmin có thể xử lý,
+  nhưng đánh dấu IsIgnored để nó không được coi là capability hợp lệ.
+*/
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.F03SecurityFunctionRegistry
+    WHERE FunctionCode <= 0
+      AND ISNULL(IsIgnored, 0) = 0
+)
+BEGIN
+    UPDATE dbo.F03SecurityFunctionRegistry
+    SET IsIgnored = 1,
+        LifecycleStatus = CASE
+            WHEN LifecycleStatus IN (N'Retired', N'Replaced') THEN LifecycleStatus
+            ELSE N'Unmapped'
+        END,
+        LastSeenAt = ISNULL(LastSeenAt, CreatedAt)
+    WHERE FunctionCode <= 0
+      AND ISNULL(IsIgnored, 0) = 0;
+
+    PRINT N'WARNING: Function Registry contains unregistered discovery candidates (FunctionCode <= 0); they were retained and marked IsIgnored=1.';
+END;
 
 IF EXISTS
 (
     SELECT 1
     FROM dbo.F03SecurityFunctionRegistry
     WHERE FunctionCode <= 0
+      AND ISNULL(IsIgnored, 0) = 0
 )
-    THROW 51481, N'Danh mục phát hiện chức năng có mã chức năng không hợp lệ.', 1;
+    THROW 51481, N'Danh mục phát hiện chức năng vẫn còn mã chức năng không hợp lệ chưa được xử lý.', 1;
 
 IF EXISTS
 (
     SELECT 1
     FROM dbo.F03SecurityFunctionRegistry
+    WHERE FunctionCode > 0
     GROUP BY FunctionKey
     HAVING COUNT(*) > 1
 )

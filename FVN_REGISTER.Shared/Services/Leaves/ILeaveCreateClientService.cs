@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
     {
         Task<ApiResponse<LeaveCalendarDataDto>> GetCombinedDataAsync(
             string empCode,
-            string deptCode,
+            int deptCode,
             string cvCode,
             int year,
             CancellationToken ct = default);

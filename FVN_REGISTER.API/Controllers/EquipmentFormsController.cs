@@ -36,8 +36,13 @@ public sealed class EquipmentFormsController : ControllerBase
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Unauthorized();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentFormManage, ct)) return Forbid();
-        var forms = await _publicForms.GetManageListAsync(ct);
-        return Ok(FVN_REGISTER.Contract.Responses.ApiResponse<List<PublicFormDto>>.Ok(forms.Where(x => x.IsActive==true && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)).ToList()));
+        var formsResult = await _publicForms.GetManageListAsync(ct);
+        if (!formsResult.IsSuccess)
+            return BadRequest(FVN_REGISTER.Contract.Responses.ApiResponse<List<PublicFormDto>>.Fail(formsResult.Message ?? "Không thể tải danh mục biểu mẫu."));
+
+        var forms = formsResult.Data ?? new List<PublicFormDto>();
+        return Ok(FVN_REGISTER.Contract.Responses.ApiResponse<List<PublicFormDto>>.Ok(
+            forms.Where(x => x.IsActive == true && string.Equals(x.Status, "Published", StringComparison.OrdinalIgnoreCase)).ToList()));
     }
 
     [HttpPost("assignments")]

@@ -1,0 +1,89 @@
+﻿@using FVN_REGISTER.Contract.Dtos.EquipmentImport
+@using System.Text.Json
+@inject ILanguageService Language
+
+@if (Fields.Count > 0)
+{
+    <MudText Typo="Typo.subtitle2" Class="mb-1">@Language.T("equipment.importPanel.customFields")</MudText>
+    <MudGrid Spacing="2">
+        @foreach (var field in Fields)
+        {
+            var key = field.FieldKey;
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              Label="@LabelOf(field)"
+                              Required="@field.IsRequired"
+                              Value="@Get(key)"
+                              ValueChanged="@(v => Set(key, v))"
+                              MaxLength="@(field.MaxLength ?? 1000)"
+                              HelperText="@HelperOf(field)" />
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    /// <summary>Schema fields that are NOT mapped to a core equipment property.</summary>
+    [Parameter] public List<ExcelSchemaFieldDto> Fields { get; set; } = new();
+    /// <summary>Editable values keyed by FieldKey. Mutated in place.</summary>
+    [Parameter] public Dictionary<string, string?> Values { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private string? Get(string key) => Values.TryGetValue(key, out var v) ? v : null;
+    private void Set(string key, string? value) => Values[key] = value;
+
+    public static string LabelOf(ExcelSchemaFieldDto f)
+        => !string.IsNullOrWhiteSpace(f.FieldLabel) ? f.FieldLabel
+            : !string.IsNullOrWhiteSpace(f.HeaderName) ? f.HeaderName! : f.FieldKey;
+
+    private string? HelperOf(ExcelSchemaFieldDto f) => f.DataType?.ToLowerInvariant() switch
+    {
+        "date" or "datetime" => Language.T("equipment.importPanel.hint.date"),
+        "integer" or "number" or "decimal" or "currency" => Language.T("equipment.importPanel.hint.number"),
+        _ => null
+    };
+
+    /// <summary>Custom fields of a schema = fields without a core target property, in display order.</summary>
+    public static List<ExcelSchemaFieldDto> CustomFieldsOf(ExcelSchemaDto? schema)
+        => schema?.Fields
+            .Where(f => string.IsNullOrWhiteSpace(f.TargetProperty) && !string.IsNullOrWhiteSpace(f.FieldKey))
+            .OrderBy(f => f.DisplayOrder).ToList() ?? new();
+
+    /// <summary>Initial values: saved CustomDataJson first, then the staged Excel row value (drafts created before custom data was stored).</summary>
+    public static Dictionary<string, string?> BuildValues(string? customJson, IDictionary<string, string?>? rowValues, IEnumerable<ExcelSchemaFieldDto> fields)
+    {
+        var saved = Parse(customJson);
+        var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in fields)
+        {
+            string? value = null;
+            if (saved.TryGetValue(f.FieldKey, out var s) && !string.IsNullOrWhiteSpace(s)) value = s;
+            else if (rowValues != null)
+            {
+                var hit = rowValues.FirstOrDefault(x => string.Equals(x.Key, f.FieldKey, StringComparison.OrdinalIgnoreCase));
+                value = hit.Value;
+            }
+            result[f.FieldKey] = value;
+        }
+        return result;
+    }
+
+    public static Dictionary<string, string?> Parse(string? json)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(json)) return result;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return result;
+            foreach (var p in doc.RootElement.EnumerateObject())
+                result[p.Name] = p.Value.ValueKind switch
+                {
+                    JsonValueKind.Null or JsonValueKind.Undefined => null,
+                    JsonValueKind.String => p.Value.GetString(),
+                    _ => p.Value.GetRawText()
+                };
+        }
+        catch (JsonException) { }
+        return result;
+    }
+}

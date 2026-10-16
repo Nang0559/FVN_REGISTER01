@@ -79,7 +79,7 @@ END;
 IF NOT EXISTS
 (
     SELECT 1 FROM dbo.F03CalendarModuleDefinitions
-    WHERE ModuleCode=N'OT' AND IsActive=1
+    WHERE ModuleCode=N'Overtime' AND IsActive=1
 )
     INSERT @Errors VALUES(N'CalendarSeed.OT',N'OT module definition missing');
 
@@ -100,7 +100,7 @@ IF NOT EXISTS
 IF NOT EXISTS
 (
     SELECT 1 FROM dbo.F03ActionPolicies
-    WHERE ModuleCode=N'OT' AND ActionType=N'OT.ATTENDANCE_CONFIRMATION'
+    WHERE ModuleCode=N'Overtime' AND ActionType=N'OT.ATTENDANCE_CONFIRMATION'
 )
     INSERT @Errors VALUES(N'ActionSeed.OT',N'OT.ATTENDANCE_CONFIRMATION policy missing');
 

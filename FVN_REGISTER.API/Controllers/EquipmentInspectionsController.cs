@@ -25,11 +25,11 @@ public sealed class EquipmentInspectionsController : ControllerBase
     }
 
     [HttpGet("registered-assets")]
-    public async Task<IActionResult> RegisteredAssets([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<IActionResult> RegisteredAssets([FromQuery] int? deptCode, CancellationToken ct)
         => From(await _service.GetRegisteredAssetsAsync(deptCode, ct));
 
     [HttpGet("templates")]
-    public async Task<IActionResult> Templates([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<IActionResult> Templates([FromQuery] int? deptCode, CancellationToken ct)
         => From(await _service.GetTemplatesAsync(deptCode, ct));
 
     [HttpGet("templates/{id:int}")]
@@ -38,11 +38,19 @@ public sealed class EquipmentInspectionsController : ControllerBase
 
     [HttpPost("templates/import")]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> ImportTemplateExcel(IFormFile file, CancellationToken ct)
+    public async Task<IActionResult> ImportTemplateExcel(IFormFile file, [FromForm] int? deptCode, [FromForm] int? sheetIndex, CancellationToken ct)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<object>.Fail("File Excel rỗng."));
         await using var stream = file.OpenReadStream();
-        return From(await _service.ImportTemplateExcelAsync(file.FileName, stream, ct));
+        return From(await _service.ImportTemplateExcelAsync(file.FileName, stream, deptCode, sheetIndex, ct));
+    }
+
+    [HttpGet("templates/import-sample")]
+    public async Task<IActionResult> TemplateImportSample(CancellationToken ct)
+    {
+        var result = await _service.GetTemplateImportSampleAsync(ct);
+        if (!result.IsSuccess) return BadRequest(ApiResponse<object>.Fail(result.Message ?? "Không tạo được file mẫu."));
+        return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
     }
 
     [HttpPost("templates")]
@@ -56,6 +64,14 @@ public sealed class EquipmentInspectionsController : ControllerBase
     [HttpPost("assignments")]
     public async Task<IActionResult> Assign([FromBody] EquipmentInspectionAssignmentRequest request, CancellationToken ct)
         => From(await _service.AssignAsync(request, ct));
+
+    [HttpGet("asset-groups")]
+    public async Task<IActionResult> AssetGroups([FromQuery] int? deptCode, CancellationToken ct)
+        => From(await _service.GetAssetGroupsAsync(deptCode, ct));
+
+    [HttpPost("assignments/bulk")]
+    public async Task<IActionResult> BulkAssign([FromBody] EquipmentInspectionBulkAssignmentRequest request, CancellationToken ct)
+        => From(await _service.BulkAssignAsync(request, ct));
 
     [HttpGet("assignments")]
     public async Task<IActionResult> Assignments([FromQuery] int? equipmentId, CancellationToken ct)
@@ -82,7 +98,7 @@ public sealed class EquipmentInspectionsController : ControllerBase
         => From(await _service.RejectAsync(id, reason, ct));
 
     [HttpGet("dashboard")]
-    public async Task<IActionResult> Dashboard([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<IActionResult> Dashboard([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int? deptCode, CancellationToken ct)
         => From(await _service.DashboardAsync(from?.Date ?? DateTime.Today.AddDays(-30), to?.Date ?? DateTime.Today, deptCode, ct));
 
     [HttpPost("tasks/{taskId:int}/evidence")]

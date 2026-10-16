@@ -1,54 +1,38 @@
 # Endpoint Governance – implementation status
 
-Branch: `docs/cleanup-and-help-safe`
+Branch: feature/i18n-vi-ja
 
-## Current flow
+## LANSCOPE bulk flow
 
-```text
-Manual / Excel
-    -> Draft Policy Version
-    -> Submit Common Approval
-    -> Approval Route (RequestModule.Endpoint)
-    -> Approved
-    -> Publish
-    -> Endpoint Agent Inventory
-    -> Automatic Compliance Evaluation
-    -> Version-pinned Finding / Exception / Installation Request
-```
+LANSCOPE CSV -> Import-LanscopeTargets.ps1 -> FVN deployment + target records -> one bootstrap JSON / target -> LANSCOPE distribution -> install-agent.ps1 (LocalSystem) -> HTTPS enrollment -> DeviceKey + credential -> inventory.
 
-## Status
+## Operational rules
 
-| Area | Status | Notes |
-|---|---|---|
-| RequestModule.Endpoint | DONE | Reuses existing RequestModule/approval abstraction. |
-| Security capability family 3101–3124 | DONE | Registered in existing Security Center; SuperAdmin receives the initial baseline only. |
-| Software Catalog | DONE | Manual + Excel, versioned draft, submit and publish. |
-| Windows Service Catalog | DONE | Same canonical policy model; no duplicate approval engine. |
-| Excel preview/validation | DONE | Excel remains an adapter into canonical DTOs. |
-| Common Approval | DONE | Uses existing approval provider/route/policy infrastructure. |
-| Endpoint inventory | DONE | Agent ingestion and inventory summary. |
-| Equipment linkage | DONE | `F03EndpointDevice.EquipmentAssetId` reference; UI shows EquipmentCode + EquipmentName. |
-| Agent credential provisioning | DONE | Existing credential service; corrected to Endpoint capability codes; UI supports provision/rotate/revoke. |
-| Automatic compliance evaluation | DONE | Runs after trusted agent ingestion and can also be triggered manually. |
-| Version-pinned findings | DONE | Finding records retain PolicyId/PolicyVersion/PolicyItemId. |
-| Installation Request | DONE | Uses Endpoint request + Security Review + Common Approval. |
-| Compliance Exception request | DONE | Uses existing Endpoint request workflow; approval remains common. |
-| Endpoint Governance UI | DONE | Catalog, manual entry, Excel, version lifecycle, requests, Security Review and compliance. |
-| Endpoint Inventory UI | DONE | Inventory, compliance, Equipment linkage and installation request. |
-| Credential UI | DONE | Provision/rotate/revoke with one-time secret display. |
-| Navigation | DONE | Existing Shared NavMenu; capability-gated. |
-| Legacy duplicate SQL catalog | REMOVED | Old `56_Endpoint_Governance.sql` removed; canonical schema is 54/55 + verification. |
-| Duplicate legacy policy/compliance tables | REMOVED FROM NEW DEPLOYMENT | Inventory foundation no longer creates `F03SoftwarePolicies`, `F03WindowsServicePolicies`, `F03EndpointComplianceResults` or `F03EndpointComplianceExceptions`; those responsibilities belong to canonical Governance/Request/Findings. |
-| Compliance alert model | INTENTIONAL | Compliance warnings are canonical Findings; existing identity/agent alerts remain for technical endpoint events. No second alert architecture is introduced. |
-| Agent deployment/installation | EXISTING | Agent project remains separate; this module consumes its trusted inventory contract. |
+- LanscopeDeployment:PublicBaseUrl bắt buộc cấu hình HTTPS; API không suy luận public URL từ Host/forwarded headers.
+- LanscopeDeployment:EnrollmentTokenMinutes mặc định 60 phút và có thể cấu hình 5–1440 phút.
+- TargetId trùng trong batch hoặc đã tồn tại sẽ trả 409; không còn continue âm thầm.
+- CreateTargets dùng transaction cho toàn bộ batch và chỉ SaveChanges theo batch, không SaveChanges từng target.
+- Token reissue chỉ áp dụng target Pending chưa enroll; target đã enroll không được cấp bootstrap mới.
+- Target không có serial hoặc serial không khớp sẽ vào PendingReview; không mặc định Verified.
+- Inventory không ghi đè metadata LANSCOPE hiện có bằng NULL/empty.
+- Agent lấy ClientId từ bootstrap và lưu local.
+- Agent lấy WindowsUser từ Win32_ComputerSystem.UserName; không dùng identity của LocalSystem service.
+- Installer dừng service trước khi copy EXE, bật sc failureflag, chờ enrollment thật sự và trả non-zero nếu enrollment không hoàn tất.
+- Bootstrap/config được ACL cho SYSTEM + Administrators và bootstrap source được xóa sau enrollment thành công.
+- Service binary hash cache theo mtime + size.
 
-## Architectural rules retained
+## SQL/deployment
 
-- Equipment remains Asset/Master Data; Endpoint only references `EquipmentAssetId`.
-- Software/Service policy is Endpoint Governance, not Equipment.
-- Common Approval is reused; no `EndpointApprovalEngine`/`EquipmentSoftwareApproval` is introduced.
-- Security Center remains the only permission system.
-- `BaseAuditEntity.IsActive` remains `bool?`; query semantics must use explicit nullable logic.
-- Excel is an adapter only; persistence goes through the canonical Application contract.
-- Published policy versions are immutable in business meaning; a new change creates a new version.
-- Endpoint Agent cannot assign itself to an employee or Equipment Asset; ownership/linkage is an FVN-side administrative fact.
+LANSCOPE schema nằm ở SQL/69_Endpoint_LanscopeDeployment.sql. Bộ deploy hiện tại phải bao gồm script 69; không dùng checklist cũ chỉ tới 54–56.
+
+## Bulk preparation
+
+scripts/lanscope/Import-LanscopeTargets.ps1 nhận CSV LANSCOPE với các trường ClientId, ComputerName, IP, MAC, SerialNumber, WindowsUser, Domain, OU, Group, OS, Manufacturer, Model; gọi API deployment/targets theo batch và xuất bootstrap JSON + manifest.
+
+## Credential security
+
+Một endpoint chỉ có một credential current. Khi rotate, credential cũ có grace window ngắn để tránh mất credential trong lúc agent ghi secret mới; secret plaintext không được ghi log/database.
+
+## Pilot gate
+
+Pilot 2–3 PC trước mass rollout và kiểm tra bootstrap replay, token expiry + reissue, missing/mismatched serial -> PendingReview, ClientId/OU/Group không mất sau inventory đầu tiên, WindowsUser không còn là SYSTEM khi có console user, upgrade khi service đang chạy, bootstrap source cleanup, service failure restart, revoke/expiry chặn inventory, PublicBaseUrl HTTPS, và distinct DeviceKey/credential cho từng endpoint.

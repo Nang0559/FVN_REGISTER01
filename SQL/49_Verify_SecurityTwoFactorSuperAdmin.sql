@@ -4,7 +4,9 @@ SET NOCOUNT ON;
 
 /*
   Verification for the legacy SuperAdmin 2FA compatibility fix.
-  E0001 must have the 2407 direct grant even when no F03UserRoles row exists.
+  E0001 is provisioned by HRM/user provisioning, therefore a fresh database
+  may legitimately not have that account yet. In that case verification is
+  deferred instead of failing the complete deployment.
 */
 
 DECLARE @UserId int;
@@ -16,6 +18,12 @@ FROM dbo.F03Users
 WHERE EmployeeCode = N'E0001'
 ORDER BY Id;
 
+IF @UserId IS NULL
+BEGIN
+    PRINT N'49_Verify_SecurityTwoFactorSuperAdmin: E0001 is not provisioned yet; verification deferred until HRM/user provisioning.';
+    RETURN;
+END;
+
 SELECT TOP (1) @FunctionId = Id
 FROM dbo.F03Functions
 WHERE FunctionCode = 2407
@@ -25,9 +33,6 @@ SELECT TOP (1) @PermissionId = Id
 FROM dbo.F03Permissions
 WHERE PermissionCode = 1
 ORDER BY Id;
-
-IF @UserId IS NULL
-    THROW 51490, N'FAIL: E0001 does not exist.', 1;
 
 IF @FunctionId IS NULL
     THROW 51491, N'FAIL: Function 2407 does not exist.', 1;

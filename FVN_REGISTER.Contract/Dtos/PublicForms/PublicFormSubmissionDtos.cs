@@ -2,7 +2,7 @@ namespace FVN_REGISTER.Contract.Dtos.PublicForms;
 
 public sealed class PublicFormSubmissionQueryDto
 {
-    public string? DepartmentCode { get; set; }
+    public int? DepartmentCode { get; set; }
     public string? Status { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
@@ -27,7 +27,7 @@ public sealed class PublicFormSubmissionRowDto
     public int SubmissionId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public DateTime SubmittedAt { get; set; }
     public string Status { get; set; } = string.Empty;
     public List<PublicFormSubmissionAnswerDto> Answers { get; set; } = new();
@@ -52,7 +52,7 @@ public sealed class PublicFormSubmissionSummaryDto
 
 public sealed class PublicFormDepartmentSummaryDto
 {
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public int Count { get; set; }
 }
 
@@ -70,4 +70,17 @@ public sealed class PublicFormChoiceSummaryDto
     public string OptionCode { get; set; } = string.Empty;
     public string OptionText { get; set; } = string.Empty;
     public int Count { get; set; }
+}
+
+
+public sealed class PublicFormAuditDto
+{
+    public int Id { get; set; }
+    public int FormId { get; set; }
+    public string ActionCode { get; set; } = string.Empty;
+    public int ActorUserId { get; set; }
+    public string? ActorEmployeeCode { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? BeforeJson { get; set; }
+    public string? AfterJson { get; set; }
 }

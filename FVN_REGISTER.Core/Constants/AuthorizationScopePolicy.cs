@@ -22,12 +22,19 @@ public static class AuthorizationScopePolicy
         return AuthorizationScopeCodes.None;
     }
 
+    public static bool IsManagementScope(string? scope) =>
+        string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(scope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsPersonalScope(string? scope) =>
+        string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase);
+
     public static bool CanAccess(
         string scope,
         string? actorEmployeeCode,
-        string? actorDeptCode,
+        int? actorDeptCode,
         string? targetEmployeeCode,
-        string? targetDeptCode)
+        int? targetDeptCode)
     {
         return scope switch
         {
@@ -36,13 +43,16 @@ public static class AuthorizationScopePolicy
                 Same(actorDeptCode, targetDeptCode),
             var s when string.Equals(s, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(s, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase) =>
-                Same(actorEmployeeCode, targetEmployeeCode),
+                SameEmployee(actorEmployeeCode, targetEmployeeCode),
             _ => false
         };
     }
 
-    private static bool Same(string? left, string? right) =>
+    private static bool Same(int? left, int? right) =>
+        left.HasValue && right.HasValue && left.Value == right.Value;
+
+    private static bool SameEmployee(string? left, string? right) =>
         !string.IsNullOrWhiteSpace(left)
         && !string.IsNullOrWhiteSpace(right)
-        && string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+        && string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
 }

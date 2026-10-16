@@ -22,26 +22,26 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
-<PageTitle>Tạo đơn OT</PageTitle>
+<PageTitle>@Language.T("ot.taoDonOt")</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-1"><MudIcon Icon="@Icons.Material.Filled.MoreTime" Class="mr-2" />Tạo đơn Tăng ca (OT)</MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Đăng ký làm thêm giờ theo nhân viên.</MudText>
+<MudText Typo="Typo.h5" Class="mb-1"><MudIcon Icon="@Icons.Material.Filled.MoreTime" Class="mr-2" />@Language.T("ot.taoDonTangCaOt")</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@Language.T("ot.dangKyLamThemGio")</MudText>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
         <div>
             <MudText Typo="Typo.subtitle1">
                 <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Class="mr-1" />
-                Lịch làm việc chung
+                @Language.T("leave.sharedCalendar")
             </MudText>
             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                Xem toàn bộ công, nghỉ phép, OT và công tác tại lịch trung tâm. Ngày OT hiện tại vẫn được chọn ngay bên dưới.
+                @Language.T("ot.xemToanBoCongNghi")
             </MudText>
         </div>
         <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.CalendarMonth"
                    OnClick="@(() => Nav.NavigateTo("/calendar"))">
-            Mở lịch chung
+            @Language.T("leave.openCalendar")
         </MudButton>
     </MudStack>
 </MudPaper>
@@ -55,40 +55,40 @@ else if (_form != null)
     <MudGrid>
         <MudItem xs="12" md="8">
             <MudCard Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.subtitle1" Class="mb-3">Thông tin đơn</MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3">@Language.T("ot.thongTinDon")</MudText>
                 <MudGrid>
-                    <MudItem xs="12" sm="4"><MudDatePicker Date="_date" DateChanged="OnDateChanged" Label="Ngày OT (*)" Variant="Variant.Outlined" Required="true" /></MudItem>
-                    <MudItem xs="6" sm="4"><MudTimePicker Time="_start" TimeChanged="OnStartChanged" Label="Giờ bắt đầu" Variant="Variant.Outlined" AmPm="false" /></MudItem>
-                    <MudItem xs="6" sm="4"><MudTimePicker Time="_end" TimeChanged="OnEndChanged" Label="Giờ kết thúc" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudDatePicker Date="_date" DateChanged="OnDateChanged" Label="@Language.T("ot.ngayOt2")" Variant="Variant.Outlined" Required="true" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Time="_start" TimeChanged="OnStartChanged" Label="@Language.T("ot.gioBatDau")" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Time="_end" TimeChanged="OnEndChanged" Label="@Language.T("ot.gioKetThuc")" Variant="Variant.Outlined" AmPm="false" /></MudItem>
                     <MudItem xs="12" sm="6">
-                        <MudSelect T="string" @bind-Value="_form.OTTypeCode" Label="Loại OT (*)" Variant="Variant.Outlined" Required="true">
+                        <MudSelect T="string" @bind-Value="_form.OTTypeCode" Label="@Language.T("ot.loaiOt2")" Variant="Variant.Outlined" Required="true">
                             @foreach (var type in _otTypes)
                             {
                                 <MudSelectItem Value="@type.OTTypeCode">@type.OTTypeName (@type.OTTypeCode)</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.OTReasonSummary" Label="Lý do tổng quát" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.OTReasonSummary" Label="@Language.T("ot.lyDoTongQuat")" Variant="Variant.Outlined" /></MudItem>
                 </MudGrid>
             </MudCard>
 
             <MudCard Elevation="2" Class="mt-4 pa-4">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
-                    <MudText Typo="Typo.subtitle1">Nhân viên tham gia (@_employees.Count)</MudText>
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">Thêm nhân viên phòng ban</MudButton>
+                    <MudText Typo="Typo.subtitle1">@Language.T("ot.nhanVienThamGia2", _employees.Count)</MudText>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">@Language.T("ot.themNhanVienPhongBan")</MudButton>
                 </MudStack>
 
                 @if (!_employees.Any())
                 {
-                    <MudAlert Severity="Severity.Info">Chưa có nhân viên. Bấm “Thêm nhân viên phòng ban”.</MudAlert>
+                    <MudAlert Severity="Severity.Info">@Language.T("ot.chuaCoNhanVienBam")</MudAlert>
                 }
                 else
                 {
                     <MudTable Items="_employees" Dense="true" Hover="true">
-                        <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>Nội dung</MudTh><MudTh>Giờ</MudTh><MudTh></MudTh></HeaderContent>
+                        <HeaderContent><MudTh>@Language.T("ot.employee")</MudTh><MudTh>@Language.T("public.content")</MudTh><MudTh>@Language.T("ot.gio")</MudTh><MudTh></MudTh></HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
-                            <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Label="Nội dung" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Label='@Language.T("public.content")' Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
                             <MudTd>@context.OTHours.ToString("N1") h</MudTd>
                             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveEmployee(context))" /></MudTd>
                         </RowTemplate>
@@ -99,7 +99,7 @@ else if (_form != null)
             @if (_limitPreview != null)
             {
                 <MudCard Elevation="2" Class="mt-4 pa-4">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">Giới hạn OT — sau đăng ký</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">@Language.T("ot.gioiHanOtSauDang")</MudText>
                     @if (_limitPreview.Errors.Any())
                     {
                         <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
@@ -112,10 +112,10 @@ else if (_form != null)
 
                     <MudTable Items="_limitPreview.Employees" Dense="true" Hover="true" Bordered="true">
                         <HeaderContent>
-                            <MudTh>Nhân viên</MudTh>
-                            <MudTh>Tuần</MudTh>
-                            <MudTh>Tháng</MudTh>
-                            <MudTh>Năm</MudTh>
+                            <MudTh>@Language.T("ot.employee")</MudTh>
+                            <MudTh>@Language.T("ot.week")</MudTh>
+                            <MudTh>@Language.T("ot.month")</MudTh>
+                            <MudTh>@Language.T("ot.year")</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>
@@ -131,21 +131,17 @@ else if (_form != null)
                     @if (_limitPreview.Department != null)
                     {
                         <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle2">Phòng: @_limitPreview.Department.ScopeName</MudText>
+                        <MudText Typo="Typo.subtitle2">@Language.T("ot.phong", _limitPreview.Department.ScopeName)</MudText>
                         <MudText Typo="Typo.body2">
-                            Tuần: @LimitText(_limitPreview.Department.UsedHoursThisWeek, _limitPreview.Department.WeeklyLimit, _limitPreview.Department.ProjectedHoursThisWeek)
-                            · Tháng: @LimitText(_limitPreview.Department.UsedHoursThisMonth, _limitPreview.Department.MonthlyLimit, _limitPreview.Department.ProjectedHoursThisMonth)
-                            · Năm: @LimitText(_limitPreview.Department.UsedHoursThisYear, _limitPreview.Department.YearlyLimit, _limitPreview.Department.ProjectedHoursThisYear)
+                            @Language.T("ot.tuanThangNam", LimitText(_limitPreview.Department.UsedHoursThisWeek, _limitPreview.Department.WeeklyLimit, _limitPreview.Department.ProjectedHoursThisWeek), LimitText(_limitPreview.Department.UsedHoursThisMonth, _limitPreview.Department.MonthlyLimit, _limitPreview.Department.ProjectedHoursThisMonth), LimitText(_limitPreview.Department.UsedHoursThisYear, _limitPreview.Department.YearlyLimit, _limitPreview.Department.ProjectedHoursThisYear))
                         </MudText>
                     }
 
                     @if (_limitPreview.Block != null && (!_limitPreview.Block.IsExceeded || _limitPreview.Block.WeeklyLimit.HasValue || _limitPreview.Block.MonthlyLimit.HasValue || _limitPreview.Block.YearlyLimit.HasValue))
                     {
-                        <MudText Typo="Typo.subtitle2" Class="mt-2">Khối: @_limitPreview.Block.ScopeName</MudText>
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">@Language.T("ot.khoi2", _limitPreview.Block.ScopeName)</MudText>
                         <MudText Typo="Typo.body2">
-                            Tuần: @LimitText(_limitPreview.Block.UsedHoursThisWeek, _limitPreview.Block.WeeklyLimit, _limitPreview.Block.ProjectedHoursThisWeek)
-                            · Tháng: @LimitText(_limitPreview.Block.UsedHoursThisMonth, _limitPreview.Block.MonthlyLimit, _limitPreview.Block.ProjectedHoursThisMonth)
-                            · Năm: @LimitText(_limitPreview.Block.UsedHoursThisYear, _limitPreview.Block.YearlyLimit, _limitPreview.Block.ProjectedHoursThisYear)
+                            @Language.T("ot.tuanThangNam", LimitText(_limitPreview.Block.UsedHoursThisWeek, _limitPreview.Block.WeeklyLimit, _limitPreview.Block.ProjectedHoursThisWeek), LimitText(_limitPreview.Block.UsedHoursThisMonth, _limitPreview.Block.MonthlyLimit, _limitPreview.Block.ProjectedHoursThisMonth), LimitText(_limitPreview.Block.UsedHoursThisYear, _limitPreview.Block.YearlyLimit, _limitPreview.Block.ProjectedHoursThisYear))
                         </MudText>
                     }
                 </MudCard>
@@ -157,7 +153,7 @@ else if (_form != null)
             }
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@_submitting">
-                @(_submitting ? "Đang gửi..." : "GỬI ĐƠN OT")
+                @(_submitting ? Language.T("calendar.feedback.sending") : Language.T("ot.guiDonOt"))
             </MudButton>
         </MudItem>
 
@@ -165,16 +161,16 @@ else if (_form != null)
             @if (_balance != null)
             {
                 <MudCard Elevation="2" Class="mb-4 pa-4">
-                    <MudText Typo="Typo.subtitle1">Số dư giờ OT @DateTime.Now.Year</MudText>
-                    <MudText Typo="Typo.body2">Năm: @_balance.UsedHoursThisYear / @_balance.YearlyLimit h</MudText>
+                    <MudText Typo="Typo.subtitle1">@Language.T("ot.soDuGioOt", DateTime.Now.Year)</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.namH", _balance.UsedHoursThisYear, _balance.YearlyLimit)</MudText>
                     <MudProgressLinear Value="@_balance.YearlyUsedPercent" Color="@(_balance.IsNearYearlyLimit ? Color.Warning : Color.Primary)" Class="my-2" />
-                    <MudText Typo="Typo.body2">Tháng: @_balance.UsedHoursThisMonth / @_balance.MonthlyLimit h</MudText>
-                    <MudText Typo="Typo.body2">Còn lại năm: @_balance.RemainingYearly h</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.thangH", _balance.UsedHoursThisMonth, _balance.MonthlyLimit)</MudText>
+                    <MudText Typo="Typo.body2">@Language.T("ot.conLaiNamH", _balance.RemainingYearly)</MudText>
                 </MudCard>
             }
 
             <MudCard Elevation="2">
-                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Đơn OT gần đây</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">@Language.T("ot.donOtGanDay")</MudText></CardHeaderContent></MudCardHeader>
                 <MudList T="OTSummaryDto" Dense="true">
                     @foreach (var request in _recent)
                     {
@@ -216,7 +212,7 @@ else if (_form != null)
             var combined = await OTService.GetCombinedDataAsync(_cts.Token);
             if (!combined.IsSuccess || combined.Data == null)
             {
-                Snackbar.Add(combined.Message ?? "Không tải được dữ liệu OT.", Severity.Error);
+                Snackbar.Add(combined.Message ?? Language.T("ot.khongTaiDuocDuLieu"), Severity.Error);
                 return;
             }
 
@@ -229,7 +225,7 @@ else if (_form != null)
             if (types.IsSuccess && types.Data != null)
                 _otTypes = types.Data;
             else
-                Snackbar.Add(types.Message ?? "Không tải được danh mục loại OT.", Severity.Warning);
+                Snackbar.Add(types.Message ?? Language.T("ot.khongTaiDuocDanhMuc"), Severity.Warning);
 
             if (CalendarDate.HasValue)
                 _date = CalendarDate.Value.Date;
@@ -246,7 +242,7 @@ else if (_form != null)
         catch (Exception ex)
         {
             Logger.LogError(ex, "[OT_CREATE] Init error");
-            Snackbar.Add("Lỗi tải dữ liệu OT.", Severity.Error);
+            Snackbar.Add(Language.T("ot.loiTaiDuLieuOt"), Severity.Error);
         }
         finally { _loading = false; }
     }
@@ -255,7 +251,7 @@ else if (_form != null)
     {
         if (_form == null) return;
         var result = await OTService.GetDeptEmployeesAsync(_form.DeptCode, _cts.Token);
-        if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? "Không tải được nhân viên.", Severity.Warning); return; }
+        if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocNhanVien"), Severity.Warning); return; }
         foreach (var source in result.Data)
         {
             if (_employees.Any(x => x.EmployeeCode == source.EmployeeCode)) continue;
@@ -282,7 +278,7 @@ else if (_form != null)
     {
         if (_form == null || !_date.HasValue || !_start.HasValue || !_end.HasValue || _end <= _start || !_employees.Any())
         {
-            Snackbar.Add("Vui lòng kiểm tra ngày, giờ OT và danh sách nhân viên.", Severity.Warning);
+            Snackbar.Add(Language.T("ot.vuiLongKiemTraNgay"), Severity.Warning);
             return;
         }
         _form.OTDate = _date.Value;
@@ -299,7 +295,7 @@ else if (_form != null)
         _form.ApprovalSelections = _approvalSelector?.GetSelections() ?? new();
         if (_form.ApprovalSelections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
         {
-            Snackbar.Add("Vui lòng chọn người phê duyệt cho từng cấp.", Severity.Warning);
+            Snackbar.Add(Language.T("common.vuiLongChonNguoiPhe"), Severity.Warning);
             return;
         }
 
@@ -308,14 +304,14 @@ else if (_form != null)
         var preview = await OTService.GetOTLimitPreviewAsync(_form, _cts.Token);
         if (!preview.IsSuccess || preview.Data == null)
         {
-            Snackbar.Add(preview.Message ?? "Không kiểm tra được giới hạn OT.", Severity.Error);
+            Snackbar.Add(preview.Message ?? Language.T("ot.khongKiemTraDuocGioi"), Severity.Error);
             return;
         }
 
         _limitPreview = preview.Data;
         if (!_limitPreview.IsValid)
         {
-            Snackbar.Add(_limitPreview.Errors.FirstOrDefault() ?? "Đơn OT vượt giới hạn.", Severity.Warning);
+            Snackbar.Add(_limitPreview.Errors.FirstOrDefault() ?? Language.T("ot.donOtVuotGioiHan"), Severity.Warning);
             return;
         }
 
@@ -325,7 +321,7 @@ else if (_form != null)
             var message = validation.Data?.Errors.FirstOrDefault()
                 ?? validation.Data?.Message
                 ?? validation.Message
-                ?? "Đơn OT không hợp lệ.";
+                ?? Language.T("ot.donOtKhongHopLe");
             Snackbar.Add(message, Severity.Warning);
             return;
         }
@@ -334,7 +330,7 @@ else if (_form != null)
         try
         {
             var result = await OTService.CreateOTRequestAsync(_form, _cts.Token);
-            Snackbar.Add(result.IsSuccess ? "Đã gửi đơn OT thành công." : result.Message ?? "Gửi đơn thất bại.", result.IsSuccess ? Severity.Success : Severity.Error);
+            Snackbar.Add(result.IsSuccess ? Language.T("ot.daGuiDonOtThanh") : result.Message ?? Language.T("ot.guiDonThatBai"), result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) Nav.NavigateTo("/history/ot");
         }
         finally { _submitting = false; }
@@ -383,10 +379,10 @@ else if (_form != null)
         await RefreshLimitPreviewAsync();
     }
 
-    private static string LimitText(decimal used, decimal? limit, decimal? projected)
+    private string LimitText(decimal used, decimal? limit, decimal? projected)
     {
         if (!limit.HasValue)
-            return $"{used:N1}h / không áp dụng";
+            return Language.T("ot.hKhongApDung", used);
         return $"{used:N1}h → {projected:N1}h / {limit:N1}h";
     }
 
@@ -394,11 +390,11 @@ else if (_form != null)
     {
         var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Overtime, _cts.Token);
         if (result.IsSuccess) _approvalRoute = result.Data;
-        else Snackbar.Add(result.Message ?? "Không tải được luồng phê duyệt OT.", Severity.Warning);
+        else Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocLuongPhe"), Severity.Warning);
     }
 
     private static decimal CalculateHours(TimeSpan? start, TimeSpan? end) =>
         start.HasValue && end.HasValue && end > start ? (decimal)(end.Value - start.Value).TotalHours : 0m;
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public override void Dispose() { base.Dispose(); _cts.Cancel(); _cts.Dispose(); }
 }

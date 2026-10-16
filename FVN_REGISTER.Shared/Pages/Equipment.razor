@@ -1,19 +1,26 @@
 @page "/equipment"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Contract.Dtos.EquipmentImport
+@using System.Text.Json
+@using Microsoft.JSInterop
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Equipment
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject IEquipmentClientService EquipmentClient
 @inject IApprovalRouteClientService ApprovalRouteClient
 @inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService Security
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IDialogService DialogService
 
 @if (!_ready)
 {
@@ -21,29 +28,37 @@
 }
 else if (!_access)
 {
-    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-6"><MudAlert Severity="Severity.Warning">Tài khoản chưa được cấp quyền Sổ quản lý thiết bị.</MudAlert></MudContainer>
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-6"><MudAlert Severity="Severity.Warning">@Language.T("equipment.taiKhoanChuaDuocCap")</MudAlert></MudContainer>
 }
 else
 {
     <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
             <div>
-                <MudText Typo="Typo.h5">Sổ quản lý thiết bị</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Đăng ký • phê duyệt • QR • lịch sử sửa chữa • import theo schema phòng ban</MudText>
+                <MudText Typo="Typo.h5">@Language.T("equipment.register")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.dangKyPheDuyetQr")</MudText>
             </div>
             <MudStack Row="true" Spacing="2">
-                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.HelpOutline" OnClick="@(() => Navigation.NavigateTo("/equipment/help"))">Trợ giúp</MudButton>
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.HelpOutline" OnClick="@(() => Navigation.NavigateTo("/equipment/help"))">@Language.T("equipment.troGiup")</MudButton>
                 @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Checklist" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection"))">Checklist của tôi</MudButton> }
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Checklist" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection"))">@Language.T("equipment.checklistCuaToi")</MudButton>
+                }
                 @if (_actions?.Transfer == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">Bàn giao thiết bị</MudButton> }
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="@(() => Navigation.NavigateTo("/security/access-change"))">@Language.T("equipment.handover")</MudButton>
+                }
                 @if (_actions?.InspectionManage == true || _actions?.InspectionReport == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection-management"))">Quản lý kiểm tra</MudButton> }
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => Navigation.NavigateTo("/equipment/inspection-management"))">@Language.T("equipment.quanLyKiemTra")</MudButton>
+                }
                 @if (_actions?.Export == true)
-                { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assessment" OnClick="@(() => Navigation.NavigateTo("/equipment/reports"))">Báo cáo thiết bị</MudButton> }
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Assessment" OnClick="@(() => Navigation.NavigateTo("/equipment/reports"))">@Language.T("report.equipment")</MudButton>
+                }
                 @if (_actions?.Import == true)
                 {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Import Excel</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">@Language.T("home.importExcel")</MudButton>
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Schema" OnClick="@(() => Navigation.NavigateTo("/equipment/schema-management"))">Department Schema</MudButton>
                 }
             </MudStack>
@@ -52,91 +67,446 @@ else
         <MudTabs Elevation="2" Rounded="true">
             @if (_actions?.Create == true)
             {
-                <MudTabPanel Text="Đăng ký thiết bị">
-                    <MudGrid Class="pa-4">
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label="Tên thiết bị" Required="true" /></MudItem>
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="Mã tài sản" /></MudItem>
-                        <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="Thông số / Model" /></MudItem>
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="Serial Number" /></MudItem>
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label="Vị trí" /></MudItem>
-                        <MudItem xs="12" md="4"><MudNumericField @bind-Value="_form.PurchasePrice" Label="Giá thành" Min="0" /></MudItem>
-                        <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_purchase" Label="Ngày mua" /></MudItem>
-                        <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_depreciation" Label="Ngày khấu hao dự kiến" /></MudItem>
-                        <MudItem xs="12" md="6"><MudSelect T="string" @bind-Value="_form.ResponsibleEmployeeCode" Label="Giao cho nhân viên (tuỳ chọn)" Clearable="true"><MudSelectItem Value="@string.Empty">-- Không giao cá nhân --</MudSelectItem>@foreach(var e in _assignmentEmployees){<MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode - @e.EmployeeName</MudSelectItem>}</MudSelect></MudItem>
-                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.DeptCode" Label="Bộ phận" Required="true" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
-                        <MudItem xs="12"><ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" /></MudItem>
-                        <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="Ghi chú" Lines="3" /></MudItem>
-                        <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy">Tạo đăng ký & sinh QR</MudButton></MudItem>
-                    </MudGrid>
-                    @if (_created != null)
-                    {
-                        <MudCard Class="ma-4 pa-4">
-                            <MudText Typo="Typo.subtitle1">QR thiết bị</MudText>
-                            <MudText Typo="Typo.caption">QR được sinh trước; chỉ có hiệu lực sau khi duyệt hoàn tất.</MudText>
-                            <img src="@($"api/equipment/qr/{Uri.EscapeDataString(_created.QrToken)}/image")" style="width:220px;height:220px" />
-                            <MudText>Request #@_created.Id — @_created.RequestStatus</MudText>
-                            @if (_actions?.Edit == true) { <MudButton Color="Color.Success" OnClick="SubmitAsync" Disabled="_busy">Gửi duyệt</MudButton> }
-                        </MudCard>
-                    }
-                </MudTabPanel>
-            }
-
-            @if (_actions?.QR == true)
-            {
-                <MudTabPanel Text="Quét QR">
-                    <MudGrid Class="pa-4" Spacing="3">
-                        <MudItem xs="12" md="6">
-                            <EquipmentQrScanner OnDetected="OnDetectedAsync" />
-                            <MudTextField @bind-Value="_token" Label="QR token (dự phòng)" Variant="Variant.Outlined" Class="mt-3" />
-                            <MudButton Variant="Variant.Outlined" Class="mt-2" OnClick="ManualScanAsync" Disabled="@string.IsNullOrWhiteSpace(_token)">Tra cứu QR</MudButton>
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            @if (_scanLoading)
-                            { <MudStack AlignItems="AlignItems.Center" Class="pa-8"><MudProgressCircular Indeterminate="true" /></MudStack> }
-                            else if (_scannedAsset != null)
+                <MudTabPanel Text="@Language.T("equipment.dangKyThietBi")">
+                    <MudPaper Class="ma-4 pa-3" Outlined="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+                            <div>
+                                <MudText Typo="Typo.subtitle1">Bản nháp đăng ký và import Excel</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Bản nháp được sửa hoặc xóa tại khu vực đăng ký; chỉ tài sản đã được duyệt mới xuất hiện ở tab Tài sản thiết bị.</MudText>
+                            </div>
+                            @if (_actions?.Import == true)
                             {
-                                <MudCard Outlined="true" Class="pa-4">
-                                    <MudText Typo="Typo.h6">@_scannedAsset.EquipmentName</MudText>
-                                    <MudText Typo="Typo.body2">Mã thiết bị: <b>@_scannedAsset.EquipmentCode</b></MudText>
-                                    <MudText Typo="Typo.body2">Mã tài sản: @_scannedAsset.AssetCode</MudText>
-                                    <MudText Typo="Typo.body2">Serial: @_scannedAsset.SerialNumber</MudText>
-                                    <MudText Typo="Typo.body2">Bộ phận: @_scannedAsset.DeptCode</MudText>
-                                    <MudText Typo="Typo.body2">Vị trí: @_scannedAsset.Location</MudText>
-                                    <MudText Typo="Typo.body2">Giá mua: @_scannedAsset.PurchasePrice.ToString("N0")</MudText>
-                                    <MudText Typo="Typo.body2">Ngày mua: @_scannedAsset.PurchaseDate.ToString("dd/MM/yyyy")</MudText>
-                                    <MudDivider Class="my-3" />
-                                    <MudText Typo="Typo.subtitle2">Lịch sử sửa chữa đã phê duyệt</MudText>
-                                    <MudTable Items="_scannedAsset.RepairHistory" Dense="true" Hover="true">
-                                        <HeaderContent><MudTh>Ngày</MudTh><MudTh>Nội dung</MudTh><MudTh>Đơn vị</MudTh><MudTh>Chi phí</MudTh></HeaderContent>
-                                        <RowTemplate><MudTd>@context.RepairDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.RepairContent</MudTd><MudTd>@context.RepairVendor</MudTd><MudTd>@context.RepairCost?.ToString("N0")</MudTd></RowTemplate>
-                                    </MudTable>
-                                    @if (_actions?.Repair == true || string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở màn hình import Excel</MudButton>
+                            }
+                        </MudStack>
+                    </MudPaper>
+
+                    @if (_actions?.Import == true)
+                    {
+                        <MudPaper Class="ma-4 pa-3" Outlined="true">
+                            <EquipmentImportBatchPanel Requests="_mine" CanEdit="CanSubmitDrafts" OnChanged="ReloadMineAsync" />
+                        </MudPaper>
+                    }
+
+                    <MudPaper Class="ma-4 pa-3" Outlined="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                            <div>
+                                <MudText Typo="Typo.subtitle1">Bản nháp đăng ký thiết bị của tôi</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Các yêu cầu chưa gửi duyệt được hiển thị tại đây. Tài sản chính thức chỉ được cập nhật sau khi phê duyệt.</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_busy" OnClick="ReloadMineAsync">Làm mới</MudButton>
+                        </MudStack>
+                        @if (!RegistrationDrafts.Any())
+                        {
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">Chưa có bản nháp đăng ký hoặc thay đổi thiết bị nào.</MudAlert>
+                        }
+                        else
+                        {
+                            <MudTable Items="RegistrationDrafts" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                                <HeaderContent>
+                                    <MudTh>Mã yêu cầu</MudTh>
+                                    <MudTh>Loại yêu cầu</MudTh>
+                                    <MudTh>Tên thiết bị</MudTh>
+                                    <MudTh>Mã tài sản</MudTh>
+                                    <MudTh>Bộ phận</MudTh>
+                                    <MudTh>Người tạo</MudTh>
+                                    <MudTh>Thời gian tạo</MudTh>
+                                    <MudTh>Trạng thái</MudTh>
+                                    <MudTh>Thao tác</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Mã yêu cầu">#@context.Id</MudTd>
+                                    <MudTd DataLabel="Loại yêu cầu">@RequestKindLabel(context.RequestKind)</MudTd>
+                                    <MudTd DataLabel="Tên thiết bị">@context.EquipmentName</MudTd>
+                                    <MudTd DataLabel="Mã tài sản">@context.AssetCode</MudTd>
+                                    <MudTd DataLabel="Bộ phận">@context.DeptCode</MudTd>
+                                    <MudTd DataLabel="Người tạo">@(string.IsNullOrWhiteSpace(context.EmployeeName) ? context.EmployeeCode : $"{context.EmployeeCode} - {context.EmployeeName}")</MudTd>
+                                    <MudTd DataLabel="Thời gian tạo">@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                                    <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@DraftStatusLabel(context.RequestStatus)</MudChip></MudTd>
+                                    <MudTd DataLabel="Thao tác">
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew" OnClick="@(() => OpenDetailAsync(context))">Mở chi tiết</MudButton>
+                                            @if (CanSubmitDrafts)
+                                            {
+                                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Send" Disabled="_busy" OnClick="@(() => SubmitDraftAsync(context))">Gửi phê duyệt</MudButton>
+                                            }
+                                        </MudStack>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                    </MudPaper>
+
+                    <MudDialog Visible="@(_detailDraft != null)" VisibleChanged="@(v => { if (!v) CloseDetail(); })"
+                               Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true })">
+                        <TitleContent>
+                            <MudText Typo="Typo.h6">Chi tiết yêu cầu #@_detailDraft?.Id — @(_detailDraft is null ? string.Empty : RequestKindLabel(_detailDraft.RequestKind))</MudText>
+                        </TitleContent>
+                        <DialogContent>
+                            @if (_detailDraft != null)
+                            {
+                                var batch = DetailBatch;
+                                var row = DetailRow;
+                                var editable = IsEditableDraft(_detailDraft);
+                                if (batch != null)
+                                {
+                                    <MudPaper Outlined="true" Class="pa-3 mb-3">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">Hồ sơ cha (batch import Excel)</MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption">Mã batch</MudText><MudText><b>#@batch.Id</b></MudText></MudItem>
+                                            <MudItem xs="6" md="3"><MudText Typo="Typo.caption">Tên file Excel</MudText><MudText><b>@batch.FileName</b></MudText></MudItem>
+                                            <MudItem xs="4" md="2"><MudText Typo="Typo.caption">Tổng thiết bị</MudText><MudText><b>@batch.TotalRows</b></MudText></MudItem>
+                                            <MudItem xs="4" md="2"><MudText Typo="Typo.caption">Hợp lệ</MudText><MudText Color="Color.Success"><b>@batch.ValidRows</b></MudText></MudItem>
+                                            <MudItem xs="4" md="2"><MudText Typo="Typo.caption">Lỗi</MudText><MudText Color="@(batch.InvalidRows > 0 ? Color.Error : Color.Default)"><b>@batch.InvalidRows</b></MudText></MudItem>
+                                        </MudGrid>
+                                        <MudText Typo="Typo.caption" Class="mt-2">Tiến trình phê duyệt: đã duyệt @batch.ApprovedRows · chờ duyệt @batch.PendingRows · bản nháp @batch.DraftRows · từ chối/hủy @batch.RejectedRows</MudText>
+                                        <MudProgressLinear Value="@batch.ApprovalProgressPercent" Max="100" Color="Color.Success" Class="mt-1" />
+                                    </MudPaper>
+                                }
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    Hồ sơ con@(row != null ? $" (dòng Excel {row.RowNumber})" : string.Empty): <b>@_detailDraft.EquipmentName</b> ·
+                                    Trạng thái: <b>@DraftStatusLabel(_detailDraft.RequestStatus)</b> ·
+                                    Bộ phận: <b>@_detailDraft.DeptCode</b> ·
+                                    Người tạo: <b>@_detailDraft.EmployeeCode</b> ·
+                                    Tạo lúc: <b>@_detailDraft.CreatedAt.ToString("dd/MM/yyyy HH:mm")</b>
+                                </MudText>
+                                if (!editable)
+                                {
+                                    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-2">Yêu cầu đã gửi duyệt hoặc đã được xử lý — khóa sửa/xóa.</MudAlert>
+                                }
+                                <EquipmentRequestDiff Request="_detailDraft" CustomFields="_detailCustomFields" FallbackCustom="_detailCustomValues" />
+                                if (_editForm != null)
+                                {
+                                    <MudPaper Outlined="true" Class="pa-3 mt-3">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Sửa bản nháp</MudText>
+                                        <MudGrid>
+                                            <MudItem xs="12" md="6"><MudTextField @bind-Value="_editForm.EquipmentName" Label="Tên thiết bị" Required="true" /></MudItem>
+                                            <MudItem xs="12" md="6"><MudTextField @bind-Value="_editForm.AssetCode" Label="Mã tài sản" /></MudItem>
+                                            <MudItem xs="12" md="6"><MudTextField @bind-Value="_editForm.SerialNumber" Label="Serial" /></MudItem>
+                                            <MudItem xs="12" md="6"><MudTextField @bind-Value="_editForm.Location" Label="Vị trí" /></MudItem>
+                                            <MudItem xs="12"><MudTextField @bind-Value="_editForm.Specification" Label="Thông số / Model" /></MudItem>
+                                            <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="_editForm.PurchasePrice" Label="Nguyên giá" Min="0" /></MudItem>
+                                            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_editForm.PurchaseDate" Label="Ngày mua" /></MudItem>
+                                            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_editForm.ExpectedDepreciationDate" Label="Ngày khấu hao dự kiến" /></MudItem>
+                                            <MudItem xs="12"><MudTextField @bind-Value="_editForm.Note" Label="Ghi chú" Lines="2" /></MudItem>
+                                            @if (_detailCustomFields.Count > 0)
+                                            {
+                                                <MudItem xs="12"><EquipmentCustomFieldsEditor Fields="_detailCustomFields" Values="_detailCustomValues" /></MudItem>
+                                            }
+                                        </MudGrid>
+                                    </MudPaper>
+                                }
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-3">Đây là bản nháp. Danh mục tài sản chính thức chỉ được cập nhật sau khi yêu cầu được phê duyệt.</MudAlert>
+                            }
+                        </DialogContent>
+                        <DialogActions>
+                            @if (_detailDraft != null && IsEditableDraft(_detailDraft) && CanSubmitDrafts)
+                            {
+                                if (_editForm == null)
+                                {
+                                    <MudButton StartIcon="@Icons.Material.Filled.Edit" Disabled="_busy" OnClick="BeginEditDetail">Sửa</MudButton>
+                                    <MudButton Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteOutline" Disabled="_busy" OnClick="DeleteDetailAsync">Xóa</MudButton>
+                                    <MudButton Color="Color.Success" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Send" Disabled="_busy" OnClick="@(() => SubmitDraftAsync(_detailDraft!))">Gửi phê duyệt</MudButton>
+                                }
+                                else
+                                {
+                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_busy" OnClick="SaveEditDetailAsync">Lưu bản nháp</MudButton>
+                                    <MudButton Disabled="_busy" OnClick="@(() => _editForm = null)">Hủy sửa</MudButton>
+                                }
+                            }
+                            <MudButton OnClick="CloseDetail">Đóng</MudButton>
+                        </DialogActions>
+                    </MudDialog>
+
+                    <MudGrid Class="pa-4">
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label='@Language.T("equipment.name")' Required="true" /></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="@Language.T("equipment.maTaiSan")" /></MudItem>
+                        <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="@Language.T("equipment.thongSoModel")" /></MudItem>
+                        @if (_actions?.Manage == true)
+                        {
+                            <MudItem xs="12">
+                                <MudCheckBox T="bool" @bind-Value="_form.EndpointAgentEligible" Color="Color.Primary" Label="Thiết bị đủ điều kiện sử dụng Endpoint Agent" />
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Chỉ đánh dấu cho máy tính/thiết bị có hệ điều hành cần quản lý bằng Agent. Máy in, màn hình, scanner... không chọn.</MudText>
+                            </MudItem>
+                            @if (_form.EndpointAgentEligible)
+                            {
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="string" @bind-Value="_form.EndpointOsFamily" Label="Hệ điều hành dự kiến" Clearable="true">
+                                        <MudSelectItem Value="@("Windows")">Windows</MudSelectItem>
+                                        <MudSelectItem Value="@("Linux")">Linux</MudSelectItem>
+                                        <MudSelectItem Value="@("macOS")">macOS</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                            }
+                        }
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="@Language.T("equipment.serialNumber")" /></MudItem>
+                        <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label='@Language.T("equipment.location")' /></MudItem>
+                        <MudItem xs="12" md="4"><MudNumericField @bind-Value="_form.PurchasePrice" Label="@Language.T("equipment.giaThanh")" Min="0" /></MudItem>
+                        <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_purchase" Label="@Language.T("equipment.ngayMua")" /></MudItem>
+                        <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_depreciation" Label="@Language.T("equipment.ngayKhauHaoDuKien")" /></MudItem>
+                        <MudItem xs="12" md="6"><MudSelect T="string" @bind-Value="_form.ResponsibleEmployeeCode" Label="@Language.T("equipment.giaoChoNhanVienTuy")" Clearable="true"><MudSelectItem Value="@string.Empty">@Language.T("equipment.khongGiaoCaNhan")</MudSelectItem>@foreach(var e in _assignmentEmployees){
+                        <MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode - @e.EmployeeName</MudSelectItem>
+                    }
+    </MudSelect></MudItem>
+                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.DeptCode" Label='@Language.T("nav.departments")' Required="true" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12"><ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" /></MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label='@Language.T("common.note")' Lines="3" /></MudItem>
+                    <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy">@Language.T("equipment.taoDangKySinhQr")</MudButton></MudItem>
+                </MudGrid>
+                @if (_created != null)
+                {
+                    <MudCard Class="ma-4 pa-4">
+                        <MudText Typo="Typo.subtitle1">@Language.T("equipment.qrThietBi")</MudText>
+                        <MudText Typo="Typo.caption">@Language.T("equipment.qrDuocSinhTruocChi")</MudText>
+                        <img src="@($"api/equipment/qr/{Uri.EscapeDataString(_created.QrToken)}/image")" style="width:220px;height:220px" />
+                        <MudText>Request #@_created.Id — @_created.RequestStatus</MudText>
+                        @if (_actions?.Edit == true)
+                        {
+                            <MudButton Color="Color.Success" OnClick="SubmitAsync" Disabled="_busy">@Language.T("common.guiDuyet")</MudButton>
+                        }
+                    </MudCard>
+                }
+            </MudTabPanel>
+        }
+
+        @if (_actions?.QR == true)
+        {
+            <MudTabPanel Text="@Language.T("equipment.quetQr")">
+                <MudGrid Class="pa-4" Spacing="3">
+                    <MudItem xs="12" md="6">
+                        <EquipmentQrScanner OnDetected="OnDetectedAsync" />
+                        <MudTextField @bind-Value="_token" Label="@Language.T("equipment.qrTokenDuPhong")" Variant="Variant.Outlined" Class="mt-3" />
+                        <MudButton Variant="Variant.Outlined" Class="mt-2" OnClick="ManualScanAsync" Disabled="@string.IsNullOrWhiteSpace(_token)">@Language.T("equipment.traCuuQr")</MudButton>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        @if (_scanLoading)
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Class="pa-8"><MudProgressCircular Indeterminate="true" /></MudStack>
+                        }
+                        else if (_scannedAsset != null)
+                        {
+                            <MudCard Outlined="true" Class="pa-4">
+                                <MudText Typo="Typo.h6">@_scannedAsset.EquipmentName</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.maThietBi") <b>@_scannedAsset.EquipmentCode</b></MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.maTaiSan3", _scannedAsset.AssetCode)</MudText>
+                                <MudText Typo="Typo.body2">Serial: @_scannedAsset.SerialNumber</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.boPhan2", _scannedAsset.DeptCode)</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.viTri2", _scannedAsset.Location)</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.giaMua2", _scannedAsset.PurchasePrice.ToString("N0"))</MudText>
+                                <MudText Typo="Typo.body2">@Language.T("equipment.ngayMua3", _scannedAsset.PurchaseDate.ToString("dd/MM/yyyy"))</MudText>
+                                <MudDivider Class="my-3" />
+                                <MudText Typo="Typo.subtitle2">@Language.T("equipment.lichSuSuaChuaDa")</MudText>
+                                <MudTable Items="_scannedAsset.RepairHistory" Dense="true" Hover="true">
+                                    <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("public.content")</MudTh><MudTh>@Language.T("equipment.donVi")</MudTh><MudTh>@Language.T("common.chiPhi")</MudTh></HeaderContent>
+                                    <RowTemplate><MudTd>@context.RepairDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.RepairContent</MudTd><MudTd>@context.RepairVendor</MudTd><MudTd>@context.RepairCost?.ToString("N0")</MudTd></RowTemplate>
+                                </MudTable>
+                                @if (_actions?.Repair == true || string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="OpenRepairAsync">@Language.T("equipment.taoYeuCauSuaChua")</MudButton>
+                                }
+                                @if (string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/request-forms/{_scannedAsset.Id}"))">@Language.T("equipment.bieuMauYeuCau")</MudButton>
+                                }
+                                @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
+                                {
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/inspection?equipmentId={_scannedAsset.Id}"))">@Language.T("help.EQUIPMENT_CHECKLIST.title")</MudButton>
+                                }
+                            </MudCard>
+                        }
+                        else
+                        {
+
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">@Language.T("equipment.batCameraVaDuaQr")</MudAlert>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        }
+
+        <MudTabPanel Text="Tài sản thiết bị">
+            <MudPaper Class="pa-3 ma-3" Outlined="true">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+                        <MudText Typo="Typo.h6">Danh sách tài sản</MudText>
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            <MudChip T="string" Variant="Variant.Outlined">@FilteredAssets.Count / @_assets.Count thiết bị</MudChip>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FilterList" OnClick="@(() => _assetFiltersExpanded = !_assetFiltersExpanded)">
+                                @(_assetFiltersExpanded ? "Thu gọn bộ lọc" : "Bộ lọc")
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_assetsLoading" OnClick="ReloadAssetViewAsync">Làm mới</MudButton>
+                        </MudStack>
+                    </MudStack>
+                    <MudTextField T="string" Value="_assetSearch" ValueChanged="@(v => _assetSearch = v ?? string.Empty)"
+                                  Placeholder="Tìm theo mã, tên, mã tài sản, serial, người phụ trách hoặc giá trị schema..."
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    @if (_assetFiltersExpanded)
+                    {
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudSelect T="int?" Label="Phòng ban" Value="_assetDeptFilter" ValueChanged="@(v => _assetDeptFilter = v)" Clearable="true" Dense="true" Variant="Variant.Outlined">
+                                    @foreach (var dept in _assets.Select(x => x.DeptCode).Distinct().OrderBy(x => x))
                                     {
-                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="OpenRepairAsync">Tạo yêu cầu sửa chữa</MudButton>
+                                        <MudSelectItem T="int?" Value="@((int?)dept)">@dept</MudSelectItem>
                                     }
-                                    @if (string.Equals(_scannedAsset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) || string.Equals(_scannedAsset.OperatingResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudSelect T="string" Label="Schema" Value="_assetSchemaFilter" ValueChanged="@(v => _assetSchemaFilter = v ?? string.Empty)" Clearable="true" Dense="true" Variant="Variant.Outlined">
+                                    @foreach (var schemaKey in _assets.Select(x => x.EquipmentSchemaKey).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x))
                                     {
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/request-forms/{_scannedAsset.Id}"))">Biểu mẫu yêu cầu</MudButton>
+                                        <MudSelectItem T="string" Value="@(schemaKey!)">@schemaKey</MudSelectItem>
                                     }
-                                    @if (_actions?.InspectionExecute == true || _actions?.InspectionApprove == true)
-                                    { <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-3 ml-2" OnClick="@(() => Navigation.NavigateTo($"/equipment/inspection?equipmentId={_scannedAsset.Id}"))">Checklist thiết bị</MudButton> }
-                                </MudCard>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudSelect T="string" Label="QR" Value="_assetQrFilter" ValueChanged="@(v => _assetQrFilter = v ?? string.Empty)" Dense="true" Variant="Variant.Outlined">
+                                    <MudSelectItem T="string" Value="@("")">Tất cả</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("active")">QR đang hoạt động</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("inactive")">QR đã tắt</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudButton FullWidth="true" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ClearAssetFilters">Xóa bộ lọc</MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    @if (!_canEditAssets)
+                    {
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true">
+                            Tài khoản hiện chưa được cấp quyền sửa thiết bị. Nếu cần sửa/xóa, quản trị viên cần cấp quyền Equipment Edit/Manage. API vẫn kiểm tra quyền khi thao tác.
+                        </MudAlert>
+                    }
+                </MudStack>
+            </MudPaper>
+            @if (_lastDraftAssetId.HasValue)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="ma-4">
+                    Đã lưu bản nháp thay đổi cho thiết bị #@_lastDraftAssetId. Dữ liệu chính thức chưa thay đổi.
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_assetEditBusy" OnClick="SubmitAssetChangeAsync">Gửi bản nháp này phê duyệt</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="@(() => _lastDraftAssetId = null)">Ẩn</MudButton>
+                </MudAlert>
+            }
+            @if (_editingAsset != null)
+            {
+                <MudPaper Class="pa-4 ma-4" Outlined="true">
+                    <MudText Typo="Typo.h6">Sửa thiết bị theo schema</MudText>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6"><MudTextField Label="Mã thiết bị" @bind-Value="_editingAsset.EquipmentCode" Required="true" /></MudItem>
+                        <MudItem xs="12" sm="6"><MudTextField Label="Tên thiết bị" @bind-Value="_editingAsset.EquipmentName" Required="true" /></MudItem>
+                        <MudItem xs="12" sm="6"><MudTextField Label="Mã tài sản" @bind-Value="_editingAsset.AssetCode" /></MudItem>
+                        <MudItem xs="12" sm="6"><MudTextField Label="Serial Number" @bind-Value="_editingAsset.SerialNumber" /></MudItem>
+                        <MudItem xs="12" sm="6"><MudTextField Label="Thông số" @bind-Value="_editingAsset.Specification" /></MudItem>
+                        <MudItem xs="12" sm="6"><MudTextField Label="Vị trí" @bind-Value="_editingAsset.Location" /></MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" Label="Kỹ thuật viên quản lý thiết bị" @bind-Value="_editingAsset.ManagedByEmployeeCode" Clearable="true">
+                                <MudSelectItem Value="@string.Empty">Chưa phân công kỹ thuật viên</MudSelectItem>
+                                @foreach (var employee in _assignmentEmployees)
+                                {
+                                    <MudSelectItem Value="@employee.EmployeeCode">@employee.EmployeeCode - @employee.EmployeeName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" Label="Người sử dụng/phụ trách thiết bị" @bind-Value="_editingAsset.ResponsibleEmployeeCode" Clearable="true">
+                                <MudSelectItem Value="@string.Empty">Không giao cá nhân</MudSelectItem>
+                                @foreach (var employee in _assignmentEmployees)
+                                {
+                                    <MudSelectItem Value="@employee.EmployeeCode">@employee.EmployeeCode - @employee.EmployeeName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6"><MudSelect T="int?" Label="Phòng ban sử dụng" @bind-Value="_editingAsset.OperatingResponsibleDeptCode" Clearable="true"><MudSelectItem T="int?" Value="@((int?)null)">Chưa xác định</MudSelectItem>@foreach (var department in _equipmentDepartments){
+                        <MudSelectItem T="int?" Value="@((int?)department.DeptCode)">@department.DeptName</MudSelectItem>
+                    }
+</MudSelect></MudItem>
+                    <MudItem xs="12" sm="6"><MudSelect T="string" Label="Người sử dụng thiết bị" @bind-Value="_editingAsset.OperatingResponsibleEmployeeCode" Clearable="true"><MudSelectItem Value="@string.Empty">Chưa phân công</MudSelectItem>@foreach (var employee in _assignmentEmployees){
+                    <MudSelectItem Value="@employee.EmployeeCode">@employee.EmployeeCode - @employee.EmployeeName</MudSelectItem>
+                                        }
+</MudSelect></MudItem>
+                    <MudItem xs="12" sm="6"><MudNumericField T="decimal" Label="Nguyên giá" @bind-Value="_editingAsset.PurchasePrice" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày mua" Date="@_editingAsset.PurchaseDate" DateChanged="@(d => _editingAsset.PurchaseDate = d ?? DateTime.Today)" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày khấu hao dự kiến" Date="@_editingAsset.ExpectedDepreciationDate" DateChanged="@(d => _editingAsset.ExpectedDepreciationDate = d ?? _editingAsset.PurchaseDate.AddYears(5))" /></MudItem>
+                    <MudItem xs="12"><MudTextField Label="Ghi chú" @bind-Value="_editingAsset.Note" Lines="2" /></MudItem>
+                    @foreach (var field in _assetSchemaFields)
+                    {
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" Label="@field.FieldLabel" Value="@GetEditingCustomValue(field.FieldKey)" ValueChanged="@(value => SetEditingCustomValue(field.FieldKey, value))" Required="@field.IsRequired" />
+                        </MudItem>
+                    }
+                </MudGrid>
+                <MudStack Row="true" Class="mt-3">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_assetEditBusy" OnClick="SaveAssetAsync">Lưu thay đổi</MudButton>
+                    <MudButton Variant="Variant.Outlined" Disabled="_assetEditBusy" OnClick="@CancelEditAsset">Hủy</MudButton>
+                </MudStack>
+            </MudPaper>
+                        }
+            <div style="width:100%; overflow-x:auto;">
+                <MudTable Items="FilteredAssets" Dense="true" Hover="true" Loading="_assetsLoading" Class="pa-2" Style="min-width:1400px;" FixedHeader="true" Height="65vh">
+                    <HeaderContent>
+                        <MudTh>Thiết bị</MudTh>
+                        <MudTh>Mã tài sản</MudTh>
+                        <MudTh>Thao tác</MudTh>
+                        @foreach (var field in _assetSchemaFields)
+                        {
+                            <MudTh>@field.FieldLabel</MudTh>
+                        }
+                        <MudTh>Kỹ thuật viên quản lý</MudTh>
+                        <MudTh>Người sử dụng/phụ trách</MudTh>
+                        <MudTh>Endpoint Agent</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><b>@context.EquipmentName</b><br /><MudText Typo="Typo.caption">@context.EquipmentCode · @context.SerialNumber</MudText></MudTd>
+                        <MudTd>@context.AssetCode</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
+                                           StartIcon="@Icons.Material.Filled.Inventory2"
+                                           Disabled="@(!_canManageAssets)"
+                                           OnClick="@(() => BeginLiquidationAsync(context))">Thanh lý thiết bị</MudButton>
+                                @if (context.EndpointAgentEligible && CanEndpointManage)
+                                {
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security"
+                                               OnClick="@(() => Navigation.NavigateTo($"/equipment/{context.Id}/endpoint-agent"))">Thiết lập Agent</MudButton>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        @foreach (var field in _assetSchemaFields)
+                        {
+                            <MudTd>@GetAssetCustomValue(context, field)</MudTd>
+                        }
+                        <MudTd>@(string.IsNullOrWhiteSpace(context.ManagedByEmployeeCode) ? "Chưa phân công" : $"{context.ManagedByEmployeeCode} - {context.ManagedByEmployeeName}")</MudTd>
+                        <MudTd>@(string.IsNullOrWhiteSpace(context.ResponsibleEmployeeCode) ? "Chưa phân công" : $"{context.ResponsibleEmployeeCode} - {context.ResponsibleEmployeeName}")<br /><MudText Typo="Typo.caption">Sử dụng: @(string.IsNullOrWhiteSpace(context.OperatingResponsibleEmployeeCode) ? "Chưa phân công" : $"{context.OperatingResponsibleEmployeeCode} - {context.OperatingResponsibleEmployeeName}")<br />Phòng ban: @(context.OperatingResponsibleDeptName ?? context.OperatingResponsibleDeptCode?.ToString() ?? "Chưa xác định")</MudText></MudTd>
+                        <MudTd>
+                            @if (!context.EndpointAgentEligible)
+                            {
+                                <MudChip T="string" Size="Size.Small">Không áp dụng</MudChip>
+                            }
+                            else if (context.EndpointDeviceId.HasValue)
+                            {
+
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">@context.EndpointAgentStatus</MudChip>
                             }
                             else
-                            { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Bật camera và đưa QR thiết bị vào khung hình để tra cứu.</MudAlert> }
-                        </MudItem>
-                    </MudGrid>
-                </MudTabPanel>
-            }
+                            {
 
-            <MudTabPanel Text="Yêu cầu của tôi">
-                <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
-                    <HeaderContent><MudTh>Loại</MudTh><MudTh>Thiết bị</MudTh><MudTh>Bộ phận</MudTh><MudTh>Trạng thái</MudTh></HeaderContent>
-                    <RowTemplate><MudTd>@context.RequestKind</MudTd><MudTd>@context.EquipmentName</MudTd><MudTd>@context.DeptCode</MudTd><MudTd>@context.RequestStatus</MudTd></RowTemplate>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">Chưa cài Agent</MudChip>
+                            }
+                        </MudTd>
+                    </RowTemplate>
                 </MudTable>
-            </MudTabPanel>
-        </MudTabs>
-    </MudContainer>
+            </div>
+        </MudTabPanel>
+
+        <MudTabPanel Text="@Language.T("equipment.yeuCauCuaToi")">
+            <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
+                <HeaderContent><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("equipment.title")</MudTh><MudTh>@Language.T("nav.departments")</MudTh><MudTh>@Language.T("common.status")</MudTh></HeaderContent>
+                <RowTemplate><MudTd>@context.RequestKind</MudTd><MudTd>@context.EquipmentName</MudTd><MudTd>@context.DeptCode</MudTd><MudTd>@context.RequestStatus</MudTd></RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
 }
 
 @code {
@@ -149,6 +519,207 @@ else
     private DateTime? _purchase = DateTime.Today;
     private DateTime? _depreciation = DateTime.Today.AddYears(3);
     private List<EquipmentRequestDto> _mine = new();
+    private IEnumerable<EquipmentRequestDto> RegistrationDrafts => _mine
+        .Where(x => x.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.Registration
+            || x.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange)
+        .Where(x => x.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft
+            || x.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision)
+        .OrderByDescending(x => x.Id);
+
+    private EquipmentRequestDto? _detailDraft;
+    private UpdateEquipmentDraftRequest? _editForm;
+    private List<ExcelImportBatchDto> _batches = new();
+
+    private static bool IsEditableDraft(EquipmentRequestDto r)
+        => r.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft
+            || r.RequestStatus == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision;
+
+    /// <summary>Import row (child) that produced the request currently shown in the detail dialog.</summary>
+    private ExcelImportRowDto? DetailRow => _detailDraft is null ? null
+        : _batches.SelectMany(b => b.Rows).FirstOrDefault(r => r.RequestId == _detailDraft.Id);
+
+    /// <summary>Parent batch (Excel file) of the request currently shown in the detail dialog.</summary>
+    private ExcelImportBatchDto? DetailBatch => _detailDraft is null ? null
+        : _batches.FirstOrDefault(b => b.Rows.Any(r => r.RequestId == _detailDraft.Id));
+
+    private async Task OpenDetailAsync(EquipmentRequestDto draft)
+    {
+        _editForm = null;
+        _detailCustomFields = new();
+        _detailCustomValues = new(StringComparer.OrdinalIgnoreCase);
+        _detailDraft = draft;
+        // Refresh batches so parent progress / child status are current when the dialog opens.
+        await LoadBatchesAsync();
+        await LoadDetailCustomFieldsAsync();
+    }
+
+    private void CloseDetail() { _detailDraft = null; _editForm = null; _detailCustomFields = new(); _detailCustomValues = new(StringComparer.OrdinalIgnoreCase); }
+
+    private List<ExcelSchemaFieldDto> _detailCustomFields = new();
+    private Dictionary<string, string?> _detailCustomValues = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Load the import schema of the parent batch so every schema field of the child can be shown/edited.</summary>
+    private async Task LoadDetailCustomFieldsAsync()
+    {
+        _detailCustomFields = new();
+        _detailCustomValues = new(StringComparer.OrdinalIgnoreCase);
+        var batch = DetailBatch;
+        if (batch is null || _detailDraft is null) return;
+        var schema = await EquipmentClient.GetSchemaAsync(batch.SchemaId);
+        if (!schema.IsSuccess) return;
+        _detailCustomFields = EquipmentCustomFieldsEditor.CustomFieldsOf(schema.Data);
+        _detailCustomValues = EquipmentCustomFieldsEditor.BuildValues(_detailDraft.CustomDataJson, DetailRow?.Values, _detailCustomFields);
+    }
+
+    private async Task LoadBatchesAsync()
+    {
+        if (_actions?.Import != true) return;
+        var result = await EquipmentClient.GetMyImportBatchesAsync();
+        if (result.IsSuccess) _batches = result.Data ?? new();
+    }
+
+    private async Task BeginEditDetail()
+    {
+        if (_detailDraft is null || !IsEditableDraft(_detailDraft)) return;
+        _editForm = new UpdateEquipmentDraftRequest
+        {
+            EquipmentName = _detailDraft.EquipmentName,
+            AssetCode = _detailDraft.AssetCode,
+            SerialNumber = _detailDraft.SerialNumber,
+            Specification = _detailDraft.Specification,
+            Location = _detailDraft.Location,
+            Note = _detailDraft.Note,
+            PurchasePrice = _detailDraft.PurchasePrice,
+            PurchaseDate = _detailDraft.PurchaseDate,
+            ExpectedDepreciationDate = _detailDraft.ExpectedDepreciationDate
+        };
+        if (_detailCustomFields.Count == 0) await LoadDetailCustomFieldsAsync();
+    }
+
+    private async Task SaveEditDetailAsync()
+    {
+        if (_detailDraft is null || _editForm is null || _busy) return;
+        _busy = true;
+        try
+        {
+            var id = _detailDraft.Id;
+            if (_detailCustomFields.Count > 0) _editForm.CustomValues = new Dictionary<string, string?>(_detailCustomValues, StringComparer.OrdinalIgnoreCase);
+            var result = await EquipmentClient.UpdateDraftRequestAsync(id, _editForm);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu bản nháp.", Severity.Error); return; }
+            Snackbar.Add(result.Message ?? "Đã lưu bản nháp.", Severity.Success);
+            _editForm = null;
+            await ReloadMineAsync();
+            _detailDraft = _mine.FirstOrDefault(x => x.Id == id);
+            await LoadDetailCustomFieldsAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task DeleteDetailAsync()
+    {
+        if (_detailDraft is null || _busy) return;
+        if (!await ConfirmAsync(Language.T("equipment.confirm.deleteDraft", _detailDraft.EquipmentName, _detailDraft.Id), "common.delete")) return;
+        _busy = true;
+        try
+        {
+            var result = await EquipmentClient.DeleteDraftRequestAsync(_detailDraft.Id);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleteFailed"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleted"), Severity.Success);
+            CloseDetail();
+            await ReloadMineAsync();
+        }
+        finally { _busy = false; }
+    }
+    private bool CanSubmitDrafts => _actions?.Edit == true || _actions?.Manage == true;
+
+    private string DraftStatusLabel(FVN_REGISTER.Core.Enums.ApprovalStatus status) =>
+        status == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft ? Language.T("equipment.importPanel.status.draft") :
+        status == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision ? Language.T("equipment.importPanel.status.needsRevision") : status.ToString();
+
+    /// <summary>Standard in-app confirmation (MudBlazor dialog) instead of the browser's native confirm().</summary>
+    private async Task<bool> ConfirmAsync(string message, string yesKey)
+        => await DialogService.ShowMessageBoxAsync(
+               Language.T("common.confirm"), message,
+               yesText: Language.T(yesKey), cancelText: Language.T("common.cancel")) == true;
+
+    private async Task SubmitDraftAsync(EquipmentRequestDto draft)
+    {
+        if (!CanSubmitDrafts || _busy) return;
+        _busy = true;
+        try
+        {
+            // Always submit the exact request on this row (never "the latest draft of the asset").
+            var result = await EquipmentClient.SubmitRequestAsync(draft.Id);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.khongTheGuiDuyet"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.daGuiDuyet"), Severity.Success);
+            if (_detailDraft?.Id == draft.Id) CloseDetail();
+            await LoadAsync();
+            await LoadBatchesAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private static string RequestKindLabel(FVN_REGISTER.Core.Enums.EquipmentRequestKind kind) =>
+        kind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.AssetChange ? "Thay đổi thiết bị" :
+        kind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.Registration ? "Đăng ký thiết bị" : kind.ToString();
+    private List<EquipmentAssetDto> _assets = new();
+    private List<ExcelSchemaFieldDto> _assetSchemaFields = new();
+    private EquipmentAssetDto? _editingAsset;
+    private Dictionary<string, string?> _editingCustom = new(StringComparer.OrdinalIgnoreCase);
+    private bool _assetEditBusy;
+    private int? _lastDraftAssetId;
+    private bool _canManageAssets => _actions?.Manage == true || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EquipmentManage);
+    private bool _canEditAssets => _actions?.Edit == true || _actions?.Manage == true || _canManageAssets;
+    private bool _assetsLoading;
+    private string _assetSearch = string.Empty;
+    private string _assetSchemaFilter = string.Empty;
+    private string _assetQrFilter = string.Empty;
+    private int? _assetDeptFilter;
+    private bool _assetFiltersExpanded;
+
+    private List<EquipmentAssetDto> FilteredAssets
+    {
+        get
+        {
+            IEnumerable<EquipmentAssetDto> query = _assets;
+            if (_assetDeptFilter.HasValue) query = query.Where(x => x.DeptCode == _assetDeptFilter.Value);
+            if (!string.IsNullOrWhiteSpace(_assetSchemaFilter))
+                query = query.Where(x => string.Equals(x.EquipmentSchemaKey, _assetSchemaFilter, StringComparison.OrdinalIgnoreCase));
+            if (_assetQrFilter == "active") query = query.Where(x => x.IsQrActive);
+            else if (_assetQrFilter == "inactive") query = query.Where(x => !x.IsQrActive);
+            if (!string.IsNullOrWhiteSpace(_assetSearch))
+            {
+                var term = _assetSearch.Trim();
+                query = query.Where(x =>
+                    Contains(x.EquipmentCode, term) || Contains(x.EquipmentName, term) ||
+                    Contains(x.AssetCode, term) || Contains(x.SerialNumber, term) ||
+                    Contains(x.Location, term) || Contains(x.ResponsibleEmployeeCode, term) ||
+                    Contains(x.ResponsibleEmployeeName, term) || Contains(x.EquipmentSchemaKey, term) ||
+                    Contains(x.CustomDataJson, term) || Contains(x.Note, term));
+            }
+            return query.ToList();
+        }
+    }
+
+    private static bool Contains(string? value, string term) =>
+        !string.IsNullOrEmpty(value) && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private void ClearAssetFilters()
+    {
+        _assetSearch = string.Empty;
+        _assetSchemaFilter = string.Empty;
+        _assetQrFilter = string.Empty;
+        _assetDeptFilter = null;
+    }
+
+    private async Task ReloadAssetViewAsync()
+    {
+        await ReloadAssetsAsync();
+        await LoadAssetSchemaFieldsAsync();
+    }
+    private HashSet<int> _permissions = new();
+    private bool CanEligibilityManage => _actions?.EndpointAgentEligibilityManage == true;
+    private bool CanEndpointManage => _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialProvision) || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialRotate) || _permissions.Contains(FVN_REGISTER.Core.Constants.SecurityFunctionCodes.EndpointCredentialRevoke);
     private ApprovalRoutePreviewDto? _approvalRoute;
     private ApprovalRouteSelector? _approvalSelector;
     private EquipmentRequestDto? _created;
@@ -156,9 +727,181 @@ else
     private EquipmentActionAccessDto? _actions;
     private CreateEquipmentRegistrationDto _form = new();
     private List<EquipmentHandoverEmployeeOptionDto> _assignmentEmployees = new();
+    private List<FVN_REGISTER.Contract.Dtos.Depts.DepartmentDto> _equipmentDepartments = new();
+
+    private static Dictionary<string, string?> ReadCustomValues(string? json)
+    {
+        try { return JsonSerializer.Deserialize<Dictionary<string, string?>>(json ?? "{}") ?? new(StringComparer.OrdinalIgnoreCase); }
+        catch (JsonException) { return new(StringComparer.OrdinalIgnoreCase); }
+    }
+
+    private string? GetAssetCustomValue(EquipmentAssetDto asset, ExcelSchemaFieldDto field)
+    {
+        var values = ReadCustomValues(asset.CustomDataJson);
+        if (values.TryGetValue(field.FieldKey, out var value)) return value;
+        if (!string.IsNullOrWhiteSpace(field.TargetProperty) && values.TryGetValue(field.TargetProperty, out value)) return value;
+        return null;
+    }
+
+    private string? GetEditingCustomValue(string fieldKey) => _editingCustom.TryGetValue(fieldKey, out var value) ? value : null;
+    private void SetEditingCustomValue(string fieldKey, string? value) => _editingCustom[fieldKey] = value;
+
+    private async Task BeginEditAsset(EquipmentAssetDto asset)
+    {
+        _editingAsset = new EquipmentAssetDto
+        {
+            Id = asset.Id,
+            EquipmentCode = asset.EquipmentCode,
+            EquipmentName = asset.EquipmentName,
+            AssetCode = asset.AssetCode,
+            SerialNumber = asset.SerialNumber,
+            Specification = asset.Specification,
+            PurchasePrice = asset.PurchasePrice,
+            PurchaseDate = asset.PurchaseDate,
+            ExpectedDepreciationDate = asset.ExpectedDepreciationDate,
+            DeptCode = asset.DeptCode,
+            Location = asset.Location,
+            Note = asset.Note,
+            EquipmentSchemaKey = asset.EquipmentSchemaKey,
+            CustomDataJson = asset.CustomDataJson,
+            ManagedByEmployeeCode = asset.ManagedByEmployeeCode,
+            ManagedByEmployeeName = asset.ManagedByEmployeeName,
+            ResponsibleEmployeeCode = asset.ResponsibleEmployeeCode,
+            OperatingResponsibleDeptCode = asset.OperatingResponsibleDeptCode,
+            OperatingResponsibleEmployeeCode = asset.OperatingResponsibleEmployeeCode
+        };
+        _editingCustom = ReadCustomValues(asset.CustomDataJson);
+        var departments = await EquipmentClient.GetEquipmentDepartmentsAsync();
+        if (departments.IsSuccess) _equipmentDepartments = departments.Data ?? new();
+        else Snackbar.Add(departments.Message ?? "Không tải được danh mục phòng ban HRM.", Severity.Warning);
+        // Load the picker for the asset's department, not the signed-in user's default department.
+        var employeeOptions = await EquipmentClient.GetAssignmentEmployeesAsync();
+        if (employeeOptions.IsSuccess)
+            _assignmentEmployees = employeeOptions.Data ?? new();
+        else
+            Snackbar.Add(employeeOptions.Message ?? "Không tải được danh sách nhân viên của bộ phận thiết bị.", Severity.Warning);
+    }
+
+    private void CancelEditAsset() { _editingAsset = null; _editingCustom = new(StringComparer.OrdinalIgnoreCase); }
+
+    private async Task SaveAssetAsync()
+    {
+        if (_editingAsset == null) return;
+        _assetEditBusy = true;
+        try
+        {
+            var request = new UpdateEquipmentAssetRequest
+            {
+                EquipmentCode = _editingAsset.EquipmentCode,
+                EquipmentName = _editingAsset.EquipmentName,
+                AssetCode = _editingAsset.AssetCode,
+                SerialNumber = _editingAsset.SerialNumber,
+                Specification = _editingAsset.Specification,
+                PurchasePrice = _editingAsset.PurchasePrice,
+                PurchaseDate = _editingAsset.PurchaseDate,
+                ExpectedDepreciationDate = _editingAsset.ExpectedDepreciationDate,
+                DeptCode = _editingAsset.DeptCode,
+                ManagedByEmployeeCode = _editingAsset.ManagedByEmployeeCode,
+                ResponsibleEmployeeCode = _editingAsset.ResponsibleEmployeeCode,
+                OperatingResponsibleDeptCode = _editingAsset.OperatingResponsibleDeptCode,
+                OperatingResponsibleEmployeeCode = _editingAsset.OperatingResponsibleEmployeeCode,
+                Location = _editingAsset.Location,
+                Note = _editingAsset.Note,
+                CustomValues = new(_editingCustom, StringComparer.OrdinalIgnoreCase)
+            };
+            var result = await EquipmentClient.UpdateAssetAsync(_editingAsset.Id, request);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể cập nhật thiết bị.", Severity.Error); return; }
+            _lastDraftAssetId = _editingAsset.Id;
+            Snackbar.Add(result.Message ?? "Đã lưu bản nháp thay đổi thiết bị.", Severity.Success);
+            CancelEditAsset();
+            await ReloadAssetsAsync();
+        }
+        finally { _assetEditBusy = false; }
+    }
+
+    private async Task SubmitAssetChangeAsync()
+    {
+        if (!_lastDraftAssetId.HasValue) return;
+        _assetEditBusy = true;
+        try
+        {
+            var assetId = _lastDraftAssetId.Value;
+            var result = await EquipmentClient.SubmitAssetChangeAsync(assetId);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể gửi bản nháp phê duyệt.", Severity.Error);
+                return;
+            }
+            Snackbar.Add(result.Message ?? "Đã gửi thay đổi thiết bị phê duyệt.", Severity.Success);
+            _lastDraftAssetId = null;
+            await ReloadAssetsAsync();
+        }
+        finally { _assetEditBusy = false; }
+    }
+
+    private async Task BeginLiquidationAsync(EquipmentAssetDto asset)
+    {
+        // Liquidation must be an approval request, never a direct edit/delete of an approved asset.
+        Snackbar.Add("Luồng yêu cầu thanh lý chưa được triển khai trong phiên bản hiện tại. Tài sản chính thức chưa bị thay đổi.", Severity.Warning);
+        await Task.CompletedTask;
+    }
+
+    private async Task DeleteAssetAsync(EquipmentAssetDto asset)
+    {
+        if (!await ConfirmAsync(Language.T("equipment.confirm.deleteAsset", asset.EquipmentName, asset.EquipmentCode), "common.delete")) return;
+        var result = await EquipmentClient.DeleteAssetAsync(asset.Id);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.msg.deleteAssetFailed"), Severity.Error); return; }
+        Snackbar.Add(result.Message ?? Language.T("equipment.msg.assetDeleted"), Severity.Success);
+        if (_editingAsset?.Id == asset.Id) CancelEditAsset();
+        await ReloadAssetsAsync();
+    }
+
+    private async Task ReloadAssetsAsync()
+    {
+        _assetsLoading = true;
+        try
+        {
+            var assets = await EquipmentClient.GetAssetsAsync();
+            if (assets.IsSuccess) _assets = assets.Data ?? new();
+            else Snackbar.Add(assets.Message ?? "Không thể tải danh sách thiết bị.", Severity.Error);
+        }
+        finally { _assetsLoading = false; }
+    }
+
+    private async Task LoadAssetSchemaFieldsAsync()
+    {
+        var schemas = await EquipmentClient.GetSchemasAsync();
+        if (!schemas.IsSuccess || schemas.Data == null) return;
+        var allSchemas = schemas.Data.GroupBy(x => x.Id).Select(x => x.First()).ToList();
+        var active = allSchemas.Where(x => x.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) || x.IsActive).ToList();
+        var usedSchemaKeys = _assets.Select(x => x.EquipmentSchemaKey)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Imported assets must keep using the schema version they were imported with,
+        // even if that schema was later retired or replaced by a newer version.
+        if (usedSchemaKeys.Count > 0)
+        {
+            var matching = allSchemas.Where(x => usedSchemaKeys.Contains(x.SchemaCode)).ToList();
+            if (matching.Count > 0) active = matching;
+        }
+        var fields = new Dictionary<string, ExcelSchemaFieldDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var summary in active)
+        {
+            var schema = await EquipmentClient.GetSchemaAsync(summary.Id);
+            if (!schema.IsSuccess || schema.Data == null) continue;
+            foreach (var field in schema.Data.Fields.OrderBy(x => x.DisplayOrder))
+            {
+                if (string.IsNullOrWhiteSpace(field.FieldKey)) continue;
+                if (!fields.ContainsKey(field.FieldKey)) fields[field.FieldKey] = field;
+            }
+        }
+        _assetSchemaFields = fields.Values.OrderBy(x => x.DisplayOrder).ToList();
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        var p = await Security.GetMyPermissionsAsync();
+        _permissions = p.Data?.FunctionCodes ?? new();
         var access = await EquipmentClient.HasAccessAsync();
         _access = access.IsSuccess && access.Data;
         if (!_access) { _ready = true; return; }
@@ -166,41 +909,70 @@ else
         _actions = actions.IsSuccess ? actions.Data : null;
         var import = await EquipmentClient.HasImportAccessAsync();
         _importAccess = import.IsSuccess && import.Data;
-        _form.DeptCode = CurrentUser.User?.DeptCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        _form.DeptCode = CurrentUser.User?.DeptCode ?? 0;
         var employees = await EquipmentClient.GetAssignmentEmployeesAsync(_form.DeptCode);
         if (employees.IsSuccess) _assignmentEmployees = employees.Data ?? new();
         await LoadAsync();
-        _ready = true;
+        _assetsLoading = true;
+        try
+        {
+            var assets = await EquipmentClient.GetAssetsAsync();
+            if (assets.IsSuccess)
+                _assets = assets.Data ?? new();
+            else
+                Snackbar.Add(assets.Message ?? "Không thể tải danh sách thiết bị theo phạm vi được cấp.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load equipment assets for the current user.");
+            Snackbar.Add("Không thể tải danh sách thiết bị. Vui lòng kiểm tra quyền truy cập hoặc thử lại.", Severity.Error);
+        }
+        finally
+        {
+            _assetsLoading = false;
+            await LoadAssetSchemaFieldsAsync();
+            _ready = true;
+        }
     }
 
     private async Task LoadAsync()
     {
         var route = await ApprovalRouteClient.GetPreviewAsync(FVN_REGISTER.Core.Enums.RequestModule.Equipment);
         if (route.IsSuccess && route.Data != null) _approvalRoute = route.Data;
-        else if (_actions?.Create == true) { _approvalRoute = null; Snackbar.Add(route.Message ?? "Không tải được luồng người phê duyệt.", Severity.Error); }
+        else if (_actions?.Create == true) { _approvalRoute = null; Snackbar.Add(route.Message ?? Language.T("equipment.khongTaiDuocLuongNguoi"), Severity.Error); }
         var mine = await EquipmentClient.GetMineAsync();
         if (mine.IsSuccess) _mine = mine.Data ?? new();
-        else Snackbar.Add(mine.Message ?? "Không tải được danh sách yêu cầu thiết bị.", Severity.Error);
+        else Snackbar.Add(mine.Message ?? Language.T("equipment.khongTaiDuocDanhSach"), Severity.Error);
+        await LoadBatchesAsync();
+    }
+
+    private async Task ReloadMineAsync()
+    {
+        var mine = await EquipmentClient.GetMineAsync();
+        if (mine.IsSuccess) _mine = mine.Data ?? new();
+        else Snackbar.Add(mine.Message ?? Language.T("equipment.khongTaiDuocDanhSach"), Severity.Error);
+        await LoadBatchesAsync();
+        StateHasChanged();
     }
 
     private async Task CreateAsync()
     {
-        if (_approvalRoute == null) { Snackbar.Add("Chưa tải được luồng phê duyệt. Không thể tạo đăng ký.", Severity.Error); return; }
-        if (_approvalRoute.Levels.Count == 0) { Snackbar.Add("Chưa cấu hình cấp phê duyệt cho chức vụ hiện tại.", Severity.Error); return; }
+        if (_approvalRoute == null) { Snackbar.Add(Language.T("equipment.chuaTaiDuocLuongPhe"), Severity.Error); return; }
+        if (_approvalRoute.Levels.Count == 0) { Snackbar.Add(Language.T("equipment.chuaCauHinhCapPhe"), Severity.Error); return; }
         _form.ApprovalSelections = _approvalSelector?.GetSelections() ?? new();
         var requiredLevels = _approvalRoute.Levels.Where(x => x.Required).Select(x => x.Level).ToHashSet();
         var selectedLevels = _form.ApprovalSelections.Where(x => !string.IsNullOrWhiteSpace(x.ApproverCode)).Select(x => x.Level).ToHashSet();
         var missingLevels = requiredLevels.Where(level => !selectedLevels.Contains(level)).OrderBy(level => level).ToList();
-        if (missingLevels.Count > 0) { Snackbar.Add($"Vui lòng chọn người phê duyệt cho cấp: {string.Join(", ", missingLevels)}.", Severity.Warning); return; }
-        _form.DeptCode = _form.DeptCode.Trim().ToUpperInvariant();
+        if (missingLevels.Count > 0) { Snackbar.Add(Language.T("equipment.vuiLongChonNguoiPhe2", string.Join(", ", missingLevels)), Severity.Warning); return; }
+        _form.DeptCode = _form.DeptCode;
         _form.PurchaseDate = _purchase ?? DateTime.Today;
         _form.ExpectedDepreciationDate = _depreciation ?? _form.PurchaseDate.AddYears(3);
         _busy = true;
         try
         {
             var r = await EquipmentClient.CreateRegistrationAsync(_form);
-            if (r.IsSuccess && r.Data != null) { _created = r.Data; Snackbar.Add("Đã tạo Draft và sinh QR.", Severity.Success); await LoadAsync(); }
-            else Snackbar.Add(r.Message ?? "Không thể tạo đăng ký.", Severity.Error);
+            if (r.IsSuccess && r.Data != null) { _created = r.Data; Snackbar.Add(Language.T("equipment.daTaoDraftVaSinh"), Severity.Success); await LoadAsync(); }
+            else Snackbar.Add(r.Message ?? Language.T("equipment.khongTheTaoDangKy"), Severity.Error);
         }
         finally { _busy = false; }
     }
@@ -212,8 +984,8 @@ else
         try
         {
             var r = await EquipmentClient.SubmitRegistrationAsync(_created.Id);
-            if (r.IsSuccess) { _created = r.Data; Snackbar.Add("Đã gửi duyệt.", Severity.Success); await LoadAsync(); }
-            else Snackbar.Add(r.Message ?? "Không thể gửi duyệt.", Severity.Error);
+            if (r.IsSuccess) { _created = r.Data; Snackbar.Add(Language.T("equipment.daGuiDuyet"), Severity.Success); await LoadAsync(); }
+            else Snackbar.Add(r.Message ?? Language.T("equipment.khongTheGuiDuyet"), Severity.Error);
         }
         finally { _busy = false; }
     }
@@ -224,13 +996,13 @@ else
     private async Task ScanAsync(string rawValue)
     {
         var token = ExtractQrToken(rawValue);
-        if (string.IsNullOrWhiteSpace(token)) { Snackbar.Add("QR không chứa token thiết bị hợp lệ.", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(token)) { Snackbar.Add(Language.T("equipment.qrKhongChuaTokenThiet"), Severity.Warning); return; }
         _token = token; _scanLoading = true; _scannedAsset = null;
         try
         {
             var result = await EquipmentClient.ScanAsync(token);
-            if (result.IsSuccess && result.Data != null) { _scannedAsset = result.Data; Snackbar.Add("Đã tìm thấy thiết bị.", Severity.Success); }
-            else Snackbar.Add(result.Message ?? "Không tìm thấy thiết bị tương ứng với QR.", Severity.Warning);
+            if (result.IsSuccess && result.Data != null) { _scannedAsset = result.Data; Snackbar.Add(Language.T("equipment.daTimThayThietBi"), Severity.Success); }
+            else Snackbar.Add(result.Message ?? Language.T("equipment.khongTimThayThietBi"), Severity.Warning);
         }
         finally { _scanLoading = false; }
     }

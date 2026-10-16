@@ -8,7 +8,7 @@
 @inject NavigationManager Navigation
 @inherits AppComponentBase
 
-<PageTitle>Đăng ký nghỉ phép</PageTitle>
+<PageTitle>@Language.T("leave.title")</PageTitle>
 
 @if (_isLoading)
 {
@@ -16,7 +16,7 @@
 }
 else if (_model == null)
 {
-    <MudAlert Severity="Severity.Warning" Class="mt-4">Không thể tải dữ liệu. Vui lòng thử lại.</MudAlert>
+    <MudAlert Severity="Severity.Warning" Class="mt-4">@Language.T("leave.loadFailed")</MudAlert>
 }
 else
 {
@@ -25,12 +25,12 @@ else
             <MudPaper Class="pa-2 mb-2 d-flex align-center justify-space-between" Elevation="0">
                 <MudText Typo="Typo.subtitle1">
                     <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Size="Size.Small" Class="mr-1" />
-                    Đăng ký nghỉ phép
+                    @Language.T("leave.title")
                 </MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Add"
                            OnClick="@(() => OpenAddDialog(null, null))">
-                    Đăng ký nghỉ
+                    @Language.T("leave.register")
                 </MudButton>
             </MudPaper>
 
@@ -45,16 +45,14 @@ else
                     <div>
                         <MudText Typo="Typo.subtitle1">
                             <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Class="mr-1" />
-                            Lịch làm việc chung
+                            @Language.T("leave.sharedCalendar")
                         </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Lịch tổng hợp chấm công, nghỉ phép, OT và công tác được quản lý tập trung tại một nơi.
-                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("leave.sharedCalendarDescription")</MudText>
                     </div>
                     <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.CalendarMonth"
                                OnClick="@(() => Navigation.NavigateTo("/calendar"))">
-                        Mở lịch chung
+                        @Language.T("leave.openCalendar")
                     </MudButton>
                 </MudStack>
             </MudPaper>

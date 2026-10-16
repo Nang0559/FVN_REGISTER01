@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Authentication;
@@ -21,13 +22,15 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
     private readonly IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject> _workflow;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
-    public EndpointGovernanceService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject> workflow)
+    public EndpointGovernanceService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject> workflow, IFeatureOperatorAssignmentService operators)
     {
         _uow = uow;
         _currentUser = currentUser;
         _authorization = authorization;
         _workflow = workflow;
+        _operators = operators;
     }
 
     public async Task<ServiceResult<IReadOnlyList<EndpointGovernancePolicyDto>>> GetPoliciesAsync(EndpointGovernanceItemType? itemType, EndpointTargetType? targetType, CancellationToken ct = default)
@@ -151,7 +154,7 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
             };
             await _uow.Repository<F03EndpointGovernanceRequest>().AddAsync(approvalRequest, ct);
             await _uow.SaveChangesAsync(ct);
-            var context = ApprovalBuildContext.ForEndpoint(approvalRequest.Id, employee.EmployeeCode, employee.DeptCode ?? string.Empty, employee.PositionCode, requestType.ToString(), policy.PolicyName);
+            var context = ApprovalBuildContext.ForEndpoint(approvalRequest.Id, employee.EmployeeCode, employee.DeptCode, employee.PositionCode, requestType.ToString(), policy.PolicyName);
             var init = await _workflow.InitApprovalAsync(approvalRequest.Id, context, ct);
             if (!init.IsSuccess) return ServiceResult<EndpointGovernancePolicyDto>.Fail(init.Message ?? "Không thể khởi tạo Common Approval cho catalog.");
             approvalRequest.RequestStatus = ApprovalStatus.Pending;
@@ -292,7 +295,7 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
                 var steps = await _workflow.GetStepsAsync(entity.Id, ct);
                 if (steps.Count == 0)
                 {
-                    var context = ApprovalBuildContext.ForEndpoint(entity.Id, entity.EmployeeCode, employee.DeptCode ?? string.Empty, employee.PositionCode, entity.RequestType.ToString(), entity.ItemName);
+                    var context = ApprovalBuildContext.ForEndpoint(entity.Id, entity.EmployeeCode, employee.DeptCode, employee.PositionCode, entity.RequestType.ToString(), entity.ItemName);
                     var init = await _workflow.InitApprovalAsync(entity.Id, context, ct);
                     if (!init.IsSuccess) return ServiceResult<EndpointGovernanceRequestDto>.Fail(init.Message ?? "Không thể khởi tạo Common Approval.");
                 }
@@ -320,9 +323,24 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
     private async Task<bool> HasCatalogViewAsync(UserIdentityDto user, EndpointGovernanceItemType? itemType, CancellationToken ct)
     {
         if (user.IsAdmin) return true;
-        if (itemType == EndpointGovernanceItemType.WindowsService) return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogView, ct);
-        if (itemType == EndpointGovernanceItemType.Software) return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogView, ct);
-        return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogView, ct) || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogView, ct);
+
+        // A catalog operator must be able to see the Drafts they create and the
+        // workflow state returned after import/save, even when View is not granted
+        // as a separate legacy permission.
+        if (itemType == EndpointGovernanceItemType.WindowsService)
+            return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogView, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogManage, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServicePolicySubmit, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServicePolicyApprove, ct);
+
+        if (itemType == EndpointGovernanceItemType.Software)
+            return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogView, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogManage, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwarePolicySubmit, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, ct);
+
+        return await HasCatalogViewAsync(user, EndpointGovernanceItemType.Software, ct)
+            || await HasCatalogViewAsync(user, EndpointGovernanceItemType.WindowsService, ct);
     }
 
     private async Task EnsureCatalogManageAsync(UserIdentityDto user, EndpointGovernanceItemType itemType, CancellationToken ct)
@@ -330,6 +348,19 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
         if (user.IsAdmin) return;
         var code = itemType == EndpointGovernanceItemType.WindowsService ? SecurityFunctionCodes.EndpointServiceCatalogManage : SecurityFunctionCodes.EndpointSoftwareCatalogManage;
         if (!await _authorization.HasAsync(user, code, ct)) throw new UnauthorizedAccessException("Bạn không có quyền quản trị Endpoint catalog.");
+
+        // Software Catalog Manage may additionally be restricted to specifically
+        // designated operators. When no operator assignment exists, the existing
+        // RBAC behavior remains effective for backward compatibility.
+        if (itemType == EndpointGovernanceItemType.Software &&
+            !await _operators.CanOperateAsync(
+                user.UserId,
+                user.EmployeeCode,
+                SecurityFunctionCodes.EndpointSoftwareCatalogManage,
+                "ENDPOINT_SOFTWARE_CATALOG",
+                null,
+                ct))
+            throw new UnauthorizedAccessException("Bạn chưa được chỉ định quyền quản lý danh sách phần mềm Endpoint.");
     }
 
     private async Task EnsureCatalogSubmitAsync(UserIdentityDto user, EndpointGovernanceItemType itemType, CancellationToken ct)

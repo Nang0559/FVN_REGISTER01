@@ -3,12 +3,12 @@
 
 <MudText Typo="Typo.subtitle2" Class="mb-2">
     <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />
-    Danh sách đơn nghỉ (@Items.Count)
+    @Language.T("leave.list", Items.Count)
 </MudText>
 
 @if (!Items.Any())
 {
-    <MudAlert Severity="Severity.Info" Dense="true">Chưa có đơn nghỉ nào.</MudAlert>
+    <MudAlert Severity="Severity.Info" Dense="true">@Language.T("leave.noItems")</MudAlert>
 }
 else
 {
@@ -54,14 +54,14 @@ else
         _ => Color.Warning
     };
 
-    private static string GetStatusText(ApprovalStatus status) => status switch
+    private string GetStatusText(ApprovalStatus status) => status switch
     {
-        ApprovalStatus.Approved => "Đã duyệt",
-        ApprovalStatus.Rejected => "Từ chối",
-        ApprovalStatus.Cancelled => "Đã hủy",
-        ApprovalStatus.InProgress => "Đang xử lý",
-        ApprovalStatus.NeedsRevision => "Trả lại",
-        ApprovalStatus.Draft => "Nháp",
-        _ => "Chờ duyệt"
+        ApprovalStatus.Approved => Language.T("leave.statusApproved"),
+        ApprovalStatus.Rejected => Language.T("leave.statusRejected"),
+        ApprovalStatus.Cancelled => Language.T("leave.statusCancelled"),
+        ApprovalStatus.InProgress => Language.T("leave.statusInProgress"),
+        ApprovalStatus.NeedsRevision => Language.T("leave.statusNeedsRevision"),
+        ApprovalStatus.Draft => Language.T("leave.statusDraft"),
+        _ => Language.T("leave.statusPending")
     };
 }

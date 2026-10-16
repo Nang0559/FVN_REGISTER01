@@ -348,3 +348,49 @@ flowchart TB
 ## 14. Nguyên tắc kiến trúc
 
 Equipment là module domain mới nhưng dùng lại toàn bộ approval infrastructure hiện có. Domain-specific code chỉ nằm ở entity, DTO, service, subject/provider, query và QR adapter. Không copy `ApprovalEngine`, không query EF từ Controller và không để QR scanner tự quyết định quyền truy cập.
+
+
+## 15. Endpoint Agent integration — canonical
+
+Equipment là business asset owner của Endpoint Agent. Endpoint không được khởi tạo như một tài sản độc lập từ Security Center.
+
+### Eligibility
+EndpointAgentEligible chỉ dùng cho Equipment có khả năng chạy Agent/OS. Thiết bị không có OS không được hiển thị credential lifecycle.
+
+### Lifecycle
+1. IT/authorized operator mở Equipment.
+2. Chọn Endpoint Agent.
+3. Nếu chưa eligible, khai báo OS family và bật eligibility.
+4. Chọn Cấp credential.
+5. Server tạo/duy trì Endpoint Device + DeviceKey và credential riêng.
+6. Secret trả về đúng một lần.
+7. Cài Agent trên máy vật lý; secret được bảo vệ cục bộ bằng DPAPI.
+8. Agent heartbeat/inventory gửi về API qua credential.
+9. Endpoint gắn AgentInstallationId, hardware identity, software/service inventory và LastSeen.
+10. Compliance/Alert dùng Endpoint Device đã gắn với Equipment.
+
+### Credential lifecycle
+- Provision: chỉ khi chưa có credential active.
+- Rotate: thay credential active bằng secret mới.
+- Revoke: chặn credential hiện tại; không xóa lịch sử.
+- Không lưu plaintext secret trong DB, log hoặc inventory.
+
+### Bàn giao Equipment
+Bàn giao thay đổi ResponsibleEmployee/OperatingResponsibleEmployee theo workflow Equipment. Không rotate hoặc tạo DeviceKey chỉ vì đổi người sử dụng.
+
+### Identity thay đổi
+| Thay đổi | Xử lý |
+|---|---|
+| Đổi ComputerName | Giữ Endpoint, ghi nhận thuộc tính/history |
+| Reinstall Windows | Có thể đổi AgentInstallationId; đối chiếu hardware identity |
+| Thay mainboard/hardware identity | IT xác minh, không tự merge |
+| Đổi người sử dụng | Giữ DeviceKey, cập nhật Equipment responsibility |
+| Thu hồi credential | Agent ngừng gửi inventory bằng credential đó |
+
+## 16. Ranh giới Equipment và Endpoint
+- Equipment: tài sản, người phụ trách, phòng ban, bàn giao, QR, repair, checklist.
+- Endpoint: identity kỹ thuật, Agent installation, heartbeat, software/service inventory, compliance, alert.
+- Credential: machine authentication, không phải quyền người dùng.
+- Security capability: quyết định user được thao tác gì; data scope quyết định được thao tác trên Equipment nào.
+
+Không gộp Employee identity, Asset identity và Endpoint identity thành một khóa.

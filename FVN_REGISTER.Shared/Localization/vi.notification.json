@@ -1,0 +1,9 @@
+{
+  "notification.capViec": "{0} • Cấp {1} • {2} việc",
+  "notification.gioTruoc": "{0} giờ trước",
+  "notification.khongTheKetNoiMay": "Không thể kết nối máy chủ.",
+  "notification.khongTheTaiTrungTam": "Không thể tải trung tâm công việc.",
+  "notification.ngayTruoc": "{0} ngày trước",
+  "notification.phutTruoc": "{0} phút trước",
+  "notification.vuaXong": "Vừa xong"
+}

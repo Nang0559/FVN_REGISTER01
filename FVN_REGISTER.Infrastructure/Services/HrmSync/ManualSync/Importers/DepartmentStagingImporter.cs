@@ -25,14 +25,14 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers
         }
 
         protected override string GetSourceKey(HrmDepartmentSourceRow row)
-            => row.DeptCode;
+            => row.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         protected override Expression<Func<F03Department, string>> GetEntityKeySelector()
-            => x => x.DeptCode;
+            => x => x.DeptCode.ToString();
 
         protected override F03StagingDepartment MapToStaging(HrmDepartmentSourceRow row) => new()
         {
-            EntityKey = row.DeptCode,
+            EntityKey = row.DeptCode.ToString(System.Globalization.CultureInfo.InvariantCulture),
             DeptName = row.DeptName,
             ParentDeptCode = row.ParentDeptCode,
             DisplayPriority = row.DisplayPriority,

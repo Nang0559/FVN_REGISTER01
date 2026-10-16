@@ -104,7 +104,7 @@ namespace FVN_REGISTER.API.Controllers
                 return await _authorization.CanAccessAsync(
                     UserInfo, functionCode, query.EmployeeCode, null, ct);
 
-            if (!string.IsNullOrWhiteSpace(query.DeptCode))
+            if (query.DeptCode != null)
                 return await _authorization.CanAccessAsync(
                     UserInfo, functionCode, null, query.DeptCode, ct);
 
@@ -126,7 +126,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("lookup/employees")]
         public async Task<IActionResult> SearchEmployees(
             [FromQuery] string? filterText,
-            [FromQuery] string? deptCode,
+            [FromQuery] int? deptCode,
             CancellationToken ct)
         {
             if (UserInfo == null)

@@ -143,3 +143,17 @@ flowchart LR
 ## 11. Versioning
 
 Tài liệu current ghi branch/revision khi có thay đổi lớn. Không dùng số phiên bản để tạo một architecture source song song; lịch sử thay đổi ghi trong changelog của source-of-truth.
+
+
+## 12. Equipment-first documentation rule
+
+Mọi tài liệu mới hoặc sửa tài liệu liên quan Endpoint Agent phải trả lời rõ:
+1. Equipment nào được áp dụng?
+2. Capability nào cho phép thao tác?
+3. Quan hệ Equipment → Endpoint là gì?
+4. DeviceKey được server tạo ở đâu?
+5. Secret hiển thị khi nào và bảo vệ ra sao?
+6. Agent gửi inventory bằng identity nào?
+7. Bàn giao/reinstall/hardware change xử lý thế nào?
+
+Không tạo một tài liệu riêng chỉ để lặp lại cùng lifecycle. Nếu cần cập nhật, sửa tài liệu canonical hiện có và cập nhật các tài liệu phụ trợ trong cùng change set.

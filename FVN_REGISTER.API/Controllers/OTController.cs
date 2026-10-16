@@ -49,9 +49,9 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetCombinedData(CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            var data = await _queryService.GetCombinedDataAsync(UserInfo.EmployeeCode ?? "", UserInfo.DeptCode ?? "", DateTime.Now.Year, DateTime.Now.Month, ct);
+            var data = await _queryService.GetCombinedDataAsync(UserInfo.EmployeeCode ?? "", UserInfo.DeptCode ?? 0, DateTime.Now.Year, DateTime.Now.Month, ct);
             return Ok(ApiResponse<OTCombinedDataDto>.Ok(data));
         }
 
@@ -61,29 +61,29 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            return Ok(ApiResponse<List<OTRequestDto>>.Ok(await _queryService.GetDeptByDateAsync(UserInfo.DeptCode ?? "", date, ct)));
+            return HandleResult(await _queryService.GetDeptByDateAsync(UserInfo.DeptCode ?? 0, date, ct));
         }
 
         [HttpGet("dept-employees")]
-        public async Task<IActionResult> GetDeptEmployees([FromQuery] string? deptCode, CancellationToken ct)
+        public async Task<IActionResult> GetDeptEmployees([FromQuery] int? deptCode, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            var dept = string.IsNullOrWhiteSpace(deptCode) ? UserInfo.DeptCode : deptCode;
-            if (!string.Equals(dept, UserInfo.DeptCode, StringComparison.OrdinalIgnoreCase) && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
-            if (string.IsNullOrWhiteSpace(dept)) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
-            if (string.IsNullOrWhiteSpace(dept)) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
-            return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept, ct)));
+            var dept = deptCode ?? UserInfo.DeptCode;
+            if (dept != UserInfo.DeptCode && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
+            if (dept == null) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
+            if (dept == null) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
+            return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept.Value, ct)));
         }
 
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecent([FromQuery] int limit = 10, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo?.EmployeeCode == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn."));
-            return Ok(ApiResponse<List<OTSummaryDto>>.Ok(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct)));
+            return HandleResult(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct));
         }
 
         [HttpGet("history")]
@@ -96,14 +96,14 @@ namespace FVN_REGISTER.API.Controllers
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
             var selectedYear = year ?? DateTime.Now.Year;
             var result = await _queryService.GetPagedAsync(UserInfo.DeptCode, parsedStatus, new DateTime(selectedYear, 1, 1), new DateTime(selectedYear, 12, 31), page, pageSize, ct);
-            return HandleResult(ServiceResult<PaginationResult<OTSummaryDto>>.Ok(result));
+            return HandleResult(result);
         }
 
         [HttpGet("balance/{year:int}")]
         public async Task<IActionResult> GetBalance(int year, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return Ok(ApiResponse<OTBalanceDto>.Ok(await _queryService.GetBalanceAsync(UserInfo.EmployeeCode ?? "", year, DateTime.Now.Month, ct)));
         }
@@ -122,9 +122,9 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetBalanceSummary(int year, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            return Ok(ApiResponse<OTBalanceDto>.Ok(await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode ?? "", year, ct)));
+            return Ok(ApiResponse<object>.FromResult(await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode ?? "", year, ct)));
         }
 
         [HttpGet("dashboard")]
@@ -136,27 +136,34 @@ namespace FVN_REGISTER.API.Controllers
             var widgets = await _queryService.GetMyWidgetsAsync(UserInfo.EmployeeCode ?? "", ct);
             var balance = await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode ?? "", DateTime.Now.Year, ct);
             var recent = await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode ?? "", 5, ct);
-            return Ok(ApiResponse<object>.Ok(new { Widgets = widgets, MyBalance = balance, RecentRequests = recent }));
+            if (!widgets.IsSuccess) return HandleResult(widgets);
+            if (!balance.IsSuccess) return HandleResult(balance);
+            if (!recent.IsSuccess) return HandleResult(recent);
+            return Ok(ApiResponse<object>.Ok(new { Widgets = widgets.Data, MyBalance = balance.Data, RecentRequests = recent.Data }));
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> GetPaged([FromQuery] string? deptCode, [FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        public async Task<IActionResult> GetPaged([FromQuery] int? deptCode, [FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn."));
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
-            if (!string.IsNullOrWhiteSpace(deptCode) && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, deptCode, ct)) return Forbid();
+            if (deptCode != null && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, deptCode, ct)) return Forbid();
             var data = await _queryService.GetPagedAsync(deptCode, parsedStatus, fromDate, toDate, page, pageSize, ct);
-            return HandleResult(ServiceResult<PaginationResult<OTSummaryDto>>.Ok(data));
+            return HandleResult(data);
         }
 
         [HttpGet("detail/{id:int}")]
         public async Task<IActionResult> GetDetail(int id, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            // Người duyệt cần mở được đơn được giao ngay cả khi không có quyền xem OT tổng quát.
+            var canView = await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)
+                || await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTApprove, ct);
+            if (!canView) return Forbid();
+
             return HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
         }
 
@@ -206,7 +213,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Create([FromBody] OTRequestUpsertDto dto, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTCreate, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTCreate, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Chưa đăng nhập."));
             if (!ModelState.IsValid) return BadRequest(ModelState);
             if (dto.Employees == null || dto.Employees.Count == 0) return BadRequest(ApiResponse<object>.Fail("Phải có ít nhất 1 nhân viên."));
@@ -240,7 +247,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Cancel(int id, [FromBody] OTCancelRequestDto body, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTCancel, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTCancel, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return HandleResult(await _otService.CancelAsync(id, body.Reason ?? "Hủy bởi người dùng", UserInfo, ct));
         }
@@ -281,14 +288,15 @@ namespace FVN_REGISTER.API.Controllers
                     new() { EmployeeCode = body.EmployeeCode, OTHours = body.Hours }
                 }
             };
-            return Ok(ApiResponse<OTValidationResultDto>.Ok(await _queryService.ValidateHoursAsync(dto, ct)));
+            // Hours-only check for one employee (editing hours): the one-OT-per-day rule is enforced on create/join/add.
+            return Ok(ApiResponse<OTValidationResultDto>.Ok(await _queryService.ValidateHoursAsync(dto, ct, checkDuplicateRegistration: false)));
         }
 
         [HttpPost("join/{id:int}")]
         public async Task<IActionResult> JoinOT(int id, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return HandleResult(await _otService.JoinAsync(id, UserInfo, ct));
         }

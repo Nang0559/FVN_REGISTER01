@@ -8,6 +8,7 @@ public sealed class WorkCalendarDayDto
     public bool IsWorkingDay { get; set; }
     public string? HolidayCode { get; set; }
     public string? HolidayName { get; set; }
+    public string? HolidayType { get; set; }
     public bool CanRegisterLeave { get; set; }
     public bool CanRegisterOT { get; set; }
     public bool CanRegisterTrip { get; set; }

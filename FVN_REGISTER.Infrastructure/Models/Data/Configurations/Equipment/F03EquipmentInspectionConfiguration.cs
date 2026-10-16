@@ -46,6 +46,9 @@ public sealed class F03EquipmentInspectionTaskConfiguration : IEntityTypeConfigu
         b.HasOne(x => x.Equipment).WithMany(x => x.InspectionTasks).HasForeignKey(x => x.EquipmentId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Template).WithMany().HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<F03EquipmentInspectionAssignment>().WithMany().HasForeignKey(x => x.AssignmentId).OnDelete(DeleteBehavior.Restrict);
+        // Explicitly map the child collection to the existing TaskId column.
+        // Without this, EF may infer a shadow FK named F03EquipmentInspectionTaskId.
+        b.HasMany(x => x.ItemResults).WithOne().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 public sealed class F03EquipmentInspectionItemResultConfiguration : IEntityTypeConfiguration<F03EquipmentInspectionItemResult>

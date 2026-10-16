@@ -13,8 +13,9 @@ public partial class F03Permission : BaseAuditEntity
     [Required, StringLength(100)]
     public string PermissionName { get; set; } = string.Empty;
 
-    [Required, StringLength(500)]
-    public string Detail { get; set; } = string.Empty;
+    // Existing permission rows may have NULL descriptions in SQL Server.
+    [StringLength(500)]
+    public string? Detail { get; set; }
 
     public virtual ICollection<F03UserFunction> F03userFunctions { get; set; } = new List<F03UserFunction>();
     public virtual ICollection<F03User> F03users { get; set; } = new List<F03User>();

@@ -62,6 +62,6 @@ public sealed class EndpointGovernanceApprovalProvider
     public override async Task<PendingApprovalItemDto> ToPendingItemAsync(EndpointGovernanceRequestSubject subject, List<ApprovalStepDto> steps, bool canApprove, CancellationToken ct)
     {
         var deptName = await _uow.Repository<F03Department>().Query().AsNoTracking().Where(x => x.DeptCode == subject.DeptCode).Select(x => x.DeptName).FirstOrDefaultAsync(ct);
-        return new PendingApprovalItemDto { RequestId = subject.RequestId, Kind = subject.Module, EmployeeCode = subject.EmployeeCode, EmployeeName = subject.EmployeeName ?? string.Empty, DeptCode = subject.DeptCode ?? string.Empty, DeptName = deptName ?? string.Empty, FromDate = DateTime.Today, ToDate = DateTime.Today, TotalUnits = 1, ApprovalSteps = steps, CanApprove = canApprove };
+        return new PendingApprovalItemDto { RequestId = subject.RequestId, Kind = subject.Module, EmployeeCode = subject.EmployeeCode, EmployeeName = subject.EmployeeName ?? string.Empty, DeptCode = subject.DeptCode ?? 0, DeptName = deptName ?? string.Empty, FromDate = DateTime.Today, ToDate = DateTime.Today, TotalUnits = 1, ApprovalSteps = steps, CanApprove = canApprove };
     }
 }

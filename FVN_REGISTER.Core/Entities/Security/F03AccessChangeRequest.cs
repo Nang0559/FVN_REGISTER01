@@ -11,7 +11,7 @@ public sealed class F03AccessChangeRequest : BaseAuditEntity
     [Required, StringLength(50)] public string RequesterEmployeeCode { get; set; } = string.Empty;
     [Required, StringLength(50)] public string OldEmployeeCode { get; set; } = string.Empty;
     [Required, StringLength(50)] public string NewEmployeeCode { get; set; } = string.Empty;
-    [Required, StringLength(20)] public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     [StringLength(20)] public string? NewPositionCode { get; set; }
     [Required, StringLength(500)] public string Reason { get; set; } = string.Empty;
     [Column(TypeName = "nvarchar(max)")] public string RequestedFunctionCodesJson { get; set; } = "[]";

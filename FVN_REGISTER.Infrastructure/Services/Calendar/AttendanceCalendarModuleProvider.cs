@@ -1,6 +1,7 @@
 using System.Globalization;
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Models.Calendar;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
@@ -27,41 +28,96 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         CalendarContext context,
         CancellationToken cancellationToken = default)
     {
+        // EmployeeCode is nvarchar(100) in both attendance tables.
+        // Keep the parameter Unicode as well; converting it to varchar(50)
+        // introduces an unnecessary type/length conversion and can truncate
+        // employee codes. The EmployeeCode + WorkDate indexes support this lookup.
         var rows = await _db.Database.SqlQuery<AttendanceCalendarRow>($"""
+            WITH CurrentRows AS
+            (
+                SELECT
+                    a.WorkDate,
+                    a.HrmEmployeeId,
+                    a.EmployeeCode,
+                    a.ShiftId,
+                    a.ShiftAbbr,
+                    a.AttendanceDisplayValue,
+                    a.CheckInTime,
+                    a.CheckOutTime,
+                    a.WorkMinutesDay,
+                    a.WorkMinutesNight,
+                    a.OTMinutesDay,
+                    a.OTMinutesNight,
+                    a.OTMinutesDayTC,
+                    a.OTMinutesNightTC,
+                    a.OTRecognizedMinutesDay,
+                    a.OTRecognizedMinutesNight,
+                    a.RequiredMinutes,
+                    a.LateMinutesDay,
+                    a.LateMinutesNight,
+                    a.EarlyLeaveMinutesDay,
+                    a.EarlyLeaveMinutesNight,
+                    a.LeaveTotal,
+                    a.HrmHoliday,
+                    a.HrmEmployeeHoliday,
+                    a.HrmBCLyDoNghi,
+                    a.HrmBCGhiChu,
+                    a.DayType,
+                    a.WorkSymbol,
+                    a.OtSymbol,
+                    a.SymbolRuleCode
+                FROM dbo.F03HrmAttendanceCalculated AS a
+                WHERE a.EmployeeCode = {context.EmployeeCode}
+                  AND a.WorkDate >= {context.From}
+                  AND a.WorkDate <= {context.To}
+            )
+            SELECT *
+            FROM CurrentRows
+
+            UNION ALL
+
             SELECT
-                a.WorkDate,
-                a.HrmEmployeeId,
-                a.EmployeeCode,
-                a.ShiftId,
-                a.ShiftAbbr,
-                a.AttendanceDisplayValue,
-                a.CheckInTime,
-                a.CheckOutTime,
-                a.WorkMinutesDay,
-                a.WorkMinutesNight,
-                a.OTMinutesDay,
-                a.OTMinutesNight,
-                a.OTMinutesDayTC,
-                a.OTMinutesNightTC,
-                a.OTRecognizedMinutesDay,
-                a.OTRecognizedMinutesNight,
-                a.RequiredMinutes,
-                a.LateMinutesDay,
-                a.LateMinutesNight,
-                a.EarlyLeaveMinutesDay,
-                a.EarlyLeaveMinutesNight,
-                a.LeaveTotal,
-                a.HrmHoliday,
-                a.HrmEmployeeHoliday,
-                a.HrmBCLyDoNghi,
-                a.HrmBCGhiChu
-            FROM dbo.F03HrmAttendanceCalculated AS a
-            INNER JOIN dbo.F03Employees AS e
-                ON LTRIM(RTRIM(e.EmployeeCode)) = LTRIM(RTRIM(a.EmployeeCode))
-            WHERE e.Id = {context.EmployeeId}
-              AND a.WorkDate >= {context.From}
-              AND a.WorkDate <= {context.To}
-            ORDER BY a.WorkDate
+                h.WorkDate,
+                h.HrmEmployeeId,
+                h.EmployeeCode,
+                h.ShiftId,
+                h.ShiftAbbr,
+                h.AttendanceDisplayValue,
+                h.CheckInTime,
+                h.CheckOutTime,
+                h.WorkMinutesDay,
+                h.WorkMinutesNight,
+                h.OTMinutesDay,
+                h.OTMinutesNight,
+                h.OTMinutesDayTC,
+                h.OTMinutesNightTC,
+                h.OTRecognizedMinutesDay,
+                h.OTRecognizedMinutesNight,
+                h.RequiredMinutes,
+                h.LateMinutesDay,
+                h.LateMinutesNight,
+                h.EarlyLeaveMinutesDay,
+                h.EarlyLeaveMinutesNight,
+                h.LeaveTotal,
+                h.HrmHoliday,
+                h.HrmEmployeeHoliday,
+                h.HrmBCLyDoNghi,
+                h.HrmBCGhiChu,
+                h.DayType,
+                h.WorkSymbol,
+                h.OtSymbol,
+                h.SymbolRuleCode
+            FROM dbo.F03HrmAttendanceHistory AS h
+            WHERE h.EmployeeCode = {context.EmployeeCode}
+              AND h.WorkDate >= {context.From}
+              AND h.WorkDate <= {context.To}
+              AND NOT EXISTS
+              (
+                  SELECT 1
+                  FROM CurrentRows AS c
+                  WHERE c.WorkDate = h.WorkDate
+              )
+            ORDER BY WorkDate
             """).ToListAsync(cancellationToken);
 
         var reconciliationByDate = await _db.ExecutionReconciliations
@@ -73,12 +129,33 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                 && x.WorkDate <= context.To)
             .ToDictionaryAsync(x => x.WorkDate, cancellationToken);
 
-        return rows.Select(row => Map(row, reconciliationByDate.TryGetValue(row.WorkDate, out var reconciliation) ? reconciliation : null)).ToArray();
+        // Latest employee feedback (confirmation) per reconciliation: drives the "?" / "-" / "!" marker and label.
+        var reconciliationIds = reconciliationByDate.Values.Select(x => x.Id).ToList();
+        var confirmationByReconciliation = reconciliationIds.Count == 0
+            ? new Dictionary<long, FeedbackConfirmation>()
+            : (await _db.ExecutionConfirmations
+                .AsNoTracking()
+                .Where(x => x.IsActive != false && reconciliationIds.Contains(x.ReconciliationId))
+                .Select(x => new FeedbackConfirmation(x.Id, x.ReconciliationId, x.Status, x.SubmittedAt, x.ReviewedAt))
+                .ToListAsync(cancellationToken))
+                .GroupBy(x => x.ReconciliationId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Id).First());
+
+        return rows.Select(row =>
+        {
+            reconciliationByDate.TryGetValue(row.WorkDate, out var reconciliation);
+            FeedbackConfirmation? confirmation = null;
+            if (reconciliation is not null
+                && confirmationByReconciliation.TryGetValue(reconciliation.Id, out var found))
+                confirmation = found;
+            return Map(row, reconciliation, confirmation);
+        }).ToArray();
     }
 
     private static CalendarItemDto Map(
         AttendanceCalendarRow row,
-        F03ExecutionReconciliation? reconciliation)
+        F03ExecutionReconciliation? reconciliation,
+        FeedbackConfirmation? confirmation = null)
     {
         var isLeave = (row.LeaveTotal ?? 0m) > 0m;
         var isHoliday = row.HrmHoliday == true || row.HrmEmployeeHoliday == true;
@@ -135,6 +212,8 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             earlyMinutes,
             workedMinutes);
 
+        ExecutionFeedbackStatus? feedback = null;
+
         if (reconciliation is not null)
         {
             status = reconciliation.ReconciliationStatus;
@@ -147,6 +226,19 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             requiresAction = reconciliation.RequiresConfirmation
                 && !string.Equals(status, "Resolved", StringComparison.OrdinalIgnoreCase);
             summary = BuildReconciliationSummary(row, reconciliation, lateMinutes, earlyMinutes, workedMinutes);
+
+            feedback = ExecutionFeedbackStatusPolicy.Resolve(
+                reconciliation.ReconciliationStatus,
+                confirmation?.Status,
+                confirmation?.SubmittedAt,
+                confirmation?.ReviewedAt);
+
+            if (feedback is { } fb)
+            {
+                severity = fb.Severity;
+                requiresAction = requiresAction && fb.RequiresEmployeeAction;
+                summary = $"{fb.Label} · {summary}";
+            }
         }
 
         return new CalendarItemDto
@@ -155,7 +247,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             ModuleCode = "ATTENDANCE",
             SourceType = reconciliation?.SourceType ?? "ATTENDANCE",
             StatusCode = status,
-            Marker = reconciliation?.ReconciliationStatus switch
+            Marker = feedback is { } fbMarker ? fbMarker.Marker : reconciliation?.ReconciliationStatus switch
             {
                 "Mismatch" => "?",
                 "AwaitingConfirmation" => "?",
@@ -171,6 +263,10 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             SourceId = reconciliation?.Id.ToString() ?? $"{row.HrmEmployeeId}:{row.WorkDate:yyyyMMdd}",
             ShiftId = row.ShiftId,
             ShiftAbbr = row.ShiftAbbr,
+            DayType = row.DayType,
+            WorkSymbol = row.WorkSymbol,
+            OtMarker = row.OtSymbol,
+            SymbolRuleCode = row.SymbolRuleCode,
             CheckIn = row.CheckInTime,
             CheckOut = row.CheckOutTime,
             WorkMinutes = workedMinutes,
@@ -181,6 +277,9 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             RequiredHours = requiredMinutes > 0 ? requiredMinutes / 60m : null,
             HasActual = hasCheckIn || hasCheckOut || workedMinutes > 0,
             HasActualOt = actualOtMinutes > 0 || recognizedOtMinutes > 0,
+            FeedbackTone = feedback?.Tone,
+            FeedbackMarker = feedback?.Marker,
+            FeedbackLabel = feedback?.Label,
             IsNumericVariance = decimal.TryParse(
                 row.AttendanceDisplayValue,
                 NumberStyles.Float,
@@ -292,6 +391,13 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         return "Chưa có dữ liệu chấm công";
     }
 
+    private sealed record FeedbackConfirmation(
+        long Id,
+        long ReconciliationId,
+        string Status,
+        DateTime? SubmittedAt,
+        DateTime? ReviewedAt);
+
     private sealed class AttendanceCalendarRow
     {
         public DateOnly WorkDate { get; set; }
@@ -320,5 +426,9 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         public bool? HrmEmployeeHoliday { get; set; }
         public string? HrmBCLyDoNghi { get; set; }
         public string? HrmBCGhiChu { get; set; }
+        public string? DayType { get; set; }
+        public string? WorkSymbol { get; set; }
+        public string? OtSymbol { get; set; }
+        public string? SymbolRuleCode { get; set; }
     }
 }

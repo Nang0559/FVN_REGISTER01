@@ -41,8 +41,10 @@ public sealed class EquipmentController : ControllerBase
         return Ok(new EquipmentActionAccessDto
         {
             View = true,
-            Create = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentCreate, ct),
-            Edit = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentEdit, ct),
+            Manage = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentManage, ct),
+            EndpointAgentEligibilityManage = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentManage, ct),
+            Create = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.EquipmentCreate, ct),
+            Edit = await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.EquipmentEdit, ct),
             Assign = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentAssign, ct),
             Transfer = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentTransfer, ct),
             Return = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentReturn, ct),
@@ -70,18 +72,18 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("assignment-employees")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> AssignmentEmployees([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> AssignmentEmployees([FromQuery] int? deptCode, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
         var result = await _service.GetAssignmentEmployeesAsync(deptCode, ct);
         return result.IsSuccess ? Ok(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result));
     }
 
     [HttpGet("approvers")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>>> Approvers([FromQuery] int deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
-        var result = await _service.GetApproversAsync(deptCode.Trim().ToUpperInvariant(), ct);
+        var result = await _service.GetApproversAsync(deptCode, ct);
         var response = ApiResponse<List<EquipmentApproverDto>>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
@@ -89,7 +91,7 @@ public sealed class EquipmentController : ControllerBase
     [HttpPost("registrations")]
     public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> CreateRegistration([FromBody] CreateEquipmentRegistrationDto request, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
         var result = await _service.CreateRegistrationDraftAsync(request, ct);
         var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
@@ -98,22 +100,133 @@ public sealed class EquipmentController : ControllerBase
     [HttpPost("registrations/{id:int}/submit")]
     public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> SubmitRegistration(int id, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentEdit, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentEdit, ct)) return Forbid();
         var result = await _service.SubmitRegistrationAsync(id, ct);
         var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
+    // Request-level operations: act on the exact request id (not "latest draft of the asset").
+    // Fine-grained scope (Edit for registrations, Manage + technician scope for asset changes) is enforced in the service.
+    private async Task<bool> CanEditOrManageDraftAsync(CancellationToken ct)
+        => await CanPersonalAsync(SecurityFunctionCodes.EquipmentEdit, ct) || await CanAsync(SecurityFunctionCodes.EquipmentManage, ct);
+
+    [HttpPost("requests/{id:int}/submit")]
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> SubmitRequest(int id, CancellationToken ct)
+    {
+        if (!await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var result = await _service.SubmitRequestAsync(id, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpPut("requests/{id:int}")]
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> UpdateDraftRequest(int id, [FromBody] UpdateEquipmentDraftRequest request, CancellationToken ct)
+    {
+        if (!await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var result = await _service.UpdateDraftRequestAsync(id, request, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpDelete("requests/{id:int}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteDraftRequest(int id, CancellationToken ct)
+    {
+        if (!await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var result = await _service.DeleteDraftRequestAsync(id, ct);
+        var response = ApiResponse<bool>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
+    }
+
+    /// <summary>
+    /// Submit the child drafts of an import batch: all eligible children (submit whole parent) or only the selected ones.
+    /// Selected ids must belong to the batch, so a client cannot use this endpoint to submit unrelated requests.
+    /// </summary>
+    [HttpPost("import/{batchId:long}/submit")]
+    public async Task<ActionResult<ApiResponse<EquipmentBatchSubmitResultDto>>> SubmitImportBatch(long batchId, [FromBody] EquipmentBatchSubmitRequest? request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct) || !await CanEditOrManageDraftAsync(ct)) return Forbid();
+        var batch = await _import.GetBatchAsync(batchId, ct);
+        if (batch == null) return NotFound(ApiResponse<EquipmentBatchSubmitResultDto>.Fail("Không tìm thấy hồ sơ import.", 404));
+
+        var childIds = batch.Rows.Where(x => x.RequestId.HasValue).Select(x => x.RequestId!.Value).ToHashSet();
+        var eligibleIds = batch.Rows.Where(x => x.RequestId.HasValue && !x.IsLocked && !x.RequestDeleted).Select(x => x.RequestId!.Value).ToList();
+
+        List<int> targets;
+        if (request?.RequestIds is { Count: > 0 })
+        {
+            targets = request.RequestIds.Distinct().ToList();
+            if (targets.Any(id => !childIds.Contains(id)))
+                return BadRequest(ApiResponse<EquipmentBatchSubmitResultDto>.Fail("Có thiết bị không thuộc hồ sơ import này."));
+        }
+        else targets = eligibleIds;
+
+        var result = new EquipmentBatchSubmitResultDto { BatchId = batchId };
+        if (targets.Count == 0)
+            return BadRequest(ApiResponse<EquipmentBatchSubmitResultDto>.Fail("Không có thiết bị nào đủ điều kiện gửi duyệt."));
+
+        foreach (var requestId in targets)
+        {
+            if (!eligibleIds.Contains(requestId))
+            { result.Failed++; result.Errors.Add($"Yêu cầu #{requestId}: đã khóa, đã bị xóa hoặc không còn là bản nháp."); continue; }
+            var submit = await _service.SubmitRequestAsync(requestId, ct);
+            if (submit.IsSuccess) { result.Submitted++; result.SubmittedRequestIds.Add(requestId); }
+            else { result.Failed++; result.Errors.Add($"Yêu cầu #{requestId}: {submit.Message}"); }
+        }
+
+        var message = $"Đã gửi duyệt {result.Submitted}/{targets.Count} thiết bị.";
+        return result.Submitted > 0
+            ? Ok(ApiResponse<EquipmentBatchSubmitResultDto>.Ok(result, message))
+            : BadRequest(ApiResponse<EquipmentBatchSubmitResultDto>.Fail(result.Errors.FirstOrDefault() ?? message));
+    }
+
+    [HttpPut("assets/{id:int}/endpoint-agent-eligibility")]
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> SetEndpointAgentEligibility(int id, [FromBody] EndpointAgentEligibilityRequest request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.SetEndpointAgentEligibilityAsync(id, request, ct);
+        return result.IsSuccess ? Ok(ApiResponse<EquipmentAssetDto>.FromResult(result)) : BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+    }
+
+    [HttpGet("assets")]
+    public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> Assets([FromQuery] int? deptCode, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        var result = await _service.GetAssetsAsync(deptCode, ct);
+        return result.IsSuccess ? Ok(ApiResponse<List<EquipmentAssetDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentAssetDto>>.FromResult(result));
+    }
+
+    [HttpPut("assets/{id:int}")]
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> UpdateAsset(int id, [FromBody] UpdateEquipmentAssetRequest request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.UpdateAssetAsync(id, request, ct);
+        return result.IsSuccess ? Ok(ApiResponse<EquipmentAssetDto>.FromResult(result)) : BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+    }
+
+    [HttpPost("assets/{id:int}/submit-change")]
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> SubmitAssetChange(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.SubmitAssetChangeAsync(id, ct);
+        return result.IsSuccess
+            ? Ok(ApiResponse<EquipmentAssetDto>.FromResult(result))
+            : BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+    }
+
+    [HttpDelete("assets/{id:int}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteAsset(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentManage, ct)) return Forbid();
+        var result = await _service.DeleteAssetAsync(id, ct);
+        return result.IsSuccess ? Ok(ApiResponse<bool>.FromResult(result)) : BadRequest(ApiResponse<bool>.FromResult(result));
+    }
+
     [HttpGet("assigned-to-me")]
     public async Task<ActionResult<ApiResponse<List<EquipmentAssetDto>>>> AssignedToMe(CancellationToken ct)
     {
-        var canView = await CanAsync(SecurityFunctionCodes.EquipmentView, ct);
-        var canRepair = await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct);
-        var user = _currentUser.GetCurrentUser();
-        var assigned = user != null && !string.IsNullOrWhiteSpace(user.EmployeeCode) &&
-            await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.IsActive == true &&
-                (x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode), ct);
-        if (!canView && !canRepair && !assigned) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentView, ct))
+            return Forbid();
         var result = await _service.GetMyAssignedAssetsAsync(ct);
         return result.IsSuccess ? Ok(ApiResponse<List<EquipmentAssetDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentAssetDto>>.FromResult(result));
     }
@@ -121,18 +234,18 @@ public sealed class EquipmentController : ControllerBase
     [HttpGet("registrations/mine")]
     public async Task<ActionResult<ApiResponse<List<EquipmentRequestDto>>>> Mine(CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetMineAsync(ct);
         var response = ApiResponse<List<EquipmentRequestDto>>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpGet("repairs/assignees")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> RepairAssignees([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> RepairAssignees([FromQuery] int? deptCode, CancellationToken ct)
     {
         var canRepair = await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct);
         var user = _currentUser.GetCurrentUser();
-        var assigned = user != null && !string.IsNullOrWhiteSpace(user.EmployeeCode) && await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.IsActive == true && (x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode), ct);
+        var assigned = user != null && !string.IsNullOrWhiteSpace(user.EmployeeCode) && await _db.EquipmentAssets.AsNoTracking().AnyAsync(x => x.IsActive == true && (x.ManagedByEmployeeCode == user.EmployeeCode || x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode), ct);
         if (!canRepair && !assigned) return Forbid();
         var result = await _service.GetRepairAssigneesAsync(deptCode, ct);
         return result.IsSuccess ? Ok(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result)) : BadRequest(ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>.FromResult(result));
@@ -166,7 +279,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("handover/employees")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> HandoverEmployees([FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverEmployeeOptionDto>>>> HandoverEmployees([FromQuery] int? deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentTransfer, ct)) return Forbid();
         var result = await _service.GetHandoverEmployeesAsync(deptCode, ct);
@@ -175,7 +288,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("handover/candidates")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverCandidateDto>>>> HandoverCandidates([FromQuery] string oldEmployeeCode, [FromQuery] string? deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentHandoverCandidateDto>>>> HandoverCandidates([FromQuery] string oldEmployeeCode, [FromQuery] int? deptCode, CancellationToken ct)
     {
         var canTransfer = await CanAsync(SecurityFunctionCodes.EquipmentTransfer, ct);
         var canCreateAccessChange = await CanAsync(SecurityFunctionCodes.SecurityAccessChangeCreate, ct);
@@ -249,55 +362,41 @@ public sealed class EquipmentController : ControllerBase
         return Ok(true);
     }
 
-    [HttpGet("schema/{deptCode}")]
-    public async Task<ActionResult<List<EquipmentFieldDefinitionDto>>> Schema(string deptCode, CancellationToken ct)
-    {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        return Ok(await _import.GetFieldDefinitionsAsync(deptCode.Trim().ToUpperInvariant(), ct));
-    }
-
-    [HttpPut("schema")]
-    public async Task<ActionResult<EquipmentFieldDefinitionDto>> SaveSchema([FromBody] SaveEquipmentFieldDefinitionRequest request, CancellationToken ct)
-    {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        return Ok(await _import.SaveFieldDefinitionAsync(request, ct));
-    }
-
     [HttpPost("import")]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ApiResponse<EquipmentImportBatchDto>>> Import([FromForm] IFormFile? file, [FromQuery] string deptCode, [FromQuery] int? schemaId = null, [FromQuery] int sheetIndex = 0, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
+    public async Task<ActionResult<ApiResponse<ExcelImportBatchDto>>> Import([FromForm] IFormFile? file, [FromQuery] int deptCode, [FromQuery] int? schemaId = null, [FromQuery] int sheetIndex = 0, [FromQuery] bool assignToEmployee = false, CancellationToken ct = default)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        if (file == null || file.Length == 0) return BadRequest(ApiResponse<EquipmentImportBatchDto>.Fail("File Excel rỗng."));
-        if (sheetIndex < 0) return BadRequest(ApiResponse<EquipmentImportBatchDto>.Fail("Sheet Excel không hợp lệ."));
-        deptCode = deptCode.Trim().ToUpperInvariant();
+        if (file == null || file.Length == 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("File Excel rỗng."));
+        if (sheetIndex < 0) return BadRequest(ApiResponse<ExcelImportBatchDto>.Fail("Sheet Excel không hợp lệ."));
         await using var stream = file.OpenReadStream();
         var result = await _import.StageExcelSheetAsync(deptCode, schemaId, file.FileName, stream, sheetIndex, assignToEmployee, ct);
         return result.IsSuccess
-            ? Ok(ApiResponse<EquipmentImportBatchDto>.FromResult(result))
-            : BadRequest(ApiResponse<EquipmentImportBatchDto>.FromResult(result));
+            ? Ok(ApiResponse<ExcelImportBatchDto>.FromResult(result))
+            : BadRequest(ApiResponse<ExcelImportBatchDto>.FromResult(result));
     }
 
-    [HttpGet("import/{batchId:int}")]
-    public async Task<ActionResult<EquipmentImportBatchDto>> ImportBatch(int batchId, CancellationToken ct)
+    [HttpGet("import/batches/mine")]
+    public async Task<ActionResult<List<ExcelImportBatchDto>>> MyImportBatches(CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        return Ok(await _import.GetMyBatchesAsync(ct));
+    }
+
+    [HttpGet("import/{batchId:long}")]
+    public async Task<ActionResult<ExcelImportBatchDto>> ImportBatch(long batchId, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
         var result = await _import.GetBatchAsync(batchId, ct);
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("import/{batchId:int}/commit")]
-    public async Task<ActionResult<EquipmentImportCommitResultDto>> CommitImport(int batchId, CancellationToken ct)
+    [HttpPost("import/{batchId:long}/commit")]
+    public async Task<ActionResult<ExcelImportCommitResultDto>> CommitImport(long batchId, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
-        var batch = await _db.EquipmentImportBatches.AsNoTracking().FirstOrDefaultAsync(x => x.Id == batchId && x.IsActive == true, ct);
+        var batch = await _import.GetBatchAsync(batchId, ct);
         if (batch == null) return NotFound();
-        var rows = await _db.EquipmentImportRows.AsNoTracking().Where(x => x.BatchId == batchId && x.Status == "Valid").ToListAsync(ct);
-        var codes = rows.Select(x => TryGetEquipmentCode(x.RawJson)).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
-        var duplicateInFile = codes.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).Take(10).ToList();
-        if (duplicateInFile.Count > 0) return BadRequest($"File có mã thiết bị trùng: {string.Join(", ", duplicateInFile)}.");
-        var existing = await _db.EquipmentAssets.AsNoTracking().Where(x => codes.Contains(x.EquipmentCode)).Select(x => x.EquipmentCode).ToListAsync(ct);
-        if (existing.Count > 0) return Conflict($"Thiết bị đã tồn tại: {string.Join(", ", existing.Take(10))}.");
         return Ok(await _import.CommitAsync(batchId, ct));
     }
 
@@ -315,6 +414,12 @@ public sealed class EquipmentController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         return user != null && await _authorization.HasAsync(user, functionCode, ct);
+    }
+
+    private async Task<bool> CanPersonalAsync(int functionCode, CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        return user != null && await _authorization.HasPersonalAsync(user, functionCode, ct);
     }
 
     private async Task<bool> CanRepairOrAssignedAssetAsync(int assetId, CancellationToken ct)

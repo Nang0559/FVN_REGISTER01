@@ -11,11 +11,17 @@ Security model:
 - F03Functions remains the single capability/function catalog.
 - Endpoint Governance does NOT create a second RBAC system.
 - SuperAdmin keeps the administrative baseline.
-- IT receives a dedicated role (RoleCode 7) for Endpoint Governance.
+- IT receives a dedicated role for Endpoint Governance.
 - Endpoint function assignment is managed through F03RoleFunctions /
   Security Center.
 - Existing active F03Users in HRM department IT are provisioned with the IT
   Endpoint Operator role; this is idempotent and does not remove other roles.
+
+Role-code policy:
+- Do NOT assume RoleCode 7 is free. Existing installations may already use it.
+- Reuse an existing role named 'IT Endpoint Operator' when present.
+- Otherwise allocate the next unused positive RoleCode.
+- The role's database Id, not a hard-coded RoleCode, is used for assignments.
 ===============================================================================
 */
 
@@ -106,20 +112,35 @@ GO
 
 /*
 Dedicated IT role for Endpoint Governance.
-RoleCode 7 is reserved here instead of reusing SuperAdmin/Admin.
+Never fail merely because an existing installation already uses RoleCode 7.
+The stable identity of this role is its RoleName; RoleCode is only a legacy
+numeric identifier and must remain unique.
 */
-IF EXISTS (SELECT 1 FROM dbo.F03Roles WHERE RoleCode = 7 AND RoleName <> N'IT Endpoint Operator')
-    THROW 51584, N'RoleCode 7 is already used by another role. Resolve the role-code collision before applying Endpoint capabilities.', 1;
+DECLARE @EndpointRoleId INT;
+DECLARE @EndpointRoleCode INT;
 
-IF NOT EXISTS (SELECT 1 FROM dbo.F03Roles WHERE RoleCode = 7)
+SELECT TOP (1)
+    @EndpointRoleId = Id,
+    @EndpointRoleCode = RoleCode
+FROM dbo.F03Roles
+WHERE RoleName = N'IT Endpoint Operator'
+ORDER BY Id;
+
+IF @EndpointRoleId IS NULL
 BEGIN
+    SELECT @EndpointRoleCode = ISNULL(MAX(RoleCode), 0) + 1
+    FROM dbo.F03Roles;
+
+    WHILE EXISTS (SELECT 1 FROM dbo.F03Roles WHERE RoleCode = @EndpointRoleCode)
+        SET @EndpointRoleCode = @EndpointRoleCode + 1;
+
     INSERT INTO dbo.F03Roles
     (
         RoleCode, RoleName, Detail, IsSystem, IsActive, CreatedBy, CreatedAt
     )
     VALUES
     (
-        7,
+        @EndpointRoleCode,
         N'IT Endpoint Operator',
         N'Quản trị Endpoint Governance: inventory, compliance, software/service catalog, installation request và exception theo Security Center.',
         0,
@@ -127,8 +148,12 @@ BEGIN
         0,
         GETDATE()
     );
+
+    SET @EndpointRoleId = CONVERT(INT, SCOPE_IDENTITY());
 END;
-GO
+
+IF @EndpointRoleId IS NULL
+    THROW 51584, N'Could not resolve the IT Endpoint Operator role.', 1;
 
 /* Initial baseline for SuperAdmin and IT Endpoint Operator. */
 INSERT INTO dbo.F03RoleFunctions (IdRole, IdFunction, IsActive, CreatedBy, CreatedAt)
@@ -139,7 +164,7 @@ JOIN dbo.F03Functions f
  AND f.ModuleCode = N'Endpoint'
  AND f.IsActive = 1
 WHERE r.IsActive = 1
-  AND r.RoleCode IN (1, 7)
+  AND (r.RoleCode = 1 OR r.Id = @EndpointRoleId)
   AND NOT EXISTS
   (
       SELECT 1
@@ -150,21 +175,27 @@ WHERE r.IsActive = 1
 GO
 
 /* Provision the dedicated Endpoint role to existing active HRM-IT users. */
+DECLARE @EndpointRoleId2 INT;
+SELECT TOP (1) @EndpointRoleId2 = Id
+FROM dbo.F03Roles
+WHERE RoleName = N'IT Endpoint Operator'
+ORDER BY Id;
+
 INSERT INTO dbo.F03UserRoles
 (
     IdUser, IdRole, IsPrimary, IsActive, CreatedBy, CreatedAt
 )
-SELECT u.Id, r.Id, 0, 1, 0, GETDATE()
+SELECT u.Id, @EndpointRoleId2, 0, 1, 0, GETDATE()
 FROM dbo.F03Users u
-JOIN dbo.F03Roles r ON r.RoleCode = 7 AND r.IsActive = 1
-WHERE u.IsActive = 1
-  AND UPPER(LTRIM(RTRIM(ISNULL(u.DeptCode, N'')))) = N'IT'
+WHERE @EndpointRoleId2 IS NOT NULL
+  AND u.IsActive = 1
+  AND u.DeptCode = 57  /* HRM BPMa 57 = IT */
   AND NOT EXISTS
   (
       SELECT 1
       FROM dbo.F03UserRoles ur
       WHERE ur.IdUser = u.Id
-        AND ur.IdRole = r.Id
+        AND ur.IdRole = @EndpointRoleId2
   );
 GO
 

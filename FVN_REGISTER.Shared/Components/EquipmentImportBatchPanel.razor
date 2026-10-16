@@ -1,0 +1,364 @@
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Contract.Dtos.EquipmentImport
+@inject IEquipmentClientService EquipmentClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILanguageService Language
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+    <div>
+        <MudText Typo="Typo.subtitle1">@Language.T("equipment.importPanel.title")</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.importPanel.subtitle")</MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="@(_loading || _busy)" OnClick="ReloadAsync">@Language.T("common.refresh")</MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="my-2" />
+}
+else if (_batches.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">@Language.T("equipment.importPanel.empty")</MudAlert>
+}
+else
+{
+    @foreach (var batch in _batches)
+    {
+        var children = ChildrenOf(batch);
+        var childCount = children.Count(x => x.RequestId.HasValue);
+        var expanded = _expanded.Contains(batch.Id);
+        <MudPaper Outlined="true" Class="pa-4 mb-3" Style="border-radius:16px">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                <div>
+                    <MudText Typo="Typo.subtitle1"><b>#@batch.Id — @batch.FileName</b></MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@Language.T("equipment.importPanel.batchSummary", batch.TotalRows, childCount)</MudText>
+                </div>
+                @{ var state = BatchState(batch, childCount); }
+                <MudChip T="string" Size="Size.Small" Color="@state.Color">@state.Label</MudChip>
+            </MudStack>
+
+            <MudGrid Class="mt-2">
+                <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("equipment.importPanel.total")</MudText><MudText Typo="Typo.h6">@batch.TotalRows</MudText></MudItem>
+                <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("equipment.importPanel.valid")</MudText><MudText Typo="Typo.h6" Color="Color.Success">@batch.ValidRows</MudText></MudItem>
+                <MudItem xs="4"><MudText Typo="Typo.caption">@Language.T("equipment.importPanel.needCheck")</MudText><MudText Typo="Typo.h6" Color="@(batch.InvalidRows > 0 ? Color.Error : Color.Default)">@batch.InvalidRows</MudText></MudItem>
+            </MudGrid>
+
+            @if (childCount > 0)
+            {
+                <MudText Typo="Typo.caption" Class="mt-2">@Language.T("equipment.importPanel.progress", batch.ApprovedRows, childCount, batch.PendingRows, batch.DraftRows, batch.RejectedRows)</MudText>
+                <MudProgressLinear Value="@batch.ApprovalProgressPercent" Max="100" Color="Color.Success" Class="mb-1" />
+            }
+
+            <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+                @if (childCount > 0)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Dark" StartIcon="@Icons.Material.Filled.List" OnClick="@(() => ToggleExpanded(batch.Id))">@(expanded ? Language.T("equipment.importPanel.hideChildren") : Language.T("equipment.importPanel.showChildren", childCount))</MudButton>
+                    @if (CanEdit)
+                    {
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || batch.DraftRows == 0)" OnClick="@(() => SubmitAllAsync(batch))">@Language.T("equipment.importPanel.submitAll", batch.DraftRows)</MudButton>
+                    }
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">@Language.T("equipment.importPanel.openImport")</MudButton>
+                }
+            </MudStack>
+
+            @if (expanded)
+            {
+                <MudDivider Class="my-3" />
+                @if (CanEdit)
+                {
+                    var draftIds = children.Where(IsDraft).Select(x => x.RequestId!.Value).ToList();
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-2">
+                        <MudCheckBox T="bool" Value="@(draftIds.Count > 0 && draftIds.All(_selected.Contains))" ValueChanged="@(v => ToggleAll(draftIds, v))" Disabled="@(draftIds.Count == 0 || _busy)" Label="@Language.T("equipment.importPanel.selectAllDrafts")" />
+                        @{ var selectedInBatch = draftIds.Count(_selected.Contains); }
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Send" Disabled="@(_busy || selectedInBatch == 0)" OnClick="@(() => SubmitSelectedAsync(batch, draftIds))">@Language.T("equipment.importPanel.submitSelected", selectedInBatch)</MudButton>
+                    </MudStack>
+                }
+
+                var index = 0;
+                @foreach (var row in children)
+                {
+                    index++;
+                    var rowNumber = index; // per-row copy: nested child content renders after the loop finished
+                    var request = row.RequestId.HasValue && _requestsById.TryGetValue(row.RequestId.Value, out var found) ? found : null;
+                    var draft = IsDraft(row);
+                    var status = RowStatus(row);
+                    <div class="py-2" style="border-top:1px solid var(--mud-palette-divider)">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                @if (CanEdit && draft)
+                                {
+                                    <MudCheckBox T="bool" Value="@_selected.Contains(row.RequestId!.Value)" ValueChanged="@(v => ToggleOne(row.RequestId!.Value, v))" Disabled="_busy" />
+                                }
+                                <div>
+                                    <MudText Typo="Typo.subtitle2"><b>#@rowNumber.ToString("00") — @(request?.EquipmentName ?? Value(row, "EquipmentName") ?? Language.T("equipment.importPanel.excelRow", row.RowNumber))</b></MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("equipment.importPanel.codeLine", Value(row, "EquipmentCode") ?? "—", request?.DeptCode.ToString() ?? Value(row, "DeptCode") ?? "—")@(row.RequestId.HasValue ? Language.T("equipment.importPanel.requestSuffix", row.RequestId) : string.Empty)</MudText>
+                                </div>
+                            </MudStack>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudChip T="string" Size="Size.Small" Color="@status.Color">@status.Label</MudChip>
+                                @if (request is not null)
+                                {
+                                    <MudTooltip Text="@Language.T("equipment.importPanel.viewDiff")"><MudIconButton Icon="@Icons.Material.Filled.Compare" Size="Size.Small" OnClick="@(() => ToggleDiff(row.RequestId!.Value))" /></MudTooltip>
+                                }
+                                @if (CanEdit && draft && request is not null)
+                                {
+                                    <MudTooltip Text="@Language.T("equipment.importPanel.editDraft")"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="_busy" OnClick="@(() => BeginEditAsync(batch, row, request))" /></MudTooltip>
+                                    <MudTooltip Text="@Language.T("equipment.importPanel.deleteDraft")"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Error" Disabled="_busy" OnClick="@(() => DeleteAsync(request))" /></MudTooltip>
+                                }
+                            </MudStack>
+                        </MudStack>
+
+                        @if (!string.IsNullOrWhiteSpace(row.ErrorMessage))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Error">@row.ErrorMessage</MudText>
+                        }
+                        @if (row.IsLocked)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Warning">@Language.T("equipment.importPanel.locked")</MudText>
+                        }
+
+                        @if (request is not null && _diffOpen.Contains(request.Id))
+                        {
+                            <div class="mt-2"><EquipmentRequestDiff Request="request" /></div>
+                        }
+
+                        @if (_editingId == row.RequestId && _form is not null)
+                        {
+                            <MudPaper Outlined="true" Class="pa-3 mt-2">
+                                <MudGrid>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.EquipmentName" Label="@Language.T("equipment.field.equipmentName")" Required="true" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.AssetCode" Label="@Language.T("equipment.field.assetCode")" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.SerialNumber" Label="@Language.T("equipment.field.serial")" /></MudItem>
+                                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.Location" Label="@Language.T("equipment.field.location")" /></MudItem>
+                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Specification" Label="@Language.T("equipment.field.specification")" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudNumericField T="decimal" @bind-Value="_form.PurchasePrice" Label="@Language.T("equipment.field.purchasePrice")" Min="0" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.PurchaseDate" Label="@Language.T("equipment.field.purchaseDate")" /></MudItem>
+                                    <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_form.ExpectedDepreciationDate" Label="@Language.T("equipment.field.depreciationDate")" /></MudItem>
+                                    <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="@Language.T("equipment.field.note")" Lines="2" /></MudItem>
+                                    @if (_customFields.Count > 0)
+                                    {
+                                        <MudItem xs="12"><EquipmentCustomFieldsEditor Fields="_customFields" Values="_customValues" /></MudItem>
+                                    }
+                                    <MudItem xs="12">
+                                        <MudStack Row="true" Spacing="2">
+                                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="SaveEditAsync">@Language.T("equipment.importPanel.saveDraft")</MudButton>
+                                            <MudButton Variant="Variant.Text" Disabled="_busy" OnClick="CancelEdit">@Language.T("common.cancel")</MudButton>
+                                        </MudStack>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudPaper>
+                        }
+                    </div>
+                }
+            }
+        </MudPaper>
+    }
+}
+
+@code {
+    /// <summary>Requests of the current user (from /registrations/mine); source of the before/after snapshots.</summary>
+    [Parameter] public List<EquipmentRequestDto> Requests { get; set; } = new();
+    /// <summary>True when the user may edit/delete/submit drafts.</summary>
+    [Parameter] public bool CanEdit { get; set; }
+    /// <summary>Raised after any change so the host page can reload its own request list.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private List<ExcelImportBatchDto> _batches = new();
+    private Dictionary<int, EquipmentRequestDto> _requestsById = new();
+    private readonly HashSet<long> _expanded = new();
+    private readonly HashSet<int> _selected = new();
+    private readonly HashSet<int> _diffOpen = new();
+    private bool _loading;
+    private bool _busy;
+    private int? _editingId;
+    private UpdateEquipmentDraftRequest? _form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Language.LanguageChanged += OnLanguageChanged;
+        await ReloadAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
+
+    /// <summary>Standard in-app confirmation (MudBlazor dialog) instead of the browser's native confirm().</summary>
+    private async Task<bool> ConfirmAsync(string message, string yesKey)
+        => await DialogService.ShowMessageBoxAsync(
+               Language.T("common.confirm"), message,
+               yesText: Language.T(yesKey), cancelText: Language.T("common.cancel")) == true;
+
+    protected override void OnParametersSet()
+        => _requestsById = Requests.GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
+
+    public async Task ReloadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await EquipmentClient.GetMyImportBatchesAsync();
+            if (result.IsSuccess) _batches = (result.Data ?? new()).OrderByDescending(x => x.Id).ToList();
+            else Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.loadFailed"), Severity.Warning);
+            // Drop selections that are no longer drafts after a reload.
+            var drafts = _batches.SelectMany(b => b.Rows).Where(IsDraft).Select(r => r.RequestId!.Value).ToHashSet();
+            _selected.RemoveWhere(id => !drafts.Contains(id));
+        }
+        finally { _loading = false; }
+    }
+
+    private static List<ExcelImportRowDto> ChildrenOf(ExcelImportBatchDto batch) => batch.Rows.OrderBy(x => x.RowNumber).ToList();
+
+    private static bool IsDraft(ExcelImportRowDto row)
+        => row.RequestId.HasValue && !row.RequestDeleted && !row.IsLocked;
+
+    private static string? Value(ExcelImportRowDto row, string key)
+        => row.Values.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)).Value;
+
+    private (string Label, Color Color) RowStatus(ExcelImportRowDto row)
+    {
+        if (row.RequestDeleted) return (Language.T("equipment.importPanel.status.deleted"), Color.Default);
+        if (!row.RequestId.HasValue)
+            return string.Equals(row.Status, "Invalid", StringComparison.OrdinalIgnoreCase) ? (Language.T("equipment.importPanel.status.error"), Color.Error) : (Language.T("equipment.importPanel.valid"), Color.Success);
+        return row.RequestStatus switch
+        {
+            "Draft" => (Language.T("equipment.importPanel.status.draft"), Color.Warning),
+            "NeedsRevision" => (Language.T("equipment.importPanel.status.needsRevision"), Color.Warning),
+            "Pending" or "InProgress" or "Escalated" => (Language.T("equipment.importPanel.status.pending"), Color.Info),
+            "Approved" => (Language.T("equipment.importPanel.status.approved"), Color.Success),
+            "Rejected" => (Language.T("equipment.importPanel.status.rejected"), Color.Error),
+            "Cancelled" => (Language.T("equipment.importPanel.status.cancelled"), Color.Default),
+            _ => (row.RequestStatus ?? Language.T("equipment.importPanel.status.draft"), Color.Default)
+        };
+    }
+
+    private (string Label, Color Color) BatchState(ExcelImportBatchDto b, int childCount)
+    {
+        if (childCount == 0) return (Language.T("equipment.importPanel.batch.notConfirmed"), Color.Default);
+        if (b.ApprovedRows == childCount) return (Language.T("equipment.importPanel.batch.approved"), Color.Success);
+        if (b.DraftRows == childCount) return (Language.T("equipment.importPanel.status.draft"), Color.Warning);
+        if (b.PendingRows > 0) return (Language.T("equipment.importPanel.batch.inApproval"), Color.Info);
+        if (b.RejectedRows > 0 && b.DraftRows == 0) return (Language.T("equipment.importPanel.batch.hasRejected"), Color.Error);
+        return (Language.T("equipment.importPanel.batch.partial"), Color.Warning);
+    }
+
+    private void ToggleExpanded(long id) { if (!_expanded.Add(id)) _expanded.Remove(id); }
+    private void ToggleDiff(int requestId) { if (!_diffOpen.Add(requestId)) _diffOpen.Remove(requestId); }
+    private void ToggleOne(int requestId, bool on) { if (on) _selected.Add(requestId); else _selected.Remove(requestId); }
+    private void ToggleAll(List<int> ids, bool on) { foreach (var id in ids) ToggleOne(id, on); }
+
+    private readonly Dictionary<int, List<ExcelSchemaFieldDto>> _schemaCustomFields = new();
+    private List<ExcelSchemaFieldDto> _customFields = new();
+    private Dictionary<string, string?> _customValues = new(StringComparer.OrdinalIgnoreCase);
+
+    private async Task<List<ExcelSchemaFieldDto>> CustomFieldsForAsync(int schemaId)
+    {
+        if (_schemaCustomFields.TryGetValue(schemaId, out var cached)) return cached;
+        var schema = await EquipmentClient.GetSchemaAsync(schemaId);
+        var fields = schema.IsSuccess ? EquipmentCustomFieldsEditor.CustomFieldsOf(schema.Data) : new List<ExcelSchemaFieldDto>();
+        if (schema.IsSuccess) _schemaCustomFields[schemaId] = fields;
+        return fields;
+    }
+
+    private async Task BeginEditAsync(ExcelImportBatchDto batch, ExcelImportRowDto row, EquipmentRequestDto request)
+    {
+        _customFields = await CustomFieldsForAsync(batch.SchemaId);
+        _customValues = EquipmentCustomFieldsEditor.BuildValues(request.CustomDataJson, row.Values, _customFields);
+        BeginEdit(request);
+    }
+
+    private void BeginEdit(EquipmentRequestDto request)
+    {
+        _editingId = request.Id;
+        _form = new UpdateEquipmentDraftRequest
+        {
+            EquipmentName = request.EquipmentName, AssetCode = request.AssetCode, SerialNumber = request.SerialNumber,
+            Specification = request.Specification, Location = request.Location, Note = request.Note,
+            PurchasePrice = request.PurchasePrice, PurchaseDate = request.PurchaseDate,
+            ExpectedDepreciationDate = request.ExpectedDepreciationDate
+        };
+    }
+
+    private void CancelEdit() { _editingId = null; _form = null; _customFields = new(); _customValues = new(StringComparer.OrdinalIgnoreCase); }
+
+    private async Task SaveEditAsync()
+    {
+        if (_editingId is null || _form is null || _busy) return;
+        _busy = true;
+        try
+        {
+            if (_customFields.Count > 0) _form.CustomValues = new Dictionary<string, string?>(_customValues, StringComparer.OrdinalIgnoreCase);
+            var result = await EquipmentClient.UpdateDraftRequestAsync(_editingId.Value, _form);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.saveFailed"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.saved"), Severity.Success);
+            CancelEdit();
+            await RefreshAllAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task DeleteAsync(EquipmentRequestDto request)
+    {
+        if (_busy) return;
+        if (!await ConfirmAsync(Language.T("equipment.confirm.deleteDraft", request.EquipmentName, request.Id), "common.delete")) return;
+        _busy = true;
+        try
+        {
+            var result = await EquipmentClient.DeleteDraftRequestAsync(request.Id);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleteFailed"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleted"), Severity.Success);
+            _selected.Remove(request.Id);
+            if (_editingId == request.Id) CancelEdit();
+            await RefreshAllAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SubmitAllAsync(ExcelImportBatchDto batch)
+    {
+        if (!await ConfirmAsync(Language.T("equipment.importPanel.confirm.submitAll", batch.DraftRows, batch.Id), "equipment.importPanel.confirm.submitYes")) return;
+        await SubmitAsync(batch.Id, null);
+    }
+
+    private async Task SubmitSelectedAsync(ExcelImportBatchDto batch, List<int> draftIds)
+    {
+        var ids = draftIds.Where(_selected.Contains).ToList();
+        if (ids.Count == 0) return;
+        if (!await ConfirmAsync(Language.T("equipment.importPanel.confirm.submitSelected", ids.Count), "equipment.importPanel.confirm.submitYes")) return;
+        await SubmitAsync(batch.Id, ids);
+    }
+
+    private async Task SubmitAsync(long batchId, List<int>? ids)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            var result = await EquipmentClient.SubmitImportBatchAsync(batchId, ids);
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.submitFailed"), Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.submitted", result.Data.Submitted), result.Data.Failed == 0 ? Severity.Success : Severity.Warning);
+                foreach (var error in result.Data.Errors) Snackbar.Add(error, Severity.Warning);
+                foreach (var id in result.Data.SubmittedRequestIds) _selected.Remove(id);
+            }
+            await RefreshAllAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        await OnChanged.InvokeAsync();
+        await ReloadAsync();
+    }
+}

@@ -3,15 +3,22 @@ using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Approvals;
 
 public sealed class ApprovalPolicyService : IApprovalPolicyService
 {
     private readonly IUnitOfWork _uow;
+    private readonly ILogger<ApprovalPolicyService> _logger;
 
-    public ApprovalPolicyService(IUnitOfWork uow) => _uow = uow;
+    public ApprovalPolicyService(IUnitOfWork uow, ILogger<ApprovalPolicyService> logger)
+    {
+        _uow = uow;
+        _logger = logger;
+    }
 
     public async Task<ServiceResult<List<ApprovalPolicyDto>>> GetAllAsync(CancellationToken ct = default)
     {
@@ -22,41 +29,79 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             .ThenBy(x => x.PositionCode)
             .ThenBy(x => x.Sequence)
             .ThenBy(x => x.Level)
+            .Select(x => new ApprovalPolicyDto
+            {
+                Id = x.Id,
+                IsActive = x.IsActive == true,
+                RequestType = (int)x.RequestType,
+                RequestTypeName = RequestTypeName(x.RequestType),
+                DeptCode = x.DeptCode,
+                // Explicit SQL conversion is required because legacy databases may store these
+                // codes as numeric columns while the application contract treats them as text.
+                PositionCode = x.PositionCode == null ? null : x.PositionCode.ToString(),
+                ApprovalPositionCode = x.ApprovalPositionCode == null ? string.Empty : x.ApprovalPositionCode.ToString(),
+                Level = x.Level,
+                Sequence = x.Sequence,
+                LevelName = x.LevelName ?? string.Empty,
+                RoleName = x.RoleName ?? string.Empty,
+                Required = x.Required
+            })
             .ToListAsync(ct);
 
-        var departments = await _uow.Repository<F03Department>().Query()
-            .AsNoTracking()
-            .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
+        // Policy data is the source of truth for this screen. Master-data enrichment
+        // must not make the whole policy list fail (e.g. an old/mismatched F03Positions row).
+        // Fall back to codes when department/position names cannot be resolved.
+        try
+        {
+            var departments = await _uow.Repository<F03Department>().Query()
+                .AsNoTracking()
+                .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
 
-        var positions = await _uow.Repository<F03Position>().Query()
-            .AsNoTracking()
-            .ToDictionaryAsync(x => x.PositionCode, ct);
+            foreach (var policy in policies)
+                policy.DeptName = departments.GetValueOrDefault(policy.DeptCode, policy.DeptCode.ToString());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[APPROVAL-POLICY] Department-name enrichment failed; keeping DeptCode.");
+            foreach (var policy in policies)
+                policy.DeptName = policy.DeptCode.ToString();
+        }
 
-        return ServiceResult<List<ApprovalPolicyDto>>.Ok(
-            policies.Select(x =>
-            {
-                positions.TryGetValue(x.PositionCode ?? string.Empty, out var requesterPosition);
-                positions.TryGetValue(x.ApprovalPositionCode, out var approvalPosition);
-
-                return new ApprovalPolicyDto
+        try
+        {
+            // Convert PositionCode explicitly to text in SQL so legacy numeric PositionCode
+            // storage cannot break the policy-list endpoint with Int32 -> String materialization.
+            var positions = await _uow.Repository<F03Position>().Query()
+                .AsNoTracking()
+                .Select(x => new
                 {
-                    Id = x.Id,
-                    IsActive = x.IsActive == true,
-                    RequestType = (int)x.RequestType,
-                    RequestTypeName = RequestTypeName(x.RequestType),
-                    DeptCode = x.DeptCode,
-                    DeptName = departments.GetValueOrDefault(x.DeptCode, x.DeptCode),
-                    PositionCode = x.PositionCode,
-                    PositionName = requesterPosition?.PositionName ?? "(Tất cả vị trí)",
-                    ApprovalPositionCode = x.ApprovalPositionCode,
-                    ApprovalPositionName = approvalPosition?.PositionName ?? x.ApprovalPositionCode,
-                    Level = x.Level,
-                    Sequence = x.Sequence,
-                    LevelName = x.LevelName,
-                    RoleName = x.RoleName,
-                    Required = x.Required
-                };
-            }).ToList());
+                    PositionCode = x.PositionCode.ToString(),
+                    x.PositionName
+                })
+                .ToDictionaryAsync(x => x.PositionCode, x => x, ct);
+
+            foreach (var policy in policies)
+            {
+                positions.TryGetValue(policy.PositionCode ?? string.Empty, out var requesterPosition);
+                positions.TryGetValue(policy.ApprovalPositionCode, out var approvalPosition);
+
+                policy.PositionName = requesterPosition?.PositionName ?? "(Tất cả vị trí)";
+                policy.ApprovalPositionName = approvalPosition?.PositionName ?? policy.ApprovalPositionCode;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[APPROVAL-POLICY] Position-name enrichment failed; keeping PositionCode.");
+            foreach (var policy in policies)
+            {
+                policy.PositionName = string.IsNullOrWhiteSpace(policy.PositionCode)
+                    ? "(Tất cả vị trí)"
+                    : policy.PositionCode;
+                policy.ApprovalPositionName = policy.ApprovalPositionCode;
+            }
+        }
+
+        return ServiceResult<List<ApprovalPolicyDto>>.Ok(policies);
     }
 
     public async Task<ServiceResult<List<ApprovalPolicyPositionDto>>> GetPositionsAsync(CancellationToken ct = default)
@@ -69,7 +114,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             .ThenBy(x => x.PositionCode)
             .Select(x => new ApprovalPolicyPositionDto
             {
-                PositionCode = x.PositionCode,
+                // Explicit text conversion keeps legacy numeric PositionCode rows readable.
+                PositionCode = x.PositionCode.ToString(),
                 PositionName = x.PositionName,
                 DefaultApproveLevel = x.DefaultApproveLevel,
                 RoleName = RoleNameFromPosition(x.DefaultApproveLevel),
@@ -109,14 +155,12 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         if (approvalPosition == null)
             return ServiceResult<ApprovalPolicyDto>.Fail("Chức vụ phê duyệt không còn hoạt động.");
 
-        request.Level = approvalPosition.DefaultApproveLevel!.Value;
-        request.LevelName = approvalPosition.PositionName;
-        request.RoleName = RoleNameFromPosition(request.Level);
+        ApplyDerivedApprovalValues(request, approvalPosition);
 
         var entity = new F03ApprovalPolicy
         {
             RequestType = (RequestModule)request.RequestType,
-            DeptCode = request.DeptCode.Trim(),
+            DeptCode = request.DeptCode,
             PositionCode = Normalize(request.PositionCode),
             ApprovalPositionCode = request.ApprovalPositionCode.Trim(),
             Level = request.Level,
@@ -131,6 +175,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
 
         await _uow.Repository<F03ApprovalPolicy>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
         return ServiceResult<ApprovalPolicyDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -151,12 +196,10 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         if (approvalPosition == null)
             return ServiceResult<ApprovalPolicyDto>.Fail("Chức vụ phê duyệt không còn hoạt động.");
 
-        request.Level = approvalPosition.DefaultApproveLevel!.Value;
-        request.LevelName = approvalPosition.PositionName;
-        request.RoleName = RoleNameFromPosition(request.Level);
+        ApplyDerivedApprovalValues(request, approvalPosition);
 
         entity.RequestType = (RequestModule)request.RequestType;
-        entity.DeptCode = request.DeptCode.Trim();
+        entity.DeptCode = request.DeptCode;
         entity.PositionCode = Normalize(request.PositionCode);
         entity.ApprovalPositionCode = request.ApprovalPositionCode.Trim();
         entity.Level = request.Level;
@@ -170,6 +213,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         entity.LastModifiedSource = "Manual";
 
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
         return ServiceResult<ApprovalPolicyDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -187,6 +231,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         entity.ModifiedAt = DateTime.Now;
         entity.LastModifiedSource = "Manual";
         await _uow.SaveChangesAsync(ct);
+        await ReconcileApproversAsync(actorUserId, ct);
 
         return ServiceResult<object>.Ok(new { id, deactivated = true });
     }
@@ -197,8 +242,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         if (!Enum.IsDefined(typeof(RequestModule), request.RequestType))
             return "RequestType không hợp lệ.";
 
-        var deptCode = request.DeptCode.Trim();
-        if (string.IsNullOrWhiteSpace(deptCode))
+        var deptCode = request.DeptCode;
+        if (deptCode <= 0)
             return "Phòng ban là bắt buộc.";
 
         if (!await _uow.Repository<F03Department>().Query()
@@ -219,24 +264,16 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             .FirstOrDefaultAsync(ct);
 
         if (approvalPosition == null)
-            return $"Cấp phê duyệt '{request.ApprovalPositionCode}' không tồn tại hoặc đã inactive.";
+            return $"Chức vụ phê duyệt '{request.ApprovalPositionCode}' không tồn tại hoặc đã inactive.";
 
         if (!approvalPosition.DefaultApproveLevel.HasValue ||
             approvalPosition.DefaultApproveLevel.Value is < 1 or > 7)
             return $"Chức vụ '{approvalPosition.PositionName}' chưa có DefaultApproveLevel hợp lệ.";
 
-        if (request.Level != approvalPosition.DefaultApproveLevel.Value)
-            return $"Level phải bằng DefaultApproveLevel ({approvalPosition.DefaultApproveLevel}) của chức vụ phê duyệt.";
-
         if (request.Sequence < 1)
-            return "Sequence phải >= 1.";
+            return "Thứ tự cấp duyệt phải >= 1.";
 
-        if (string.IsNullOrWhiteSpace(request.LevelName))
-            return "LevelName không được để trống.";
-
-        if (string.IsNullOrWhiteSpace(request.RoleName))
-            return "RoleName không được để trống.";
-
+        var level = approvalPosition.DefaultApproveLevel.Value;
         var duplicate = await _uow.Repository<F03ApprovalPolicy>().Query()
             .AnyAsync(x =>
                 x.IsActive == true &&
@@ -244,11 +281,12 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 x.RequestType == (RequestModule)request.RequestType &&
                 x.DeptCode == deptCode &&
                 x.PositionCode == positionCode &&
-                x.Level == request.Level,
+                x.Level == level &&
+                x.ApprovalPositionCode == approvalPosition.PositionCode,
                 ct);
 
         return duplicate
-            ? "Policy active đã tồn tại cho RequestType + Phòng ban + Position + Level."
+            ? "Đã có cấu hình duyệt cho cùng Loại yêu cầu + Phòng ban + Chức vụ người yêu cầu + Cấp duyệt + Chức vụ phê duyệt."
             : null;
     }
 
@@ -270,6 +308,14 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 IsActive = x.IsActive == true
             })
             .FirstOrDefaultAsync(ct);
+    }
+
+    private static void ApplyDerivedApprovalValues(
+        ApprovalPolicyRequest request, ApprovalPolicyPositionDto approvalPosition)
+    {
+        request.Level = approvalPosition.DefaultApproveLevel!.Value;
+        request.LevelName = approvalPosition.PositionName?.Trim() ?? string.Empty;
+        request.RoleName = RoleNameFromPosition(request.Level);
     }
 
     private async Task<ApprovalPolicyDto> MapAsync(
@@ -297,17 +343,36 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             RequestType = (int)x.RequestType,
             RequestTypeName = RequestTypeName(x.RequestType),
             DeptCode = x.DeptCode,
-            DeptName = deptName ?? x.DeptCode,
+            DeptName = deptName ?? x.DeptCode.ToString(),
             PositionCode = x.PositionCode,
             PositionName = requester?.PositionName ?? "(Tất cả vị trí)",
             ApprovalPositionCode = x.ApprovalPositionCode,
             ApprovalPositionName = approver?.PositionName ?? x.ApprovalPositionCode,
             Level = x.Level,
             Sequence = x.Sequence,
-            LevelName = x.LevelName,
-            RoleName = x.RoleName,
+            LevelName = x.LevelName ?? string.Empty,
+            RoleName = x.RoleName ?? string.Empty,
             Required = x.Required
         };
+    }
+
+    private async Task ReconcileApproversAsync(int actorUserId, CancellationToken ct)
+    {
+        try
+        {
+            await _uow.ExecuteSqlRawAsync(
+                """
+                EXEC dbo.usp_ReconcileEmployeeApprovers
+                    @EmployeeCode=NULL,
+                    @CreatedBy={0};
+                """,
+                ct,
+                actorUserId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[APPROVAL-POLICY] Approver reconcile failed after policy change.");
+        }
     }
 
     private static string? Normalize(string? value)

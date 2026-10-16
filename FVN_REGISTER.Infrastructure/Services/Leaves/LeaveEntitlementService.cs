@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Leaves;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.Leaves;
 using FVN_REGISTER.Core.Entities.Common;
@@ -25,7 +26,13 @@ public sealed class LeaveEntitlementService : ILeaveEntitlementService
         _currentUser = currentUser;
     }
 
-    public async Task<LeaveEntitlementDto> EnsureCalculatedAsync(
+    public Task<ServiceResult<LeaveEntitlementDto>> EnsureCalculatedAsync(
+        string employeeCode,
+        int workYear,
+        CancellationToken ct = default)
+        => GuardValueAsync(() => EnsureCalculatedCoreAsync(employeeCode, workYear, ct));
+
+    private async Task<LeaveEntitlementDto> EnsureCalculatedCoreAsync(
         string employeeCode,
         int workYear,
         CancellationToken ct = default)
@@ -141,7 +148,12 @@ public sealed class LeaveEntitlementService : ILeaveEntitlementService
         };
     }
 
-    public async Task EnsureWorkYearCalculatedAsync(
+    public Task<ServiceResult> EnsureWorkYearCalculatedAsync(
+        int workYear,
+        CancellationToken ct = default)
+        => GuardAsync(() => EnsureWorkYearCalculatedCoreAsync(workYear, ct));
+
+    private async Task EnsureWorkYearCalculatedCoreAsync(
         int workYear,
         CancellationToken ct = default)
     {
@@ -235,6 +247,27 @@ public sealed class LeaveEntitlementService : ILeaveEntitlementService
         }
 
         await _uow.SaveChangesAsync(ct);
+    }
+
+    private static async Task<ServiceResult<T>> GuardValueAsync<T>(Func<Task<T>> operation)
+    {
+        try
+        {
+            return ServiceResult<T>.Ok(await operation());
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        {
+            return ServiceResult<T>.Fail(ex.Message);
+        }
+    }
+
+    private static async Task<ServiceResult> GuardAsync(Func<Task> operation)
+    {
+        try { await operation(); return ServiceResult.Ok(); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException or ArgumentException or InvalidOperationException)
+        { return ServiceResult.Fail(ex.Message); }
     }
 
     private static int CalculateCompletedYears(DateTime firstWorkingDate, DateTime calculationDate)

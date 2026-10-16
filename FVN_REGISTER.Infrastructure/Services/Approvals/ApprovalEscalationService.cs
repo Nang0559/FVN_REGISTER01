@@ -10,6 +10,7 @@ using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -139,7 +140,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             int requestId,
             F03ApprovalStepSnapshot step,
             DateTime baseTime,
-            string deptCode,
+            int deptCode,
             CancellationToken ct)
         {
             var now = DateTime.Now;
@@ -149,8 +150,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             var elapsedHours = await _workingDay.GetWorkingHoursAsync(baseTime, now);
             var deadline = _rule.GetDeadline(baseTime, rule.DeadlineHour);
 
-            // Hard deadline remains a business rejection. It is deliberately different
-            // from Escalated, which transfers the approval responsibility upward.
             if (now >= deadline)
             {
                 return await RecordSystemActionAsync(
@@ -226,8 +225,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 CreatedBy = SystemUser.Id
             }, ct);
 
-            // Persist the transition before resolving the next step. This makes repeated
-            // worker ticks idempotent because the old step is no longer Pending.
             await Uow.SaveChangesAsync(ct);
 
             if (!string.IsNullOrWhiteSpace(step.ApproverEmail))
@@ -277,8 +274,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             var subject = await Provider.GetSubjectAsync(requestId, ct);
             var creatorName = subject?.EmployeeName ?? string.Empty;
 
-            // Email uses the existing REQUEST_NEW template contract so escalation does not
-            // require a new template row just to activate the next approver.
             if (!string.IsNullOrWhiteSpace(nextStep.ApproverEmail))
             {
                 await _notification.NotifyNewRequestAsync(
@@ -292,8 +287,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     ct);
             }
 
-            // One in-app notification only: escalation-specific action (not a second
-            // generic Pending notification for the same activation).
             var oldUserId = await _userResolver.ResolveUserIdAsync(escalatedStep.ApproverCode, ct);
             var newUserId = await _userResolver.ResolveUserIdAsync(nextStep.ApproverCode, ct);
             if (newUserId is > 0)
@@ -310,7 +303,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
 
         protected abstract Task<List<int>> GetActiveRequestIdsAsync(CancellationToken ct);
         protected abstract Task<Dictionary<int, DateTime>> GetRegisterDateMapAsync(List<int> ids, CancellationToken ct);
-        protected abstract Task<Dictionary<int, string?>> GetDeptCodeMapAsync(List<int> ids, CancellationToken ct);
+        protected abstract Task<Dictionary<int, int?>> GetDeptCodeMapAsync(List<int> ids, CancellationToken ct);
 
         private static (F03ApprovalStepSnapshot Step, ApprovalStepDto Calculated)? GetCurrentPendingStep(
             List<F03ApprovalStepSnapshot> steps,
@@ -334,9 +327,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             List<F03ApprovalHistory> histories,
             DateTime registerDate)
         {
-            // Level numbers are business identifiers, not necessarily contiguous.
-            // OT currently uses 3 -> 5 -> 6 -> 7, so searching for Level - 1 would
-            // incorrectly restart the timeout clock from RegisterDate at levels 5/6/7.
             var previousStep = allSteps
                 .Where(s => s.IsRequired && s.Level < currentStep.Level)
                 .OrderByDescending(s => s.Level)

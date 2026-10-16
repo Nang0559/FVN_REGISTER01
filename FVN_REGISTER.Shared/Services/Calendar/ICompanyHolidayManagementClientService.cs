@@ -13,4 +13,5 @@ public interface ICompanyHolidayManagementClientService
     Task<ApiResponse<string>> CreateSundaysAsync(int year, CancellationToken ct = default);
     Task<ApiResponse<string>> ImportAsync(MultipartFormDataContent content, CancellationToken ct = default);
     Task<ApiResponse<byte[]>> DownloadTemplateAsync(CancellationToken ct = default);
+    Task<ApiResponse<string>> SyncFromHrmAsync(CancellationToken ct = default);
 }

@@ -1,198 +1,75 @@
-# FVN REGISTER — TỔNG QUAN TÍNH NĂNG
+# FVN REGISTER — BẢN ĐỒ NGHIỆP VỤ VÀ GIÁ TRỊ
 
-## 1. Bản đồ tính năng
+> Tài liệu tham chiếu cho giới thiệu sản phẩm. Mô tả năng lực theo nghiệp vụ, không thay thế kiểm thử nghiệm thu từng chức năng.
 
-```mermaid
-mindmap
-  root((FVN REGISTER))
-    Employee
-      Leave
-      Overtime
-      Trip
-      Equipment
-      Track status
-    Approval
-      Multi-level
-      Snapshot
-      Approve
-      Reject
-      Escalation
-      Notification
-    Execution
-      Planned
-      Actual
-      Reconciliation
-      Confirmation
-      Evidence
-      HR Review
-    Workspace
-      Dashboard
-      Action Center
-      Notification
-      Work Calendar
-    HR
-      Attendance Calculation
-      Execution Resolution
-      Payroll Input
-    Management
-      Reports
-      Statistics
-      Export
-    Security
-      Authentication
-      Capability
-      Data Scope
-      Audit
-```
+## 1. Một hệ thống, một vòng đời xử lý
 
-## 2. Request & Approval
+**Đăng ký → Kiểm tra điều kiện → Phê duyệt → Theo dõi thực hiện → Đối chiếu → Xử lý sai lệch → Báo cáo**
 
-```mermaid
-sequenceDiagram
-    participant U as Employee
-    participant M as Business Module
-    participant W as Approval Workflow
-    participant S as Approval Snapshot
-    participant A as Approver
-    participant N as Notification
+| Lớp năng lực | Vai trò trong quy trình | Giá trị quản trị |
+|---|---|---|
+| Biểu mẫu và kiểm tra điều kiện | Thu thập thông tin, kiểm tra dữ liệu trước khi gửi | Giảm hồ sơ thiếu hoặc sai ngay từ đầu |
+| Phê duyệt điện tử | Chuyển yêu cầu theo chính sách và người có thẩm quyền | Rõ người xử lý, trạng thái và lịch sử quyết định |
+| Kế hoạch và kết quả thực tế | Phân biệt điều đã được duyệt với điều thực sự xảy ra | Không đồng nhất “đã duyệt” với “đã thực hiện” |
+| Đối soát và xử lý ngoại lệ | So sánh kế hoạch với dữ liệu thực tế | Tập trung vào trường hợp cần xác minh |
+| Công việc và thông báo | Tập trung việc cần làm, trạng thái và nhắc việc | Hạn chế bỏ sót, giảm hỏi tiến độ thủ công |
+| Lịch và bảng điều khiển | Tổng hợp thông tin theo quyền | Nhìn được lịch, tình hình và việc tồn đọng |
+| Báo cáo và xuất dữ liệu | Tổng hợp theo phạm vi dữ liệu được cấp | Hỗ trợ kiểm soát và lập báo cáo |
+| Phân quyền và lịch sử | Giới hạn chức năng/phạm vi dữ liệu, lưu vết xử lý | Hỗ trợ truy xuất và trách nhiệm giải trình |
 
-    U->>M: Create / Edit
-    M->>M: Validate
-    U->>M: Submit
-    M->>W: Initialize
-    W->>S: Capture immutable hierarchy
-    W->>N: Notify first approver
-    A->>W: Approve / Reject
-    W->>W: Move to next required step
-    W->>N: Notify next actor
-```
+## 2. Nghiệp vụ và giá trị
 
-Approval timeout escalation là system decision `Escalated`, không đồng nghĩa `Rejected`.
+### Nghỉ phép
+Đăng ký, phê duyệt, theo dõi trạng thái và lịch nghiệp vụ; hỗ trợ báo cáo theo phạm vi quyền.
 
-## 3. Leave
+### Làm thêm giờ (OT)
+Tiếp nhận đăng ký, kiểm tra theo quy tắc/hạn mức được cấu hình, theo dõi phê duyệt và hỗ trợ đối chiếu với dữ liệu thực tế. Hạn mức phải lấy từ cấu hình nghiệp vụ hiện hành, không suy diễn từ giao diện.
 
-- Request và approval.
-- Balance.
-- Lịch nghỉ đã duyệt.
-- Calendar.
-- Reports.
+### Công tác
+Theo dõi yêu cầu, quyết định phê duyệt và trạng thái thực hiện; khi có dữ liệu thực tế phù hợp, hỗ trợ đối chiếu và làm rõ chênh lệch.
 
-## 4. OT
+### Lịch làm việc và ngày công cá nhân — điểm khác biệt người dùng dễ cảm nhận
+Lịch tổng hợp theo ngày/tháng lịch công ty, ca làm, dữ liệu chấm công thực tế, đăng ký nghỉ phép, OT, công tác và cảnh báo/sai lệch theo dữ liệu đã có. Nhân viên có thể chủ động xem kế hoạch và thông tin ngày công của mình tại một nơi; quản lý xem nhân viên thuộc phạm vi được cấp quyền. Đây là góc nhìn tổng hợp, không thay thế dữ liệu gốc của từng module.
 
-Hạn mức phải lấy từ policy/rule hiện hành; Weekly chỉ áp dụng khi có rule cấu hình. Không hard-code hạn mức trong UI.
+### Chấm công, đối soát và HR Review
+Hiển thị dữ liệu chấm công từ nguồn chính thức, hỗ trợ so sánh kế hoạch với thực tế và đưa trường hợp thiếu/sai lệch vào quy trình xác minh. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công. Cần phân biệt rõ kế hoạch đã duyệt, dữ liệu thực tế và kết quả đã được HR xác minh.
 
-```mermaid
-flowchart TD
-    OT[OT Request] --> V[Server Validator]
-    V --> D[Daily]
-    V --> W[Weekly if configured]
-    V --> M[Monthly]
-    V --> Y[Yearly]
-    D --> OK{Valid?}
-    W --> OK
-    M --> OK
-    Y --> OK
-    OK -->|No| ERR[Reject with validation message]
-    OK -->|Yes| SUB[Submit / Approval]
-```
+### Thiết bị và kiểm tra
+Nghiệp vụ thiết bị gồm đăng ký/phê duyệt, QR, nhập Excel theo schema phòng ban, kiểm tra dữ liệu theo dòng trước khi ghi nhận, giao thiết bị cho người phụ trách, bàn giao trách nhiệm, checklist theo phiên bản, bằng chứng, sửa chữa, thông báo và báo cáo. Các thao tác import, camera/QR, checklist, bàn giao và notification phải được xác minh từng luồng trên môi trường nghiệm thu trước khi công bố là đã vận hành chính thức.
 
-## 5. Trip
+### Kiểm kê và tuân thủ máy tính đầu cuối (Endpoint)
 
-```mermaid
-flowchart LR
-    D[Draft Trip] --> P[Pending Approval]
-    P --> I[InProgress]
-    I --> A[Approved]
-    A --> X[Trip Actual]
-    X --> R[Execution Reconciliation]
-```
+Năng lực IT được thiết kế để thu thập dữ liệu máy Windows, phần mềm và dịch vụ Windows qua tác nhân cài trên máy; chuẩn hóa dữ liệu; so sánh với danh mục/chính sách được phê duyệt; đưa cảnh báo hoặc ngoại lệ vào quy trình quản trị chung. Dữ liệu kiểm kê thực tế không tự động trở thành danh sách cho phép; tác nhân trên máy không phải kênh thực thi lệnh từ xa tùy ý.
 
-Trip sử dụng approval engine chung.
+Đây là phạm vi riêng với nghiệp vụ đăng ký thiết bị. Trước khi giới thiệu là đã vận hành, cần xác minh đăng ký kết nối của tác nhân, quản lý thông tin xác thực, dữ liệu kiểm kê không bị ghi trùng khi gửi lại, chính sách/luồng phê duyệt, cảnh báo tuân thủ, thu hồi/hết hạn và thử nghiệm trên máy thật. Xem [08 — Kiểm soát sẵn sàng và tuyên bố chức năng](08_READINESS_AND_CLAIMS.md).
 
-## 6. Equipment + QR
+## 3. Giá trị theo vai trò
 
-```mermaid
-flowchart TD
-    U[Authorized User] --> R[Create Equipment Request]
-    R --> QR[Generate QR Token]
-    QR --> INACTIVE[QR not active]
-    R --> AP[Approval]
-    AP -->|Approved| ASSET[Equipment Asset]
-    ASSET --> ACTIVE[QR Active]
-    ACTIVE --> SCAN[Scan QR]
-    SCAN --> REP[Repair Request]
-    REP --> RAP[Repair Approval]
-    RAP -->|Approved| HIST[Official Repair History]
-```
+| Vai trò | Cách làm thủ công hiện tại | Giá trị kỳ vọng |
+|---|---|---|
+| Nhân viên | Không có góc nhìn tổng hợp ngày công; hỏi lịch/ca/trạng thái từ nhiều nơi | Tự xem lịch cá nhân, ca, đăng ký và dữ liệu chấm công đã có; theo dõi yêu cầu |
+| Người phê duyệt | Tìm phiếu, xác nhận qua nhiều kênh | Tập trung yêu cầu cần quyết định |
+| Quản lý bộ phận | Tổng hợp từ nhiều nguồn | Theo dõi tình hình và việc tồn đọng |
+| HR | Trả lời câu hỏi tra cứu, nhập và ghép bảng, dò chênh lệch | Giảm tra cứu lặp lại; tập trung xác minh ngoại lệ và kết quả |
+| Quản lý thiết bị | Tìm thông tin và lịch sử rời rạc | Tra cứu theo mã QR và hồ sơ đã ghi nhận |
+| Quản trị viên | Cấp quyền/cấu hình phân tán | Quản lý quyền và cấu hình theo trách nhiệm |
+| Ban giám đốc | Nhận báo cáo sau khi tổng hợp | Có cơ sở theo dõi chỉ số sau khi đo |
 
-Module access và approval authority là hai lớp khác nhau.
+## 4. Nguyên tắc kiểm soát
 
-## 7. Execution Reconciliation
+- Quyền phê duyệt không tự động cấp quyền xem mọi dữ liệu.
+- Lịch là góc nhìn tổng hợp; trạng thái gốc thuộc module nghiệp vụ.
+- Yêu cầu đã duyệt là kế hoạch; dữ liệu thực tế cần đối chiếu theo nguồn chuẩn.
+- Sai lệch cần có người xử lý và lý do/bằng chứng theo chính sách.
+- Không tự tuyên bố ROI; hiệu quả phải dựa trên số liệu trước/sau.
 
-```mermaid
-flowchart LR
-    PLAN[Planned / Approved] --> REC[Reconciliation]
-    ACT[Actual] --> REC
-    REC -->|Matched| DONE[Resolved]
-    REC -->|Mismatch| CONF[Confirmation]
-    CONF --> EVI[Evidence if policy requires]
-    EVI --> REVIEW[Review]
-    REVIEW --> HR[HR Resolution]
-    HR --> DONE
-```
+## 5. Dùng tài liệu nào?
 
-Reconciliation là framework dùng chung cho OT, Leave, Trip và module tương lai.
+- Giới thiệu tổng thể: 01_INTRODUCTION.md
+- Trình chiếu Ban giám đốc: 04_PRESENTATION.md
+- Thông điệp và kế hoạch áp dụng: 03_PR_AND_LAUNCH.md
+- Đo KPI: 05_KPI_BASELINE_TEMPLATE.md
+- Kiểm soát sẵn sàng và tuyên bố chức năng: 08_READINESS_AND_CLAIMS.md
+- Đánh giá hiệu quả đầu tư: 09_BUSINESS_CASE_COST_REDUCTION.md
 
-## 8. Action / Calendar / Notification
-
-```mermaid
-flowchart TB
-    B[Business Module] --> REC[Reconciliation / Business Event]
-    REC --> ACT[Action]
-    ACT --> CAL[Calendar Projection]
-    ACT --> NOTI[Notification]
-    ACT --> DASH[Dashboard]
-    B --> DASH
-    B --> CAL
-    ACT -. same ActionId .-> CAL
-    ACT -. same ActionId .-> NOTI
-    ACT -. same ActionId .-> DASH
-```
-
-- Action = công việc.
-- Calendar = projection/navigation.
-- Notification = delivery/read state.
-- Dashboard = aggregation.
-- Business module = source of truth.
-
-## 9. HR Review & Attendance
-
-```mermaid
-flowchart TD
-    MISMATCH[Mismatch / User Feedback] --> QUEUE[HR Review Queue]
-    QUEUE --> DEC{HR Decision}
-    DEC -->|OK| CORR[Execution Correction]
-    DEC -->|NG| REJ[Rejected with Reason]
-    CORR --> CALC[HRM-compatible Calculation]
-    CALC --> SNAP[FVN Attendance Snapshot]
-    SNAP --> PAY[Payroll Input]
-```
-
-HR không sửa trực tiếp kết quả attendance snapshot. Correction phải đi qua calculation pipeline.
-
-## 10. Reports
-
-Danh mục chính: Leave, OT, Trip, Equipment và Attendance. Export là capability riêng và luôn bị giới hạn bởi Data Scope.
-
-## 11. Security
-
-```mermaid
-flowchart LR
-    AUTH[Authenticated User] --> CAP[Function / Action Capability]
-    CAP --> SCOPE[Effective Data Scope]
-    SCOPE --> QUERY[Validated Query]
-    QUERY --> RESULT[DTO / Excel]
-    CLIENT[UI filter] -. never grants access .-> QUERY
-```
-
-Scope chuẩn: Own, Employee, Department, All. Quyền Approve không tự động có Scope All.
+**Thông điệp cốt lõi:** kết nối quy trình để giảm thao tác lặp lại, làm rõ trách nhiệm và tạo dữ liệu cho cải tiến liên tục.

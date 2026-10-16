@@ -44,7 +44,7 @@ public sealed class PayrollGateEndToEndTests
 
         var reconciliation = new F03ExecutionReconciliation
         {
-            ModuleCode = "OT",
+            ModuleCode = "Overtime",
             SourceType = "PAYROLL_GATE_TEST",
             SourceId = $"PAYROLL-GATE-{Guid.NewGuid():N}",
             ParticipantId = employee!.EmployeeCode,

@@ -2,6 +2,6 @@
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
-<ModuleOverview Title="OT — Tổng quan"
-                 Description="Tổng hợp trạng thái OT và các yêu cầu liên quan."
+<ModuleOverview Title="@Language.T("ot.otTongQuan")"
+                 Description="@Language.T("ot.tongHopTrangThaiOt")"
                  CreateUrl="/ot/create" HistoryUrl="/ot/history" ModulePrefix="/ot" />

@@ -17,5 +17,13 @@ public sealed class F03UserConfiguration : IEntityTypeConfiguration<F03User>
         entity.Property(e => e.FullName).HasMaxLength(100);
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
         entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+        // F03Users.PermissionCode tham chiếu F03Permissions.PermissionCode (business key),
+        // KHÔNG phải F03Permissions.Id. Thiếu dòng này EF join theo Id.
+        entity.HasOne(e => e.PermissionCodeNavigation)
+              .WithMany(p => p.F03users)
+              .HasForeignKey(e => e.PermissionCode)
+              .HasPrincipalKey(p => p.PermissionCode)
+              .OnDelete(DeleteBehavior.Restrict);
     }
 }

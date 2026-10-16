@@ -13,9 +13,9 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.SourceRows
     /// </summary>
     public class HrmDepartmentSourceRow
 {
-    public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     public string DeptName { get; set; } = string.Empty;
-    public string? ParentDeptCode { get; set; }
+    public int? ParentDeptCode { get; set; }
     public int? DisplayPriority { get; set; }
     public bool ShowInReport { get; set; } = true;
 }

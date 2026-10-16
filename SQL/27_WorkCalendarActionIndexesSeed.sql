@@ -228,7 +228,7 @@ INSERT dbo.F03CalendarModuleDefinitions
     (IsActive,CreatedBy,ModuleCode,ModuleName,SupportsCalendar,DefaultEnabled)
 SELECT 1,0,v.ModuleCode,v.ModuleName,1,1
 FROM (VALUES
-    (N'OT',    N'Overtime'),
+    (N'Overtime', N'Overtime'),
     (N'LEAVE', N'Leave'),
     (N'TRIP',  N'Business Trip')
 ) v(ModuleCode,ModuleName)
@@ -244,7 +244,7 @@ INSERT dbo.F03CalendarModulePolicies
      ConfirmationMode,ReconciliationMode,Priority,SummaryTemplate,DetailTemplate)
 SELECT 1,0,v.ModuleCode,1,3,1,0,v.ReconciliationMode,v.Priority,v.SummaryTemplate,v.DetailTemplate
 FROM (VALUES
-    (N'OT',N'ApprovedVsExecution',2,100,N'OT: {StatusCode}',N'/ot/{SourceId}'),
+    (N'Overtime',N'ApprovedVsExecution',2,100,N'OT: {StatusCode}',N'/ot/{SourceId}'),
     (N'LEAVE',N'PlannedVsActual',1,100,N'Leave: {StatusCode}',N'/leave/{SourceId}'),
     (N'TRIP',N'ApprovedVsExecution',2,100,N'Trip: {StatusCode}',N'/trips/{SourceId}')
 ) v(ModuleCode,ReconciliationName,ReconciliationMode,Priority,SummaryTemplate,DetailTemplate)
@@ -260,8 +260,8 @@ INSERT dbo.F03ActionPolicies
      DueHours,NotificationEnabled,EscalationEnabled,TitleTemplate,SummaryTemplate)
 SELECT 1,0,v.ModuleCode,v.ActionType,1,v.Priority,v.DueHours,1,0,v.TitleTemplate,v.SummaryTemplate
 FROM (VALUES
-    (N'OT',N'OT.ATTENDANCE_CONFIRMATION',80,48,N'Xác nhận OT thiếu chấm công',N'Xác nhận kết quả OT ngày {WorkDate}'),
-    (N'OT',N'OT.REVIEW_MISMATCH',90,24,N'Kiểm tra chênh lệch OT',N'Kiểm tra Approved/Actual cho {WorkDate}'),
+    (N'Overtime',N'OT.ATTENDANCE_CONFIRMATION',80,48,N'Xác nhận OT thiếu chấm công',N'Xác nhận kết quả OT ngày {WorkDate}'),
+    (N'Overtime',N'OT.REVIEW_MISMATCH',90,24,N'Kiểm tra chênh lệch OT',N'Kiểm tra Approved/Actual cho {WorkDate}'),
     (N'LEAVE',N'LEAVE.CONFIRMATION',80,48,N'Xác nhận nghỉ phép',N'Xác nhận thông tin nghỉ ngày {WorkDate}'),
     (N'LEAVE',N'LEAVE.REVIEW',90,24,N'Kiểm tra đơn nghỉ phép',N'Có yêu cầu cần HR xử lý'),
     (N'TRIP',N'TRIP.CONFIRMATION',80,48,N'Xác nhận công tác',N'Xác nhận thông tin công tác ngày {WorkDate}'),

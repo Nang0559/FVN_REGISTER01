@@ -10,151 +10,27 @@ namespace FVN_REGISTER.EndpointAgent;
 
 public sealed class EndpointCollector
 {
-    public IReadOnlyList<EndpointSoftwareInventoryDto> CollectSoftware()
-    {
-        var result = new Dictionary<string, EndpointSoftwareInventoryDto>(StringComparer.OrdinalIgnoreCase);
-        foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
-        {
-            ReadUninstall(RegistryHive.LocalMachine, view, result);
-            ReadUninstall(RegistryHive.CurrentUser, view, result);
-        }
-        return result.Values.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-    }
-
-    public IReadOnlyList<EndpointServiceInventoryDto> CollectServices()
-    {
-        return ServiceController.GetServices()
-            .Select(service =>
-            {
-                string? startMode = null;
-                string? binaryHash = null;
-                try
-                {
-                    using var key = Registry.LocalMachine.OpenSubKey($"SYSTEM\\CurrentControlSet\\Services\\{service.ServiceName}");
-                    startMode = key?.GetValue("Start") switch
-                    {
-                        2 => "Automatic",
-                        3 => "Manual",
-                        4 => "Disabled",
-                        _ => "Unknown"
-                    };
-                    var imagePath = key?.GetValue("ImagePath")?.ToString();
-                    if (!string.IsNullOrWhiteSpace(imagePath))
-                    {
-                        using var sha = SHA256.Create();
-                        binaryHash = Convert.ToHexString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(imagePath))).ToLowerInvariant();
-                    }
-                }
-                catch { }
-
-                string state;
-                try { state = service.Status.ToString(); } catch { state = "Unknown"; }
-                return new EndpointServiceInventoryDto(service.ServiceName, service.DisplayName, state, startMode, binaryHash);
-            })
-            .OrderBy(x => x.ServiceName, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
-    public IReadOnlyList<EndpointAntivirusInventoryDto> CollectAntivirus()
-    {
-        var result = new List<EndpointAntivirusInventoryDto>();
-        var defender = ReadDefenderStatus();
-        if (defender is not null) result.Add(defender);
-        return result;
-    }
-
-    private static EndpointAntivirusInventoryDto? ReadDefenderStatus()
-    {
-        try
-        {
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-MpComputerStatus | Select-Object AMProductVersion,AMEngineVersion,AntivirusSignatureVersion,AntivirusSignatureLastUpdated,AntivirusEnabled,RealTimeProtectionEnabled,AMRunningMode,ProductStatus | ConvertTo-Json -Compress\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(10000);
-            if (string.IsNullOrWhiteSpace(output)) return null;
-            using var document = JsonDocument.Parse(output.Trim());
-            var root = document.RootElement;
-            var enabled = GetBool(root, "AntivirusEnabled");
-            var realtime = GetBool(root, "RealTimeProtectionEnabled");
-            var status = enabled == true && realtime == true ? "Protected" : enabled == false || realtime == false ? "Unprotected" : "Unknown";
-            var updated = GetDateTime(root, "AntivirusSignatureLastUpdated");
-            return new EndpointAntivirusInventoryDto(
-                "Microsoft Defender Antivirus",
-                GetString(root, "AMProductVersion"),
-                GetString(root, "AMEngineVersion"),
-                GetString(root, "AntivirusSignatureVersion"),
-                updated?.ToUniversalTime(),
-                enabled,
-                realtime,
-                status,
-                GetString(root, "AMRunningMode"),
-                "WindowsDefender");
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static string? GetString(JsonElement root, string name)
-        => root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.ToString() : null;
-
-    private static bool? GetBool(JsonElement root, string name)
-        => root.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : null;
-
-    private static DateTime? GetDateTime(JsonElement root, string name)
-    {
-        var text = GetString(root, name);
-        return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var value) ? value : null;
-    }
-
-    private static void ReadUninstall(RegistryHive hive, RegistryView view, IDictionary<string, EndpointSoftwareInventoryDto> result)
-    {
-        try
-        {
-            using var baseKey = RegistryKey.OpenBaseKey(hive, view);
-            using var uninstall = baseKey.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall");
-            if (uninstall == null) return;
-            foreach (var subName in uninstall.GetSubKeyNames())
-            {
-                try
-                {
-                    using var key = uninstall.OpenSubKey(subName);
-                    var name = key?.GetValue("DisplayName")?.ToString()?.Trim();
-                    if (string.IsNullOrWhiteSpace(name)) continue;
-                    var dto = new EndpointSoftwareInventoryDto(
-                        name,
-                        name,
-                        key?.GetValue("Publisher")?.ToString(),
-                        key?.GetValue("DisplayVersion")?.ToString(),
-                        key?.GetValue("Architecture")?.ToString(),
-                        ParseInstallDate(key?.GetValue("InstallDate")?.ToString()),
-                        key?.GetValue("InstallLocation")?.ToString());
-                    result.TryAdd(BuildKey(dto), dto);
-                }
-                catch { }
-            }
-        }
-        catch { }
-    }
-
-    private static string BuildKey(EndpointSoftwareInventoryDto x) => $"{x.Name}|{x.Publisher}|{x.Version}";
-
-    private static DateTime? ParseInstallDate(string? value)
-    {
-        return DateTime.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
-            ? parsed.Date
-            : null;
-    }
+    private sealed record FileHashCacheEntry(long Length, DateTime LastWriteUtc, string Hash);
+    private readonly Dictionary<string, FileHashCacheEntry> _binaryHashCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly string[] SystemSoftwareNamePrefixes = { "UPDATE FOR ", "SECURITY UPDATE FOR ", "HOTFIX FOR ", "MICROSOFT UPDATE FOR ", "KB" };
+    private static readonly string[] SystemSoftwareReleaseTypes = { "HOTFIX", "UPDATE", "SECURITY UPDATE", "SERVICE PACK" };
+    public IReadOnlyList<EndpointSoftwareInventoryDto> CollectSoftware() { var result = new Dictionary<string, EndpointSoftwareInventoryDto>(StringComparer.OrdinalIgnoreCase); foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 }) { ReadUninstall(RegistryHive.LocalMachine, view, result); ReadLoadedUserHives(view, result); } return result.Values.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Version, StringComparer.OrdinalIgnoreCase).ToArray(); }
+    public IReadOnlyList<EndpointServiceInventoryDto> CollectServices() { return ServiceController.GetServices().Select(service => { string? startMode = null; string? binaryHash = null; try { using var key = Registry.LocalMachine.OpenSubKey($"SYSTEM\\CurrentControlSet\\Services\\{service.ServiceName}"); startMode = key?.GetValue("Start") switch { 2 => "Automatic", 3 => "Manual", 4 => "Disabled", _ => "Unknown" }; var imagePath = key?.GetValue("ImagePath")?.ToString(); var binaryPath = ResolveServiceExecutable(imagePath); if (!string.IsNullOrWhiteSpace(binaryPath) && File.Exists(binaryPath)) { var info = new FileInfo(binaryPath); if (_binaryHashCache.TryGetValue(binaryPath, out var cached) && cached.Length == info.Length && cached.LastWriteUtc == info.LastWriteTimeUtc) binaryHash = cached.Hash; else { using var sha = SHA256.Create(); using var stream = File.OpenRead(binaryPath); binaryHash = Convert.ToHexString(sha.ComputeHash(stream)).ToLowerInvariant(); _binaryHashCache[binaryPath] = new FileHashCacheEntry(info.Length, info.LastWriteTimeUtc, binaryHash); } } } catch { } string state; try { state = service.Status.ToString(); } catch { state = "Unknown"; } return new EndpointServiceInventoryDto(service.ServiceName, service.DisplayName, state, startMode, binaryHash); }).OrderBy(x => x.ServiceName, StringComparer.OrdinalIgnoreCase).ToArray(); }
+    public IReadOnlyList<EndpointAntivirusInventoryDto> CollectAntivirus() { var result = new List<EndpointAntivirusInventoryDto>(); var defender = ReadDefenderStatus(); if (defender is not null) result.Add(defender); foreach (var product in ReadSecurityCenterProducts()) { if (result.Any(x => string.Equals(x.ProductName, product.ProductName, StringComparison.OrdinalIgnoreCase))) continue; result.Add(product); } return result; }
+    private static EndpointAntivirusInventoryDto? ReadDefenderStatus() { try { const string command = "Get-MpComputerStatus | Select-Object AMProductVersion,AMEngineVersion,AntivirusSignatureVersion,AntivirusSignatureLastUpdated,AntivirusEnabled,RealTimeProtectionEnabled,AMRunningMode,ProductStatus | ConvertTo-Json -Compress"; var output = RunPowerShell(command, TimeSpan.FromSeconds(10)); if (string.IsNullOrWhiteSpace(output)) return null; using var document = JsonDocument.Parse(output.Trim()); var root = document.RootElement; var enabled = GetBool(root, "AntivirusEnabled"); var realtime = GetBool(root, "RealTimeProtectionEnabled"); var status = enabled == true && realtime == true ? "Protected" : enabled == false || realtime == false ? "Unprotected" : "Unknown"; return new EndpointAntivirusInventoryDto("Microsoft Defender Antivirus", GetString(root, "AMProductVersion"), GetString(root, "AMEngineVersion"), GetString(root, "AntivirusSignatureVersion"), GetDateTime(root, "AntivirusSignatureLastUpdated")?.ToUniversalTime(), enabled, realtime, status, GetString(root, "AMRunningMode"), "WindowsDefender"); } catch { return null; } }
+    private static IReadOnlyList<EndpointAntivirusInventoryDto> ReadSecurityCenterProducts() { try { const string command = "Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct | Select-Object displayName,productState,pathToSignedProductExe | ConvertTo-Json -Compress"; var output = RunPowerShell(command, TimeSpan.FromSeconds(10)); if (string.IsNullOrWhiteSpace(output)) return []; using var document = JsonDocument.Parse(output.Trim()); IEnumerable<JsonElement> elements = document.RootElement.ValueKind == JsonValueKind.Array ? document.RootElement.EnumerateArray() : [document.RootElement]; return elements.Select(x => { var name = GetString(x, "displayName"); if (string.IsNullOrWhiteSpace(name) || name.Contains("Microsoft Defender", StringComparison.OrdinalIgnoreCase)) return null; var state = GetString(x, "productState"); return new EndpointAntivirusInventoryDto(name, null, null, null, null, null, null, string.IsNullOrWhiteSpace(state) ? "Detected" : "Detected", null, "WindowsSecurityCenter"); }).Where(x => x is not null).Cast<EndpointAntivirusInventoryDto>().ToArray(); } catch { return []; } }
+    private static string RunPowerShell(string command, TimeSpan timeout) { using var process = new Process { StartInfo = new ProcessStartInfo { FileName = "powershell.exe", Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{command.Replace("\\\"", "\\\\\"")}\"", UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true } }; process.Start(); var outputTask = process.StandardOutput.ReadToEndAsync(); try { outputTask.WaitAsync(timeout).GetAwaiter().GetResult(); process.WaitForExit((int)timeout.TotalMilliseconds); return outputTask.GetAwaiter().GetResult(); } catch (global::System.TimeoutException) { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } return string.Empty; } }
+    private static string? GetString(JsonElement root, string name) => root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.ToString() : null;
+    private static bool? GetBool(JsonElement root, string name) => root.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : null;
+    private static DateTime? GetDateTime(JsonElement root, string name) { var text = GetString(root, name); return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var value) ? value : null; }
+    private static void ReadLoadedUserHives(RegistryView view, IDictionary<string, EndpointSoftwareInventoryDto> result) { try { using var users = RegistryKey.OpenBaseKey(RegistryHive.Users, view); foreach (var sid in users.GetSubKeyNames()) { if (!IsUserSid(sid)) continue; using var hive = users.OpenSubKey(sid); ReadUninstallFromBase(hive, result); } } catch { } }
+    private static void ReadUninstall(RegistryHive hive, RegistryView view, IDictionary<string, EndpointSoftwareInventoryDto> result) { try { using var baseKey = RegistryKey.OpenBaseKey(hive, view); ReadUninstallFromBase(baseKey, result); } catch { } }
+    private static void ReadUninstallFromBase(RegistryKey? baseKey, IDictionary<string, EndpointSoftwareInventoryDto> result) { try { using var uninstall = baseKey?.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"); if (uninstall == null) return; foreach (var subName in uninstall.GetSubKeyNames()) { try { using var key = uninstall.OpenSubKey(subName); if (key == null || IsSystemComponent(key)) continue; var name = key.GetValue("DisplayName")?.ToString()?.Trim(); if (string.IsNullOrWhiteSpace(name) || IsWindowsUpdate(name, key.GetValue("ReleaseType")?.ToString())) continue; var dto = new EndpointSoftwareInventoryDto(name, name, key.GetValue("Publisher")?.ToString(), key.GetValue("DisplayVersion")?.ToString(), key.GetValue("Architecture")?.ToString(), ParseInstallDate(key.GetValue("InstallDate")?.ToString()), key.GetValue("InstallLocation")?.ToString()); result.TryAdd(BuildKey(dto), dto); } catch { } } } catch { } }
+    private static bool IsSystemComponent(RegistryKey key) => Convert.ToInt32(key.GetValue("SystemComponent") ?? 0, CultureInfo.InvariantCulture) == 1;
+    private static bool IsWindowsUpdate(string name, string? releaseType) { var normalized = name.Trim().ToUpperInvariant(); if (!string.IsNullOrWhiteSpace(releaseType) && SystemSoftwareReleaseTypes.Contains(releaseType.Trim().ToUpperInvariant(), StringComparer.OrdinalIgnoreCase)) return true; return SystemSoftwareNamePrefixes.Any(normalized.StartsWith); }
+    private static bool IsUserSid(string sid) => sid.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase);
+    private static string? ResolveServiceExecutable(string? imagePath) { if (string.IsNullOrWhiteSpace(imagePath)) return null; var expanded = Environment.ExpandEnvironmentVariables(imagePath.Trim()); if (expanded.StartsWith('"')) { var end = expanded.IndexOf('"', 1); return end > 1 ? expanded[1..end] : null; } var exe = expanded.IndexOf(".exe", StringComparison.OrdinalIgnoreCase); return exe >= 0 ? expanded[..(exe + 4)] : expanded.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries)[0]; }
+    private static string BuildKey(EndpointSoftwareInventoryDto x) => $"{Normalize(x.Name)}|{Normalize(x.Publisher)}|{x.Version?.Trim()}|{x.Architecture?.Trim()}";
+    private static string Normalize(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();
+    private static DateTime? ParseInstallDate(string? value) => DateTime.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed) ? parsed.Date : null;
 }

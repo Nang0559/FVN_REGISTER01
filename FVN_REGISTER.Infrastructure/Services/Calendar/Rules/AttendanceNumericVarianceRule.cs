@@ -30,7 +30,25 @@ public sealed class AttendanceNumericVarianceRule : ICalendarDayRule
             }
         };
 
-        if (attendance.ActualHours.HasValue
+        // One OT per employee per day: if the day already has an OT request, offer to open it
+        // instead of inviting a duplicate registration.
+        var existingOt = CalendarOtRegistrations.FindOpenRequest(context.Day);
+        if (existingOt is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(existingOt.DetailRoute))
+            {
+                actions.Insert(0, new CalendarActionOptionDto
+                {
+                    Code = "OPEN_OT_REQUEST",
+                    Title = "Xem đơn OT",
+                    Description = "Ngày này đã có đơn OT; mở đơn hiện có.",
+                    Kind = "NAVIGATION",
+                    DetailRoute = existingOt.DetailRoute,
+                    RequestId = existingOt.RequestId
+                });
+            }
+        }
+        else if (attendance.ActualHours.HasValue
             && attendance.RequiredHours.HasValue
             && attendance.ActualHours.Value > attendance.RequiredHours.Value)
         {

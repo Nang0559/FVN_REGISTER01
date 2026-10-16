@@ -2,9 +2,8 @@
 
 ## A. Database
 
-- [ ] `54_Endpoint_Inventory_Compliance.sql` đã chạy.
-- [ ] `55_Endpoint_Credentials.sql` đã chạy.
-- [ ] `56_Endpoint_Governance.sql` đã chạy sau 54/55.
+- [ ] Bộ SQL hiện tại đã chạy, trong đó `55_Endpoint_Credentials.sql` và `69_Endpoint_LanscopeDeployment.sql` đã chạy.
+- [ ] Nếu dùng governance extensions, file đúng là `56_EndpointGovernanceExtensions.sql` (không phải `56_Endpoint_Governance.sql`).
 - [ ] Không duplicate DeviceKey.
 - [ ] Credential chỉ lưu hash.
 - [ ] Approval snapshot JSON hợp lệ.
@@ -12,7 +11,8 @@
 ## B. Machine identity
 
 - [ ] Mỗi máy có DeviceKey và credential riêng.
-- [ ] Credential cũ bị revoke khi rotate/provision lại.
+- [ ] Credential cũ chỉ còn grace 10 phút khi rotate và bị background job revoke sau khi grace hết hạn.
+- [ ] Credential hết hạn hoặc hết grace không thể gọi inventory/agent-rotate.
 - [ ] API lấy DeviceKey từ credential.
 - [ ] Đổi ComputerName tạo Identity History + Alert.
 - [ ] Hardware identity change tạo Identity Review.
@@ -66,6 +66,12 @@
 - [ ] Đổi tên thử nghiệm tạo alert.
 - [ ] Revoke credential.
 - [ ] Credential PC-A không gửi inventory cho PC-B.
+- [ ] Token replay/expired token trả 4xx và Agent dừng retry.
+- [ ] PendingReview không được cấp credential trước khi approve.
+- [ ] Reset target revoke credential cũ và cho phép reissue token.
+- [ ] Bulk reissue Pending/Approved targets hoạt động.
+- [ ] Rate limit trên `enroll` và `inventory` trả 429 khi vượt ngưỡng.
+- [ ] IIS/proxy chỉ được tin `X-Forwarded-*` từ KnownProxies.
 - [ ] Allowlist → Compliant sau inventory.
 - [ ] Software ngoài allowlist → NonCompliant/Alert.
 - [ ] Software mới → Security Review → Approval → Active.

@@ -32,3 +32,17 @@ Rules:
 ## Security
 
 HTTPS only; credential rotation/revocation; replay protection where supported; payload size limits; rate limiting; audit of registration, credential rotation, policy changes and exception approval. EmployeeCode and EquipmentAssetId are server-resolved when possible; never trust client scope claims.
+
+
+## 5. Equipment-scoped credential endpoints
+
+Business flow hiện hành ưu tiên Equipment Asset ID:
+
+| Method | Endpoint | Mục đích |
+|---|---|---|
+| GET | /api/security/endpoints/credentials/equipment/{equipmentAssetId}/status | Xem Endpoint/credential status theo Equipment |
+| GET | /api/security/endpoints/credentials/equipment/{equipmentAssetId}/history | Xem credential history theo Equipment |
+| POST | /api/security/endpoints/credentials/equipment/{equipmentAssetId}/provision | Provision hoặc rotate theo trạng thái |
+| POST | /api/security/endpoints/credentials/equipment/{equipmentAssetId}/revoke | Revoke credential theo Equipment |
+
+Các API technical theo DeviceKey vẫn được giữ cho compatibility và agent/security operations. UI nghiệp vụ không yêu cầu người dùng nhập DeviceKey.

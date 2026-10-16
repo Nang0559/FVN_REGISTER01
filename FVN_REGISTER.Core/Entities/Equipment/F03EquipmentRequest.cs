@@ -7,6 +7,13 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
 {
     public EquipmentRequestKind RequestKind { get; set; }
     public int? AssetId { get; set; }
+
+    // Immutable before/after snapshots for an independently approved asset change.
+    [Column(TypeName = "nvarchar(max)")] public string? AssetBeforeSnapshotJson { get; set; }
+    [Column(TypeName = "nvarchar(max)")] public string? AssetAfterSnapshotJson { get; set; }
+    [StringLength(64)] public string? AssetBeforeHash { get; set; }
+    public DateTime? AssetSnapshotCapturedAtUtc { get; set; }
+    public DateTime? AssetChangeAppliedAtUtc { get; set; }
     public int? FormId { get; set; }
     public int? FormSubmissionId { get; set; }
     [StringLength(50)] public string? FormCode { get; set; }
@@ -23,13 +30,17 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
     public DateTime? ExpectedDepreciationDate { get; set; }
     [StringLength(250)] public string? Location { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
+    /// <summary>Schema-driven (custom) field values staged on the draft; copied to the asset when approved.</summary>
+    [Column(TypeName = "nvarchar(max)")] public string? CustomDataJson { get; set; }
+    public bool EndpointAgentEligible { get; set; }
+    [StringLength(30)] public string? EndpointOsFamily { get; set; }
     public DateTime? RepairDate { get; set; }
     [StringLength(1000)] public string? RepairContent { get; set; }
     [StringLength(250)] public string? RepairVendor { get; set; }
     [Column(TypeName = "decimal(18,2)")] public decimal? RepairCost { get; set; }
     [StringLength(1000)] public string? RepairResult { get; set; }
 
-    [StringLength(20)] public string? RepairResponsibleDeptCode { get; set; }
+    public int? RepairResponsibleDeptCode { get; set; }
     [StringLength(50)] public string? RepairAssigneeEmployeeCode { get; set; }
     public int? RepairAssigneeUserId { get; set; }
     [StringLength(1000)] public string? RepairFeedback { get; set; }

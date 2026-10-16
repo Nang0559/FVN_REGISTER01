@@ -29,6 +29,10 @@ public sealed class HrmAttendanceBackfillIntegrationTests
         {
             Value = DBNull.Value
         };
+        var pEmployee = new SqlParameter("@EmployeeCode", SqlDbType.NVarChar, 50)
+        {
+            Value = DBNull.Value
+        };
         var pFrom = new SqlParameter("@FromDate", SqlDbType.Date)
         {
             Value = yesterday.Date
@@ -43,8 +47,8 @@ public sealed class HrmAttendanceBackfillIntegrationTests
         };
 
         var rows = await db.Database.SqlQueryRaw<HrmAttendanceCalculationResultDto>(
-            "EXEC dbo.usp_CalculateHrmAttendance @DeptCode,@FromDate,@ToDate,@TriggeredBy",
-            pDept, pFrom, pTo, pBy)
+            "EXEC dbo.usp_CalculateHrmAttendance @DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy",
+            pDept, pEmployee, pFrom, pTo, pBy)
             .ToListAsync();
 
         var result = rows.FirstOrDefault();

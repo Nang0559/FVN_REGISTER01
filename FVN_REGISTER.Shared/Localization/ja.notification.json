@@ -1,0 +1,9 @@
+{
+  "notification.capViec": "{0} • 第{1}承認 • {2}件",
+  "notification.gioTruoc": "{0}時間前",
+  "notification.khongTheKetNoiMay": "サーバーに接続できません。",
+  "notification.khongTheTaiTrungTam": "ワークセンターを読み込めません。",
+  "notification.ngayTruoc": "{0}日前",
+  "notification.phutTruoc": "{0}分前",
+  "notification.vuaXong": "たった今"
+}

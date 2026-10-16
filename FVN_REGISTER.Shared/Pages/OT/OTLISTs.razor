@@ -16,12 +16,12 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<PageTitle>Danh sách đơn OT</PageTitle>
+<PageTitle>@Language.T("ot.list")</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
     <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">Danh sách đơn tăng ca (OT)</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Danh sách sử dụng OTSummaryDto</MudText>
+        <MudText Typo="Typo.h5">@Language.T("ot.danhSachDonTangCa")</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("ot.danhSachSuDungOtsummarydto")</MudText>
     </MudStack>
     <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="LoadData" Disabled="_loading" />
 </MudStack>
@@ -30,14 +30,14 @@
     <MudCardContent>
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="4" md="3">
-                <MudDatePicker Label="Từ ngày" Date="_fromDate" DateChanged="d => _fromDate = d" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudDatePicker Label='@Language.T("trip.fromDate")' Date="_fromDate" DateChanged="d => _fromDate = d" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12" sm="4" md="3">
-                <MudDatePicker Label="Đến ngày" Date="_toDate" DateChanged="d => _toDate = d" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudDatePicker Label='@Language.T("trip.toDate")' Date="_toDate" DateChanged="d => _toDate = d" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12" sm="4" md="3">
-                <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    <MudSelectItem T="string" Value="@string.Empty">Tất cả</MudSelectItem>
+                <MudSelect T="string" @bind-Value="_status" Label='@Language.T("common.status")' Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="string" Value="@string.Empty">@Language.T("common.all")</MudSelectItem>
                     @foreach (var status in Enum.GetValues<ApprovalStatus>())
                     {
                         <MudSelectItem T="string" Value="@status.ToString()">@status</MudSelectItem>
@@ -45,10 +45,10 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="4" md="3">
-                <MudTextField @bind-Value="_search" Label="Tìm kiếm" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudTextField @bind-Value="_search" Label='@Language.T("common.search")' Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilter" Disabled="_loading" StartIcon="@Icons.Material.Filled.Search">Lọc</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilter" Disabled="_loading" StartIcon="@Icons.Material.Filled.Search">@Language.T("common.loc")</MudButton>
             </MudItem>
         </MudGrid>
     </MudCardContent>
@@ -62,31 +62,31 @@
 <MudPaper Elevation="2">
     <MudTable T="OTSummaryDto" Items="_items" Hover="true" Dense="true" Loading="_loading" OnRowClick="OnRowClick">
         <ToolBarContent>
-            <MudText Typo="Typo.subtitle1">Kết quả</MudText>
+            <MudText Typo="Typo.subtitle1">@Language.T("hrm.result")</MudText>
             <MudSpacer />
             @if (_paged != null)
             {
-                <MudText Typo="Typo.caption">@_paged.TotalCount bản ghi · trang @_page/@_paged.TotalPages</MudText>
+                <MudText Typo="Typo.caption">@Language.T("ot.banGhiTrang", _paged.TotalCount, _page, _paged.TotalPages)</MudText>
             }
         </ToolBarContent>
         <HeaderContent>
-            <MudTh>Mã đơn</MudTh>
-            <MudTh>Ngày OT</MudTh>
-            <MudTh>Nhân viên</MudTh>
-            <MudTh>Loại OT</MudTh>
-            <MudTh>Số giờ</MudTh>
-            <MudTh>SL NV</MudTh>
-            <MudTh>Trạng thái</MudTh>
+            <MudTh>@Language.T("common.maDon")</MudTh>
+            <MudTh>@Language.T("ot.ngayOt")</MudTh>
+            <MudTh>@Language.T("ot.employee")</MudTh>
+            <MudTh>@Language.T("ot.loaiOt")</MudTh>
+            <MudTh>@Language.T("ot.hours")</MudTh>
+            <MudTh>@Language.T("ot.slNv")</MudTh>
+            <MudTh>@Language.T("common.status")</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Mã đơn">@context.RequestCode</MudTd>
-            <MudTd DataLabel="Ngày OT">@context.OTDate.ToString("dd/MM/yyyy")</MudTd>
-            <MudTd DataLabel="Nhân viên">@context.EmployeeName</MudTd>
-            <MudTd DataLabel="Loại OT">@context.TypeName</MudTd>
-            <MudTd DataLabel="Số giờ">@context.TotalHours.ToString("N1")</MudTd>
+            <MudTd DataLabel='@Language.T("common.maDon")'>@context.RequestCode</MudTd>
+            <MudTd DataLabel='@Language.T("ot.ngayOt")'>@context.OTDate.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd DataLabel='@Language.T("common.employee")'>@context.EmployeeName</MudTd>
+            <MudTd DataLabel='@Language.T("ot.loaiOt")'>@context.TypeName</MudTd>
+            <MudTd DataLabel='@Language.T("ot.hours")'>@context.TotalHours.ToString("N1")</MudTd>
             <MudTd DataLabel="SL NV">@context.EmployeeCount</MudTd>
-            <MudTd DataLabel="Trạng thái">
+            <MudTd DataLabel='@Language.T("common.status")'>
                 <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">@context.Status</MudChip>
             </MudTd>
             <MudTd>
@@ -94,7 +94,7 @@
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText Class="pa-6" Color="Color.Secondary">Không có dữ liệu.</MudText>
+            <MudText Class="pa-6" Color="Color.Secondary">@Language.T("common.khongCoDuLieu")</MudText>
         </NoRecordsContent>
     </MudTable>
 
@@ -144,7 +144,7 @@
 
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Không tải được danh sách OT.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocDanhSach"), Severity.Error);
                 return;
             }
 
@@ -164,7 +164,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "[OT_LIST] LoadData lỗi");
-            Snackbar.Add("Lỗi hệ thống khi tải danh sách OT.", Severity.Error);
+            Snackbar.Add(Language.T("ot.loiHeThongKhiTai"), Severity.Error);
         }
         finally
         {
@@ -196,8 +196,9 @@
         _ => Color.Warning
     };
 
-    public void Dispose()
+    public override void Dispose()
     {
+        base.Dispose();
         _cts.Cancel();
         _cts.Dispose();
     }

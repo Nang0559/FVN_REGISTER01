@@ -35,7 +35,7 @@ public sealed class PayrollController : BaseApiController
     public async Task<IActionResult> GetPeriods(CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.PayrollView, ct)) return Forbid();
-        return Ok(ApiResponse<object>.Ok(await _service.GetPeriodsAsync(ct)));
+        return HandleResult(await _service.GetPeriodsAsync(ct));
     }
 
     [HttpPost("periods/current/ensure")]
@@ -43,7 +43,7 @@ public sealed class PayrollController : BaseApiController
     {
         if (!await CanAsync(SecurityFunctionCodes.PayrollPrepare, ct)) return Forbid();
         var user = UserInfo!;
-        return Ok(ApiResponse<object>.Ok(await _service.GetOrCreateCurrentPeriodAsync(user.UserId, ct)));
+        return HandleResult(await _service.GetOrCreateCurrentPeriodAsync(user.UserId, ct));
     }
 
     [HttpPost("periods/{periodId:int}/prepare")]
@@ -51,7 +51,7 @@ public sealed class PayrollController : BaseApiController
     {
         if (!await CanAsync(SecurityFunctionCodes.PayrollPrepare, ct)) return Forbid();
         var user = UserInfo!;
-        return Ok(ApiResponse<object>.Ok(await _service.PrepareAsync(periodId, user.UserId, ct)));
+        return HandleResult(await _service.PrepareAsync(periodId, user.UserId, ct));
     }
 
     [HttpPost("periods/{periodId:int}/lock")]
@@ -59,14 +59,14 @@ public sealed class PayrollController : BaseApiController
     {
         if (!await CanAsync(SecurityFunctionCodes.PayrollLock, ct)) return Forbid();
         var user = UserInfo!;
-        return Ok(ApiResponse<object>.Ok(await _service.LockAsync(periodId, user.UserId, ct)));
+        return HandleResult(await _service.LockAsync(periodId, user.UserId, ct));
     }
 
     [HttpGet("periods/{periodId:int}/inputs")]
     public async Task<IActionResult> GetInputs(int periodId, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.PayrollView, ct)) return Forbid();
-        return Ok(ApiResponse<object>.Ok(await _service.GetInputsAsync(periodId, ct)));
+        return HandleResult(await _service.GetInputsAsync(periodId, ct));
     }
 
     [HttpPost("periods/{periodId:int}/export")]
@@ -75,7 +75,9 @@ public sealed class PayrollController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.PayrollExport, ct)) return Forbid();
         var user = UserInfo!;
         var result = await _service.ExportAsync(periodId, user.UserId, ct);
-        return File(result.Content, result.ContentType, result.FileName);
+        if (!result.IsSuccess || result.Data is null)
+            return BadRequest(ApiResponse<object>.FromResult(result));
+        return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
     }
 
     private async Task<bool> CanAsync(int functionCode, CancellationToken ct)

@@ -1,94 +1,55 @@
-# 14 — Equipment Flexible Schema & Excel Import
+# 14 — Equipment Excel Import trên Shared Excel Platform
 
 ## Mục tiêu
 
-Các phòng ban không bị ép dùng cùng một bộ cột thiết bị. Hệ thống giữ một canonical core dùng chung và cho phép mỗi phòng ban khai báo thêm các trường nghiệp vụ riêng.
+Equipment sử dụng **Shared Excel Platform** làm canonical owner cho toàn bộ workbook mechanics, schema/version và import staging. Equipment chỉ giữ business mapping và domain validation.
 
-Luồng tổng thể:
+Phòng ban vẫn có thể dùng các bộ cột khác nhau mà không tạo bảng schema Excel riêng cho từng module.
 
-Excel phòng ban -> Import Gateway -> Staging Batch/Rows -> Validate theo Schema -> Review lỗi -> Commit -> Equipment Assets.
+## 1. Kiến trúc canonical
 
-## 1. Không dùng EAV thuần túy
+Excel file → IExcelPlatform → Inspect → Schema/version → Header/field mapping → Preview/validation → Import staging → Equipment business mapping → F03EquipmentAsset.
 
-Không biến toàn bộ thiết bị thành FieldId/Value vì như vậy các truy vấn chuẩn, index và báo cáo sẽ khó kiểm soát.
+Canonical tables:
+- F03ExcelSchemas
+- F03ExcelSchemaVersions
+- F03ExcelSchemaFields
+- F03ExcelImportBatches
+- F03ExcelImportRows
+- F03ExcelImportErrors
 
-Thiết kế gồm:
+Equipment không sở hữu các bảng F03EquipmentSchemas, F03EquipmentFieldDefinitions, F03EquipmentImportBatches, F03EquipmentImportRows hoặc F03EquipmentImportErrors.
 
-- Core fields: EquipmentCode, EquipmentName, Specification, SerialNumber, AssetCode, PurchasePrice, PurchaseDate, ExpectedDepreciationDate, DeptCode, Location, QR, Note.
-- Department fields: metadata tại F03EquipmentFieldDefinitions.
-- Values của field riêng: JSON tại F03EquipmentAssets.CustomDataJson.
+Các bảng legacy trên đã được loại khỏi deployment path và được cleanup bởi SQL/16_EquipmentFlexibleImport_LegacyCleanup.sql.
 
-Như vậy một component có thể dùng cho mọi phòng ban mà không cần tạo bảng Equipment riêng cho từng phòng.
+## 2. Equipment business fields
 
-## 2. Ví dụ
+Các trường lõi vẫn thuộc domain Equipment: EquipmentCode, EquipmentName, Specification, SerialNumber, AssetCode, PurchasePrice, PurchaseDate, ExpectedDepreciationDate, DeptCode, Location, QR và Note.
 
-IT có thể khai báo CPU, RAM, IP, MAC, OS.
+Field mở rộng của từng phòng ban được khai báo trong F03ExcelSchemaFields và dữ liệu business mở rộng có thể được lưu vào F03EquipmentAssets.CustomDataJson.
 
-QA/QC có thể khai báo ngày hiệu chuẩn, ngày kiểm định, tiêu chuẩn, kết quả hiệu chuẩn.
+## 3. Import lifecycle
 
-Sản xuất có thể khai báo công suất, Line, Machine No, chu kỳ bảo trì, nhà cung cấp.
+Upload → Inspect → Schema mapping → Preview → Validation → Shared Excel staging → Equipment business mapping → Commit → F03EquipmentAssets.
 
-Không cần tạo F03EquipmentIT, F03EquipmentQC hoặc F03EquipmentProduction.
+Không tạo workbook reader/parser riêng trong Equipment.
 
-## 3. Schema phòng ban
+## 4. Authorization
 
-F03EquipmentFieldDefinitions quản lý:
+Capability: Equipment.Import = 2306, Scope = Department.
 
-| Field | Ý nghĩa |
-|---|---|
-| DeptCode | Schema thuộc phòng ban |
-| FieldKey | Key ổn định, dùng trong JSON/API |
-| FieldLabel | Nhãn hiển thị |
-| DataType | Text / Number / Date / Boolean / Choice |
-| IsRequired | Bắt buộc hay không |
-| IsImportable | Có nhận từ Excel hay không |
-| IsSearchable | Có dùng làm điều kiện tìm kiếm hay không |
-| DisplayOrder | Thứ tự UI |
-| OptionsJson | Danh sách Choice |
+Authorization phải dùng AuthorizationService và scope department tương ứng; không dùng IsAdmin làm bypass nghiệp vụ.
 
-## 4. Excel không ghi thẳng vào Asset
+## 5. Quy tắc cho module mới
 
-Luồng import bắt buộc:
+1. Đăng ký ModuleCode / EntityCode.
+2. Sử dụng IExcelPlatform.
+3. Dùng F03Excel* cho schema/version/import metadata.
+4. Chỉ giữ adapter cho business mapping/validation.
+5. Không tạo bảng F03<Module>Schema, F03<Module>ImportBatch, F03<Module>ImportRow.
+6. Không instantiate ExcelPlatform trực tiếp.
+7. Không instantiate NPOI ngoài ExcelPlatform.
 
-Upload -> Staging -> Header mapping -> Validation -> Review -> Commit.
+## 6. Trạng thái migration
 
-F03EquipmentImportBatches và F03EquipmentImportRows giữ lịch sử import để biết ai upload, file nào, phòng ban nào, dòng nào lỗi và dòng nào đã import.
-
-## 5. Header thông minh
-
-Import không yêu cầu Excel phải dùng đúng tên tiếng Anh. Hệ thống chuẩn hóa header và nhận alias.
-
-Ví dụ:
-
-- Mã thiết bị / Mã TB / Mã tài sản -> EquipmentCode
-- Tên thiết bị / Tên TB / Tên tài sản -> EquipmentName
-- Số serial / Serial / S/N -> SerialNumber
-- Nguyên giá / Giá mua -> PurchasePrice
-
-Các cột không phải canonical field vẫn được giữ trong CustomDataJson để không mất dữ liệu Excel.
-
-## 6. Authorization
-
-Capability mới:
-
-Equipment.Import = 2306
-Scope = Department
-
-Không dùng IsAdmin để bypass scope. User chỉ được import vào department mà AuthorizationService.CanAccessAsync cho phép.
-
-## 7. UI tương lai
-
-Equipment:
-- Danh sách
-- Quét QR
-- Sửa chữa
-- Import Excel
-- Cấu hình trường phòng ban
-
-Form thiết bị render từ Core fields cộng với F03EquipmentFieldDefinitions của DeptCode.
-
-## 8. Quy tắc
-
-Không cho Excel tự tạo schema. Schema phải được cấu hình trước bởi người có capability Equipment.Import. Excel chỉ cung cấp dữ liệu.
-
-Điều này tránh typo header tạo ra hàng loạt field rác.
+Equipment và Endpoint Governance đã chuyển sang Shared Excel Platform ở application layer. Deployment scripts bootstrap Shared Excel Platform và cleanup legacy Equipment Excel metadata theo thứ tự: 001 → 002 → 003 migration → legacy cleanup.

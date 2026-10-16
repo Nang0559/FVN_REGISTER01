@@ -1,4 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Equipment;
+using FVN_REGISTER.Application.Interfaces.Excel;
+using FVN_REGISTER.Core.Excel;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Actions;
@@ -7,6 +9,7 @@ using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities.Equipment;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
@@ -25,6 +28,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     private readonly IActionItemService _actionService;
     private readonly INotificationService _notification;
     private readonly IWebHostEnvironment _environment;
+    private readonly IExcelPlatform _excel;
     private readonly ILogger<EquipmentInspectionService> _logger;
 
     public EquipmentInspectionService(
@@ -36,6 +40,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         IActionItemService actionService,
         INotificationService notification,
         IWebHostEnvironment environment,
+        IExcelPlatform excel,
         ILogger<EquipmentInspectionService> logger)
     {
         _db = db;
@@ -46,10 +51,11 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         _actionService = actionService;
         _notification = notification;
         _environment = environment;
+        _excel = excel;
         _logger = logger;
     }
 
-    public async Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<List<EquipmentAssetDto>>> GetRegisteredAssetsAsync(int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         var canManage = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct);
@@ -58,7 +64,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentAssetDto>>.Fail("Bạn không có quyền xem danh sách thiết bị phục vụ checklist.");
 
         var q = _db.EquipmentAssets.AsNoTracking().Where(x => x.IsActive == true);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (deptCode != null) q = q.Where(x => x.DeptCode == deptCode);
         var rows = await q.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentCode).Take(2000).ToListAsync(ct);
         return ServiceResult<List<EquipmentAssetDto>>.Ok(rows.Select(x => new EquipmentAssetDto
         {
@@ -69,7 +75,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         }).ToList());
     }
 
-    public async Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<List<EquipmentInspectionTemplateDto>>> GetTemplatesAsync(int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct) &&
@@ -77,7 +83,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             return ServiceResult<List<EquipmentInspectionTemplateDto>>.Fail("Bạn không có quyền xem cấu hình checklist.");
 
         var query = _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking().Where(x => x.IsActive != false);
-        if (!string.IsNullOrWhiteSpace(deptCode)) query = query.Where(x => x.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (deptCode != null) query = query.Where(x => x.DeptCode == deptCode);
 
         var rows = await query.Include(x => x.Items).OrderBy(x => x.DeptCode).ThenBy(x => x.TemplateName).ThenByDescending(x => x.Version).ToListAsync(ct);
         return ServiceResult<List<EquipmentInspectionTemplateDto>>.Ok(rows.Select(MapTemplate).ToList());
@@ -97,7 +103,62 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             : ServiceResult<EquipmentInspectionTemplateDto>.Ok(MapTemplate(row));
     }
 
-    public async Task<ServiceResult<EquipmentInspectionTemplateImportResultDto>> ImportTemplateExcelAsync(string fileName, Stream content, CancellationToken ct = default)
+    private const string ChecksheetEntityCode = "EQUIPMENT_INSPECTION_TEMPLATE";
+    private const string DuplicateAssignmentMessage = "Thiết bị đã có phân công checklist tương tự.";
+    private static readonly string[] InspectionFrequencies = { "Daily", "Weekly", "Monthly", "Quarterly", "Yearly" };
+
+    // Canonical checklist columns. Headers are matched after accent/space/case normalisation, so Vietnamese and English
+    // headers both work. Template-level columns are only needed on the first data row, hence PlatformRequired=false.
+    private sealed record ChecksheetColumn(string Key, string DataType, bool PlatformRequired, string[] Aliases);
+    private static readonly ChecksheetColumn[] ChecksheetColumns =
+    {
+        new("TemplateCode", "Text", false, new[] { "templatecode", "machecklist", "machecksheet" }),
+        new("TemplateName", "Text", false, new[] { "templatename", "tenchecklist", "tenchecksheet" }),
+        new("DeptCode", "Integer", false, new[] { "deptcode", "departmentcode", "bophan", "mabophan" }),
+        new("Frequency", "Text", false, new[] { "frequency", "chuky", "tansuat" }),
+        new("Description", "Text", false, new[] { "description", "mota" }),
+        new("ItemCode", "Text", true, new[] { "itemcode", "mahangmuc" }),
+        new("ItemLabel", "Text", true, new[] { "itemlabel", "hangmuc", "noidung" }),
+        new("InputType", "Text", true, new[] { "inputtype", "kieu" }),
+        new("DisplayOrder", "Integer", true, new[] { "displayorder", "stt" }),
+        new("IsRequired", "Boolean", false, new[] { "isrequired", "required", "batbuoc" }),
+        new("RequireImage", "Boolean", false, new[] { "requireimage", "anh", "batbuocanh" }),
+        new("MinImages", "Integer", false, new[] { "minimages", "anhtoithieu" }),
+        new("MaxImages", "Integer", false, new[] { "maximages", "anhtoida" }),
+        new("MinValue", "Decimal", false, new[] { "minvalue", "min" }),
+        new("MaxValue", "Decimal", false, new[] { "maxvalue", "max" }),
+        new("Unit", "Text", false, new[] { "unit", "donvi" }),
+        new("OptionsJson", "Text", false, new[] { "optionsjson", "options", "danhsach" }),
+    };
+    private static readonly string[] ChecksheetRequiredHeaders = { "TemplateCode", "TemplateName", "DeptCode", "Frequency", "ItemCode", "ItemLabel", "InputType", "DisplayOrder" };
+
+    private static string? CanonicalFrequency(string? value)
+        => InspectionFrequencies.FirstOrDefault(x => string.Equals(x, value?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Finds the header row and maps each checklist field to its Excel column. Returns null when required headers are missing.</summary>
+    private static Dictionary<string, int>? DetectChecksheetColumns(ExcelSheetGrid grid, out int headerRowIndex, out List<string> missing)
+    {
+        headerRowIndex = -1;
+        missing = ChecksheetRequiredHeaders.ToList();
+        var bestMissing = int.MaxValue;
+        foreach (var row in grid.Rows)
+        {
+            var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (var c = 0; c < row.Cells.Count; c++)
+            {
+                var normalized = NormalizeInspectionExcelKey(row.Cells[c] ?? "");
+                if (normalized.Length == 0) continue;
+                var column = ChecksheetColumns.FirstOrDefault(x => x.Aliases.Contains(normalized));
+                if (column != null && !map.ContainsKey(column.Key)) map[column.Key] = c;
+            }
+            var miss = ChecksheetRequiredHeaders.Where(k => !map.ContainsKey(k)).ToList();
+            if (miss.Count == 0) { headerRowIndex = row.RowIndex; missing = miss; return map; }
+            if (map.Count > 0 && miss.Count < bestMissing) { bestMissing = miss.Count; missing = miss; }
+        }
+        return null;
+    }
+
+    public async Task<ServiceResult<EquipmentInspectionTemplateImportResultDto>> ImportTemplateExcelAsync(string fileName, Stream content, int? selectedDeptCode = null, int? selectedSheetIndex = null, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct))
@@ -109,89 +170,275 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         if (content == null || !content.CanRead)
             return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("File Excel không hợp lệ.");
 
-        await using var ms = new MemoryStream();
-        await content.CopyToAsync(ms, ct);
-        ms.Position = 0;
-        IWorkbook workbook;
-        try { workbook = WorkbookFactory.Create(ms); }
-        catch (Exception ex) { return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Không đọc được Excel checklist: {ex.Message}"); }
+        byte[] bytes;
+        await using (var ms = new MemoryStream()) { await content.CopyToAsync(ms, ct); bytes = ms.ToArray(); }
 
-        using (workbook)
+        // Workbook/sheet inspection and cell reading are provided by the shared Excel Platform.
+        // Checklist business rules live here; the generic table importer below remains unchanged.
+        ExcelWorkbookInspection workbook;
+        try { workbook = await _excel.InspectAsync(new MemoryStream(bytes), fileName, ct); }
+        catch (Exception ex) { return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Không đọc được cấu trúc Excel checklist: {ex.Message}"); }
+        if (workbook.Sheets.Count == 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Workbook không có worksheet.");
+
+        var candidateSheets = selectedSheetIndex.HasValue
+            ? workbook.Sheets.Where(x => x.Index == selectedSheetIndex.Value).ToList()
+            : workbook.Sheets.ToList();
+        if (candidateSheets.Count == 0)
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Worksheet đã chọn không tồn tại.");
+
+        ExcelSheetGrid? grid = null;
+        Dictionary<string, int>? columns = null;
+        var headerRow = -1;
+        List<string> missing = ChecksheetRequiredHeaders.ToList();
+        foreach (var sheet in candidateSheets)
         {
-            var sheet = workbook.GetSheetAt(0);
-            if (sheet == null) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Excel không có sheet.");
-            var formatter = new DataFormatter();
-            var evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
-            var headerIndex = sheet.FirstRowNum;
-            while (headerIndex <= sheet.LastRowNum && sheet.GetRow(headerIndex) == null) headerIndex++;
-            if (headerIndex > sheet.LastRowNum) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Excel không có dữ liệu.");
-            var header = sheet.GetRow(headerIndex);
-            var headers = Enumerable.Range(0, header.LastCellNum).Select(i => NormalizeInspectionExcelKey(GetCellText(header.GetCell(i), formatter, evaluator))).ToList();
-            var requiredHeaders = new[] { "templatecode", "templatename", "deptcode", "frequency", "itemcode", "itemlabel", "inputtype", "displayorder" };
-            var missing = requiredHeaders.Where(x => !headers.Contains(x)).ToList();
-            if (missing.Count > 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Thiếu cột checklist bắt buộc: {string.Join(", ", missing)}.");
-
-            var rows = new List<Dictionary<string,string?>>();
-            for (var ri = headerIndex + 1; ri <= sheet.LastRowNum; ri++)
-            {
-                var row = sheet.GetRow(ri); if (row == null) continue;
-                var data = new Dictionary<string,string?>(StringComparer.OrdinalIgnoreCase);
-                for (var ci = 0; ci < headers.Count; ci++) data[headers[ci]] = GetCellText(row.GetCell(ci), formatter, evaluator).Trim();
-                if (data.Values.All(string.IsNullOrWhiteSpace)) continue;
-                rows.Add(data);
-            }
-            if (rows.Count == 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Excel chưa có hạng mục checklist.");
-
-            string V(Dictionary<string,string?> d, params string[] keys) => keys.Select(NormalizeInspectionExcelKey).Select(k => d.TryGetValue(k, out var v) ? v : null).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? "";
-            var templateCode = V(rows[0], "TemplateCode", "Mã checklist").Trim().ToUpperInvariant();
-            var templateName = V(rows[0], "TemplateName", "Tên checklist");
-            var deptCode = V(rows[0], "DeptCode", "Bộ phận", "DepartmentCode").Trim().ToUpperInvariant();
-            var frequency = V(rows[0], "Frequency", "Chu kỳ").Trim();
-            var description = V(rows[0], "Description", "Mô tả");
-            var errors = new List<string>();
-            if (string.IsNullOrWhiteSpace(templateCode)) errors.Add("Thiếu TemplateCode.");
-            if (string.IsNullOrWhiteSpace(templateName)) errors.Add("Thiếu TemplateName.");
-            if (string.IsNullOrWhiteSpace(deptCode)) errors.Add("Thiếu DeptCode.");
-            if (string.IsNullOrWhiteSpace(frequency) || !new[] {"Daily","Weekly","Monthly","Quarterly","Yearly"}.Contains(frequency,StringComparer.OrdinalIgnoreCase))
-                errors.Add("Frequency không hợp lệ: Daily/Weekly/Monthly/Quarterly/Yearly.");
-            if (string.IsNullOrWhiteSpace(deptCode) || !await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == deptCode && e.IsActive != false, ct))
-                errors.Add($"Bộ phận '{deptCode}' không tồn tại hoặc không có nhân viên hoạt động.");
-            var items = new List<EquipmentInspectionItemDto>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (data, index) in rows.Select((x,i)=>(x,i+2)))
-            {
-                var code=V(data,"ItemCode","Mã hạng mục").Trim().ToUpperInvariant();
-                var label=V(data,"ItemLabel","Hạng mục","Nội dung");
-                var input=V(data,"InputType","Kiểu").Trim();
-                var orderText=V(data,"DisplayOrder","STT");
-                if (string.IsNullOrWhiteSpace(code)) errors.Add($"Dòng {index}: thiếu ItemCode.");
-                else if (!seen.Add(code)) errors.Add($"Dòng {index}: ItemCode '{code}' bị trùng.");
-                if (string.IsNullOrWhiteSpace(label)) errors.Add($"Dòng {index}: thiếu ItemLabel.");
-                if (!new[] {"PassFail","YesNo","Number","Text","Select"}.Contains(input,StringComparer.OrdinalIgnoreCase)) errors.Add($"Dòng {index}: InputType '{input}' không hợp lệ.");
-                if (!int.TryParse(orderText,out var order)) errors.Add($"Dòng {index}: DisplayOrder phải là số.");
-                var required=ParseInspectionBool(V(data,"IsRequired","Required","Bắt buộc"));
-                var image=ParseInspectionBool(V(data,"RequireImage","Ảnh","Bắt buộc ảnh"));
-                var minImages=int.TryParse(V(data,"MinImages","Ảnh tối thiểu"),out var mi)?mi:0;
-                var maxImages=int.TryParse(V(data,"MaxImages","Ảnh tối đa"),out var ma)?ma:3;
-                decimal? min=decimal.TryParse(V(data,"MinValue","Min"),System.Globalization.NumberStyles.Any,System.Globalization.CultureInfo.InvariantCulture,out var mn)?mn:null;
-                decimal? max=decimal.TryParse(V(data,"MaxValue","Max"),System.Globalization.NumberStyles.Any,System.Globalization.CultureInfo.InvariantCulture,out var mx)?mx:null;
-                if (image && minImages < 1) errors.Add($"Dòng {index}: RequireImage=true phải có MinImages >= 1.");
-                if (input.Equals("Number",StringComparison.OrdinalIgnoreCase) && min.HasValue && max.HasValue && min > max) errors.Add($"Dòng {index}: MinValue không được lớn hơn MaxValue.");
-                items.Add(new EquipmentInspectionItemDto { ItemCode=code, ItemLabel=label, InputType=input, IsRequired=required, RequireImage=image, MinImages=Math.Max(0,minImages), MaxImages=Math.Max(Math.Max(1,maxImages),minImages), MinValue=min, MaxValue=max, Unit=V(data,"Unit","Đơn vị"), OptionsJson=V(data,"OptionsJson","Options","Danh sách"), DisplayOrder=order });
-            }
-            if (errors.Count > 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(string.Join(" ", errors.Take(20)));
-
-            var saved=await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest { TemplateCode=templateCode,TemplateName=templateName,DeptCode=deptCode,Frequency=frequency,Status="Draft",Description=description,Items=items },ct);
-            if (!saved.IsSuccess || saved.Data == null) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(saved.Message ?? "Không thể lưu checklist từ Excel.");
-            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Ok(new EquipmentInspectionTemplateImportResultDto { TemplateId=saved.Data.Id,TemplateCode=saved.Data.TemplateCode,TemplateName=saved.Data.TemplateName,ItemCount=items.Count }, "Đã kiểm tra và import checklist Excel thành công ở trạng thái Draft.");
+            var candidate = await _excel.ReadGridAsync(new MemoryStream(bytes), fileName, sheet.Index, 2000, ct);
+            var mapped = DetectChecksheetColumns(candidate, out var candidateHeader, out var candidateMissing);
+            if (mapped != null) { grid = candidate; columns = mapped; headerRow = candidateHeader; break; }
+            if (grid == null || candidateMissing.Count < missing.Count) { grid = candidate; missing = candidateMissing; }
         }
+
+        // Presentation-style check sheets (merged cells, repeated days and OK/NG boxes) are not flat tables.
+        // Detect this layout before reporting missing flat-table columns, and translate it into checklist items.
+        if (grid != null && columns == null && IsPresentationChecklist(grid))
+        {
+            if (selectedDeptCode is null or <= 0)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Biểu mẫu checklist dạng trình bày không có DeptCode. Hãy chọn Bộ phận ở màn hình trước khi import.");
+            var layoutItems = ExtractPresentationChecklistItems(grid);
+            if (layoutItems.Count == 0)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Đã nhận diện biểu mẫu checklist dạng trình bày nhưng chưa xác định được hạng mục. Hãy dùng mapping checklist hoặc bổ sung cột tên hạng mục.");
+            var deptExists = await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == selectedDeptCode && e.IsActive != false, ct);
+            if (!deptExists)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Bộ phận '{selectedDeptCode}' không tồn tại hoặc không có nhân viên hoạt động.");
+            var layoutTemplateName = ExtractPresentationTemplateName(grid) ?? Path.GetFileNameWithoutExtension(fileName);
+            var layoutTemplateCode = NormalizeInspectionExcelKey(layoutTemplateName).ToUpperInvariant();
+            if (layoutTemplateCode.Length > 50) layoutTemplateCode = layoutTemplateCode[..50];
+            var savedLayout = await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest
+            {
+                TemplateCode = string.IsNullOrWhiteSpace(layoutTemplateCode) ? $"EQI-{Guid.NewGuid():N}"[..12] : layoutTemplateCode,
+                TemplateName = layoutTemplateName.Length > 200 ? layoutTemplateName[..200] : layoutTemplateName,
+                DeptCode = selectedDeptCode.Value,
+                Frequency = "Weekly",
+                Status = "Draft",
+                Description = $"Tạo từ biểu mẫu Excel dạng trình bày: {Path.GetFileName(fileName)}. Các ô đánh dấu mẫu chưa được nhập thành kết quả thực hiện.",
+                Items = layoutItems
+            }, ct);
+            if (!savedLayout.IsSuccess || savedLayout.Data == null)
+                return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(savedLayout.Message ?? "Không thể lưu checklist dạng trình bày.");
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Ok(new EquipmentInspectionTemplateImportResultDto
+            {
+                TemplateId = savedLayout.Data.Id, TemplateCode = savedLayout.Data.TemplateCode,
+                TemplateName = savedLayout.Data.TemplateName, ItemCount = layoutItems.Count
+            }, $"Đã chuyển biểu mẫu dạng trình bày thành checklist Draft ({layoutItems.Count} hạng mục). Chỉ dùng worksheet '{grid.SheetName}'; các worksheet khác chưa được gộp.");
+        }
+
+        if (grid == null || grid.Rows.Count == 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Excel không có dữ liệu.");
+        if (columns == null)
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Không nhận diện được cấu trúc checklist. Thiếu cột bảng chuẩn: {string.Join(", ", missing)}. Hãy dùng file mẫu hoặc chọn worksheet có dạng bảng.");
+
+        var fields = columns
+            .Select(kv =>
+            {
+                var def = ChecksheetColumns.First(x => x.Key == kv.Key);
+                return new ExcelSchemaField(kv.Key, def.DataType, def.PlatformRequired, kv.Value, kv.Key, TargetProperty: kv.Key, DisplayOrder: kv.Value);
+            })
+            .OrderBy(f => f.SourceColumnIndex)
+            .ToList();
+        var schema = new ExcelSchemaDefinition("EQUIPMENT", ChecksheetEntityCode, "INSPECTION_TEMPLATE", 1, 0, grid.SheetName,
+            headerRow, headerRow + 1, null, fields.Select(f => f.SourceColumnIndex).ToList(), fields);
+
+        ExcelImportResult parsed;
+        try { parsed = await _excel.ImportAsync(new MemoryStream(bytes), fileName, schema, ct); }
+        catch (Exception ex) { return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail($"Không đọc được Excel checklist: {ex.Message}"); }
+        if (parsed.Rows.Count == 0) return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail("Excel chưa có hạng mục checklist.");
+
+        var rows = parsed.Rows
+            .Select(r => (Index: r.RowIndex, Data: columns.ToDictionary(
+                kv => NormalizeInspectionExcelKey(kv.Key),
+                kv => r.Cells.TryGetValue(kv.Value, out var v) ? (v ?? "").Trim() : "",
+                StringComparer.OrdinalIgnoreCase)))
+            .ToList();
+        string V(Dictionary<string, string> d, string key) => d.TryGetValue(NormalizeInspectionExcelKey(key), out var v) ? v : "";
+
+        var errors = parsed.Errors.Where(e => e.Severity == ExcelSeverity.Error)
+            .Select(e => $"Dòng {e.RowNumber}: thiếu {e.FieldKey}.").ToList();
+
+        var first = rows[0].Data;
+        var templateCode = V(first, "TemplateCode").ToUpperInvariant();
+        var templateName = V(first, "TemplateName");
+        int? deptCode = int.TryParse(V(first, "DeptCode"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsedDept) ? parsedDept : null;
+        var frequency = CanonicalFrequency(V(first, "Frequency"));
+        var description = V(first, "Description");
+        if (string.IsNullOrWhiteSpace(templateCode)) errors.Add("Thiếu TemplateCode.");
+        if (string.IsNullOrWhiteSpace(templateName)) errors.Add("Thiếu TemplateName.");
+        if (deptCode == null) errors.Add("Thiếu DeptCode.");
+        if (frequency == null) errors.Add("Frequency không hợp lệ: Daily/Weekly/Monthly/Quarterly/Yearly.");
+        if (deptCode == null || !await _db.Employees.AsNoTracking().AnyAsync(e => e.DeptCode == deptCode && e.IsActive != false, ct))
+            errors.Add($"Bộ phận '{deptCode}' không tồn tại hoặc không có nhân viên hoạt động.");
+
+        var items = new List<EquipmentInspectionItemDto>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (index, data) in rows)
+        {
+            var code = V(data, "ItemCode").Trim().ToUpperInvariant();
+            var label = V(data, "ItemLabel").Trim();
+            var input = V(data, "InputType").Trim();
+            if (string.IsNullOrWhiteSpace(code)) errors.Add($"Dòng {index}: bắt buộc có ItemCode.");
+            else if (!seen.Add(code)) errors.Add($"Dòng {index}: ItemCode '{code}' bị trùng.");
+            if (string.IsNullOrWhiteSpace(label)) errors.Add($"Dòng {index}: bắt buộc có ItemLabel.");
+            var validInputTypes = new[] { "PassFail", "YesNo", "Number", "Text", "Select" };
+            if (!validInputTypes.Contains(input, StringComparer.OrdinalIgnoreCase))
+                errors.Add($"Dòng {index}: InputType '{input}' không hợp lệ. Giá trị hợp lệ: {string.Join(", ", validInputTypes)}.");
+            if (!int.TryParse(V(data, "DisplayOrder"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var order) || order < 1)
+                errors.Add($"Dòng {index}: DisplayOrder bắt buộc là số nguyên lớn hơn 0.");
+            var requiredText = V(data, "IsRequired");
+            var imageText = V(data, "RequireImage");
+            var required = ParseInspectionBool(requiredText);
+            var image = ParseInspectionBool(imageText);
+            if (!string.IsNullOrWhiteSpace(requiredText) && !IsInspectionBool(requiredText))
+                errors.Add($"Dòng {index}: IsRequired phải là true/false, yes/no, 1/0 hoặc có/không.");
+            if (!string.IsNullOrWhiteSpace(imageText) && !IsInspectionBool(imageText))
+                errors.Add($"Dòng {index}: RequireImage phải là true/false, yes/no, 1/0 hoặc có/không.");
+            var minImagesText = V(data, "MinImages");
+            var maxImagesText = V(data, "MaxImages");
+            var minImages = int.TryParse(minImagesText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var mi) ? mi : 0;
+            var maxImages = int.TryParse(maxImagesText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ma) ? ma : 3;
+            if (!string.IsNullOrWhiteSpace(minImagesText) && (!int.TryParse(minImagesText, out _) || minImages < 0))
+                errors.Add($"Dòng {index}: MinImages phải là số nguyên không âm.");
+            if (!string.IsNullOrWhiteSpace(maxImagesText) && (!int.TryParse(maxImagesText, out _) || maxImages < 1))
+                errors.Add($"Dòng {index}: MaxImages phải là số nguyên lớn hơn 0.");
+            decimal? min = null, max = null;
+            var minText = V(data, "MinValue"); var maxText = V(data, "MaxValue");
+            if (!string.IsNullOrWhiteSpace(minText))
+            {
+                if (decimal.TryParse(minText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var mn)) min = mn;
+                else errors.Add($"Dòng {index}: MinValue phải là số.");
+            }
+            if (!string.IsNullOrWhiteSpace(maxText))
+            {
+                if (decimal.TryParse(maxText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var mx)) max = mx;
+                else errors.Add($"Dòng {index}: MaxValue phải là số.");
+            }
+            if (image && minImages < 1) errors.Add($"Dòng {index}: RequireImage=true phải có MinImages >= 1.");
+            if (minImages > maxImages) errors.Add($"Dòng {index}: MinImages không được lớn hơn MaxImages.");
+            if (input.Equals("Number", StringComparison.OrdinalIgnoreCase) && min.HasValue && max.HasValue && min > max)
+                errors.Add($"Dòng {index}: MinValue không được lớn hơn MaxValue.");
+            if (input.Equals("Select", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(V(data, "OptionsJson")))
+                errors.Add($"Dòng {index}: InputType=Select bắt buộc có OptionsJson.");
+            items.Add(new EquipmentInspectionItemDto
+            {
+                ItemCode = code, ItemLabel = label, InputType = input, IsRequired = required, RequireImage = image,
+                MinImages = Math.Max(0, minImages), MaxImages = Math.Max(1, maxImages),
+                MinValue = min, MaxValue = max, Unit = V(data, "Unit"), OptionsJson = V(data, "OptionsJson"), DisplayOrder = order
+            });
+        }
+        if (errors.Count > 0)
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(string.Join(" ", errors.Distinct().Take(20)));
+
+        var saved = await SaveTemplateAsync(new EquipmentInspectionTemplateUpsertRequest
+        {
+            TemplateCode = templateCode, TemplateName = templateName, DeptCode = deptCode!.Value, Frequency = frequency!,
+            Status = "Draft", Description = description, Items = items
+        }, ct);
+        if (!saved.IsSuccess || saved.Data == null)
+            return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Fail(saved.Message ?? "Không thể lưu checklist từ Excel.");
+        return ServiceResult<EquipmentInspectionTemplateImportResultDto>.Ok(new EquipmentInspectionTemplateImportResultDto
+        {
+            TemplateId = saved.Data.Id, TemplateCode = saved.Data.TemplateCode, TemplateName = saved.Data.TemplateName, ItemCount = items.Count
+        }, "Đã kiểm tra và import checklist Excel thành công ở trạng thái Draft.");
+    }
+
+    public async Task<ServiceResult<(string ContentType, Stream Content, string FileName)>> GetTemplateImportSampleAsync(CancellationToken ct = default)
+    {
+        var user = RequireUser();
+        if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct))
+            return ServiceResult<(string ContentType, Stream Content, string FileName)>.Fail("Bạn không có quyền import checklist.");
+
+        var fields = ChecksheetColumns.Select((c, i) => new ExcelSchemaField(c.Key, c.DataType, c.PlatformRequired, i, c.Key, TargetProperty: c.Key, DisplayOrder: i)).ToList();
+        var schema = new ExcelSchemaDefinition("EQUIPMENT", ChecksheetEntityCode, "INSPECTION_TEMPLATE", 1, 0, "Checksheet", 0, 1, null,
+            fields.Select(f => f.SourceColumnIndex).ToList(), fields);
+
+        var dept = await _db.Employees.AsNoTracking().Where(e => e.IsActive != false).Select(e => (int?)e.DeptCode).FirstOrDefaultAsync(ct) ?? 0;
+        IReadOnlyDictionary<string, object?> Row(string itemCode, string label, string type, int order, bool required, bool image, string? unit = null, decimal? min = null, decimal? max = null) =>
+            new Dictionary<string, object?>
+            {
+                ["TemplateCode"] = "CS-MAY-NGAY", ["TemplateName"] = "Kiểm tra máy hằng ngày", ["DeptCode"] = dept, ["Frequency"] = "Daily",
+                ["Description"] = "Mẫu checklist", ["ItemCode"] = itemCode, ["ItemLabel"] = label, ["InputType"] = type, ["DisplayOrder"] = order,
+                ["IsRequired"] = required ? "TRUE" : "FALSE", ["RequireImage"] = image ? "TRUE" : "FALSE", ["MinImages"] = image ? 1 : 0,
+                ["MaxImages"] = image ? 3 : 0, ["MinValue"] = min, ["MaxValue"] = max, ["Unit"] = unit, ["OptionsJson"] = null
+            };
+        var rows = new List<IReadOnlyDictionary<string, object?>>
+        {
+            Row("ITEM-001", "Vệ sinh bề mặt máy", "PassFail", 1, true, false),
+            Row("ITEM-002", "Nhiệt độ vận hành", "Number", 2, true, false, "°C", 20, 80),
+            Row("ITEM-003", "Chụp ảnh tình trạng tổng thể", "PassFail", 3, true, true),
+        };
+        var stream = await _excel.ExportAsync("equipment-checksheet-template.xlsx", schema, rows, ct);
+        return ServiceResult<(string ContentType, Stream Content, string FileName)>.Ok(
+            ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", stream, "equipment-checksheet-template.xlsx"));
+    }
+
+    private static bool IsPresentationChecklist(ExcelSheetGrid grid)
+    {
+        var text = string.Join(" ", grid.Rows.SelectMany(r => r.Cells).Where(c => !string.IsNullOrWhiteSpace(c)));
+        var key = NormalizeInspectionExcelKey(text);
+        return key.Contains("backupresultchecksheet") &&
+               (key.Contains("ok") || key.Contains("ng")) &&
+               (key.Contains("date") || key.Contains("period"));
+    }
+
+    private static string? ExtractPresentationTemplateName(ExcelSheetGrid grid)
+    {
+        foreach (var row in grid.Rows.Take(12))
+            foreach (var cell in row.Cells)
+                if (!string.IsNullOrWhiteSpace(cell) && NormalizeInspectionExcelKey(cell).Contains("backupresultchecksheet"))
+                    return cell.Trim();
+        return "Backup result check sheet";
+    }
+
+    private static List<EquipmentInspectionItemDto> ExtractPresentationChecklistItems(ExcelSheetGrid grid)
+    {
+        // Repeated weekly rows are collapsed into unique checklist items. Only explicit item identifiers
+        // are promoted; date/time, OK/NG boxes, confirmations and notes are not treated as checklist items.
+        var known = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["IFSBK"] = "IFSBK backup result",
+            ["IFSDB"] = "IFSDB backup result",
+            ["NAS"] = "NAS backup result",
+            ["IFSAP"] = "IFSAP backup result",
+            ["SRV01"] = "SRV01 backup result"
+        };
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in grid.Rows)
+        {
+            var rowText = string.Join(" ", row.Cells.Where(c => !string.IsNullOrWhiteSpace(c)));
+            var normalizedRow = NormalizeInspectionExcelKey(rowText);
+            if (normalizedRow.Contains("reporttothesuperiorwhenng") ||
+                normalizedRow.Contains("confirmationresult") ||
+                normalizedRow.Contains("backupresultchecksheet")) continue;
+            foreach (var code in known.Keys)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(rowText, $@"(?<![A-Za-z0-9]){System.Text.RegularExpressions.Regex.Escape(code)}(?![A-Za-z0-9])", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    found.Add(code);
+            }
+        }
+        return known.Where(x => found.Contains(x.Key)).Select((x, i) => new EquipmentInspectionItemDto
+        {
+            ItemCode = x.Key,
+            ItemLabel = x.Value,
+            InputType = "PassFail",
+            IsRequired = true,
+            RequireImage = false,
+            MinImages = 0,
+            MaxImages = 3,
+            DisplayOrder = i + 1
+        }).ToList();
     }
 
     private static string NormalizeInspectionExcelKey(string value)
         => new string((value ?? "").Trim().Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).Select(char.ToLowerInvariant).Where(char.IsLetterOrDigit).ToArray());
 
-    private static string GetCellText(ICell? cell, DataFormatter formatter, IFormulaEvaluator evaluator)
-        => cell == null ? "" : formatter.FormatCellValue(cell, evaluator);
+    private static bool IsInspectionBool(string? value) => value?.Trim().ToLowerInvariant() is "true" or "false" or "yes" or "no" or "1" or "0" or "y" or "n" or "co" or "khong" or "có" or "không";
 
     private static bool ParseInspectionBool(string value)
         => value.Trim().ToLowerInvariant() is "true" or "1" or "yes" or "y" or "co" or "có" or "x";
@@ -202,8 +449,8 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct))
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("Bạn không có quyền quản lý checklist.");
 
-        var dept = request.DeptCode.Trim().ToUpperInvariant();
-        if (string.IsNullOrWhiteSpace(dept) || string.IsNullOrWhiteSpace(request.TemplateName))
+        var dept = request.DeptCode;
+        if (dept <= 0 || string.IsNullOrWhiteSpace(request.TemplateName))
             return ServiceResult<EquipmentInspectionTemplateDto>.Fail("DepartmentCode và tên checklist là bắt buộc.");
 
         var frequencies = new[] { "Daily", "Weekly", "Monthly", "Quarterly", "Yearly" };
@@ -335,7 +582,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         var template = await _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == request.TemplateId && x.IsActive != false && x.Status == "Active", ct);
         if (template == null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Checklist phải là version Active.");
-        if (!string.Equals(template.DeptCode, asset.DeptCode, StringComparison.OrdinalIgnoreCase))
+        if (template.DeptCode != asset.DeptCode)
             return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("DepartmentCode của checklist không khớp DepartmentCode của thiết bị.");
 
         var inspector = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == request.InspectorEmployeeCode && x.IsActive != false, ct);
@@ -343,17 +590,21 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         if (inspector == null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Người check không tồn tại hoặc không còn hoạt động.");
         if (approver == null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Người approve không tồn tại hoặc không còn hoạt động.");
 
-        var frequency = request.Frequency.Trim();
-        if (!new[] { "Daily", "Weekly", "Monthly", "Quarterly", "Yearly" }.Contains(frequency, StringComparer.OrdinalIgnoreCase))
+        var frequency = CanonicalFrequency(request.Frequency);
+        if (frequency == null)
             return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Chu kỳ không hợp lệ.");
-        if (!string.Equals(frequency, template.Frequency, StringComparison.OrdinalIgnoreCase))
-            return ServiceResult<EquipmentInspectionAssignmentDto>.Fail($"Chu kỳ phân công phải trùng với checklist ({template.Frequency}).");
+        // The checklist frequency is only the default: every equipment group may be checked at its own cadence,
+        // but the cadence must carry the fields the scheduler needs (weekday / day of month / month).
+        var scheduleError = ValidateAssignmentSchedule(frequency, request.ScheduleDayOfWeek, request.ScheduleDayOfMonth, request.ScheduleMonth);
+        if (scheduleError != null) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail(scheduleError);
+        if (request.EffectiveTo.HasValue && request.EffectiveTo.Value.Date < request.EffectiveFrom.Date)
+            return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Ngày kết thúc hiệu lực phải sau ngày bắt đầu.");
 
         var exists = await _db.Set<F03EquipmentInspectionAssignment>().AnyAsync(x =>
             x.IsActive != false && x.EquipmentId == asset.Id && x.TemplateId == template.Id &&
             x.InspectorEmployeeCode == inspector.EmployeeCode && x.EffectiveFrom == request.EffectiveFrom.Date &&
             (x.EffectiveTo == null || x.EffectiveTo >= DateTime.Today), ct);
-        if (exists) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail("Thiết bị đã có phân công checklist tương tự.");
+        if (exists) return ServiceResult<EquipmentInspectionAssignmentDto>.Fail(DuplicateAssignmentMessage);
 
         var entity = new F03EquipmentInspectionAssignment
         {
@@ -548,7 +799,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         return ServiceResult<EquipmentInspectionTaskDto>.Ok(MapTask(task), "Đã từ chối checklist.");
     }
 
-    public async Task<ServiceResult<EquipmentInspectionDashboardDto>> DashboardAsync(DateTime from, DateTime to, string? deptCode, CancellationToken ct = default)
+    public async Task<ServiceResult<EquipmentInspectionDashboardDto>> DashboardAsync(DateTime from, DateTime to, int? deptCode, CancellationToken ct = default)
     {
         var user = RequireUser();
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionReport, ct))
@@ -556,7 +807,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
 
         var q = _db.Set<F03EquipmentInspectionTask>().AsNoTracking().Include(x => x.Equipment).Include(x => x.Template)
             .Where(x => x.IsActive != false && x.ScheduledDate >= from.Date && x.ScheduledDate <= to.Date);
-        if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.Equipment!.DeptCode == deptCode.Trim().ToUpperInvariant());
+        if (deptCode != null) q = q.Where(x => x.Equipment!.DeptCode == deptCode);
         var rows = await q.OrderByDescending(x => x.ScheduledDate).ThenBy(x => x.Equipment!.EquipmentCode).Take(5000).ToListAsync(ct);
         var total = rows.Count;
         var completed = rows.Count(x => x.Status == "Approved");
@@ -573,7 +824,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             Rows = rows.Select(x => new EquipmentInspectionReportRowDto
             {
                 TaskId = x.Id,
-                DeptCode = x.Equipment?.DeptCode ?? "", EquipmentCode = x.Equipment?.EquipmentCode ?? "",
+                DeptCode = x.Equipment?.DeptCode ?? 0, EquipmentCode = x.Equipment?.EquipmentCode ?? "",
                 EquipmentName = x.Equipment?.EquipmentName ?? "", TemplateName = x.Template?.TemplateName ?? "",
                 InspectorEmployeeCode = x.InspectorEmployeeCode, Status = x.Status, Result = x.Result,
                 ScheduledDate = x.ScheduledDate, DueAt = x.DueAt, SubmittedAt = x.SubmittedAt, ApprovedAt = x.ApprovedAt
@@ -864,6 +1115,138 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         };
     }
 
+    private static string? ValidateAssignmentSchedule(string frequency, int? dayOfWeek, int? dayOfMonth, int? month)
+    {
+        static bool InRange(int? v, int min, int max) => v.HasValue && v.Value >= min && v.Value <= max;
+        return frequency switch
+        {
+            "Weekly" when !InRange(dayOfWeek, 0, 6) => "Chu kỳ tuần phải chọn thứ trong tuần.",
+            "Monthly" when !InRange(dayOfMonth, 1, 31) => "Chu kỳ tháng phải chọn ngày trong tháng (1-31).",
+            "Quarterly" when !InRange(dayOfMonth, 1, 31) || !InRange(month, 1, 12) => "Chu kỳ quý phải chọn ngày và tháng bắt đầu trong quý.",
+            "Yearly" when !InRange(dayOfMonth, 1, 31) || !InRange(month, 1, 12) => "Chu kỳ năm phải chọn ngày và tháng.",
+            _ => null
+        };
+    }
+
+    private sealed class BatchGroupRow
+    {
+        public long BatchId { get; set; }
+        public string? FileName { get; set; }
+        public int AssetCount { get; set; }
+    }
+
+    public async Task<ServiceResult<EquipmentInspectionAssetGroupsDto>> GetAssetGroupsAsync(int? deptCode, CancellationToken ct = default)
+    {
+        var user = RequireUser();
+        if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct) &&
+            !await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionReport, ct))
+            return ServiceResult<EquipmentInspectionAssetGroupsDto>.Fail("Bạn không có quyền xem nhóm thiết bị phục vụ checklist.");
+
+        var hasDept = deptCode.HasValue ? 1 : 0;
+        var dept = deptCode ?? 0;
+        // "Cha" = the Excel import batch; its "Con" are the equipment requests (and therefore assets) created from its rows.
+        // Only approved, active assets count: an asset exists in F03EquipmentAssets only after approval.
+        var batches = await _db.Database.SqlQuery<BatchGroupRow>($@"
+            SELECT TOP (100) b.Id AS BatchId, b.FileName AS FileName, COUNT(DISTINCT a.Id) AS AssetCount
+            FROM dbo.F03ExcelImportBatches b
+            INNER JOIN dbo.F03EquipmentImportRequestLinks l ON l.BatchId = b.Id
+            INNER JOIN dbo.F03EquipmentRequests r ON r.Id = l.RequestId AND r.AssetId IS NOT NULL
+            INNER JOIN dbo.F03EquipmentAssets a ON a.Id = r.AssetId AND a.IsActive = 1 AND ({hasDept} = 0 OR a.DeptCode = {dept})
+            GROUP BY b.Id, b.FileName
+            ORDER BY b.Id DESC").ToListAsync(ct);
+
+        var typeQuery = _db.EquipmentAssets.AsNoTracking()
+            .Where(x => x.IsActive == true && x.EquipmentSchemaKey != null && x.EquipmentSchemaKey != "");
+        if (deptCode != null) typeQuery = typeQuery.Where(x => x.DeptCode == deptCode);
+        var types = await typeQuery.GroupBy(x => x.EquipmentSchemaKey!)
+            .Select(g => new EquipmentInspectionTypeGroupDto { SchemaKey = g.Key, AssetCount = g.Count() })
+            .OrderBy(x => x.SchemaKey).ToListAsync(ct);
+
+        return ServiceResult<EquipmentInspectionAssetGroupsDto>.Ok(new EquipmentInspectionAssetGroupsDto
+        {
+            Batches = batches.Select(x => new EquipmentInspectionBatchGroupDto { BatchId = x.BatchId, FileName = x.FileName ?? $"Batch #{x.BatchId}", AssetCount = x.AssetCount }).ToList(),
+            Types = types
+        });
+    }
+
+    public async Task<ServiceResult<EquipmentInspectionBulkAssignmentResultDto>> BulkAssignAsync(EquipmentInspectionBulkAssignmentRequest request, CancellationToken ct = default)
+    {
+        var user = RequireUser();
+        if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionManage, ct))
+            return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Fail("Bạn không có quyền phân công checklist.");
+
+        var template = await _db.Set<F03EquipmentInspectionTemplate>().AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == request.TemplateId && x.IsActive != false && x.Status == "Active", ct);
+        if (template == null) return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Fail("Checklist phải là version Active.");
+
+        var scope = request.Scope ?? EquipmentInspectionAssignScope.Assets;
+        List<int> ids;
+        if (string.Equals(scope, EquipmentInspectionAssignScope.Batch, StringComparison.OrdinalIgnoreCase))
+        {
+            if (request.ImportBatchId is not > 0) return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Fail("Hãy chọn lô thiết bị (Cha).");
+            var batchId = request.ImportBatchId.Value;
+            ids = await _db.Database.SqlQuery<int>($@"
+                SELECT DISTINCT r.AssetId AS Value
+                FROM dbo.F03EquipmentImportRequestLinks l
+                INNER JOIN dbo.F03EquipmentRequests r ON r.Id = l.RequestId
+                WHERE l.BatchId = {batchId} AND r.AssetId IS NOT NULL").ToListAsync(ct);
+        }
+        else if (string.Equals(scope, EquipmentInspectionAssignScope.Group, StringComparison.OrdinalIgnoreCase))
+        {
+            var key = request.SchemaKey?.Trim();
+            if (string.IsNullOrEmpty(key)) return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Fail("Hãy chọn nhóm thiết bị.");
+            ids = await _db.EquipmentAssets.AsNoTracking()
+                .Where(x => x.IsActive == true && x.EquipmentSchemaKey == key).Select(x => x.Id).ToListAsync(ct);
+        }
+        else
+        {
+            ids = request.EquipmentIds.Distinct().ToList();
+        }
+
+        if (ids.Count == 0) return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Fail("Không có thiết bị đã duyệt nào trong phạm vi đã chọn.");
+        if (ids.Count > 500) return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Fail("Mỗi lần chỉ gán tối đa 500 thiết bị. Hãy chia nhỏ phạm vi.");
+
+        var assets = await _db.EquipmentAssets.AsNoTracking().Where(x => ids.Contains(x.Id) && x.IsActive == true).ToListAsync(ct);
+        var explicitSelection = string.Equals(scope, EquipmentInspectionAssignScope.Assets, StringComparison.OrdinalIgnoreCase);
+        var result = new EquipmentInspectionBulkAssignmentResultDto { Requested = ids.Count };
+
+        foreach (var missingId in ids.Except(assets.Select(x => x.Id)))
+            result.Rows.Add(new EquipmentInspectionBulkAssignmentRowDto { EquipmentId = missingId, EquipmentCode = $"#{missingId}", Status = "Failed", Message = "Chỉ thiết bị đã đăng ký và đang Active mới được gán checklist." });
+
+        foreach (var asset in assets.OrderBy(x => x.EquipmentCode))
+        {
+            var row = new EquipmentInspectionBulkAssignmentRowDto { EquipmentId = asset.Id, EquipmentCode = asset.EquipmentCode, EquipmentName = asset.EquipmentName };
+            if (asset.DeptCode != template.DeptCode)
+            {
+                row.Status = explicitSelection ? "Failed" : "Skipped";
+                row.Message = "Khác bộ phận với checklist.";
+            }
+            else
+            {
+                var one = await AssignAsync(new EquipmentInspectionAssignmentRequest
+                {
+                    EquipmentId = asset.Id, TemplateId = template.Id,
+                    Frequency = string.IsNullOrWhiteSpace(request.Frequency) ? template.Frequency : request.Frequency!,
+                    DueTime = request.DueTime, ReminderHoursBefore = request.ReminderHoursBefore,
+                    ScheduleDayOfWeek = request.ScheduleDayOfWeek, ScheduleDayOfMonth = request.ScheduleDayOfMonth, ScheduleMonth = request.ScheduleMonth,
+                    InspectorEmployeeCode = request.InspectorEmployeeCode, ApproverEmployeeCode = request.ApproverEmployeeCode,
+                    EffectiveFrom = request.EffectiveFrom, EffectiveTo = request.EffectiveTo
+                }, ct);
+                row.Status = one.IsSuccess ? "Created" : one.Message == DuplicateAssignmentMessage ? "Skipped" : "Failed";
+                row.Message = one.Message;
+            }
+            result.Rows.Add(row);
+        }
+
+        result.Created = result.Rows.Count(x => x.Status == "Created");
+        result.Skipped = result.Rows.Count(x => x.Status == "Skipped");
+        result.Failed = result.Rows.Count(x => x.Status == "Failed");
+        // A request whose every row failed for the same reason (bad inspector, schedule, ...) is a failed request.
+        if (result.Created == 0 && result.Skipped == 0 && result.Failed > 0)
+            return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Fail(result.Rows.Select(x => x.Message).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m)) ?? "Không gán được checklist.");
+        return ServiceResult<EquipmentInspectionBulkAssignmentResultDto>.Ok(result, $"Đã gán {result.Created} thiết bị, bỏ qua {result.Skipped}, lỗi {result.Failed}.");
+    }
+
     private FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto RequireUser() =>
         _currentUser.GetCurrentUser() ?? throw new UnauthorizedAccessException("Phiên đăng nhập hết hạn.");
 
@@ -890,7 +1273,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
     private static EquipmentInspectionTaskDto MapTask(F03EquipmentInspectionTask x) => new()
     {
         Id=x.Id, EquipmentId=x.EquipmentId, EquipmentCode=x.Equipment?.EquipmentCode ?? "", EquipmentName=x.Equipment?.EquipmentName ?? "",
-        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? "", TemplateId=x.TemplateId,
+        AssetCode=x.Equipment?.AssetCode ?? "", DeptCode=x.Equipment?.DeptCode ?? 0, TemplateId=x.TemplateId,
         TemplateName=x.Template?.TemplateName ?? "", TemplateVersion=x.Template?.Version ?? 0, Status=x.Status, Result=x.Result,
         ScheduledDate=x.ScheduledDate, DueAt=x.DueAt, InspectorEmployeeCode=x.InspectorEmployeeCode, ApproverEmployeeCode=x.ApproverEmployeeCode,
         Items=x.Template?.Items.Where(i=>i.IsActive!=false).OrderBy(i=>i.DisplayOrder).Select(i=>{

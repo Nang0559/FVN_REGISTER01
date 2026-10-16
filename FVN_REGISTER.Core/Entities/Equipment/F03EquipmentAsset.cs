@@ -14,21 +14,27 @@ public sealed class F03EquipmentAsset : BaseAuditEntity
     [Column(TypeName = "decimal(18,2)")] public decimal PurchasePrice { get; set; }
     public DateTime PurchaseDate { get; set; }
     public DateTime ExpectedDepreciationDate { get; set; }
-    [Required, StringLength(20)] public string DeptCode { get; set; } = string.Empty;
+    public int DeptCode { get; set; }
     [StringLength(250)] public string? Location { get; set; }
     [Required, StringLength(128)] public string QrToken { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
+    /// <summary>Technician accountable for managing this asset, separate from its user and approver.</summary>
+    [StringLength(50)] public string? ManagedByEmployeeCode { get; set; }
     [StringLength(50)] public string? ResponsibleEmployeeCode { get; set; }
     [StringLength(50)] public string? ResponsibleApproverEmployeeCode { get; set; }
     public DateTime? ResponsibleAssignedAt { get; set; }
 
-    [StringLength(20)] public string? OperatingResponsibleDeptCode { get; set; }
+    public int? OperatingResponsibleDeptCode { get; set; }
     [StringLength(50)] public string? OperatingResponsibleEmployeeCode { get; set; }
     public DateTime? OperatingResponsibleAssignedAt { get; set; }
 
     /// <summary>Schema/type key used to determine which employee request forms apply.</summary>
     [StringLength(64)] public string? EquipmentSchemaKey { get; set; }
+
+    /// <summary>Marks this physical asset as eligible for the FVN Endpoint Agent lifecycle.</summary>
+    public bool EndpointAgentEligible { get; set; }
+    [StringLength(30)] public string? EndpointOsFamily { get; set; }
 
     // Flexible, department-specific attributes. The canonical fields above remain strongly typed.
     [Column(TypeName = "nvarchar(max)")]

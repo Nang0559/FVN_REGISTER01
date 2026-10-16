@@ -24,16 +24,16 @@ public sealed class AuthorizationScopePolicyTests
         Assert.True(AuthorizationScopePolicy.CanAccess(
             AuthorizationScopeCodes.Department,
             "HR01",
-            "D01",
+            1,
             "EMP99",
-            "D01"));
+            1));
 
         Assert.False(AuthorizationScopePolicy.CanAccess(
             AuthorizationScopeCodes.Department,
             "HR01",
-            "D01",
+            1,
             "EMP99",
-            "D02"));
+            2));
     }
 
     [Fact]
@@ -42,23 +42,23 @@ public sealed class AuthorizationScopePolicyTests
         Assert.True(AuthorizationScopePolicy.CanAccess(
             AuthorizationScopeCodes.Own,
             "EMP01",
-            "D01",
+            1,
             "EMP01",
-            "D02"));
+            2));
 
         Assert.True(AuthorizationScopePolicy.CanAccess(
             AuthorizationScopeCodes.Employee,
             "EMP01",
-            "D01",
+            1,
             "EMP01",
-            "D02"));
+            2));
 
         Assert.False(AuthorizationScopePolicy.CanAccess(
             AuthorizationScopeCodes.Own,
             "EMP01",
-            "D01",
+            1,
             "EMP02",
-            "D01"));
+            1));
     }
 
     [Fact]
@@ -67,8 +67,8 @@ public sealed class AuthorizationScopePolicyTests
         Assert.False(AuthorizationScopePolicy.CanAccess(
             AuthorizationScopeCodes.None,
             "EMP01",
-            "D01",
+            1,
             "EMP01",
-            "D01"));
+            1));
     }
 }

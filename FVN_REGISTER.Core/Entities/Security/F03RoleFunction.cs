@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using FVN_REGISTER.Core.Entities;
 
@@ -8,6 +9,14 @@ public sealed class F03RoleFunction : BaseAuditEntity
 {
     public int IdRole { get; set; }
     public int IdFunction { get; set; }
+
+    /// <summary>Optional role-specific data scope. Null = use F03Functions.ScopeCode.</summary>
+    [StringLength(30)]
+    public string? ScopeCode { get; set; }
+
+    /// <summary>Capability audience: Personal or Management. Null keeps legacy compatibility.</summary>
+    [StringLength(20)]
+    public string? AccessMode { get; set; }
 
     [ForeignKey(nameof(IdRole))]
     public F03Role Role { get; set; } = null!;

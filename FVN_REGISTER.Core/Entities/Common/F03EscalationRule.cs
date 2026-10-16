@@ -12,8 +12,7 @@ public partial class F03EscalationRule : BaseAuditEntity
 
     public int Level { get; set; }
 
-    [StringLength(20)]
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
 
     [Column(TypeName = "decimal(5,2)")]
     public decimal WarningHours { get; set; } // Giờ bắt đầu cảnh báo

@@ -1,0 +1,26 @@
+{
+  "name": "e-Approval System",
+  "short_name": "e-Approval",
+  "description": "FVN Register - e-Approval System",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#0366d6",
+  "icons": [
+    {
+      "src": "/pwa/icon-192.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa/icon-512.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -40,7 +40,9 @@ public sealed class SecurityCandidateDiscovery
     public async Task<int> ScanAsync(CancellationToken cancellationToken = default)
     {
         var registry = await _db.SecurityFunctionRegistry
-            .Where(x => x.SourceType is "ApiEndpointDefinition" or "ApiEndpointUnmapped" or "UiActionCandidate")
+            .Where(x => x.SourceType == "ApiEndpointDefinition"
+                     || x.SourceType == "ApiEndpointUnmapped"
+                     || x.SourceType == "UiActionCandidate")
             .ToDictionaryAsync(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var functions = await _db.Functions
@@ -74,12 +76,15 @@ public sealed class SecurityCandidateDiscovery
                 if (!requiresAuthorization)
                     continue;
 
-                var unmappedKey = $"Unmapped.Api.{sourceName}";
+                // Keep the registry identity <= 150 characters. A long CLR type name is
+                // reduced to a deterministic hash suffix rather than silently truncated,
+                // so two endpoints can never collapse onto the same registry key.
+                var unmappedKey = BuildBoundedIdentity("Unmapped.Api." + sourceName, 150);
                 seenApi.Add(unmappedKey);
                 UpsertCandidate(
                     registry,
                     unmappedKey,
-                    $"API endpoint yêu cầu authorization nhưng chưa khai báo SecurityFunctionDefinition: {sourceName}",
+                    BuildBoundedText($"API endpoint yêu cầu authorization nhưng chưa khai báo SecurityFunctionDefinition: {sourceName}", 150),
                     unmappedKey,
                     0,
                     controller,
@@ -98,13 +103,13 @@ public sealed class SecurityCandidateDiscovery
             var moduleCode = definition.ModuleCode ?? function?.ModuleCode ?? controller;
             var actionCode = definition.ActionCode ?? function?.ActionCode ?? action.MethodInfo.Name;
             var scopeCode = definition.ScopeCode ?? function?.ScopeCode ?? "Review";
-            var candidateKey = $"Endpoint.{functionKey}";
+            var candidateKey = BuildBoundedIdentity("Endpoint." + functionKey, 150);
             seenApi.Add(candidateKey);
 
             UpsertCandidate(
                 registry,
                 candidateKey,
-                definition.DisplayName ?? function?.FunctionName ?? functionKey,
+                BuildBoundedText(definition.DisplayName ?? function?.FunctionName ?? functionKey, 150),
                 functionKey,
                 functionCode,
                 moduleCode,
@@ -144,19 +149,19 @@ public sealed class SecurityCandidateDiscovery
                     if (method.GetCustomAttribute<SecurityFunctionDefinitionAttribute>() is not null)
                         continue;
 
-                    var candidateKey = $"Candidate.Ui.{type.FullName}.{method.Name}";
+                    var candidateKey = BuildBoundedIdentity($"Candidate.Ui.{type.FullName}.{method.Name}", 150);
                     seenUi.Add(candidateKey);
                     UpsertCandidate(
                         registry,
                         candidateKey,
-                        $"Cần xác nhận thao tác giao diện {ToDisplayName(method.Name)}",
-                        type.Name,
+                        BuildBoundedText($"Cần xác nhận thao tác giao diện {ToDisplayName(method.Name)}", 150),
+                        BuildBoundedIdentity(type.Name, 150),
                         0,
-                        type.Name,
-                        method.Name,
+                        BuildBoundedIdentifier(type.Name, 50),
+                        BuildBoundedIdentifier(method.Name, 50),
                         "UiActionCandidate",
                         assembly.GetName().Name,
-                        $"{type.FullName}.{method.Name}",
+                        type.FullName ?? type.Name,
                         type.FullName ?? type.Name,
                         "Review",
                         now);
@@ -207,6 +212,16 @@ public sealed class SecurityCandidateDiscovery
         string scopeCode,
         DateTime now)
     {
+        key = BuildBoundedIdentity(key, 150);
+        definition = BuildBoundedText(definition, 150);
+        functionKey = BuildBoundedIdentifier(functionKey, 150);
+        module = BuildBoundedIdentifier(module, 50);
+        action = BuildBoundedIdentifier(action, 50);
+        sourceType = BuildBoundedIdentifier(sourceType, 30);
+        sourceAssembly = BuildBoundedText(sourceAssembly, 250);
+        sourceTypeName = BuildBoundedText(sourceTypeName, 250);
+        scopeCode = BuildBoundedIdentifier(scopeCode, 30);
+
         var hash = Convert.ToHexString(SHA256.HashData(
             Encoding.UTF8.GetBytes(key + "|" + evidence + "|" + functionCode))).ToLowerInvariant();
 
@@ -244,8 +259,28 @@ public sealed class SecurityCandidateDiscovery
         item.SourceAssembly = sourceAssembly;
         item.SourceTypeName = sourceTypeName;
 
-        if (item.LifecycleStatus is not ("Ignored" or "Retired" or "Replaced"))
+        if (item.LifecycleStatus != "Ignored" && item.LifecycleStatus != "Retired" && item.LifecycleStatus != "Replaced")
             item.LifecycleStatus = functionCode > 0 ? "Active" : "PendingRegistration";
+    }
+
+    private static string BuildBoundedIdentity(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+            return value;
+
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))
+            .ToLowerInvariant()[..12];
+        var prefixLength = maxLength - hash.Length - 1;
+        return value[..prefixLength] + "-" + hash;
+    }
+
+    private static string BuildBoundedIdentifier(string? value, int maxLength) =>
+        BuildBoundedIdentity(value?.Trim() ?? string.Empty, maxLength);
+
+    private static string BuildBoundedText(string? value, int maxLength)
+    {
+        value ??= string.Empty;
+        return value.Length <= maxLength ? value : value[..maxLength];
     }
 
     private static string TrimControllerSuffix(string name) =>

@@ -92,12 +92,12 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             RequestStatus = row.request.RequestStatus.ToString(),
             StatusDisplay = row.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(row.request.RequestStatus),
-            SubmittedAt = row.request.CreatedAt ,
+            SubmittedAt = row.request.CreatedAt,
             CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
             Trip = new TripDetailPayload
             {
                 EmployeeName = row.employee?.EmployeeName,
-                DeptName = row.employee?.DeptCode,
+                DeptName = row.employee?.DeptCode.ToString(),
                 TripCode = row.request.TripCode,
                 StartDate = row.request.StartDate,
                 EndDate = row.request.EndDate,

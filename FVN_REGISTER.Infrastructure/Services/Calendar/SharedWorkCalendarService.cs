@@ -1,9 +1,11 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Application.Models.Calendar;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Calendar;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,6 +19,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
     private readonly IWorkCalendarService _workCalendar;
     private readonly ICalendarDayRuleEngine _ruleEngine;
     private readonly IAuthorizationService _authorization;
+    private readonly IAttendanceBackfillCoordinator _attendanceBackfill;
     private readonly ILogger<SharedWorkCalendarService> _logger;
 
     public SharedWorkCalendarService(
@@ -25,6 +28,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         IWorkCalendarService workCalendar,
         ICalendarDayRuleEngine ruleEngine,
         IAuthorizationService authorization,
+        IAttendanceBackfillCoordinator attendanceBackfill,
         ILogger<SharedWorkCalendarService> logger)
     {
         _db = db;
@@ -32,10 +36,11 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         _workCalendar = workCalendar;
         _ruleEngine = ruleEngine;
         _authorization = authorization;
+        _attendanceBackfill = attendanceBackfill;
         _logger = logger;
     }
 
-    public async Task<CalendarMonthDto> GetMonthAsync(
+    private async Task<CalendarMonthDto> GetMonthCoreAsync(
         string employeeCode,
         int userId,
         DateOnly from,
@@ -98,6 +103,36 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .Where(x => x.IsActive != false && x.IsEnabled)
             .ToDictionaryAsync(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
+        // Attendance is a current-state projection, not the source of calendar availability.
+        // Historical months are lazy-backfilled per employee when requested, but the calendar never
+        // waits long for it: the coordinator waits a few seconds at most, then the calendar renders the
+        // data that exists now while the backfill finishes in the background. No calendar request
+        // triggers a company-wide calculation.
+        CalendarAlertItemDto? backfillAlert = null;
+        if (allowedModules is null || allowedModules.Contains("ATTENDANCE"))
+        {
+            var coverage = await _attendanceBackfill.EnsureAsync(
+                resolvedEmployeeCode,
+                employee.DeptCode,
+                from,
+                to,
+                cancellationToken);
+
+            if (coverage.Status != AttendanceBackfillStatus.Ready)
+            {
+                backfillAlert = new CalendarAlertItemDto
+                {
+                    WorkDate = from,
+                    ModuleCode = "ATTENDANCE",
+                    Severity = coverage.Status == AttendanceBackfillStatus.Failed ? "Warning" : "Info",
+                    Summary = coverage.Status == AttendanceBackfillStatus.Failed
+                        ? coverage.Message ?? "Không thể chuẩn bị dữ liệu chấm công cho khoảng thời gian đã chọn."
+                        : "Dữ liệu chấm công đang được cập nhật, vui lòng tải lại sau ít phút.",
+                    RequiresAction = false
+                };
+            }
+        }
+
         var context = new CalendarContext(
             EmployeeId: employee.Id,
             UserId: userId,
@@ -108,13 +143,16 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             PositionCode: employee.PositionCode,
             EmployeeCode: resolvedEmployeeCode);
 
-        var workCalendar = await _workCalendar.GetAsync(
+        var workCalendarResult = await _workCalendar.GetAsync(
             resolvedEmployeeCode,
             employee.DeptCode,
             employee.PositionCode,
             from.ToDateTime(TimeOnly.MinValue),
             to.ToDateTime(TimeOnly.MinValue),
             cancellationToken);
+        if (!workCalendarResult.IsSuccess || workCalendarResult.Data is null)
+            throw new InvalidOperationException(workCalendarResult.Message ?? "Không thể tải lịch làm việc.");
+        var workCalendar = workCalendarResult.Data;
 
         var results = new List<IReadOnlyList<CalendarItemDto>>();
 
@@ -168,7 +206,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 : Array.Empty<CalendarItemDto>();
 
             var registrations = workCalendar.Events
-                .Where(x => x.ModuleCode is "LEAVE" or "OT" or "TRIP"
+                .Where(x => x.ModuleCode is "LEAVE" or "Overtime" or "TRIP"
                     && CalendarEventDateMatcher.CoversDate(x, baseDay.Date))
                 .Where(x => allowedModules is null || allowedModules.Contains(x.ModuleCode))
                 .OrderBy(x => x.ModuleCode)
@@ -232,9 +270,16 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                     HasActualOt = attendanceItem.HasActualOt,
                     IsNumericVariance = attendanceItem.IsNumericVariance,
                     DisplayValue = attendanceItem.Marker,
+                    RuleWorkSymbol = attendanceItem.WorkSymbol,
+                    RuleOtSymbol = attendanceItem.OtMarker,
+                    RuleDayType = attendanceItem.DayType,
+                    RuleCode = attendanceItem.SymbolRuleCode,
                     SourceId = attendanceItem.SourceId,
                     ActionId = attendanceItem.ActionId,
-                    DetailRoute = attendanceItem.DetailRoute
+                    DetailRoute = attendanceItem.DetailRoute,
+                    FeedbackTone = attendanceItem.FeedbackTone,
+                    FeedbackMarker = attendanceItem.FeedbackMarker,
+                    FeedbackLabel = attendanceItem.FeedbackLabel
                 };
             }
 
@@ -260,14 +305,15 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 CanRegisterLeave = baseDay.CanRegisterLeave
                     && !registrations.Any(x => x.ModuleCode == "LEAVE"),
                 CanRegisterOT = baseDay.CanRegisterOT
-                    && !registrations.Any(x => x.ModuleCode == "OT"),
+                    && !registrations.Any(x => x.ModuleCode == "Overtime"),
                 CanRegisterTrip = baseDay.CanRegisterTrip
                     && !registrations.Any(x => x.ModuleCode == "TRIP"),
                 AvailabilityNote = baseDay.AvailabilityNote
             };
 
-            var issues = _ruleEngine.Evaluate(
-                new CalendarDayRuleContext(provisional, dateItems));
+            var issues = ApplyExecutionFeedback(
+                _ruleEngine.Evaluate(new CalendarDayRuleContext(provisional, dateItems)),
+                dateItems);
 
             days.Add(new CalendarDayDto
             {
@@ -317,6 +363,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .ThenByDescending(x => x.Severity)
             .ToArray();
 
+        if (backfillAlert is not null)
+            alerts = [backfillAlert, .. alerts];
+
         return new CalendarMonthDto
         {
             From = from,
@@ -326,6 +375,25 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             Alerts = alerts,
             RegistrationOpportunities = opportunities
         };
+    }
+
+    public async Task<ServiceResult<CalendarMonthDto>> GetMonthAsync(
+        string employeeCode,
+        int userId,
+        DateOnly from,
+        DateOnly to,
+        IReadOnlySet<string>? allowedModules = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return ServiceResult<CalendarMonthDto>.Ok(
+                await GetMonthCoreAsync(employeeCode, userId, from, to, allowedModules, cancellationToken));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or ArgumentException or KeyNotFoundException or InvalidOperationException)
+        {
+            return ServiceResult<CalendarMonthDto>.Fail(ex.Message);
+        }
     }
 
     private static CalendarItemDto? GetSingleModuleProjection(
@@ -339,7 +407,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         return matches.Length == 1 ? matches[0] : null;
     }
 
-    public async Task<IReadOnlyList<CalendarAlertItemDto>> GetAlertsAsync(
+    public async Task<ServiceResult<IReadOnlyList<CalendarAlertItemDto>>> GetAlertsAsync(
         string employeeCode,
         int userId,
         DateOnly from,
@@ -355,7 +423,86 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             allowedModules,
             cancellationToken);
 
-        return result.Alerts;
+        return result.IsSuccess
+            ? ServiceResult<IReadOnlyList<CalendarAlertItemDto>>.Ok(result.Data?.Alerts ?? Array.Empty<CalendarAlertItemDto>())
+            : ServiceResult<IReadOnlyList<CalendarAlertItemDto>>.Fail(result.Message ?? "Không thể tải cảnh báo lịch.");
+    }
+
+    /// <summary>
+    /// Phản hồi nhân viên/HR (OT, Trip, Leave) nằm ở CalendarItemDto.Feedback*; đưa nó lên issue cùng module
+    /// để dấu "?" đổi thành Pending / HR request / Complete / Rejected thay vì luôn đỏ.
+    /// </summary>
+    private static IReadOnlyList<CalendarIssueDto> ApplyExecutionFeedback(
+        IReadOnlyList<CalendarIssueDto> issues,
+        IReadOnlyList<CalendarItemDto> dateItems)
+    {
+        if (issues.Count == 0)
+            return issues;
+
+        var feedbackByModule = dateItems
+            .Where(x => !string.IsNullOrWhiteSpace(x.FeedbackTone)
+                && !string.Equals(x.ModuleCode, "ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Severity).First(), StringComparer.OrdinalIgnoreCase);
+
+        if (feedbackByModule.Count == 0)
+            return issues;
+
+        return issues.Select(issue =>
+        {
+            if (!feedbackByModule.TryGetValue(issue.ModuleCode ?? string.Empty, out var item))
+                return issue;
+
+            var complete = string.Equals(item.FeedbackTone, "complete", StringComparison.OrdinalIgnoreCase);
+            return new CalendarIssueDto
+            {
+                Code = issue.Code,
+                ModuleCode = issue.ModuleCode,
+                Severity = item.Severity,
+                Marker = item.FeedbackMarker ?? issue.Marker,
+                Title = issue.Title,
+                Summary = string.IsNullOrWhiteSpace(item.FeedbackLabel)
+                    ? issue.Summary
+                    : $"{item.FeedbackLabel} · {issue.Summary}",
+                SourceId = issue.SourceId,
+                ActionId = issue.ActionId,
+                DetailRoute = issue.DetailRoute,
+                RequestId = issue.RequestId,
+                // Complete: đã xong, không mời phản hồi lại. HR processed: dẫn tới trang kết quả để xác nhận/khiếu nại.
+                Actions = ResolveFeedbackActions(issue, item, complete),
+                FeedbackTone = item.FeedbackTone,
+                FeedbackMarker = item.FeedbackMarker,
+                FeedbackLabel = item.FeedbackLabel
+            };
+        }).ToArray();
+    }
+
+    private static IReadOnlyList<CalendarActionOptionDto> ResolveFeedbackActions(
+        CalendarIssueDto issue,
+        CalendarItemDto item,
+        bool complete)
+    {
+        if (complete)
+            return Array.Empty<CalendarActionOptionDto>();
+
+        var route = string.IsNullOrWhiteSpace(item.DetailRoute) ? issue.DetailRoute : item.DetailRoute;
+        if (string.Equals(item.FeedbackTone, "hr-resolved", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(route))
+        {
+            return new[]
+            {
+                new CalendarActionOptionDto
+                {
+                    Code = "OPEN_EXECUTION_RESULT",
+                    Title = "Xem kết quả HR và xác nhận/khiếu nại",
+                    Description = "HR đã xử lý phản hồi của bạn. Mở kết quả để xác nhận hoặc khiếu nại.",
+                    Kind = "NAVIGATION",
+                    DetailRoute = route
+                }
+            };
+        }
+
+        return issue.Actions;
     }
 
     private static string? BuildAvailabilityNote(CalendarDayDto day)
@@ -400,12 +547,12 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             };
         }
 
-        if (day.CanRegisterOT && IsAllowed("OT", allowedModules))
+        if (day.CanRegisterOT && IsAllowed("Overtime", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
                 WorkDate = day.Date,
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 Title = "Đăng ký OT",
                 Route = $"/ot/create?date={day.Date:yyyy-MM-dd}",
                 IsEnabled = true

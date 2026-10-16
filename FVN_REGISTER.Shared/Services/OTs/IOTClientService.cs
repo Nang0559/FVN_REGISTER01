@@ -16,14 +16,14 @@ public interface IOTClientService
     Task<ApiResponse<object>> CancelAsync(int otRequestId, string? reason, CancellationToken ct = default);
 
     Task<ApiResponse<List<OTRequestDto>>> GetDeptOTByDateAsync(DateTime date, CancellationToken ct = default);
-    Task<ApiResponse<List<OTEmployeeDto>>> GetDeptEmployeesAsync(string? deptCode = null, CancellationToken ct = default);
+    Task<ApiResponse<List<OTEmployeeDto>>> GetDeptEmployeesAsync(int? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<List<OTSummaryDto>>> GetMyHistoryAsync(int? year = null, CancellationToken ct = default);
     Task<ApiResponse<OTBalanceDto>> GetEmployeeBalanceAsync(string employeeCode, int year, CancellationToken ct = default);
     Task<ApiResponse<OTCombinedDataDto>> GetCombinedDataAsync(CancellationToken ct = default);
     Task<ApiResponse<List<OTTypeDto>>> GetActiveOTTypesAsync(CancellationToken ct = default);    Task<ApiResponse<OTBalanceDto>> GetOTBalanceAsync(int year, CancellationToken ct = default);
     Task<ApiResponse<List<OTSummaryDto>>> GetRecentOTRequestsAsync(int limit = 10, CancellationToken ct = default);
     Task<ApiResponse<List<PendingApprovalItemDto>>> GetPendingApprovalsAsync(int level = 0, CancellationToken ct = default);
-    Task<ApiResponse<PaginationResult<OTSummaryDto>>> GetPagedOTRequestsAsync(string? deptCode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20, CancellationToken ct = default);
+    Task<ApiResponse<PaginationResult<OTSummaryDto>>> GetPagedOTRequestsAsync(int? deptCode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20, CancellationToken ct = default);
     Task<ApiResponse<object>> GetOTDashboardAsync(CancellationToken ct = default);
     Task<ApiResponse<OTValidationResultDto>> ValidateOTHoursAsync(string employeeCode, DateTime otDate, decimal hours, string otType, CancellationToken ct = default);
     Task<ApiResponse<OTValidationResultDto>> ValidateOTRequestAsync(OTRequestUpsertDto request, CancellationToken ct = default);

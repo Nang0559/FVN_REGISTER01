@@ -36,30 +36,29 @@ public sealed class TripController : ControllerBase
         [FromBody] CreateTripRequestDto request,
         CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.TripCreate, ct)) return Forbid();
-        return Ok(await _service.CreateDraftAsync(request, ct));
+        if (!await CanPersonalAsync(SecurityFunctionCodes.TripCreate, ct)) return Forbid();
+        var result = await _service.CreateDraftAsync(request, ct); return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<TripRequestDto>> Update(
         int id, [FromBody] CreateTripRequestDto request, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
-        return Ok(await _service.UpdateDraftAsync(id, request, ct));
+        if (!await CanPersonalAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
+        var result = await _service.UpdateDraftAsync(id, request, ct); return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
     [HttpPost("{id:int}/cancel")]
     public async Task<IActionResult> Cancel(int id, [FromBody] CancelTripRequestDto request, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.TripCancel, ct)) return Forbid();
-        await _service.CancelAsync(id, request.Reason, ct);
-        return Ok();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.TripCancel, ct)) return Forbid();
+        var result = await _service.CancelAsync(id, request.Reason, ct); return result.IsSuccess ? Ok(ApiResponse<object>.FromResult(result)) : BadRequest(ApiResponse<object>.FromResult(result));
     }
 
     [HttpPost("{id:int}/submit")]
     public async Task<ActionResult<TripRequestDto>> Submit(int id, [FromBody] List<ApprovalSelectionDto>? approvalSelections, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
+        if (!await CanPersonalAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
         var result = await _service.SubmitAsync(id, approvalSelections, ct);
         var response = ApiResponse<TripRequestDto>.FromResult(result);
         return result.IsSuccess ? Ok(response) : BadRequest(response);
@@ -70,19 +69,25 @@ public sealed class TripController : ControllerBase
     {
         if (!await CanAsync(SecurityFunctionCodes.TripView, ct)) return Forbid();
         var result = await _service.GetAsync(id, ct);
-        return result == null ? NotFound() : Ok(result);
+        return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
     [HttpGet("mine")]
     public async Task<ActionResult<List<TripRequestDto>>> Mine(CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.TripView, ct)) return Forbid();
-        return Ok(await _service.GetMineAsync(ct));
+        if (!await CanPersonalAsync(SecurityFunctionCodes.TripView, ct)) return Forbid();
+        var result = await _service.GetMineAsync(ct); return result.IsSuccess ? Ok(ApiResponse<List<TripRequestDto>>.FromResult(result)) : BadRequest(ApiResponse<List<TripRequestDto>>.FromResult(result));
     }
 
     private async Task<bool> CanAsync(int functionCode, CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
         return user != null && await _authorization.HasAsync(user, functionCode, ct);
+    }
+
+    private async Task<bool> CanPersonalAsync(int functionCode, CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        return user != null && await _authorization.HasPersonalAsync(user, functionCode, ct);
     }
 }

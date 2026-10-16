@@ -10,7 +10,7 @@
             <MudIcon Icon="@(Model.Id == 0 ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)"
                      Color="Color.Primary" />
             <MudText Typo="Typo.h6">
-                @(Model.Id == 0 ? "Thêm nhân viên mới" : "Chỉnh sửa nhân viên")
+                @(Model.Id == 0 ? Language.T("employee.themNhanVienMoi") : Language.T("employee.chinhSuaNhanVien"))
             </MudText>
         </MudStack>
     </TitleContent>
@@ -19,30 +19,30 @@
         <MudForm @ref="_form" Class="pt-2">
             <MudGrid>
                 <MudItem xs="12" sm="6">
-                    <MudTextField Label="Mã nhân viên (*)"
+                    <MudTextField Label="@Language.T("employee.maNhanVien")"
                                   @bind-Value="Model.EmployeeCode"
                                   Variant="Variant.Outlined"
                                   Required="true"
-                                  RequiredError="Nhập mã nhân viên"
+                                  RequiredError="@Language.T("employee.nhapMaNhanVien")"
                                   Disabled="@(Model.Id != 0)" />
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudTextField Label="Họ tên (*)"
+                    <MudTextField Label="@Language.T("employee.hoTen")"
                                   @bind-Value="Model.EmployeeName"
                                   Variant="Variant.Outlined"
                                   Required="true"
-                                  RequiredError="Nhập họ tên" />
+                                  RequiredError="@Language.T("employee.nhapHoTen")" />
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudSelect T="string"
-                               Label="Bộ phận (*)"
+                    <MudSelect T="int"
+                               Label="@Language.T("employee.boPhan")"
                                @bind-Value="Model.DeptCode"
                                Variant="Variant.Outlined"
                                Disabled="LockDept"
                                Required="true"
-                               RequiredError="Chọn bộ phận">
+                               RequiredError="@Language.T("employee.chonBoPhan")">
                         @foreach (var dept in Departments)
                         {
                             <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
@@ -52,11 +52,11 @@
 
                 <MudItem xs="12" sm="6">
                     <MudSelect T="string"
-                               Label="Chức vụ (*)"
+                               Label="@Language.T("employee.chucVu")"
                                @bind-Value="Model.PositionCode"
                                Variant="Variant.Outlined"
                                Required="true"
-                               RequiredError="Chọn chức vụ">
+                               RequiredError="@Language.T("employee.chonChucVu")">
                         @foreach (var position in _positions)
                         {
                             <MudSelectItem Value="@position.PositionCode">
@@ -67,47 +67,47 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudTextField Label="Email (*)"
+                    <MudTextField Label="@Language.T("employee.email")"
                                   @bind-Value="Model.EmailAddress"
                                   Variant="Variant.Outlined"
                                   Required="true"
-                                  RequiredError="Nhập email"
+                                  RequiredError="@Language.T("employee.nhapEmail")"
                                   InputType="InputType.Email" />
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudTextField Label="Số điện thoại"
+                    <MudTextField Label="@Language.T("employee.soDienThoai")"
                                   @bind-Value="Model.PhoneNumber"
                                   Variant="Variant.Outlined" />
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
                     <MudSelect T="int?"
-                               Label="Giới tính"
+                               Label="@Language.T("employee.gioiTinh")"
                                @bind-Value="Model.GenderCode"
                                Variant="Variant.Outlined"
                                Clearable="true">
-                        <MudSelectItem T="int?" Value="@((int?)1)">Nam</MudSelectItem>
-                        <MudSelectItem T="int?" Value="@((int?)2)">Nữ</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)1)">@Language.T("employee.nam")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)2)">@Language.T("employee.nu")</MudSelectItem>
                     </MudSelect>
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudDatePicker Label="Ngày sinh"
+                    <MudDatePicker Label="@Language.T("employee.ngaySinh")"
                                    @bind-Date="Model.BirthDate"
                                    Variant="Variant.Outlined"
                                    Margin="Margin.Dense" />
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudDatePicker Label="Ngày vào làm"
+                    <MudDatePicker Label="@Language.T("employee.ngayVaoLam")"
                                    @bind-Date="Model.FirstWorkingDate"
                                    Variant="Variant.Outlined"
                                    Margin="Margin.Dense" />
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudDatePicker Label="Ngày nghỉ việc"
+                    <MudDatePicker Label="@Language.T("employee.ngayNghiViec")"
                                    @bind-Date="Model.EndWorkingDate"
                                    Variant="Variant.Outlined"
                                    Margin="Margin.Dense" />
@@ -115,7 +115,7 @@
 
                 <MudItem xs="12" sm="6">
                     <MudNumericField T="decimal"
-                                     Label="Tổng phép năm (ngày)"
+                                     Label="@Language.T("employee.tongPhepNamNgay")"
                                      @bind-Value="Model.TotalLeaveDays"
                                      Variant="Variant.Outlined"
                                      Min="0" Max="30" Step="0.5m" />
@@ -123,21 +123,21 @@
 
                 <MudItem xs="12" sm="6">
                     <MudSelect T="int?"
-                               Label="Cấp duyệt"
+                               Label='@Language.T("approval.level")'
                                @bind-Value="Model.LevelApprove"
                                Variant="Variant.Outlined"
                                Clearable="true">
-                        <MudSelectItem T="int?" Value="@((int?)1)">Cấp 1</MudSelectItem>
-                        <MudSelectItem T="int?" Value="@((int?)2)">Cấp 2</MudSelectItem>
-                        <MudSelectItem T="int?" Value="@((int?)3)">Cấp 3</MudSelectItem>
-                        <MudSelectItem T="int?" Value="@((int?)4)">Cấp 4</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)1)">@Language.T("common.cap1")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)2)">@Language.T("common.cap2")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)3)">@Language.T("common.cap3")</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)4)">@Language.T("common.cap4")</MudSelectItem>
                     </MudSelect>
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
                     <MudSwitch T="bool"
                                @bind-Value="Model.IsActive"
-                               Label="@(Model.IsActive ? "Đang làm việc" : "Đã nghỉ")"
+                               Label="@(Model.IsActive ? Language.T("employee.dangLamViec") : Language.T("dashboard.used"))"
                                Color="Color.Success"
                                Class="mt-3" />
                 </MudItem>
@@ -146,12 +146,12 @@
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@Language.T("common.cancel")</MudButton>
         <MudButton Color="Color.Primary"
                    Variant="Variant.Filled"
                    OnClick="Submit"
                    Disabled="_isSaving">
-            @(_isSaving ? "Đang lưu..." : (Model.Id == 0 ? "Thêm mới" : "Lưu thay đổi"))
+            @(_isSaving ? Language.T("common.dangLuu") : (Model.Id == 0 ? Language.T("leave.themMoi") : Language.T("user.luuThayDoi")))
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -177,7 +177,7 @@
         if (result.IsSuccess)
             _positions = result.Data?.Where(x => x.IsActive).OrderBy(x => x.PositionCode).ToList() ?? new();
         else
-            Snackbar.Add(result.Message ?? "Không tải được danh sách chức vụ.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("common.khongTaiDuocDanhSach"), Severity.Error);
     }
 
     private async Task Submit()
@@ -194,12 +194,12 @@
 
             if (result.IsSuccess)
             {
-                Snackbar.Add(result.Message ?? "Thành công!", Severity.Success);
+                Snackbar.Add(result.Message ?? Language.T("common.thanhCong"), Severity.Success);
                 MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
-                Snackbar.Add(result.Message ?? "Có lỗi xảy ra", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("common.coLoiXayRa"), Severity.Error);
             }
         }
         finally

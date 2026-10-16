@@ -126,7 +126,7 @@ public class OTApprovalProvider
         bool canApprove,
         CancellationToken ct)
     {
-        var deptName = string.IsNullOrEmpty(subject.DeptCode)
+        var deptName = subject.DeptCode == null
             ? null
             : await _uow.Repository<F03Department>().Query().AsNoTracking()
                 .Where(d => d.DeptCode == subject.DeptCode)
@@ -139,7 +139,7 @@ public class OTApprovalProvider
             Kind = subject.Module,
             EmployeeCode = subject.EmployeeCode,
             EmployeeName = subject.EmployeeName ?? string.Empty,
-            DeptCode = subject.DeptCode ?? string.Empty,
+            DeptCode = subject.DeptCode ?? 0,
             DeptName = deptName ?? string.Empty,
             FromDate = subject.OTDate,
             ToDate = subject.OTDate,

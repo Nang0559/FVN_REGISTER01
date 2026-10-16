@@ -41,7 +41,16 @@ public sealed record EndpointInventoryRequestDto(
     string? AgentVersion,
     IReadOnlyList<EndpointSoftwareInventoryDto> Software,
     IReadOnlyList<EndpointServiceInventoryDto> Services,
-    IReadOnlyList<EndpointAntivirusInventoryDto> Antivirus);
+    IReadOnlyList<EndpointAntivirusInventoryDto> Antivirus,
+    string? LanscopeClientId = null,
+    string? IpAddress = null,
+    string? MacAddress = null,
+    string? WindowsUser = null,
+    string? DomainName = null,
+    string? OrganizationalUnit = null,
+    string? LanscopeGroup = null,
+    string? Manufacturer = null,
+    string? Model = null);
 
 public sealed record EndpointInventorySummaryDto(
     long EndpointId,

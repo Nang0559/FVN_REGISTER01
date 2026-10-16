@@ -18,11 +18,9 @@ public sealed class F03ManagedScope : BaseAuditEntity
     [StringLength(50)]
     public string? FactoryCode { get; set; }
 
-    [StringLength(20)]
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
 
-    [StringLength(20)]
-    public string? SubDepartmentCode { get; set; }
+    public int? SubDepartmentCode { get; set; }
 
     public bool IncludeChildren { get; set; } = true;
 

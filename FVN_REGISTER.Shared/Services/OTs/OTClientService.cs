@@ -34,9 +34,9 @@ public sealed class OTClientService : IOTClientService
     public Task<ApiResponse<List<OTRequestDto>>> GetDeptOTByDateAsync(DateTime date, CancellationToken ct = default)
         => _http.GetAsync<List<OTRequestDto>>($"{Base}/dept-ot-by-date?date={date:yyyy-MM-dd}", ct);
 
-    public Task<ApiResponse<List<OTEmployeeDto>>> GetDeptEmployeesAsync(string? deptCode = null, CancellationToken ct = default)
+    public Task<ApiResponse<List<OTEmployeeDto>>> GetDeptEmployeesAsync(int? deptCode = null, CancellationToken ct = default)
     {
-        var url = string.IsNullOrWhiteSpace(deptCode) ? $"{Base}/dept-employees" : $"{Base}/dept-employees?deptCode={Uri.EscapeDataString(deptCode)}";
+        var url = deptCode == null ? $"{Base}/dept-employees" : $"{Base}/dept-employees?deptCode={deptCode}";
         return _http.GetAsync<List<OTEmployeeDto>>(url, ct);
     }
 
@@ -60,10 +60,10 @@ public sealed class OTClientService : IOTClientService
     public Task<ApiResponse<List<PendingApprovalItemDto>>> GetPendingApprovalsAsync(int level = 0, CancellationToken ct = default)
         => _http.GetAsync<List<PendingApprovalItemDto>>($"{Base}/pending?level={level}", ct);
 
-    public Task<ApiResponse<PaginationResult<OTSummaryDto>>> GetPagedOTRequestsAsync(string? deptCode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    public Task<ApiResponse<PaginationResult<OTSummaryDto>>> GetPagedOTRequestsAsync(int? deptCode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
         var url = $"{Base}/list?page={page}&pageSize={pageSize}";
-        if (!string.IsNullOrWhiteSpace(deptCode)) url += $"&deptCode={Uri.EscapeDataString(deptCode)}";
+        if (deptCode != null) url += $"&deptCode={deptCode}";
         if (!string.IsNullOrWhiteSpace(status)) url += $"&status={Uri.EscapeDataString(status)}";
         if (fromDate.HasValue) url += $"&fromDate={fromDate.Value:yyyy-MM-dd}";
         if (toDate.HasValue) url += $"&toDate={toDate.Value:yyyy-MM-dd}";

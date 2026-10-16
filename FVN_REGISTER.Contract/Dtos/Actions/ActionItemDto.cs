@@ -21,4 +21,10 @@ public sealed class ActionItemDto
     public string? ReferenceNo { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
+
+    /// <summary>Trạng thái phản hồi của nhân viên (unanswered | pending | hr-request | complete | rejected). Null nếu không phải action đối soát.</summary>
+    public string? FeedbackTone { get; set; }
+    public string? FeedbackLabel { get; set; }
+    /// <summary>Ý kiến HR gần nhất trên phản hồi (nếu có).</summary>
+    public string? FeedbackNote { get; set; }
 }

@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using MudBlazor
 @inject INotificationClientService NotifyService
+@inject IPushClientService Push
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Nav
 @inject IConfiguration Configuration
@@ -14,7 +15,7 @@
     <MudIconButton Icon="@Icons.Material.Filled.Notifications"
                    Color="Color.Inherit"
                    OnClick="TogglePanel"
-                   aria-label="Thông báo" />
+                   aria-label="@Language.T("common.thongBao")" />
 
     @if (NotifyService.UnreadCount > 0)
     {
@@ -28,11 +29,11 @@
 {
     <MudPaper Elevation="8" Style="position:fixed; top:56px; right:16px; width:360px; max-height:480px; z-index:9999; display:flex; flex-direction:column; border-radius:12px; overflow:hidden;">
         <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--mud-palette-divider);">
-            <MudText Typo="Typo.subtitle1"><b>Thông báo</b></MudText>
+            <MudText Typo="Typo.subtitle1"><b>@Language.T("common.thongBao")</b></MudText>
             <div style="display:flex; gap:4px;">
                 @if (NotifyService.UnreadCount > 0)
                 {
-                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="MarkAllRead">Đọc tất cả</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="MarkAllRead">@Language.T("common.docTatCa")</MudButton>
                 }
                 <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="TogglePanel" />
             </div>
@@ -47,7 +48,7 @@
             {
                 <div style="padding:32px; text-align:center;">
                     <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone" Style="font-size:48px; opacity:0.3;" />
-                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">Chưa có thông báo</MudText>
+                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">@Language.T("common.chuaCoThongBao")</MudText>
                 </div>
             }
             else
@@ -156,7 +157,11 @@
         _panelOpen = false;
     }
 
-    private void OnNotifyChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnNotifyChanged()
+    {
+        _ = Push.SetBadgeAsync(NotifyService.UnreadCount);
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     private static string GetMudIcon(NotificationAction action) => action switch
     {
@@ -192,13 +197,13 @@
         _ => "info"
     };
 
-    private static string GetTimeAgo(DateTime createdAt)
+    private string GetTimeAgo(DateTime createdAt)
     {
         var elapsed = DateTime.Now - createdAt;
-        if (elapsed.TotalMinutes < 1) return "Vừa xong";
-        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes} phút trước";
-        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours} giờ trước";
-        if (elapsed.TotalDays < 30) return $"{(int)elapsed.TotalDays} ngày trước";
+        if (elapsed.TotalMinutes < 1) return Language.T("notification.vuaXong");
+        if (elapsed.TotalHours < 1) return Language.T("notification.phutTruoc", (int)elapsed.TotalMinutes);
+        if (elapsed.TotalDays < 1) return Language.T("notification.gioTruoc", (int)elapsed.TotalHours);
+        if (elapsed.TotalDays < 30) return Language.T("notification.ngayTruoc", (int)elapsed.TotalDays);
         return createdAt.ToString("dd/MM/yyyy HH:mm");
     }
 

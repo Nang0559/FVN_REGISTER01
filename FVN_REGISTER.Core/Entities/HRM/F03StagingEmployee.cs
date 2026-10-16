@@ -1,5 +1,6 @@
 ﻿using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Interfaces;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 
@@ -16,7 +17,7 @@ namespace FVN_REGISTER.Core.Entities.HRM
         public DateTime CreatedAt { get; set; }
         public string? CreatedBy { get; set; }
         public string EmployeeName { get; set; } = string.Empty;
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? PositionCode { get; set; }
         public string EmailAddress { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }

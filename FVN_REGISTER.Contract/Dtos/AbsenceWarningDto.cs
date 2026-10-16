@@ -3,7 +3,7 @@ namespace FVN_REGISTER.Contract.Dtos
 {
     public class AbsenceWarningDto
     {
-        public string DeptCode { get; set; } = string.Empty;
+        public int DeptCode { get; set; }
         public string DeptName { get; set; } = string.Empty;
 
         public int TotalStaff { get; set; }        // Tổng nhân sự phòng ban

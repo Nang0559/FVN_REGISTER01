@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Contract.Dtos.Usermanagers
         public int IdUser { get; set; }
         public string EmployeeCode { get; set; } = string.Empty;
         public string? FullName { get; set; }
-        public string? DeptCode { get; set; }
+        public int? DeptCode { get; set; }
         public string? DeptName { get; set; }
         public int PermissionCode { get; set; }
         public string? PermissionName { get; set; }

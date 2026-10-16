@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
@@ -21,18 +22,21 @@ public sealed class HrmUserRoleRulesController : BaseApiController
 {
     private readonly IHrmUserRoleRuleService _service;
     private readonly IAuthorizationService _authorization;
+    private readonly IFeatureOperatorAssignmentService _operators;
 
     public HrmUserRoleRulesController(
         IHrmUserRoleRuleService service,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         IAuthorizationService authorization,
+        IFeatureOperatorAssignmentService operators,
         ILogger<HrmUserRoleRulesController> logger,
         IOptionsMonitor<AuthDebugOptions> options)
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
         _authorization = authorization;
+        _operators = operators;
     }
 
     [HttpGet]
@@ -81,6 +85,11 @@ public sealed class HrmUserRoleRulesController : BaseApiController
         return HandleResult(await _service.DeleteAsync(id, UserInfo!.UserId, ct));
     }
 
-    private Task<bool> CanManageAsync(CancellationToken ct)
-        => UserInfo != null ? _authorization.HasAsync(UserInfo, SecurityFunctionCodes.HrmUserRoleRuleManage, ct) : Task.FromResult(false);
+    private async Task<bool> CanManageAsync(CancellationToken ct)
+    {
+        if (UserInfo is null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.HrmUserRoleRuleManage, ct))
+            return false;
+        return await _operators.CanOperateAsync(UserInfo.UserId, UserInfo.EmployeeCode,
+            SecurityFunctionCodes.HrmUserRoleRuleManage, FeatureOperatorCatalog.HrmUserRoleRule, null, ct);
+    }
 }

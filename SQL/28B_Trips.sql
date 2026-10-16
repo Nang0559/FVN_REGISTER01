@@ -12,7 +12,7 @@ BEGIN
     (
         Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03TripRequests PRIMARY KEY,
         EmployeeCode NVARCHAR(50) NOT NULL,
-        DeptCode NVARCHAR(20) NULL,
+        DeptCode int NULL,
         RequestStatus INT NOT NULL CONSTRAINT DF_F03TripRequests_RequestStatus DEFAULT(0),
         IsActive BIT NULL CONSTRAINT DF_F03TripRequests_IsActive DEFAULT(1),
         CreatedBy INT NOT NULL,

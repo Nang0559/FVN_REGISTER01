@@ -12,7 +12,7 @@ namespace FVN_REGISTER.Shared.Services.Departments
             CancellationToken ct = default);
 
         Task<ApiResponse<DepartmentStatusDto>> GetByDeptAsync(
-            string deptCode,
+            int deptCode,
             DateTime? date = null,
             CancellationToken ct = default);
     }

@@ -5,7 +5,7 @@ public sealed class PasswordResetRequestDto
     public int Id { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
     public string? FullName { get; set; }
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? RequestNote { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime RequestedAt { get; set; }

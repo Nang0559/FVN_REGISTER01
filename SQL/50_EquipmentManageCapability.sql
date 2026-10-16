@@ -15,6 +15,18 @@ IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
     THROW 51500, N'F03Functions is required before applying 50_EquipmentManageCapability.', 1;
 
 /*
+  Compatibility guard:
+  50 may also be deployed independently by the targeted deployment script.
+  Do not assume 46_SecurityFunctionRegistry has already run. SQL Server compiles
+  a batch before executing ALTER TABLE, so the schema change is separated with
+  GO before any statement that references FunctionKey.
+*/
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NULL
+    ALTER TABLE dbo.F03Functions ADD FunctionKey nvarchar(150) NULL;
+GO
+
+
+/*
   46_SecurityFunctionRegistry makes FunctionKey mandatory.
   Therefore every new function must be inserted with its stable key.
 */

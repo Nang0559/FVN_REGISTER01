@@ -119,3 +119,29 @@ Calendar module `ATTENDANCE` đọc trực tiếp `F03HrmAttendanceCalculated` t
 ### Calendar registration vs confirmation
 
 Calendar registration is intentionally separate from Execution ActionId. ActionId identifies an existing work item that requires confirmation; it must never be reused as a registration command. Empty/available dates use WorkCalendar availability and expose registration opportunities for Leave/OT/Trip. Existing attendance/reconciliation data takes precedence, so a mismatch is shown as confirmation (?) instead of being mistaken for a new registration opportunity.
+
+
+## 12. Resolution policy và bounded appeal
+
+Reconciliation mismatch không kết thúc ngay khi HR thực hiện resolution. Với policy yêu cầu nhân viên xác nhận, case chuyển **AwaitingEmployeeDecision** và tạo Action cho nhân viên.
+
+- **Accept** → case chuyển **Resolved** và correction chỉ thực hiện khi kết quả HR cuối cùng cho phép correction.
+- **Appeal** → tăng AppealRound, tạo HR action mới và chuyển **AppealReviewing**.
+- Khi đạt **MaxAppealRounds** → **FinalDecisionPending**, không tạo thêm vòng appeal thông thường.
+- Final decision là một bước riêng; người đã xử lý resolution trước đó không được tự quyết final decision cho cùng case.
+
+Policy được quản lý theo version/effective date. Khi reconciliation được tạo, policy hiệu lực được snapshot vào ResolutionPolicySnapshotJson, nên sửa policy về sau không làm thay đổi ngầm case đang xử lý.
+
+## 13. Employee timeout
+
+Employee result action được xử lý theo policy snapshot: **Escalate** chuyển sang final decision; **Auto-accept** ghi nhận chấp nhận kết quả HR theo policy. Generic action lifecycle không được expire employee-result action trước execution timeout processor.
+
+## 14. HR claim / lock
+
+Nhiều HR có thể được cấp quyền execution review, nhưng một reconciliation chỉ có một người claim để mutate tại một thời điểm. Người khác vẫn xem được case; server-side claim ownership mới là security boundary.
+
+## 15. Calendar / Action / Payroll
+
+ActionId luôn trỏ tới action hiện tại của workflow; action cũ vẫn nằm trong history. Calendar phản ánh các state đang actionable và không được worker reconciliation thông thường ghi đè khi case đang ở workflow active.
+
+Các case chưa resolved tiếp tục chặn payroll readiness theo cơ chế hiện tại. PayrollCutoffMode là policy configuration; chưa có nghĩa hệ thống tự động finalize toàn bộ case tại payroll cutoff.

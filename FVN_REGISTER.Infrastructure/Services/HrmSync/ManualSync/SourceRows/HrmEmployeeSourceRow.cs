@@ -6,7 +6,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.SourceRows
 {
     public string EmployeeCode { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public string? DeptCode { get; set; }
+    public int? DeptCode { get; set; }
     public string? PositionCode { get; set; }
     public DateTime? BirthDate { get; set; }
     public int? GenderCode { get; set; }

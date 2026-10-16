@@ -82,7 +82,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     UserName = user.FindFirst("EmployeeCode")?.Value ?? "",
                     FullName = user.FindFirst("FullName")?.Value ?? "",
                     EmployeeCode = user.FindFirst("EmployeeCode")?.Value ?? "",
-                    DeptCode = user.FindFirst("DeptCode")?.Value ?? "",
+                    DeptCode = int.TryParse(user.FindFirst("DeptCode")?.Value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var claimDeptCode) ? claimDeptCode : (int?)null,
                     PositionCode = user.FindFirst("PositionCode")?.Value ?? "",
                     Email = user.FindFirst("Email")?.Value ?? "",
                     LevelApprove = levelApprove,

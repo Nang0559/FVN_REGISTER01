@@ -25,7 +25,7 @@ BEGIN
    ModifiedAt datetime2 NULL,
    TemplateCode nvarchar(50) NOT NULL,
    TemplateName nvarchar(200) NOT NULL,
-   DeptCode nvarchar(20) NOT NULL,
+   DeptCode int NOT NULL,
    Frequency nvarchar(20) NOT NULL DEFAULT 'Daily',
    Version int NOT NULL DEFAULT 1,
    Status nvarchar(20) NOT NULL DEFAULT 'Draft',

@@ -14,14 +14,14 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<PageTitle>Quản lý tài khoản</PageTitle>
+<PageTitle>@Language.T("user.quanLyTaiKhoan")</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Quản lý tài khoản hệ thống</MudText>
+<MudText Typo="Typo.h5" Class="mb-4">@Language.T("user.quanLyTaiKhoanHe")</MudText>
 
 <MudStack Row="true" Justify="Justify.SpaceBetween"
           AlignItems="AlignItems.Center" Class="mb-3" Wrap="Wrap.Wrap">
     <MudTextField @bind-Value="_search"
-                  Placeholder="Tìm theo mã NV, họ tên, phòng ban..."
+                  Placeholder="@Language.T("user.timTheoMaNvHo")"
                   Adornment="Adornment.Start"
                   AdornmentIcon="@Icons.Material.Filled.Search"
                   Variant="Variant.Outlined"
@@ -33,7 +33,7 @@
                Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.PersonAdd"
                OnClick="OpenCreateDialog">
-        Tạo tài khoản
+        @Language.T("user.taoTaiKhoan")
     </MudButton>
 </MudStack>
 
@@ -48,13 +48,13 @@
           Elevation="2"
           T="UserAccountDto">
     <HeaderContent>
-        <MudTh>Mã NV</MudTh>
-        <MudTh>Họ tên</MudTh>
-        <MudTh>Phòng ban</MudTh>
-        <MudTh>Quyền</MudTh>
-        <MudTh Style="text-align:center">Trạng thái</MudTh>
-        <MudTh Style="text-align:center">Đăng nhập cuối</MudTh>
-        <MudTh Style="text-align:center">Thao tác</MudTh>
+        <MudTh>@Language.T("common.employeeCode")</MudTh>
+        <MudTh>@Language.T("common.employeeName")</MudTh>
+        <MudTh>@Language.T("ot.department")</MudTh>
+        <MudTh>@Language.T("security.permission")</MudTh>
+        <MudTh Style="text-align:center">@Language.T("common.status")</MudTh>
+        <MudTh Style="text-align:center">@Language.T("user.dangNhapCuoi")</MudTh>
+        <MudTh Style="text-align:center">@Language.T("security.actions")</MudTh>
     </HeaderContent>
 
     <RowTemplate>
@@ -70,7 +70,7 @@
             <MudText Typo="Typo.body2">@(context.FullName ?? "—")</MudText>
         </MudTd>
         <MudTd>
-            <MudText Typo="Typo.body2">@(context.DeptName ?? context.DeptCode ?? "—")</MudText>
+            <MudText Typo="Typo.body2">@(context.DeptName ?? context.DeptCode?.ToString() ?? "—")</MudText>
         </MudTd>
         <MudTd>
             <MudChip T="string" Size="Size.Small" Style="@GetPermChipStyle(context.PermissionCode)">
@@ -80,41 +80,41 @@
         <MudTd Style="text-align:center">
             @if (!context.IsActive)
             {
-                <MudChip T="string" Size="Size.Small" Color="Color.Default">Không hoạt động</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">@Language.T("common.inactive")</MudChip>
             }
             else if (context.IsCurrentlyLocked)
             {
-                <MudChip T="string" Size="Size.Small" Color="Color.Error">Bị khóa</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Error">@Language.T("user.biKhoa")</MudChip>
             }
             else
             {
-                <MudChip T="string" Size="Size.Small" Color="Color.Success">Hoạt động</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("common.active")</MudChip>
             }
         </MudTd>
         <MudTd Style="text-align:center">
-            <MudText Typo="Typo.caption">@(context.LastLogin?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa đăng nhập")</MudText>
+            <MudText Typo="Typo.caption">@(context.LastLogin?.ToString("dd/MM/yyyy HH:mm") ?? Language.T("user.chuaDangNhap"))</MudText>
         </MudTd>
         <MudTd Style="text-align:center">
             <MudMenu Icon="@Icons.Material.Filled.MoreVert"
                      Size="Size.Small" Dense="true"
                      AnchorOrigin="Origin.BottomRight"
                      TransformOrigin="Origin.TopRight">
-                <MudMenuItem OnClick="@(() => OpenEditDialog(context))">Sửa quyền</MudMenuItem>
+                <MudMenuItem OnClick="@(() => OpenEditDialog(context))">@Language.T("user.suaQuyen")</MudMenuItem>
                 <MudMenuItem OnClick="@(() => ToggleLock(context))">
-                    @(context.IsCurrentlyLocked ? "Mở khóa" : "Khóa tài khoản")
+                    @(context.IsCurrentlyLocked ? Language.T("user.moKhoa") : Language.T("user.khoaTaiKhoan"))
                 </MudMenuItem>
-                <MudMenuItem OnClick="@(() => OpenResetPasswordDialog(context))">Reset mật khẩu</MudMenuItem>
+                <MudMenuItem OnClick="@(() => OpenResetPasswordDialog(context))">@Language.T("user.resetMatKhau")</MudMenuItem>
                 <MudDivider />
                 <MudMenuItem OnClick="@(() => DeleteUser(context))"
                              Disabled="@(context.PermissionCode == 1 || context.IdUser == CurrentUser.User?.UserId)">
-                    <MudText Color="Color.Error">Xóa tài khoản</MudText>
+                    <MudText Color="Color.Error">@Language.T("user.xoaTaiKhoan")</MudText>
                 </MudMenuItem>
             </MudMenu>
         </MudTd>
     </RowTemplate>
 
     <NoRecordsContent>
-        <MudText Class="pa-4 mud-text-secondary">Không có dữ liệu.</MudText>
+        <MudText Class="pa-4 mud-text-secondary">@Language.T("common.khongCoDuLieu")</MudText>
     </NoRecordsContent>
 </MudTable>
 
@@ -131,7 +131,7 @@
                 (u.EmployeeCode?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.FullName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.DeptName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (u.DeptCode?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
+                (u.DeptCode?.ToString().Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -144,12 +144,12 @@
             if (result.IsSuccess && result.Data != null)
                 _users = result.Data;
             else
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("common.loiTaiDuLieu"), Severity.Error);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "[USER_MANAGER] Load error");
-            Snackbar.Add("Lỗi tải dữ liệu.", Severity.Error);
+            Snackbar.Add(Language.T("common.loiTaiDuLieu"), Severity.Error);
         }
         finally { _loading = false; }
     }
@@ -162,14 +162,14 @@
             { x => x.Request, request }
         };
         var dialog = await DialogService.ShowAsync<CreateUserDialog>(
-            "Tạo tài khoản", parameters,
+            Language.T("user.taoTaiKhoan"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: CreateUserRequest req })
         {
             var response = await UserMgtService.CreateAsync(req, _cts.Token);
-            Snackbar.Add(response.IsSuccess ? "Tạo tài khoản thành công!" : response.Message ?? "Lỗi tạo tài khoản.",
+            Snackbar.Add(response.IsSuccess ? Language.T("user.taoTaiKhoanThanhCong") : response.Message ?? Language.T("user.loiTaoTaiKhoan"),
                 response.IsSuccess ? Severity.Success : Severity.Error);
             if (response.IsSuccess) await LoadAsync();
         }
@@ -190,14 +190,14 @@
             { x => x.Request, request }
         };
         var dialog = await DialogService.ShowAsync<EditUserDialog>(
-            "Sửa quyền tài khoản", parameters,
+            Language.T("user.suaQuyenTaiKhoan"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: UpdateUserRequest updated })
         {
             var response = await UserMgtService.UpdateAsync(updated, _cts.Token);
-            Snackbar.Add(response.IsSuccess ? "Cập nhật thành công!" : response.Message ?? "Lỗi cập nhật.",
+            Snackbar.Add(response.IsSuccess ? Language.T("user.capNhatThanhCong") : response.Message ?? Language.T("user.loiCapNhat"),
                 response.IsSuccess ? Severity.Success : Severity.Error);
             if (response.IsSuccess) await LoadAsync();
         }
@@ -210,14 +210,14 @@
             { x => x.UserName, user.EmployeeCode }
         };
         var dialog = await DialogService.ShowAsync<ResetPasswordDialog>(
-            "Reset mật khẩu", parameters,
+            Language.T("user.resetMatKhau"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: string newPassword })
         {
             var response = await UserMgtService.ResetPasswordAsync(user.IdUser, newPassword, _cts.Token);
-            Snackbar.Add(response.IsSuccess ? "Reset mật khẩu thành công!" : response.Message ?? "Lỗi reset.",
+            Snackbar.Add(response.IsSuccess ? Language.T("user.resetMatKhauThanhCong") : response.Message ?? Language.T("user.loiReset"),
                 response.IsSuccess ? Severity.Success : Severity.Error);
         }
     }
@@ -226,13 +226,13 @@
     {
         var locked = user.IsCurrentlyLocked;
         var confirm = await DialogService.ShowMessageBoxAsync(
-            locked ? "Mở khóa tài khoản" : "Khóa tài khoản",
-            locked ? $"Mở khóa tài khoản {user.EmployeeCode}?" : $"Khóa tài khoản {user.EmployeeCode}?",
-            yesText: locked ? "Mở khóa" : "Khóa", cancelText: "Hủy");
+            locked ? Language.T("user.moKhoaTaiKhoan") : Language.T("user.khoaTaiKhoan"),
+            locked ? Language.T("user.moKhoaTaiKhoan2", user.EmployeeCode) : Language.T("user.khoaTaiKhoan2", user.EmployeeCode),
+            yesText: locked ? Language.T("user.moKhoa") : Language.T("equipment.khoa"), cancelText: Language.T("common.cancel"));
         if (confirm != true) return;
 
         var response = await UserMgtService.ToggleLockAsync(user.IdUser, _cts.Token);
-        Snackbar.Add(response.IsSuccess ? response.Message ?? "Thành công!" : response.Message ?? "Lỗi.",
+        Snackbar.Add(response.IsSuccess ? response.Message ?? Language.T("common.thanhCong") : response.Message ?? Language.T("common.loi"),
             response.IsSuccess ? Severity.Success : Severity.Error);
         if (response.IsSuccess) await LoadAsync();
     }
@@ -240,13 +240,13 @@
     private async Task DeleteUser(UserAccountDto user)
     {
         var confirm = await DialogService.ShowMessageBoxAsync(
-            "Xác nhận xóa",
-            $"Xóa tài khoản {user.EmployeeCode}? Hành động này không thể hoàn tác.",
-            yesText: "Xóa", cancelText: "Hủy");
+            Language.T("department.xacNhanXoa"),
+            Language.T("user.xoaTaiKhoanHanhDong", user.EmployeeCode),
+            yesText: Language.T("common.delete"), cancelText: Language.T("common.cancel"));
         if (confirm != true) return;
 
         var response = await UserMgtService.DeleteAsync(user.IdUser, _cts.Token);
-        Snackbar.Add(response.IsSuccess ? "Đã xóa tài khoản." : response.Message ?? "Lỗi xóa.",
+        Snackbar.Add(response.IsSuccess ? Language.T("user.daXoaTaiKhoan") : response.Message ?? Language.T("common.loiXoa"),
             response.IsSuccess ? Severity.Success : Severity.Error);
         if (response.IsSuccess) await LoadAsync();
     }
@@ -262,8 +262,9 @@
         _ => "background:#9E9E9E;color:white"
     };
 
-    public void Dispose()
+    public override void Dispose()
     {
+        base.Dispose();
         _cts.Cancel();
         _cts.Dispose();
     }

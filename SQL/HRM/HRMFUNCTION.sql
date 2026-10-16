@@ -1973,7 +1973,7 @@ RETURN
                 WHEN DATEPART(WEEKDAY, HolidayDate) = 7 THEN 'SATURDAY'
                 ELSE 'PUBLIC_HOLIDAY'
             END AS HolidayType
-        FROM [FVNWEBAPP].[dbo].[CompanyHoliday]
+        FROM [FVNWEBAPP].[dbo].[F03CompanyHolidays]
         WHERE HolidayDate IS NOT NULL
           AND CAST(HolidayDate AS DATE) = @WorkDate
     )

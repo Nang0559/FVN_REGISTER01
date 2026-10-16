@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Contract.Dtos.Depts
 {
     public class DepartmentStatusDto
     {
-        public string DeptCode { get; set; } = string.Empty;
+        public int DeptCode { get; set; }
         public string DeptName { get; set; } = string.Empty;
         public DateTime ReportDate { get; set; }
         public int TotalEmployees { get; set; }
