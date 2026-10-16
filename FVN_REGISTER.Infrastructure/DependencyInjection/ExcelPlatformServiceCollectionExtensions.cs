@@ -14,6 +14,9 @@ public static class ExcelPlatformServiceCollectionExtensions
         services.AddScoped<IExcelPlatform, ExcelPlatform>();
         // Shared infrastructure services are registered here because this extension is loaded by API startup.
         services.AddScoped<IOtRegistrationPolicy, OtRegistrationPolicy>();
+        services.AddScoped<OTQueryService>();
+        services.AddScoped<IOTQueryService>(sp => sp.GetRequiredService<PolicyAwareOTQueryService>());
+        services.AddScoped<PolicyAwareOTQueryService>();
         return services;
     }
 }
