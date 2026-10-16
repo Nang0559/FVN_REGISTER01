@@ -1,0 +1,44 @@
+diff --git a/FVN_REGISTER.Infrastructure/Services/Calendar/AttendanceSymbolRuleService.cs b/FVN_REGISTER.Infrastructure/Services/Calendar/AttendanceSymbolRuleService.cs
+index 5545527..5d08af5 100644
+--- a/FVN_REGISTER.Infrastructure/Services/Calendar/AttendanceSymbolRuleService.cs
++++ b/FVN_REGISTER.Infrastructure/Services/Calendar/AttendanceSymbolRuleService.cs
+@@ -151,8 +151,10 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
+                                a.OtDisplayValue = COALESCE(j.os, a.OtDisplayValue),
+                                a.AttendanceDisplayValue =
+                                    CASE WHEN j.ws IS NOT NULL
+-                                             AND j.dt <> N'NORMAL'
+                                              AND ISNULL(a.LeaveTotal, 0) = 0
++                                             AND (j.dt <> N'NORMAL'
++                                                  OR ISNULL(a.AttendanceDisplayValue, N'') = N''
++                                                  OR a.AttendanceDisplayValue = a.ShiftAbbr)
+                                         THEN j.ws ELSE a.AttendanceDisplayValue END
+                         FROM dbo.F03HrmAttendanceCalculated AS a WITH (ROWLOCK)
+                         INNER JOIN OPENJSON({json})
+@@ -172,8 +174,10 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
+                                h.OtDisplayValue = COALESCE(j.os, h.OtDisplayValue),
+                                h.AttendanceDisplayValue =
+                                    CASE WHEN j.ws IS NOT NULL
+-                                             AND j.dt <> N'NORMAL'
+                                              AND ISNULL(h.LeaveTotal, 0) = 0
++                                             AND (j.dt <> N'NORMAL'
++                                                  OR ISNULL(h.AttendanceDisplayValue, N'') = N''
++                                                  OR h.AttendanceDisplayValue = h.ShiftAbbr)
+                                         THEN j.ws ELSE h.AttendanceDisplayValue END
+                         FROM dbo.F03HrmAttendanceHistory AS h WITH (ROWLOCK)
+                         INNER JOIN OPENJSON({json})
+@@ -999,0 +1001,0 @@
+diff --git a/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs b/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs
+index 86f764f..6192237 100644
+--- a/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs
++++ b/FVN_REGISTER.Infrastructure/Services/HrmSync/HrmAttendanceCalculationService.cs
+@@ -129,7 +129,9 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
+     UPDATE a SET
+         a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
+         a.OtDisplayValue=COALESCE(j.os,a.OtDisplayValue),
+-        a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND a.DayType<>N'NORMAL' AND ISNULL(a.LeaveTotal,0)=0 THEN j.ws ELSE a.AttendanceDisplayValue END
++        a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND ISNULL(a.LeaveTotal,0)=0
++        AND (a.DayType<>N'NORMAL' OR ISNULL(a.AttendanceDisplayValue,N'')=N'' OR a.AttendanceDisplayValue=a.ShiftAbbr)
++        THEN j.ws ELSE a.AttendanceDisplayValue END
+     FROM dbo.F03HrmAttendanceCalculated AS a
+     INNER JOIN OPENJSON({json}) WITH (id bigint '$.id',ws nvarchar(50) '$.ws',os nvarchar(50) '$.os',rc nvarchar(100) '$.rc') AS j ON j.id=a.Id
+     """,ct);
