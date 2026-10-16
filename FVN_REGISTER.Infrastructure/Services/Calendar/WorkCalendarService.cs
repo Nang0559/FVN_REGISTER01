@@ -46,7 +46,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var canCreateOt=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.OTCreate,normalizedEmployeeCode,null,ct);
         var canCreateTrip=await _authorization.CanAccessAsync(user,SecurityFunctionCodes.TripCreate,normalizedEmployeeCode,null,ct);
         var workYears=await _uow.Repository<F03WorkYear>().Query().AsNoTracking().Where(x=>x.IsActive==true&&x.StartDate<=end&&x.EndDate>=start).OrderBy(x=>x.WorkYear).ToListAsync(ct);
-        var holidays=await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(x=>x.HolidayDate>=start&&x.HolidayDate<=end).OrderBy(x=>x.HolidayDate).ToListAsync(ct);
+        var holidays=await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(x=>x.IsActive == true && x.Source == "HRM" && x.HolidayDate>=start&&x.HolidayDate<=end).OrderBy(x=>x.HolidayDate).ToListAsync(ct);
         var leave=canViewLeave?await _uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x=>x.EmployeeCode==normalizedEmployeeCode&&x.IsActive==true&&x.EndDate>=start&&x.StartDate<=end&&x.RequestStatus!=ApprovalStatus.Cancelled&&x.RequestStatus!=ApprovalStatus.Rejected).ToListAsync(ct):new List<VF03LeaveRequest>();
         var leaveIds=leave.Select(x=>x.Id).Where(x=>x>0).Distinct().ToList();
         var leaveDetails=leaveIds.Count==0?new List<VF03LeaveRequestDetail>():await _uow.Repository<VF03LeaveRequestDetail>().Query().AsNoTracking().Where(x=>leaveIds.Contains(x.LeaveId)&&x.LeaveDate>=DateOnly.FromDateTime(start)&&x.LeaveDate<=DateOnly.FromDateTime(end)).OrderBy(x=>x.LeaveDate).ToListAsync(ct);
