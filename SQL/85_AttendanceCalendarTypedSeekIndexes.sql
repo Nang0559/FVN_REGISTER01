@@ -52,6 +52,8 @@ IF @CurrentType IS NULL OR @HistoryType IS NULL
     THROW 51852, N'EmployeeCode is missing from one of the attendance tables.', 1;
 IF @CurrentType <> @HistoryType OR @CurrentLength <> @HistoryLength
     THROW 51853, N'EmployeeCode type/length differs between Calculated and History. Align the schema and C# parameter before deploying.', 1;
+IF @CurrentType <> N'nvarchar' OR @CurrentLength <> 100
+    THROW 51854, N'Expected EmployeeCode nvarchar(50) (max_length=100 bytes), matching the typed calendar query parameter.', 1;
 
 IF NOT EXISTS
 (
