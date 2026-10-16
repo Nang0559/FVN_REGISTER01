@@ -109,6 +109,32 @@ BEGIN
     (
         SELECT
             LNLMa = RTRIM(t.LNLMa),
+            LNLTen = t.LNLTen,
+            LNLLoai = RTRIM(t.LNLLoai),
+            t.LNLKyHieu,
+            t.LNLMauSac,
+            DLocked = ISNULL(t.DLocked, 0),
+            GuessDayType = CASE
+                WHEN LOWER(t.LNLTen) LIKE N'%bù%' THEN N'COMPENSATORY'
+                WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
+                WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
+                  OR LOWER(t.LNLTen) LIKE N'%tết%'
+                  OR LOWER(t.LNLTen) LIKE N'%quốc%' THEN N'NATIONAL_HOLIDAY'
+                ELSE N'OTHER'
+            END
+        FROM HRM.dbo.DM_Loainghile AS t
+    )
+    INSERT dbo.F03HrmHolidayTypes (LNLMa,LNLTen,LNLLoai,LNLKyHieu,LNLMauSac,DLocked,DayType)
+    SELECT s.LNLMa,s.LNLTen,s.LNLLoai,s.LNLKyHieu,s.LNLMauSac,s.DLocked,s.GuessDayType
+    FROM TypeSource AS s
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03HrmHolidayTypes d WHERE d.LNLMa=s.LNLMa);
+
+    SET @TypesUpserted += @@ROWCOUNT;
+
+    ;WITH TypeSource AS
+    (
+        SELECT
+            LNLMa = RTRIM(t.LNLMa),
             LNLLoai = RTRIM(t.LNLLoai),
             t.DLocked,
             t.LNLTen,
@@ -252,6 +278,15 @@ BEGIN
          AND target.HrmEmployeeId = source.HrmEmployeeId
          AND target.WorkDate = source.WorkDate;
     END;');
+
+    EXEC sys.sp_settriggerorder
+        @triggername = N'dbo.tr_F03HrmAttendanceCalculated_SymbolSnapshot',
+        @order = N'Last',
+        @stmttype = N'INSERT';
+    EXEC sys.sp_settriggerorder
+        @triggername = N'dbo.tr_F03HrmAttendanceCalculated_SymbolSnapshot',
+        @order = N'Last',
+        @stmttype = N'UPDATE';
 END;
 GO
 
