@@ -47,14 +47,14 @@ GO
 /* 2. Rule ký hiệu ---------------------------------------------------------- */
 BEGIN TRANSACTION;
 
-/* Rule nhân bản sai do SQL/83 cũ sinh ra (copy của rule Lễ) + rule loại Nghỉ bù. Rule CT-*/NT-* chuẩn của seed 67 được giữ. */
+/* Rule nhân bản sai do SQL/83 cũ sinh ra (copy của rule Lễ) + rule loại Nghỉ bù. Rule CT-/NT- chuẩn của seed 67 được giữ. */
 DELETE FROM dbo.F03AttendanceSymbolRules
  WHERE RuleCode LIKE N'CHOL-%' OR RuleCode LIKE N'COMP-%' OR RuleCode LIKE N'OTH-%'
     OR DayType = N'COMPENSATORY'
     OR (DayType IN (N'COMPANY_HOLIDAY', N'OTHER') AND RuleCode NOT LIKE N'CT-%' AND RuleCode NOT LIKE N'NT-%');
 PRINT CONCAT(N'Đã xoá rule nhân bản/sai loại: ', @@ROWCOUNT);
 
-/* Nếu DB còn rule cũ SUN-*/SAT-* (có thể đã chỉnh tay) thì giữ bản cũ và bỏ bản seed mới trùng, để đổi tên bên dưới. */
+/* Nếu DB còn rule cũ SUN-/SAT- (có thể đã chỉnh tay) thì giữ bản cũ và bỏ bản seed mới trùng, để đổi tên bên dưới. */
 DELETE n FROM dbo.F03AttendanceSymbolRules AS n
  WHERE (n.RuleCode LIKE N'CT-%' AND EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules o WHERE o.RuleCode = N'SUN-' + SUBSTRING(n.RuleCode, 4, 100)))
     OR (n.RuleCode LIKE N'NT-%' AND EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules o WHERE o.RuleCode = N'SAT-' + SUBSTRING(n.RuleCode, 4, 100)));
