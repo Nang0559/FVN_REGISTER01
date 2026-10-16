@@ -21,4 +21,7 @@ public sealed class CalendarDayDto
     public bool CanRegisterOT { get; init; }
     public bool CanRegisterTrip { get; init; }
     public string? AvailabilityNote { get; init; }
+
+    /// <summary>Màu nền ô lịch theo cấu hình màu loại ngày HRM (đã chuẩn hoá CSS).</summary>
+    public string? DayColor { get; init; }
 }

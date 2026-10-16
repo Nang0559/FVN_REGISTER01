@@ -13,6 +13,8 @@ public sealed class WorkCalendarDayDto
     public string? HolidaySymbol { get; set; }
     public string? HolidayTypeName { get; set; }
     public string? HolidayColor { get; set; }
+    /// <summary>Màu nền ô lịch (đã chuẩn hoá CSS): màu loại nghỉ HRM; Chủ nhật mặc định lấy màu loại CT.</summary>
+    public string? DayColor { get; set; }
     public bool CanRegisterLeave { get; set; }
     public bool CanRegisterOT { get; set; }
     public bool CanRegisterTrip { get; set; }

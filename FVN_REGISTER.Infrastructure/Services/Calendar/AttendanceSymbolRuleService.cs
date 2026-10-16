@@ -95,7 +95,8 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                    h.CheckInTime, h.CheckOutTime, COALESCE(h.DayType, ds.DayType) AS DayType
             FROM dbo.F03HrmAttendanceHistory AS h
             CROSS APPLY dbo.fn_ResolveDayType(h.WorkDate, h.HrmBCNgayLe, h.HrmBCNgayLeNV) AS ds
-            WHERE (h.WorkSymbol IS NULL OR h.OtSymbol IS NULL OR h.SymbolRuleCode IS NULL)
+            WHERE h.SymbolRuleCode IS NULL
+              AND h.WorkDate >= DATEADD(MONTH, -12, CONVERT(date, GETDATE()))
               AND h.CheckInTime IS NOT NULL AND h.CheckOutTime IS NOT NULL
             """).ToListAsync(ct);
 
@@ -122,7 +123,8 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                 dayType,
                 evaluated.Matched ? evaluated.WorkSymbol : null,
                 evaluated.Matched ? evaluated.OtSymbol : null,
-                evaluated.Matched ? evaluated.RuleCode : null));
+                evaluated.Matched ? evaluated.RuleCode : null,
+                row.WorkDate));
         }
 
         var previousTimeout = _db.Database.GetCommandTimeout();
@@ -135,7 +137,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
             {
                 var json = JsonSerializer.Serialize(chunk.Select(x => new
                 {
-                    id = x.RowId, dt = x.DayType, ws = x.WorkSymbol, os = x.OtSymbol, rc = x.RuleCode
+                    id = x.RowId, wd = x.WorkDate.ToString("yyyy-MM-dd"), dt = x.DayType, ws = x.WorkSymbol, os = x.OtSymbol, rc = x.RuleCode
                 }));
 
                 if (storeGroup.Key == "CURRENT")
@@ -152,7 +154,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                              AND j.dt <> N'NORMAL'
                                              AND ISNULL(a.LeaveTotal, 0) = 0
                                         THEN j.ws ELSE a.AttendanceDisplayValue END
-                        FROM dbo.F03HrmAttendanceCalculated AS a
+                        FROM dbo.F03HrmAttendanceCalculated AS a WITH (ROWLOCK)
                         INNER JOIN OPENJSON({json})
                             WITH (id bigint '$.id', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
                                   os nvarchar(50) '$.os', rc nvarchar(100) '$.rc') AS j
@@ -173,11 +175,12 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                              AND j.dt <> N'NORMAL'
                                              AND ISNULL(h.LeaveTotal, 0) = 0
                                         THEN j.ws ELSE h.AttendanceDisplayValue END
-                        FROM dbo.F03HrmAttendanceHistory AS h
+                        FROM dbo.F03HrmAttendanceHistory AS h WITH (ROWLOCK)
                         INNER JOIN OPENJSON({json})
-                            WITH (id bigint '$.id', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
+                            WITH (id bigint '$.id', wd date '$.wd', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
                                   os nvarchar(50) '$.os', rc nvarchar(100) '$.rc') AS j
-                            ON j.id = h.HistoryId
+                            ON h.WorkDate = j.wd AND h.HistoryId = j.id
+                        WHERE h.SymbolRuleCode IS NULL
                         """, ct);
                 }
             }
@@ -227,7 +230,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
         public DateTime? CheckOutTime { get; set; }
         public string? DayType { get; set; }
     }
-    private sealed record ReapplyOutput(string Store, long RowId, string DayType, string? WorkSymbol, string? OtSymbol, string? RuleCode);
+    private sealed record ReapplyOutput(string Store, long RowId, string DayType, string? WorkSymbol, string? OtSymbol, string? RuleCode, DateTime WorkDate);
     private sealed class RuleRow{public int Id{get;set;}public string RuleCode{get;set;}=string.Empty;public string RuleName{get;set;}=string.Empty;public string DayType{get;set;}=string.Empty;public string? ShiftCode{get;set;}public int? ShiftId{get;set;}public int Priority{get;set;}public int? MinActualMinutes{get;set;}public int? MaxActualMinutes{get;set;}public string? CheckInFrom{get;set;}public string? CheckInTo{get;set;}public DateTime? EffectiveFrom{get;set;}public DateTime? EffectiveTo{get;set;}public string RuleJson{get;set;}=string.Empty;public bool IsActive{get;set;}}
     private sealed class RuleDocument{public int BlockMinutes{get;set;}=15;public string RoundingMode{get;set;}="FLOOR";public string AllocationMode{get;set;}="STANDARD";public int? FixedOtMinutes{get;set;}public List<AttendanceSymbolRuleSegmentDto> Segments{get;set;}=new();}
     private readonly record struct Calculation(int WorkMinutes,int OtMinutes,string? WorkSymbol,string? OtSymbol);

@@ -182,7 +182,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
         DayType = entity.DayType,
         HolidaySymbol = entity.HolidaySymbol,
         HolidayTypeName = entity.HolidayTypeName,
-        HolidayColor = entity.HolidayColor,
+        HolidayColor = FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(entity.HolidayColor),
         Source = entity.Source
     };
 

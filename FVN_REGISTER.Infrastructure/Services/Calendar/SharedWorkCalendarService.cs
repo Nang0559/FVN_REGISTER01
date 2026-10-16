@@ -302,6 +302,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                         TypeName = baseDay.HolidayTypeName,
                         Color = baseDay.HolidayColor
                     },
+                DayColor = baseDay.DayColor,
                 Shift = shift,
                 Attendance = attendance,
                 Registrations = registrations,
@@ -328,6 +329,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 IsWeekend = provisional.IsWeekend,
                 IsWorkingDay = provisional.IsWorkingDay,
                 Holiday = provisional.Holiday,
+                DayColor = provisional.DayColor,
                 Shift = provisional.Shift,
                 Attendance = provisional.Attendance,
                 Registrations = provisional.Registrations,

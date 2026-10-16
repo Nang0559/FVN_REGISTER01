@@ -52,13 +52,14 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var leaveDetails=leaveIds.Count==0?new List<VF03LeaveRequestDetail>():await _uow.Repository<VF03LeaveRequestDetail>().Query().AsNoTracking().Where(x=>leaveIds.Contains(x.LeaveId)&&x.LeaveDate>=DateOnly.FromDateTime(start)&&x.LeaveDate<=DateOnly.FromDateTime(end)).OrderBy(x=>x.LeaveDate).ToListAsync(ct);
         var ot=canViewOt?await _uow.Repository<VF03OTRequest>().Query().AsNoTracking().Where(x=>x.EmployeeCode==normalizedEmployeeCode&&x.IsActive==true&&x.OTDate>=start&&x.OTDate<=end&&x.RequestStatus!=ApprovalStatus.Cancelled&&x.RequestStatus!=ApprovalStatus.Rejected).ToListAsync(ct):new List<VF03OTRequest>();
         var trips=canViewTrip?await _uow.Repository<F03TripRequest>().Query().AsNoTracking().Where(x=>x.EmployeeCode==normalizedEmployeeCode&&x.IsActive==true&&x.EndDate>=start&&x.StartDate<=end&&x.RequestStatus!=ApprovalStatus.Cancelled&&x.RequestStatus!=ApprovalStatus.Rejected).ToListAsync(ct):new List<F03TripRequest>();
+        var sundayColor=await LoadDayTypeColorAsync("COMPANY_HOLIDAY",ct);
         var holidayByDate=holidays.GroupBy(x=>x.HolidayDate.Date).ToDictionary(x=>x.Key,x=>x.First());
         var workYearByDate=new Dictionary<DateTime,F03WorkYear>();
         foreach(var workYear in workYears){var yearStart=workYear.StartDate.Date<start?start:workYear.StartDate.Date;var yearEnd=workYear.EndDate.Date>end?end:workYear.EndDate.Date;for(var date=yearStart;date<=yearEnd;date=date.AddDays(1))workYearByDate[date]=workYear;}
         var result=new WorkCalendarDto{From=start,To=end};
         for(var date=start;date<=end;date=date.AddDays(1)){
             var holiday=holidayByDate.GetValueOrDefault(date.Date);var workYear=workYearByDate.GetValueOrDefault(date.Date);var weekend=date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;var future=date.Date>DateTime.Today;var past=date.Date<DateTime.Today;var working=workYear!=null&&holiday==null;var holidayType=GetHolidayTypeCode(holiday?.HolidayType);
-            var day=new WorkCalendarDayDto{Date=date,WorkYear=workYear?.WorkYear,IsWeekend=weekend,IsFuture=future,IsPast=past,IsWorkingDay=working,HolidayName=holiday==null?null:$"[{holidayType}]|{holiday.Description}",HolidayCode=holiday==null?null:$"HOL-{holidayType}-{holiday.HolidayDate:yyyyMMdd}",HolidayType=holiday==null?null:holidayType,HolidaySymbol=holiday?.HolidaySymbol,HolidayTypeName=holiday?.HolidayTypeName,HolidayColor=holiday?.HolidayColor,CanRegisterLeave=canCreateLeave&&future&&workYear!=null&&holiday==null,CanRegisterOT=canCreateOt&&future&&workYear!=null,CanRegisterTrip=canCreateTrip&&future&&workYear!=null&&holiday==null,AvailabilityNote=holiday!=null?$"Ngày nghỉ {GetHolidayTypeLabel(holiday.HolidayType)}: {holiday.Description} — chỉ đăng ký OT.":!future?"Chỉ mở đăng ký từ ngày sau hôm nay.":workYear==null?"Chưa cấu hình năm làm việc.":null};
+            var day=new WorkCalendarDayDto{Date=date,WorkYear=workYear?.WorkYear,IsWeekend=weekend,IsFuture=future,IsPast=past,IsWorkingDay=working,HolidayName=holiday==null?null:$"[{holidayType}]|{holiday.Description}",HolidayCode=holiday==null?null:$"HOL-{holidayType}-{holiday.HolidayDate:yyyyMMdd}",HolidayType=holiday==null?null:holidayType,HolidaySymbol=holiday?.HolidaySymbol,HolidayTypeName=holiday?.HolidayTypeName,HolidayColor=FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday?.HolidayColor),DayColor=holiday!=null?FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday.HolidayColor):(date.DayOfWeek==DayOfWeek.Sunday?sundayColor:null),CanRegisterLeave=canCreateLeave&&future&&workYear!=null&&holiday==null,CanRegisterOT=canCreateOt&&future&&workYear!=null,CanRegisterTrip=canCreateTrip&&future&&workYear!=null&&holiday==null,AvailabilityNote=holiday!=null?$"Ngày nghỉ {GetHolidayTypeLabel(holiday.HolidayType)}: {holiday.Description} — chỉ đăng ký OT.":!future?"Chỉ mở đăng ký từ ngày sau hôm nay.":workYear==null?"Chưa cấu hình năm làm việc.":null};
             result.Days.Add(day);
         }
         foreach(var h in holidays)result.Events.Add(new WorkCalendarEventDto{Id=$"COMPANY_{h.Id}",ModuleCode="COMPANY",EventType="HOLIDAY",Title=string.IsNullOrWhiteSpace(h.Description)?GetHolidayTypeLabel(h.HolidayType):h.Description,Start=h.HolidayDate.Date,End=h.HolidayDate.Date.AddDays(1),Status="Holiday",IsReadOnly=true});
@@ -67,6 +68,18 @@ public sealed class WorkCalendarService : IWorkCalendarService
         foreach(var x in trips){var requestStart=x.StartDate.Date<start?start:x.StartDate.Date;var requestEnd=x.EndDate.Date>end?end:x.EndDate.Date;for(var date=requestStart;date<=requestEnd;date=date.AddDays(1))result.Events.Add(new WorkCalendarEventDto{Id=$"TRIP_{x.Id}_{date:yyyyMMdd}",ModuleCode="TRIP",EventType="TRIP",Title=string.IsNullOrWhiteSpace(x.Destination)?"Công tác":$"Công tác: {x.Destination}",Start=date,End=date.AddDays(1),Status=x.RequestStatus.ToString(),IsReadOnly=true,RequestId=x.Id,SourceId=x.TripCode,DayValue=1m});}
         await ApplyApprovalInfoAsync(result.Events,ct);return result;
     }
+
+    /// <summary>Màu (chuẩn hoá CSS) cấu hình trong HRM cho loại ngày; null nếu chưa cấu hình/chưa đồng bộ.</summary>
+    private async Task<string?> LoadDayTypeColorAsync(string dayType,CancellationToken ct)
+    {
+        try
+        {
+            var rows=await _uow.SqlQueryRawAsync<DayTypeColorRow>("SELECT TOP (1) LNLMauSac AS Color FROM dbo.F03HrmHolidayTypes WHERE DayType=@p0 AND DLocked=0 AND LNLMauSac IS NOT NULL AND LNLMauSac<>'' ORDER BY LNLMa",ct,dayType);
+            return FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(rows.FirstOrDefault()?.Color);
+        }
+        catch { return null; }
+    }
+    private sealed class DayTypeColorRow{public string? Color{get;set;}}
 
     private static string GetHolidayTypeCode(byte? holidayType)=>FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeCode(holidayType);
     private static string GetHolidayTypeLabel(byte holidayType)=>FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeShortLabel(holidayType);
