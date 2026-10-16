@@ -124,7 +124,7 @@
         if (_editYear is null || !_start.HasValue || !_end.HasValue) return;
         _editYear.StartDate = _start.Value.Date; _editYear.EndDate = _end.Value.Date;
         var result = _editYear.Id == 0 ? await WorkYearService.CreateAsync(_editYear) : await WorkYearService.UpdateAsync(_editYear.Id, _editYear);
-        Snackbar.Add(result.IsSuccess ? Language.T("calendar.daLuuNamLamViec") : result.Message ?? Language.T("calendar.khongTheLuu"), result.IsSuccess ? Severity.Success : Severity.Error);
+        Snackbar.Add(result.IsSuccess ? Language.T("calendar.daLuuNamLamViec") : Language.T("calendar.hrmHolidaySyncFailed"), result.IsSuccess ? Severity.Success : Severity.Error);
         if (result.IsSuccess) { _editYear = null; await LoadAsync(); }
     }
 
