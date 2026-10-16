@@ -140,5 +140,6 @@
   "calendar.source": "Nguồn dữ liệu",
   "calendar.sourceHrm": "HRM",
   "calendar.sourceLegacy": "FVN cũ",
-  "calendar.workYearName": "Năm {0}"
+  "calendar.workYearName": "Năm {0}",
+  "calendar.hrmHolidaySyncFailed": "Không đồng bộ được ngày nghỉ từ HRM."
 }
