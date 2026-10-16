@@ -140,5 +140,6 @@
   "calendar.source": "データソース",
   "calendar.sourceHrm": "HRM",
   "calendar.sourceLegacy": "旧FVNデータ",
-  "calendar.workYearName": "{0}年度"
+  "calendar.workYearName": "{0}年度",
+  "calendar.hrmHolidaySyncFailed": "HRMから休日を同期できませんでした。"
 }
