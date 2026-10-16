@@ -73,7 +73,7 @@ IF OBJECT_ID(N'dbo.F03Employees', N'U') IS NOT NULL
 BEGIN
     CREATE NONCLUSTERED INDEX [IX_F03Employees_Active_EmployeeCode]
         ON dbo.[F03Employees]([EmployeeCode])
-        INCLUDE ([DeptCode], [Id])
+        INCLUDE ([DeptCode])
         WHERE [IsActive] = 1;
 END;
 GO
