@@ -32,6 +32,7 @@ BEGIN
   BCTGDKNTheogio float NULL,BCLoaiDKN varchar(10) NULL,BCDangKyLTN float NULL,BCDangKyLTD float NULL,BCTGUuDaiN int NULL,BCTGUuDaiD int NULL,
   BCNgayLe int NULL,BCNgayLeNV int NULL,BCDaXacNhanLamThem bit NULL,DLocked bit NULL
  );
+ DECLARE @LockHeld bit=0; -- chỉ release app lock khi phiên này THỰC SỰ đang giữ nó
  BEGIN TRY
  DECLARE @D date=@FromDate;
  WHILE @D<=@ToDate
@@ -51,7 +52,12 @@ BEGIN
   EXEC @AppLockResult=sp_getapplock
       @Resource=@AppLockResource,
       @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=30000;
-  IF @AppLockResult<0 THROW 51322,N'Ngày chấm công đang được một calculation khác xử lý.',1;
+  IF @AppLockResult<0
+  BEGIN
+      DECLARE @LockMsg nvarchar(200)=N'Ngày chấm công '+CONVERT(nvarchar(10),@D,23)+N' đang được một calculation khác xử lý (chờ khóa quá 30 giây). Vui lòng chạy lại sau khi lần tính kia hoàn tất.';
+      THROW 51322,@LockMsg,1;
+  END
+  SET @LockHeld=1;
 
   DELETE FROM dbo.F03HrmAttendanceCalculated
   WHERE WorkDate=@D
@@ -139,6 +145,7 @@ BEGIN
 
   COMMIT TRANSACTION;
   EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
+  SET @LockHeld=0;
 
   SET @D=DATEADD(day,1,@D);
  END
@@ -176,8 +183,13 @@ BEGIN
      /* XACT_ABORT is ON: the per-date transaction is doomed after an error and must be
         rolled back before the Run row can be updated, otherwise the run stays 'Running'. */
      IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
-     IF @D IS NOT NULL AND @AppLockResource IS NOT NULL
+     /* Chỉ release khi đã giữ khóa. Trước đây release vô điều kiện nên khi sp_getapplock timeout (51322)
+        lệnh release ném lỗi 1223 "Cannot release the application lock" và che mất lỗi gốc. */
+     IF @LockHeld=1 AND @AppLockResource IS NOT NULL
+     BEGIN
          EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
+         SET @LockHeld=0;
+     END
      UPDATE dbo.F03HrmAttendanceCalculationRun
      SET Status=N'Failed',FinishedAt=GETDATE(),ErrorMessage=ERROR_MESSAGE()
      WHERE CalculationBatchId=@BatchId;

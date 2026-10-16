@@ -80,6 +80,12 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     ? ServiceResult<HrmAttendanceCalculationResultDto>.Fail("Không nhận được kết quả tính giờ.")
     : ServiceResult<HrmAttendanceCalculationResultDto>.Ok(result);
   }
+  catch(SqlException ex) when(ex.Number==51322)
+  {
+   _logger.LogWarning(ex,"HRM-compatible attendance calculation skipped: another calculation holds the same date. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}",
+    dept,employeeCode,request.FromDate,request.ToDate);
+   return ServiceResult<HrmAttendanceCalculationResultDto>.Fail(ex.Message);
+  }
   catch(Exception ex)
   {
    _logger.LogError(ex,"HRM-compatible attendance calculation failed. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}",

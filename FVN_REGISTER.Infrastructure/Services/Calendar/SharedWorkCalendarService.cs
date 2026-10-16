@@ -197,6 +197,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 x => (IReadOnlyList<CalendarItemDto>)x.ToArray());
 
         var days = new List<CalendarDayDto>();
+        var dayTypeColors = await LoadDayTypeColorsAsync(cancellationToken);
 
         foreach (var baseDay in workCalendar.Days.OrderBy(x => x.Date))
         {
@@ -302,7 +303,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                         TypeName = baseDay.HolidayTypeName,
                         Color = baseDay.HolidayColor
                     },
-                DayColor = baseDay.DayColor,
+                // Màu ô: ngày nghỉ HRM / Chủ nhật (WorkCalendarService) > màu loại ngày ghi trên dòng chấm công
+                // (vd NT = ngày nghỉ riêng của nhân viên, không có bản ghi ngày nghỉ công ty).
+                DayColor = baseDay.DayColor ?? ResolveAttendanceDayColor(attendance, dayTypeColors),
                 Shift = shift,
                 Attendance = attendance,
                 Registrations = registrations,
@@ -399,6 +402,41 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         {
             return ServiceResult<CalendarMonthDto>.Fail(ex.Message);
         }
+    }
+
+    /// <summary>Màu HRM (DM_Loainghile.LNLMauSac, đã chuẩn hoá CSS) theo DayType: COMPANY_HOLIDAY=CT, NATIONAL_HOLIDAY=L, OTHER=NT.</summary>
+    private async Task<Dictionary<string, string>> LoadDayTypeColorsAsync(CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var rows = await _db.Database
+                .SqlQueryRaw<DayTypeColorRow>("SELECT DayType, LNLMauSac AS Color FROM dbo.F03HrmHolidayTypes WHERE ISNULL(DLocked,0)=0 AND LNLMauSac IS NOT NULL AND LNLMauSac<>'' ORDER BY LNLMa")
+                .ToListAsync(cancellationToken);
+            foreach (var row in rows)
+            {
+                var color = CalendarColor.Normalize(row.Color);
+                if (color is not null && !string.IsNullOrWhiteSpace(row.DayType) && !result.ContainsKey(row.DayType))
+                    result[row.DayType] = color;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Không đọc được màu loại ngày HRM (F03HrmHolidayTypes); ô lịch giữ nền trắng.");
+        }
+        return result;
+    }
+
+    private static string? ResolveAttendanceDayColor(CalendarAttendanceInfoDto? attendance, IReadOnlyDictionary<string, string> dayTypeColors)
+    {
+        var dayType = attendance?.DayType;
+        return !string.IsNullOrWhiteSpace(dayType) && dayTypeColors.TryGetValue(dayType, out var color) ? color : null;
+    }
+
+    private sealed class DayTypeColorRow
+    {
+        public string? DayType { get; set; }
+        public string? Color { get; set; }
     }
 
     private static CalendarItemDto? GetSingleModuleProjection(
