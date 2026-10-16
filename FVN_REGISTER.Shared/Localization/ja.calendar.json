@@ -131,5 +131,13 @@
   "calendar.workHours": "勤務時間",
   "calendar.xoaNgay": "{0:dd/MM/yyyy} - {1} を削除しますか？",
   "calendar.xoaNgayNghi": "休日を削除",
-  "calendar.accessDenied": "勤務カレンダーを表示する権限がありません。"
+  "calendar.accessDenied": "勤務カレンダーを表示する権限がありません。",
+  "calendar.hrmHolidaySync": "HRMから同期",
+  "calendar.hrmHolidaySyncing": "同期中...",
+  "calendar.hrmHolidaySyncDone": "HRMから休日を同期しました。",
+  "calendar.hrmHolidaySyncHelp": "休日はHRM（DM_Loainghile / tblNgayNghiLe）から同期され、カレンダー、勤務記号ルール、勤怠出力、残業計算で共通利用されます。休日の追加・変更・削除はHRM側で行い、ここで同期してください。勤怠計算の前にも自動同期されます。",
+  "calendar.dayTypeRule": "DayType（ルール）",
+  "calendar.source": "データソース",
+  "calendar.sourceHrm": "HRM",
+  "calendar.sourceLegacy": "旧FVNデータ"
 }
