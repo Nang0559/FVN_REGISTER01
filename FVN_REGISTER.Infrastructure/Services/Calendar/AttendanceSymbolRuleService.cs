@@ -58,6 +58,9 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
     public Task<AttendanceSymbolRuleTestResultDto> TestAsync(AttendanceSymbolRuleTestRequest request,CancellationToken ct=default)
         => EvaluateAsync(request.WorkDate,request.DayType,request.ShiftCode,request.ShiftId,request.CheckIn,request.CheckOut,request.ActualOtMinutes,ct);
 
+    public Task RefreshSymbolsAsync(CancellationToken ct = default)
+        => ReapplyCurrentAndMissingHistorySymbolsAsync(ct);
+
     public async Task<AttendanceSymbolRuleTestResultDto> EvaluateAsync(DateOnly workDate,string dayType,string? shiftCode,int? shiftId,DateTime? checkIn,DateTime? checkOut,int? actualOtMinutes=null,CancellationToken ct=default)
     {
         if(!checkIn.HasValue||!checkOut.HasValue||checkOut<=checkIn)return new(){DayType=dayType,Explanation="Thiếu In/Out hợp lệ."};
@@ -82,18 +85,35 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
     {
         var inputs = await _db.Database.SqlQuery<ReapplyInput>($"""
             SELECT N'CURRENT' AS Store, a.Id AS RowId, a.WorkDate, a.ShiftId, a.ShiftAbbr,
-                   a.CheckInTime, a.CheckOutTime, a.DayType
+                   a.CheckInTime, a.CheckOutTime,
+                   COALESCE(
+                       (SELECT TOP (1) h.DayType
+                        FROM dbo.F03CompanyHolidays AS h
+                        WHERE h.HolidayDate = a.WorkDate AND h.Source = N'HRM' AND h.IsActive = 1),
+                       CASE WHEN ISNULL(a.HrmBCNgayLe, 0) = 1 THEN N'NATIONAL_HOLIDAY'
+                            WHEN ISNULL(a.HrmBCNgayLeNV, 0) = 1 THEN N'OTHER' END,
+                       CASE DATEDIFF(day, '19000107', a.WorkDate) % 7
+                            WHEN 0 THEN N'SUNDAY' WHEN 6 THEN N'COMPANY_SATURDAY' END,
+                       N'NORMAL') AS DayType
             FROM dbo.F03HrmAttendanceCalculated AS a
             WHERE a.WorkDate >= DATEADD(MONTH, -12, CONVERT(date, GETDATE()))
               AND a.CheckInTime IS NOT NULL AND a.CheckOutTime IS NOT NULL
-              AND a.DayType IS NOT NULL
             UNION ALL
             SELECT N'HISTORY' AS Store, h.HistoryId AS RowId, h.WorkDate, h.ShiftId, h.ShiftAbbr,
-                   h.CheckInTime, h.CheckOutTime, h.DayType
+                   h.CheckInTime, h.CheckOutTime,
+                   COALESCE(h.DayType,
+                       (SELECT TOP (1) holiday.DayType
+                        FROM dbo.F03CompanyHolidays AS holiday
+                        WHERE holiday.HolidayDate = h.WorkDate
+                          AND holiday.Source = N'HRM' AND holiday.IsActive = 1),
+                       CASE WHEN ISNULL(h.HrmBCNgayLe, 0) = 1 THEN N'NATIONAL_HOLIDAY'
+                            WHEN ISNULL(h.HrmBCNgayLeNV, 0) = 1 THEN N'OTHER' END,
+                       CASE DATEDIFF(day, '19000107', h.WorkDate) % 7
+                            WHEN 0 THEN N'SUNDAY' WHEN 6 THEN N'COMPANY_SATURDAY' END,
+                       N'NORMAL') AS DayType
             FROM dbo.F03HrmAttendanceHistory AS h
             WHERE (h.WorkSymbol IS NULL OR h.OtSymbol IS NULL OR h.SymbolRuleCode IS NULL)
               AND h.CheckInTime IS NOT NULL AND h.CheckOutTime IS NOT NULL
-              AND h.DayType IS NOT NULL
             """).ToListAsync(ct);
 
         if (inputs.Count == 0) return;
@@ -102,9 +122,10 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
         foreach (var row in inputs)
         {
             ct.ThrowIfCancellationRequested();
+            var dayType = row.DayType!;
             var evaluated = await EvaluateAsync(
                 DateOnly.FromDateTime(row.WorkDate),
-                row.DayType!,
+                dayType,
                 row.ShiftAbbr,
                 row.ShiftId,
                 row.CheckInTime,
@@ -115,6 +136,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
             outputs.Add(new ReapplyOutput(
                 row.Store,
                 row.RowId,
+                dayType,
                 evaluated.Matched ? evaluated.WorkSymbol : null,
                 evaluated.Matched ? evaluated.OtSymbol : null,
                 evaluated.Matched ? evaluated.RuleCode : null));
@@ -130,14 +152,15 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
             {
                 var json = JsonSerializer.Serialize(chunk.Select(x => new
                 {
-                    id = x.RowId, ws = x.WorkSymbol, os = x.OtSymbol, rc = x.RuleCode
+                    id = x.RowId, dt = x.DayType, ws = x.WorkSymbol, os = x.OtSymbol, rc = x.RuleCode
                 }));
 
                 if (storeGroup.Key == "CURRENT")
                 {
                     await _db.Database.ExecuteSqlInterpolatedAsync($"""
                         UPDATE a
-                           SET a.WorkSymbol = j.ws,
+                           SET a.DayType = j.dt,
+                               a.WorkSymbol = j.ws,
                                a.OtSymbol = j.os,
                                a.SymbolRuleCode = j.rc,
                                a.OtDisplayValue = COALESCE(j.os, a.OtDisplayValue),
@@ -148,7 +171,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                         THEN j.ws ELSE a.AttendanceDisplayValue END
                         FROM dbo.F03HrmAttendanceCalculated AS a
                         INNER JOIN OPENJSON({json})
-                            WITH (id bigint '$.id', ws nvarchar(50) '$.ws',
+                            WITH (id bigint '$.id', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
                                   os nvarchar(50) '$.os', rc nvarchar(100) '$.rc') AS j
                             ON j.id = a.Id
                         """, ct);
@@ -157,7 +180,8 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                 {
                     await _db.Database.ExecuteSqlInterpolatedAsync($"""
                         UPDATE h
-                           SET h.WorkSymbol = j.ws,
+                           SET h.DayType = j.dt,
+                               h.WorkSymbol = j.ws,
                                h.OtSymbol = j.os,
                                h.SymbolRuleCode = j.rc,
                                h.OtDisplayValue = COALESCE(j.os, h.OtDisplayValue),
@@ -220,7 +244,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
         public DateTime? CheckOutTime { get; set; }
         public string? DayType { get; set; }
     }
-    private sealed record ReapplyOutput(string Store, long RowId, string? WorkSymbol, string? OtSymbol, string? RuleCode);
+    private sealed record ReapplyOutput(string Store, long RowId, string DayType, string? WorkSymbol, string? OtSymbol, string? RuleCode);
     private sealed class RuleRow{public int Id{get;set;}public string RuleCode{get;set;}=string.Empty;public string RuleName{get;set;}=string.Empty;public string DayType{get;set;}=string.Empty;public string? ShiftCode{get;set;}public int? ShiftId{get;set;}public int Priority{get;set;}public int? MinActualMinutes{get;set;}public int? MaxActualMinutes{get;set;}public string? CheckInFrom{get;set;}public string? CheckInTo{get;set;}public DateTime? EffectiveFrom{get;set;}public DateTime? EffectiveTo{get;set;}public string RuleJson{get;set;}=string.Empty;public bool IsActive{get;set;}}
     private sealed class RuleDocument{public int BlockMinutes{get;set;}=15;public string RoundingMode{get;set;}="FLOOR";public string AllocationMode{get;set;}="STANDARD";public int? FixedOtMinutes{get;set;}public List<AttendanceSymbolRuleSegmentDto> Segments{get;set;}=new();}
     private readonly record struct Calculation(int WorkMinutes,int OtMinutes,string? WorkSymbol,string? OtSymbol);
