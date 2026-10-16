@@ -120,7 +120,10 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                 evaluated.Matched ? evaluated.RuleCode : null));
         }
 
+        var previousTimeout = _db.Database.GetCommandTimeout();
         _db.Database.SetCommandTimeout(600);
+        try
+        {
         foreach (var storeGroup in outputs.GroupBy(x => x.Store))
         {
             foreach (var chunk in storeGroup.Chunk(500))
@@ -171,6 +174,11 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                         """, ct);
                 }
             }
+        }
+        }
+        finally
+        {
+            _db.Database.SetCommandTimeout(previousTimeout);
         }
     }
 
