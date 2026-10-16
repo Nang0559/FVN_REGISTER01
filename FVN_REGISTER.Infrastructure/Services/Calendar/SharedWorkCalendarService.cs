@@ -297,7 +297,10 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                     : new CalendarHolidayInfoDto
                     {
                         Code = baseDay.HolidayCode,
-                        Name = baseDay.HolidayName
+                        Name = baseDay.HolidayName,
+                        Symbol = baseDay.HolidaySymbol,
+                        TypeName = baseDay.HolidayTypeName,
+                        Color = baseDay.HolidayColor
                     },
                 Shift = shift,
                 Attendance = attendance,

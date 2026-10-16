@@ -31,7 +31,7 @@ BEGIN
         LNLKyHieu  nvarchar(50)  NULL,
         LNLMauSac  varchar(50)   NULL,
         DLocked    bit           NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_DLocked DEFAULT(0),
-        /* NATIONAL_HOLIDAY | COMPANY_HOLIDAY | COMPENSATORY | OTHER */
+        /* NATIONAL_HOLIDAY | COMPANY_HOLIDAY | OTHER  (đúng 3 loại của HRM: L, CT, NT) */
         DayType    nvarchar(40)  NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_DayType DEFAULT(N'NATIONAL_HOLIDAY'),
         DayTypeIsManual bit      NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_Manual DEFAULT(0),
         SyncedAt   datetime2(0)  NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_SyncedAt DEFAULT(SYSUTCDATETIME())
@@ -150,7 +150,6 @@ SELECT p.Prefix + SUBSTRING(r.RuleCode, 5, 100),
        r.RuleJson, 1, 0, SYSUTCDATETIME(), N'SEED'
 FROM dbo.F03AttendanceSymbolRules AS r
 CROSS JOIN (VALUES (N'CHOL-', N'COMPANY_HOLIDAY', N'Nghỉ công ty'),
-                   (N'COMP-', N'COMPENSATORY',    N'Nghỉ bù'),
                    (N'OTH-',  N'OTHER',           N'Nghỉ khác')) AS p(Prefix, DayType, Label)
 WHERE r.DayType = N'NATIONAL_HOLIDAY' AND r.RuleCode LIKE N'HOL-%'
   AND NOT EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules x WHERE x.RuleCode = p.Prefix + SUBSTRING(r.RuleCode, 5, 100));

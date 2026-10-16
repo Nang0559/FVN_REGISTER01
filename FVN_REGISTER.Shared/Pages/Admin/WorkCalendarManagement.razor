@@ -75,8 +75,8 @@
                 <MudTd>@context.HolidayDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@context.Year</MudTd>
                 <MudTd>@context.Description</MudTd>
-                <MudTd><MudChip T="string" Size="Size.Small" Color="@HolidayTypeColor(context.HolidayType)">@HolidayTypeLabel(context.HolidayType)</MudChip></MudTd>
-                <MudTd>@context.DayType</MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@HolidayTypeColor(context.HolidayType)" Style="@HolidayChipStyle(context)">@(string.IsNullOrWhiteSpace(context.HolidayTypeName) ? HolidayTypeLabel(context.HolidayType) : context.HolidayTypeName)</MudChip></MudTd>
+                <MudTd><b>@context.HolidaySymbol</b> <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-inline">@context.DayType</MudText></MudTd>
                 <MudTd>@(context.IsPaidLeave ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
                 <MudTd>@(context.Source == "HRM" ? Language.T("calendar.sourceHrm") : Language.T("calendar.sourceLegacy"))</MudTd>
             </RowTemplate>
@@ -108,7 +108,14 @@
     }
 
     private string HolidayTypeLabel(byte type) => FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeLabel(type);
-    private Color HolidayTypeColor(byte type) => type switch { 2 => Color.Error, 3 => Color.Warning, 4 => Color.Info, _ => Color.Success };
+    private Color HolidayTypeColor(byte type) => type switch { 2 => Color.Error, 4 => Color.Info, _ => Color.Success };
+
+    // Màu lấy từ HRM (DM_Loainghile.LNLMauSac, ví dụ Red/Crimson/OrangeRed). Chỉ nhận tên màu hoặc mã #hex để không chèn CSS tùy ý.
+    private static string? HolidayChipStyle(CompanyHolidayDto holiday)
+        => !string.IsNullOrWhiteSpace(holiday.HolidayColor)
+           && System.Text.RegularExpressions.Regex.IsMatch(holiday.HolidayColor, "^(#[0-9A-Fa-f]{3,8}|[A-Za-z]{3,30})$")
+            ? $"background-color:{holiday.HolidayColor};color:#fff"
+            : null;
 
     private void NewYear()
     {

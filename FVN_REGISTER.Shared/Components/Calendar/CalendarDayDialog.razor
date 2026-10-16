@@ -10,6 +10,10 @@
             {
                 <MudAlert Severity="Severity.Info" Dense="true">
                     <b>@Day.Holiday.Name</b>
+                    @if (!string.IsNullOrWhiteSpace(Day.Holiday.TypeName))
+                    {
+                        <div>@(string.IsNullOrWhiteSpace(Day.Holiday.Symbol) ? "" : Day.Holiday.Symbol + " · ")@Day.Holiday.TypeName</div>
+                    }
                     <div>@Language.T("calendar.companyHolidayOtOnly")</div>
                 </MudAlert>
             }

@@ -9,6 +9,10 @@ public sealed class WorkCalendarDayDto
     public string? HolidayCode { get; set; }
     public string? HolidayName { get; set; }
     public string? HolidayType { get; set; }
+    /// <summary>Ký hiệu / tên loại / màu của ngày nghỉ theo HRM (L, CT, NT).</summary>
+    public string? HolidaySymbol { get; set; }
+    public string? HolidayTypeName { get; set; }
+    public string? HolidayColor { get; set; }
     public bool CanRegisterLeave { get; set; }
     public bool CanRegisterOT { get; set; }
     public bool CanRegisterTrip { get; set; }

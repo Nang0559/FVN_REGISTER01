@@ -119,7 +119,7 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
             guide.Cell(3,1).Value="HolidayDate"; guide.Cell(3,2).Value="Ngày nghỉ, định dạng dd/MM/yyyy.";
             guide.Cell(4,1).Value="Description"; guide.Cell(4,2).Value="Mô tả ngày nghỉ, bắt buộc.";
             guide.Cell(5,1).Value="Year"; guide.Cell(5,2).Value="Phải khớp YEAR(HolidayDate).";
-            guide.Cell(6,1).Value="HolidayType"; guide.Cell(6,2).Value="1 = Nghỉ công ty; 2 = Nghỉ lễ quốc gia; 3 = Nghỉ bù; 4 = Nghỉ khác.";
+            guide.Cell(6,1).Value="HolidayType"; guide.Cell(6,2).Value="1 = Chủ nhật/Nghỉ công ty (CT); 2 = Ngày lễ (L); 4 = Ngày nghỉ thường (NT). Không dùng 3.";
             guide.Cell(7,1).Value="TinhPhep"; guide.Cell(7,2).Value="1 = tính phép; 0 = không tính phép. Độc lập với HolidayType.";
             guide.Columns().AdjustToContents(); using var stream=new MemoryStream(); workbook.SaveAs(stream); return Task.FromResult(ServiceResult<byte[]>.Ok(stream.ToArray()));
         }
@@ -180,6 +180,9 @@ public sealed class CompanyHolidayManagementService : BaseService<CompanyHoliday
         IsPaidLeave = entity.TinhPhep,
         HolidayType = entity.HolidayType,
         DayType = entity.DayType,
+        HolidaySymbol = entity.HolidaySymbol,
+        HolidayTypeName = entity.HolidayTypeName,
+        HolidayColor = entity.HolidayColor,
         Source = entity.Source
     };
 

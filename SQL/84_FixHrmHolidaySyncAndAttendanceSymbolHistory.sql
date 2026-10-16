@@ -96,7 +96,6 @@ BEGIN
                 WHEN RTRIM(t.LNLMa) = N'0003' THEN N'NATIONAL_HOLIDAY'   -- Ngày lễ (L)
                 WHEN RTRIM(t.LNLMa) = N'0002' THEN N'COMPANY_HOLIDAY'    -- Chủ nhật/Nghỉ công ty (CT)
                 WHEN RTRIM(t.LNLMa) = N'0001' THEN N'OTHER'              -- Ngày nghỉ thường (NT)
-                WHEN LOWER(t.LNLTen) LIKE N'%bù%' THEN N'COMPENSATORY'
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
@@ -132,7 +131,6 @@ BEGIN
                 WHEN RTRIM(t.LNLMa) = N'0003' THEN N'NATIONAL_HOLIDAY'   -- Ngày lễ (L)
                 WHEN RTRIM(t.LNLMa) = N'0002' THEN N'COMPANY_HOLIDAY'    -- Chủ nhật/Nghỉ công ty (CT)
                 WHEN RTRIM(t.LNLMa) = N'0001' THEN N'OTHER'              -- Ngày nghỉ thường (NT)
-                WHEN LOWER(t.LNLTen) LIKE N'%bù%' THEN N'COMPENSATORY'
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
@@ -174,7 +172,6 @@ BEGIN
             HolidayType = CONVERT(tinyint, CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
                 WHEN N'COMPANY_HOLIDAY' THEN 1
                 WHEN N'NATIONAL_HOLIDAY' THEN 2
-                WHEN N'COMPENSATORY' THEN 3
                 ELSE 4 END),
             rn = ROW_NUMBER() OVER
             (
@@ -183,7 +180,6 @@ BEGIN
                     CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
                         WHEN N'NATIONAL_HOLIDAY' THEN 1
                         WHEN N'COMPANY_HOLIDAY' THEN 2
-                        WHEN N'COMPENSATORY' THEN 3
                         ELSE 4 END,
                     RTRIM(n.NNLMa)
             )
@@ -200,7 +196,6 @@ BEGIN
                      CASE x.DayType
                          WHEN N'NATIONAL_HOLIDAY' THEN 1
                          WHEN N'COMPANY_HOLIDAY'  THEN 2
-                         WHEN N'COMPENSATORY'     THEN 3
                          ELSE 4 END,
                      x.LNLMa
         ) AS t

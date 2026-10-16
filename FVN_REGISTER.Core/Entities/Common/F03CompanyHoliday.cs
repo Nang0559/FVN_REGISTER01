@@ -22,7 +22,7 @@ public partial class F03CompanyHoliday : BaseAuditEntity
 
     /// <summary>
     /// Phân loại ngày nghỉ dùng cho lịch công:
-    /// 1 = Company, 2 = National, 3 = Compensatory, 4 = Other.
+    /// 1 = Company (CT), 2 = National (L), 4 = Other (NT); 3 (nghỉ bù) không còn dùng.
     /// </summary>
     public byte HolidayType { get; set; } = 1;
 
@@ -38,7 +38,19 @@ public partial class F03CompanyHoliday : BaseAuditEntity
     [StringLength(5)]
     public string? HrmTypeCode { get; set; }
 
-    /// <summary>DayType của rule ký hiệu (NATIONAL_HOLIDAY, COMPANY_HOLIDAY, COMPENSATORY, OTHER).</summary>
+    /// <summary>DayType của rule ký hiệu (NATIONAL_HOLIDAY, COMPANY_HOLIDAY, OTHER).</summary>
     [StringLength(40)]
     public string? DayType { get; set; }
+
+    /// <summary>Ký hiệu nghỉ của HRM (DM_Loainghile.LNLKyHieu): L, CT, NT.</summary>
+    [StringLength(50)]
+    public string? HolidaySymbol { get; set; }
+
+    /// <summary>Tên loại ngày nghỉ của HRM (DM_Loainghile.LNLTen).</summary>
+    [StringLength(200)]
+    public string? HolidayTypeName { get; set; }
+
+    /// <summary>Màu loại ngày nghỉ của HRM (DM_Loainghile.LNLMauSac), ví dụ Red, Crimson.</summary>
+    [StringLength(50)]
+    public string? HolidayColor { get; set; }
 }

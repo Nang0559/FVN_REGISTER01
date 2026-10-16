@@ -8,7 +8,6 @@ public sealed class DayTypeCatalogTests
     [Theory]
     [InlineData((byte)1, "COMPANY_HOLIDAY")]
     [InlineData((byte)2, "NATIONAL_HOLIDAY")]
-    [InlineData((byte)3, "COMPENSATORY")]
     [InlineData((byte)4, "OTHER")]
     public void HolidayType_maps_to_rule_daytype(byte holidayType, string expectedDayType)
         => Assert.Equal(expectedDayType, DayTypeCatalog.FromHolidayType(holidayType).Code);
@@ -16,7 +15,7 @@ public sealed class DayTypeCatalogTests
     [Fact]
     public void Codes_cover_every_daytype_used_by_rules_and_sql()
         => Assert.Equal(
-            new[] { "NORMAL", "COMPANY_SATURDAY", "SUNDAY", "COMPANY_HOLIDAY", "NATIONAL_HOLIDAY", "COMPENSATORY", "OTHER" },
+            new[] { "NORMAL", "COMPANY_SATURDAY", "SUNDAY", "COMPANY_HOLIDAY", "NATIONAL_HOLIDAY", "OTHER" },
             DayTypeCatalog.Codes);
 
     [Fact]
