@@ -264,88 +264,23 @@ BEGIN
 END;
 GO
 
-/* C. Keep the calculated batch snapshot synchronized when the application
-      applies or re-applies attendance symbol rules after the SQL calculation. */
-IF OBJECT_ID(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot', N'U') IS NOT NULL
-BEGIN
-    EXEC(N'
-    CREATE OR ALTER TRIGGER dbo.tr_F03HrmAttendanceCalculated_SymbolSnapshot
-    ON dbo.F03HrmAttendanceCalculated
-    AFTER INSERT, UPDATE
-    AS
-    BEGIN
-        SET NOCOUNT ON;
-
-        UPDATE target
-           SET target.DayType = source.DayType,
-               target.WorkSymbol = source.WorkSymbol,
-               target.OtSymbol = source.OtSymbol,
-               target.SymbolRuleCode = source.SymbolRuleCode
-        FROM dbo.F03HrmAttendanceCalculatedBatchSnapshot AS target
-        INNER JOIN inserted AS source
-          ON target.CalculationBatchId = source.CalculationBatchId
-         AND target.HrmEmployeeId = source.HrmEmployeeId
-         AND target.WorkDate = source.WorkDate;
-    END;');
-
-    EXEC sys.sp_settriggerorder
-        @triggername = N'dbo.tr_F03HrmAttendanceCalculated_SymbolSnapshot',
-        @order = N'Last',
-        @stmttype = N'INSERT';
-    EXEC sys.sp_settriggerorder
-        @triggername = N'dbo.tr_F03HrmAttendanceCalculated_SymbolSnapshot',
-        @order = N'Last',
-        @stmttype = N'UPDATE';
-END;
-GO
-
-/* D. Copy symbols into archive rows while their calculated/snapshot source is
-      still available. Backfill old history rows from immutable batch snapshots. */
+/* C. Backfill old archive rows from their immutable calculation batch snapshots.
+      New archive operations copy these fields directly in 22_04; new batch writes
+      copy them directly in 22_05. */
 IF OBJECT_ID(N'dbo.F03HrmAttendanceHistory', N'U') IS NOT NULL
 BEGIN
     UPDATE h
-       SET h.DayType = COALESCE(s.DayType, c.DayType),
-           h.WorkSymbol = COALESCE(s.WorkSymbol, c.WorkSymbol),
-           h.OtSymbol = COALESCE(s.OtSymbol, c.OtSymbol),
-           h.SymbolRuleCode = COALESCE(s.SymbolRuleCode, c.SymbolRuleCode)
+       SET h.DayType = COALESCE(s.DayType, h.DayType),
+           h.WorkSymbol = COALESCE(s.WorkSymbol, h.WorkSymbol),
+           h.OtSymbol = COALESCE(s.OtSymbol, h.OtSymbol),
+           h.SymbolRuleCode = COALESCE(s.SymbolRuleCode, h.SymbolRuleCode)
     FROM dbo.F03HrmAttendanceHistory AS h
-    LEFT JOIN dbo.F03HrmAttendanceCalculatedBatchSnapshot AS s
+    INNER JOIN dbo.F03HrmAttendanceCalculatedBatchSnapshot AS s
       ON s.CalculationBatchId = h.CalculationBatchId
      AND s.HrmEmployeeId = h.HrmEmployeeId
      AND s.WorkDate = h.WorkDate
-    LEFT JOIN dbo.F03HrmAttendanceCalculated AS c
-      ON c.CalculationBatchId = h.CalculationBatchId
-     AND c.HrmEmployeeId = h.HrmEmployeeId
-     AND c.WorkDate = h.WorkDate
-    WHERE h.DayType IS NULL
-       OR h.WorkSymbol IS NULL
-       OR h.OtSymbol IS NULL
-       OR h.SymbolRuleCode IS NULL;
-
-    EXEC(N'
-    CREATE OR ALTER TRIGGER dbo.tr_F03HrmAttendanceHistory_SymbolSnapshot
-    ON dbo.F03HrmAttendanceHistory
-    AFTER INSERT
-    AS
-    BEGIN
-        SET NOCOUNT ON;
-
-        UPDATE h
-           SET h.DayType = COALESCE(c.DayType, s.DayType),
-               h.WorkSymbol = COALESCE(c.WorkSymbol, s.WorkSymbol),
-               h.OtSymbol = COALESCE(c.OtSymbol, s.OtSymbol),
-               h.SymbolRuleCode = COALESCE(c.SymbolRuleCode, s.SymbolRuleCode)
-        FROM dbo.F03HrmAttendanceHistory AS h
-        INNER JOIN inserted AS i ON i.HistoryId = h.HistoryId
-        LEFT JOIN dbo.F03HrmAttendanceCalculated AS c
-          ON c.CalculationBatchId = i.CalculationBatchId
-         AND c.HrmEmployeeId = i.HrmEmployeeId
-         AND c.WorkDate = i.WorkDate
-        LEFT JOIN dbo.F03HrmAttendanceCalculatedBatchSnapshot AS s
-          ON s.CalculationBatchId = i.CalculationBatchId
-         AND s.HrmEmployeeId = i.HrmEmployeeId
-         AND s.WorkDate = i.WorkDate;
-    END;');
+    WHERE h.DayType IS NULL OR h.WorkSymbol IS NULL
+       OR h.OtSymbol IS NULL OR h.SymbolRuleCode IS NULL;
 END;
 GO
 
