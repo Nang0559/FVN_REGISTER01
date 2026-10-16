@@ -287,8 +287,7 @@ ORDER BY HolidayDate;", ct, pFrom, pTo);
 
     private static string GetOtValue(OtRow? row, IReadOnlyDictionary<DateTime, CalendarHolidayInfoDto> holidays)
     {
-        // Prefer the persisted rule result used by Calendar (OtSymbol/RuleCode).
-        // AttendanceSymbolCalculator is retained only as a compatibility fallback for older batches.
+        // Only the persisted rule result (OtSymbol/RuleCode) is used; nothing is recalculated here.
         if (row is null) return string.Empty;
 
         holidays.TryGetValue(row.WorkDate.Date, out var holiday);
@@ -310,7 +309,7 @@ ORDER BY HolidayDate;", ct, pFrom, pTo);
                 RecognizedOtMinutes = Math.Max(0, row.OTRecognizedMinutesDay)
                     + Math.Max(0, row.OTRecognizedMinutesNight),
                 DisplayValue = row.AttendanceDisplayValue,
-                // Ký hiệu đã ghi theo rule lúc tính công; AttendanceSymbolCalculator chỉ còn là fallback cho batch cũ.
+                // Ký hiệu đã ghi theo rule lúc tính công.
                 RuleWorkSymbol = row.WorkSymbol,
                 RuleOtSymbol = row.OtSymbol,
                 RuleDayType = row.DayType,

@@ -92,7 +92,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
  /// <summary>
  /// Áp rule ký hiệu cho mọi dòng đã có In/Out của batch. DayType đã được usp_CalculateHrmAttendance ghi
  /// (dbo.fn_ResolveDayType: ngày nghỉ HRM > cờ HRM > CN > T7 > thường). Dòng không khớp rule nào để SymbolRuleCode = NULL
- /// (lịch/xuất sẽ fallback AttendanceSymbolCalculator) và được log để bổ sung rule.
+ /// (lịch/xuất không có ký hiệu OT cho dòng đó) và được log để bổ sung rule.
  /// </summary>
  private async Task ApplySymbolRulesAsync(Guid batchId,CancellationToken ct)
  {
