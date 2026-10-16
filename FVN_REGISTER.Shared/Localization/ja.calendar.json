@@ -139,5 +139,6 @@
   "calendar.dayTypeRule": "DayType（ルール）",
   "calendar.source": "データソース",
   "calendar.sourceHrm": "HRM",
-  "calendar.sourceLegacy": "旧FVNデータ"
+  "calendar.sourceLegacy": "旧FVNデータ",
+  "calendar.workYearName": "{0}年度"
 }
