@@ -166,7 +166,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                a.OtDisplayValue = COALESCE(j.os, a.OtDisplayValue),
                                a.AttendanceDisplayValue =
                                    CASE WHEN j.ws IS NOT NULL
-                                             AND a.DayType <> N'NORMAL'
+                                             AND j.dt <> N'NORMAL'
                                              AND ISNULL(a.LeaveTotal, 0) = 0
                                         THEN j.ws ELSE a.AttendanceDisplayValue END
                         FROM dbo.F03HrmAttendanceCalculated AS a
@@ -187,12 +187,12 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                h.OtDisplayValue = COALESCE(j.os, h.OtDisplayValue),
                                h.AttendanceDisplayValue =
                                    CASE WHEN j.ws IS NOT NULL
-                                             AND h.DayType <> N'NORMAL'
+                                             AND j.dt <> N'NORMAL'
                                              AND ISNULL(h.LeaveTotal, 0) = 0
                                         THEN j.ws ELSE h.AttendanceDisplayValue END
                         FROM dbo.F03HrmAttendanceHistory AS h
                         INNER JOIN OPENJSON({json})
-                            WITH (id bigint '$.id', ws nvarchar(50) '$.ws',
+                            WITH (id bigint '$.id', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
                                   os nvarchar(50) '$.os', rc nvarchar(100) '$.rc') AS j
                             ON j.id = h.HistoryId
                         """, ct);
