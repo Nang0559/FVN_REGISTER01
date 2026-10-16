@@ -1,0 +1,165 @@
+@page "/admin/ot-registrars"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Người đăng ký OT / Trip</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1">Người đăng ký OT / Trip</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Cấu hình theo phòng ban. Chế độ 1 cho phép tất cả; chế độ 2 chỉ định user; chế độ 3 chỉ định chức vụ.
+</MudText>
+
+<MudTabs @bind-ActivePanelIndex="_tab" Rounded="true" Elevation="1">
+    <MudTabPanel Text="Chính sách OT">
+        @PolicyEditor("OT")
+    </MudTabPanel>
+    <MudTabPanel Text="Chính sách Trip">
+        @PolicyEditor("TRIP")
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private int _tab;
+    private string _registerType = "OT";
+    private List<RegistrationPolicyDto> _rules = new();
+    private RegistrationPolicyUpsertDto _edit = new();
+
+    private RenderFragment PolicyEditor(string type) => builder =>
+    {
+        _registerType = type;
+        var seq = 0;
+        builder.OpenComponent<MudStack>(seq++);
+        builder.AddAttribute(seq++, "Class", "pa-4");
+        builder.AddAttribute(seq++, "ChildContent", (RenderFragment)(inner =>
+        {
+            var s = 0;
+            inner.OpenComponent<MudStack>(s++);
+            inner.AddAttribute(s++, "Row", true);
+            inner.AddAttribute(s++, "Spacing", 2);
+            inner.AddAttribute(s++, "ChildContent", (RenderFragment)(row =>
+            {
+                var r = 0;
+                row.OpenComponent<MudNumericField<int>>(r++);
+                row.AddAttribute(r++, "Label", "DepartmentCode (0 = mặc định)");
+                row.AddAttribute(r++, "Variant", Variant.Outlined);
+                row.AddAttribute(r++, "Value", _edit.DepartmentCode);
+                row.AddAttribute(r++, "ValueChanged", EventCallback.Factory.Create<int>(this, v => _edit.DepartmentCode = v));
+                row.CloseComponent();
+
+                row.OpenComponent<MudSelect<RegistrationRuleMode>>(r++);
+                row.AddAttribute(r++, "Label", "Cách xác định người đăng ký");
+                row.AddAttribute(r++, "Variant", Variant.Outlined);
+                row.AddAttribute(r++, "Value", _edit.Mode);
+                row.AddAttribute(r++, "ValueChanged", EventCallback.Factory.Create<RegistrationRuleMode>(this, v => _edit.Mode = v));
+                row.AddAttribute(r++, "ChildContent", (RenderFragment)(items =>
+                {
+                    var i = 0;
+                    foreach (var mode in Enum.GetValues<RegistrationRuleMode>())
+                    {
+                        items.OpenComponent<MudSelectItem<RegistrationRuleMode>>(i++);
+                        items.AddAttribute(i++, "Value", mode);
+                        items.AddAttribute(i++, "ChildContent", (RenderFragment)(t => t.AddContent(0, mode switch
+                        {
+                            RegistrationRuleMode.Everyone => "1 — Mọi người",
+                            RegistrationRuleMode.AssignedUsers => "2 — Chỉ định user",
+                            _ => "3 — Chỉ định chức vụ"
+                        })));
+                        items.CloseComponent();
+                    }
+                }));
+                row.CloseComponent();
+
+                row.OpenComponent<MudButton>(r++);
+                row.AddAttribute(r++, "Variant", Variant.Filled);
+                row.AddAttribute(r++, "Color", Color.Primary);
+                row.AddAttribute(r++, "OnClick", EventCallback.Factory.Create(this, () => SaveAsync(type)));
+                row.AddAttribute(r++, "ChildContent", (RenderFragment)(t => t.AddContent(0, "Lưu")));
+                row.CloseComponent();
+            }));
+            inner.CloseComponent();
+
+            inner.OpenComponent<MudTextField<string>>(s++);
+            inner.AddAttribute(s++, "Label", "UserId (chế độ 2, nhập nhiều ID cách nhau bằng dấu phẩy)");
+            inner.AddAttribute(s++, "Variant", Variant.Outlined);
+            inner.AddAttribute(s++, "Value", string.Join(",", _edit.UserIds));
+            inner.AddAttribute(s++, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _edit.UserIds = ParseInts(v)));
+            inner.AddAttribute(s++, "Disabled", _edit.Mode != RegistrationRuleMode.AssignedUsers);
+            inner.CloseComponent();
+
+            inner.OpenComponent<MudTextField<string>>(s++);
+            inner.AddAttribute(s++, "Label", "PositionCode (chế độ 3, nhập nhiều mã cách nhau bằng dấu phẩy)");
+            inner.AddAttribute(s++, "Variant", Variant.Outlined);
+            inner.AddAttribute(s++, "Value", string.Join(",", _edit.PositionCodes));
+            inner.AddAttribute(s++, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _edit.PositionCodes = ParseStrings(v)));
+            inner.AddAttribute(s++, "Disabled", _edit.Mode != RegistrationRuleMode.AssignedPositions);
+            inner.CloseComponent();
+
+            inner.OpenComponent<MudTable<RegistrationPolicyDto>>(s++);
+            inner.AddAttribute(s++, "Items", _rules);
+            inner.AddAttribute(s++, "Dense", true);
+            inner.AddAttribute(s++, "Hover", true);
+            inner.AddAttribute(s++, "RowClick", EventCallback.Factory.Create<TableRowClickEventArgs<RegistrationPolicyDto>>(this, e => LoadRule(e.Item)));
+            inner.AddAttribute(s++, "ChildContent", (RenderFragment)(table =>
+            {
+                var t = 0;
+                table.OpenComponent<HeaderContent>(t++);
+                table.CloseComponent();
+            }));
+            inner.CloseComponent();
+        }));
+        builder.CloseComponent();
+    };
+
+    protected override async Task OnInitializedAsync() => await LoadAsync("OT");
+
+    private async Task LoadAsync(string type)
+    {
+        var result = await Http.GetAsync<List<RegistrationPolicyDto>>($"api/registration-policy?registerType={type}", showLoading: false);
+        if (result.IsSuccess && result.Data != null)
+        {
+            _rules = result.Data;
+            _edit = new RegistrationPolicyUpsertDto { RegisterType = type, Mode = RegistrationRuleMode.AssignedPositions, IsActive = true };
+        }
+        else if (!string.IsNullOrWhiteSpace(result.Message)) Snackbar.Add(result.Message, Severity.Warning);
+    }
+
+    private void LoadRule(RegistrationPolicyDto rule)
+    {
+        _edit = new RegistrationPolicyUpsertDto
+        {
+            DepartmentCode = rule.DepartmentCode,
+            RegisterType = rule.RegisterType,
+            Mode = rule.Mode,
+            IsActive = rule.IsActive,
+            UserIds = rule.UserIds.ToList(),
+            PositionCodes = rule.PositionCodes.ToList()
+        };
+    }
+
+    private async Task SaveAsync(string type)
+    {
+        _edit.RegisterType = type;
+        var result = await Http.PutAsync<RegistrationPolicyDto>("api/registration-policy", _edit);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã lưu chính sách người đăng ký.", Severity.Success);
+            await LoadAsync(type);
+        }
+        else Snackbar.Add(result.Message ?? "Không thể lưu chính sách.", Severity.Error);
+    }
+
+    private static List<int> ParseInts(string value)
+        => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => int.TryParse(x, out _)).Select(int.Parse).Distinct().ToList();
+
+    private static List<string> ParseStrings(string value)
+        => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+}
