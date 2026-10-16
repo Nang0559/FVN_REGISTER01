@@ -1,5 +1,8 @@
 using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
+using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Registration;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Enums;
