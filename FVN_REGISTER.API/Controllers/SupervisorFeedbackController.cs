@@ -95,7 +95,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
     {
         if (UserInfo == null) return Unauthorized();
         var rows = await _db.Set<F03SupervisorFeedback>().AsNoTracking()
-            .Where(x => x.EmployeeCode == UserInfo.EmployeeCode)
+            .Where(x => x.EmployeeCode == (UserInfo.EmployeeCode ?? string.Empty))
             .OrderByDescending(x => x.WorkDate).ThenByDescending(x => x.CreatedAt)
             .Take(100).ToListAsync(ct);
         return Ok(ApiResponse<List<SupervisorFeedbackDto>>.Ok(await MapManyAsync(rows, ct)));
@@ -139,8 +139,8 @@ public sealed class SupervisorFeedbackController : BaseApiController
         var end = entity.ActualOut.Value.TimeOfDay;
         var model = new OTRequestUpsertDto
         {
-            EmployeeCode = UserInfo.EmployeeCode,
-            DeptCode = entity.DepartmentCode,
+            EmployeeCode = entity.EmployeeCode,
+            DeptCode = entity.DepartmentCode ?? 0,
             OTDate = entity.WorkDate,
             StartTime = start,
             EndTime = end,
@@ -163,9 +163,10 @@ public sealed class SupervisorFeedbackController : BaseApiController
         };
 
         var result = await _otService.CreateAsync(model, UserInfo, ct);
-        if (!result.IsSuccess) return BadRequest(ApiResponse<object>.Fail(result.Message ?? "Không thể tạo đơn OT."));
+        if (!result.IsSuccess || !result.Data.HasValue)
+            return BadRequest(ApiResponse<object>.Fail(result.Message ?? "Không thể tạo đơn OT."));
 
-        entity.OTRequestId = result.Data;
+        entity.OTRequestId = result.Data.Value;
         entity.Status = SupervisorFeedbackStatus.RegisteredPendingApprove;
         entity.Note = dto.Note ?? entity.Note;
         entity.ResolvedAt = DateTime.Now;
@@ -197,18 +198,18 @@ public sealed class SupervisorFeedbackController : BaseApiController
     {
         if (rule == null || rule.Mode == RegistrationRuleMode.Everyone) return null;
         if (rule.Mode == RegistrationRuleMode.AssignedUsers)
-            return await _db.Users.AsNoTracking().Where(x => rule.Registrars.Select(r => r.UserId).Contains(x.Id) && x.DeptCode == deptCode && x.LockoutEnable).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct);
+            return await _db.Users.AsNoTracking().Where(x => rule.Registrars.Select(r => r.UserId).Contains(x.Id) && x.DeptCode == deptCode && x.IsActive == true).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct);
 
         var positions = rule.RegistrarPositions.Select(x => x.PositionCode).ToList();
         return await (from u in _db.Users.AsNoTracking()
                       join e in _db.Employees.AsNoTracking() on u.EmployeeCode equals e.EmployeeCode
-                      where u.DeptCode == deptCode && u.LockoutEnable && positions.Contains(e.PositionCode)
+                      where u.DeptCode == deptCode && u.IsActive == true && e.IsActive == true && positions.Contains(e.PositionCode)
                       select (int?)u.Id).FirstOrDefaultAsync(ct);
     }
 
     private async Task<F03OTRegistrationRule?> ResolveRuleAsync(int deptCode, string type, CancellationToken ct)
         => await _db.Set<F03OTRegistrationRule>().AsNoTracking().Include(x => x.Registrars).Include(x => x.RegistrarPositions)
-            .Where(x => x.IsActive && x.RegisterType == type && (x.DepartmentCode == deptCode || x.DepartmentCode == 0))
+            .Where(x => x.IsActive == true && x.RegisterType == type && (x.DepartmentCode == deptCode || x.DepartmentCode == 0))
             .OrderByDescending(x => x.DepartmentCode == deptCode).FirstOrDefaultAsync(ct);
 
     private async Task<SupervisorFeedbackDto> MapAsync(F03SupervisorFeedback x, CancellationToken ct)
