@@ -340,6 +340,12 @@ BEGIN
 END;
 GO
 
+/* Run the initial sync only after the date-safe procedure has replaced the
+   old MERGE implementation. */
+IF DB_ID(N'HRM') IS NOT NULL
+    EXEC dbo.usp_SyncHrmHolidays;
+GO
+
 /* E. Verification: the sync source must be unique by date before writing. */
 IF EXISTS
 (
