@@ -140,19 +140,7 @@ RETURN
 );
 GO
 
-/* 6. Seed rule cho các DayType còn thiếu (copy từ rule lễ quốc gia, sửa lại trên trang rule) */
-INSERT dbo.F03AttendanceSymbolRules
-    (RuleCode, RuleName, DayType, ShiftCode, ShiftId, Priority, MinActualMinutes, MaxActualMinutes,
-     CheckInFrom, CheckInTo, EffectiveFrom, EffectiveTo, RuleJson, IsActive, CreatedBy, CreatedAt, LastModifiedSource)
-SELECT p.Prefix + SUBSTRING(r.RuleCode, 5, 100),
-       REPLACE(r.RuleName, N'Lễ quốc gia', p.Label), p.DayType, r.ShiftCode, r.ShiftId, r.Priority,
-       r.MinActualMinutes, r.MaxActualMinutes, r.CheckInFrom, r.CheckInTo, r.EffectiveFrom, r.EffectiveTo,
-       r.RuleJson, 1, 0, SYSUTCDATETIME(), N'SEED'
-FROM dbo.F03AttendanceSymbolRules AS r
-CROSS JOIN (VALUES (N'CHOL-', N'COMPANY_HOLIDAY', N'Nghỉ công ty'),
-                   (N'OTH-',  N'OTHER',           N'Nghỉ khác')) AS p(Prefix, DayType, Label)
-WHERE r.DayType = N'NATIONAL_HOLIDAY' AND r.RuleCode LIKE N'HOL-%'
-  AND NOT EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules x WHERE x.RuleCode = p.Prefix + SUBSTRING(r.RuleCode, 5, 100));
+/* 6. Rule ký hiệu: bộ seed chuẩn 4 loại ngày nằm ở SQL/67_AttendanceSymbolRules.sql (không nhân bản rule Lễ nữa). */
 GO
 
 /* 7. Đồng bộ lần đầu được chuyển sang migration 84.

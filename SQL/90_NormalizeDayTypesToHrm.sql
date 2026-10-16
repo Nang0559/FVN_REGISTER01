@@ -13,7 +13,7 @@ Bỏ hẳn 2 loại tự suy ra từ thứ trong tuần: SUNDAY và COMPANY_SATU
 Script này:
   0) sao lưu F03AttendanceSymbolRules -> F03AttendanceSymbolRules_Pre90Backup
   1) bỏ 3 CHECK constraint DayType cũ
-  2) xoá rule nhân bản sai (CHOL-/COMP-/OTH-: copy của rule Lễ do SQL/83 sinh ra)
+  2) xoá rule nhân bản sai (CHOL-/COMP-/OTH-: copy của rule Lễ do SQL/83 cũ sinh ra); giữ rule CT-/NT- của seed 67 mới
      đổi rule SUN-* -> CT-* (COMPANY_HOLIDAY), SAT-* -> NT-* (OTHER), HOL-* đổi tên; sửa NORMAL-C2 dùng K{hours}
   3) đổi DayType cũ trong F03HrmHolidayTypes / F03CompanyHolidays
   4) dữ liệu tính công KỲ ĐANG MỞ: tính lại DayType bằng dbo.fn_ResolveDayType và xoá ký hiệu rule đã hết hiệu lực
@@ -47,10 +47,17 @@ GO
 /* 2. Rule ký hiệu ---------------------------------------------------------- */
 BEGIN TRANSACTION;
 
+/* Rule nhân bản sai do SQL/83 cũ sinh ra (copy của rule Lễ) + rule loại Nghỉ bù. Rule CT-*/NT-* chuẩn của seed 67 được giữ. */
 DELETE FROM dbo.F03AttendanceSymbolRules
  WHERE RuleCode LIKE N'CHOL-%' OR RuleCode LIKE N'COMP-%' OR RuleCode LIKE N'OTH-%'
-    OR DayType IN (N'COMPANY_HOLIDAY', N'OTHER', N'COMPENSATORY');
+    OR DayType = N'COMPENSATORY'
+    OR (DayType IN (N'COMPANY_HOLIDAY', N'OTHER') AND RuleCode NOT LIKE N'CT-%' AND RuleCode NOT LIKE N'NT-%');
 PRINT CONCAT(N'Đã xoá rule nhân bản/sai loại: ', @@ROWCOUNT);
+
+/* Nếu DB còn rule cũ SUN-*/SAT-* (có thể đã chỉnh tay) thì giữ bản cũ và bỏ bản seed mới trùng, để đổi tên bên dưới. */
+DELETE n FROM dbo.F03AttendanceSymbolRules AS n
+ WHERE (n.RuleCode LIKE N'CT-%' AND EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules o WHERE o.RuleCode = N'SUN-' + SUBSTRING(n.RuleCode, 4, 100)))
+    OR (n.RuleCode LIKE N'NT-%' AND EXISTS (SELECT 1 FROM dbo.F03AttendanceSymbolRules o WHERE o.RuleCode = N'SAT-' + SUBSTRING(n.RuleCode, 4, 100)));
 
 UPDATE dbo.F03AttendanceSymbolRules
    SET DayType  = N'COMPANY_HOLIDAY',
