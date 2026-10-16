@@ -141,7 +141,7 @@
         try
         {
             var result = await HolidayService.SyncFromHrmAsync();
-            Snackbar.Add(result.Message ?? Language.T("calendar.hrmHolidaySyncDone"), result.IsSuccess ? Severity.Success : Severity.Error);
+            Snackbar.Add(result.IsSuccess ? Language.T("calendar.hrmHolidaySyncDone") : result.Message ?? Language.T("calendar.khongTheLuu"), result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) await LoadAsync();
         }
         catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
