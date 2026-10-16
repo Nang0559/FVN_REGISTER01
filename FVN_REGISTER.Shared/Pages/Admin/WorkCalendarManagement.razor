@@ -63,14 +63,14 @@
         <MudPaper Class="pa-4 mb-4" Outlined="true">
             <MudStack Row="true" AlignItems="AlignItems.Center" Class="flex-wrap">
                 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="flex-grow-1">
-                    Ngày nghỉ được đồng bộ từ HRM (DM_Loainghile / tblNgayNghiLe) và dùng chung cho lịch, rule ký hiệu, xuất chấm công và tính OT. Thêm / sửa / xoá ngày nghỉ ở HRM, rồi bấm "Đồng bộ từ HRM" (hệ thống cũng tự đồng bộ trước mỗi lần tính công).
+                    @Language.T("calendar.hrmHolidaySyncHelp")
                 </MudAlert>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync" OnClick="SyncHrm" Disabled="@_syncing">@(_syncing ? "Đang đồng bộ..." : "Đồng bộ từ HRM")</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync" OnClick="SyncHrm" Disabled="@_syncing">@(_syncing ? Language.T("calendar.hrmHolidaySyncing") : Language.T("calendar.hrmHolidaySync"))</MudButton>
             </MudStack>
         </MudPaper>
 
         <MudTable Items="FilteredHolidays" Dense="true" Hover="true" Striped="true">
-            <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("ot.year")</MudTh><MudTh>@Language.T("common.description")</MudTh><MudTh>@Language.T("calendar.loaiNgayNghi")</MudTh><MudTh>DayType (rule)</MudTh><MudTh>@Language.T("common.tinhPhep")</MudTh><MudTh>Nguồn</MudTh></HeaderContent>
+            <HeaderContent><MudTh>@Language.T("ot.date")</MudTh><MudTh>@Language.T("ot.year")</MudTh><MudTh>@Language.T("common.description")</MudTh><MudTh>@Language.T("calendar.loaiNgayNghi")</MudTh><MudTh>@Language.T("calendar.dayTypeRule")</MudTh><MudTh>@Language.T("common.tinhPhep")</MudTh><MudTh>@Language.T("calendar.source")</MudTh></HeaderContent>
             <RowTemplate>
                 <MudTd>@context.HolidayDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@context.Year</MudTd>
@@ -78,7 +78,7 @@
                 <MudTd><MudChip T="string" Size="Size.Small" Color="@HolidayTypeColor(context.HolidayType)">@HolidayTypeLabel(context.HolidayType)</MudChip></MudTd>
                 <MudTd>@context.DayType</MudTd>
                 <MudTd>@(context.IsPaidLeave ? Language.T("common.yes") : Language.T("common.no"))</MudTd>
-                <MudTd>@(context.Source == "HRM" ? "HRM" : "FVN (cũ)")</MudTd>
+                <MudTd>@(context.Source == "HRM" ? Language.T("calendar.sourceHrm") : Language.T("calendar.sourceLegacy"))</MudTd>
             </RowTemplate>
         </MudTable>
     </MudTabPanel>
@@ -141,7 +141,7 @@
         try
         {
             var result = await HolidayService.SyncFromHrmAsync();
-            Snackbar.Add(result.Message ?? "Đã đồng bộ ngày nghỉ từ HRM.", result.IsSuccess ? Severity.Success : Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("calendar.hrmHolidaySyncDone"), result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) await LoadAsync();
         }
         catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
