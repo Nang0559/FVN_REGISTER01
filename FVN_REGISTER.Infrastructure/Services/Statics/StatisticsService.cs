@@ -244,12 +244,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
             // nhóm theo phòng ban của F03Employee. Nếu không, nhân viên có trong HRM nhưng
             // chưa đồng bộ/đã inactive ở FVN sẽ làm "có mặt" lớn hơn "tổng" (vd 13/12).
             var presentByDept = await _uow.Repository<F03HrmAttendanceCalculated>().Query()
+                .AsNoTracking()
                 .Where(x => x.WorkDate >= todayStart
                     && x.WorkDate < tomorrowStart
                     && x.CheckInTime != null
                     && x.EmployeeCode != null)
                 .Join(
-                    _uow.Repository<F03Employee>().Query().Where(e => e.IsActive == true),
+                    _uow.Repository<F03Employee>().Query()
+                        .AsNoTracking()
+                        .Where(e => e.IsActive == true),
                     x => x.EmployeeCode, e => e.EmployeeCode,
                     (x, e) => new { e.DeptCode, EmployeeId = e.Id })
                 .GroupBy(x => x.DeptCode)
