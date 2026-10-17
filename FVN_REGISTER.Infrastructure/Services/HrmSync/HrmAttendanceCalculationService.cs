@@ -117,29 +117,38 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     SELECT Id,WorkDate,ShiftId,ShiftAbbr,CheckInTime,CheckOutTime,DayType
     FROM dbo.F03HrmAttendanceCalculated
     WHERE CalculationBatchId={batchId}
-      AND CheckInTime IS NOT NULL
-      AND CheckOutTime IS NOT NULL
     """).ToListAsync(ct);
 
    if(inputs.Count==0) return;
 
-   var matched=new List<SymbolOutput>(inputs.Count);
+   var outputs=new List<SymbolOutput>(inputs.Count);
    var unmatched=new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase);
+   var matchedCount=0;
    foreach(var row in inputs)
    {
     ct.ThrowIfCancellationRequested();
+    if(!row.CheckInTime.HasValue||!row.CheckOutTime.HasValue)
+    {
+     outputs.Add(new SymbolOutput(row.Id,null,null,null));
+     continue;
+    }
     var dayType=string.IsNullOrWhiteSpace(row.DayType)?"NORMAL":row.DayType!;
     var eval=await _symbolRules.EvaluateAsync(
      DateOnly.FromDateTime(row.WorkDate),dayType,row.ShiftAbbr,row.ShiftId,
      row.CheckInTime,row.CheckOutTime,null,ct);
     if(eval.Matched&&!string.IsNullOrWhiteSpace(eval.RuleCode))
-     matched.Add(new SymbolOutput(row.Id,eval.WorkSymbol,eval.OtSymbol,eval.RuleCode));
-    else
-     unmatched[$"{dayType}/{row.ShiftAbbr}"]=unmatched.GetValueOrDefault($"{dayType}/{row.ShiftAbbr}")+1;
-   }
+     {
+      matchedCount++;
+      outputs.Add(new SymbolOutput(row.Id,eval.WorkSymbol,eval.OtSymbol,eval.RuleCode));
+     }
+     else
+     {
+      unmatched[$"{dayType}/{row.ShiftAbbr}"]=unmatched.GetValueOrDefault($"{dayType}/{row.ShiftAbbr}")+1;
+      outputs.Add(new SymbolOutput(row.Id,null,null,null));
+     }
 
    // Smaller chunks reduce lock duration, log/rollback cost, and OPENJSON payload size.
-   foreach(var chunk in matched.Chunk(250))
+   foreach(var chunk in outputs.Chunk(250))
    {
     ct.ThrowIfCancellationRequested();
     var json=JsonSerializer.Serialize(chunk.Select(x=>new{id=x.Id,ws=x.WorkSymbol,os=x.OtSymbol,rc=x.RuleCode}));
@@ -161,7 +170,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
 
    _logger.LogInformation(
     "Attendance symbols applied. Batch={BatchId}, InputRows={InputRows}, MatchedRows={MatchedRows}, UnmatchedRows={UnmatchedRows}",
-    batchId,inputs.Count,matched.Count,unmatched.Values.Sum());
+    batchId,inputs.Count,matchedCount,unmatched.Values.Sum());
   }
   catch(Exception ex)
   {
@@ -175,7 +184,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
  }
 
  private sealed record SymbolInputRow(long Id,DateTime WorkDate,int? ShiftId,string? ShiftAbbr,DateTime? CheckInTime,DateTime? CheckOutTime,string? DayType);
- private sealed record SymbolOutput(long Id,string? WorkSymbol,string? OtSymbol,string RuleCode);
+ private sealed record SymbolOutput(long Id,string? WorkSymbol,string? OtSymbol,string? RuleCode);
 
  public async Task<ServiceResult> EnsureEmployeeRangeAsync(
   string employeeCode,int? deptCode,DateOnly from,DateOnly to,CancellationToken ct=default)
