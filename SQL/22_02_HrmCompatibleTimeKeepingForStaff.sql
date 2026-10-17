@@ -682,7 +682,8 @@ BEGIN
 						SELECT TOP (1) @ShiftID2=c.CMa
 						FROM #HrmShiftCandidates c
 						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+						CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
 						WHERE EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
 						              WHERE x.DDChinhVao=1
 						                AND x.ThoiGian BETWEEN DATEADD(minute,-ISNULL(c.CQuetTruocCa,0),s.ShiftStart)
@@ -696,7 +697,8 @@ BEGIN
 						SELECT TOP (1) @ShiftID1=c.CMa
 						FROM #HrmShiftCandidates c
 						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+						CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
 						WHERE EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
 						              WHERE x.DDChinhVao=1
 						                AND x.ThoiGian BETWEEN DATEADD(minute,-ISNULL(c.CQuetTruocCa,0),s.ShiftStart)
@@ -714,7 +716,8 @@ BEGIN
 							SELECT TOP (1) @ShiftID2=CMa
 							FROM #HrmShiftCandidates
 							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
+							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+							CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
 							WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
 							                  AND DATEADD(minute,60,s.ShiftStart)
 							  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
@@ -874,6 +877,10 @@ BEGIN
 		set @TGBDNghi3=@TGBDCa + @TGBDNghi3
 		set @TGKTNghi3=@TGBDCa + @TGKTNghi3
 		set @TGKTCa=@TGBDCa + @TGKTCa
+		-- HRM stores overnight shift end as a time on 1900-01-01 (e.g. C3 08:00).
+		-- If that clock time is not later than the shift start, the end belongs to the next day.
+		IF @TGKTCa <= @TGBDCa
+			SET @TGKTCa = DATEADD(day, 1, @TGKTCa)
 				
 		set @TGLayDLDau= DateAdd(minute, -@QuetTruocCa, @TGBDCa)     -- Nguong nay de xac dinh lay gio vao hay gio ra
 		set @TGLayDLCuoi=DateAdd(minute, @QuetSauCa, @TGKTCa)			-- Nguong nay de xac dinh lay gio vao hay gio ra 
