@@ -15,6 +15,8 @@ public sealed class WorkCalendarEventDto
     public string? SubTypeCode { get; set; }
     public bool IsHalfDay { get; set; }
     public decimal DayValue { get; set; } = 1m;
+    public decimal? OTHours { get; set; }
+    public string? OTTypeCode { get; set; }
     public Guid? ActionId { get; set; }
     public string? DetailRoute { get; set; }
 
