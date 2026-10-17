@@ -203,6 +203,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
    SELECT r.FromDate,r.ToDate,r.DeptCode,r.EmployeeCode,r.Status
    FROM dbo.F03HrmAttendanceCalculationRun AS r
    WHERE r.Status=N'Succeeded'
+     AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
      AND r.FromDate<={effectiveTo}
      AND r.ToDate>={from}
      AND (
