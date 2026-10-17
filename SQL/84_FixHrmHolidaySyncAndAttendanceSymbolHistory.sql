@@ -56,7 +56,7 @@ GO
 /* B. Replace the faulty MERGE-by-NNLMa with a date-safe, idempotent sync.
       The target schema permits one row per HolidayDate. If HRM has more than
       one active row on the same date, choose one deterministic classification
-      (national > company > compensatory > other) and a stable NNLMa. */
+      (national holiday > Sunday > company holiday > legacy other) and a stable NNLMa. */
 CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmHolidays
     @DeleteMissing bit = 1,
     /* 0 (mặc định) = không trả result set. Bắt buộc khi gọi từ usp_CalculateHrmAttendance: EF Core chỉ đọc
