@@ -91,7 +91,6 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
             FROM dbo.F03HrmAttendanceCalculated AS a
             CROSS APPLY dbo.fn_ResolveDayType(a.WorkDate, a.HrmBCNgayLe, a.HrmBCNgayLeNV) AS ds
             WHERE a.WorkDate >= DATEADD(MONTH, -12, CONVERT(date, GETDATE()))
-              AND a.CheckInTime IS NOT NULL AND a.CheckOutTime IS NOT NULL
             UNION ALL
             SELECT N'HISTORY' AS Store, h.HistoryId AS RowId, h.WorkDate, h.ShiftId, h.ShiftAbbr,
                    h.CheckInTime, h.CheckOutTime, COALESCE(h.DayType, ds.DayType) AS DayType
