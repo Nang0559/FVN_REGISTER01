@@ -115,7 +115,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     var baseTime = GetBaseTime(currentStep, stepsOfRequest, historiesOfRequest, regDate);
 
                     if (await ProcessStepAsync(
-                        requestId, currentStep, baseTime, deptCode ?? ApproveForDept.All, ct))
+                        requestId, currentStep, baseTime, deptCode ?? ApproveForDept.All,
+                        stepsOfRequest.Any(x => x.IsRequired && x.Level > currentStep.Level), ct))
                         anyChanged = true;
                 }
 
@@ -141,6 +142,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             F03ApprovalStepSnapshot step,
             DateTime baseTime,
             int deptCode,
+            bool hasNextRequiredLevel,
             CancellationToken ct)
         {
             var now = DateTime.Now;
@@ -157,7 +159,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     $"Quá deadline {rule.DeadlineHour}h", DecisionType.Rejected, ct);
             }
 
-            if (elapsedHours >= (double)rule.EscalateHours)
+            // Bước cuối không còn cấp sau để nhận chuyển cấp; giữ Pending cho người duyệt hiện tại.
+            if (elapsedHours >= (double)rule.EscalateHours && hasNextRequiredLevel)
             {
                 return await RecordSystemActionAsync(
                     requestId, step, "Escalated",

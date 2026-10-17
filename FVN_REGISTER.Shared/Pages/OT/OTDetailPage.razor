@@ -74,6 +74,20 @@ else
                 </MudCardContent>
             </MudCard>
 
+            @if (MyApprovalStep is { } myStep)
+            {
+                <MudCard Elevation="2" Class="mb-4">
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("approval.levelN", myStep.Level) — @myStep.RoleName</MudText>
+                        <MudTextField @bind-Value="_approvalComment" Label="Ghi chú / lý do từ chối" Lines="2" Variant="Variant.Outlined" Class="mb-3" />
+                        <MudStack Row="true" Spacing="2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Disabled="_isDeciding" OnClick="() => Decide(myStep.Level, false)">Phê duyệt</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" Disabled="_isDeciding" OnClick="() => Decide(myStep.Level, true)">Từ chối</MudButton>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            }
+
             @if (_detail.RequesterCode == CurrentUser.User?.EmployeeCode && !_detail.IsFinished)
             {
                 <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="CancelOT" Disabled="_isCancelling">@(_isCancelling ? Language.T("ot.dangHuy") : Language.T("ot.huyDonOt"))</MudButton>
@@ -101,6 +115,84 @@ else
         }
         catch (Exception ex) { Logger.LogError(ex, "[OT_DETAIL] Load error Id={Id}", Id); Snackbar.Add(Language.T("common.loiHeThong"), Severity.Error); }
         finally { _isLoading = false; }
+    }
+
+    private bool _isDeciding;
+    private string? _approvalComment;
+
+    // Bước được giao cho chính người đăng nhập; Escalated vẫn có thể xử lý.
+    // Chỉ xét các cấp bắt buộc có trong luồng, không giả định phải có cấp 1, 2, 3 liên tiếp.
+    private FVN_REGISTER.Contract.Dtos.Approvals.ApprovalStepDto? MyApprovalStep
+    {
+        get
+        {
+            if (_detail == null || _detail.IsFinished) return null;
+
+            var employeeCode = CurrentUser.User?.EmployeeCode;
+            if (string.IsNullOrWhiteSpace(employeeCode)) return null;
+
+            var steps = _detail.ApprovalSteps.OrderBy(x => x.Level).ToList();
+            return steps.FirstOrDefault(step =>
+                step.IsRequired
+                && (step.Decision == DecisionType.Pending || step.Decision == DecisionType.Escalated)
+                && string.Equals(step.ApproverCode, employeeCode, StringComparison.OrdinalIgnoreCase)
+                && steps
+                    .Where(previous => previous.IsRequired && previous.Level < step.Level)
+                    .All(previous => previous.Decision == DecisionType.Approved
+                        || previous.Decision == DecisionType.Escalated));
+        }
+    }
+
+    private async Task Decide(int level, bool reject)
+    {
+        if (_isDeciding) return;
+
+        if (reject && string.IsNullOrWhiteSpace(_approvalComment))
+        {
+            Snackbar.Add("Vui lòng nhập lý do từ chối.", Severity.Warning);
+            return;
+        }
+
+        _isDeciding = true;
+        try
+        {
+            var request = new FVN_REGISTER.Contract.Dtos.Approvals.ApprovalActionDto
+            {
+                RequestIds = new List<int> { Id },
+                Level = level,
+                IsReject = reject,
+                Comment = _approvalComment
+            };
+
+            var result = reject
+                ? await OTService.RejectAsync(request, _cts.Token)
+                : await OTService.ApproveAsync(request, _cts.Token);
+
+            Snackbar.Add(
+                result.IsSuccess
+                    ? (reject ? "Đã từ chối đơn OT." : "Đã phê duyệt đơn OT.")
+                    : result.Message ?? "Không xử lý được đơn.",
+                result.IsSuccess ? Severity.Success : Severity.Error);
+
+            if (result.IsSuccess)
+            {
+                _approvalComment = null;
+                await LoadDetail();
+            }
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            // Trang đã đóng hoặc yêu cầu bị hủy.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[OT_DETAIL] Decision error Id={Id} Level={Level}", Id, level);
+            Snackbar.Add(Language.T("common.loiHeThong"), Severity.Error);
+        }
+        finally
+        {
+            _isDeciding = false;
+        }
     }
 
     private async Task CancelOT()

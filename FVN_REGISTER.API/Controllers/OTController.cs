@@ -286,7 +286,9 @@ namespace FVN_REGISTER.API.Controllers
                 {
                     Item = x,
                     Level = x.ApprovalSteps
-                        .Where(s => s.IsRequired && s.Decision == DecisionType.Pending)
+                        .Where(s => s.IsRequired
+                            && (s.Decision == DecisionType.Pending || s.Decision == DecisionType.Escalated)
+                            && string.Equals(s.ApproverCode, UserInfo.EmployeeCode, StringComparison.OrdinalIgnoreCase))
                         .OrderBy(s => s.Level)
                         .Select(s => s.Level)
                         .FirstOrDefault()

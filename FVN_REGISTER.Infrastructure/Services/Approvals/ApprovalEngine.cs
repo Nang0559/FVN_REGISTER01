@@ -97,7 +97,7 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
                 .AnyAsync(h =>
                     h.RequestId == requestId &&
                     h.RequestType == Module &&
-                    h.StepId == step.Id, ct);
+                    h.StepId == step.Id && h.Decision != DecisionType.Escalated, ct);
             if (already)
             {
                 builder.AddError(requestId, "Đơn đã được xử lý trước đó.");
@@ -243,10 +243,10 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
                 {
                     var calc = calculated.FirstOrDefault(c => c.Level == s.Level);
                     return calc != null
-                        && calc.Decision == DecisionType.Pending
+                        && ApprovalStepMapper.IsOpen(calc.Decision)
                         && calculated
                             .Where(c => c.Level < s.Level && c.IsRequired)
-                            .All(c => c.Decision == DecisionType.Approved);
+                            .All(c => ApprovalStepMapper.IsDoneForNext(c.Decision));
                 });
             if (myStep == null) continue;
 
@@ -305,10 +305,12 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
 
         var steps = ApprovalStepMapper.MapToList(snapshot.Steps, histories);
         return steps
+            // Thông báo cấp tiếp theo chỉ gửi tới bước Pending kế tiếp.
+            // Escalated vẫn mở cho người được giao ban đầu xử lý, nhưng không phải người nhận thông báo kế tiếp.
             .Where(s => s.IsRequired && s.Decision == DecisionType.Pending)
             .OrderBy(s => s.Level)
             .FirstOrDefault(s => steps
                 .Where(p => p.Level < s.Level && p.IsRequired)
-                .All(p => p.Decision == DecisionType.Approved));
+                .All(p => ApprovalStepMapper.IsDoneForNext(p.Decision)));
     }
 }
