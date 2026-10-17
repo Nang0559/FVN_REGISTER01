@@ -11,6 +11,10 @@ public sealed class CalendarRegistrationDto
     public DateTime End { get; init; }
     public bool IsHalfDay { get; init; }
     public decimal DayValue { get; init; }
+    /// <summary>Giờ OT của nhân viên trong đơn; dùng để đối chiếu với giờ thực tế HRM.</summary>
+    public decimal? OTHours { get; init; }
+    /// <summary>Mã loại OT chuẩn: WD, RESTDAY hoặc HOL.</summary>
+    public string? OTTypeCode { get; init; }
     public Guid? ActionId { get; init; }
     public string? DetailRoute { get; init; }
 
