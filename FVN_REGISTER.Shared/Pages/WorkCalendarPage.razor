@@ -9,6 +9,8 @@
 @using FVN_REGISTER.Shared.Services.Execution
 @using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Shared.Services.Calendar
+@using FVN_REGISTER.Shared.Services.HrmSync
+@using FVN_REGISTER.Contract.Dtos.HrmSync
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -19,6 +21,7 @@
 @inject ICurrentUserClientService CurrentUser
 @inject IOTClientService OTClient
 @inject IExecutionReconciliationClientService ExecutionService
+@inject IHrmAttendanceCalculationClientService AttendanceCalculation
 @inject ISnackbar Snackbar
 
 <PageTitle>@Language.T("calendar.title")</PageTitle>
@@ -43,6 +46,32 @@
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Home" OnClick="@GoHome">@Language.T("calendar.home")</MudButton>
         </MudStack>
     </MudPaper>
+
+
+    @if (_canViewCalendar && !string.IsNullOrWhiteSpace(_currentEmployeeCode))
+    {
+        <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Sync" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Style="font-weight:750">Buộc tính lại chấm công</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Tính lại dữ liệu của chính bạn trong khoảng ngày đã chọn. Tối đa 7 ngày/lần; mỗi tài khoản chỉ gửi yêu cầu mới sau 5 phút để tránh gây tải lớn cho SQL Server.</MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudDatePicker Label="Từ ngày" @bind-Date="_recalcFrom" Variant="Variant.Outlined" MaxDate="DateTime.Today" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudDatePicker Label="Đến ngày" @bind-Date="_recalcTo" Variant="Variant.Outlined" MaxDate="DateTime.Today" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4" Class="d-flex align-center">
+                        <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_forceRecalcRunning" OnClick="ForceRecalculateAsync">@(_forceRecalcRunning ? "Đang tính lại…" : "Buộc tính lại")</MudButton>
+                    </MudItem>
+                </MudGrid>
+                @if (_forceRecalcRunning) { <MudProgressLinear Indeterminate="true" /> }
+            </MudStack>
+        </MudPaper>
+    }
 
     @if (_alerts.Count > 0)
     {
@@ -91,6 +120,9 @@
     private string? _selectedEmployeeCode;
     private string? _currentEmployeeCode;
     private bool _canViewCalendar;
+    private DateTime? _recalcFrom = DateTime.Today.AddDays(-1);
+    private DateTime? _recalcTo = DateTime.Today;
+    private bool _forceRecalcRunning;
 
     private bool IsCurrentEmployee =>
         !string.IsNullOrWhiteSpace(_currentEmployeeCode)
@@ -151,6 +183,47 @@
     {
         _selectedEmployeeCode = string.IsNullOrWhiteSpace(employeeCode) ? _currentEmployeeCode : employeeCode.Trim();
         await LoadAlertsAsync();
+    }
+
+
+    private async Task ForceRecalculateAsync()
+    {
+        if (_forceRecalcRunning) return;
+        if (_recalcFrom is null || _recalcTo is null || _recalcFrom.Value.Date > _recalcTo.Value.Date)
+        {
+            Snackbar.Add("Khoảng ngày tính lại không hợp lệ.", Severity.Warning);
+            return;
+        }
+        if ((_recalcTo.Value.Date - _recalcFrom.Value.Date).TotalDays > 6)
+        {
+            Snackbar.Add("Mỗi lần chỉ được buộc tính lại tối đa 7 ngày.", Severity.Warning);
+            return;
+        }
+        _forceRecalcRunning = true;
+        try
+        {
+            var request = new HrmAttendanceCalculationRequestDto
+            {
+                FromDate = _recalcFrom.Value.Date,
+                ToDate = _recalcTo.Value.Date,
+                ReopenPayrollPeriod = false
+            };
+            var result = await AttendanceCalculation.ForceRecalculateSelfAsync(request);
+            Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã buộc tính lại chấm công." : "Buộc tính lại thất bại."), result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess)
+            {
+                if (_calendar is not null) await _calendar.RefreshAsync();
+                await LoadAlertsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Không thể buộc tính lại: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _forceRecalcRunning = false;
+        }
     }
 
     private async Task HandleDaySelected(CalendarDayDto day)
