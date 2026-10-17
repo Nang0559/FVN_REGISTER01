@@ -55,10 +55,22 @@ public sealed class RegistrationPolicyController : BaseApiController
         var decision = await _policy.GetDecisionAsync(UserInfo, dept, type, ct);
         var canCreate = await _authorization.HasPersonalAsync(UserInfo, type == "OT" ? SecurityFunctionCodes.OTCreate : SecurityFunctionCodes.TripCreate, ct);
         var isRegistrar = decision.CanRegisterForOthers;
+        var canSelfRegisterByPosition = false;
+        if (type == "OT" && !string.IsNullOrWhiteSpace(UserInfo.PositionCode))
+        {
+            canSelfRegisterByPosition = await _db.Database.SqlQuery<int>($"""
+                SELECT COUNT(1) AS [Value]
+                FROM dbo.F03OTSelfRegistrationPositions p
+                WHERE p.IsActive=1 AND p.RegisterType=N'OT'
+                  AND p.PositionCode={UserInfo.PositionCode.Trim()}
+                  AND p.DepartmentCode IN (0,{dept})
+                """).SingleAsync(ct) > 0;
+        }
 
         decision.CanRegisterForOthers = canCreate && isRegistrar;
-        decision.CanRegister = canCreate && (type == "TRIP" || isRegistrar);
-        decision.CanRegisterSelfOnly = canCreate && type == "TRIP" && !isRegistrar;
+        decision.CanRegisterSelfOnly = canCreate && !isRegistrar
+            && (type == "TRIP" || canSelfRegisterByPosition);
+        decision.CanRegister = canCreate && (type == "TRIP" || isRegistrar || canSelfRegisterByPosition);
         return Ok(ApiResponse<RegistrationPolicyDecisionDto>.Ok(decision));
     }
 
