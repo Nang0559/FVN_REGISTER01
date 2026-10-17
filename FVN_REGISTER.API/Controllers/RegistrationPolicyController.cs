@@ -85,7 +85,15 @@ public sealed class RegistrationPolicyController : BaseApiController
             .OrderBy(x => x.DepartmentCode)
             .ToListAsync(ct);
 
-        return Ok(ApiResponse<List<RegistrationPolicyDto>>.Ok(rules.Select(ToDto).ToList()));
+        var result = rules.Select(ToDto).ToList();
+        var selfPositions = await _db.Database.SqlQueryRaw<SelfPositionRow>(
+            "SELECT DepartmentCode, RegisterType, PositionCode FROM dbo.F03OTSelfRegistrationPositions WHERE IsActive=1 AND RegisterType=@type",
+            new Microsoft.Data.SqlClient.SqlParameter("@type", type)).ToListAsync(ct);
+        foreach (var item in result)
+            item.SelfRegistrationPositionCodes = selfPositions
+                .Where(x => x.DepartmentCode == item.DepartmentCode && string.Equals(x.RegisterType, item.RegisterType, StringComparison.OrdinalIgnoreCase))
+                .Select(x => x.PositionCode).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return Ok(ApiResponse<List<RegistrationPolicyDto>>.Ok(result));
     }
 
     /// <summary>
@@ -175,7 +183,35 @@ public sealed class RegistrationPolicyController : BaseApiController
             }).ToList();
 
         await _db.SaveChangesAsync(ct);
-        return Ok(ApiResponse<RegistrationPolicyDto>.Ok(ToDto(rule)));
+
+        if (type == "OT")
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM dbo.F03OTSelfRegistrationPositions WHERE DepartmentCode={dto.DepartmentCode} AND RegisterType={type}", ct);
+            foreach (var position in dto.SelfRegistrationPositionCodes
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"INSERT dbo.F03OTSelfRegistrationPositions(DepartmentCode,RegisterType,PositionCode,IsActive,CreatedAt,CreatedBy) VALUES ({dto.DepartmentCode},{type},{position},1,SYSUTCDATETIME(),{UserInfo.UserId})", ct);
+            }
+        }
+
+        var response = ToDto(rule);
+        if (type == "OT")
+            response.SelfRegistrationPositionCodes = dto.SelfRegistrationPositionCodes
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return Ok(ApiResponse<RegistrationPolicyDto>.Ok(response));
+    }
+
+
+    private sealed class SelfPositionRow
+    {
+        public int DepartmentCode { get; set; }
+        public string RegisterType { get; set; } = string.Empty;
+        public string PositionCode { get; set; } = string.Empty;
     }
 
     private async Task<F03OTRegistrationRule?> ResolveRuleAsync(int deptCode, string registerType, CancellationToken ct)
