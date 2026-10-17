@@ -17,6 +17,7 @@ public sealed class WorkCalendarEventDto
     public decimal DayValue { get; set; } = 1m;
     public decimal? OTHours { get; set; }
     public string? OTTypeCode { get; set; }
+    public decimal? OTRateMultiplier { get; set; }
     public Guid? ActionId { get; set; }
     public string? DetailRoute { get; set; }
 
