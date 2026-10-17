@@ -8,18 +8,10 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>@Language.T("ot.otTongQuan")</PageTitle>
-<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Class="mb-5">
-        <div>
-            <MudText Typo="Typo.overline" Color="Color.Primary">TỔNG QUAN WORKSPACE</MudText>
-            <MudText Typo="Typo.h4" Style="font-weight:850">OT — Tổng quan</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Thống kê OT thực tế theo ký hiệu công trên lịch, chưa có đơn OT được duyệt.</MudText>
-        </div>
-        <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/ot/history"))">Danh sách OT</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/ot/create"))">Đăng ký OT</MudButton>
-        </MudStack>
-    </MudStack>
+<ModuleOverview Title="@Language.T("ot.otTongQuan")" Description="@Language.T("ot.tongHopTrangThaiOt")" CreateUrl="/ot/create" HistoryUrl="/ot/history" ModulePrefix="/ot" />
+<MudContainer MaxWidth="MaxWidth.Large" Class="pb-6">
+    <MudText Typo="Typo.h5" Style="font-weight:800" Class="mb-1">OT thực tế chưa được duyệt</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Thống kê theo ký hiệu làm thêm (OT) trên lịch, bao gồm các ký hiệu như K0.75.</MudText>
 
     <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
         <MudGrid>
@@ -77,7 +69,6 @@
 </MudContainer>
 
 @code {
-    [Inject] private NavigationManager Navigation { get; set; } = default!;
     private DateTime? _from = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime? _to = DateTime.Today;
     private List<UnapprovedAttendanceOTDto> _rows = new();
