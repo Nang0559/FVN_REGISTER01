@@ -32,6 +32,16 @@ IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionId') IS NULL
     ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionId int NULL;
 GO
 
+IF EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun')
+      AND name=N'IX_F03HrmAttendanceCalculationRun_RunningSession'
+)
+    DROP INDEX IX_F03HrmAttendanceCalculationRun_RunningSession
+        ON dbo.F03HrmAttendanceCalculationRun;
+GO
+
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionLoginTime') IS NULL
     ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionLoginTime datetime2(3) NULL;
 ELSE
