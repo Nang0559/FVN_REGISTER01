@@ -144,6 +144,7 @@ builder.Services.AddScoped<ICalendarDayRule, OtNoActualRule>();
 builder.Services.AddScoped<ICalendarDayRule, LeaveAttendanceConflictRule>();
 builder.Services.AddScoped<ICalendarDayRule, TripAttendanceConflictRule>();
 builder.Services.AddScoped<ICalendarDayRule, OtActualWithoutRequestRule>();
+builder.Services.AddScoped<ICalendarDayRule, OtRegistrationMismatchRule>();
 builder.Services.AddScoped<ICalendarModuleRegistry, CalendarModuleRegistry>();
 builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "Overtime"));
 builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "LEAVE"));
