@@ -145,6 +145,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                         approvalResult.Message ?? "Không thể khởi tạo luồng duyệt cho đơn OT.");
                 }
 
+                // The OT create endpoint submits the request and initializes its approval snapshot
+                // in one transaction. Persist Pending just like Leave; otherwise the inbox engine
+                // sees a valid assigned step but hides the request because its status is still Draft.
+                entity.RequestStatus = ApprovalStatus.Pending;
+                entity.ModifiedAt = DateTime.Now;
+                await Uow.SaveChangesAsync(ct);
+
                 await tx.CommitAsync(ct);
                 Logger.LogInfoIf(Debug, "[{Component}] Created OTId={Id} By={User}", ComponentName, entity.Id, user.EmployeeCode);
                 return ServiceResult<int>.Ok(entity.Id, "Đã tạo đơn tăng ca thành công.");
