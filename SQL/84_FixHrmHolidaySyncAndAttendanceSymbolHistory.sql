@@ -174,7 +174,7 @@ BEGIN
             DayType = COALESCE(t.DayType, N'NATIONAL_HOLIDAY'),
             HolidayType = CONVERT(tinyint, CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
                 WHEN N'COMPANY_HOLIDAY' THEN 1
-                WHEN N'SUNDAY' THEN 3
+                WHEN N'SUNDAY' THEN 1
                 WHEN N'NATIONAL_HOLIDAY' THEN 2
                 ELSE 4 END),
             rn = ROW_NUMBER() OVER
