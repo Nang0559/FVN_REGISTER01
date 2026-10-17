@@ -13,6 +13,8 @@ using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities;
+using FVN_REGISTER.Core.Entities.Approvers;
+using FVN_REGISTER.Core.Entities.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -314,6 +316,12 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
 
             foreach (var entity in entities)
             {
+                // Người được gán ở bước đang chờ trong luồng duyệt của CHÍNH đơn này (snapshot) thì được duyệt,
+                // không áp thêm phạm vi dữ liệu theo người đăng ký/phòng ban (khớp ApprovalInboxService:
+                // đơn đã hiện trong hộp duyệt của họ thì phải duyệt được). Người khác vẫn phải qua kiểm tra phạm vi.
+                if (await IsAssignedActionableApproverAsync(entity.Id, user, ct))
+                    continue;
+
                 if (!await _authorization.CanAccessAsync(
                     user,
                     SecurityFunctionCodes.OTApprove,
@@ -326,6 +334,47 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             }
 
             return null;
+        }
+
+        private async Task<bool> IsAssignedActionableApproverAsync(
+            int requestId,
+            UserIdentityDto user,
+            CancellationToken ct)
+        {
+            var code = user.EmployeeCode?.Trim();
+            if (string.IsNullOrWhiteSpace(code))
+                return false;
+
+            var snapshot = await Uow.Repository<F03ApprovalSnapshot>()
+                .Query()
+                .AsNoTracking()
+                .Include(x => x.Steps)
+                .FirstOrDefaultAsync(
+                    x => x.RequestId == requestId && x.RequestType == ModuleKind,
+                    ct);
+
+            if (snapshot == null)
+                return false;
+
+            var histories = await Uow.Repository<F03ApprovalHistory>()
+                .Query()
+                .AsNoTracking()
+                .Where(h => h.RequestId == requestId && h.RequestType == ModuleKind)
+                .ToListAsync(ct);
+
+            var steps = FVN_REGISTER.Application.Maps.ApprovalStepMapper
+                .MapToList(snapshot.Steps, histories);
+
+            return steps.Any(s => s.IsRequired
+                && FVN_REGISTER.Application.Maps.ApprovalStepMapper.IsOpen(s.Decision)
+                && string.Equals(
+                    s.ApproverCode?.Trim(),
+                    code,
+                    StringComparison.OrdinalIgnoreCase)
+                && steps
+                    .Where(p => p.IsRequired && p.Level < s.Level)
+                    .All(p => FVN_REGISTER.Application.Maps.ApprovalStepMapper
+                        .IsDoneForNext(p.Decision)));
         }
 
         protected override void ApplyCancel(F03OTRequest entity, string reason, UserIdentityDto user)
