@@ -16,8 +16,9 @@ SET NOCOUNT ON;
 
 DECLARE @ObjectId int = OBJECT_ID(N'dbo.usp_HrmCompatibleTimeKeepingForStaff', N'P');
 DECLARE @Definition nvarchar(max);
-DECLARE @Marker nvarchar(max);
+DECLARE @Marker nvarchar(200);
 DECLARE @Patch nvarchar(max);
+DECLARE @MarkerPos int;
 
 IF @ObjectId IS NULL
     THROW 50001, 'dbo.usp_HrmCompatibleTimeKeepingForStaff does not exist. Deploy SQL/22_02_HrmCompatibleTimeKeepingForStaff.sql first.', 1;
@@ -27,7 +28,13 @@ SET @Definition = OBJECT_DEFINITION(@ObjectId);
 IF @Definition IS NULL
     THROW 50002, 'Cannot read the definition of dbo.usp_HrmCompatibleTimeKeepingForStaff.', 1;
 
-SET @Marker = N'\t\t-- Neu chua co ca, chi ket thuc phan tinh Work/OT; IN/OUT raw van duoc\n\t\t-- ghi ra #tblBaoCao de co the kiem tra truc tiep RecordDataNew.';
+/*
+  Do not depend on tabs or CR/LF style here. OBJECT_DEFINITION can preserve
+  the procedure's original indentation/line endings, so only the unique
+  comment text is used as the insertion anchor.
+*/
+SET @Marker = N'-- Neu chua co ca, chi ket thuc phan tinh Work/OT; IN/OUT raw van duoc';
+SET @MarkerPos = CHARINDEX(@Marker, @Definition);
 
 SET @Patch = N'
 		/*
@@ -100,10 +107,10 @@ BEGIN
     RETURN;
 END;
 
-IF CHARINDEX(@Marker, @Definition) = 0
+IF @MarkerPos = 0
     THROW 50003, 'Patch marker was not found in dbo.usp_HrmCompatibleTimeKeepingForStaff. The procedure version is not compatible with this migration.', 1;
 
-SET @Definition = REPLACE(@Definition, @Marker, @Patch + @Marker);
+SET @Definition = STUFF(@Definition, @MarkerPos, 0, @Patch);
 
 EXEC sys.sp_executesql @Definition;
 
