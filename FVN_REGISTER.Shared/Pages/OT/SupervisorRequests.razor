@@ -100,7 +100,7 @@
     private bool _loading = true;
     private bool _busy;
     private string? _note;
-    private string _otTypeCode = "WEEKDAY";
+    private string _otTypeCode = "WD";
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,7 +109,7 @@
         if (types.IsSuccess && types.Data != null)
         {
             _otTypes = types.Data;
-            _otTypeCode = _otTypes.FirstOrDefault(x => x.OTTypeCode == "WEEKDAY")?.OTTypeCode ?? _otTypes.FirstOrDefault()?.OTTypeCode ?? _otTypeCode;
+            _otTypeCode = _otTypes.FirstOrDefault(x => x.OTTypeCode == "WD")?.OTTypeCode ?? _otTypeCode;
         }
         var route = await ApprovalRouteService.GetPreviewAsync(RequestModule.Overtime, _cts.Token);
         if (route.IsSuccess) _approvalRoute = route.Data;
@@ -132,7 +132,17 @@
     private static string OtText(SupervisorFeedbackDto x) =>
         x.ActualOtMinutes > 0 ? $"{x.ActualOtMinutes / 60m:0.##} giờ ({x.ActualOtMinutes} phút)" : "-";
 
-    private void Select(SupervisorFeedbackDto item, string mode) { _selected = item; _mode = mode; _note = null; }
+    private void Select(SupervisorFeedbackDto item, string mode)
+    {
+        _selected = item;
+        _mode = mode;
+        _note = null;
+
+        // F03OTTypes uses WD (not WEEKDAY). Do not fall back to the first active
+        // type (usually HOL), which could register weekday OT as holiday OT.
+        if (mode == "register" && _otTypes.Any(x => x.OTTypeCode == "WD" && x.IsActive))
+            _otTypeCode = "WD";
+    }
     private void Cancel() => _selected = null;
 
     private async Task ConfirmAsync()
