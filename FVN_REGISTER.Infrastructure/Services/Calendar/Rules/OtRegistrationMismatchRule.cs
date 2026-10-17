@@ -86,7 +86,7 @@ public sealed class OtRegistrationMismatchRule : ICalendarDayRule
                 Marker = "?",
                 Title = "OT đăng ký không khớp thực tế",
                 Summary = string.Join("; ", differences) + ". Cần đối soát trước khi ghi nhận công/OT.",
-                SourceId = registration.RequestId?.ToString() ?? registration.SourceIdFallback(),
+                SourceId = registration.RequestId?.ToString() ?? $"{registration.ModuleCode}:{registration.Start:yyyyMMdd}",
                 ActionId = source?.ActionId,
                 DetailRoute = source?.DetailRoute ?? registration.DetailRoute,
                 RequestId = registration.RequestId,
