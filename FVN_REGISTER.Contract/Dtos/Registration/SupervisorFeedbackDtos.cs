@@ -20,6 +20,8 @@ public sealed class SupervisorFeedbackDto
     public string? ResponseNote { get; set; }
     /// <summary>OT thực tế (phút) của ngày đó theo chấm công, để người xử lý đăng ký đúng số giờ.</summary>
     public int ActualOtMinutes { get; set; }
+    /// <summary>Loại OT đề xuất theo ngày nghỉ HRM: WD, RESTDAY hoặc HOL.</summary>
+    public string SuggestedOTTypeCode { get; set; } = "WD";
     public int? OTRequestId { get; set; }
 }
 
