@@ -250,6 +250,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
                     StartTime = start,
                     EndTime = end,
                     OTTypeCode = otType,
+                    OTRateMultiplier = otType switch { "HOL" => 3.0m, "RESTDAY" => 2.0m, _ => 1.5m },
                     OTReasonDetail = reason
                 }
             },
