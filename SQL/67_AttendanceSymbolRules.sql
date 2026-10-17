@@ -130,25 +130,33 @@ SELECT Code,Name,DayType,ShiftCode,Priority,MinActual,InFrom,CheckInToSeed,JsonV
 FROM @R AS r
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03AttendanceSymbolRules AS x WHERE x.RuleCode=r.Code);
 
-/* Keep the CHECK constraint aligned with the canonical DayType values seeded below.
-   Older deployments only allowed legacy values, so the normalization UPDATE failed with Msg 547. */
+/* Keep the CHECK constraint aligned with canonical DayType values and preserve
+   any legacy values already present in this database during the migration. */
 IF OBJECT_ID(N'dbo.CK_F03AttendanceSymbolRules_DayType', N'C') IS NOT NULL
     ALTER TABLE dbo.F03AttendanceSymbolRules DROP CONSTRAINT CK_F03AttendanceSymbolRules_DayType;
-ALTER TABLE dbo.F03AttendanceSymbolRules WITH CHECK
-ADD CONSTRAINT CK_F03AttendanceSymbolRules_DayType
-CHECK (DayType IN
+
+DECLARE @AllowedDayTypes nvarchar(max);
+SELECT @AllowedDayTypes = STRING_AGG(
+    CONVERT(nvarchar(max), N'N' + QUOTENAME(v.DayType, N'''')), N',')
+FROM
 (
-    N'NORMAL',
-    N'COMPANY_HOLIDAY',
-    N'SUNDAY',
-    N'NATIONAL_HOLIDAY',
-    N'OTHER',
-    N'COMPANY',
-    N'HOLIDAY',
-    N'WEEKDAY',
-    N'RESTDAY',
-    N'PUBLIC_HOLIDAY'
-));
+    SELECT DISTINCT DayType
+    FROM dbo.F03AttendanceSymbolRules
+    WHERE DayType IS NOT NULL
+    UNION
+    SELECT DayType
+    FROM (VALUES
+        (N'NORMAL'), (N'COMPANY_HOLIDAY'), (N'SUNDAY'),
+        (N'NATIONAL_HOLIDAY'), (N'OTHER'), (N'COMPANY'),
+        (N'HOLIDAY'), (N'WEEKDAY'), (N'RESTDAY'), (N'PUBLIC_HOLIDAY')
+    ) AS canonical(DayType)
+) AS v;
+
+DECLARE @ConstraintSql nvarchar(max) =
+    N'ALTER TABLE dbo.F03AttendanceSymbolRules WITH CHECK ADD CONSTRAINT ' +
+    QUOTENAME(N'CK_F03AttendanceSymbolRules_DayType') +
+    N' CHECK (DayType IN (' + @AllowedDayTypes + N'));';
+EXEC sys.sp_executesql @ConstraintSql;
 
 /* Canonical HRM day mapping: 001=company rest day, 002=Sunday, 003=public holiday. */
 UPDATE dbo.F03AttendanceSymbolRules
