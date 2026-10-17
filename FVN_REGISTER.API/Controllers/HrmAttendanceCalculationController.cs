@@ -78,6 +78,18 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
   try
   {
    var now = DateTime.UtcNow;
+   // Database-backed cooldown also applies across multiple API instances.
+   var recentRuns = await _db.Database.SqlQuery<int>($"""
+       SELECT COUNT(1) AS [Value]
+       FROM dbo.F03HrmAttendanceCalculationRun
+       WHERE EmployeeCode={employeeCode}
+         AND TriggeredBy=N'CALENDAR-SELF-FORCE'
+         AND StartedAt >= DATEADD(MINUTE,-5,GETDATE())
+       """).SingleAsync(ct);
+   if (recentRuns > 0)
+    return StatusCode(StatusCodes.Status429TooManyRequests,
+     ApiResponse<object>.Fail("Yêu cầu buộc tính lại đã được gửi trong 5 phút gần đây. Vui lòng chờ trước khi gửi tiếp."));
+
    if (SelfRecalculationCooldown.TryGetValue(employeeCode, out var lastRequested)
        && now - lastRequested < SelfRecalculationCooldownPeriod)
    {
