@@ -150,14 +150,16 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                a.WorkSymbol = j.ws,
                                a.OtSymbol = j.os,
                                a.SymbolRuleCode = j.rc,
-                               a.OtDisplayValue = COALESCE(j.os, a.OtDisplayValue),
+                               a.OtDisplayValue = j.os,
                                a.AttendanceDisplayValue =
                                    CASE WHEN j.ws IS NOT NULL
                                              AND ISNULL(a.LeaveTotal, 0) = 0
                                              AND (j.dt <> N'NORMAL'
                                                   OR ISNULL(a.AttendanceDisplayValue, N'') = N''
                                                   OR a.AttendanceDisplayValue = a.ShiftAbbr)
-                                        THEN j.ws ELSE a.AttendanceDisplayValue END
+                                        THEN j.ws
+                                        WHEN j.ws IS NULL AND a.AttendanceDisplayValue = a.WorkSymbol THEN a.ShiftAbbr
+                                        ELSE a.AttendanceDisplayValue END
                         FROM dbo.F03HrmAttendanceCalculated AS a WITH (ROWLOCK)
                         INNER JOIN OPENJSON({json})
                             WITH (id bigint '$.id', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
@@ -173,14 +175,16 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
                                h.WorkSymbol = j.ws,
                                h.OtSymbol = j.os,
                                h.SymbolRuleCode = j.rc,
-                               h.OtDisplayValue = COALESCE(j.os, h.OtDisplayValue),
+                               h.OtDisplayValue = j.os,
                                h.AttendanceDisplayValue =
                                    CASE WHEN j.ws IS NOT NULL
                                              AND ISNULL(h.LeaveTotal, 0) = 0
                                              AND (j.dt <> N'NORMAL'
                                                   OR ISNULL(h.AttendanceDisplayValue, N'') = N''
                                                   OR h.AttendanceDisplayValue = h.ShiftAbbr)
-                                        THEN j.ws ELSE h.AttendanceDisplayValue END
+                                        THEN j.ws
+                                        WHEN j.ws IS NULL AND h.AttendanceDisplayValue = h.WorkSymbol THEN h.ShiftAbbr
+                                        ELSE h.AttendanceDisplayValue END
                         FROM dbo.F03HrmAttendanceHistory AS h WITH (ROWLOCK)
                         INNER JOIN OPENJSON({json})
                             WITH (id bigint '$.id', wd date '$.wd', dt nvarchar(40) '$.dt', ws nvarchar(50) '$.ws',
