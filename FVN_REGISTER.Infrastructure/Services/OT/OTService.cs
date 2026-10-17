@@ -147,9 +147,20 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 Logger.LogInfoIf(Debug, "[{Component}] Created OTId={Id} By={User}", ComponentName, entity.Id, user.EmployeeCode);
                 return ServiceResult<int>.Ok(entity.Id, "Đã tạo đơn tăng ca thành công.");
             }
+            catch (DbUpdateException ex) when (IsRegistrarPolicyViolation(ex))
+{
+    Logger.LogWarning("[{Component}] OT registrar policy rejected by DB. User={User} Dept={Dept}", ComponentName, user.EmployeeCode, model.DeptCode);
+    return ServiceResult<int>.Fail("Bạn không có quyền đăng ký OT cho nhân viên khác theo policy của phòng ban. Hãy báo cấp quản lý hoặc người được chỉ định.");
+}
             catch (Exception ex) { return InternalError<int>(ex, "Lỗi hệ thống khi tạo đơn tăng ca."); }
         }
-
+ private static bool IsRegistrarPolicyViolation(DbUpdateException ex)
+ {
+     for (Exception? e = ex; e != null; e = e.InnerException)
+         if (e is Microsoft.Data.SqlClient.SqlException sql && (sql.Number == 51531 || sql.Number == 51532))
+             return true;
+     return false;
+ }
         public async Task<ServiceResult> JoinAsync(int otRequestId, UserIdentityDto user, CancellationToken ct = default)
         {
             try
