@@ -113,7 +113,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                 {
                     PlannedHours = group.Sum(x => x.OTHours),
                     TypeCodes = string.Join(",", group.Select(x => x.OTTypeCode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase)),
-                    RateMultipliers = string.Join(",", group.Select(x => x.OTRateMultiplier).Distinct().OrderBy(x => x))
+                    RateMultipliers = group.Select(x => x.OTRateMultiplier).Distinct().OrderBy(x => x).ToArray()
                 },
                 StringComparer.OrdinalIgnoreCase);
         var approvedOtDates = approvedOtByDate.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -312,13 +312,24 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                         _ => null
                     };
                     var registeredTypeMismatch = expectedOtType is not null
-                        && !string.IsNullOrWhiteSpace(otPlan.TypeCodes)
-                        && otPlan.TypeCodes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                            .Select(NormalizeOtType)
-                            .Any(code => !string.Equals(code, expectedOtType, StringComparison.OrdinalIgnoreCase));
+                        && (string.IsNullOrWhiteSpace(otPlan.TypeCodes)
+                            || otPlan.TypeCodes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                .Select(NormalizeOtType)
+                                .Any(code => !string.Equals(code, expectedOtType, StringComparison.OrdinalIgnoreCase)));
+                    decimal? expectedRate = expectedOtType switch
+                    {
+                        "HOL" => 3.0m,
+                        "RESTDAY" => 2.0m,
+                        "WD" => 1.5m,
+                        _ => null
+                    };
+                    var registeredRateMismatch = expectedRate.HasValue
+                        && otPlan.RateMultipliers.Any(rate => Math.Abs(rate - expectedRate.Value) > 0.001m);
                     var otHasMismatch = plannedOtMinutes > 0
                         && (hasActualOt
-                            ? Math.Abs(comparedActualOtMinutes - plannedOtMinutes) > 1 || registeredTypeMismatch
+                            ? Math.Abs(comparedActualOtMinutes - plannedOtMinutes) > 1
+                                || registeredTypeMismatch
+                                || registeredRateMismatch
                             : workDate < today);
                     var otMismatchDetails = JsonSerializer.Serialize(new
                     {
@@ -332,6 +343,8 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                         OTTypeCodes = otPlan.TypeCodes,
                         ExpectedOTTypeCode = expectedOtType,
                         RegisteredTypeMismatch = registeredTypeMismatch,
+                        ExpectedRateMultiplier = expectedRate,
+                        RegisteredRateMismatch = registeredRateMismatch,
                         RateMultipliers = otPlan.RateMultipliers,
                         HasActualOt = hasActualOt,
                         HasApprovedOt = true
