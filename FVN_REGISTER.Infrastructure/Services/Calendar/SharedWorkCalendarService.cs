@@ -245,6 +245,8 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                         End = x.End,
                         IsHalfDay = x.IsHalfDay,
                         DayValue = x.DayValue <= 0 ? 1m : x.DayValue,
+                        OTHours = x.OTHours,
+                        OTTypeCode = x.OTTypeCode,
                         ActionId = projection?.ActionId ?? x.ActionId,
                         DetailRoute = projection?.DetailRoute ?? x.DetailRoute,
                         ApprovalLevel = x.ApprovalLevel,
