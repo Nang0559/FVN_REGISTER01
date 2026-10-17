@@ -3,9 +3,11 @@
 @using Microsoft.AspNetCore.Authorization
 @using FVN_REGISTER.Contract.Dtos.OT
 @using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Components.Calendar
 @inherits AppComponentBase
 @inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>@Language.T("ot.otTongQuan")</PageTitle>
 <ModuleOverview Title="@Language.T("ot.otTongQuan")" Description="@Language.T("ot.tongHopTrangThaiOt")" CreateUrl="/ot/create" HistoryUrl="/ot/history" ModulePrefix="/ot" />
@@ -52,7 +54,7 @@
             {
                 <MudTable Items="_rows" Dense="true" Hover="true" Bordered="true" Breakpoint="Breakpoint.Sm">
                     <HeaderContent>
-                        <MudTh>Ngày</MudTh><MudTh>Ca</MudTh><MudTh>Ký hiệu OT</MudTh><MudTh>Vào</MudTh><MudTh>Ra</MudTh><MudTh Class="text-right">Giờ OT</MudTh>
+                        <MudTh>Ngày</MudTh><MudTh>Ca</MudTh><MudTh>Ký hiệu OT</MudTh><MudTh>Vào</MudTh><MudTh>Ra</MudTh><MudTh Class="text-right">Giờ OT</MudTh><MudTh>Thao tác</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
@@ -61,6 +63,7 @@
                         <MudTd DataLabel="Vào">@context.CheckInTime?.ToString("HH:mm")</MudTd>
                         <MudTd DataLabel="Ra">@context.CheckOutTime?.ToString("HH:mm")</MudTd>
                         <MudTd DataLabel="Giờ OT" Class="text-right">@context.OTHours.ToString("0.##")</MudTd>
+                        <MudTd DataLabel="Thao tác"><MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Chat" OnClick="@(() => OpenSupervisorFeedbackAsync(context))">Phản hồi cấp trên</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
             }
@@ -75,6 +78,24 @@
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task OpenSupervisorFeedbackAsync(UnapprovedAttendanceOTDto row)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarSupervisorFeedbackDialog.Date)] = DateOnly.FromDateTime(row.WorkDate),
+            [nameof(CalendarSupervisorFeedbackDialog.CheckIn)] = row.CheckInTime,
+            [nameof(CalendarSupervisorFeedbackDialog.CheckOut)] = row.CheckOutTime
+        };
+
+        var dialog = await DialogService.ShowAsync<CalendarSupervisorFeedbackDialog>(
+            $"Phản hồi cấp trên · {row.WorkDate:dd/MM/yyyy}",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
