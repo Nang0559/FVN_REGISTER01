@@ -170,7 +170,7 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
     }
     catch (Exception ex)
     {
-     Logger.LogWarning(ex, "Unable to release self-force attendance applock for {EmployeeCode}", employeeCode);
+     _logger.LogWarning(ex, "Unable to release self-force attendance applock for {EmployeeCode}", employeeCode);
     }
    }
    if (distributedLockConnection is not null)
