@@ -2,9 +2,11 @@ using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAu
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Dtos.Positions;
 using FVN_REGISTER.Contract.Dtos.Registration;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Infrastructure;
@@ -84,6 +86,34 @@ public sealed class RegistrationPolicyController : BaseApiController
             .ToListAsync(ct);
 
         return Ok(ApiResponse<List<RegistrationPolicyDto>>.Ok(rules.Select(ToDto).ToList()));
+    }
+
+    /// <summary>
+    /// Danh sách chức vụ đang hoạt động để chọn "chức vụ được phép đăng ký OT/Trip" (multi-select ở Security Center).
+    /// </summary>
+    [HttpGet("positions")]
+    public async Task<IActionResult> Positions(CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTRegistrarManage, ct)) return Forbid();
+
+        var positions = await _db.Set<F03Position>()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .OrderBy(x => x.PositionCode)
+            .Select(x => new PositionDto
+            {
+                Id = x.Id,
+                PositionCode = x.PositionCode,
+                PositionName = x.PositionName,
+                IsApprove = x.IsApprove,
+                IsAllowApprove = x.IsAllowApprove,
+                IsActive = true,
+                EmployeeCount = _db.Set<F03Employee>().Count(e => e.PositionCode == x.PositionCode && e.IsActive == true)
+            })
+            .ToListAsync(ct);
+
+        return Ok(ApiResponse<List<PositionDto>>.Ok(positions));
     }
 
     [HttpPut]

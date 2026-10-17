@@ -1,6 +1,8 @@
 @page "/admin/security"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Positions
+@using FVN_REGISTER.Contract.Dtos.Registration
 @using FVN_REGISTER.Contract.Dtos.Authentication
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
 @using FVN_REGISTER.Shared.Services.Security
@@ -504,6 +506,73 @@
                         </RowTemplate>
                     </MudTable>
                 </MudPaper>
+
+                @if (IsOtRegistrarFunction)
+                {
+                    <MudPaper Class="pa-4 mt-4" Outlined="true" Style="border-radius:16px">
+                        <MudText Typo="Typo.h6">Chức vụ được phép đăng ký OT / Trip</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Chọn các chức vụ được đăng ký OT/Trip theo phòng ban (hoặc mặc định toàn công ty).
+                            Chức vụ không được chọn (ví dụ Staff, Worker) sẽ không tự đăng ký được, trừ khi được chỉ định ở phần trên.
+                            Phòng ban đã có cấu hình riêng sẽ dùng cấu hình riêng thay cho mặc định toàn công ty.
+                        </MudText>
+
+                        @if (_registrarScopeMode == "Block")
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true">
+                                Chức vụ chỉ cấu hình theo từng phòng ban hoặc mặc định toàn công ty.
+                                Hãy chọn phạm vi "Một phòng ban" hoặc "Toàn công ty" ở phía trên.
+                            </MudAlert>
+                        }
+                        else if (!RegistrarPositionScopeReady)
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true">Chọn phòng ban ở phía trên để cấu hình chức vụ cho phòng ban đó.</MudAlert>
+                        }
+                        else
+                        {
+                            <MudGrid>
+                                <MudItem xs="12" md="3">
+                                    <MudSelect T="string" Label="Áp dụng cho" Variant="Variant.Outlined"
+                                               Value="_posRegisterType" ValueChanged="RegistrarPositionTypeChanged"
+                                               Disabled="@(_posLoading || _posSaving)">
+                                        <MudSelectItem T="string" Value="@("OT")">Đăng ký OT</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("TRIP")">Đăng ký Trip</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="9">
+                                    <MudSelect T="string" MultiSelection="true" Variant="Variant.Outlined"
+                                               Label="Chức vụ được phép đăng ký"
+                                               SelectedValues="_posSelected" SelectedValuesChanged="RegistrarPositionsChanged"
+                                               Disabled="@(_posLoading || _posSaving)">
+                                        @foreach (var position in _posOptions)
+                                        {
+                                            <MudSelectItem T="string" Value="@position.PositionCode">
+                                                @position.PositionCode — @position.PositionName @(position.IsApprove ? " · approver" : string.Empty) (@position.EmployeeCount NV)
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                            </MudGrid>
+
+                            @if (RegistrarPositionNotice is { } notice)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@notice</MudAlert>
+                            }
+
+                            <MudStack Row="true" Class="mt-3">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           OnClick="SaveRegistrarPositionsAsync"
+                                           Disabled="@(_posLoading || _posSaving || _posSelected.Count == 0)">
+                                    Lưu chức vụ
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" OnClick="LoadRegistrarPositionsAsync"
+                                           Disabled="@(_posLoading || _posSaving)">
+                                    @Language.T("common.refresh")
+                                </MudButton>
+                            </MudStack>
+                        }
+                    </MudPaper>
+                }
             </MudTabPanel>
         }
 
@@ -929,6 +998,122 @@
         await LoadFeatureOperatorsAsync();
     }
 
+    // ---- OT.RegistrarManage: chức vụ được phép đăng ký OT/Trip (rule AssignedPositions của F03OTRegistrationRules).
+    // Phạm vi "Toàn công ty" = rule mặc định (DepartmentCode = 0); phạm vi phòng ban = rule riêng của phòng ban đó.
+    private List<PositionDto> _posOptions = new();
+    private HashSet<string> _posSelected = new(StringComparer.OrdinalIgnoreCase);
+    private string _posRegisterType = "OT";
+    private RegistrationPolicyDto? _posRule;
+    private RegistrationPolicyDto? _posFallback;
+    private bool _posLoading;
+    private bool _posSaving;
+
+    private bool RegistrarPositionScopeReady
+        => _registrarScopeMode == "All" || (_registrarScopeMode == "Department" && _operatorResourceId.HasValue);
+
+    private int RegistrarPositionDeptCode => _registrarScopeMode == "All" ? 0 : _operatorResourceId ?? 0;
+
+    private string? RegistrarPositionNotice
+    {
+        get
+        {
+            var dept = RegistrarPositionDeptCode;
+            var own = _posRule is { IsActive: true } ? _posRule : null;
+            var effective = own ?? (_posFallback is { IsActive: true } ? _posFallback : null);
+
+            if (effective == null)
+                return "Chưa có chính sách nào đang áp dụng: chỉ người được chỉ định ở phần trên mới đăng ký được. Lưu để tạo chính sách theo chức vụ.";
+            if (effective.Mode == FVN_REGISTER.Core.Enums.RegistrationRuleMode.Everyone)
+                return "Hiện đang cho phép MỌI NGƯỜI đăng ký. Lưu sẽ chuyển sang chế độ chỉ cho các chức vụ được chọn.";
+            if (effective.Mode == FVN_REGISTER.Core.Enums.RegistrationRuleMode.AssignedUsers)
+                return "Hiện đang chế độ chỉ định từng user. Lưu sẽ chuyển sang chế độ theo chức vụ (danh sách user cũ được giữ lại nhưng không còn tác dụng).";
+            if (dept != 0 && own == null)
+                return "Phòng ban này chưa có cấu hình riêng, đang dùng mặc định toàn công ty. Lưu sẽ tạo cấu hình riêng cho phòng ban.";
+            return null;
+        }
+    }
+
+    private async Task RegistrarPositionTypeChanged(string value)
+    {
+        _posRegisterType = value;
+        await LoadRegistrarPositionsAsync();
+    }
+
+    private Task RegistrarPositionsChanged(IEnumerable<string> values)
+    {
+        _posSelected = new HashSet<string>(values ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadRegistrarPositionsAsync()
+    {
+        if (!IsOtRegistrarFunction || !RegistrarPositionScopeReady)
+        {
+            _posRule = null;
+            _posFallback = null;
+            _posSelected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return;
+        }
+
+        _posLoading = true;
+        try
+        {
+            if (_posOptions.Count == 0)
+            {
+                var positions = await SecurityService.GetRegistrarPositionsAsync();
+                if (positions.IsSuccess) _posOptions = positions.Data ?? new();
+                else Snackbar.Add(positions.Message ?? "Không tải được danh sách chức vụ.", Severity.Warning);
+            }
+
+            var rules = await SecurityService.GetRegistrationPoliciesAsync(_posRegisterType);
+            if (!rules.IsSuccess)
+            {
+                Snackbar.Add(rules.Message ?? "Không tải được chính sách đăng ký.", Severity.Warning);
+                return;
+            }
+
+            var all = rules.Data ?? new();
+            var dept = RegistrarPositionDeptCode;
+            _posFallback = all.FirstOrDefault(x => x.DepartmentCode == 0);
+            _posRule = all.FirstOrDefault(x => x.DepartmentCode == dept);
+
+            var effective = _posRule is { IsActive: true } ? _posRule : _posFallback is { IsActive: true } ? _posFallback : null;
+            var codes = effective?.Mode == FVN_REGISTER.Core.Enums.RegistrationRuleMode.AssignedPositions
+                ? effective.PositionCodes
+                : new List<string>();
+            _posSelected = new HashSet<string>(codes, StringComparer.OrdinalIgnoreCase);
+        }
+        finally { _posLoading = false; }
+    }
+
+    private async Task SaveRegistrarPositionsAsync()
+    {
+        if (!RegistrarPositionScopeReady || _posSelected.Count == 0) return;
+        _posSaving = true;
+        try
+        {
+            var result = await SecurityService.SaveRegistrationPolicyAsync(new RegistrationPolicyUpsertDto
+            {
+                DepartmentCode = RegistrarPositionDeptCode,
+                RegisterType = _posRegisterType,
+                Mode = FVN_REGISTER.Core.Enums.RegistrationRuleMode.AssignedPositions,
+                IsActive = true,
+                UserIds = _posRule?.UserIds.ToList() ?? new List<int>(),
+                PositionCodes = _posSelected.ToList()
+            });
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu chức vụ được phép đăng ký.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Đã lưu chức vụ được phép đăng ký.", Severity.Success);
+            await LoadRegistrarPositionsAsync();
+        }
+        finally { _posSaving = false; }
+    }
+
     private string OperatorResourceDescription
         => _operatorFunctionCode switch
         {
@@ -1025,7 +1210,8 @@
                 _operatorResourceId);
             _operatorAssignments = assignments.IsSuccess ? assignments.Data ?? new() : new();
 
-
+            if (IsOtRegistrarFunction)
+                await LoadRegistrarPositionsAsync();
         }
         finally { _loadingOperators = false; }
     }

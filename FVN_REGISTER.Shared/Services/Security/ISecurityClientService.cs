@@ -1,3 +1,5 @@
+using FVN_REGISTER.Contract.Dtos.Positions;
+using FVN_REGISTER.Contract.Dtos.Registration;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests.Security;
@@ -24,6 +26,9 @@ public interface ISecurityClientService
     Task<ApiResponse<List<FeatureOperatorResourceDto>>> GetFeatureOperatorResourcesAsync(string resourceType, CancellationToken ct = default);
     Task<ApiResponse<FeatureOperatorAssignmentDto>> AddFeatureOperatorAsync(SaveFeatureOperatorAssignmentRequest request, CancellationToken ct = default);
     Task<ApiResponse<object>> RemoveFeatureOperatorAsync(int id, CancellationToken ct = default);
+    Task<ApiResponse<List<PositionDto>>> GetRegistrarPositionsAsync(CancellationToken ct = default);
+    Task<ApiResponse<List<RegistrationPolicyDto>>> GetRegistrationPoliciesAsync(string registerType, CancellationToken ct = default);
+    Task<ApiResponse<RegistrationPolicyDto>> SaveRegistrationPolicyAsync(RegistrationPolicyUpsertDto request, CancellationToken ct = default);
     Task<ApiResponse<List<TwoFactorAdminUserDto>>> GetTwoFactorUsersAsync(CancellationToken ct = default);
     Task<ApiResponse<object>> SetTwoFactorRequiredAsync(int userId, bool required, CancellationToken ct = default);
     Task<ApiResponse<object>> ResetTwoFactorAsync(int userId, CancellationToken ct = default);
