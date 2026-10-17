@@ -37,9 +37,19 @@ public sealed class OtRegistrationMismatchRule : ICalendarDayRule
         var expectedType = ExpectedOtType(attendance.DayType, day.Date);
         var registeredType = NormalizeOtType(registration.OTTypeCode);
         var typeMismatch = expectedType is not null
-            && registeredType is not null
-            && !string.Equals(expectedType, registeredType, StringComparison.OrdinalIgnoreCase);
-        if (Math.Abs(actualMinutes - plannedMinutes) <= 1 && !typeMismatch)
+            && (registeredType is null
+                || !string.Equals(expectedType, registeredType, StringComparison.OrdinalIgnoreCase));
+        decimal? expectedRate = expectedType switch
+        {
+            "HOL" => 3.0m,
+            "RESTDAY" => 2.0m,
+            "WD" => 1.5m,
+            _ => null
+        };
+        var rateMismatch = expectedRate.HasValue
+            && (!registration.OTRateMultiplier.HasValue
+                || Math.Abs(registration.OTRateMultiplier.Value - expectedRate.Value) > 0.001m);
+        if (Math.Abs(actualMinutes - plannedMinutes) <= 1 && !typeMismatch && !rateMismatch)
             return Array.Empty<CalendarIssueDto>();
 
         var source = context.SourceItems.FirstOrDefault(x =>
@@ -74,7 +84,9 @@ public sealed class OtRegistrationMismatchRule : ICalendarDayRule
             $"thực tế HRM {actualMinutes} phút"
         };
         if (typeMismatch)
-            differences.Add($"loại đăng ký {registeredType}, loại theo HRM {expectedType}");
+            differences.Add($"loại đăng ký {registeredType ?? "(trống)"}, loại theo HRM {expectedType}");
+        if (rateMismatch)
+            differences.Add($"hệ số đăng ký {registration.OTRateMultiplier?.ToString("0.##") ?? "(trống)"}, hệ số quy định {expectedRate:0.##}");
 
         return new[]
         {
