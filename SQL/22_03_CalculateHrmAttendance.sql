@@ -59,10 +59,10 @@ BEGIN
   DECLARE @AppLockResource nvarchar(255) = N'FVN_REGISTER:ATTENDANCE:DATE:' + CONVERT(nvarchar(10),@D,112);
   EXEC @AppLockResult=sp_getapplock
       @Resource=@AppLockResource,
-      @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=30000;
+      @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=120000;
   IF @AppLockResult<0
   BEGIN
-      DECLARE @LockMsg nvarchar(200)=N'Ngày chấm công '+CONVERT(nvarchar(10),@D,23)+N' đang được một calculation khác xử lý (chờ khóa quá 30 giây). Vui lòng chạy lại sau khi lần tính kia hoàn tất.';
+      DECLARE @LockMsg nvarchar(200)=N'Ngày chấm công '+CONVERT(nvarchar(10),@D,23)+N' đang được một calculation khác xử lý (chờ khóa quá 120 giây). Vui lòng chạy lại sau khi lần tính kia hoàn tất.';
       THROW 51322,@LockMsg,1;
   END
   SET @LockHeld=1;
