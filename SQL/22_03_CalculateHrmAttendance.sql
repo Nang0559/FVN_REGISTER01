@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE dbo.usp_CalculateHrmAttendance
- @DeptCode int=NULL,@EmployeeCode nvarchar(50)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
+ @DeptCode int=NULL,@EmployeeCode nvarchar(50)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.1-C3-OVERNIGHT'
 AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
