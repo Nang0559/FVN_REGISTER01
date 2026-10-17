@@ -21,25 +21,7 @@ IF OBJECT_ID(N'dbo.CK_F03AttendanceSymbolRules_DayType', N'C') IS NOT NULL
 GO
 ALTER TABLE dbo.F03AttendanceSymbolRules WITH CHECK
 ADD CONSTRAINT CK_F03AttendanceSymbolRules_DayType
-CHECK (DayType IN
-(
-    N'NORMAL',
-    N'COMPANY_HOLIDAY',
-    N'SUNDAY',
-    N'NATIONAL_HOLIDAY',
-    N'OTHER',
-    N'COMPANY',
-    N'HOLIDAY',
-    N'WEEKDAY',
-    N'RESTDAY',
-    N'PUBLIC_HOLIDAY',
-    N'NT',
-    N'CT',
-    N'NL',
-    N'WORKDAY',
-    N'COMPANY_REST_DAY',
-    N'PUBLICHOLIDAY'
-));
+CHECK (LEN(LTRIM(RTRIM(DayType))) > 0);
 GO
 
 IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
