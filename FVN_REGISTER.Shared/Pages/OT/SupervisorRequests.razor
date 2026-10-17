@@ -67,12 +67,7 @@
             <MudStack Spacing="2">
                 @if (_mode == "register")
                 {
-                    <MudSelect T="string" @bind-Value="_otTypeCode" Label="Loại OT" Variant="Variant.Outlined">
-                        @foreach (var type in _otTypes)
-                        {
-                            <MudSelectItem Value="@type.OTTypeCode">@type.OTTypeName (@type.OTTypeCode)</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudTextField T="string" Value="@SelectedOtTypeLabel" Label="Loại OT (tự xác định theo ngày HRM)" Variant="Variant.Outlined" ReadOnly="true" />
                     @if (_approvalRoute != null)
                     {
                         <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
@@ -109,7 +104,7 @@
         if (types.IsSuccess && types.Data != null)
         {
             _otTypes = types.Data;
-            _otTypeCode = _otTypes.FirstOrDefault(x => x.OTTypeCode == "WD")?.OTTypeCode ?? _otTypeCode;
+            _otTypes = _otTypes.Where(x => x.OTTypeCode is "WD" or "RESTDAY" or "HOL").OrderBy(x => x.OTTypeCode == "WD" ? 1 : x.OTTypeCode == "RESTDAY" ? 2 : 3).ToList();
         }
         var route = await ApprovalRouteService.GetPreviewAsync(RequestModule.Overtime, _cts.Token);
         if (route.IsSuccess) _approvalRoute = route.Data;
@@ -137,11 +132,23 @@
         _selected = item;
         _mode = mode;
         _note = null;
+        _otTypeCode = item.SuggestedOTTypeCode is "WD" or "RESTDAY" or "HOL"
+            ? item.SuggestedOTTypeCode
+            : "WD";
+    }
 
-        // F03OTTypes uses WD (not WEEKDAY). Do not fall back to the first active
-        // type (usually HOL), which could register weekday OT as holiday OT.
-        if (mode == "register" && _otTypes.Any(x => x.OTTypeCode == "WD" && x.IsActive))
-            _otTypeCode = "WD";
+    private string SelectedOtTypeLabel
+    {
+        get
+        {
+            var type = _otTypes.FirstOrDefault(x => x.OTTypeCode == _otTypeCode);
+            return type?.OTTypeName ?? _otTypeCode switch
+            {
+                "RESTDAY" => "OT ngày nghỉ công ty / Chủ nhật (200%)",
+                "HOL" => "OT ngày lễ (300%)",
+                _ => "OT ngày thường (150%)"
+            };
+        }
     }
     private void Cancel() => _selected = null;
 
