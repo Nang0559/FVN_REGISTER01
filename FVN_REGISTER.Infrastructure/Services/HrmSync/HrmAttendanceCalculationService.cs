@@ -123,7 +123,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
 
    if(inputs.Count==0) return;
 
-   var matched=new List<SymbolOutput>(inputs.Count);
+   var outputs=new List<SymbolOutput>(inputs.Count);
    var unmatched=new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase);
    foreach(var row in inputs)
    {
@@ -133,23 +133,27 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
      DateOnly.FromDateTime(row.WorkDate),dayType,row.ShiftAbbr,row.ShiftId,
      row.CheckInTime,row.CheckOutTime,null,ct);
     if(eval.Matched&&!string.IsNullOrWhiteSpace(eval.RuleCode))
-     matched.Add(new SymbolOutput(row.Id,eval.WorkSymbol,eval.OtSymbol,eval.RuleCode));
+     outputs.Add(new SymbolOutput(row.Id,eval.WorkSymbol,eval.OtSymbol,eval.RuleCode));
     else
+    {
      unmatched[$"{dayType}/{row.ShiftAbbr}"]=unmatched.GetValueOrDefault($"{dayType}/{row.ShiftAbbr}")+1;
+     // Persist the unmatched result too, so a rule change cannot leave yesterday's symbol visible.
+     outputs.Add(new SymbolOutput(row.Id,null,null,null));
+    }
    }
 
    // Smaller chunks reduce lock duration, log/rollback cost, and OPENJSON payload size.
-   foreach(var chunk in matched.Chunk(250))
+   foreach(var chunk in outputs.Chunk(250))
    {
     ct.ThrowIfCancellationRequested();
     var json=JsonSerializer.Serialize(chunk.Select(x=>new{id=x.Id,ws=x.WorkSymbol,os=x.OtSymbol,rc=x.RuleCode}));
     await _db.Database.ExecuteSqlInterpolatedAsync($"""
      UPDATE a SET
          a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
-         a.OtDisplayValue=COALESCE(j.os,a.OtDisplayValue),
+         a.OtDisplayValue=j.os,
          a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND ISNULL(a.LeaveTotal,0)=0
          AND (a.DayType<>N'NORMAL' OR ISNULL(a.AttendanceDisplayValue,N'')=N'' OR a.AttendanceDisplayValue=a.ShiftAbbr)
-         THEN j.ws ELSE a.AttendanceDisplayValue END
+         THEN j.ws WHEN j.ws IS NULL AND a.AttendanceDisplayValue=a.WorkSymbol THEN a.ShiftAbbr ELSE a.AttendanceDisplayValue END
      FROM dbo.F03HrmAttendanceCalculated AS a
      INNER JOIN OPENJSON({json}) WITH (id bigint '$.id',ws nvarchar(50) '$.ws',os nvarchar(50) '$.os',rc nvarchar(100) '$.rc') AS j ON j.id=a.Id
      """,ct);
@@ -161,7 +165,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
 
    _logger.LogInformation(
     "Attendance symbols applied. Batch={BatchId}, InputRows={InputRows}, MatchedRows={MatchedRows}, UnmatchedRows={UnmatchedRows}",
-    batchId,inputs.Count,matched.Count,unmatched.Values.Sum());
+    batchId,inputs.Count,outputs.Count-unmatched.Values.Sum(),unmatched.Values.Sum());
   }
   catch(Exception ex)
   {
@@ -175,7 +179,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
  }
 
  private sealed record SymbolInputRow(long Id,DateTime WorkDate,int? ShiftId,string? ShiftAbbr,DateTime? CheckInTime,DateTime? CheckOutTime,string? DayType);
- private sealed record SymbolOutput(long Id,string? WorkSymbol,string? OtSymbol,string RuleCode);
+ private sealed record SymbolOutput(long Id,string? WorkSymbol,string? OtSymbol,string? RuleCode);
 
  public async Task<ServiceResult> EnsureEmployeeRangeAsync(
   string employeeCode,int? deptCode,DateOnly from,DateOnly to,CancellationToken ct=default)
