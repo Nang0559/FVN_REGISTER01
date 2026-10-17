@@ -33,7 +33,11 @@ IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionId') IS NULL
 GO
 
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionLoginTime') IS NULL
-    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionLoginTime datetime2(0) NULL;
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionLoginTime datetime2(3) NULL;
+ELSE
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ALTER COLUMN SqlSessionLoginTime datetime2(3) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlConnectionId') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlConnectionId uniqueidentifier NULL;
 GO
 
 IF NOT EXISTS
@@ -44,7 +48,7 @@ IF NOT EXISTS
       AND name=N'IX_F03HrmAttendanceCalculationRun_RunningSession'
 )
     CREATE INDEX IX_F03HrmAttendanceCalculationRun_RunningSession
-        ON dbo.F03HrmAttendanceCalculationRun(Status,StartedAt,SqlSessionId,SqlSessionLoginTime)
+        ON dbo.F03HrmAttendanceCalculationRun(Status,StartedAt,SqlSessionId,SqlSessionLoginTime,SqlConnectionId)
         WHERE Status=N'Running';
 GO
 
@@ -54,6 +58,6 @@ SELECT
     c.is_nullable AS IsNullable
 FROM sys.columns AS c
 WHERE c.object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun')
-  AND c.name IN (N'SqlSessionId',N'SqlSessionLoginTime')
+  AND c.name IN (N'SqlSessionId',N'SqlSessionLoginTime',N'SqlConnectionId')
 ORDER BY c.column_id;
 GO
