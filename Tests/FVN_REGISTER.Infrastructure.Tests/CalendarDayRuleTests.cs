@@ -245,6 +245,74 @@ public sealed class CalendarDayRuleTests
     }
 
     [Fact]
+    public void OtRegistrationMismatch_ProducesQuestionMarker_WhenHoursDiffer()
+    {
+        var day = new CalendarDayDto
+        {
+            Date = new DateOnly(2026, 10, 12),
+            IsPast = true,
+            Attendance = new CalendarAttendanceInfoDto
+            {
+                HasActualOt = true,
+                ActualOtMinutes = 150,
+                RuleDayType = "NORMAL"
+            },
+            Registrations = new[]
+            {
+                new CalendarRegistrationDto
+                {
+                    ModuleCode = "Overtime",
+                    RequestId = 321,
+                    Status = "Approved",
+                    IsApproved = true,
+                    OTHours = 2m,
+                    OTTypeCode = "WD",
+                    Start = new DateTime(2026, 10, 12, 18, 0, 0),
+                    End = new DateTime(2026, 10, 12, 20, 0, 0)
+                }
+            }
+        };
+
+        var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtRegistrationMismatchRule() });
+        var issue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(day, Array.Empty<CalendarItemDto>())));
+
+        Assert.Equal("OT_REGISTRATION_MISMATCH", issue.Code);
+        Assert.Equal("?", issue.Marker);
+        Assert.Contains("Đăng ký 120 phút", issue.Summary);
+        Assert.Contains("thực tế HRM 150 phút", issue.Summary);
+    }
+
+    [Fact]
+    public void OtRegistrationMismatch_DoesNotFlag_WhenHoursAndCategoryMatch()
+    {
+        var day = new CalendarDayDto
+        {
+            Date = new DateOnly(2026, 10, 12),
+            Attendance = new CalendarAttendanceInfoDto
+            {
+                HasActualOt = true,
+                ActualOtMinutes = 120,
+                RuleDayType = "NORMAL"
+            },
+            Registrations = new[]
+            {
+                new CalendarRegistrationDto
+                {
+                    ModuleCode = "Overtime",
+                    RequestId = 322,
+                    Status = "Approved",
+                    IsApproved = true,
+                    OTHours = 2m,
+                    OTTypeCode = "WD"
+                }
+            }
+        };
+
+        var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtRegistrationMismatchRule() });
+        Assert.Empty(engine.Evaluate(new CalendarDayRuleContext(day, Array.Empty<CalendarItemDto>())));
+    }
+
+    [Fact]
     public void LeaveConflict_ProducesCriticalIssue_ForFullDayP()
     {
         var day = new CalendarDayDto
