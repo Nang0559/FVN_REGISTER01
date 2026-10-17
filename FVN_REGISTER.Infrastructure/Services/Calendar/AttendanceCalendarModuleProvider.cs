@@ -138,10 +138,15 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         var earlyMinutes = row.EarlyLeaveMinutesDay + row.EarlyLeaveMinutesNight;
         var requiredMinutes = Math.Max(row.RequiredMinutes, 0);
         var workedMinutes = Math.Max(0, row.WorkMinutesDay) + Math.Max(0, row.WorkMinutesNight);
-        var actualOtMinutes = Math.Max(0, row.OTMinutesDay)
-            + Math.Max(0, row.OTMinutesNight)
-            + Math.Max(0, row.OTMinutesDayTC)
-            + Math.Max(0, row.OTMinutesNightTC);
+        // OT thực tế chỉ đáng tin khi có ĐỦ giờ vào và giờ ra. Thiếu một trong hai (vd ca đêm chưa có giờ ra)
+        // thì HRM vẫn có thể trả phút OT -> bỏ qua để không mời "Phản hồi cấp trên về OT"; ngày đó chỉ là sự cố chấm công (Phản hồi HR).
+        var hasCompletePunch = hasCheckIn && hasCheckOut;
+        var actualOtMinutes = hasCompletePunch
+            ? Math.Max(0, row.OTMinutesDay)
+              + Math.Max(0, row.OTMinutesNight)
+              + Math.Max(0, row.OTMinutesDayTC)
+              + Math.Max(0, row.OTMinutesNightTC)
+            : 0;
         var recognizedOtMinutes = Math.Max(0, row.OTRecognizedMinutesDay)
             + Math.Max(0, row.OTRecognizedMinutesNight);
 
@@ -249,7 +254,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             ActualHours = workedMinutes / 60m,
             RequiredHours = requiredMinutes > 0 ? requiredMinutes / 60m : null,
             HasActual = hasCheckIn || hasCheckOut || workedMinutes > 0,
-            HasActualOt = actualOtMinutes > 0 || recognizedOtMinutes > 0,
+            HasActualOt = actualOtMinutes > 0 || (hasCompletePunch && recognizedOtMinutes > 0),
             FeedbackTone = feedback?.Tone,
             FeedbackMarker = feedback?.Marker,
             FeedbackLabel = feedback?.Label,

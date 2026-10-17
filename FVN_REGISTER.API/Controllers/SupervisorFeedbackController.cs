@@ -75,6 +75,9 @@ public sealed class SupervisorFeedbackController : BaseApiController
             .Select(x => new { x.CheckInTime, x.CheckOutTime })
             .FirstOrDefaultAsync(ct);
 
+        if (attendance?.CheckInTime == null || attendance.CheckOutTime == null)
+            return BadRequest(ApiResponse<object>.Fail("Ngày này chưa có đủ giờ vào/ra nên không có OT thực tế. Hãy dùng \"Phản hồi HR\" để báo sự cố chấm công."));
+
         var approverId = await ResolveApproverIdAsync(rule, employee.DeptCode, ct);
         if (!approverId.HasValue)
             approverId = await ResolveFeatureOperatorApproverIdAsync(employee.DeptCode, ct);
@@ -353,6 +356,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
                 SELECT TOP (1) a.OTMinutesDay, a.OTMinutesNight, a.OTMinutesDayTC, a.OTMinutesNightTC
                 FROM dbo.F03HrmAttendanceCalculated AS a
                 WHERE a.EmployeeCode = {key.EmployeeCode} AND a.WorkDate = {key.Date}
+                  AND a.CheckInTime IS NOT NULL AND a.CheckOutTime IS NOT NULL
                 ORDER BY a.Id DESC").ToListAsync(ct);
             var row = found.FirstOrDefault();
             if (row != null)
