@@ -4,7 +4,6 @@
     2 = explicitly assigned users
     3 = assigned HRM positions
     DepartmentCode = 0 is the fallback rule.
-
     RegisterType: OT / TRIP
 */
 SET NOCOUNT ON;
@@ -102,7 +101,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03SupervisorFeedback
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03SupervisorFeedbacks_EmployeeDateStatus' AND object_id = OBJECT_ID(N'dbo.F03SupervisorFeedbacks'))
     CREATE INDEX IX_F03SupervisorFeedbacks_EmployeeDateStatus ON dbo.F03SupervisorFeedbacks(EmployeeId, WorkDate, Status);
 
-/* Default fallback: registrar positions are the positions already configured as OT/Trip approver roles. */
+/* Default fallback: use the positions already configured as approver positions. */
 DECLARE @RuleId INT;
 SELECT @RuleId = Id FROM dbo.F03OTRegistrationRules WHERE DepartmentCode = 0 AND RegisterType = N'OT';
 IF @RuleId IS NULL
@@ -119,10 +118,10 @@ WHERE p.RequestType = 1
   AND NULLIF(LTRIM(RTRIM(p.ApprovalPositionCode)), N'') IS NOT NULL
   AND NOT EXISTS
   (
-      SELECT 1 FROM dbo.F03OTRegistrarPositions r
-      WHERE r.RegistrationRuleId = @RuleId
-        AND r.PositionCode = p.ApprovalPositionCode
-        AND r.RegisterType = N'OT'
+      SELECT 1 FROM dbo.F03OTRegistrarPositions rp
+      WHERE rp.RegistrationRuleId = @RuleId
+        AND rp.PositionCode = p.ApprovalPositionCode
+        AND rp.RegisterType = N'OT'
   );
 
 IF NOT EXISTS (SELECT 1 FROM dbo.F03OTRegistrationRules WHERE DepartmentCode = 0 AND RegisterType = N'TRIP')
@@ -137,11 +136,14 @@ WHERE p.RequestType = 2
   AND NULLIF(LTRIM(RTRIM(p.ApprovalPositionCode)), N'') IS NOT NULL
   AND NOT EXISTS
   (
-      SELECT 1 FROM dbo.F03OTRegistrarPositions r
-      WHERE r.RegistrationRuleId = @TripRuleId
-        AND r.PositionCode = p.ApprovalPositionCode
-        AND r.RegisterType = N'TRIP'
+      SELECT 1 FROM dbo.F03OTRegistrarPositions rp
+      WHERE rp.RegistrationRuleId = @TripRuleId
+        AND rp.PositionCode = p.ApprovalPositionCode
+        AND rp.RegisterType = N'TRIP'
   );
+
+COMMIT TRANSACTION;
+GO
 
 /*
    DB guard: if an OT request contains employees other than the requester,
@@ -153,6 +155,7 @@ AFTER INSERT, UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
+
     IF NOT EXISTS
     (
         SELECT 1
@@ -160,69 +163,72 @@ BEGIN
         JOIN dbo.F03OTRequests q ON q.Id = i.OTRequestId
         CROSS APPLY
         (
-            SELECT TOP (1) r.*
-            FROM dbo.F03OTRegistrationRules r
-            WHERE r.IsActive = 1 AND r.RegisterType = N'OT'
-              AND r.DepartmentCode IN (ISNULL(q.DeptCode, 0), 0)
-            ORDER BY CASE WHEN r.DepartmentCode = ISNULL(q.DeptCode, 0) THEN 0 ELSE 1 END
-        ) rule
+            SELECT TOP (1) rr.*
+            FROM dbo.F03OTRegistrationRules rr
+            WHERE rr.IsActive = 1
+              AND rr.RegisterType = N'OT'
+              AND rr.DepartmentCode IN (ISNULL(q.DeptCode, 0), 0)
+            ORDER BY CASE WHEN rr.DepartmentCode = ISNULL(q.DeptCode, 0) THEN 0 ELSE 1 END
+        ) policy_rule
         OUTER APPLY
         (
             SELECT TOP (1) u.EmployeeCode, e.PositionCode
             FROM dbo.F03Users u
             LEFT JOIN dbo.F03Employees e ON e.EmployeeCode = u.EmployeeCode
             WHERE u.Id = q.CreatedBy
-        ) creator
-        WHERE UPPER(LTRIM(RTRIM(i.EmployeeCode))) <> UPPER(LTRIM(RTRIM(ISNULL(creator.EmployeeCode, N''))))
+        ) creator_info
+        WHERE UPPER(LTRIM(RTRIM(i.EmployeeCode))) <> UPPER(LTRIM(RTRIM(ISNULL(creator_info.EmployeeCode, N''))))
           AND NOT
           (
-              rule.Mode = 1
-              OR (rule.Mode = 2 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrars x WHERE x.RegistrationRuleId = rule.Id AND x.UserId = q.CreatedBy AND x.RegisterType = N'OT'))
-              OR (rule.Mode = 3 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrarPositions x WHERE x.RegistrationRuleId = rule.Id AND x.PositionCode = creator.PositionCode AND x.RegisterType = N'OT'))
+              policy_rule.Mode = 1
+              OR (policy_rule.Mode = 2 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrars x WHERE x.RegistrationRuleId = policy_rule.Id AND x.UserId = q.CreatedBy AND x.RegisterType = N'OT'))
+              OR (policy_rule.Mode = 3 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrarPositions x WHERE x.RegistrationRuleId = policy_rule.Id AND x.PositionCode = creator_info.PositionCode AND x.RegisterType = N'OT'))
           )
     )
     BEGIN
         THROW 51531, N'Người đăng ký không có quyền đăng ký OT cho nhân viên khác theo policy của phòng ban.', 1;
     END;
 END;
+GO
 
-/* DB guard for future Trip multi-person registration through CompanionEmployeeCodes. */
+/* DB guard for Trip multi-person registration through CompanionEmployeeCodes. */
 CREATE OR ALTER TRIGGER dbo.trg_F03TripRequests_RegistrarPolicy
 ON dbo.F03TripRequests
 AFTER INSERT, UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
+
     IF EXISTS
     (
         SELECT 1
         FROM inserted q
         CROSS APPLY
         (
-            SELECT TOP (1) r.*
-            FROM dbo.F03OTRegistrationRules r
-            WHERE r.IsActive = 1 AND r.RegisterType = N'TRIP'
-              AND r.DepartmentCode IN (ISNULL(q.DeptCode, 0), 0)
-            ORDER BY CASE WHEN r.DepartmentCode = ISNULL(q.DeptCode, 0) THEN 0 ELSE 1 END
-        ) rule
+            SELECT TOP (1) rr.*
+            FROM dbo.F03OTRegistrationRules rr
+            WHERE rr.IsActive = 1
+              AND rr.RegisterType = N'TRIP'
+              AND rr.DepartmentCode IN (ISNULL(q.DeptCode, 0), 0)
+            ORDER BY CASE WHEN rr.DepartmentCode = ISNULL(q.DeptCode, 0) THEN 0 ELSE 1 END
+        ) policy_rule
         OUTER APPLY
         (
             SELECT TOP (1) u.EmployeeCode, e.PositionCode
             FROM dbo.F03Users u
             LEFT JOIN dbo.F03Employees e ON e.EmployeeCode = u.EmployeeCode
             WHERE u.Id = q.CreatedBy
-        ) creator
+        ) creator_info
         WHERE NULLIF(LTRIM(RTRIM(ISNULL(q.CompanionEmployeeCodes, N''))), N'') IS NOT NULL
           AND NOT
           (
-              rule.Mode = 1
-              OR (rule.Mode = 2 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrars x WHERE x.RegistrationRuleId = rule.Id AND x.UserId = q.CreatedBy AND x.RegisterType = N'TRIP'))
-              OR (rule.Mode = 3 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrarPositions x WHERE x.RegistrationRuleId = rule.Id AND x.PositionCode = creator.PositionCode AND x.RegisterType = N'TRIP'))
+              policy_rule.Mode = 1
+              OR (policy_rule.Mode = 2 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrars x WHERE x.RegistrationRuleId = policy_rule.Id AND x.UserId = q.CreatedBy AND x.RegisterType = N'TRIP'))
+              OR (policy_rule.Mode = 3 AND EXISTS (SELECT 1 FROM dbo.F03OTRegistrarPositions x WHERE x.RegistrationRuleId = policy_rule.Id AND x.PositionCode = creator_info.PositionCode AND x.RegisterType = N'TRIP'))
           )
     )
     BEGIN
         THROW 51532, N'Người đăng ký không có quyền đăng ký công tác cho người khác theo policy của phòng ban.', 1;
     END;
 END;
-
-COMMIT TRANSACTION;
+GO
