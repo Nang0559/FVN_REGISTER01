@@ -219,7 +219,7 @@ public sealed class RegistrationPolicyController : BaseApiController
     }
 
 
-    private sealed class SelfPositionRow
+    public sealed class SelfPositionRow
     {
         public int DepartmentCode { get; set; }
         public string RegisterType { get; set; } = string.Empty;
