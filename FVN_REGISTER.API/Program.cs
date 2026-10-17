@@ -186,6 +186,7 @@ builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 // OT
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
+        builder.Services.AddScoped<IOtRegistrationPolicy, OtRegistrationPolicy>();
 builder.Services.AddScoped<IOTService, OTService>();
 builder.Services.AddScoped<IPayrollInputService, PayrollInputService>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
