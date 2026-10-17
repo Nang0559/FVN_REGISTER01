@@ -314,9 +314,18 @@ BEGIN
         FinishedAt datetime2(0) NULL,
         EmployeeCount int NULL,
         CalculatedRows int NULL,
-        ErrorMessage nvarchar(2000) NULL
+        ErrorMessage nvarchar(2000) NULL,
+        SqlSessionId int NULL,
+        SqlSessionLoginTime datetime2(0) NULL
     );
 END;
+GO
+
+/* Exact SQL session identity for safe startup recovery (SPID + login time avoids SPID reuse). */
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionId') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionId int NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionLoginTime') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionLoginTime datetime2(0) NULL;
 GO
 
 /* Employee-scoped coverage metadata for calendar lazy backfill. */
