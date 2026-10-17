@@ -10,7 +10,7 @@ GO
 
 Purpose:
   - Persist the exact SQL Server session identity for every calculation Run.
-  - Pair @@SPID with sys.dm_exec_sessions.login_time so a recycled SPID cannot
+  - Pair @@SPID + login_time with sys.dm_exec_connections.connection_id so a recycled SPID cannot
     be mistaken for the original calculation session.
   - The API startup worker uses this pair to reconcile abandoned Running rows.
 
