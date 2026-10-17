@@ -25,6 +25,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
         private readonly IOTValidator _validator;
         private readonly IAuthorizationService _authorization;
         private readonly IApprovalSelectionService _approvalSelections;
+        private readonly IOtRegistrationPolicy _registrationPolicy;
         protected override RequestModule ModuleKind => RequestModule.Overtime;
 
         public OTService(
@@ -33,6 +34,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             IOTValidator validator,
             IAuthorizationService authorization,
             IApprovalSelectionService approvalSelections,
+            IOtRegistrationPolicy registrationPolicy,
             ILogger<BaseRequestCommandService<OTRequestUpsertDto, F03OTRequest, OTRequestSubject>> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(uow, workflow, logger, options)
@@ -40,6 +42,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             _validator = validator;
             _authorization = authorization;
             _approvalSelections = approvalSelections;
+            _registrationPolicy = registrationPolicy;
         }
 
         public override async Task<ServiceResult<int>> CreateAsync(OTRequestUpsertDto model, UserIdentityDto user, CancellationToken ct = default)
@@ -51,6 +54,21 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 if (model.Employees == null || model.Employees.Count == 0) return ServiceResult<int>.Fail("Phải chọn ít nhất 1 nhân viên.");
                 if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTCreate, user.EmployeeCode, model.DeptCode, ct))
                     return ServiceResult<int>.Fail("Không có quyền tạo đơn OT cho bộ phận này theo phạm vi dữ liệu được cấp.");
+
+                // Chặn sớm theo cùng policy mà DB trigger bảo vệ. Đơn chỉ gồm chính người đăng ký
+                // không cần quyền registrar; thêm bất kỳ nhân viên nào khác thì phải được phép theo policy.
+                var requesterCode = user.EmployeeCode?.Trim() ?? string.Empty;
+                var employeeCodes = model.Employees
+                    .Select(e => e.EmployeeCode?.Trim() ?? string.Empty)
+                    .Where(code => !string.IsNullOrWhiteSpace(code))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var includesOtherEmployees = employeeCodes.Any(code =>
+                    !string.Equals(code, requesterCode, StringComparison.OrdinalIgnoreCase));
+                if (includesOtherEmployees &&
+                    !await _registrationPolicy.CanRegisterForEmployeesAsync(user, employeeCodes, "OT", ct))
+                    return ServiceResult<int>.Fail(
+                        "Bạn chưa được cấp quyền đăng ký OT cho nhân viên khác theo policy của phòng ban. Vui lòng kiểm tra cấu hình Người đăng ký OT.");
 
                 var totalHours = model.Employees.Sum(e => e.OTHours);
                 await using var tx = await Uow.BeginTransactionAsync(ct);
