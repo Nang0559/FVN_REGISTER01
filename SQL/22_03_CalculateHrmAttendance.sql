@@ -16,6 +16,8 @@ BEGIN
  FROM sys.dm_exec_sessions AS s
  INNER JOIN sys.dm_exec_connections AS c ON c.session_id=s.session_id
  WHERE s.session_id=@@SPID;
+ IF @SqlSessionLoginTime IS NULL OR @SqlConnectionId IS NULL
+     THROW 51323,N'Không thể xác định danh tính SQL session cho lần tính chấm công.',1;
  SET @EmployeeCode=NULLIF(LTRIM(RTRIM(@EmployeeCode)),N'');
  IF @EmployeeCode IS NOT NULL
  BEGIN
