@@ -3,6 +3,8 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
@@ -16,10 +18,11 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
  private readonly IHrmAttendanceCalculationService _service;
  private readonly IAuthorizationService _authorization;
  private readonly IHrmAttendanceExcelExportService _excel;
+ private readonly FVNWEBAPPContext _db;
  private static readonly ConcurrentDictionary<string, DateTime> SelfRecalculationCooldown = new(StringComparer.OrdinalIgnoreCase);
  private static readonly ConcurrentDictionary<string, SemaphoreSlim> SelfRecalculationGates = new(StringComparer.OrdinalIgnoreCase);
  private static readonly TimeSpan SelfRecalculationCooldownPeriod = TimeSpan.FromMinutes(5);
- public HrmAttendanceCalculationController(IHrmAttendanceCalculationService service,IHrmAttendanceExcelExportService excel,FVN_REGISTER.Application.Interfaces.Users.ICurrentUserService currentUser,FVN_REGISTER.Application.Interfaces.Users.IUserLogService userLog,IAuthorizationService authorization,ILogger<HrmAttendanceCalculationController> logger,Microsoft.Extensions.Options.IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options):base(currentUser,userLog,logger,options){_service=service;_excel=excel;_authorization=authorization;}
+ public HrmAttendanceCalculationController(IHrmAttendanceCalculationService service,IHrmAttendanceExcelExportService excel,FVN_REGISTER.Application.Interfaces.Users.ICurrentUserService currentUser,FVN_REGISTER.Application.Interfaces.Users.IUserLogService userLog,IAuthorizationService authorization,FVNWEBAPPContext db,ILogger<HrmAttendanceCalculationController> logger,Microsoft.Extensions.Options.IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options):base(currentUser,userLog,logger,options){_service=service;_excel=excel;_authorization=authorization;_db=db;}
  [HttpGet("export/attendance/{batchId:guid}")]
  public async Task<IActionResult> ExportAttendance(Guid batchId, CancellationToken ct)
  {
@@ -53,6 +56,17 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
   if (to > DateTime.Today)
    return BadRequest(ApiResponse<object>.Fail("Chỉ được tính lại đến ngày hôm nay, không tính ngày tương lai."));
 
+  if (from < DateTime.Today.AddDays(-31))
+   return BadRequest(ApiResponse<object>.Fail("Chỉ được buộc tính lại trong vòng 31 ngày gần nhất."));
+
+  var lockedPeriod = await _db.PayrollCalculationPeriods.AsNoTracking()
+   .AnyAsync(x => x.IsActive != false
+       && (x.Status == "Locked" || x.Status == "Exported")
+       && x.FromDate <= DateOnly.FromDateTime(to)
+       && x.ToDate >= DateOnly.FromDateTime(from), ct);
+  if (lockedPeriod)
+   return BadRequest(ApiResponse<object>.Fail("Khoảng ngày thuộc kỳ lương đã khóa/xuất. Không thể buộc tính lại từ lịch; vui lòng liên hệ HRM/Payroll."));
+
   // This public-to-authenticated-user action can only recalculate the signed-in employee.
   // A per-employee gate prevents concurrent requests; a cooldown limits repeated SQL work.
   var employeeCode = UserInfo.EmployeeCode.Trim();
@@ -68,7 +82,7 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
        && now - lastRequested < SelfRecalculationCooldownPeriod)
    {
     var retrySeconds = Math.Max(1, (int)Math.Ceiling((SelfRecalculationCooldownPeriod - (now - lastRequested)).TotalSeconds));
-    Response.Headers.RetryAfter = retrySeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    Response.Headers["Retry-After"] = retrySeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
     return StatusCode(StatusCodes.Status429TooManyRequests,
      ApiResponse<object>.Fail($"Bạn vừa buộc tính lại gần đây. Vui lòng thử lại sau khoảng {Math.Ceiling(retrySeconds / 60d)} phút."));
    }
