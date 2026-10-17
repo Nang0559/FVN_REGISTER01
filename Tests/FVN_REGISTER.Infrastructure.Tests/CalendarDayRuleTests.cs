@@ -304,7 +304,8 @@ public sealed class CalendarDayRuleTests
                     Status = "Approved",
                     IsApproved = true,
                     OTHours = 2m,
-                    OTTypeCode = "WD"
+                    OTTypeCode = "WD",
+                    OTRateMultiplier = 1.5m
                 }
             }
         };
