@@ -41,14 +41,17 @@ WHERE l.resource_type = N'APPLICATION'
 -- 3) Run rows that are still 'Running' with exact SQL session identity (startup recovery updates only confirmed abandoned rows).
 SELECT  run.CalculationBatchId, run.DeptCode, run.EmployeeCode,
         run.FromDate, run.ToDate, run.TriggeredBy, run.StartedAt,
-        run.SqlSessionId, run.SqlSessionLoginTime,
-        CASE WHEN sessionInfo.session_id IS NULL THEN N'NOT FOUND'
+        run.SqlSessionId, run.SqlSessionLoginTime, run.SqlConnectionId,
+        CASE WHEN sessionInfo.session_id IS NULL OR connectionInfo.connection_id IS NULL THEN N'NOT FOUND'
              ELSE N'CONNECTED' END AS SqlSessionState,
         DATEDIFF(minute,run.StartedAt,GETDATE()) AS running_minutes
 FROM dbo.F03HrmAttendanceCalculationRun AS run
 LEFT JOIN sys.dm_exec_sessions AS sessionInfo
   ON sessionInfo.session_id=run.SqlSessionId
- AND CONVERT(datetime2(0),sessionInfo.login_time)=run.SqlSessionLoginTime
+ AND CONVERT(datetime2(3),sessionInfo.login_time)=run.SqlSessionLoginTime
+LEFT JOIN sys.dm_exec_connections AS connectionInfo
+  ON connectionInfo.session_id=sessionInfo.session_id
+ AND connectionInfo.connection_id=run.SqlConnectionId
 WHERE run.Status=N'Running'
 ORDER BY run.StartedAt;
 
