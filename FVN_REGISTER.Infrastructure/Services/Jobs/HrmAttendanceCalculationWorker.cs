@@ -185,8 +185,6 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 return;
             }
 
-            await AbandonStaleRunsAsync(ct);
-
             var yesterday = DateTime.Today.AddDays(-1).Date;
 
             var payrollStart = await GetPayrollPeriodStartAsync(yesterday, ct);
@@ -358,7 +356,6 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                     ErrorMessage=N'Abandoned: SQL session của lần tính đã kết thúc trước khi Run hoàn tất.'
                 FROM dbo.F03HrmAttendanceCalculationRun AS run
                 WHERE run.Status=N'Running'
-                  AND run.StartedAt < DATEADD(minute,{-staleMinutes},GETDATE())
                   AND
                   (
                       (
@@ -374,6 +371,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                       OR
                       (
                           run.SqlSessionId IS NULL
+                          AND run.StartedAt < DATEADD(minute,{-staleMinutes},GETDATE())
                           AND @HasActiveAttendanceCalculation=0
                       )
                   );
