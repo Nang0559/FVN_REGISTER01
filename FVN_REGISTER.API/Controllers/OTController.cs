@@ -7,6 +7,8 @@ using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.OT;
+using FVN_REGISTER.Core.Entities.HRM;
+using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
@@ -28,6 +30,7 @@ namespace FVN_REGISTER.API.Controllers
         private readonly IOTQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _workflow;
         private readonly IOtRegistrationPolicy _registrationPolicy;
+        private readonly FVNWEBAPPContext _db;
         private const string RegistrarDeniedMessage =
             "Bạn không có quyền đăng ký OT cho nhiều người. Hãy báo cấp quản lý hoặc người được chỉ định (hoặc dùng \"Phản hồi cấp trên\" trên lịch).";
 
@@ -40,14 +43,78 @@ namespace FVN_REGISTER.API.Controllers
             ILogger<OTController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
             AppAuthorizationService authorization,
-            IOtRegistrationPolicy registrationPolicy)
+            IOtRegistrationPolicy registrationPolicy,
+            FVNWEBAPPContext db)
             : base(currentUser, userLog, logger, options)
         {
             _registrationPolicy = registrationPolicy;
+            _db = db;
             _authorization = authorization;
             _otService = otService;
             _queryService = queryService;
             _workflow = workflow;
+        }
+
+        /// <summary>OT thực tế theo ký hiệu lịch, chưa có đơn OT được duyệt tương ứng.</summary>
+        [HttpGet("unapproved-attendance")]
+        public async Task<IActionResult> GetUnapprovedAttendance([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, CancellationToken ct)
+        {
+            if (UserInfo == null || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+                return Unauthorized(ApiResponse<object>.Fail("Không xác định được nhân viên đăng nhập."));
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTView, ct))
+                return Forbid();
+
+            var today = DateTime.Today;
+            var from = (fromDate ?? new DateTime(today.Year, today.Month, 1)).Date;
+            var to = (toDate ?? today).Date;
+            if (from > to) return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
+            if ((to - from).TotalDays > 92) return BadRequest(ApiResponse<object>.Fail("Chỉ xem tối đa 93 ngày mỗi lần."));
+
+            var rows = await _db.HrmAttendanceCalculated.AsNoTracking()
+                .Where(x => x.EmployeeCode == UserInfo.EmployeeCode
+                    && x.WorkDate >= from && x.WorkDate < to.AddDays(1)
+                    && x.OtSymbol != null && x.OtSymbol != "")
+                .OrderByDescending(x => x.WorkDate)
+                .Select(x => new
+                {
+                    x.WorkDate, x.EmployeeCode, x.FullName, x.ShiftAbbr, x.OtSymbol,
+                    x.CheckInTime, x.CheckOutTime,
+                    x.OTRecognizedMinutesDay, x.OTRecognizedMinutesNight
+                })
+                .ToListAsync(ct);
+
+            var approvedDates = await _db.OvertimeRequests.AsNoTracking()
+                .Where(x => x.EmployeeCode == UserInfo.EmployeeCode
+                    && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.OTDate >= from && x.OTDate < to.AddDays(1))
+                .Select(x => x.OTDate.Date)
+                .Distinct()
+                .ToListAsync(ct);
+            var approved = approvedDates.ToHashSet();
+            var result = rows.Where(x => !approved.Contains(x.WorkDate.Date))
+                .Select(x => new UnapprovedAttendanceOTDto
+                {
+                    WorkDate = x.WorkDate,
+                    EmployeeCode = x.EmployeeCode ?? UserInfo.EmployeeCode!,
+                    EmployeeName = x.FullName ?? UserInfo.FullName ?? UserInfo.EmployeeCode!,
+                    ShiftAbbr = x.ShiftAbbr,
+                    OtSymbol = x.OtSymbol,
+                    CheckInTime = x.CheckInTime,
+                    CheckOutTime = x.CheckOutTime,
+                    OTHours = ParseSymbolHours(x.OtSymbol) ?? decimal.Round((x.OTRecognizedMinutesDay + x.OTRecognizedMinutesNight) / 60m, 2)
+                })
+                .ToList();
+            return Ok(ApiResponse<List<UnapprovedAttendanceOTDto>>.Ok(result));
+        }
+
+        private static decimal? ParseSymbolHours(string? symbol)
+        {
+            if (string.IsNullOrWhiteSpace(symbol)) return null;
+            var match = System.Text.RegularExpressions.Regex.Match(symbol.Trim(), @"(-?\d+(?:[\.,]\d+)?)$");
+            return match.Success && decimal.TryParse(match.Groups[1].Value.Replace(',', '.'),
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var hours) ? Math.Abs(hours) : null;
         }
 
         [HttpGet("combined-data")]
