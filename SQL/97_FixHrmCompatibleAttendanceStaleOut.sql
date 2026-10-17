@@ -108,9 +108,11 @@ SET @Patch = N'
 SET @Definition = STUFF(@Definition, @MarkerPos, 0, @Patch);
 
 /*
-  OBJECT_DEFINITION may return either CREATE PROCEDURE or CREATE OR ALTER
-  PROCEDURE depending on how the procedure was deployed. The object already
-  exists, so force the generated batch to use ALTER PROCEDURE.
+  OBJECT_DEFINITION returns the procedure body as it was originally created.
+  Depending on the deployment script it can start with CREATE PROCEDURE,
+  CREATE OR ALTER PROCEDURE, or ALTER PROCEDURE. The procedure already exists,
+  so normalize only CREATE forms to ALTER; an existing ALTER header is already
+  executable as-is.
 */
 SET @HeaderPos = CHARINDEX(N'CREATE OR ALTER PROCEDURE', @Definition);
 IF @HeaderPos > 0
@@ -120,10 +122,16 @@ END
 ELSE
 BEGIN
     SET @HeaderPos = CHARINDEX(N'CREATE PROCEDURE', @Definition);
-    IF @HeaderPos = 0
-        THROW 50004, 'Cannot find CREATE PROCEDURE header in dbo.usp_HrmCompatibleTimeKeepingForStaff.', 1;
-
-    SET @Definition = STUFF(@Definition, @HeaderPos, LEN(N'CREATE PROCEDURE'), N'ALTER PROCEDURE');
+    IF @HeaderPos > 0
+    BEGIN
+        SET @Definition = STUFF(@Definition, @HeaderPos, LEN(N'CREATE PROCEDURE'), N'ALTER PROCEDURE');
+    END
+    ELSE
+    BEGIN
+        SET @HeaderPos = CHARINDEX(N'ALTER PROCEDURE', @Definition);
+        IF @HeaderPos = 0
+            THROW 50004, 'Cannot find a CREATE/ALTER PROCEDURE header in dbo.usp_HrmCompatibleTimeKeepingForStaff.', 1;
+    END
 END;
 
 EXEC sys.sp_executesql @Definition;
