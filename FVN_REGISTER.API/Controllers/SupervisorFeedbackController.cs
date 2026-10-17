@@ -51,7 +51,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
             .FirstOrDefaultAsync(ct);
         if (employee == null) return NotFound(ApiResponse<object>.Fail("Không tìm thấy nhân viên."));
 
-        var rule = await ResolveRuleAsync(employee.DeptCode ?? 0, "OT", ct);
+        var rule = await ResolveRuleAsync(employee.DeptCode, "OT", ct);
         if (await CanRegisterForOthersAsync(rule, ct))
             return BadRequest(ApiResponse<object>.Fail("Tài khoản này đã có quyền đăng ký OT cho người khác; hãy dùng luồng đăng ký OT trực tiếp."));
 
@@ -61,7 +61,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
             .Select(x => new { x.CheckInTime, x.CheckOutTime })
             .FirstOrDefaultAsync(ct);
 
-        var approverId = await ResolveApproverIdAsync(rule, employee.DeptCode ?? 0, ct);
+        var approverId = await ResolveApproverIdAsync(rule, employee.DeptCode, ct);
         if (!approverId.HasValue)
             return BadRequest(ApiResponse<object>.Fail("Không tìm thấy cấp trên/người đăng ký OT được chỉ định cho phòng ban này."));
 
@@ -159,14 +159,14 @@ public sealed class SupervisorFeedbackController : BaseApiController
                     OTReasonDetail = dto.Note
                 }
             },
-            ApprovalSelections = dto.ApprovalSelections ?? new List<Contract.Dtos.Approvals.ApprovalSelectionDto>()
+            ApprovalSelections = dto.ApprovalSelections ?? new List<FVN_REGISTER.Contract.Requests.Approvals.ApprovalSelectionDto>()
         };
 
         var result = await _otService.CreateAsync(model, UserInfo, ct);
-        if (!result.IsSuccess || !result.Data.HasValue)
+        if (!result.IsSuccess || result.Data <= 0)
             return BadRequest(ApiResponse<object>.Fail(result.Message ?? "Không thể tạo đơn OT."));
 
-        entity.OTRequestId = result.Data.Value;
+        entity.OTRequestId = result.Data;
         entity.Status = SupervisorFeedbackStatus.RegisteredPendingApprove;
         entity.Note = dto.Note ?? entity.Note;
         entity.ResolvedAt = DateTime.Now;

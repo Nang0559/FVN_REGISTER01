@@ -1,3 +1,4 @@
+using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Core.Enums;
 
 namespace FVN_REGISTER.Contract.Dtos.Registration;
@@ -28,5 +29,5 @@ public sealed class SupervisorFeedbackDecisionDto
 {
     public string? Note { get; set; }
     public string? OTTypeCode { get; set; }
-    public List<Contract.Dtos.Approvals.ApprovalSelectionDto>? ApprovalSelections { get; set; }
+    public List<ApprovalSelectionDto>? ApprovalSelections { get; set; }
 }
