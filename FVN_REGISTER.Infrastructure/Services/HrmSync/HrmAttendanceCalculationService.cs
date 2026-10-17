@@ -192,6 +192,13 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   if(from > effectiveTo)
    return ServiceResult.Ok();
 
+  // The in-memory coordinator coalesces requests inside one API process. This SQL
+  // session applock is the cross-instance guard: after waiting, every caller must
+  // re-read coverage so only the first caller calculates missing dates.
+  await using var backfillGuard = await TryAcquireEmployeeBackfillGuardAsync(employeeCode,ct);
+  if(backfillGuard is null)
+   return ServiceResult.Fail($"Backfill chấm công của nhân viên {employeeCode} đang được xử lý ở tiến trình khác. Vui lòng tải lại lịch sau ít phút.");
+
   var runs=await _db.Database.SqlQuery<CoverageRun>($"""
    SELECT r.FromDate,r.ToDate,r.DeptCode,r.EmployeeCode,r.Status
    FROM dbo.F03HrmAttendanceCalculationRun AS r
@@ -238,6 +245,85 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   }
 
   return ServiceResult.Ok();
+ }
+
+ private async Task<EmployeeBackfillGuard?> TryAcquireEmployeeBackfillGuardAsync(string employeeCode,CancellationToken ct)
+ {
+  var connectionString=_db.Database.GetConnectionString();
+  if(string.IsNullOrWhiteSpace(connectionString))
+   throw new InvalidOperationException("Không tìm thấy SQL connection string để khóa backfill.");
+
+  var builder=new SqlConnectionStringBuilder(connectionString){Pooling=false};
+  var connection=new SqlConnection(builder.ConnectionString);
+  try
+  {
+   await connection.OpenAsync(ct);
+   await using var command=connection.CreateCommand();
+   command.CommandTimeout=70;
+   command.CommandText="""
+    DECLARE @result int;
+    EXEC @result=sp_getapplock
+      @Resource=@Resource,
+      @LockMode=N'Exclusive',
+      @LockOwner=N'Session',
+      @LockTimeout=60000;
+    SELECT @result;
+    """;
+   command.Parameters.Add(new SqlParameter("@Resource",SqlDbType.NVarChar,255)
+   {
+    Value=$"FVN_REGISTER:ATTENDANCE:BACKFILL:EMPLOYEE:{employeeCode.Trim().ToUpperInvariant()}"
+   });
+   var result=Convert.ToInt32(await command.ExecuteScalarAsync(ct));
+   if(result<0)
+   {
+    await connection.DisposeAsync();
+    return null;
+   }
+   return new EmployeeBackfillGuard(connection,employeeCode);
+  }
+  catch
+  {
+   await connection.DisposeAsync();
+   throw;
+  }
+ }
+
+ private sealed class EmployeeBackfillGuard : IAsyncDisposable
+ {
+  private readonly SqlConnection _connection;
+  private readonly string _employeeCode;
+
+  public EmployeeBackfillGuard(SqlConnection connection,string employeeCode)
+  {
+   _connection=connection;
+   _employeeCode=employeeCode;
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+   try
+   {
+    if(_connection.State==ConnectionState.Open)
+    {
+     await using var command=_connection.CreateCommand();
+     command.CommandTimeout=5;
+     command.CommandText="EXEC sp_releaseapplock @Resource=@Resource,@LockOwner=N'Session';";
+     command.Parameters.Add(new SqlParameter("@Resource",SqlDbType.NVarChar,255)
+     {
+      Value=$"FVN_REGISTER:ATTENDANCE:BACKFILL:EMPLOYEE:{_employeeCode.Trim().ToUpperInvariant()}"
+     });
+     await command.ExecuteNonQueryAsync();
+    }
+   }
+   catch
+   {
+    // Disposing this non-pooled connection releases its session-owned applock.
+   }
+   finally
+   {
+    await _connection.DisposeAsync();
+   }
+  }
  }
 
  private static IReadOnlyList<DateRange> FindGaps(DateOnly from,DateOnly to,IReadOnlyList<CoverageRun> runs)
