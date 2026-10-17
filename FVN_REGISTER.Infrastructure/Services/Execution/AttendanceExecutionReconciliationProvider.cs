@@ -106,7 +106,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
             .ToListAsync(ct);
 
         var approvedOtByDate = approvedOt
-            .GroupBy(x => $"\${x.EmployeeCode}:{DateOnly.FromDateTime(x.OTDate):yyyyMMdd}", StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => $"{x.EmployeeCode}:{DateOnly.FromDateTime(x.OTDate):yyyyMMdd}", StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 group => group.Key,
                 group => new
