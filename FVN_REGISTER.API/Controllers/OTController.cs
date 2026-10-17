@@ -28,6 +28,8 @@ namespace FVN_REGISTER.API.Controllers
         private readonly IOTQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _workflow;
         private readonly IOtRegistrationPolicy _registrationPolicy;
+        private const string RegistrarDeniedMessage =
+            "Bạn không có quyền đăng ký OT cho nhiều người. Hãy báo cấp quản lý hoặc người được chỉ định (hoặc dùng \"Phản hồi cấp trên\" trên lịch).";
 
         public OTController(
             IOTService otService,
@@ -77,6 +79,9 @@ namespace FVN_REGISTER.API.Controllers
             if (dept != UserInfo.DeptCode && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
             if (dept == null) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
             if (dept == null) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
+            // Danh sách nhân viên phòng ban chỉ dành cho registrar của phòng ban đó (staff/worker không được load).
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, dept.Value, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail(RegistrarDeniedMessage));
             return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept.Value, ct)));
         }
 
@@ -318,6 +323,8 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, UserInfo.DeptCode ?? 0, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail(RegistrarDeniedMessage));
             return HandleResult(await _otService.RemoveEmployeeAsync(otRequestId, employeeCode, UserInfo, ct));
         }
 
@@ -327,6 +334,8 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, UserInfo.DeptCode ?? 0, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail(RegistrarDeniedMessage));
             return HandleResult(await _otService.UpdateEmployeeOTInfoAsync(id, employees, UserInfo, ct));
         }
     }

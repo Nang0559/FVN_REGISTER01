@@ -7,6 +7,7 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -199,8 +200,21 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         var days = new List<CalendarDayDto>();
         var dayTypeColors = await LoadDayTypeColorsAsync(cancellationToken);
 
+        // Phản hồi cấp trên gần nhất của từng ngày (để ô "?" hiện đúng: chờ xử lý / bị từ chối / đã đăng ký OT).
+        var fromDt = from.ToDateTime(TimeOnly.MinValue);
+        var toDt = to.ToDateTime(TimeOnly.MinValue);
+        var feedbackRows = await _db.Set<F03SupervisorFeedback>()
+            .AsNoTracking()
+            .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.WorkDate >= fromDt && x.WorkDate <= toDt)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var feedbackByDate = feedbackRows
+            .GroupBy(x => DateOnly.FromDateTime(x.WorkDate.Date))
+            .ToDictionary(g => g.Key, g => g.First());
+
         foreach (var baseDay in workCalendar.Days.OrderBy(x => x.Date))
         {
+            feedbackByDate.TryGetValue(DateOnly.FromDateTime(baseDay.Date.Date), out var supervisorFeedback);
             var date = DateOnly.FromDateTime(baseDay.Date.Date);
             var dateItems = itemsByDate.TryGetValue(date, out var sourceItems)
                 ? sourceItems
@@ -315,6 +329,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                     && !registrations.Any(x => x.ModuleCode == "Overtime"),
                 CanRegisterTrip = baseDay.CanRegisterTrip
                     && !registrations.Any(x => x.ModuleCode == "TRIP"),
+                MustReportOtToSupervisor = baseDay.MustReportOtToSupervisor,
+                SupervisorFeedbackStatus = supervisorFeedback is null ? 0 : (int)supervisorFeedback.Status,
+                SupervisorFeedbackNote = supervisorFeedback?.Note,
                 AvailabilityNote = baseDay.AvailabilityNote
             };
 
@@ -340,6 +357,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 CanRegisterLeave = provisional.CanRegisterLeave,
                 CanRegisterOT = provisional.CanRegisterOT,
                 CanRegisterTrip = provisional.CanRegisterTrip,
+                MustReportOtToSupervisor = provisional.MustReportOtToSupervisor,
+                SupervisorFeedbackStatus = provisional.SupervisorFeedbackStatus,
+                SupervisorFeedbackNote = provisional.SupervisorFeedbackNote,
                 AvailabilityNote = BuildAvailabilityNote(provisional)
             });
         }

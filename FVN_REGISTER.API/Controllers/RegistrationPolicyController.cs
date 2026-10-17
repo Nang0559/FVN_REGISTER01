@@ -60,6 +60,14 @@ public sealed class RegistrationPolicyController : BaseApiController
         return Ok(ApiResponse<RegistrationPolicyDecisionDto>.Ok(decision));
     }
 
+    /// <summary>User có phải registrar của ít nhất một phòng ban không (UI dùng để hiện menu / dashboard / hộp yêu cầu).</summary>
+    [HttpGet("is-registrar")]
+    public async Task<IActionResult> IsRegistrar([FromQuery] string registerType = "OT", CancellationToken ct = default)
+    {
+        if (UserInfo == null) return Unauthorized();
+        return Ok(ApiResponse<bool>.Ok(await _policy.IsAnyRegistrarAsync(UserInfo, NormalizeType(registerType), ct)));
+    }
+
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string registerType = "OT", CancellationToken ct = default)
     {

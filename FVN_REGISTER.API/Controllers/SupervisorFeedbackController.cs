@@ -24,11 +24,13 @@ public sealed class SupervisorFeedbackController : BaseApiController
     private readonly FVNWEBAPPContext _db;
     private readonly AppAuthorizationService _authorization;
     private readonly IOTService _otService;
+    private readonly IOtRegistrationPolicy _policy;
 
     public SupervisorFeedbackController(
         FVNWEBAPPContext db,
         AppAuthorizationService authorization,
         IOTService otService,
+        IOtRegistrationPolicy policy,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         ILogger<SupervisorFeedbackController> logger,
@@ -38,6 +40,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
         _db = db;
         _authorization = authorization;
         _otService = otService;
+        _policy = policy;
     }
 
     [HttpPost]
@@ -52,9 +55,15 @@ public sealed class SupervisorFeedbackController : BaseApiController
             .FirstOrDefaultAsync(ct);
         if (employee == null) return NotFound(ApiResponse<object>.Fail("Không tìm thấy nhân viên."));
 
+        // Chỉ gửi phản hồi cho CHÍNH MÌNH: không cho gửi thay mã nhân viên khác.
+        if (!string.Equals(employee.EmployeeCode?.Trim(), UserInfo.EmployeeCode?.Trim(), StringComparison.OrdinalIgnoreCase))
+            return StatusCode(403, ApiResponse<object>.Fail("Phản hồi cấp trên chỉ gửi cho chính nhân viên đang đăng nhập."));
+
+        // Dùng CHUNG IOtRegistrationPolicy (rule phòng ban + chức vụ + Feature Operator OT.RegistrarManage).
+        if (await _policy.IsRegistrarAsync(UserInfo, employee.DeptCode, "OT", ct))
+            return BadRequest(ApiResponse<object>.Fail("Tài khoản này đã có quyền đăng ký OT; hãy dùng luồng đăng ký OT trực tiếp."));
+
         var rule = await ResolveRuleAsync(employee.DeptCode, "OT", ct);
-        if (await CanRegisterForOthersAsync(rule, ct))
-            return BadRequest(ApiResponse<object>.Fail("Tài khoản này đã có quyền đăng ký OT cho người khác; hãy dùng luồng đăng ký OT trực tiếp."));
 
         var attendance = await _db.HrmAttendanceCalculated.AsNoTracking()
             .Where(x => x.EmployeeCode == dto.EmployeeCode && x.WorkDate.Date == dto.WorkDate.Date)
@@ -63,6 +72,8 @@ public sealed class SupervisorFeedbackController : BaseApiController
             .FirstOrDefaultAsync(ct);
 
         var approverId = await ResolveApproverIdAsync(rule, employee.DeptCode, ct);
+        if (!approverId.HasValue)
+            approverId = await ResolveFeatureOperatorApproverIdAsync(employee.DeptCode, ct);
         if (!approverId.HasValue)
             return BadRequest(ApiResponse<object>.Fail("Không tìm thấy cấp trên/người đăng ký OT được chỉ định cho phòng ban này."));
 
@@ -106,10 +117,37 @@ public sealed class SupervisorFeedbackController : BaseApiController
     public async Task<IActionResult> Pending(CancellationToken ct)
     {
         if (UserInfo == null) return Unauthorized();
-        var rows = await _db.Set<F03SupervisorFeedback>().AsNoTracking()
-            .Where(x => x.ApproverId == UserInfo.UserId && x.Status == SupervisorFeedbackStatus.PendingSupervisor)
-            .OrderBy(x => x.WorkDate).ToListAsync(ct);
+        var rows = await LoadHandleablePendingAsync(ct);
         return Ok(ApiResponse<List<SupervisorFeedbackDto>>.Ok(await MapManyAsync(rows, ct)));
+    }
+
+    /// <summary>Số yêu cầu đang chờ user này xử lý (badge dashboard). 0 nếu không phải registrar.</summary>
+    [HttpGet("pending-count")]
+    public async Task<IActionResult> PendingCount(CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        var rows = await LoadHandleablePendingAsync(ct);
+        return Ok(ApiResponse<int>.Ok(rows.Count));
+    }
+
+    /// <summary>Yêu cầu chờ xử lý mà user là người được chỉ định (ApproverId) HOẶC là registrar của phòng ban đó.</summary>
+    private async Task<List<F03SupervisorFeedback>> LoadHandleablePendingAsync(CancellationToken ct)
+    {
+        var pending = await _db.Set<F03SupervisorFeedback>().AsNoTracking()
+            .Where(x => x.Status == SupervisorFeedbackStatus.PendingSupervisor)
+            .OrderBy(x => x.WorkDate).Take(500).ToListAsync(ct);
+
+        var result = new List<F03SupervisorFeedback>();
+        var deptCache = new Dictionary<int, bool>();
+        foreach (var row in pending)
+        {
+            if (row.ApproverId == UserInfo!.UserId) { result.Add(row); continue; }
+            var dept = row.DepartmentCode ?? 0;
+            if (!deptCache.TryGetValue(dept, out var ok))
+                deptCache[dept] = ok = await _policy.IsRegistrarAsync(UserInfo, dept, "OT", ct);
+            if (ok) result.Add(row);
+        }
+        return result;
     }
 
     [HttpPost("{id:int}/reject")]
@@ -132,6 +170,8 @@ public sealed class SupervisorFeedbackController : BaseApiController
         if (UserInfo == null) return Unauthorized();
         var entity = await GetOwnedPendingAsync(id, ct);
         if (entity == null) return NotFound(ApiResponse<object>.Fail("Không tìm thấy yêu cầu hoặc yêu cầu không thuộc quyền xử lý."));
+        if (!await _policy.IsRegistrarAsync(UserInfo, entity.DepartmentCode ?? 0, "OT", ct))
+            return StatusCode(403, ApiResponse<object>.Fail("Bạn không có quyền đăng ký OT cho phòng ban này."));
         if (!entity.ActualIn.HasValue || !entity.ActualOut.HasValue || entity.ActualOut <= entity.ActualIn)
             return BadRequest(ApiResponse<object>.Fail("Lịch chưa có đủ giờ thực tế để đăng ký OT."));
 
@@ -180,7 +220,29 @@ public sealed class SupervisorFeedbackController : BaseApiController
     private async Task<F03SupervisorFeedback?> GetOwnedPendingAsync(int id, CancellationToken ct)
     {
         if (UserInfo == null) return null;
-        return await _db.Set<F03SupervisorFeedback>().FirstOrDefaultAsync(x => x.Id == id && x.ApproverId == UserInfo.UserId && x.Status == SupervisorFeedbackStatus.PendingSupervisor, ct);
+        var entity = await _db.Set<F03SupervisorFeedback>().FirstOrDefaultAsync(x => x.Id == id && x.Status == SupervisorFeedbackStatus.PendingSupervisor, ct);
+        if (entity == null) return null;
+        if (entity.ApproverId == UserInfo.UserId) return entity;
+        return await _policy.IsRegistrarAsync(UserInfo, entity.DepartmentCode ?? 0, "OT", ct) ? entity : null;
+    }
+
+    private async Task<int?> ResolveFeatureOperatorApproverIdAsync(int deptCode, CancellationToken ct)
+    {
+        var block = await _db.Set<FVN_REGISTER.Core.Entities.HR.F03Department>().AsNoTracking()
+            .Where(d => d.DeptCode == deptCode).Select(d => d.BlockCode).FirstOrDefaultAsync(ct);
+        var assignments = await _db.Set<FVN_REGISTER.Core.Entities.Security.F03FeatureOperatorAssignment>().AsNoTracking()
+            .Where(x => x.IsActive == true
+                        && x.FunctionCode == SecurityFunctionCodes.OTRegistrarManage
+                        && x.ResourceType == FeatureOperatorCatalog.OtRegistrar)
+            .Select(x => new { x.EmployeeCode, x.ResourceId, x.ScopeCode }).ToListAsync(ct);
+        var codes = assignments
+            .Where(x => FeatureOperatorAuthorizationPolicy.OtRegistrarCovers(x.ResourceId, x.ScopeCode, deptCode, block))
+            .Select(x => x.EmployeeCode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+        if (codes.Count == 0) return null;
+        return await _db.Users.AsNoTracking()
+            .Where(u => codes.Contains(u.EmployeeCode) && u.IsActive == true)
+            .OrderByDescending(u => u.DeptCode == deptCode)
+            .Select(u => (int?)u.Id).FirstOrDefaultAsync(ct);
     }
 
     private async Task<bool> CanRegisterForOthersAsync(F03OTRegistrationRule? rule, CancellationToken ct)

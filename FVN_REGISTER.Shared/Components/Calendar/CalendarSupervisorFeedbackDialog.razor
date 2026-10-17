@@ -1,0 +1,67 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Services.Users
+@using MudBlazor
+@inject IHttpClientWithAuth Http
+@inject ICurrentUserClientService CurrentUser
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Bạn không có quyền tự đăng ký OT. Yêu cầu sẽ gửi tới cấp trên trực tiếp (hoặc người được chỉ định đăng ký OT)
+                kèm giờ vào/ra thực tế của ngày <b>@Date.ToString("dd/MM/yyyy")</b>.
+            </MudAlert>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudGrid>
+                    <MudItem xs="6"><MudText Typo="Typo.caption">Giờ vào</MudText><MudText Typo="Typo.body2"><b>@(CheckIn?.ToString("HH:mm") ?? "-")</b></MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.caption">Giờ ra</MudText><MudText Typo="Typo.body2"><b>@(CheckOut?.ToString("HH:mm") ?? "-")</b></MudText></MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudTextField @bind-Value="_note" Label="Ghi chú / lý do làm thêm" Variant="Variant.Outlined" Lines="3" MaxLength="1000" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Đóng</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_sending" OnClick="SendAsync">
+            @(_sending ? "Đang gửi..." : "Gửi cấp trên")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public DateOnly Date { get; set; }
+    [Parameter] public DateTime? CheckIn { get; set; }
+    [Parameter] public DateTime? CheckOut { get; set; }
+
+    private string? _note;
+    private bool _sending;
+
+    private void Cancel() => Dialog.Cancel();
+
+    private async Task SendAsync()
+    {
+        var employeeCode = CurrentUser.User?.EmployeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(employeeCode)) { Snackbar.Add("Không xác định được nhân viên đăng nhập.", Severity.Error); return; }
+
+        _sending = true;
+        try
+        {
+            var result = await Http.PostAsync<SupervisorFeedbackDto>("api/supervisor-feedback", new SupervisorFeedbackCreateDto
+            {
+                EmployeeCode = employeeCode,
+                WorkDate = Date.ToDateTime(TimeOnly.MinValue),
+                Note = _note
+            });
+            Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã gửi phản hồi cấp trên." : "Không gửi được phản hồi cấp trên."),
+                result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) Dialog.Close(DialogResult.Ok(true));
+        }
+        finally { _sending = false; }
+    }
+}

@@ -50,6 +50,14 @@ public sealed class AttendanceNumericVarianceRule : ICalendarDayRule
         }
         else if (attendance.ActualHours.HasValue
             && attendance.RequiredHours.HasValue
+            && attendance.ActualHours.Value > attendance.RequiredHours.Value
+            && context.Day.MustReportOtToSupervisor)
+        {
+            var supervisorAction = CalendarSupervisorFeedback.BuildAction(context.Day);
+            if (supervisorAction is not null) actions.Insert(0, supervisorAction);
+        }
+        else if (attendance.ActualHours.HasValue
+            && attendance.RequiredHours.HasValue
             && attendance.ActualHours.Value > attendance.RequiredHours.Value)
         {
             actions.Insert(0, new CalendarActionOptionDto
@@ -75,7 +83,7 @@ public sealed class AttendanceNumericVarianceRule : ICalendarDayRule
                 Severity = 2,
                 Marker = "?",
                 Title = "Chênh lệch giờ công",
-                Summary = summary,
+                Summary = summary + (context.Day.MustReportOtToSupervisor ? CalendarSupervisorFeedback.StatusText(context.Day) : string.Empty),
                 SourceId = attendance.SourceId ?? attendanceItem?.SourceId,
                 ActionId = attendance.ActionId ?? attendanceItem?.ActionId,
                 DetailRoute = attendance.DetailRoute ?? attendanceItem?.DetailRoute,

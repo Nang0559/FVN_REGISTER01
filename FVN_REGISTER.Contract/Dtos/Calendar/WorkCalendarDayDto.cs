@@ -18,6 +18,8 @@ public sealed class WorkCalendarDayDto
     public bool CanRegisterLeave { get; set; }
     public bool CanRegisterOT { get; set; }
     public bool CanRegisterTrip { get; set; }
+    /// <summary>true khi người xem KHÔNG phải registrar OT của phòng ban nhân viên này: phải báo cấp trên ("Phản hồi cấp trên") thay vì tự đăng ký OT. Không phụ thuộc ngày quá khứ/tương lai.</summary>
+    public bool MustReportOtToSupervisor { get; set; }
     public string? AvailabilityNote { get; set; }
     public bool IsFuture { get; set; }
     public bool IsPast { get; set; }

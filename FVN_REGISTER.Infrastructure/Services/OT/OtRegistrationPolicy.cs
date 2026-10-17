@@ -67,6 +67,30 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
         return true;
     }
 
+    public async Task<bool> IsAnyRegistrarAsync(UserIdentityDto user, string registerType = "OT", CancellationToken ct = default)
+    {
+        if (user == null) return false;
+        var type = NormalizeType(registerType);
+
+        // 1) registrar của phòng ban của chính mình (rule Everyone / chức vụ approver / user chỉ định)
+        if (await IsRegistrarAsync(user, user.DeptCode ?? 0, type, ct)) return true;
+
+        // 2) được chỉ định qua Feature Operator OT.RegistrarManage (phòng ban / khối / toàn công ty) — kể cả phòng ban KHÁC phòng mình
+        var code = user.EmployeeCode?.Trim();
+        if (!string.IsNullOrWhiteSpace(code)
+            && await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking().AnyAsync(x =>
+                x.IsActive == true
+                && x.FunctionCode == SecurityFunctionCodes.OTRegistrarManage
+                && x.ResourceType == FeatureOperatorCatalog.OtRegistrar
+                && x.EmployeeCode == code, ct))
+            return true;
+
+        // 3) được chỉ định trực tiếp trong rule của một phòng ban khác
+        return await _db.Set<F03OTRegistrar>().AsNoTracking()
+            .AnyAsync(x => x.UserId == user.UserId && x.RegisterType == type && x.IsActive != false
+                           && _db.Set<F03OTRegistrationRule>().Any(r => r.Id == x.RegistrationRuleId && r.IsActive && r.Mode == RegistrationRuleMode.AssignedUsers), ct);
+    }
+
     public Task<bool> CanRegisterForOthersAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
         => IsRegistrarAsync(user, deptCode, registerType, ct);
 

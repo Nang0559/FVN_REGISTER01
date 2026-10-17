@@ -41,7 +41,13 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
             }
         };
 
-        if (pending is null)
+        if (pending is null && context.Day.MustReportOtToSupervisor)
+        {
+            // Không có quyền đăng ký OT trực tiếp: báo cấp trên thay vì mở màn hình đăng ký.
+            var supervisorAction = CalendarSupervisorFeedback.BuildAction(context.Day);
+            if (supervisorAction is not null) actions.Add(supervisorAction);
+        }
+        else if (pending is null)
         {
             actions.Add(new CalendarActionOptionDto
             {
@@ -81,9 +87,9 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
                 Title = pending is null
                     ? "Có OT thực tế nhưng chưa có đơn OT"
                     : "Có OT thực tế, đơn OT đang chờ duyệt",
-                Summary = pending is null
+                Summary = (pending is null
                     ? $"Phát hiện {minutes} phút OT thực tế nhưng chưa có đăng ký OT được duyệt."
-                    : $"Phát hiện {minutes} phút OT thực tế. Đơn OT đã đăng ký đang chờ duyệt{approver}; OT sẽ được ghi nhận sau khi đơn được duyệt.",
+                    : $"Phát hiện {minutes} phút OT thực tế. Đơn OT đã đăng ký đang chờ duyệt{approver}; OT sẽ được ghi nhận sau khi đơn được duyệt.") + CalendarSupervisorFeedback.StatusText(context.Day),
                 SourceId = source?.SourceId ?? context.Day.Attendance.SourceId,
                 ActionId = source?.ActionId,
                 DetailRoute = source?.DetailRoute,

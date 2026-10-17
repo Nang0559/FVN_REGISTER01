@@ -196,6 +196,9 @@
             case "OPEN_HR_FEEDBACK":
                 await OpenHrFeedbackAsync(request);
                 return;
+            case "OPEN_SUPERVISOR_FEEDBACK":
+                await OpenSupervisorFeedbackAsync(request);
+                return;
             case "CANCEL_OT":
                 if (request.RequestId is not int requestId)
                 {
@@ -275,6 +278,32 @@
         };
         await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(Language.T("calendar.feedbackTitle"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (_calendar is not null) await _calendar.RefreshAsync();
+        await LoadAlertsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenSupervisorFeedbackAsync(CalendarActionRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(_currentEmployeeCode)
+            || !string.Equals(_selectedEmployeeCode, _currentEmployeeCode, StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add(Language.T("calendar.feedbackSelfOnly"), Severity.Warning);
+            return;
+        }
+
+        var result = await CalendarService.GetForEmployeeAsync(_selectedEmployeeCode, request.Date.ToDateTime(TimeOnly.MinValue), request.Date.ToDateTime(TimeOnly.MinValue));
+        var attendance = result.IsSuccess ? result.Data?.Days.FirstOrDefault(x => x.Date == request.Date)?.Attendance : null;
+
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarSupervisorFeedbackDialog.Date)] = request.Date,
+            [nameof(CalendarSupervisorFeedbackDialog.CheckIn)] = attendance?.CheckIn,
+            [nameof(CalendarSupervisorFeedbackDialog.CheckOut)] = attendance?.CheckOut
+        };
+        await DialogService.ShowAsync<CalendarSupervisorFeedbackDialog>("Phản hồi cấp trên", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
 
         if (_calendar is not null) await _calendar.RefreshAsync();
         await LoadAlertsAsync();

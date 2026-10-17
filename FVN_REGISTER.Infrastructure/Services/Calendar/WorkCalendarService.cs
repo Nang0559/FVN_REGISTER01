@@ -47,6 +47,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var canViewTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
         var canCreateLeave = await _authorization.CanAccessAsync(user, SecurityFunctionCodes.LeaveCreate, normalizedEmployeeCode, null, ct);
         var canCreateOt = await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTCreate, normalizedEmployeeCode, null, ct);
+        var mustReportOtToSupervisor = false;
         if (canCreateOt)
         {
             // Chính sách người đăng ký: chỉ registrar của phòng ban nhân viên được mở "Đăng ký OT".
@@ -55,6 +56,12 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 .Where(x => x.EmployeeCode == normalizedEmployeeCode)
                 .Select(x => (int?)x.DeptCode).FirstOrDefaultAsync(ct);
             canCreateOt = await _registrationPolicy.IsRegistrarAsync(user, targetDept ?? user.DeptCode ?? 0, "OT", ct);
+            mustReportOtToSupervisor = !canCreateOt;
+        }
+        else if (sameEmployee)
+        {
+            // Không có OTCreate nhưng đang xem lịch của chính mình: vẫn phải báo cấp trên khi có OT thực tế.
+            mustReportOtToSupervisor = true;
         }
         var canCreateTrip = await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripCreate, normalizedEmployeeCode, null, ct);
         var workYears = await _uow.Repository<F03WorkYear>().Query().AsNoTracking().Where(x => x.IsActive == true && x.StartDate <= end && x.EndDate >= start).OrderBy(x => x.WorkYear).ToListAsync(ct);
@@ -74,7 +81,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         {
             var holiday = holidayByDate.GetValueOrDefault(date.Date); var workYear = workYearByDate.GetValueOrDefault(date.Date); var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday; var future = date.Date > DateTime.Today; var past = date.Date < DateTime.Today; var working = workYear != null && holiday == null; var holidayType = GetHolidayTypeCode(holiday?.HolidayType);
             var holidayColor = holiday == null ? null : (FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday.HolidayColor) ?? (holiday.DayType != null && dayTypeColors.TryGetValue(holiday.DayType, out var typeColor) ? typeColor : null));
-            var day = new WorkCalendarDayDto { Date = date, WorkYear = workYear?.WorkYear, IsWeekend = weekend, IsFuture = future, IsPast = past, IsWorkingDay = working, HolidayName = holiday == null ? null : $"[{holidayType}]|{holiday.Description}", HolidayCode = holiday == null ? null : $"HOL-{holidayType}-{holiday.HolidayDate:yyyyMMdd}", HolidayType = holiday == null ? null : holidayType, HolidaySymbol = holiday?.HolidaySymbol, HolidayTypeName = holiday?.HolidayTypeName, HolidayColor = holidayColor, DayColor = holiday != null ? holidayColor : (date.DayOfWeek == DayOfWeek.Sunday ? sundayColor : null), CanRegisterLeave = canCreateLeave && future && workYear != null && holiday == null, CanRegisterOT = canCreateOt && future && workYear != null, CanRegisterTrip = canCreateTrip && future && workYear != null && holiday == null, AvailabilityNote = holiday != null ? $"Ngày nghỉ {GetHolidayTypeLabel(holiday.HolidayType)}: {holiday.Description} — chỉ đăng ký OT." : !future ? "Chỉ mở đăng ký từ ngày sau hôm nay." : workYear == null ? "Chưa cấu hình năm làm việc." : null };
+            var day = new WorkCalendarDayDto { Date = date, WorkYear = workYear?.WorkYear, IsWeekend = weekend, IsFuture = future, IsPast = past, IsWorkingDay = working, HolidayName = holiday == null ? null : $"[{holidayType}]|{holiday.Description}", HolidayCode = holiday == null ? null : $"HOL-{holidayType}-{holiday.HolidayDate:yyyyMMdd}", HolidayType = holiday == null ? null : holidayType, HolidaySymbol = holiday?.HolidaySymbol, HolidayTypeName = holiday?.HolidayTypeName, HolidayColor = holidayColor, DayColor = holiday != null ? holidayColor : (date.DayOfWeek == DayOfWeek.Sunday ? sundayColor : null), CanRegisterLeave = canCreateLeave && future && workYear != null && holiday == null, CanRegisterOT = canCreateOt && future && workYear != null, MustReportOtToSupervisor = mustReportOtToSupervisor, CanRegisterTrip = canCreateTrip && future && workYear != null && holiday == null, AvailabilityNote = holiday != null ? $"Ngày nghỉ {GetHolidayTypeLabel(holiday.HolidayType)}: {holiday.Description} — chỉ đăng ký OT." : !future ? "Chỉ mở đăng ký từ ngày sau hôm nay." : workYear == null ? "Chưa cấu hình năm làm việc." : null };
             result.Days.Add(day);
         }
         foreach (var h in holidays) result.Events.Add(new WorkCalendarEventDto { Id = $"COMPANY_{h.Id}", ModuleCode = "COMPANY", EventType = "HOLIDAY", Title = string.IsNullOrWhiteSpace(h.Description) ? GetHolidayTypeLabel(h.HolidayType) : h.Description, Start = h.HolidayDate.Date, End = h.HolidayDate.Date.AddDays(1), Status = "Holiday", IsReadOnly = true });

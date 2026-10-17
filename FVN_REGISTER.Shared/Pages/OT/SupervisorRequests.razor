@@ -1,0 +1,150 @@
+@page "/ot/supervisor-requests"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.OTTypeDtos
+@using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Requests.Approvals
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject IOTClientService OTService
+@inject IApprovalRouteClientService ApprovalRouteService
+@inject ISnackbar Snackbar
+
+<PageTitle>Yêu cầu OT từ nhân viên</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudText Typo="Typo.h5" Class="mb-1"><MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Class="mr-2" />Yêu cầu OT từ nhân viên</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+        Nhân viên không có quyền tự đăng ký OT gửi giờ thực tế từ lịch. Bạn chọn <b>Đăng ký OT</b> cho người đó hoặc <b>Từ chối</b>.
+    </MudText>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Success">Không có yêu cầu nào đang chờ xử lý.</MudAlert>
+    }
+    else
+    {
+        <MudPaper Elevation="1" Class="pa-2">
+            <MudTable Items="_items" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Nhân viên</MudTh><MudTh>Ngày</MudTh><MudTh>Giờ vào</MudTh><MudTh>Giờ ra</MudTh><MudTh>Số giờ</MudTh><MudTh>Ghi chú</MudTh><MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Nhân viên">@context.EmployeeName (@context.EmployeeCode)</MudTd>
+                    <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Giờ vào">@(context.ActualIn?.ToString("HH:mm") ?? "-")</MudTd>
+                    <MudTd DataLabel="Giờ ra">@(context.ActualOut?.ToString("HH:mm") ?? "-")</MudTd>
+                    <MudTd DataLabel="Số giờ">@Hours(context)</MudTd>
+                    <MudTd DataLabel="Ghi chú">@context.Note</MudTd>
+                    <MudTd>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Warning" Disabled="@_busy" OnClick="@(() => Select(context, true))">Đăng ký OT</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" Disabled="@_busy" OnClick="@(() => Select(context, false))">Từ chối</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+
+    @if (_selected != null)
+    {
+        <MudPaper Elevation="2" Class="pa-4 mt-4">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                @(_registering ? "Đăng ký OT cho" : "Từ chối yêu cầu của") <b>@_selected.EmployeeName</b> — @_selected.WorkDate.ToString("dd/MM/yyyy")
+            </MudText>
+            <MudStack Spacing="2">
+                @if (_registering)
+                {
+                    <MudSelect T="string" @bind-Value="_otTypeCode" Label="Loại OT" Variant="Variant.Outlined">
+                        @foreach (var type in _otTypes)
+                        {
+                            <MudSelectItem Value="@type.OTTypeCode">@type.OTTypeName (@type.OTTypeCode)</MudSelectItem>
+                        }
+                    </MudSelect>
+                    @if (_approvalRoute != null)
+                    {
+                        <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+                    }
+                }
+                <MudTextField @bind-Value="_note" Label="@(_registering ? "Lý do OT" : "Lý do từ chối")" Variant="Variant.Outlined" Lines="2"
+                              Required="@(!_registering)" />
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                    <MudButton OnClick="Cancel">Hủy</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="@(_registering ? Color.Warning : Color.Error)" Disabled="@_busy" OnClick="ConfirmAsync">Xác nhận</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private readonly CancellationTokenSource _cts = new();
+    private List<SupervisorFeedbackDto> _items = new();
+    private List<OTTypeDto> _otTypes = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
+    private SupervisorFeedbackDto? _selected;
+    private bool _registering;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _note;
+    private string _otTypeCode = "WEEKDAY";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        var types = await OTService.GetActiveOTTypesAsync(_cts.Token);
+        if (types.IsSuccess && types.Data != null)
+        {
+            _otTypes = types.Data;
+            _otTypeCode = _otTypes.FirstOrDefault(x => x.OTTypeCode == "WEEKDAY")?.OTTypeCode ?? _otTypes.FirstOrDefault()?.OTTypeCode ?? _otTypeCode;
+        }
+        var route = await ApprovalRouteService.GetPreviewAsync(RequestModule.Overtime, _cts.Token);
+        if (route.IsSuccess) _approvalRoute = route.Data;
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        var result = await Http.GetAsync<List<SupervisorFeedbackDto>>("api/supervisor-feedback/pending", _cts.Token, showLoading: false);
+        _items = result.IsSuccess && result.Data != null ? result.Data : new();
+        if (!result.IsSuccess) Snackbar.Add(result.Message ?? "Không tải được danh sách yêu cầu.", Severity.Warning);
+        _loading = false;
+    }
+
+    private static string Hours(SupervisorFeedbackDto x) =>
+        x.ActualIn.HasValue && x.ActualOut.HasValue && x.ActualOut > x.ActualIn
+            ? ((x.ActualOut.Value - x.ActualIn.Value).TotalHours).ToString("0.#")
+            : "-";
+
+    private void Select(SupervisorFeedbackDto item, bool register) { _selected = item; _registering = register; _note = null; }
+    private void Cancel() => _selected = null;
+
+    private async Task ConfirmAsync()
+    {
+        if (_selected == null) return;
+        if (!_registering && string.IsNullOrWhiteSpace(_note)) { Snackbar.Add("Vui lòng nhập lý do từ chối.", Severity.Warning); return; }
+
+        _busy = true;
+        try
+        {
+            var body = new SupervisorFeedbackDecisionDto { Note = _note, OTTypeCode = _registering ? _otTypeCode : null };
+            if (_registering) body.ApprovalSelections = _approvalSelector?.GetSelections() ?? new();
+            var url = $"api/supervisor-feedback/{_selected.Id}/{(_registering ? "register-ot" : "reject")}";
+            var result = await Http.PostAsync<SupervisorFeedbackDto>(url, body, _cts.Token);
+            Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã xử lý yêu cầu." : "Không xử lý được yêu cầu."), result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) { _selected = null; await LoadAsync(); }
+        }
+        finally { _busy = false; }
+    }
+}

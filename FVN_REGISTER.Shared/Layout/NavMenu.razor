@@ -53,7 +53,7 @@
             }
         </MudNavGroup>
     }
-    @if (CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.OTCreate))
+    @if (CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.OTCreate) || _otRegistrar)
     {
         <MudNavGroup Title="@Language.T("nav.ot")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
             @if (CanPersonal(SecurityFunctionCodes.OTView))
@@ -61,9 +61,13 @@
                 <MudNavLink href="/ot" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.otOverview")</MudNavLink>
                 <MudNavLink href="/ot/history" Icon="@Icons.Material.Filled.ManageHistory">@Language.T("nav.otHistory")</MudNavLink>
             }
-            @if (CanPersonal(SecurityFunctionCodes.OTCreate))
+            @if (CanPersonal(SecurityFunctionCodes.OTCreate) && _otRegistrar)
             {
                 <MudNavLink href="/ot/create" Icon="@Icons.Material.Filled.AddAlarm">@Language.T("nav.otCreate")</MudNavLink>
+            }
+            @if (_otRegistrar)
+            {
+                <MudNavLink href="/ot/supervisor-requests" Icon="@Icons.Material.Filled.SupervisorAccount">Yêu cầu OT từ nhân viên</MudNavLink>
             }
         </MudNavGroup>
     }
@@ -140,4 +144,4 @@
         </MudNavGroup>
     }
 </MudNavMenu>
-@code { private PermissionSnapshotDto? _permissions; private FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto? _publicCaps; private int _noticeCount; private bool _noticeImportant; private Color NoticeColor => _noticeCount == 0 ? Color.Default : _noticeImportant ? Color.Error : Color.Warning; private string PublicGroupTitle => _noticeCount > 0 ? Language.T("nav.public") + " (" + _noticeCount + ")" : Language.T("nav.public"); protected override async Task OnInitializedAsync(){Language.LanguageChanged+=OnLanguageChanged;var result=await SecurityService.GetMyPermissionsAsync();if(result.IsSuccess)_permissions=result.Data;await LoadPublicCapabilitiesAsync();} private async Task LoadPublicCapabilitiesAsync(){try{var forms=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-forms/capabilities",showLoading:false);var info=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-information/capabilities",showLoading:false);var notice=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicNoticeSummaryDto>("api/public-portal/summary",showLoading:false);if(notice.IsSuccess&&notice.Data!=null){_noticeCount=notice.Data.TotalCount;_noticeImportant=notice.Data.HasImportant;}_publicCaps=new(){CanRegister=forms.IsSuccess&&forms.Data?.CanRegister==true,CanManageForms=forms.IsSuccess&&forms.Data?.CanManageForms==true,CanViewResults=forms.IsSuccess&&forms.Data?.CanViewResults==true,CanManageInformation=info.IsSuccess&&info.Data?.CanManageInformation==true};}catch{_publicCaps=null;}} private void OnLanguageChanged(object? sender,EventArgs e)=>_=InvokeAsync(StateHasChanged); private bool Can(int functionCode)=>_permissions?.Has(functionCode)==true; private bool CanPersonal(int functionCode)=>_permissions?.HasPersonal(functionCode)==true; private bool CanManagement(int functionCode)=>_permissions?.HasManagement(functionCode)==true; private bool CanAny(params int[] functionCodes)=>functionCodes.Any(Can); public void Dispose()=>Language.LanguageChanged-=OnLanguageChanged; }
+@code { private bool _otRegistrar; private PermissionSnapshotDto? _permissions; private FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto? _publicCaps; private int _noticeCount; private bool _noticeImportant; private Color NoticeColor => _noticeCount == 0 ? Color.Default : _noticeImportant ? Color.Error : Color.Warning; private string PublicGroupTitle => _noticeCount > 0 ? Language.T("nav.public") + " (" + _noticeCount + ")" : Language.T("nav.public"); protected override async Task OnInitializedAsync(){Language.LanguageChanged+=OnLanguageChanged;var result=await SecurityService.GetMyPermissionsAsync();if(result.IsSuccess)_permissions=result.Data;await LoadOtRegistrarAsync();await LoadPublicCapabilitiesAsync();} private async Task LoadOtRegistrarAsync(){try{var d=await PublicHttp.GetAsync<bool>("api/registration-policy/is-registrar?registerType=OT",showLoading:false);_otRegistrar=d.IsSuccess&&d.Data;}catch{_otRegistrar=false;}} private async Task LoadPublicCapabilitiesAsync(){try{var forms=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-forms/capabilities",showLoading:false);var info=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-information/capabilities",showLoading:false);var notice=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicNoticeSummaryDto>("api/public-portal/summary",showLoading:false);if(notice.IsSuccess&&notice.Data!=null){_noticeCount=notice.Data.TotalCount;_noticeImportant=notice.Data.HasImportant;}_publicCaps=new(){CanRegister=forms.IsSuccess&&forms.Data?.CanRegister==true,CanManageForms=forms.IsSuccess&&forms.Data?.CanManageForms==true,CanViewResults=forms.IsSuccess&&forms.Data?.CanViewResults==true,CanManageInformation=info.IsSuccess&&info.Data?.CanManageInformation==true};}catch{_publicCaps=null;}} private void OnLanguageChanged(object? sender,EventArgs e)=>_=InvokeAsync(StateHasChanged); private bool Can(int functionCode)=>_permissions?.Has(functionCode)==true; private bool CanPersonal(int functionCode)=>_permissions?.HasPersonal(functionCode)==true; private bool CanManagement(int functionCode)=>_permissions?.HasManagement(functionCode)==true; private bool CanAny(params int[] functionCodes)=>functionCodes.Any(Can); public void Dispose()=>Language.LanguageChanged-=OnLanguageChanged; }
