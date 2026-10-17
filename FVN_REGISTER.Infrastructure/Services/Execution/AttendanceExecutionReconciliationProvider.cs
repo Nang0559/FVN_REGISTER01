@@ -55,6 +55,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
             SELECT
                 a.WorkDate,
                 a.EmployeeCode,
+                a.DayType,
                 a.CheckInTime,
                 a.CheckOutTime,
                 a.WorkMinutesDay,
@@ -94,12 +95,28 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                     || (unresolvedOtEmployeeCodes.Contains(x.EmployeeCode)
                         && x.OTRequest.OTDate >= unresolvedOtMinDate.ToDateTime(TimeOnly.MinValue)
                         && x.OTRequest.OTDate <= unresolvedOtMaxDate.ToDateTime(TimeOnly.MaxValue))))
-            .Select(x => new { x.EmployeeCode, x.OTRequest.OTDate })
+            .Select(x => new
+            {
+                x.EmployeeCode,
+                x.OTRequest.OTDate,
+                x.OTHours,
+                x.OTTypeCode,
+                x.OTRateMultiplier
+            })
             .ToListAsync(ct);
 
-        var approvedOtDates = approvedOt
-            .Select(x => $"{x.EmployeeCode}:{DateOnly.FromDateTime(x.OTDate):yyyyMMdd}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var approvedOtByDate = approvedOt
+            .GroupBy(x => $"\${x.EmployeeCode}:{DateOnly.FromDateTime(x.OTDate):yyyyMMdd}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => new
+                {
+                    PlannedHours = group.Sum(x => x.OTHours),
+                    TypeCodes = string.Join(",", group.Select(x => x.OTTypeCode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase)),
+                    RateMultipliers = string.Join(",", group.Select(x => x.OTRateMultiplier).Distinct().OrderBy(x => x))
+                },
+                StringComparer.OrdinalIgnoreCase);
+        var approvedOtDates = approvedOtByDate.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var today = DateOnly.FromDateTime(DateTime.Today);
 
@@ -282,6 +299,65 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                     }
                 }
 
+                // Compare the approved OT registration with the HRM-calculated actual OT.
+                if (approvedOtByDate.TryGetValue(sourceId, out var otPlan))
+                {
+                    var plannedOtMinutes = (int)Math.Round(otPlan.PlannedHours * 60m, MidpointRounding.AwayFromZero);
+                    var comparedActualOtMinutes = actualOtMinutes > 0 ? actualOtMinutes : recognizedOtMinutes;
+                    var expectedOtType = row.DayType?.ToUpperInvariant() switch
+                    {
+                        "NATIONAL_HOLIDAY" => "HOL",
+                        "COMPANY_HOLIDAY" or "SUNDAY" or "OTHER" => "RESTDAY",
+                        "NORMAL" => "WD",
+                        _ => null
+                    };
+                    var registeredTypeMismatch = expectedOtType is not null
+                        && !string.IsNullOrWhiteSpace(otPlan.TypeCodes)
+                        && otPlan.TypeCodes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Select(NormalizeOtType)
+                            .Any(code => !string.Equals(code, expectedOtType, StringComparison.OrdinalIgnoreCase));
+                    var otHasMismatch = plannedOtMinutes > 0
+                        && (hasActualOt
+                            ? Math.Abs(comparedActualOtMinutes - plannedOtMinutes) > 1 || registeredTypeMismatch
+                            : workDate < today);
+                    var otMismatchDetails = JsonSerializer.Serialize(new
+                    {
+                        row.EmployeeCode,
+                        WorkDate = workDate,
+                        PlannedOtMinutes = plannedOtMinutes,
+                        PlannedOtHours = otPlan.PlannedHours,
+                        ActualOtMinutes = actualOtMinutes,
+                        RecognizedOtMinutes = recognizedOtMinutes,
+                        ComparedActualOtMinutes = comparedActualOtMinutes,
+                        OTTypeCodes = otPlan.TypeCodes,
+                        ExpectedOTTypeCode = expectedOtType,
+                        RegisteredTypeMismatch = registeredTypeMismatch,
+                        RateMultipliers = otPlan.RateMultipliers,
+                        HasActualOt = hasActualOt,
+                        HasApprovedOt = true
+                    });
+
+                    await _service.UpsertAsync(
+                        row.EmployeeCode,
+                        new ExecutionReconciliationUpsertRequest(
+                            "Overtime",
+                            "OT_REGISTRATION_MISMATCH",
+                            sourceId,
+                            row.EmployeeCode,
+                            employeeId,
+                            workDate,
+                            $"RegisteredOTMinutes={plannedOtMinutes}",
+                            hasActualOt
+                                ? $"ActualOTMinutes={actualOtMinutes};RecognizedOTMinutes={recognizedOtMinutes}"
+                                : "NO_ACTUAL_OT",
+                            otHasMismatch ? "Mismatch" : "Resolved",
+                            otHasMismatch,
+                            otHasMismatch,
+                            otMismatchDetails),
+                        ct,
+                        actorUserId: 0);
+                }
+
                 await _service.UpsertAsync(
                     row.EmployeeCode,
                     new ExecutionReconciliationUpsertRequest(
@@ -342,6 +418,14 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
             }
         }
     }
+
+    private static string NormalizeOtType(string code) => code.Trim().ToUpperInvariant() switch
+    {
+        "SAT" or "SUN" or "REST" or "RESTDAY" => "RESTDAY",
+        "HOL" or "HOLIDAY" => "HOL",
+        "WD" or "WEEKDAY" => "WD",
+        _ => code.Trim().ToUpperInvariant()
+    };
 
     public Task ReconcilePlannedAsync(DateOnly from, DateOnly to, byte reconciliationMode, CancellationToken ct)
         => ReconcileAsync(from, to, reconciliationMode, ct);
