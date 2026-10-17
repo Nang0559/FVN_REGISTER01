@@ -94,12 +94,28 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                     || (unresolvedOtEmployeeCodes.Contains(x.EmployeeCode)
                         && x.OTRequest.OTDate >= unresolvedOtMinDate.ToDateTime(TimeOnly.MinValue)
                         && x.OTRequest.OTDate <= unresolvedOtMaxDate.ToDateTime(TimeOnly.MaxValue))))
-            .Select(x => new { x.EmployeeCode, x.OTRequest.OTDate })
+            .Select(x => new
+            {
+                x.EmployeeCode,
+                x.OTRequest.OTDate,
+                x.OTHours,
+                x.OTTypeCode,
+                x.OTRateMultiplier
+            })
             .ToListAsync(ct);
 
-        var approvedOtDates = approvedOt
-            .Select(x => $"{x.EmployeeCode}:{DateOnly.FromDateTime(x.OTDate):yyyyMMdd}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var approvedOtByDate = approvedOt
+            .GroupBy(x => $"{x.EmployeeCode}:{DateOnly.FromDateTime(x.OTDate):yyyyMMdd}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => new
+                {
+                    PlannedHours = group.Sum(x => x.OTHours),
+                    TypeCodes = string.Join(",", group.Select(x => x.OTTypeCode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase)),
+                    RateMultipliers = string.Join(",", group.Select(x => x.OTRateMultiplier).Distinct().OrderBy(x => x))
+                },
+                StringComparer.OrdinalIgnoreCase);
+        var approvedOtDates = approvedOtByDate.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var today = DateOnly.FromDateTime(DateTime.Today);
 
@@ -280,6 +296,52 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                             ct,
                             actorUserId: 0);
                     }
+                }
+
+                // Compare the approved registration with the official HRM calculation.
+                // Use a stable employee/date key so repeated reconciliation is idempotent.
+                if (approvedOtByDate.TryGetValue(sourceId, out var otPlan))
+                {
+                    var plannedOtMinutes = (int)Math.Round(otPlan.PlannedHours * 60m, MidpointRounding.AwayFromZero);
+                    var comparedActualOtMinutes = actualOtMinutes > 0 ? actualOtMinutes : recognizedOtMinutes;
+                    var otHasMismatch = plannedOtMinutes > 0
+                        && (hasActualOt
+                            ? Math.Abs(comparedActualOtMinutes - plannedOtMinutes) > 1
+                            : workDate < today);
+                    var otMismatchDetails = JsonSerializer.Serialize(new
+                    {
+                        row.EmployeeCode,
+                        WorkDate = workDate,
+                        PlannedOtMinutes = plannedOtMinutes,
+                        PlannedOtHours = otPlan.PlannedHours,
+                        ActualOtMinutes = actualOtMinutes,
+                        RecognizedOtMinutes = recognizedOtMinutes,
+                        ComparedActualOtMinutes = comparedActualOtMinutes,
+                        OTTypeCodes = otPlan.TypeCodes,
+                        RateMultipliers = otPlan.RateMultipliers,
+                        HasActualOt = hasActualOt,
+                        HasApprovedOt = true
+                    });
+
+                    await _service.UpsertAsync(
+                        row.EmployeeCode,
+                        new ExecutionReconciliationUpsertRequest(
+                            "Overtime",
+                            "OT_REGISTRATION_MISMATCH",
+                            sourceId,
+                            row.EmployeeCode,
+                            employeeId,
+                            workDate,
+                            $"RegisteredOTMinutes={plannedOtMinutes}",
+                            hasActualOt
+                                ? $"ActualOTMinutes={actualOtMinutes};RecognizedOTMinutes={recognizedOtMinutes}"
+                                : "NO_ACTUAL_OT",
+                            otHasMismatch ? "Mismatch" : "Resolved",
+                            otHasMismatch,
+                            otHasMismatch,
+                            otMismatchDetails),
+                        ct,
+                        actorUserId: 0);
                 }
 
                 await _service.UpsertAsync(
