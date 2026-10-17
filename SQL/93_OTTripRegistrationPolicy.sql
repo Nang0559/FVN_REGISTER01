@@ -177,12 +177,15 @@ BEGIN
         ) policy_rule
         OUTER APPLY
         (
-            SELECT TOP (1) u.EmployeeCode, e.PositionCode
-            FROM dbo.F03Users u
-            LEFT JOIN dbo.F03Employees e ON e.EmployeeCode = u.EmployeeCode
-            WHERE u.Id = q.CreatedBy
+            /* F03OTRequests.EmployeeCode is the canonical requester identity.
+               CreatedBy is an audit UserId and must not be used to infer the employee
+               when user IDs and employee records are not guaranteed to share the same mapping. */
+            SELECT TOP (1) e.EmployeeCode, e.PositionCode
+            FROM dbo.F03Employees e
+            WHERE UPPER(LTRIM(RTRIM(e.EmployeeCode))) =
+                  UPPER(LTRIM(RTRIM(ISNULL(q.EmployeeCode, N''))))
         ) creator_info
-        WHERE UPPER(LTRIM(RTRIM(i.EmployeeCode))) <> UPPER(LTRIM(RTRIM(ISNULL(creator_info.EmployeeCode, N''))))
+        WHERE UPPER(LTRIM(RTRIM(i.EmployeeCode))) <> UPPER(LTRIM(RTRIM(ISNULL(q.EmployeeCode, N''))))
           AND NOT
           (
               policy_rule.Mode = 1
@@ -196,7 +199,7 @@ BEGIN
                   WHERE fa.IsActive = 1
                     AND fa.FunctionCode = 3095
                     AND fa.ResourceType = N'OT_REGISTRAR'
-                    AND fa.EmployeeCode = creator_info.EmployeeCode
+                    AND UPPER(LTRIM(RTRIM(fa.EmployeeCode))) = UPPER(LTRIM(RTRIM(ISNULL(q.EmployeeCode, N''))))
                     AND (
                           fa.ResourceId = ISNULL(q.DeptCode, 0)
                           OR (fa.ResourceId IS NULL AND
