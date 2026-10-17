@@ -316,7 +316,8 @@ BEGIN
         CalculatedRows int NULL,
         ErrorMessage nvarchar(2000) NULL,
         SqlSessionId int NULL,
-        SqlSessionLoginTime datetime2(0) NULL
+        SqlSessionLoginTime datetime2(3) NULL,
+        SqlConnectionId uniqueidentifier NULL
     );
 END;
 GO
@@ -325,7 +326,11 @@ GO
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionId') IS NULL
     ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionId int NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionLoginTime') IS NULL
-    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionLoginTime datetime2(0) NULL;
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionLoginTime datetime2(3) NULL;
+ELSE
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ALTER COLUMN SqlSessionLoginTime datetime2(3) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlConnectionId') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlConnectionId uniqueidentifier NULL;
 GO
 
 /* Employee-scoped coverage metadata for calendar lazy backfill. */
