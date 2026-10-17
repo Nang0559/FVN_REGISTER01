@@ -121,11 +121,9 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03LeaveType x WHERE x.LeaveTypeCode=v.Code);
 
 INSERT dbo.F03OTTypes(IsActive,CreatedBy,OTTypeCode,OTTypeName,OTTypeName2,RateMultiplier,HRMCode)
 SELECT 1,0,v.Code,v.Name,v.Name2,v.Rate,v.HRM FROM (VALUES
-(N'WD',N'Weekday OT',N'Weekday OT',1.5,N'OT-WD'),
-(N'SAT',N'Saturday OT',N'Saturday OT',2.0,N'OT-SAT'),
-(N'SUN',N'Sunday OT',N'Sunday OT',2.0,N'OT-SUN'),
-(N'HOL',N'Holiday OT',N'Holiday OT',3.0,N'OT-HOL'),
-(N'NIGHT',N'Night OT',N'Night OT',2.0,N'OT-NIGHT')
+(N'WD',N'OT ngày thường (150%)',N'OT ngày thường (150%)',1.5,N'OT-WD'),
+(N'RESTDAY',N'OT ngày nghỉ công ty / Chủ nhật (200%)',N'OT ngày nghỉ công ty / Chủ nhật (200%)',2.0,N'OT-RESTDAY'),
+(N'HOL',N'OT ngày lễ (300%)',N'OT ngày lễ (300%)',3.0,N'OT-HOL')
 ) AS v(Code,Name,Name2,Rate,HRM)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTTypes x WHERE x.OTTypeCode=v.Code);
 
