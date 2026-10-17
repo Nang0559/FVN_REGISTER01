@@ -651,31 +651,61 @@ BEGIN
 						  ) > 0;
 
 					/*
+					  FIX C3 NHIEU DEM LIEN TIEP: @TGDen/@TGVe o tren la IN som nhat / OUT muon nhat trong cua so
+					  D-6h..D+30h nen dem thu 2 tro di bi lay nham IN cua dem D-1 (21:49 ngay D-1) va OUT cua dem D-1
+					  (06:0x ngay D) -> khong ca nao khop -> @Maca=0 -> mat ca, mat gio vao/ra.
+					  Khop ca phai xet TUNG ca ung vien: IN trong [Start-CQuetTruocCa, Start+60], OUT trong
+					  [End-60, End+CQuetSauCa]. OUT cua ca qua dem co the vuot D+30h nen doc den D+42h.
+					*/
+					CREATE TABLE #tblRecordDataShiftScan
+					(
+						IDM smallint NULL,
+						ThoiGian datetime NOT NULL,
+						DDChinhVao bit NULL
+					);
+					INSERT INTO #tblRecordDataShiftScan(IDM,ThoiGian,DDChinhVao)
+					SELECT DISTINCT R.IDM,R.ThoiGian,DD.DDChinhVao
+					FROM HRM.dbo.RecordDataNew R
+					INNER JOIN HRM.dbo.tblCapThe C ON C.CTMaNV=@StaffID AND C.CTMaThe=R.IDCard
+					LEFT JOIN HRM.dbo.tblDauDoc DD ON DD.DDMa=R.IDM
+					WHERE R.ThoiGian >= DATEADD(HOUR,-6,CONVERT(datetime,CONVERT(date,@D)))
+					  AND R.ThoiGian <  DATEADD(HOUR,42,CONVERT(datetime,CONVERT(date,@D)))
+					  AND ISNULL(DD.DDloaiChamCong,N'')=N'';
+
+					/*
 					  For TTDD this is the exact HRM rule:
 					  ShiftID2 = IN and OUT both fit.
 					  ShiftID1 = either IN or OUT fits.
 					*/
 					IF ISNULL(@HrmFindShiftType,N'TTDD') = N'TTDD'
 					BEGIN
-						SELECT TOP (1) @ShiftID2=CMa
-						FROM #HrmShiftCandidates
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
-						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
-						                  AND DATEADD(minute,60,s.ShiftStart)
-						  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
-						                 AND DATEADD(minute,ISNULL(CQuetSauCa,0),e.ShiftEnd)
-						ORDER BY CTGBatDau DESC, CMa DESC;
+						SELECT TOP (1) @ShiftID2=c.CMa
+						FROM #HrmShiftCandidates c
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
+						WHERE EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=1
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-ISNULL(c.CQuetTruocCa,0),s.ShiftStart)
+						                                   AND DATEADD(minute,60,s.ShiftStart))
+						  AND EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=0
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-60,e.ShiftEnd)
+						                                   AND DATEADD(minute,ISNULL(c.CQuetSauCa,0),e.ShiftEnd))
+						ORDER BY c.CTGBatDau DESC, c.CMa DESC;
 
-						SELECT TOP (1) @ShiftID1=CMa
-						FROM #HrmShiftCandidates
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
-						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
-						                  AND DATEADD(minute,60,s.ShiftStart)
-						   OR @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
-						                 AND DATEADD(minute,ISNULL(CQuetSauCa,0),e.ShiftEnd)
-						ORDER BY CTGBatDau DESC, CMa DESC;
+						SELECT TOP (1) @ShiftID1=c.CMa
+						FROM #HrmShiftCandidates c
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
+						WHERE EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=1
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-ISNULL(c.CQuetTruocCa,0),s.ShiftStart)
+						                                   AND DATEADD(minute,60,s.ShiftStart))
+						   OR EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=0
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-60,e.ShiftEnd)
+						                                   AND DATEADD(minute,ISNULL(c.CQuetSauCa,0),e.ShiftEnd))
+						ORDER BY c.CTGBatDau DESC, c.CMa DESC;
 					END
 					ELSE
 					BEGIN
@@ -703,6 +733,7 @@ BEGIN
 						END
 					END;
 					DROP TABLE #HrmShiftCandidates;
+					DROP TABLE #tblRecordDataShiftScan;
 
 					-- HRM sphrmvn_FindShift_New resolves the selected shift after
 					-- scanning all scheduled candidates: ShiftID2 (both IN/OUT)
