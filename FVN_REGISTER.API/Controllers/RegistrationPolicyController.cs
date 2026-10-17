@@ -146,8 +146,10 @@ public sealed class RegistrationPolicyController : BaseApiController
         if (dto.DepartmentCode < 0) return BadRequest(ApiResponse<object>.Fail("DepartmentCode không hợp lệ."));
         if (dto.Mode == RegistrationRuleMode.AssignedUsers && dto.UserIds.Count == 0)
             return BadRequest(ApiResponse<object>.Fail("Chế độ chỉ định user phải có ít nhất một user."));
-        if (dto.Mode == RegistrationRuleMode.AssignedPositions && dto.PositionCodes.Count == 0)
-            return BadRequest(ApiResponse<object>.Fail("Chế độ chỉ định chức vụ phải có ít nhất một chức vụ."));
+        if (dto.Mode == RegistrationRuleMode.AssignedPositions
+            && dto.PositionCodes.Count == 0
+            && !(type == "OT" && dto.SelfRegistrationPositionCodes.Any(x => !string.IsNullOrWhiteSpace(x))))
+            return BadRequest(ApiResponse<object>.Fail("Chế độ chỉ định registrar phải có ít nhất một chức vụ, trừ khi bạn chỉ cấu hình chức vụ tự đăng ký OT."));
 
         var rule = await _db.Set<F03OTRegistrationRule>()
             .Include(x => x.Registrars)
