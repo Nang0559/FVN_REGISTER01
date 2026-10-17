@@ -15,6 +15,7 @@ public sealed class CalendarRegistrationDto
     public decimal? OTHours { get; init; }
     /// <summary>Mã loại OT chuẩn: WD, RESTDAY hoặc HOL.</summary>
     public string? OTTypeCode { get; init; }
+    public decimal? OTRateMultiplier { get; init; }
     public Guid? ActionId { get; init; }
     public string? DetailRoute { get; init; }
 
