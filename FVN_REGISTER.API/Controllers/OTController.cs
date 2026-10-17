@@ -312,9 +312,28 @@ namespace FVN_REGISTER.API.Controllers
 
             // Chính sách người đăng ký (OT.RegistrarManage / rule phòng ban): chỉ registrar của phòng ban của TỪNG nhân viên
             // được đăng ký OT (kể cả cho chính mình). Nhân viên khác phải báo cấp quản lý / người được chỉ định.
-            if (!await _registrationPolicy.CanRegisterForEmployeesAsync(UserInfo, dto.Employees.Select(x => x.EmployeeCode), "OT", ct))
+            var requestedCodes = dto.Employees.Select(x => x.EmployeeCode?.Trim() ?? string.Empty)
+                .Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var isSelfOnly = requestedCodes.Count == 1
+                && string.Equals(requestedCodes[0], UserInfo.EmployeeCode?.Trim(), StringComparison.OrdinalIgnoreCase);
+            var isSelfPositionAllowed = isSelfOnly && await IsSelfRegistrationPositionAllowedAsync(UserInfo.DeptCode ?? 0, UserInfo.PositionCode, ct);
+            if (!isSelfPositionAllowed
+                && !await _registrationPolicy.CanRegisterForEmployeesAsync(UserInfo, requestedCodes, "OT", ct))
                 return StatusCode(403, ApiResponse<object>.Fail("Bạn không có quyền đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT (hoặc dùng \"Phản hồi cấp trên\" trên lịch)."));
             return HandleResult(await _otService.CreateAsync(dto, UserInfo, ct));
+        }
+
+
+        private async Task<bool> IsSelfRegistrationPositionAllowedAsync(int deptCode, string? positionCode, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(positionCode)) return false;
+            return await _db.Database.SqlQuery<int>($"""
+                SELECT COUNT(1) AS [Value]
+                FROM dbo.F03OTSelfRegistrationPositions p
+                WHERE p.IsActive=1 AND p.RegisterType=N'OT'
+                  AND p.PositionCode={positionCode.Trim()}
+                  AND p.DepartmentCode IN (0,{deptCode})
+                """).SingleAsync(ct) > 0;
         }
 
         [HttpPost("approve")]
