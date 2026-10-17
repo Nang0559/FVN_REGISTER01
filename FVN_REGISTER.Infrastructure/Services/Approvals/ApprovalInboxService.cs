@@ -116,24 +116,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     scopedByModule[pair.Key] = scopedItems;
                 }
 
-                // Reconcile notification state against the actual unresolved approval route.
-                // If a user previously opened an approval alert, restore it while that request
-                // is still actionable; only workflow completion may resolve the alert.
-                var actionableApprovals = scopedByModule
+                // Reconcile the bell against the raw actionable workflow route BEFORE capability
+                // filtering. If the user lacks a module grant, the task may be hidden from the inbox,
+                // but its notification must remain unread so the configuration problem is visible.
+                var actionableApprovals = byModule
                     .SelectMany(pair => pair.Value.Select(item => (pair.Key, item.RequestId)))
                     .Distinct()
                     .ToList();
+
+                // Clear notifications only when the route no longer contains actionable work
+                // for this approver (step completed, request closed, or assignment moved on).
+                await _notifications.ResolveStaleApproverAsync(
+                    user.UserId, actionableApprovals, ct);
+
+                // A notification opened earlier is restored while the assigned step is still actionable.
                 await _notifications.RestorePendingApproverNotificationsAsync(
                     user.UserId, actionableApprovals, ct);
 
                 var groups = _groupingPolicy.BuildGroups(scopedByModule);
-
-                // Do not mark approver notifications as read merely because an item is absent
-                // from this inbox response. Policy/scope filtering can hide an otherwise valid
-                // pending step (e.g. policy changed after snapshot creation); auto-clearing here
-                // silently erases the bell count and makes notification, inbox, and dashboard
-                // all appear empty. Resolve notifications only when the workflow explicitly
-                // advances/completes the request. Keep diagnostic logs above for policy/scope issues.
 
                 return ServiceResult<List<PendingApprovalGroupDto>>.Ok(groups);
             }
