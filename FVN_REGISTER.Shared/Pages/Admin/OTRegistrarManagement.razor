@@ -1,6 +1,7 @@
 @page "/admin/ot-registrars"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Contract.Dtos.Positions
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
@@ -39,6 +40,18 @@
         <MudItem xs="12">
             <MudTextField @bind-Value="_userIdsText" Label="UserId (chế độ 2 — nhiều ID, phân cách bằng dấu phẩy)" Variant="Variant.Outlined" Disabled="@(_edit.Mode != RegistrationRuleMode.AssignedUsers)" />
         </MudItem>
+        @if (_registerType == "OT")
+        {
+            <MudItem xs="12">
+                <MudSelect T="string" Label="Chức vụ được tự đăng ký OT (không cần được chỉ định làm registrar)" MultiSelection="true" SelectedValues="_selfPositionCodes" SelectedValuesChanged="OnSelfPositionsChanged" Variant="Variant.Outlined" Dense="true" Clearable="true">
+                    @foreach (var position in _positions)
+                    {
+                        <MudSelectItem T="string" Value="@position.PositionCode">@position.PositionCode — @position.PositionName (@position.EmployeeCount NV)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Có thể chọn nhiều chức vụ. Quyền này chỉ cho phép đăng ký OT cho chính mình; đăng ký cho người khác vẫn cần quyền registrar hiện có.</MudText>
+            </MudItem>
+        }
         <MudItem xs="12">
             <MudTextField @bind-Value="_positionCodesText" Label="PositionCode (chế độ 3 — nhiều mã, phân cách bằng dấu phẩy)" Variant="Variant.Outlined" Disabled="@(_edit.Mode != RegistrationRuleMode.AssignedPositions)" />
         </MudItem>
@@ -68,6 +81,8 @@
     private int _tab;
     private string _registerType = "OT";
     private List<RegistrationPolicyDto> _rules = new();
+    private List<PositionDto> _positions = new();
+    private HashSet<string> _selfPositionCodes = new(StringComparer.OrdinalIgnoreCase);
     private RegistrationPolicyUpsertDto _edit = new() { RegisterType = "OT", Mode = RegistrationRuleMode.AssignedPositions };
     private string _userIdsText = string.Empty;
     private string _positionCodesText = string.Empty;
@@ -87,6 +102,11 @@
         if (result.IsSuccess && result.Data != null)
         {
             _rules = result.Data;
+            if (type == "OT")
+            {
+                var positions = await Http.GetAsync<List<PositionDto>>("api/registration-policy/positions", showLoading: false);
+                if (positions.IsSuccess && positions.Data != null) _positions = positions.Data;
+            }
             ResetEditor(type);
         }
         else if (!string.IsNullOrWhiteSpace(result.Message)) Snackbar.Add(result.Message, Severity.Warning);
@@ -97,6 +117,7 @@
         _edit = new RegistrationPolicyUpsertDto { RegisterType = type, Mode = RegistrationRuleMode.AssignedPositions, IsActive = true };
         _userIdsText = string.Empty;
         _positionCodesText = string.Empty;
+        _selfPositionCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     private void LoadRule(RegistrationPolicyDto rule)
@@ -112,6 +133,7 @@
         };
         _userIdsText = string.Join(",", rule.UserIds);
         _positionCodesText = string.Join(",", rule.PositionCodes);
+        _selfPositionCodes = new HashSet<string>(rule.SelfRegistrationPositionCodes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task SaveAsync()
@@ -119,6 +141,7 @@
         _edit.RegisterType = _registerType;
         _edit.UserIds = ParseInts(_userIdsText);
         _edit.PositionCodes = ParseStrings(_positionCodesText);
+        _edit.SelfRegistrationPositionCodes = _selfPositionCodes.ToList();
         var result = await Http.PutAsync<RegistrationPolicyDto>("api/registration-policy", _edit);
         if (result.IsSuccess)
         {
@@ -127,6 +150,8 @@
         }
         else Snackbar.Add(result.Message ?? "Không thể lưu chính sách.", Severity.Error);
     }
+
+    private Task OnSelfPositionsChanged(IEnumerable<string> values) { _selfPositionCodes = new HashSet<string>(values, StringComparer.OrdinalIgnoreCase); return Task.CompletedTask; }
 
     private static string ModeText(RegistrationRuleMode mode) => mode switch
     {
