@@ -308,8 +308,8 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                     var expectedOtType = row.DayType?.ToUpperInvariant() switch
                     {
                         "NATIONAL_HOLIDAY" => "HOL",
-                        "COMPANY_HOLIDAY" or "SUNDAY" => "RESTDAY",
-                        "NORMAL" or "OTHER" => "WD",
+                        "COMPANY_HOLIDAY" or "SUNDAY" or "OTHER" => "RESTDAY",
+                        "NORMAL" => "WD",
                         _ => null
                     };
                     var registeredTypeMismatch = expectedOtType is not null
