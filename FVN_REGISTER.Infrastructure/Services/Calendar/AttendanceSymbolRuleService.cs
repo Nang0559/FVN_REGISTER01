@@ -74,7 +74,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
             .Where(x=>InTimeMatches(checkIn.Value.TimeOfDay,x.CheckInFrom,x.CheckInTo)).Where(x=>EffectiveDateMatches(workDate,x.EffectiveFrom,x.EffectiveTo))
             .OrderBy(x=>x.Priority).ThenByDescending(x=>x.ShiftId.HasValue).ThenByDescending(x=>!string.IsNullOrWhiteSpace(x.ShiftCode)).FirstOrDefault();
         if(rule is null)return new(){Matched=false,DayType=dayType,RawElapsedMinutes=elapsed,Explanation=DescribeNoMatch(rows,workDate,dayType,normalizedShift,shiftId,checkIn.Value,elapsed)};
-        var doc=Parse(rule.RuleJson);var result=Calculate(doc,workDate,checkIn.Value,checkOut.Value,elapsed);
+        var doc=Parse(rule.RuleJson);var result=Calculate(doc,workDate,checkIn.Value,checkOut.Value,elapsed,rule.DayType,normalizedShift);
         return new(){Matched=true,RuleCode=rule.RuleCode,DayType=rule.DayType,WorkSymbol=result.WorkSymbol,OtSymbol=result.OtSymbol,WorkMinutesForSymbol=result.WorkMinutes,OtMinutesForSymbol=result.OtMinutes,RawElapsedMinutes=elapsed,RoundedOtMinutes=result.OtMinutes,Explanation=$"Rule {rule.RuleCode}: công {result.WorkMinutes/60m:0.##}h, OT {result.OtMinutes/60m:0.##}h theo block {doc.BlockMinutes} phút / {doc.RoundingMode}."};
     }
 
@@ -91,7 +91,6 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
             FROM dbo.F03HrmAttendanceCalculated AS a
             CROSS APPLY dbo.fn_ResolveDayType(a.WorkDate, a.HrmBCNgayLe, a.HrmBCNgayLeNV) AS ds
             WHERE a.WorkDate >= DATEADD(MONTH, -12, CONVERT(date, GETDATE()))
-              AND a.CheckInTime IS NOT NULL AND a.CheckOutTime IS NOT NULL
             UNION ALL
             SELECT N'HISTORY' AS Store, h.HistoryId AS RowId, h.WorkDate, h.ShiftId, h.ShiftAbbr,
                    h.CheckInTime, h.CheckOutTime, COALESCE(h.DayType, ds.DayType) AS DayType
@@ -211,14 +210,29 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
     private static AttendanceSymbolRuleDto ToDto(RuleRow row){var d=Parse(row.RuleJson);return new(){Id=row.Id,RuleCode=row.RuleCode,RuleName=row.RuleName,DayType=row.DayType,ShiftCode=row.ShiftCode,ShiftId=row.ShiftId,Priority=row.Priority,MinActualMinutes=row.MinActualMinutes,MaxActualMinutes=row.MaxActualMinutes,CheckInFrom=row.CheckInFrom,CheckInTo=row.CheckInTo,IsActive=row.IsActive,EffectiveFrom=row.EffectiveFrom?.ToString("yyyy-MM-dd"),EffectiveTo=row.EffectiveTo?.ToString("yyyy-MM-dd"),Segments=d.Segments};}
     private static RuleDocument Parse(string json)=>JsonSerializer.Deserialize<RuleDocument>(json,JsonOptions)??new();
 
-    private static Calculation Calculate(RuleDocument doc,DateOnly workDate,DateTime checkIn,DateTime checkOut,int elapsed)
+    private static Calculation Calculate(RuleDocument doc,DateOnly workDate,DateTime checkIn,DateTime checkOut,int elapsed,string dayType,string shiftCode)
     {
         int work=0,ot=0;
         if(string.Equals(doc.AllocationMode,"FIXED_OT",StringComparison.OrdinalIgnoreCase)&&doc.FixedOtMinutes is >0){ot=ApplyBlock(Math.Min(elapsed,doc.FixedOtMinutes.Value),doc.BlockMinutes,doc.RoundingMode);work=Math.Max(0,elapsed-doc.FixedOtMinutes.Value);}
         else foreach(var s in doc.Segments){var start=At(workDate,s.Start);var end=At(workDate,s.End);if(end<=start)end=end.AddDays(1);var overlapStart = checkIn > start ? checkIn : start; var overlapEnd = checkOut < end ? checkOut : end; var overlap = overlapEnd > overlapStart ? (int)Math.Round((overlapEnd - overlapStart).TotalMinutes, MidpointRounding.AwayFromZero) : 0;var minutes=s.FixedMinutes is >0?Math.Min(overlap,s.FixedMinutes.Value):overlap;minutes=ApplyBlock(minutes,doc.BlockMinutes,doc.RoundingMode);if(string.Equals(s.SegmentType,"OT",StringComparison.OrdinalIgnoreCase))ot+=minutes;else work+=minutes;}
-        var ws=doc.Segments.FirstOrDefault(x=>string.Equals(x.SegmentType,"WORK",StringComparison.OrdinalIgnoreCase));var os=doc.Segments.FirstOrDefault(x=>string.Equals(x.SegmentType,"OT",StringComparison.OrdinalIgnoreCase));return new(work,ot,Render(ws?.SymbolTemplate,work,doc.BlockMinutes,doc.RoundingMode),Render(os?.SymbolTemplate,ot,doc.BlockMinutes,doc.RoundingMode));
+        var ws=doc.Segments.FirstOrDefault(x=>string.Equals(x.SegmentType,"WORK",StringComparison.OrdinalIgnoreCase));var os=doc.Segments.FirstOrDefault(x=>string.Equals(x.SegmentType,"OT",StringComparison.OrdinalIgnoreCase));
+         var workSymbol=Render(ws?.SymbolTemplate,work,doc.BlockMinutes,doc.RoundingMode);
+         var otSymbol=RenderOtSymbol(os?.SymbolTemplate,ot,doc.BlockMinutes,doc.RoundingMode,dayType,shiftCode);
+         return new(work,ot,workSymbol,otSymbol);
     }
-    private static string? Render(string? template,int minutes,int block,string rounding){if(string.IsNullOrWhiteSpace(template)||minutes<=0)return null;var rounded=ApplyBlock(minutes,block,rounding);if(rounded<=0)return null;var hours=(rounded/60m).ToString("0.##",CultureInfo.InvariantCulture);return template.Replace("{hours}",hours,StringComparison.OrdinalIgnoreCase).Replace("{minutes}",rounded.ToString(CultureInfo.InvariantCulture),StringComparison.OrdinalIgnoreCase);}
+    private static string? RenderOtSymbol(string? template,int minutes,int block,string rounding,string dayType,string shiftCode)
+     {
+         var rounded=ApplyBlock(minutes,block,rounding);
+         // Bang_Quy_Dinh_OT.xlsx: weekday OT of exactly 8h on C2/C3 uses C28/C38.
+         if(string.Equals(dayType,"NORMAL",StringComparison.OrdinalIgnoreCase)&&rounded==480)
+         {
+             var shift=NormalizeShift(shiftCode);
+             if(shift=="C2")return "C28";
+             if(shift=="C3")return "C38";
+         }
+         return Render(template,minutes,block,rounding);
+     }
+     private static string? Render(string? template,int minutes,int block,string rounding){if(string.IsNullOrWhiteSpace(template)||minutes<=0)return null;var rounded=ApplyBlock(minutes,block,rounding);if(rounded<=0)return null;var hours=(rounded/60m).ToString("0.##",CultureInfo.InvariantCulture);return template.Replace("{hours}",hours,StringComparison.OrdinalIgnoreCase).Replace("{minutes}",rounded.ToString(CultureInfo.InvariantCulture),StringComparison.OrdinalIgnoreCase);}
     private static int ApplyBlock(int minutes,int blockMinutes,string rounding){if(minutes<=0)return 0;var block=blockMinutes<=0?15:blockMinutes;var value=minutes/(decimal)block;var blocks=rounding.ToUpperInvariant() switch{"CEILING"=>(int)Math.Ceiling(value),"ROUND"=>(int)Math.Round(value,MidpointRounding.AwayFromZero),_=>(int)Math.Floor(value)};return Math.Max(0,blocks*block);}
     private static DateTime At(DateOnly date,string value)=>date.ToDateTime(TimeOnly.Parse(value,CultureInfo.InvariantCulture));
     private static bool EffectiveDateMatches(DateOnly date,DateTime? from,DateTime? to)=>(!from.HasValue||date>=DateOnly.FromDateTime(from.Value))&&(!to.HasValue||date<=DateOnly.FromDateTime(to.Value));
