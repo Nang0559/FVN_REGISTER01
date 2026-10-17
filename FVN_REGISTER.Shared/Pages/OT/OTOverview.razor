@@ -133,7 +133,7 @@
         switch (request.ActionCode)
         {
             case "OPEN_OT":
-                OpenOtRegistration(new UnapprovedAttendanceOTDto { WorkDate = day.Date.ToDateTime(TimeOnly.MinValue) });
+                NavigationManager.NavigateTo($"/ot/create?date={day.Date:yyyy-MM-dd}");
                 return;
             case "OPEN_EXECUTION_RESULT":
             case "OPEN_OT_REQUEST":
