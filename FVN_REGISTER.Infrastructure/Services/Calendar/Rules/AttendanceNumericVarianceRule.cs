@@ -16,28 +16,23 @@ public sealed class AttendanceNumericVarianceRule : ICalendarDayRule
 
         var attendanceItem = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "ATTENDANCE");
 
-        var actions = new List<CalendarActionOptionDto>
-        {
-            new()
-            {
-                Code = "OPEN_HR_FEEDBACK",
-                Title = "Phản hồi nhân sự",
-                Description = "Báo sự cố/chênh lệch chấm công và có thể bổ sung bằng chứng.",
-                Kind = "FORM",
-                DetailRoute = attendance.DetailRoute ?? attendanceItem?.DetailRoute,
-                RequiresReason = true,
-                RequiresAttachment = true
-            }
-        };
+        var hrFeedback = CalendarOtActions.HrFeedback(
+            "Báo sự cố/chênh lệch chấm công và có thể bổ sung bằng chứng.",
+            attendance.DetailRoute ?? attendanceItem?.DetailRoute);
+        var actions = new List<CalendarActionOptionDto>();
 
-        // One OT per employee per day: if the day already has an OT request, offer to open it
-        // instead of inviting a duplicate registration.
         var existingOt = CalendarOtRegistrations.FindOpenRequest(context.Day);
+        var hasOtHours = attendance.HasActualOt
+            || (attendance.ActualHours.HasValue
+                && attendance.RequiredHours.HasValue
+                && attendance.ActualHours.Value > attendance.RequiredHours.Value);
+
         if (existingOt is not null)
         {
+            // Mỗi nhân viên 1 đơn OT/ngày: mở đơn hiện có thay vì mời đăng ký trùng.
             if (!string.IsNullOrWhiteSpace(existingOt.DetailRoute))
             {
-                actions.Insert(0, new CalendarActionOptionDto
+                actions.Add(new CalendarActionOptionDto
                 {
                     Code = "OPEN_OT_REQUEST",
                     Title = "Xem đơn OT",
@@ -47,27 +42,30 @@ public sealed class AttendanceNumericVarianceRule : ICalendarDayRule
                     RequestId = existingOt.RequestId
                 });
             }
+            actions.Add(hrFeedback);
         }
-        else if (attendance.ActualHours.HasValue
-            && attendance.RequiredHours.HasValue
-            && attendance.ActualHours.Value > attendance.RequiredHours.Value
-            && context.Day.MustReportOtToSupervisor)
+        else if (hasOtHours)
         {
-            var supervisorAction = CalendarSupervisorFeedback.BuildAction(context.Day);
-            if (supervisorAction is not null) actions.Insert(0, supervisorAction);
-        }
-        else if (attendance.ActualHours.HasValue
-            && attendance.RequiredHours.HasValue
-            && attendance.ActualHours.Value > attendance.RequiredHours.Value)
-        {
-            actions.Insert(0, new CalendarActionOptionDto
+            // Có giờ OT mà chưa có đơn:
+            // - người có quyền đăng ký OT -> "Đăng ký OT" (+ Phản hồi HR)
+            // - người khác -> "Phản hồi cấp trên về OT"; khi đã gửi/bị từ chối/đã chuyển HR thì nút ẩn và còn "Phản hồi HR".
+            if (context.Day.MustReportOtToSupervisor)
             {
-                Code = "OPEN_OT",
-                Title = "Đăng ký OT",
-                Description = "Thực tế vượt giờ ca; mở màn hình đăng ký OT cho ngày này.",
-                Kind = "NAVIGATION",
-                DetailRoute = $"/ot/create?date={context.Day.Date:yyyy-MM-dd}"
-            });
+                var supervisorAction = CalendarSupervisorFeedback.BuildAction(context.Day);
+                if (supervisorAction is not null) actions.Add(supervisorAction);
+                else actions.Add(hrFeedback);
+            }
+            else
+            {
+                if (context.IsOtRegistrar)
+                    actions.Add(CalendarOtActions.RegisterOt(context.Day.Date, "Thực tế vượt giờ ca; mở màn hình đăng ký OT cho ngày này."));
+                actions.Add(hrFeedback);
+            }
+        }
+        else
+        {
+            // Không có giờ công / sự cố chấm công: phản hồi HR.
+            actions.Add(hrFeedback);
         }
 
         var summary = attendance.ActualHours.HasValue && attendance.RequiredHours.HasValue

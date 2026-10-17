@@ -85,6 +85,22 @@ namespace FVN_REGISTER.API.Controllers
             return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept.Value, ct)));
         }
 
+        /// <summary>Tìm nhân viên theo mã/tên (hoặc danh sách mã dán vào) để thêm vào đơn OT. Dùng chung policy registrar.</summary>
+        [HttpGet("search-employees")]
+        public async Task<IActionResult> SearchEmployees([FromQuery] string? keyword, [FromQuery] string? codes, [FromQuery] int? deptCode, [FromQuery] int take = 20, CancellationToken ct = default)
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            var dept = deptCode ?? UserInfo.DeptCode;
+            if (dept != UserInfo.DeptCode && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
+            if (dept == null) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
+            if (dept == null) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
+            var codeList = string.IsNullOrWhiteSpace(codes)
+                ? null
+                : codes.Split(new[] { ',', ';', '\n', '\r', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.SearchEmployeesAsync(dept.Value, keyword, codeList, take, ct)));
+        }
+
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecent([FromQuery] int limit = 10, CancellationToken ct = default)
         {

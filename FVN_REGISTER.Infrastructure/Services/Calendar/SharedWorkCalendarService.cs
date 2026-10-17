@@ -336,7 +336,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             };
 
             var issues = ApplyExecutionFeedback(
-                _ruleEngine.Evaluate(new CalendarDayRuleContext(provisional, dateItems)),
+                _ruleEngine.Evaluate(new CalendarDayRuleContext(provisional, dateItems, baseDay.IsOtRegistrar)),
                 dateItems);
 
             days.Add(new CalendarDayDto

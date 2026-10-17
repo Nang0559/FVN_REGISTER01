@@ -26,49 +26,37 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
             ? parsedReconciliationId
             : null;
 
-        var actions = new List<CalendarActionOptionDto>
-        {
-            new CalendarActionOptionDto
-            {
-                Code = "OPEN_HR_FEEDBACK",
-                Title = "Phản hồi nhân sự",
-                Description = "Báo cho nhân sự về OT thực tế chưa có đăng ký.",
-                Kind = "FORM",
-                DetailRoute = source?.DetailRoute,
-                ReconciliationId = reconciliationId,
-                RequiresReason = true,
-                RequiresAttachment = true
-            }
-        };
+        var hrFeedback = CalendarOtActions.HrFeedback(
+            "Báo cho nhân sự về OT thực tế chưa có đăng ký.", source?.DetailRoute, reconciliationId);
+        var actions = new List<CalendarActionOptionDto>();
 
         if (pending is null && context.Day.MustReportOtToSupervisor)
         {
             // Không có quyền đăng ký OT trực tiếp: báo cấp trên thay vì mở màn hình đăng ký.
             var supervisorAction = CalendarSupervisorFeedback.BuildAction(context.Day);
-            if (supervisorAction is not null) actions.Add(supervisorAction);
+            actions.Add(supervisorAction ?? hrFeedback);
         }
         else if (pending is null)
         {
-            actions.Add(new CalendarActionOptionDto
-            {
-                Code = "OPEN_OT",
-                Title = "Đăng ký OT",
-                Description = "Mở đăng ký OT cho ngày này.",
-                Kind = "NAVIGATION",
-                DetailRoute = $"/ot/create?date={context.Day.Date:yyyy-MM-dd}"
-            });
+            actions.Add(hrFeedback);
+            if (context.IsOtRegistrar)
+                actions.Add(CalendarOtActions.RegisterOt(context.Day.Date, "Mở đăng ký OT cho ngày này."));
         }
-        else if (!string.IsNullOrWhiteSpace(pending.DetailRoute))
+        else
         {
-            actions.Add(new CalendarActionOptionDto
+            actions.Add(hrFeedback);
+            if (!string.IsNullOrWhiteSpace(pending.DetailRoute))
             {
-                Code = "OPEN_OT_REQUEST",
-                Title = "Xem đơn OT",
-                Description = "Mở đơn OT đang chờ duyệt của ngày này.",
-                Kind = "NAVIGATION",
-                DetailRoute = pending.DetailRoute,
-                RequestId = pending.RequestId
-            });
+                actions.Add(new CalendarActionOptionDto
+                {
+                    Code = "OPEN_OT_REQUEST",
+                    Title = "Xem đơn OT",
+                    Description = "Mở đơn OT đang chờ duyệt của ngày này.",
+                    Kind = "NAVIGATION",
+                    DetailRoute = pending.DetailRoute,
+                    RequestId = pending.RequestId
+                });
+            }
         }
 
         var minutes = context.Day.Attendance.ActualOtMinutes;

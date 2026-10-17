@@ -13,6 +13,7 @@ public sealed class F03SupervisorFeedbackConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.Status).HasConversion<int>().IsRequired();
         builder.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(1000);
+        builder.Property(x => x.ResponseNote).HasMaxLength(1000);
         builder.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.Status });
         builder.HasIndex(x => new { x.ApproverId, x.Status, x.WorkDate });
         builder.HasIndex(x => new { x.EmployeeCode, x.WorkDate, x.Status });

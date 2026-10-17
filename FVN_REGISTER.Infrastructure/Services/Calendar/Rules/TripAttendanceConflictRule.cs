@@ -43,7 +43,7 @@ public sealed class TripAttendanceConflictRule : ICalendarDayRule
                     new CalendarActionOptionDto
                     {
                         Code = "OPEN_HR_FEEDBACK",
-                        Title = "Phản hồi nhân sự",
+                        Title = "Phản hồi HR",
                         Description = "Giải thích chênh lệch giữa đăng ký công tác và chấm công.",
                         Kind = "FORM",
                         DetailRoute = attendanceItem?.DetailRoute,

@@ -4,7 +4,7 @@ using FVN_REGISTER.Core.Enums;
 namespace FVN_REGISTER.Infrastructure.Services.Calendar.Rules;
 
 /// <summary>
-/// Ô "?" cho user KHÔNG có quyền đăng ký OT trực tiếp: thay "Đăng ký OT" bằng "Phản hồi cấp trên"
+/// Ô "?" cho user KHÔNG có quyền đăng ký OT trực tiếp: thay "Đăng ký OT" bằng "Phản hồi cấp trên về OT"
 /// và hiển thị trạng thái xử lý của cấp trên (chờ / từ chối / đã đăng ký OT).
 /// </summary>
 internal static class CalendarSupervisorFeedback
@@ -17,14 +17,15 @@ internal static class CalendarSupervisorFeedback
         var status = (SupervisorFeedbackStatus)day.SupervisorFeedbackStatus;
         if (status is SupervisorFeedbackStatus.PendingSupervisor
             or SupervisorFeedbackStatus.RegisteredPendingApprove
-            or SupervisorFeedbackStatus.Rejected)
+            or SupervisorFeedbackStatus.Rejected
+            or SupervisorFeedbackStatus.ForwardedToHr)
             return null;
 
         return new CalendarActionOptionDto
         {
             Code = ActionCode,
-            Title = "Phản hồi cấp trên",
-            Description = "Gửi giờ thực tế cho cấp trên trực tiếp để cấp trên đăng ký OT hoặc từ chối.",
+            Title = "Phản hồi cấp trên về OT",
+            Description = "Gửi người được phân quyền đăng ký OT của bộ phận để đăng ký bổ sung, chuyển HR hoặc từ chối.",
             Kind = "FORM",
             RequiresReason = false,
             RequiresAttachment = false
@@ -39,6 +40,7 @@ internal static class CalendarSupervisorFeedback
         {
             SupervisorFeedbackStatus.PendingSupervisor => " Đã gửi phản hồi cấp trên, đang chờ cấp trên xử lý.",
             SupervisorFeedbackStatus.Rejected => " Từ chối yêu cầu từ cấp trên." + note,
+            SupervisorFeedbackStatus.ForwardedToHr => " Cấp trên đã chuyển HR xử lý." + note,
             SupervisorFeedbackStatus.RegisteredPendingApprove => " Cấp trên đã đăng ký OT, chờ cấp duyệt tiếp theo.",
             _ => string.Empty
         };

@@ -686,6 +686,44 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             }).ToList();
         }
 
+        public async Task<List<OTEmployeeDto>> SearchEmployeesAsync(
+            int deptCode, string? keyword, IReadOnlyList<string>? codes, int take = 20, CancellationToken ct = default)
+        {
+            var query = Uow.Repository<F03Employee>().Query()
+                .AsNoTracking()
+                .Where(e => e.DeptCode == deptCode && e.IsActive == true);
+
+            var limit = Math.Clamp(take, 1, 50);
+            var normalizedCodes = (codes ?? Array.Empty<string>())
+                .Select(x => x?.Trim() ?? string.Empty)
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(200)
+                .ToList();
+
+            if (normalizedCodes.Count > 0)
+            {
+                limit = normalizedCodes.Count;
+                query = query.Where(e => normalizedCodes.Contains(e.EmployeeCode));
+            }
+            else
+            {
+                var text = keyword?.Trim();
+                if (string.IsNullOrEmpty(text))
+                    return new List<OTEmployeeDto>();
+                query = query.Where(e => e.EmployeeCode.Contains(text) || e.EmployeeName.Contains(text));
+            }
+
+            var rows = await query.OrderBy(e => e.EmployeeCode).Take(limit).ToListAsync(ct);
+            return rows.Select(e => new OTEmployeeDto
+            {
+                EmployeeCode = e.EmployeeCode,
+                EmployeeName = e.EmployeeName,
+                DeptCode = e.DeptCode,
+                CvCode = e.PositionCode
+            }).ToList();
+        }
+
         public async Task<int?> GetEmployeeDeptCodeAsync(
             string employeeCode, CancellationToken ct = default)
         {

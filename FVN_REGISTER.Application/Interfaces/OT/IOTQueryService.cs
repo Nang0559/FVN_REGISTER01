@@ -22,6 +22,12 @@ namespace FVN_REGISTER.Application.Interfaces.OT
         Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(int deptCode, CancellationToken ct = default);
 
         /// <summary>
+        /// Tìm nhân viên để thêm vào đơn OT thay cho việc nạp cả phòng ban rồi xoá bớt.
+        /// <paramref name="codes"/> có giá trị: khớp chính xác theo mã (dán danh sách); ngược lại tìm theo <paramref name="keyword"/> (mã hoặc tên).
+        /// </summary>
+        Task<List<OTEmployeeDto>> SearchEmployeesAsync(int deptCode, string? keyword, IReadOnlyList<string>? codes, int take = 20, CancellationToken ct = default);
+
+        /// <summary>
         /// Lịch sử OT của chính <paramref name="employeeCode"/> (đơn mình tạo + đơn người khác đăng ký cho mình),
         /// không phụ thuộc phạm vi xem phòng ban.
         /// </summary>

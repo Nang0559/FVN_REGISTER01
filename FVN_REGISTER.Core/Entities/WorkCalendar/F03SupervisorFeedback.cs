@@ -22,6 +22,10 @@ public sealed class F03SupervisorFeedback : BaseAuditEntity
     [StringLength(1000)]
     public string? Note { get; set; }
 
+    /// <summary>Lý do từ chối / ghi chú của người xử lý (Note là nội dung nhân viên gửi).</summary>
+    [StringLength(1000)]
+    public string? ResponseNote { get; set; }
+
     public int? OTRequestId { get; set; }
     public DateTime? ResolvedAt { get; set; }
 }

@@ -7,5 +7,7 @@ public enum SupervisorFeedbackStatus
     PendingSupervisor = 1,
     Rejected = 2,
     RegisteredPendingApprove = 3,
-    Completed = 4
+    Completed = 4,
+    /// <summary>Cấp trên chuyển HR xử lý (đã có đăng ký nhưng không hiển thị / lỗi dữ liệu).</summary>
+    ForwardedToHr = 5
 }

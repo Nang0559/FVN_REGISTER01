@@ -45,7 +45,7 @@ public sealed class LeaveAttendanceConflictRule : ICalendarDayRule
                     new CalendarActionOptionDto
                     {
                         Code = "OPEN_HR_FEEDBACK",
-                        Title = "Phản hồi nhân sự",
+                        Title = "Phản hồi HR",
                         Description = "Giải thích lý do ngày nghỉ vẫn phát sinh chấm công.",
                         Kind = "FORM",
                         DetailRoute = attendanceItem?.DetailRoute,

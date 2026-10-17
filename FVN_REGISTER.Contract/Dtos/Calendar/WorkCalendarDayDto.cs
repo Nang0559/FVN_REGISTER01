@@ -17,6 +17,8 @@ public sealed class WorkCalendarDayDto
     public string? DayColor { get; set; }
     public bool CanRegisterLeave { get; set; }
     public bool CanRegisterOT { get; set; }
+    /// <summary>User hiện tại là người đăng ký OT (registrar) cho nhân viên của ô này — không phụ thuộc ngày quá khứ/tương lai.</summary>
+    public bool IsOtRegistrar { get; set; }
     public bool CanRegisterTrip { get; set; }
     /// <summary>true khi người xem KHÔNG phải registrar OT của phòng ban nhân viên này: phải báo cấp trên ("Phản hồi cấp trên") thay vì tự đăng ký OT. Không phụ thuộc ngày quá khứ/tương lai.</summary>
     public bool MustReportOtToSupervisor { get; set; }

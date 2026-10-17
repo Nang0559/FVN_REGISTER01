@@ -34,7 +34,7 @@
 {
     <MudAlert Severity="Severity.Warning" Class="mb-4">
         Bạn không có quyền tự đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT,
-        hoặc dùng "Phản hồi cấp trên" ở ô có dấu "?" trên lịch.
+        hoặc dùng "Phản hồi cấp trên về OT" ở ô có dấu "?" trên lịch.
     </MudAlert>
 }
 
@@ -86,11 +86,32 @@ else if (_form != null)
             <MudCard Elevation="2" Class="mt-4 pa-4">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
                     <MudText Typo="Typo.subtitle1">@Language.T("ot.nhanVienThamGia2", _employees.Count)</MudText>
-                    @if (CanRegisterOtForOthers)
-                    {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">@Language.T("ot.themNhanVienPhongBan")</MudButton>
-                    }
                 </MudStack>
+
+                @if (CanRegisterOtForOthers)
+                {
+                    <MudGrid Class="mb-3">
+                        <MudItem xs="12" md="6">
+                            <MudAutocomplete T="OTEmployeeDto" Label="Thêm nhân viên OT (nhập mã hoặc tên)" Variant="Variant.Outlined"
+                                             SearchFunc="SearchEmployeesAsync"
+                                             ToStringFunc="@(e => e == null ? string.Empty : $"{e.EmployeeCode} — {e.EmployeeName}")"
+                                             Value="_pickerValue" ValueChanged="OnEmployeePickedAsync"
+                                             DebounceInterval="300" MinCharacters="2" Clearable="true"
+                                             AdornmentIcon="@Icons.Material.Filled.PersonAdd" Adornment="Adornment.Start"
+                                             >
+                                <NoItemsTemplate>
+                                    <MudText Class="pa-2" Typo="Typo.caption">Không tìm thấy nhân viên (chỉ tìm trong phòng ban của bạn).</MudText>
+                                </NoItemsTemplate>
+                            </MudAutocomplete>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string" @bind-Value="_pasteCodes" Label="Hoặc dán nhiều mã nhân viên (cách nhau bởi dấu phẩy / xuống dòng)"
+                                          Variant="Variant.Outlined" Lines="2" />
+                            <MudButton Class="mt-1" Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PlaylistAdd"
+                                       Disabled="@string.IsNullOrWhiteSpace(_pasteCodes)" OnClick="AddPastedCodesAsync">Thêm theo mã</MudButton>
+                        </MudItem>
+                    </MudGrid>
+                }
 
                 @if (!_employees.Any())
                 {
@@ -276,14 +297,60 @@ else if (_form != null)
         _policyLoaded = true;
     }
 
-    private async Task AddDepartmentEmployees()
+    private OTEmployeeDto? _pickerValue;
+    private string? _pasteCodes;
+
+    // Tìm theo mã/tên ở server (policy registrar áp dụng ở API) thay vì nạp cả phòng ban rồi xoá bớt.
+    private async Task<IEnumerable<OTEmployeeDto>> SearchEmployeesAsync(string text, CancellationToken ct)
+    {
+        if (_form == null || string.IsNullOrWhiteSpace(text) || text.Trim().Length < 2)
+            return Array.Empty<OTEmployeeDto>();
+
+        var result = await OTService.SearchEmployeesAsync(text, null, _form.DeptCode, ct);
+        if (!result.IsSuccess || result.Data == null)
+            return Array.Empty<OTEmployeeDto>();
+
+        return result.Data.Where(x => _employees.All(e => !string.Equals(e.EmployeeCode, x.EmployeeCode, StringComparison.OrdinalIgnoreCase))).ToList();
+    }
+
+    private async Task OnEmployeePickedAsync(OTEmployeeDto? picked)
+    {
+        if (picked != null)
+            await AddEmployeesAsync(new[] { picked });
+        _pickerValue = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddPastedCodesAsync()
+    {
+        if (_form == null || string.IsNullOrWhiteSpace(_pasteCodes)) return;
+
+        var codes = _pasteCodes
+            .Split(new[] { ',', ';', '\n', '\r', '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (codes.Count == 0) return;
+
+        var result = await OTService.SearchEmployeesAsync(null, codes, _form.DeptCode, _cts.Token);
+        if (!result.IsSuccess || result.Data == null)
+        {
+            Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocNhanVien"), Severity.Warning);
+            return;
+        }
+
+        var missing = codes.Where(c => result.Data.All(x => !string.Equals(x.EmployeeCode, c, StringComparison.OrdinalIgnoreCase))).ToList();
+        await AddEmployeesAsync(result.Data);
+        _pasteCodes = missing.Count == 0 ? null : string.Join(", ", missing);
+        if (missing.Count > 0)
+            Snackbar.Add($"Không tìm thấy trong phòng ban: {string.Join(", ", missing)}", Severity.Warning);
+    }
+
+    private async Task AddEmployeesAsync(IEnumerable<OTEmployeeDto> sources)
     {
         if (_form == null || !CanRegisterOtForOthers) return;
-        var result = await OTService.GetDeptEmployeesAsync(_form.DeptCode, _cts.Token);
-        if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocNhanVien"), Severity.Warning); return; }
-        foreach (var source in result.Data)
+        foreach (var source in sources)
         {
-            if (_employees.Any(x => x.EmployeeCode == source.EmployeeCode)) continue;
+            if (_employees.Any(x => string.Equals(x.EmployeeCode, source.EmployeeCode, StringComparison.OrdinalIgnoreCase))) continue;
             _employees.Add(new OTEmployeeDto
             {
                 EmployeeCode = source.EmployeeCode, EmployeeName = source.EmployeeName, DeptCode = source.DeptCode,

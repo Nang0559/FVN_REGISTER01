@@ -1,4 +1,5 @@
 using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
+using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Registration;
@@ -25,12 +26,14 @@ public sealed class SupervisorFeedbackController : BaseApiController
     private readonly AppAuthorizationService _authorization;
     private readonly IOTService _otService;
     private readonly IOtRegistrationPolicy _policy;
+    private readonly IExecutionReconciliationService _execution;
 
     public SupervisorFeedbackController(
         FVNWEBAPPContext db,
         AppAuthorizationService authorization,
         IOTService otService,
         IOtRegistrationPolicy policy,
+        IExecutionReconciliationService execution,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         ILogger<SupervisorFeedbackController> logger,
@@ -41,6 +44,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
         _authorization = authorization;
         _otService = otService;
         _policy = policy;
+        _execution = execution;
     }
 
     [HttpPost]
@@ -110,7 +114,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
             .Where(x => x.EmployeeCode == (UserInfo.EmployeeCode ?? string.Empty))
             .OrderByDescending(x => x.WorkDate).ThenByDescending(x => x.CreatedAt)
             .Take(100).ToListAsync(ct);
-        return Ok(ApiResponse<List<SupervisorFeedbackDto>>.Ok(await MapManyAsync(rows, ct)));
+        return Ok(ApiResponse<List<SupervisorFeedbackDto>>.Ok(await MapManyAsync(rows, ct, withOtMinutes: false)));
     }
 
     [HttpGet("pending")]
@@ -150,20 +154,42 @@ public sealed class SupervisorFeedbackController : BaseApiController
         return result;
     }
 
+    /// <summary>Từ chối yêu cầu: bắt buộc có lý do.</summary>
     [HttpPost("{id:int}/reject")]
     public async Task<IActionResult> Reject(int id, [FromBody] SupervisorFeedbackDecisionDto dto, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(dto.Note)) return BadRequest(ApiResponse<object>.Fail("Vui lòng nhập lý do từ chối."));
         var entity = await GetOwnedPendingAsync(id, ct);
         if (entity == null) return NotFound(ApiResponse<object>.Fail("Không tìm thấy yêu cầu hoặc yêu cầu không thuộc quyền xử lý."));
         entity.Status = SupervisorFeedbackStatus.Rejected;
-        entity.Note = string.IsNullOrWhiteSpace(dto.Note) ? entity.Note : dto.Note.Trim();
-        entity.ResolvedAt = DateTime.Now;
-        entity.ModifiedBy = UserInfo!.UserId;
-        entity.ModifiedAt = DateTime.Now;
+        entity.ResponseNote = dto.Note.Trim();
+        Touch(entity);
         await _db.SaveChangesAsync(ct);
         return Ok(ApiResponse<SupervisorFeedbackDto>.Ok(await MapAsync(entity, ct), "Đã từ chối yêu cầu."));
     }
 
+    /// <summary>
+    /// Đã có đăng ký OT mà lịch không hiển thị (hoặc lỗi dữ liệu): chuyển HR xử lý.
+    /// Cố gắng tạo hồ sơ đối soát HR; nếu hệ thống từ chối (vd đã có đơn OT duyệt) thì vẫn ghi nhận chuyển HR.
+    /// </summary>
+    [HttpPost("{id:int}/forward-hr")]
+    public async Task<IActionResult> ForwardToHr(int id, [FromBody] SupervisorFeedbackDecisionDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Note)) return BadRequest(ApiResponse<object>.Fail("Vui lòng ghi rõ nội dung cần HR kiểm tra."));
+        var entity = await GetOwnedPendingAsync(id, ct);
+        if (entity == null) return NotFound(ApiResponse<object>.Fail("Không tìm thấy yêu cầu hoặc yêu cầu không thuộc quyền xử lý."));
+
+        try { await _execution.EnsureAttendanceFeedbackAsync(entity.EmployeeCode, DateOnly.FromDateTime(entity.WorkDate), ct); }
+        catch (Exception ex) { _logger.LogWarning(ex, "[SUPERVISOR_FEEDBACK] Không tạo được hồ sơ đối soát HR cho feedback {Id}", id); }
+
+        entity.Status = SupervisorFeedbackStatus.ForwardedToHr;
+        entity.ResponseNote = dto.Note.Trim();
+        Touch(entity);
+        await _db.SaveChangesAsync(ct);
+        return Ok(ApiResponse<SupervisorFeedbackDto>.Ok(await MapAsync(entity, ct), "Đã chuyển HR xử lý."));
+    }
+
+    /// <summary>Đăng ký bổ sung OT cho nhân viên. Giờ OT lấy từ OT thực tế (hoặc giờ người xử lý chỉnh).</summary>
     [HttpPost("{id:int}/register-ot")]
     public async Task<IActionResult> RegisterOt(int id, [FromBody] SupervisorFeedbackDecisionDto dto, CancellationToken ct)
     {
@@ -172,12 +198,35 @@ public sealed class SupervisorFeedbackController : BaseApiController
         if (entity == null) return NotFound(ApiResponse<object>.Fail("Không tìm thấy yêu cầu hoặc yêu cầu không thuộc quyền xử lý."));
         if (!await _policy.IsRegistrarAsync(UserInfo, entity.DepartmentCode ?? 0, "OT", ct))
             return StatusCode(403, ApiResponse<object>.Fail("Bạn không có quyền đăng ký OT cho phòng ban này."));
-        if (!entity.ActualIn.HasValue || !entity.ActualOut.HasValue || entity.ActualOut <= entity.ActualIn)
-            return BadRequest(ApiResponse<object>.Fail("Lịch chưa có đủ giờ thực tế để đăng ký OT."));
 
-        var hours = (decimal)(entity.ActualOut.Value - entity.ActualIn.Value).TotalHours;
-        var start = entity.ActualIn.Value.TimeOfDay;
-        var end = entity.ActualOut.Value.TimeOfDay;
+        var otMinutes = (await LoadOtMinutesAsync(new List<F03SupervisorFeedback> { entity }, ct)).GetValueOrDefault((entity.EmployeeCode, entity.WorkDate.Date));
+        TimeSpan start, end;
+        if (dto.StartTime.HasValue && dto.EndTime.HasValue)
+        {
+            start = dto.StartTime.Value;
+            end = dto.EndTime.Value;
+        }
+        else if (entity.ActualOut.HasValue && otMinutes > 0)
+        {
+            end = entity.ActualOut.Value.TimeOfDay;
+            start = end - TimeSpan.FromMinutes(otMinutes);
+        }
+        else if (entity.ActualIn.HasValue && entity.ActualOut.HasValue)
+        {
+            start = entity.ActualIn.Value.TimeOfDay;
+            end = entity.ActualOut.Value.TimeOfDay;
+        }
+        else
+        {
+            return BadRequest(ApiResponse<object>.Fail("Chưa có giờ OT thực tế; hãy nhập giờ bắt đầu/kết thúc OT."));
+        }
+
+        if (end <= start || start < TimeSpan.Zero)
+            return BadRequest(ApiResponse<object>.Fail("Giờ OT không hợp lệ."));
+
+        var hours = Math.Max(0m, Math.Round((decimal)(end - start).TotalHours, 1));
+        var otType = string.IsNullOrWhiteSpace(dto.OTTypeCode) ? "WEEKDAY" : dto.OTTypeCode.Trim();
+        var reason = string.IsNullOrWhiteSpace(dto.Note) ? $"Đăng ký OT bổ sung theo phản hồi ngày {entity.WorkDate:dd/MM/yyyy}" : dto.Note.Trim();
         var model = new OTRequestUpsertDto
         {
             EmployeeCode = entity.EmployeeCode,
@@ -185,19 +234,19 @@ public sealed class SupervisorFeedbackController : BaseApiController
             OTDate = entity.WorkDate,
             StartTime = start,
             EndTime = end,
-            OTTypeCode = string.IsNullOrWhiteSpace(dto.OTTypeCode) ? "WEEKDAY" : dto.OTTypeCode.Trim(),
-            OTReasonSummary = string.IsNullOrWhiteSpace(dto.Note) ? $"Đăng ký OT theo phản hồi cấp trên ngày {entity.WorkDate:dd/MM/yyyy}" : dto.Note.Trim(),
+            OTTypeCode = otType,
+            OTReasonSummary = reason,
             ScopeType = "SELECTED",
             Employees = new List<OTEmployeeDto>
             {
                 new()
                 {
                     EmployeeCode = entity.EmployeeCode,
-                    OTHours = Math.Max(0m, Math.Round(hours, 1)),
+                    OTHours = hours,
                     StartTime = start,
                     EndTime = end,
-                    OTTypeCode = string.IsNullOrWhiteSpace(dto.OTTypeCode) ? "WEEKDAY" : dto.OTTypeCode.Trim(),
-                    OTReasonDetail = dto.Note
+                    OTTypeCode = otType,
+                    OTReasonDetail = reason
                 }
             },
             ApprovalSelections = dto.ApprovalSelections ?? new List<FVN_REGISTER.Contract.Requests.Approvals.ApprovalSelectionDto>()
@@ -209,12 +258,17 @@ public sealed class SupervisorFeedbackController : BaseApiController
 
         entity.OTRequestId = result.Data;
         entity.Status = SupervisorFeedbackStatus.RegisteredPendingApprove;
-        entity.Note = dto.Note ?? entity.Note;
-        entity.ResolvedAt = DateTime.Now;
-        entity.ModifiedBy = UserInfo.UserId;
-        entity.ModifiedAt = DateTime.Now;
+        entity.ResponseNote = string.IsNullOrWhiteSpace(dto.Note) ? entity.ResponseNote : dto.Note.Trim();
+        Touch(entity);
         await _db.SaveChangesAsync(ct);
         return Ok(ApiResponse<SupervisorFeedbackDto>.Ok(await MapAsync(entity, ct), "Đã đăng ký OT, chờ cấp duyệt tiếp theo."));
+    }
+
+    private void Touch(F03SupervisorFeedback entity)
+    {
+        entity.ResolvedAt = DateTime.Now;
+        entity.ModifiedBy = UserInfo!.UserId;
+        entity.ModifiedAt = DateTime.Now;
     }
 
     private async Task<F03SupervisorFeedback?> GetOwnedPendingAsync(int id, CancellationToken ct)
@@ -276,15 +330,50 @@ public sealed class SupervisorFeedbackController : BaseApiController
             .OrderByDescending(x => x.DepartmentCode == deptCode).FirstOrDefaultAsync(ct);
 
     private async Task<SupervisorFeedbackDto> MapAsync(F03SupervisorFeedback x, CancellationToken ct)
+        => (await MapManyAsync(new List<F03SupervisorFeedback> { x }, ct))[0];
+
+    private sealed class OtMinutesRow
     {
-        var name = await _db.Employees.AsNoTracking().Where(e => e.EmployeeCode == x.EmployeeCode).Select(e => e.EmployeeName).FirstOrDefaultAsync(ct);
-        return new SupervisorFeedbackDto { Id = x.Id, EmployeeId = x.EmployeeId, EmployeeCode = x.EmployeeCode, EmployeeName = name, DepartmentCode = x.DepartmentCode, WorkDate = x.WorkDate, ActualIn = x.ActualIn, ActualOut = x.ActualOut, Status = x.Status, ApproverId = x.ApproverId, Note = x.Note };
+        public int OTMinutesDay { get; set; }
+        public int OTMinutesNight { get; set; }
+        public int OTMinutesDayTC { get; set; }
+        public int OTMinutesNightTC { get; set; }
     }
 
-    private async Task<List<SupervisorFeedbackDto>> MapManyAsync(List<F03SupervisorFeedback> rows, CancellationToken ct)
+    /// <summary>
+    /// OT thực tế (phút) theo chấm công HRM, cùng cách tính với đối soát (OTMinutes Day/Night/DayTC/NightTC).
+    /// Các cột này chưa có trong entity nên đọc bằng SQL; chỉ gọi cho danh sách ngắn (Pending / từng bản ghi).
+    /// </summary>
+    private async Task<Dictionary<(string Code, DateTime Date), int>> LoadOtMinutesAsync(List<F03SupervisorFeedback> rows, CancellationToken ct)
+    {
+        var result = new Dictionary<(string, DateTime), int>();
+        foreach (var key in rows.Select(x => (x.EmployeeCode, Date: x.WorkDate.Date)).Distinct().Take(100))
+        {
+            var found = await _db.Database.SqlQuery<OtMinutesRow>($@"
+                SELECT TOP (1) a.OTMinutesDay, a.OTMinutesNight, a.OTMinutesDayTC, a.OTMinutesNightTC
+                FROM dbo.F03HrmAttendanceCalculated AS a
+                WHERE a.EmployeeCode = {key.EmployeeCode} AND a.WorkDate = {key.Date}
+                ORDER BY a.Id DESC").ToListAsync(ct);
+            var row = found.FirstOrDefault();
+            if (row != null)
+                result[(key.EmployeeCode, key.Date)] = Math.Max(0, row.OTMinutesDay) + Math.Max(0, row.OTMinutesNight) + Math.Max(0, row.OTMinutesDayTC) + Math.Max(0, row.OTMinutesNightTC);
+        }
+        return result;
+    }
+
+    private async Task<List<SupervisorFeedbackDto>> MapManyAsync(List<F03SupervisorFeedback> rows, CancellationToken ct, bool withOtMinutes = true)
     {
         var codes = rows.Select(x => x.EmployeeCode).Distinct().ToList();
         var names = await _db.Employees.AsNoTracking().Where(e => codes.Contains(e.EmployeeCode)).Select(e => new { e.EmployeeCode, e.EmployeeName }).ToDictionaryAsync(x => x.EmployeeCode, x => x.EmployeeName, ct);
-        return rows.Select(x => new SupervisorFeedbackDto { Id = x.Id, EmployeeId = x.EmployeeId, EmployeeCode = x.EmployeeCode, EmployeeName = names.TryGetValue(x.EmployeeCode, out var n) ? n : null, DepartmentCode = x.DepartmentCode, WorkDate = x.WorkDate, ActualIn = x.ActualIn, ActualOut = x.ActualOut, Status = x.Status, ApproverId = x.ApproverId, Note = x.Note }).ToList();
+        var otMinutes = withOtMinutes ? await LoadOtMinutesAsync(rows, ct) : new Dictionary<(string Code, DateTime Date), int>();
+        return rows.Select(x => new SupervisorFeedbackDto
+        {
+            Id = x.Id, EmployeeId = x.EmployeeId, EmployeeCode = x.EmployeeCode,
+            EmployeeName = names.TryGetValue(x.EmployeeCode, out var n) ? n : null,
+            DepartmentCode = x.DepartmentCode, WorkDate = x.WorkDate, ActualIn = x.ActualIn, ActualOut = x.ActualOut,
+            Status = x.Status, ApproverId = x.ApproverId, Note = x.Note, ResponseNote = x.ResponseNote,
+            ActualOtMinutes = otMinutes.GetValueOrDefault((x.EmployeeCode, x.WorkDate.Date)),
+            OTRequestId = x.OTRequestId
+        }).ToList();
     }
 }
