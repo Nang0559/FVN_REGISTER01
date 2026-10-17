@@ -72,7 +72,10 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var ot = canViewOt ? await _uow.Repository<VF03OTRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true && x.OTDate >= start && x.OTDate <= end && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected).ToListAsync(ct) : new List<VF03OTRequest>();
         var trips = canViewTrip ? await _uow.Repository<F03TripRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true && x.EndDate >= start && x.StartDate <= end && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected).ToListAsync(ct) : new List<F03TripRequest>();
         var dayTypeColors = await LoadDayTypeColorsAsync(ct);
-        dayTypeColors.TryGetValue("COMPANY_HOLIDAY", out var sundayColor);
+        var holidayTypeColors = await LoadHolidayTypeColorsAsync(ct);
+        // Chủ nhật dùng đúng màu của mã HRM 0002 (CT), không suy ra màu từ một DayType chung.
+        if (!holidayTypeColors.TryGetValue("0002", out var sundayColor))
+            dayTypeColors.TryGetValue("COMPANY_HOLIDAY", out sundayColor);
         var holidayByDate = holidays.GroupBy(x => x.HolidayDate.Date).ToDictionary(x => x.Key, x => x.First());
         var workYearByDate = new Dictionary<DateTime, F03WorkYear>();
         foreach (var workYear in workYears) { var yearStart = workYear.StartDate.Date < start ? start : workYear.StartDate.Date; var yearEnd = workYear.EndDate.Date > end ? end : workYear.EndDate.Date; for (var date = yearStart; date <= yearEnd; date = date.AddDays(1)) workYearByDate[date] = workYear; }
@@ -80,7 +83,17 @@ public sealed class WorkCalendarService : IWorkCalendarService
         for (var date = start; date <= end; date = date.AddDays(1))
         {
             var holiday = holidayByDate.GetValueOrDefault(date.Date); var workYear = workYearByDate.GetValueOrDefault(date.Date); var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday; var future = date.Date > DateTime.Today; var past = date.Date < DateTime.Today; var working = workYear != null && holiday == null; var holidayType = GetHolidayTypeCode(holiday?.HolidayType);
-            var holidayColor = holiday == null ? null : (FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday.HolidayColor) ?? (holiday.DayType != null && dayTypeColors.TryGetValue(holiday.DayType, out var typeColor) ? typeColor : null));
+            // Ưu tiên mã loại HRM của chính ngày nghỉ (NNLLoai -> LNLMa), vì nhiều mã có thể
+            // bị ánh xạ về cùng DayType. Ví dụ 0001 (NT) phải là LightYellow, không lấy màu CN 0002.
+            string? holidayColor = null;
+            if (holiday != null)
+            {
+                if (!string.IsNullOrWhiteSpace(holiday.HrmTypeCode))
+                    holidayTypeColors.TryGetValue(holiday.HrmTypeCode.Trim(), out holidayColor);
+                holidayColor ??= FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday.HolidayColor);
+                if (holidayColor == null && holiday.DayType != null)
+                    dayTypeColors.TryGetValue(holiday.DayType, out holidayColor);
+            }
             var day = new WorkCalendarDayDto { Date = date, WorkYear = workYear?.WorkYear, IsWeekend = weekend, IsFuture = future, IsPast = past, IsWorkingDay = working, HolidayName = holiday == null ? null : $"[{holidayType}]|{holiday.Description}", HolidayCode = holiday == null ? null : $"HOL-{holidayType}-{holiday.HolidayDate:yyyyMMdd}", HolidayType = holiday == null ? null : holidayType, HolidaySymbol = holiday?.HolidaySymbol, HolidayTypeName = holiday?.HolidayTypeName, HolidayColor = holidayColor, DayColor = holiday != null ? holidayColor : (date.DayOfWeek == DayOfWeek.Sunday ? sundayColor : null), IsOtRegistrar = canCreateOt, CanRegisterLeave = canCreateLeave && future && workYear != null && holiday == null, CanRegisterOT = canCreateOt && future && workYear != null, MustReportOtToSupervisor = mustReportOtToSupervisor, CanRegisterTrip = canCreateTrip && future && workYear != null && holiday == null, AvailabilityNote = holiday != null ? $"Ngày nghỉ {GetHolidayTypeLabel(holiday.HolidayType)}: {holiday.Description} — chỉ đăng ký OT." : !future ? "Chỉ mở đăng ký từ ngày sau hôm nay." : workYear == null ? "Chưa cấu hình năm làm việc." : null };
             result.Days.Add(day);
         }
@@ -107,7 +120,29 @@ public sealed class WorkCalendarService : IWorkCalendarService
         catch { }
         return result;
     }
+    /// <summary>Đọc màu theo mã DM_Loainghile.LNLMa để phân biệt NT (0001), CT (0002) và L (0003).</summary>
+    private async Task<Dictionary<string, string>> LoadHolidayTypeColorsAsync(CancellationToken ct)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var rows = await _uow.SqlQueryRawAsync<HolidayTypeColorRow>(
+                "SELECT LNLMa AS TypeCode, LNLMauSac AS Color FROM dbo.F03HrmHolidayTypes WHERE DLocked=0 AND LNLMauSac IS NOT NULL AND LNLMauSac<>'' ORDER BY LNLMa",
+                ct);
+            foreach (var row in rows)
+            {
+                var code = row.TypeCode?.Trim();
+                var color = FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(row.Color);
+                if (!string.IsNullOrWhiteSpace(code) && color != null)
+                    result[code] = color;
+            }
+        }
+        catch { }
+        return result;
+    }
+
     private sealed class DayTypeColorRow { public string? DayType { get; set; } public string? Color { get; set; } }
+    private sealed class HolidayTypeColorRow { public string? TypeCode { get; set; } public string? Color { get; set; } }
 
     private static string GetHolidayTypeCode(byte? holidayType) => FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeCode(holidayType);
     private static string GetHolidayTypeLabel(byte holidayType) => FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.HolidayTypeShortLabel(holidayType);
