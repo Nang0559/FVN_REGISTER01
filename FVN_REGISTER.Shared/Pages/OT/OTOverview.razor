@@ -1,7 +1,106 @@
 @page "/ot"
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
+@using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Shared.Handlers
 @inherits AppComponentBase
-<ModuleOverview Title="@Language.T("ot.otTongQuan")"
-                 Description="@Language.T("ot.tongHopTrangThaiOt")"
-                 CreateUrl="/ot/create" HistoryUrl="/ot/history" ModulePrefix="/ot" />
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>@Language.T("ot.otTongQuan")</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.overline" Color="Color.Primary">TỔNG QUAN WORKSPACE</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:850">OT — Tổng quan</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Thống kê OT thực tế theo ký hiệu công trên lịch, chưa có đơn OT được duyệt.</MudText>
+        </div>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/ot/history"))">Danh sách OT</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/ot/create"))">Đăng ký OT</MudButton>
+        </MudStack>
+    </MudStack>
+
+    <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
+        <MudGrid>
+            <MudItem xs="12" sm="4"><MudDatePicker Label="Từ ngày" @bind-Date="_from" Variant="Variant.Outlined" /></MudItem>
+            <MudItem xs="12" sm="4"><MudDatePicker Label="Đến ngày" @bind-Date="_to" Variant="Variant.Outlined" MaxDate="DateTime.Today" /></MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-center"><MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Disabled="_loading" OnClick="LoadAsync">Thống kê</MudButton></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        <MudGrid Spacing="3" Class="mb-4">
+            <MudItem xs="12" sm="6">
+                <MudPaper Outlined="true" Class="pa-4" Style="border-radius:18px">
+                    <MudText Typo="Typo.subtitle2">Ngày có OT chưa duyệt</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight:850">@_rows.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudPaper Outlined="true" Class="pa-4" Style="border-radius:18px">
+                    <MudText Typo="Typo.subtitle2">Tổng giờ OT theo ký hiệu lịch</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight:850">@_rows.Sum(x => x.OTHours).ToString("0.##")</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Outlined="true" Class="pa-4" Style="border-radius:18px">
+            <MudText Typo="Typo.h6" Class="mb-3">Chi tiết OT chưa có đơn được duyệt</MudText>
+            @if (_rows.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Không có ngày nào có ký hiệu OT chưa được duyệt trong khoảng đã chọn.</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_rows" Dense="true" Hover="true" Bordered="true" Breakpoint="Breakpoint.Sm">
+                    <HeaderContent>
+                        <MudTh>Ngày</MudTh><MudTh>Ca</MudTh><MudTh>Ký hiệu OT</MudTh><MudTh>Vào</MudTh><MudTh>Ra</MudTh><MudTh Class="text-right">Giờ OT</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Ca">@context.ShiftAbbr</MudTd>
+                        <MudTd DataLabel="Ký hiệu OT"><MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined">@context.OtSymbol</MudChip></MudTd>
+                        <MudTd DataLabel="Vào">@context.CheckInTime?.ToString("HH:mm")</MudTd>
+                        <MudTd DataLabel="Ra">@context.CheckOutTime?.ToString("HH:mm")</MudTd>
+                        <MudTd DataLabel="Giờ OT" Class="text-right">@context.OTHours.ToString("0.##")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    private DateTime? _from = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? _to = DateTime.Today;
+    private List<UnapprovedAttendanceOTDto> _rows = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (_from is null || _to is null || _from.Value.Date > _to.Value.Date)
+        {
+            Snackbar.Add("Khoảng ngày không hợp lệ.", Severity.Warning);
+            return;
+        }
+        _loading = true;
+        try
+        {
+            var result = await Http.GetAsync<List<UnapprovedAttendanceOTDto>>(
+                $"api/OT/unapproved-attendance?fromDate={_from.Value:yyyy-MM-dd}&toDate={_to.Value:yyyy-MM-dd}",
+                showLoading: false);
+            if (result.IsSuccess && result.Data is not null) _rows = result.Data;
+            else Snackbar.Add(result.Message ?? "Không thể tải thống kê OT.", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+}
