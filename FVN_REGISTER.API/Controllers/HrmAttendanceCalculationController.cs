@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
+using System.Data;
+using Microsoft.Data.SqlClient;
 using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 namespace FVN_REGISTER.API.Controllers;
 [Authorize]
@@ -75,8 +77,42 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
    return StatusCode(StatusCodes.Status429TooManyRequests,
     ApiResponse<object>.Fail("Đang có một yêu cầu tính lại của bạn chạy. Vui lòng chờ hoàn tất."));
 
+  SqlConnection? distributedLockConnection = null;
+  var distributedLockAcquired = false;
   try
   {
+   // A SQL session applock closes the cross-instance race: at most one self-force
+   // recalculation per employee can enter the expensive procedure at a time.
+   var connectionString = _db.Database.GetConnectionString();
+   if (string.IsNullOrWhiteSpace(connectionString))
+    return StatusCode(StatusCodes.Status503ServiceUnavailable,
+     ApiResponse<object>.Fail("Không tìm thấy cấu hình kết nối SQL để tính lại chấm công."));
+   var builder = new SqlConnectionStringBuilder(connectionString) { Pooling = false };
+   distributedLockConnection = new SqlConnection(builder.ConnectionString);
+   await distributedLockConnection.OpenAsync(ct);
+   await using (var lockCommand = distributedLockConnection.CreateCommand())
+   {
+    lockCommand.CommandTimeout = 10;
+    lockCommand.CommandText = """
+       DECLARE @result int;
+       EXEC @result=sp_getapplock
+         @Resource=@Resource,
+         @LockMode=N'Exclusive',
+         @LockOwner=N'Session',
+         @LockTimeout=0;
+       SELECT @result;
+       """;
+    lockCommand.Parameters.Add(new SqlParameter("@Resource", SqlDbType.NVarChar, 255)
+    {
+     Value = $"FVN_REGISTER:ATTENDANCE:SELF-FORCE:{employeeCode.ToUpperInvariant()}"
+    });
+    var lockResult = Convert.ToInt32(await lockCommand.ExecuteScalarAsync(ct));
+    if (lockResult < 0)
+     return StatusCode(StatusCodes.Status429TooManyRequests,
+      ApiResponse<object>.Fail("Đang có yêu cầu tính lại chấm công của bạn ở một phiên khác. Vui lòng chờ."));
+    distributedLockAcquired = true;
+   }
+
    var now = DateTime.UtcNow;
    // Database-backed cooldown also applies across multiple API instances.
    var recentRuns = await _db.Database.SqlQuery<int>($"""
@@ -115,6 +151,30 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
   }
   finally
   {
+   if (distributedLockAcquired && distributedLockConnection is not null)
+   {
+    try
+    {
+     await using var releaseCommand = distributedLockConnection.CreateCommand();
+     releaseCommand.CommandTimeout = 10;
+     releaseCommand.CommandText = """
+       EXEC sp_releaseapplock
+         @Resource=@Resource,
+         @LockOwner=N'Session';
+       """;
+     releaseCommand.Parameters.Add(new SqlParameter("@Resource", SqlDbType.NVarChar, 255)
+     {
+      Value = $"FVN_REGISTER:ATTENDANCE:SELF-FORCE:{employeeCode.ToUpperInvariant()}"
+     });
+     await releaseCommand.ExecuteNonQueryAsync(CancellationToken.None);
+    }
+    catch (Exception ex)
+    {
+     Logger.LogWarning(ex, "Unable to release self-force attendance applock for {EmployeeCode}", employeeCode);
+    }
+   }
+   if (distributedLockConnection is not null)
+    await distributedLockConnection.DisposeAsync();
    gate.Release();
   }
  }
