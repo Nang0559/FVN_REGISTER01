@@ -14,33 +14,33 @@ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'UX_F03AttendanceSymbolRules
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03AttendanceSymbolRules_Match' AND object_id=OBJECT_ID(N'dbo.F03AttendanceSymbolRules')) CREATE INDEX IX_F03AttendanceSymbolRules_Match ON dbo.F03AttendanceSymbolRules(IsActive,DayType,ShiftCode,ShiftId,Priority,EffectiveFrom,EffectiveTo);
 GO
 
-/* Keep the CHECK constraint aligned with canonical DayType values and preserve
-   any legacy values already present in this database during the migration. */
+/* SQL Server versions before 2017 do not support STRING_AGG.
+   Rebuild this constraint using static SQL before seeding/updating rules. */
 IF OBJECT_ID(N'dbo.CK_F03AttendanceSymbolRules_DayType', N'C') IS NOT NULL
     ALTER TABLE dbo.F03AttendanceSymbolRules DROP CONSTRAINT CK_F03AttendanceSymbolRules_DayType;
-
-DECLARE @AllowedDayTypes nvarchar(max);
-SELECT @AllowedDayTypes = STRING_AGG(
-    CONVERT(nvarchar(max), N'N' + QUOTENAME(v.DayType, N'''')), N',')
-FROM
+GO
+ALTER TABLE dbo.F03AttendanceSymbolRules WITH CHECK
+ADD CONSTRAINT CK_F03AttendanceSymbolRules_DayType
+CHECK (DayType IN
 (
-    SELECT DISTINCT DayType
-    FROM dbo.F03AttendanceSymbolRules
-    WHERE DayType IS NOT NULL
-    UNION
-    SELECT DayType
-    FROM (VALUES
-        (N'NORMAL'), (N'COMPANY_HOLIDAY'), (N'SUNDAY'),
-        (N'NATIONAL_HOLIDAY'), (N'OTHER'), (N'COMPANY'),
-        (N'HOLIDAY'), (N'WEEKDAY'), (N'RESTDAY'), (N'PUBLIC_HOLIDAY')
-    ) AS canonical(DayType)
-) AS v;
-
-DECLARE @ConstraintSql nvarchar(max) =
-    N'ALTER TABLE dbo.F03AttendanceSymbolRules WITH CHECK ADD CONSTRAINT ' +
-    QUOTENAME(N'CK_F03AttendanceSymbolRules_DayType') +
-    N' CHECK (DayType IN (' + @AllowedDayTypes + N'));';
-EXEC sys.sp_executesql @ConstraintSql;
+    N'NORMAL',
+    N'COMPANY_HOLIDAY',
+    N'SUNDAY',
+    N'NATIONAL_HOLIDAY',
+    N'OTHER',
+    N'COMPANY',
+    N'HOLIDAY',
+    N'WEEKDAY',
+    N'RESTDAY',
+    N'PUBLIC_HOLIDAY',
+    N'NT',
+    N'CT',
+    N'NL',
+    N'WORKDAY',
+    N'COMPANY_REST_DAY',
+    N'PUBLICHOLIDAY'
+));
+GO
 
 IF OBJECT_ID(N'dbo.F03Functions', N'U') IS NULL
     THROW 53001, N'F03Functions is required before seeding WorkCalendar.SymbolRuleManage.', 1;
