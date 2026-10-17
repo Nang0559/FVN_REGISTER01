@@ -130,6 +130,26 @@ SELECT Code,Name,DayType,ShiftCode,Priority,MinActual,InFrom,CheckInToSeed,JsonV
 FROM @R AS r
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03AttendanceSymbolRules AS x WHERE x.RuleCode=r.Code);
 
+/* Keep the CHECK constraint aligned with the canonical DayType values seeded below.
+   Older deployments only allowed legacy values, so the normalization UPDATE failed with Msg 547. */
+IF OBJECT_ID(N'dbo.CK_F03AttendanceSymbolRules_DayType', N'C') IS NOT NULL
+    ALTER TABLE dbo.F03AttendanceSymbolRules DROP CONSTRAINT CK_F03AttendanceSymbolRules_DayType;
+ALTER TABLE dbo.F03AttendanceSymbolRules WITH CHECK
+ADD CONSTRAINT CK_F03AttendanceSymbolRules_DayType
+CHECK (DayType IN
+(
+    N'NORMAL',
+    N'COMPANY_HOLIDAY',
+    N'SUNDAY',
+    N'NATIONAL_HOLIDAY',
+    N'OTHER',
+    N'COMPANY',
+    N'HOLIDAY',
+    N'WEEKDAY',
+    N'RESTDAY',
+    N'PUBLIC_HOLIDAY'
+));
+
 /* Canonical HRM day mapping: 001=company rest day, 002=Sunday, 003=public holiday. */
 UPDATE dbo.F03AttendanceSymbolRules
 SET DayType=N'COMPANY_HOLIDAY',
