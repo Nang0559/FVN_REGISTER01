@@ -116,27 +116,25 @@ AS
 RETURN
 (
     SELECT
-        /* 4 loại ngày duy nhất (khớp HRM DM_Loainghile: 0002 CT, 0003 L, 0001 NT):
-             1) ngày nghỉ HRM đăng ký  -> DayType của loại đó (CT=COMPANY_HOLIDAY, L=NATIONAL_HOLIDAY, NT=OTHER)
-             2) cờ HRM BCNgayLe / BCNgayLeNV khi chưa đồng bộ kịp
-             3) Chủ nhật mặc định     -> COMPANY_HOLIDAY (Chủ nhật/Nghỉ công ty)
-             4) còn lại (T2-T7)       -> NORMAL. Thứ 7 là ngày làm việc thường. */
+        /* HRM 001 = nghỉ công ty T2-T7; 002 = Chủ nhật; 003 = nghỉ lễ.
+           Cờ HRM là fallback khi chưa có bản ghi đồng bộ. */
         DayType = COALESCE(
             (SELECT TOP (1) h.DayType
                FROM dbo.F03CompanyHolidays h
-              WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1 ORDER BY h.Id),
+              WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1
+              ORDER BY CASE h.DayType WHEN N'NATIONAL_HOLIDAY' THEN 1 WHEN N'SUNDAY' THEN 2 WHEN N'COMPANY_HOLIDAY' THEN 3 ELSE 4 END, h.Id),
             CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 THEN N'NATIONAL_HOLIDAY'
-                 WHEN ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'OTHER' END,
-            CASE WHEN DATEDIFF(day, '19000107', @WorkDate) % 7 = 0 THEN N'COMPANY_HOLIDAY' END,
+                 WHEN ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'COMPANY_HOLIDAY' END,
+            CASE WHEN DATEDIFF(day, '19000107', @WorkDate) % 7 = 0 THEN N'SUNDAY' END,
             N'NORMAL'),
         IsHoliday = CASE WHEN EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1)
                            OR ISNULL(@HrmHolidayFlag, 0) = 1 OR ISNULL(@HrmEmployeeHolidayFlag, 0) = 1
                          THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END,
-        /* Ký hiệu nghỉ theo HRM (LNLKyHieu). Cờ HRM không có loại (ngày nghỉ riêng nhân viên) thì dùng "L". */
+        /* Ký hiệu nghỉ theo HRM (LNLKyHieu); chỉ cờ ngày lễ fallback thành L. */
         HolidaySymbol = COALESCE(
             (SELECT TOP (1) h.HolidaySymbol FROM dbo.F03CompanyHolidays h
               WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1 ORDER BY h.Id),
-            CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 OR ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'L' END)
+            CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 THEN N'L' END)
 );
 GO
 
