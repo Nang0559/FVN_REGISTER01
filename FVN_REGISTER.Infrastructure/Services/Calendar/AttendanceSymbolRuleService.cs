@@ -63,6 +63,8 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
 
     public async Task<AttendanceSymbolRuleTestResultDto> EvaluateAsync(DateOnly workDate,string dayType,string? shiftCode,int? shiftId,DateTime? checkIn,DateTime? checkOut,int? actualOtMinutes=null,CancellationToken ct=default)
     {
+        // Ca đêm: nếu giờ ra bị ghi cùng ngày với giờ vào (06:02 < 21:51) thì giờ ra thật là ngày hôm sau.
+        if(checkIn.HasValue&&checkOut.HasValue&&checkOut<=checkIn&&(checkOut.Value.AddDays(1)-checkIn.Value).TotalHours<=20)checkOut=checkOut.Value.AddDays(1);
         if(!checkIn.HasValue||!checkOut.HasValue||checkOut<=checkIn)return new(){DayType=dayType,Explanation="Thiếu In/Out hợp lệ."};
         var elapsed=(int)Math.Round((checkOut.Value-checkIn.Value).TotalMinutes,MidpointRounding.AwayFromZero); var normalizedShift=NormalizeShift(shiftCode); var rows=await LoadRowsAsync(true,ct);
         var rule=rows.Where(x=>string.Equals(x.DayType,dayType,StringComparison.OrdinalIgnoreCase))
@@ -71,7 +73,7 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
             .Where(x=>!x.MinActualMinutes.HasValue||elapsed>=x.MinActualMinutes.Value).Where(x=>!x.MaxActualMinutes.HasValue||elapsed<=x.MaxActualMinutes.Value)
             .Where(x=>InTimeMatches(checkIn.Value.TimeOfDay,x.CheckInFrom,x.CheckInTo)).Where(x=>EffectiveDateMatches(workDate,x.EffectiveFrom,x.EffectiveTo))
             .OrderBy(x=>x.Priority).ThenByDescending(x=>x.ShiftId.HasValue).ThenByDescending(x=>!string.IsNullOrWhiteSpace(x.ShiftCode)).FirstOrDefault();
-        if(rule is null)return new(){Matched=false,DayType=dayType,RawElapsedMinutes=elapsed,Explanation="Không tìm thấy rule phù hợp."};
+        if(rule is null)return new(){Matched=false,DayType=dayType,RawElapsedMinutes=elapsed,Explanation=DescribeNoMatch(rows,workDate,dayType,normalizedShift,shiftId,checkIn.Value,elapsed)};
         var doc=Parse(rule.RuleJson);var result=Calculate(doc,workDate,checkIn.Value,checkOut.Value,elapsed);
         return new(){Matched=true,RuleCode=rule.RuleCode,DayType=rule.DayType,WorkSymbol=result.WorkSymbol,OtSymbol=result.OtSymbol,WorkMinutesForSymbol=result.WorkMinutes,OtMinutesForSymbol=result.OtMinutes,RawElapsedMinutes=elapsed,RoundedOtMinutes=result.OtMinutes,Explanation=$"Rule {rule.RuleCode}: công {result.WorkMinutes/60m:0.##}h, OT {result.OtMinutes/60m:0.##}h theo block {doc.BlockMinutes} phút / {doc.RoundingMode}."};
     }
@@ -221,7 +223,27 @@ public sealed class AttendanceSymbolRuleService : IAttendanceSymbolRuleService
     private static DateTime At(DateOnly date,string value)=>date.ToDateTime(TimeOnly.Parse(value,CultureInfo.InvariantCulture));
     private static bool EffectiveDateMatches(DateOnly date,DateTime? from,DateTime? to)=>(!from.HasValue||date>=DateOnly.FromDateTime(from.Value))&&(!to.HasValue||date<=DateOnly.FromDateTime(to.Value));
     private static bool InTimeMatches(TimeSpan time,string? fromText,string? toText){if(!TimeSpan.TryParse(fromText,CultureInfo.InvariantCulture,out var from)||!TimeSpan.TryParse(toText,CultureInfo.InvariantCulture,out var to))return true;return from<=to?time>=from&&time<=to:time>=from||time<=to;}
-    private static string? Normalize(string? value)=>string.IsNullOrWhiteSpace(value)?null:value.Trim();private static string NormalizeShift(string? value)=>(value??string.Empty).Trim().ToUpperInvariant().Replace(" ",string.Empty);
+    private static string? Normalize(string? value)=>string.IsNullOrWhiteSpace(value)?null:value.Trim();private static string NormalizeShift(string? value)
+    {
+        var key=new string((value??string.Empty).Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        // "CA3" (Ca 3) và "C3" là cùng một ca: bỏ chữ A thừa của tiền tố "CA".
+        return key.Length>2&&key.StartsWith("CA",StringComparison.Ordinal)?"C"+key[2..]:key;
+    }
+
+    /// <summary>Cho biết bước lọc nào loại hết rule, để màn hình Thử rule và log chỉ ra lý do thay vì chỉ báo không khớp.</summary>
+    private static string DescribeNoMatch(List<RuleRow> rows,DateOnly workDate,string dayType,string normalizedShift,int? shiftId,DateTime checkIn,int elapsed)
+    {
+        var byDay=rows.Where(x=>string.Equals(x.DayType,dayType,StringComparison.OrdinalIgnoreCase)).ToList();
+        if(byDay.Count==0)return $"Không có rule đang bật cho loại ngày {dayType}.";
+        var byShift=byDay.Where(x=>x.ShiftId is null||shiftId is null||x.ShiftId==shiftId)
+            .Where(x=>string.IsNullOrWhiteSpace(x.ShiftCode)||string.Equals(NormalizeShift(x.ShiftCode),normalizedShift,StringComparison.OrdinalIgnoreCase)).ToList();
+        if(byShift.Count==0)return $"Có {byDay.Count} rule loại ngày {dayType} nhưng không rule nào cho ca '{normalizedShift}' (ca đang có: {string.Join(", ",byDay.Select(x=>x.ShiftCode??"(mọi ca)").Distinct())}).";
+        var byElapsed=byShift.Where(x=>!x.MinActualMinutes.HasValue||elapsed>=x.MinActualMinutes.Value).Where(x=>!x.MaxActualMinutes.HasValue||elapsed<=x.MaxActualMinutes.Value).ToList();
+        if(byElapsed.Count==0)return $"Rule {dayType}/{normalizedShift} có giới hạn số phút thực tế không chứa {elapsed} phút (In→Out).";
+        var byIn=byElapsed.Where(x=>InTimeMatches(checkIn.TimeOfDay,x.CheckInFrom,x.CheckInTo)).ToList();
+        if(byIn.Count==0)return $"Giờ vào {checkIn:HH:mm} nằm ngoài khung giờ vào của rule {dayType}/{normalizedShift}.";
+        return $"Rule {dayType}/{normalizedShift} không còn hiệu lực ở ngày {workDate:yyyy-MM-dd} (EffectiveFrom/EffectiveTo).";
+    }
     private static void Validate(AttendanceSymbolRuleUpsertRequest request){var dayType=request.DayType?.Trim().ToUpperInvariant();if(string.IsNullOrEmpty(dayType)||!FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.Codes.Contains(dayType))throw new ArgumentException($"Loại ngày '{request.DayType}' không hợp lệ. Chỉ chấp nhận: {string.Join(", ",FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.Codes)}.");if(string.IsNullOrWhiteSpace(request.RuleCode))throw new ArgumentException("RuleCode là bắt buộc.");if(string.IsNullOrWhiteSpace(request.RuleName))throw new ArgumentException("RuleName là bắt buộc.");if(request.BlockMinutes<=0)throw new ArgumentException("BlockMinutes phải lớn hơn 0.");if(request.Segments.Count==0)throw new ArgumentException("Rule phải có ít nhất một segment.");if(request.Segments.Any(x=>!TimeSpan.TryParse(x.Start,CultureInfo.InvariantCulture,out _)||!TimeSpan.TryParse(x.End,CultureInfo.InvariantCulture,out _)))throw new ArgumentException("Giờ segment không hợp lệ.");}
     private sealed class ReapplyInput
     {

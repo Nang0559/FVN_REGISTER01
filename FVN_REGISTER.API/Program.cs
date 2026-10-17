@@ -138,6 +138,7 @@ builder.Services.AddScoped<IWorkCalendarService, WorkCalendarService>();
 builder.Services.AddScoped<IAttendanceSymbolRuleService, AttendanceSymbolRuleService>();
 builder.Services.AddScoped<ISharedWorkCalendarService, SharedWorkCalendarService>();
 builder.Services.AddScoped<ICalendarDayRuleEngine, CalendarDayRuleEngine>();
+builder.Services.AddScoped<ICalendarDayRule, AttendanceMissingPunchRule>();
 builder.Services.AddScoped<ICalendarDayRule, AttendanceNumericVarianceRule>();
 builder.Services.AddScoped<ICalendarDayRule, OtNoActualRule>();
 builder.Services.AddScoped<ICalendarDayRule, LeaveAttendanceConflictRule>();
