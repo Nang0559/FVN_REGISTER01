@@ -24,6 +24,7 @@ Current SQL directory:
 :r "20_Reports.sql"
 :r "21_Verify_Reports.sql"
 :r "22_00_HrmAttendanceTables.sql"
+:r "22_07_AttendanceCalculationRunSessionRecovery.sql"
 :r "22_02_HrmCompatibleTimeKeepingForStaff.sql"
 :r "22_03_CalculateHrmAttendance.sql"
 :r "22_03A_DepartmentCodeCompatibility.sql"
