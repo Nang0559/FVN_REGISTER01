@@ -322,7 +322,7 @@ BEGIN
 END;
 GO
 
-/* Exact SQL session identity for safe startup recovery (SPID + login time avoids SPID reuse). */
+/* Exact SQL session identity for safe startup recovery (SPID + login time + unique connection ID avoids SPID reuse). */
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionId') IS NULL
     ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionId int NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionLoginTime') IS NULL
