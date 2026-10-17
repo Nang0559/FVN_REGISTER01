@@ -48,7 +48,7 @@
     </MudPaper>
 
 
-    @if (_canViewCalendar && !string.IsNullOrWhiteSpace(_currentEmployeeCode))
+    @if (!string.IsNullOrWhiteSpace(_currentEmployeeCode))
     {
         <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
             <MudStack Spacing="2">
