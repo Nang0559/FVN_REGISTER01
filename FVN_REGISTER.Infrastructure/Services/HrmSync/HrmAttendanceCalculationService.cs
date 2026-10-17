@@ -57,7 +57,12 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
    // Nối rule ký hiệu (F03AttendanceSymbolRules) vào kết quả tính công thật:
    // lịch, xuất chấm công và xuất OT đều đọc các cột WorkSymbol/OtSymbol/SymbolRuleCode/DayType này.
    if(result != null)
-    await ApplySymbolRulesAsync(result.CalculationBatchId,ct);
+   {
+    // The HRM procedure has already committed the calculated batch at this point.
+    // Do not let an HTTP client disconnect / request-abort token cancel the required
+    // symbol persistence and leave a successful calculation with stale/missing symbols.
+    await ApplySymbolRulesAsync(result.CalculationBatchId,CancellationToken.None);
+   }
 
    if(result != null && request.ReopenPayrollPeriod)
    {
@@ -102,44 +107,71 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
  /// </summary>
  private async Task ApplySymbolRulesAsync(Guid batchId,CancellationToken ct)
  {
-  var inputs=await _db.Database.SqlQuery<SymbolInputRow>($"""
-   SELECT Id,WorkDate,ShiftId,ShiftAbbr,CheckInTime,CheckOutTime,DayType
-   FROM dbo.F03HrmAttendanceCalculated
-   WHERE CalculationBatchId={batchId} AND CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL
-   """).ToListAsync(ct);
-
-  var matched=new List<SymbolOutput>(inputs.Count);
-  var unmatched=new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase);
-  foreach(var row in inputs)
-  {
-   ct.ThrowIfCancellationRequested();
-   var dayType=string.IsNullOrWhiteSpace(row.DayType)?"NORMAL":row.DayType!;
-   var eval=await _symbolRules.EvaluateAsync(DateOnly.FromDateTime(row.WorkDate),dayType,row.ShiftAbbr,row.ShiftId,row.CheckInTime,row.CheckOutTime,null,ct);
-   if(eval.Matched&&!string.IsNullOrWhiteSpace(eval.RuleCode))
-    matched.Add(new SymbolOutput(row.Id,eval.WorkSymbol,eval.OtSymbol,eval.RuleCode));
-   else
-    unmatched[$"{dayType}/{row.ShiftAbbr}"]=unmatched.GetValueOrDefault($"{dayType}/{row.ShiftAbbr}")+1;
-  }
-
+  // The post-calculation symbol pass can touch thousands of rows. Use a dedicated
+  // timeout for BOTH the batch read and updates, and always restore the DbContext value.
+  var previousTimeout=_db.Database.GetCommandTimeout();
   _db.Database.SetCommandTimeout(600);
-  foreach(var chunk in matched.Chunk(1000))
+  try
   {
-   var json=JsonSerializer.Serialize(chunk.Select(x=>new{id=x.Id,ws=x.WorkSymbol,os=x.OtSymbol,rc=x.RuleCode}));
-   await _db.Database.ExecuteSqlInterpolatedAsync($"""
-    UPDATE a SET
-        a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
-        a.OtDisplayValue=COALESCE(j.os,a.OtDisplayValue),
-        a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND ISNULL(a.LeaveTotal,0)=0
-        AND (a.DayType<>N'NORMAL' OR ISNULL(a.AttendanceDisplayValue,N'')=N'' OR a.AttendanceDisplayValue=a.ShiftAbbr)
-        THEN j.ws ELSE a.AttendanceDisplayValue END
-    FROM dbo.F03HrmAttendanceCalculated AS a
-    INNER JOIN OPENJSON({json}) WITH (id bigint '$.id',ws nvarchar(50) '$.ws',os nvarchar(50) '$.os',rc nvarchar(100) '$.rc') AS j ON j.id=a.Id
-    """,ct);
-  }
+   var inputs=await _db.Database.SqlQuery<SymbolInputRow>($"""
+    SELECT Id,WorkDate,ShiftId,ShiftAbbr,CheckInTime,CheckOutTime,DayType
+    FROM dbo.F03HrmAttendanceCalculated
+    WHERE CalculationBatchId={batchId}
+      AND CheckInTime IS NOT NULL
+      AND CheckOutTime IS NOT NULL
+    """).ToListAsync(ct);
 
-  if(unmatched.Count>0)
-   _logger.LogWarning("Symbol rules: {Count} dòng không khớp rule nào (DayType/Ca → số dòng): {Detail}. Bổ sung rule ở /admin/attendance-symbol-rules.",
-    unmatched.Values.Sum(),string.Join(", ",unmatched.OrderByDescending(x=>x.Value).Take(10).Select(x=>$"{x.Key}={x.Value}")));
+   if(inputs.Count==0) return;
+
+   var matched=new List<SymbolOutput>(inputs.Count);
+   var unmatched=new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase);
+   foreach(var row in inputs)
+   {
+    ct.ThrowIfCancellationRequested();
+    var dayType=string.IsNullOrWhiteSpace(row.DayType)?"NORMAL":row.DayType!;
+    var eval=await _symbolRules.EvaluateAsync(
+     DateOnly.FromDateTime(row.WorkDate),dayType,row.ShiftAbbr,row.ShiftId,
+     row.CheckInTime,row.CheckOutTime,null,ct);
+    if(eval.Matched&&!string.IsNullOrWhiteSpace(eval.RuleCode))
+     matched.Add(new SymbolOutput(row.Id,eval.WorkSymbol,eval.OtSymbol,eval.RuleCode));
+    else
+     unmatched[$"{dayType}/{row.ShiftAbbr}"]=unmatched.GetValueOrDefault($"{dayType}/{row.ShiftAbbr}")+1;
+   }
+
+   // Smaller chunks reduce lock duration, log/rollback cost, and OPENJSON payload size.
+   foreach(var chunk in matched.Chunk(250))
+   {
+    ct.ThrowIfCancellationRequested();
+    var json=JsonSerializer.Serialize(chunk.Select(x=>new{id=x.Id,ws=x.WorkSymbol,os=x.OtSymbol,rc=x.RuleCode}));
+    await _db.Database.ExecuteSqlInterpolatedAsync($"""
+     UPDATE a SET
+         a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
+         a.OtDisplayValue=COALESCE(j.os,a.OtDisplayValue),
+         a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND ISNULL(a.LeaveTotal,0)=0
+         AND (a.DayType<>N'NORMAL' OR ISNULL(a.AttendanceDisplayValue,N'')=N'' OR a.AttendanceDisplayValue=a.ShiftAbbr)
+         THEN j.ws ELSE a.AttendanceDisplayValue END
+     FROM dbo.F03HrmAttendanceCalculated AS a
+     INNER JOIN OPENJSON({json}) WITH (id bigint '$.id',ws nvarchar(50) '$.ws',os nvarchar(50) '$.os',rc nvarchar(100) '$.rc') AS j ON j.id=a.Id
+     """,ct);
+   }
+
+   if(unmatched.Count>0)
+    _logger.LogWarning("Symbol rules: {Count} dòng không khớp rule nào (DayType/Ca → số dòng): {Detail}. Bổ sung rule ở /admin/attendance-symbol-rules.",
+     unmatched.Values.Sum(),string.Join(", ",unmatched.OrderByDescending(x=>x.Value).Take(10).Select(x=>$"{x.Key}={x.Value}")));
+
+   _logger.LogInformation(
+    "Attendance symbols applied. Batch={BatchId}, InputRows={InputRows}, MatchedRows={MatchedRows}, UnmatchedRows={UnmatchedRows}",
+    batchId,inputs.Count,matched.Count,unmatched.Values.Sum());
+  }
+  catch(Exception ex)
+  {
+   _logger.LogError(ex,"Applying attendance symbol rules failed. Batch={BatchId}",batchId);
+   throw;
+  }
+  finally
+  {
+   _db.Database.SetCommandTimeout(previousTimeout);
+  }
  }
 
  private sealed record SymbolInputRow(long Id,DateTime WorkDate,int? ShiftId,string? ShiftAbbr,DateTime? CheckInTime,DateTime? CheckOutTime,string? DayType);
