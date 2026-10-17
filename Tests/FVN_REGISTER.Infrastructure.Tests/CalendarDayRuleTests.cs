@@ -267,6 +267,7 @@ public sealed class CalendarDayRuleTests
                     IsApproved = true,
                     OTHours = 2m,
                     OTTypeCode = "WD",
+                    OTRateMultiplier = 1.5m,
                     Start = new DateTime(2026, 10, 12, 18, 0, 0),
                     End = new DateTime(2026, 10, 12, 20, 0, 0)
                 }
