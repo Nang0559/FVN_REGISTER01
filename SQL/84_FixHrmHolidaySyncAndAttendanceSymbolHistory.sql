@@ -88,7 +88,7 @@ BEGIN
     ;WITH TypeSource AS
     (
         SELECT
-            LNLMa = RTRIM(t.LNLMa),
+            LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4),
             LNLTen = t.LNLTen,
             LNLLoai = RTRIM(t.LNLLoai),
             t.LNLKyHieu,
@@ -96,9 +96,9 @@ BEGIN
             DLocked = ISNULL(t.DLocked, 0),
             GuessDayType = CASE
                 /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
-                WHEN RTRIM(t.LNLMa) = N'0003' THEN N'NATIONAL_HOLIDAY'   -- Ngày lễ (L)
-                WHEN RTRIM(t.LNLMa) = N'0002' THEN N'COMPANY_HOLIDAY'    -- Chủ nhật/Nghỉ công ty (CT)
-                WHEN RTRIM(t.LNLMa) = N'0001' THEN N'OTHER'              -- Ngày nghỉ thường (NT)
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0003' THEN N'NATIONAL_HOLIDAY' -- HRM 003: Nghỉ lễ
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0002' THEN N'SUNDAY' -- HRM 002: Nghỉ Chủ nhật
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'COMPANY_HOLIDAY' -- HRM 001: Nghỉ công ty T2-T7
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
@@ -116,14 +116,14 @@ BEGIN
            d.SyncedAt = SYSUTCDATETIME(),
            d.DayType = CASE WHEN d.DayTypeIsManual = 1 THEN d.DayType ELSE s.GuessDayType END
     FROM dbo.F03HrmHolidayTypes AS d
-    INNER JOIN TypeSource AS s ON s.LNLMa = d.LNLMa;
+    INNER JOIN TypeSource AS s ON RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), d.LNLMa))), 4) = s.LNLMa;
 
     SET @TypesUpserted = @@ROWCOUNT;
 
     ;WITH TypeSource AS
     (
         SELECT
-            LNLMa = RTRIM(t.LNLMa),
+            LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4),
             LNLTen = t.LNLTen,
             LNLLoai = RTRIM(t.LNLLoai),
             t.LNLKyHieu,
@@ -131,9 +131,9 @@ BEGIN
             DLocked = ISNULL(t.DLocked, 0),
             GuessDayType = CASE
                 /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
-                WHEN RTRIM(t.LNLMa) = N'0003' THEN N'NATIONAL_HOLIDAY'   -- Ngày lễ (L)
-                WHEN RTRIM(t.LNLMa) = N'0002' THEN N'COMPANY_HOLIDAY'    -- Chủ nhật/Nghỉ công ty (CT)
-                WHEN RTRIM(t.LNLMa) = N'0001' THEN N'OTHER'              -- Ngày nghỉ thường (NT)
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0003' THEN N'NATIONAL_HOLIDAY' -- HRM 003: Nghỉ lễ
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0002' THEN N'SUNDAY' -- HRM 002: Nghỉ Chủ nhật
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'COMPANY_HOLIDAY' -- HRM 001: Nghỉ công ty T2-T7
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
@@ -145,14 +145,14 @@ BEGIN
     INSERT dbo.F03HrmHolidayTypes (LNLMa,LNLTen,LNLLoai,LNLKyHieu,LNLMauSac,DLocked,DayType)
     SELECT s.LNLMa,s.LNLTen,s.LNLLoai,s.LNLKyHieu,s.LNLMauSac,s.DLocked,s.GuessDayType
     FROM TypeSource AS s
-    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03HrmHolidayTypes d WHERE d.LNLMa=s.LNLMa);
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03HrmHolidayTypes d WHERE RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), d.LNLMa))), 4)=s.LNLMa);
 
     SET @TypesUpserted += @@ROWCOUNT;
 
     ;WITH TypeSource AS
     (
         SELECT
-            LNLMa = RTRIM(t.LNLMa),
+            LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4),
             LNLLoai = RTRIM(t.LNLLoai),
             t.DLocked,
             t.LNLTen,
@@ -173,9 +173,10 @@ BEGIN
             TypeColor = LEFT(t.LNLMauSac, 50),
             DayType = COALESCE(t.DayType, N'NATIONAL_HOLIDAY'),
             HolidayType = CONVERT(tinyint, CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
-                WHEN N'COMPANY_HOLIDAY' THEN 1
+                WHEN N'COMPANY_HOLIDAY' THEN 4
+                WHEN N'SUNDAY' THEN 1
                 WHEN N'NATIONAL_HOLIDAY' THEN 2
-                ELSE 4 END),
+                ELSE 3 END),
             rn = ROW_NUMBER() OVER
             (
                 PARTITION BY CONVERT(date, n.NNLNgay)
@@ -194,8 +195,8 @@ BEGIN
             SELECT TOP (1) x.DayType, x.LNLKyHieu, x.LNLTen, x.LNLMauSac
             FROM TypeSource AS x
             WHERE ISNULL(x.DLocked, 0) = 0
-              AND (x.LNLMa = RTRIM(n.NNLLoai) OR x.LNLLoai = RTRIM(n.NNLLoai))
-            ORDER BY CASE WHEN x.LNLMa = RTRIM(n.NNLLoai) THEN 0 ELSE 1 END,
+              AND (x.LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), n.NNLLoai))), 4) OR x.LNLLoai = RTRIM(n.NNLLoai))
+            ORDER BY CASE WHEN x.LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), n.NNLLoai))), 4) THEN 0 ELSE 1 END,
                      CASE x.DayType
                          WHEN N'NATIONAL_HOLIDAY' THEN 1
                          WHEN N'COMPANY_HOLIDAY'  THEN 2
