@@ -19,9 +19,14 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
     public override async Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
         HistoryFilterDto filter, UserIdentityDto user, CancellationToken ct)
     {
+        // Lịch sử OT của chính mình, dùng chung cho mọi user (có/không có quyền đăng ký OT):
+        // gồm đơn mình tự tạo và đơn cấp quản lý đăng ký OT cho mình (mình là người tham gia).
+        var code = user.EmployeeCode;
         var q = Db.VF03OTRequests
             .AsNoTracking()
-            .Where(x => x.IsActive == true && x.EmployeeCode == user.EmployeeCode);
+            .Where(x => x.IsActive == true &&
+                (x.EmployeeCode == code ||
+                 Db.OvertimeEmployees.Any(e => e.OTRequestId == x.Id && e.EmployeeCode == code && e.IsActive != false)));
 
         if (filter.Year.HasValue)
             q = q.Where(x => x.OTDate.Year == filter.Year.Value);
@@ -58,11 +63,20 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
         var ids = data.Where(x => x.Id.HasValue).Select(x => x.Id!.Value).ToList();
         var stepsMap = await GetApprovalStepsMapAsync(ids, ct);
 
+        // Đơn do người khác đăng ký cho mình: hiển thị số giờ OT của riêng mình, không phải tổng cả đơn.
+        var ownHours = await Db.OvertimeEmployees
+            .AsNoTracking()
+            .Where(e => e.EmployeeCode == code && ids.Contains(e.OTRequestId) && e.IsActive != false)
+            .GroupBy(e => e.OTRequestId)
+            .Select(g => new { RequestId = g.Key, Hours = g.Sum(e => e.OTHours) })
+            .ToDictionaryAsync(g => g.RequestId, g => g.Hours, ct);
+
         var items = data.Select(x =>
         {
             var id = x.Id ?? 0;
             var statusValue = x.RequestStatus;
-            var totalHours = x.TotalOTHours ?? 0;
+            var isOwner = string.Equals(x.EmployeeCode, code, StringComparison.OrdinalIgnoreCase);
+            var totalHours = !isOwner && ownHours.TryGetValue(id, out var mine) ? mine : x.TotalOTHours ?? 0;
 
             return new HistoryItemDto
             {
@@ -83,7 +97,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
                 TotalOTHours = totalHours,
                 OTTypeName = x.OTTypeName,
                 EmployeeCount = x.EmployeeCount,
-                CanCancel = ActiveStatuses.Contains(statusValue),
+                CanCancel = isOwner && ActiveStatuses.Contains(statusValue),
                 ApprovalSteps = stepsMap.GetValueOrDefault(id, new())
             };
         }).ToList();
@@ -143,14 +157,18 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
                          from employee in employeeJoin.DefaultIfEmpty()
                          where request.Id == id &&
                                request.IsActive == true &&
-                               request.EmployeeCode == user.EmployeeCode
+                               (request.EmployeeCode == user.EmployeeCode ||
+                                request.Employees.Any(e => e.EmployeeCode == user.EmployeeCode && e.IsActive != false))
                          select new { request, employee })
             .FirstOrDefaultAsync(ct);
 
         if (row == null)
             return ServiceResult<HistoryItemDetailDto>.Fail("Không tìm thấy đơn tăng ca.");
 
+        // Người được đăng ký hộ chỉ xem phần của mình, không thấy danh sách đồng nghiệp trong đơn.
+        var isRequestOwner = string.Equals(row.request.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase);
         var employees = row.request.Employees
+            .Where(x => isRequestOwner || string.Equals(x.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase))
             .OrderBy(x => x.EmployeeCode)
             .Select(x => new OTEmployeeDto
             {
@@ -180,7 +198,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
             StatusDisplay = row.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(row.request.RequestStatus),
             SubmittedAt = row.request.CreatedAt,
-            CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
+            CanCancel = isRequestOwner && ActiveStatuses.Contains(row.request.RequestStatus),
             OT = new OTDetailPayload
             {
                 OTCode = row.request.OTCode,
@@ -189,7 +207,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
                 OTDate = DateOnly.FromDateTime(row.request.OTDate),
                 StartTime = row.request.StartTime.TimeOfDay,
                 EndTime = row.request.EndTime.TimeOfDay,
-                TotalOTHours = row.request.TotalOTHours,
+                TotalOTHours = isRequestOwner ? row.request.TotalOTHours : employees.Sum(e => e.OTHours),
                 OTTypeName = null,
                 OTReasonSummary = row.request.OTReasonSummary,
                 Employees = employees

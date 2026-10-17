@@ -204,6 +204,46 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 items.Select(MapToSummary).ToList(), totalCount, page, pageSize);
         }
 
+        public async Task<ServiceResult<PaginationResult<OTSummaryDto>>> GetMyHistoryAsync(
+            string employeeCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
+            int page, int pageSize, CancellationToken ct = default)
+        {
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            if (string.IsNullOrWhiteSpace(employeeCode))
+                return ServiceResult<PaginationResult<OTSummaryDto>>.Ok(
+                    new PaginationResult<OTSummaryDto>(new List<OTSummaryDto>(), 0, page, pageSize));
+
+            var code = employeeCode.Trim();
+            var participantRequestIds = Uow.Repository<F03OTEmployee>().Query()
+                .AsNoTracking()
+                .Where(e => e.EmployeeCode == code && e.IsActive != false)
+                .Select(e => e.OTRequestId);
+
+            var query = Uow.Repository<VF03OTRequest>().Query()
+                .AsNoTracking()
+                .Where(x => x.IsActive == true
+                    && (x.EmployeeCode == code || (x.Id != null && participantRequestIds.Contains(x.Id.Value))));
+
+            if (status.HasValue)
+                query = query.Where(x => x.RequestStatus == status.Value);
+            if (fromDate.HasValue)
+                query = query.Where(x => x.OTDate >= fromDate.Value.Date);
+            if (toDate.HasValue)
+                query = query.Where(x => x.OTDate <= toDate.Value.Date);
+
+            var totalCount = await query.CountAsync(ct);
+            var items = await query
+                .OrderByDescending(x => x.OTDate)
+                .ThenByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+
+            return ServiceResult<PaginationResult<OTSummaryDto>>.Ok(
+                new PaginationResult<OTSummaryDto>(items.Select(MapToSummary).ToList(), totalCount, page, pageSize));
+        }
+
         protected override async Task<List<OTRequestDto>> GetDeptByDateCoreAsync(
             int deptCode, DateTime date, CancellationToken ct = default)
         {

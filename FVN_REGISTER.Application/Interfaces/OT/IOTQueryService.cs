@@ -2,6 +2,8 @@
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
+using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Core.Enums;
 
 namespace FVN_REGISTER.Application.Interfaces.OT
 {
@@ -18,6 +20,14 @@ namespace FVN_REGISTER.Application.Interfaces.OT
         Task<OTBalanceDto> GetBalanceAsync(string employeeCode, int year, int month, CancellationToken ct = default);
 
         Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(int deptCode, CancellationToken ct = default);
+
+        /// <summary>
+        /// Lịch sử OT của chính <paramref name="employeeCode"/> (đơn mình tạo + đơn người khác đăng ký cho mình),
+        /// không phụ thuộc phạm vi xem phòng ban.
+        /// </summary>
+        Task<ServiceResult<PaginationResult<OTSummaryDto>>> GetMyHistoryAsync(
+            string employeeCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
+            int page, int pageSize, CancellationToken ct = default);
 
         Task<int?> GetEmployeeDeptCodeAsync(string employeeCode, CancellationToken ct = default);
 

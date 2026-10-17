@@ -95,7 +95,8 @@ namespace FVN_REGISTER.API.Controllers
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
             var selectedYear = year ?? DateTime.Now.Year;
-            var result = await _queryService.GetPagedAsync(UserInfo.DeptCode, parsedStatus, new DateTime(selectedYear, 1, 1), new DateTime(selectedYear, 12, 31), page, pageSize, ct);
+            // "history" = lịch sử OT của chính mình (mọi user có quyền xem OT cá nhân), không trả đơn của cả phòng.
+            var result = await _queryService.GetMyHistoryAsync(UserInfo.EmployeeCode ?? string.Empty, parsedStatus, new DateTime(selectedYear, 1, 1), new DateTime(selectedYear, 12, 31), page, pageSize, ct);
             return HandleResult(result);
         }
 
