@@ -11,6 +11,7 @@ public sealed class RegistrationPolicyDto
     public bool IsActive { get; set; }
     public List<int> UserIds { get; set; } = new();
     public List<string> PositionCodes { get; set; } = new();
+    public List<string> SelfRegistrationPositionCodes { get; set; } = new();
 }
 
 public sealed class RegistrationPolicyUpsertDto
@@ -21,6 +22,7 @@ public sealed class RegistrationPolicyUpsertDto
     public bool IsActive { get; set; } = true;
     public List<int> UserIds { get; set; } = new();
     public List<string> PositionCodes { get; set; } = new();
+    public List<string> SelfRegistrationPositionCodes { get; set; } = new();
 }
 
 public sealed class RegistrationPolicyDecisionDto
