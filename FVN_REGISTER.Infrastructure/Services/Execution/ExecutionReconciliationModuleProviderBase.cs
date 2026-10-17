@@ -57,6 +57,7 @@ public abstract class ExecutionReconciliationModuleProviderBase
     {
         public DateOnly WorkDate { get; set; }
         public string EmployeeCode { get; set; } = string.Empty;
+        public string? DayType { get; set; }
         public DateTime? CheckInTime { get; set; }
         public DateTime? CheckOutTime { get; set; }
         public int WorkMinutesDay { get; set; }
