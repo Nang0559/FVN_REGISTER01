@@ -156,6 +156,11 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    /* Chỉ kiểm tra khi THÊM người vào đơn hoặc ĐỔI người/đơn. Các UPDATE hệ thống (usp_CalculateHrmAttendance cập nhật
+       giờ thực tế, ValidationStatus, ModifiedBy...) không đổi EmployeeCode/OTRequestId nên không được kiểm tra lại policy,
+       nếu không đơn OT cũ của người không còn là registrar sẽ làm hỏng cả lần tính công (lỗi 51531). */
+    IF NOT (UPDATE(EmployeeCode) OR UPDATE(OTRequestId)) RETURN;
+
     IF NOT EXISTS
     (
         SELECT 1
