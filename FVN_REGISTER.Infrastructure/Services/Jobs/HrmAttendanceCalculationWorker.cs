@@ -375,7 +375,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                       )
                       OR
                       (
-                          run.SqlSessionId IS NULL
+                          (run.SqlSessionId IS NULL OR run.SqlSessionLoginTime IS NULL OR run.SqlConnectionId IS NULL)
                           AND run.StartedAt < DATEADD(minute,{-staleMinutes},GETDATE())
                           AND @HasActiveAttendanceCalculation=0
                       )
