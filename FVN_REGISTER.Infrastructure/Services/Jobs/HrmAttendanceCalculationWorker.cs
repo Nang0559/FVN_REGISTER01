@@ -379,7 +379,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
 
             if (affected > 0)
                 _logger.LogWarning(
-                    "[HRM_ATTENDANCE_WORKER] Đã phục hồi {Count} Run 'Running' bị bỏ dở sau khi xác nhận session SQL không còn tồn tại (ngưỡng {Minutes} phút).",
+                    "[HRM_ATTENDANCE_WORKER] Đã phục hồi {Count} Run 'Running' bị bỏ dở sau khi xác nhận session SQL không còn tồn tại (ngưỡng legacy {Minutes} phút).",
                     affected, staleMinutes);
 
             var unresolvedLegacy = await db.Database.SqlQuery<int>($"""
