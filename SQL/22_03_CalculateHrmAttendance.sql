@@ -10,9 +10,12 @@ BEGIN
  --   2) manual:     @DeptCode + date range => selected department/date
  -- The per-staff calculation remains dbo.usp_HrmCompatibleTimeKeepingForStaff.
  DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=@DeptCode,@HrmEmployeeId int=NULL;
- DECLARE @SqlSessionLoginTime datetime2(0);
- SELECT @SqlSessionLoginTime=CONVERT(datetime2(0),login_time)
- FROM sys.dm_exec_sessions WHERE session_id=@@SPID;
+ DECLARE @SqlSessionLoginTime datetime2(3),@SqlConnectionId uniqueidentifier;
+ SELECT @SqlSessionLoginTime=CONVERT(datetime2(3),s.login_time),
+        @SqlConnectionId=c.connection_id
+ FROM sys.dm_exec_sessions AS s
+ INNER JOIN sys.dm_exec_connections AS c ON c.session_id=s.session_id
+ WHERE s.session_id=@@SPID;
  SET @EmployeeCode=NULLIF(LTRIM(RTRIM(@EmployeeCode)),N'');
  IF @EmployeeCode IS NOT NULL
  BEGIN
@@ -20,8 +23,8 @@ BEGIN
    IF @HrmEmployeeId IS NULL THROW 51321,N'Không tìm thấy nhân viên HRM hoặc nhân viên đã bị khóa.',1;
  END
  INSERT dbo.F03HrmAttendanceCalculationRun
- (CalculationBatchId,DeptCode,EmployeeCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt,SqlSessionId,SqlSessionLoginTime)
- VALUES(@BatchId,@DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE(),@@SPID,@SqlSessionLoginTime);
+ (CalculationBatchId,DeptCode,EmployeeCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt,SqlSessionId,SqlSessionLoginTime,SqlConnectionId)
+ VALUES(@BatchId,@DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE(),@@SPID,@SqlSessionLoginTime,@SqlConnectionId);
  /* Ngày nghỉ lấy từ HRM (DM_Loainghile/tblNgayNghiLe) - đồng bộ trước khi tính để DayType luôn mới. */
  EXEC dbo.usp_SyncHrmHolidays;
  CREATE TABLE #Result(
