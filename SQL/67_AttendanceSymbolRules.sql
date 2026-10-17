@@ -127,6 +127,17 @@ SELECT Code,Name,DayType,ShiftCode,Priority,MinActual,InFrom,CheckInToSeed,JsonV
 FROM @R AS r
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03AttendanceSymbolRules AS x WHERE x.RuleCode=r.Code);
 
+/* Legacy/custom rest-day category from the reference table (DT symbols, 200% group). */
+INSERT INTO dbo.F03AttendanceSymbolRules
+    (RuleCode,RuleName,DayType,ShiftCode,Priority,RuleJson,IsActive,CreatedBy,CreatedAt,LastModifiedSource)
+SELECT v.RuleCode,v.RuleName,N'OTHER',v.ShiftCode,100,v.RuleJson,1,0,SYSUTCDATETIME(),N'SEED'
+FROM (VALUES
+ (N'OTHER-C1',N'Nghỉ khác - C1',N'C1',N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"STANDARD","segments":[{"segmentType":"WORK","start":"06:00","end":"18:00","symbolTemplate":"DT{hours}"}]}'),
+ (N'OTHER-C2',N'Nghỉ khác - C2',N'C2',N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"STANDARD","segments":[{"segmentType":"WORK","start":"10:00","end":"22:00","symbolTemplate":"DT{hours}"}]}'),
+ (N'OTHER-C3',N'Nghỉ khác - C3',N'C3',N'{"blockMinutes":15,"roundingMode":"FLOOR","allocationMode":"STANDARD","segments":[{"segmentType":"WORK","start":"18:00","end":"06:00","symbolTemplate":"DT{hours}"}]}' )
+) AS v(RuleCode,RuleName,ShiftCode,RuleJson)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03AttendanceSymbolRules r WHERE r.RuleCode=v.RuleCode);
+
 /* Reclassify seeded rules already present in the database.
    NT templates belong to HRM 001 (company-declared Mon-Sat holidays);
    CT/CN templates belong to HRM 002 (Sunday). */
