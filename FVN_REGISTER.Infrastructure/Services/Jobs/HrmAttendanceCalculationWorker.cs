@@ -49,6 +49,11 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         _logger.LogInformation("[HRM_ATTENDANCE_WORKER] Khởi động.");
         _health.Started(nameof(HrmAttendanceCalculationWorker));
 
+        // Recover abandoned calculation audit rows before any new calculation starts.
+        // Exact session_id + login_time matching prevents SQL SPID reuse from keeping
+        // an old Run alive or incorrectly failing a calculation owned by another API instance.
+        await ReconcileAbandonedRunsAsync(stoppingToken);
+
         // Never wait for the first scheduled run when the application starts.
         // This closes the gap after deployment/restart and guarantees the current
         // payroll period has calculated data before users open the dashboard.
@@ -113,8 +118,6 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                     "[HRM_ATTENDANCE_WORKER] Bỏ qua catch-up: một lần tính company-wide khác đang chạy.");
                 return;
             }
-
-            await AbandonStaleRunsAsync(ct);
 
             var yesterday = DateTime.Today.AddDays(-1).Date;
             var from = await GetCompanyWideCatchUpStartAsync(yesterday, ct);
@@ -311,12 +314,13 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     }
 
     /// <summary>
-    /// Marks company-wide worker Run rows that are still 'Running' after BackgroundWorkers:StaleMinutes
-    /// as Failed. Only called while this process holds the company-run guard, so no live worker
-    /// calculation can own those rows (the process that did was restarted or killed and the proc's
-    /// CATCH block never ran). Manual / calendar runs are never touched.
+    /// Reconciles stale Running rows for ALL calculation sources (worker, manual and calendar backfill).
+    /// A tracked Run is failed only when its exact SQL session (SPID + login_time) no longer exists.
+    /// Legacy rows created before session tracking are failed only when no attendance calculation
+    /// request and no attendance application lock exists anywhere on this SQL Server.
+    /// If DMV permissions are missing, the method fails closed and leaves every Run untouched.
     /// </summary>
-    private async Task AbandonStaleRunsAsync(CancellationToken ct)
+    private async Task ReconcileAbandonedRunsAsync(CancellationToken ct)
     {
         var staleMinutes = Math.Clamp(
             _configuration.GetValue<int?>("BackgroundWorkers:StaleMinutes") ?? 15,
@@ -326,22 +330,80 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         await using var scope = _serviceProvider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
 
-        var affected = await db.Database.ExecuteSqlAsync($"""
-            UPDATE dbo.F03HrmAttendanceCalculationRun
-            SET Status=N'Failed',
-                FinishedAt=GETDATE(),
-                ErrorMessage=N'Abandoned: tiến trình đã dừng trước khi hoàn tất (quá hạn StaleMinutes).'
-            WHERE Status=N'Running'
-              AND DeptCode IS NULL
-              AND EmployeeCode IS NULL
-              AND TriggeredBy LIKE N'HRM-ATTENDANCE-WORKER%'
-              AND StartedAt < DATEADD(minute, {-staleMinutes}, GETDATE())
-        """, ct);
+        try
+        {
+            var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
+                DECLARE @HasActiveAttendanceCalculation bit = 0;
 
-        if (affected > 0)
-            _logger.LogWarning(
-                "[HRM_ATTENDANCE_WORKER] Đã đóng {Count} dòng Run 'Running' quá {Minutes} phút (process cũ đã dừng).",
-                affected, staleMinutes);
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM sys.dm_exec_requests AS r
+                    CROSS APPLY sys.dm_exec_input_buffer(r.session_id,r.request_id) AS ib
+                    WHERE r.session_id <> @@SPID
+                      AND ib.event_info LIKE N'%usp_CalculateHrmAttendance%'
+                )
+                OR EXISTS
+                (
+                    SELECT 1
+                    FROM sys.dm_tran_locks AS l
+                    WHERE l.resource_type=N'APPLICATION'
+                      AND l.resource_description LIKE N'%FVN_REGISTER:ATTENDANCE:DATE:%'
+                )
+                    SET @HasActiveAttendanceCalculation = 1;
+
+                UPDATE run
+                SET Status=N'Failed',
+                    FinishedAt=GETDATE(),
+                    ErrorMessage=N'Abandoned: SQL session của lần tính đã kết thúc trước khi Run hoàn tất.'
+                FROM dbo.F03HrmAttendanceCalculationRun AS run
+                WHERE run.Status=N'Running'
+                  AND run.StartedAt < DATEADD(minute,{-staleMinutes},GETDATE())
+                  AND
+                  (
+                      (
+                          run.SqlSessionId IS NOT NULL
+                          AND NOT EXISTS
+                          (
+                              SELECT 1
+                              FROM sys.dm_exec_sessions AS sessionInfo
+                              WHERE sessionInfo.session_id=run.SqlSessionId
+                                AND CONVERT(datetime2(0),sessionInfo.login_time)=run.SqlSessionLoginTime
+                          )
+                      )
+                      OR
+                      (
+                          run.SqlSessionId IS NULL
+                          AND @HasActiveAttendanceCalculation=0
+                      )
+                  );
+                """, ct);
+
+            if (affected > 0)
+                _logger.LogWarning(
+                    "[HRM_ATTENDANCE_WORKER] Đã phục hồi {Count} Run 'Running' bị bỏ dở sau khi xác nhận session SQL không còn tồn tại (ngưỡng {Minutes} phút).",
+                    affected, staleMinutes);
+
+            var unresolvedLegacy = await db.Database.SqlQuery<int>($"""
+                SELECT COUNT(*) AS Value
+                FROM dbo.F03HrmAttendanceCalculationRun
+                WHERE Status=N'Running'
+                  AND SqlSessionId IS NULL
+                """).SingleAsync(ct);
+
+            if (unresolvedLegacy > 0)
+                _logger.LogWarning(
+                    "[HRM_ATTENDANCE_WORKER] Còn {Count} Run cũ chưa có SQL session metadata; không tự động đổi trạng thái vì SQL vẫn có thể đang giữ khóa attendance.",
+                    unresolvedLegacy);
+        }
+        catch (Exception ex)
+        {
+            // DMV access requires VIEW SERVER STATE (or the SQL Server-version equivalent).
+            // Fail closed: never mark rows Failed when the session state cannot be verified.
+            _logger.LogError(
+                ex,
+                "[HRM_ATTENDANCE_WORKER] Không thể đối chiếu SQL sessions; giữ nguyên tất cả Run 'Running'. Kiểm tra quyền VIEW SERVER STATE của tài khoản kết nối FVN.");
+        }
     }
 
     /// <summary>
