@@ -16,6 +16,8 @@ using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Data;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers
@@ -327,13 +329,48 @@ namespace FVN_REGISTER.API.Controllers
         private async Task<bool> IsSelfRegistrationPositionAllowedAsync(int deptCode, string? positionCode, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(positionCode)) return false;
-            return await _db.Database.SqlQuery<int>($"""
-                SELECT COUNT(1) AS [Value]
-                FROM dbo.F03OTSelfRegistrationPositions p
-                WHERE p.IsActive=1 AND p.RegisterType=N'OT'
-                  AND p.PositionCode={positionCode.Trim()}
-                  AND p.DepartmentCode IN (0,{deptCode})
-                """).SingleAsync(ct) > 0;
+            var connection = _db.Database.GetDbConnection();
+            var shouldClose = connection.State != ConnectionState.Open;
+            if (shouldClose)
+                await connection.OpenAsync(ct);
+
+            try
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT CASE WHEN EXISTS
+                    (
+                        SELECT 1
+                        FROM dbo.F03OTSelfRegistrationPositions p
+                        WHERE p.IsActive = 1
+                          AND p.RegisterType = @registerType
+                          AND p.PositionCode = @positionCode
+                          AND p.DepartmentCode IN (0, @departmentCode)
+                    ) THEN 1 ELSE 0 END;";
+
+                var registerTypeParameter = command.CreateParameter();
+                registerTypeParameter.ParameterName = "@registerType";
+                registerTypeParameter.Value = "OT";
+                command.Parameters.Add(registerTypeParameter);
+
+                var positionParameter = command.CreateParameter();
+                positionParameter.ParameterName = "@positionCode";
+                positionParameter.Value = positionCode.Trim();
+                command.Parameters.Add(positionParameter);
+
+                var departmentParameter = command.CreateParameter();
+                departmentParameter.ParameterName = "@departmentCode";
+                departmentParameter.Value = deptCode;
+                command.Parameters.Add(departmentParameter);
+
+                var result = await command.ExecuteScalarAsync(ct);
+                return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) == 1;
+            }
+            finally
+            {
+                if (shouldClose)
+                    await connection.CloseAsync();
+            }
         }
 
         [HttpPost("approve")]
