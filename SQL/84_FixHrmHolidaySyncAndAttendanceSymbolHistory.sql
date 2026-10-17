@@ -183,7 +183,8 @@ BEGIN
                 ORDER BY
                     CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
                         WHEN N'NATIONAL_HOLIDAY' THEN 1
-                        WHEN N'COMPANY_HOLIDAY' THEN 2
+                        WHEN N'SUNDAY' THEN 2
+                        WHEN N'COMPANY_HOLIDAY' THEN 3
                         ELSE 4 END,
                     RTRIM(n.NNLMa)
             )
