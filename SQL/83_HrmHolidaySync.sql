@@ -124,7 +124,7 @@ RETURN
               WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1
               ORDER BY CASE h.DayType WHEN N'NATIONAL_HOLIDAY' THEN 1 WHEN N'SUNDAY' THEN 2 WHEN N'COMPANY_HOLIDAY' THEN 3 ELSE 4 END, h.Id),
             CASE WHEN ISNULL(@HrmHolidayFlag, 0) = 1 THEN N'NATIONAL_HOLIDAY'
-                 WHEN ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'COMPANY_HOLIDAY' END,
+                 WHEN ISNULL(@HrmEmployeeHolidayFlag, 0) = 1 THEN N'OTHER' END,
             CASE WHEN DATEDIFF(day, '19000107', @WorkDate) % 7 = 0 THEN N'SUNDAY' END,
             N'NORMAL'),
         IsHoliday = CASE WHEN EXISTS (SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate = @WorkDate AND h.Source = N'HRM' AND h.IsActive = 1)
