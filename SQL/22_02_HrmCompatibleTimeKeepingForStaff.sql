@@ -771,7 +771,8 @@ BEGIN
 				SELECT @FxStart=s.ShiftStart, @FxEnd=e.ShiftEnd, @FxTruoc=ISNULL(ca.CQuetTruocCa,0), @FxSau=ISNULL(ca.CQuetSauCa,0)
 				FROM HRM.dbo.tblCa ca
 				CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),ca.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-				CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),ca.CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
+				CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),ca.CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+				CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
 				WHERE ca.CMa=@Maca;
 
 				-- (2) IN lay tu ngay lich truoc, som hon cua so quet-truoc-ca cua ca ngay D
