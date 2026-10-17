@@ -228,7 +228,8 @@ public sealed class SupervisorFeedbackController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Giờ OT không hợp lệ."));
 
         var hours = Math.Max(0m, Math.Round((decimal)(end - start).TotalHours, 1));
-        var otType = string.IsNullOrWhiteSpace(dto.OTTypeCode) ? "WEEKDAY" : dto.OTTypeCode.Trim();
+        // Always derive OT pay category from synchronized HRM holiday data, not a stale UI value.
+        var otType = await ResolveOtTypeCodeAsync(entity.WorkDate, ct);
         var reason = string.IsNullOrWhiteSpace(dto.Note) ? $"Đăng ký OT bổ sung theo phản hồi ngày {entity.WorkDate:dd/MM/yyyy}" : dto.Note.Trim();
         var model = new OTRequestUpsertDto
         {
@@ -365,11 +366,77 @@ public sealed class SupervisorFeedbackController : BaseApiController
         return result;
     }
 
+    private sealed class HolidayClassificationRow
+    {
+        public DateTime HolidayDate { get; set; }
+        public string? DayType { get; set; }
+        public string? HrmTypeCode { get; set; }
+    }
+
+    private static string OtTypeForHoliday(string? dayType, string? hrmTypeCode, DateTime workDate)
+    {
+        var normalizedDayType = (dayType ?? string.Empty).Trim().ToUpperInvariant();
+        var normalizedHrmCode = (hrmTypeCode ?? string.Empty).Trim().TrimStart('0');
+        if (normalizedDayType == "NATIONAL_HOLIDAY" || normalizedHrmCode == "3")
+            return "HOL";
+        if (normalizedDayType is "COMPANY_HOLIDAY" or "SUNDAY" || normalizedHrmCode is "1" or "2" || workDate.DayOfWeek == DayOfWeek.Sunday)
+            return "RESTDAY";
+        return "WD";
+    }
+
+    private async Task<string> ResolveOtTypeCodeAsync(DateTime workDate, CancellationToken ct)
+    {
+        var date = workDate.Date;
+        var rows = await _db.Database.SqlQuery<HolidayClassificationRow>($@"
+            SELECT TOP (1)
+                   CAST(h.HolidayDate AS date) AS HolidayDate,
+                   h.DayType,
+                   h.HrmTypeCode
+            FROM dbo.F03CompanyHolidays AS h
+            WHERE CAST(h.HolidayDate AS date) = {date}
+              AND h.IsActive = 1
+              AND h.Source = N'HRM'
+            ORDER BY CASE
+                WHEN h.DayType = N'NATIONAL_HOLIDAY' OR h.HrmTypeCode IN ('3','03','003','0003') THEN 1
+                WHEN h.DayType IN (N'COMPANY_HOLIDAY', N'SUNDAY') OR h.HrmTypeCode IN ('1','01','001','0001','2','02','002','0002') THEN 2
+                ELSE 3 END").ToListAsync(ct);
+        var holiday = rows.FirstOrDefault();
+        return holiday == null
+            ? (date.DayOfWeek == DayOfWeek.Sunday ? "RESTDAY" : "WD")
+            : OtTypeForHoliday(holiday.DayType, holiday.HrmTypeCode, date);
+    }
+
+    private async Task<Dictionary<DateTime, string>> LoadSuggestedOtTypesAsync(List<F03SupervisorFeedback> rows, CancellationToken ct)
+    {
+        var dates = rows.Select(x => x.WorkDate.Date).Distinct().ToList();
+        if (dates.Count == 0) return new Dictionary<DateTime, string>();
+        var minDate = dates.Min();
+        var maxDate = dates.Max();
+        var holidays = await _db.Database.SqlQuery<HolidayClassificationRow>($@"
+            SELECT CAST(h.HolidayDate AS date) AS HolidayDate, h.DayType, h.HrmTypeCode
+            FROM dbo.F03CompanyHolidays AS h
+            WHERE CAST(h.HolidayDate AS date) >= {minDate}
+              AND CAST(h.HolidayDate AS date) <= {maxDate}
+              AND h.IsActive = 1
+              AND h.Source = N'HRM'
+            ORDER BY CASE
+                WHEN h.DayType = N'NATIONAL_HOLIDAY' OR h.HrmTypeCode IN ('3','03','003','0003') THEN 1
+                WHEN h.DayType IN (N'COMPANY_HOLIDAY', N'SUNDAY') OR h.HrmTypeCode IN ('1','01','001','0001','2','02','002','0002') THEN 2
+                ELSE 3 END").ToListAsync(ct);
+        var byDate = holidays.GroupBy(x => x.HolidayDate.Date)
+            .ToDictionary(g => g.Key, g => g.First());
+        return dates.ToDictionary(date => date, date =>
+            byDate.TryGetValue(date, out var holiday)
+                ? OtTypeForHoliday(holiday.DayType, holiday.HrmTypeCode, date)
+                : (date.DayOfWeek == DayOfWeek.Sunday ? "RESTDAY" : "WD"));
+    }
+
     private async Task<List<SupervisorFeedbackDto>> MapManyAsync(List<F03SupervisorFeedback> rows, CancellationToken ct, bool withOtMinutes = true)
     {
         var codes = rows.Select(x => x.EmployeeCode).Distinct().ToList();
         var names = await _db.Employees.AsNoTracking().Where(e => codes.Contains(e.EmployeeCode)).Select(e => new { e.EmployeeCode, e.EmployeeName }).ToDictionaryAsync(x => x.EmployeeCode, x => x.EmployeeName, ct);
         var otMinutes = withOtMinutes ? await LoadOtMinutesAsync(rows, ct) : new Dictionary<(string Code, DateTime Date), int>();
+        var suggestedTypes = await LoadSuggestedOtTypesAsync(rows, ct);
         return rows.Select(x => new SupervisorFeedbackDto
         {
             Id = x.Id, EmployeeId = x.EmployeeId, EmployeeCode = x.EmployeeCode,
@@ -377,6 +444,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
             DepartmentCode = x.DepartmentCode, WorkDate = x.WorkDate, ActualIn = x.ActualIn, ActualOut = x.ActualOut,
             Status = x.Status, ApproverId = x.ApproverId, Note = x.Note, ResponseNote = x.ResponseNote,
             ActualOtMinutes = otMinutes.GetValueOrDefault((x.EmployeeCode, x.WorkDate.Date)),
+            SuggestedOTTypeCode = suggestedTypes.GetValueOrDefault(x.WorkDate.Date, x.WorkDate.DayOfWeek == DayOfWeek.Sunday ? "RESTDAY" : "WD"),
             OTRequestId = x.OTRequestId
         }).ToList();
     }
