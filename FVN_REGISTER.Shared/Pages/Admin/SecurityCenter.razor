@@ -367,6 +367,32 @@
                             </MudSelect>
                         </MudItem>
 
+                        @if (IsOtRegistrarFunction)
+                        {
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="string" Label="Phạm vi chỉ định" Variant="Variant.Outlined"
+                                           Value="_registrarScopeMode" ValueChanged="RegistrarScopeModeChanged">
+                                    <MudSelectItem T="string" Value="@("Department")">Một phòng ban</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Block")">Nhóm phòng ban (khối)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("All")">Toàn công ty</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            @if (_registrarScopeMode == "Block")
+                            {
+                                <MudItem xs="12" md="4">
+                                    <MudSelect T="string" Label="Nhóm phòng ban (khối)" Variant="Variant.Outlined"
+                                               @bind-Value="_registrarBlockCode">
+                                        @foreach (var block in RegistrarBlocks)
+                                        {
+                                            <MudSelectItem T="string" Value="@block">@block</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                            }
+                        }
+
+@if (!IsOtRegistrarFunction || _registrarScopeMode == "Department")
+                        {
                         <MudItem xs="12" md="4">
                             @if (IsGlobalOperatorFunction)
                             {
@@ -380,7 +406,7 @@
                             }
                             else
                             {
-                                <MudSelect T="int?" Label="@Language.T("security.doiTuongCuThe")" Variant="Variant.Outlined"
+                                <MudSelect T="int?" Label="@(IsOtRegistrarFunction ? "Phòng ban" : Language.T("security.doiTuongCuThe"))" Variant="Variant.Outlined"
                                            Value="_operatorResourceId" ValueChanged="OperatorResourceChanged"
                                            Disabled="@(_operatorResources.Count == 0)">
                                     @foreach (var resource in _operatorResources)
@@ -392,6 +418,7 @@
                                 </MudSelect>
                             }
                         </MudItem>
+                        }
 
                         <MudItem xs="12" md="4">
                             <MudAutocomplete T="FeatureOperatorEmployeeDto"
@@ -401,7 +428,8 @@
                                              ValueChanged="OperatorEmployeeChanged"
                                              SearchFunc="SearchOperatorEmployeesAsync"
                                              ToStringFunc="FormatOperatorEmployee"
-                                             MinCharacters="2"
+                                             MinCharacters="@OperatorEmployeeMinCharacters"
+                                             OpenOnFocus="@(OperatorEmployeeMinCharacters == 0)"
                                              MaxItems="50"
                                              Clearable="true"
                                              ResetValueOnEmptyText="true"
@@ -440,7 +468,7 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.PersonAdd"
                                    OnClick="AddFeatureOperatorAsync"
-                                   Disabled="@(_savingOperator || string.IsNullOrWhiteSpace(_operatorEmployeeCode))">
+                                   Disabled="@(_savingOperator || string.IsNullOrWhiteSpace(_operatorEmployeeCode) || !RegistrarScopeIsComplete)">
                             @Language.T("common.chiDinh")
                         </MudButton>
                         <MudButton Variant="Variant.Outlined" OnClick="LoadFeatureOperatorsAsync"
@@ -634,7 +662,8 @@
         SecurityFunctionCodes.OTLimitManage,
         SecurityFunctionCodes.WorkCalendarManage,
         SecurityFunctionCodes.WorkCalendarSymbolRuleManage,
-        SecurityFunctionCodes.HrmUserRoleRuleManage
+        SecurityFunctionCodes.HrmUserRoleRuleManage,
+        SecurityFunctionCodes.OTRegistrarManage
     };
     private List<SecurityFunctionDto> _operatorFunctions = new();
     private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
@@ -861,6 +890,45 @@
     private bool IsGlobalOperatorFunction
         => FeatureOperatorCatalog.IsModuleWide(_operatorFunctionCode);
 
+    // ---- OT.RegistrarManage: chỉ định người được đăng ký OT/Trip cho nhiều người (phòng ban / nhóm phòng ban / toàn công ty)
+    private bool IsOtRegistrarFunction => _operatorFunctionCode == SecurityFunctionCodes.OTRegistrarManage;
+    private string _registrarScopeMode = "Department";
+    private string? _registrarBlockCode;
+
+    private IEnumerable<string> RegistrarBlocks => _operatorResources
+        .Select(x => x.Status)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Select(x => x!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x);
+
+    private bool RegistrarScopeIsComplete => !IsOtRegistrarFunction || _registrarScopeMode switch
+    {
+        "Department" => _operatorResourceId.HasValue,
+        "Block" => !string.IsNullOrWhiteSpace(_registrarBlockCode),
+        _ => true
+    };
+
+    // Chọn phòng ban => danh sách nhân viên chỉ gồm phòng ban đó (không cần gõ tìm trước).
+    private int? OperatorEmployeeDeptFilter => IsOtRegistrarFunction && _registrarScopeMode == "Department" ? _operatorResourceId : null;
+    private int OperatorEmployeeMinCharacters => OperatorEmployeeDeptFilter.HasValue ? 0 : 2;
+
+    private string RegistrarScopeCode => _registrarScopeMode switch
+    {
+        "Block" => $"Block:{_registrarBlockCode}",
+        "All" => "All",
+        _ => "Department"
+    };
+
+    private async Task RegistrarScopeModeChanged(string value)
+    {
+        _registrarScopeMode = value;
+        _operatorResourceId = null;
+        _operatorEmployee = null;
+        _operatorEmployeeCode = string.Empty;
+        await LoadFeatureOperatorsAsync();
+    }
+
     private string OperatorResourceDescription
         => _operatorFunctionCode switch
         {
@@ -879,7 +947,9 @@
         => FeatureOperatorCatalog.AssignmentGrantsCapability(_operatorFunctionCode);
 
     private string OperatorAssignmentHint
-        => OperatorGrantsCapability
+        => IsOtRegistrarFunction
+            ? "Người được chỉ định được đăng ký OT/Trip cho nhiều người trong phạm vi đã chọn (cộng với chức vụ approver theo chính sách phòng ban). Nhân viên không thuộc diện này không tự đăng ký OT mà phải báo cấp quản lý hoặc người được chỉ định. Chọn phòng ban sẽ lọc danh sách nhân viên của phòng ban đó."
+            : OperatorGrantsCapability
             ? Language.T("security.operatorGrantsHint")
             : IsGlobalOperatorFunction
             ? Language.T("security.operatorGlobalHint")
@@ -890,10 +960,11 @@
         CancellationToken ct)
     {
         var term = value?.Trim();
-        if (string.IsNullOrWhiteSpace(term) || term.Length < 2)
+        var deptFilter = OperatorEmployeeDeptFilter;
+        if (!deptFilter.HasValue && (string.IsNullOrWhiteSpace(term) || term.Length < 2))
             return Array.Empty<FeatureOperatorEmployeeDto>();
 
-        var result = await SecurityService.GetFeatureOperatorEmployeesAsync(term, ct);
+        var result = await SecurityService.GetFeatureOperatorEmployeesByDepartmentAsync(term, deptFilter, ct);
         if (!result.IsSuccess || result.Data == null)
             return Array.Empty<FeatureOperatorEmployeeDto>();
 
@@ -920,6 +991,12 @@
     private async Task OperatorResourceChanged(int? value)
     {
         _operatorResourceId = value;
+        if (IsOtRegistrarFunction)
+        {
+            // Đổi phòng ban => danh sách nhân viên đổi theo, bỏ lựa chọn cũ.
+            _operatorEmployee = null;
+            _operatorEmployeeCode = string.Empty;
+        }
         await LoadFeatureOperatorsAsync();
     }
 
@@ -928,6 +1005,10 @@
         _operatorFunctionCode = value;
         _operatorResourceType = GetResourceTypeForFunction(value);
         _operatorResourceId = null;
+        _registrarScopeMode = "Department";
+        _registrarBlockCode = null;
+        _operatorEmployee = null;
+        _operatorEmployeeCode = string.Empty;
         await LoadFeatureOperatorsAsync();
     }
 
@@ -960,9 +1041,11 @@
                 {
                     FunctionCode = _operatorFunctionCode,
                     ResourceType = _operatorResourceType,
-                    ResourceId = IsGlobalOperatorFunction ? null : _operatorResourceId,
+                    ResourceId = IsOtRegistrarFunction
+                        ? (_registrarScopeMode == "Department" ? _operatorResourceId : null)
+                        : IsGlobalOperatorFunction ? null : _operatorResourceId,
                     EmployeeCode = _operatorEmployeeCode,
-                    ScopeCode = OperatorGrantsCapability ? _operatorScope : null
+                    ScopeCode = IsOtRegistrarFunction ? RegistrarScopeCode : OperatorGrantsCapability ? _operatorScope : null
                 });
 
             if (!result.IsSuccess)

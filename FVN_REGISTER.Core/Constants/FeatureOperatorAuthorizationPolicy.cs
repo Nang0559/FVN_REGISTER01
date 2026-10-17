@@ -35,7 +35,27 @@ public static class FeatureOperatorAuthorizationPolicy
         bool hasRbacCapability)
         => employeeExists
            && activeUserExists
-           && (FeatureOperatorCatalog.AssignmentGrantsCapability(functionCode) || hasRbacCapability);
+           && (FeatureOperatorCatalog.AssignmentGrantsCapability(functionCode)
+               || FeatureOperatorCatalog.IsAssignmentAuthority(functionCode)
+               || hasRbacCapability);
+
+    /// <summary>
+    /// Does an OT/Trip registrar assignment cover a department?
+    /// ResourceId = that DeptCode, or null with ScopeCode "All"/empty (every department), or null with
+    /// ScopeCode "Block:{BlockCode}" (every department of that block = "nhóm phòng ban").
+    /// </summary>
+    public static bool OtRegistrarCovers(int? resourceId, string? scopeCode, int deptCode, string? deptBlockCode)
+    {
+        if (resourceId.HasValue) return resourceId.Value == deptCode;
+        var scope = scopeCode?.Trim();
+        if (string.IsNullOrEmpty(scope) || string.Equals(scope, "All", StringComparison.OrdinalIgnoreCase)) return true;
+        const string blockPrefix = "Block:";
+        if (!scope.StartsWith(blockPrefix, StringComparison.OrdinalIgnoreCase)) return false;
+        var block = scope.Substring(blockPrefix.Length).Trim();
+        return block.Length > 0
+               && !string.IsNullOrWhiteSpace(deptBlockCode)
+               && string.Equals(block, deptBlockCode.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// An assigner may only grant what they hold themselves (SuperAdmin excepted).

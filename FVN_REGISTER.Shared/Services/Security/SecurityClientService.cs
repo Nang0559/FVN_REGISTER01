@@ -21,6 +21,13 @@ public sealed class SecurityClientService : ISecurityClientService
     public Task<ApiResponse<List<ManagedEmployeeDto>>> GetManagedEmployeesAsync(int userId, CancellationToken ct = default) => _http.GetAsync<List<ManagedEmployeeDto>>($"api/security/users/{userId}/managed-employees", ct);
     public Task<ApiResponse<List<ManagedEmployeeDto>>> GetMyManagedEmployeesAsync(CancellationToken ct = default) => _http.GetAsync<List<ManagedEmployeeDto>>("api/security/me/managed-employees", ct);
     public Task<ApiResponse<List<FeatureOperatorAssignmentDto>>> GetFeatureOperatorsAsync(int functionCode, string resourceType, int? resourceId = null, CancellationToken ct = default) => _http.GetAsync<List<FeatureOperatorAssignmentDto>>($"api/security/feature-operators?functionCode={functionCode}&resourceType={Uri.EscapeDataString(resourceType)}{(resourceId.HasValue ? $"&resourceId={resourceId.Value}" : string.Empty)}", ct);
+    public Task<ApiResponse<List<FeatureOperatorEmployeeDto>>> GetFeatureOperatorEmployeesByDepartmentAsync(string? search, int? deptCode, CancellationToken ct = default)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(search)) query.Add($"search={Uri.EscapeDataString(search)}");
+        if (deptCode.HasValue) query.Add($"deptCode={deptCode.Value}");
+        return _http.GetAsync<List<FeatureOperatorEmployeeDto>>($"api/security/feature-operators/employees{(query.Count == 0 ? string.Empty : "?" + string.Join("&", query))}", ct);
+    }
     public Task<ApiResponse<List<FeatureOperatorResourceDto>>> GetFeatureOperatorResourcesAsync(string resourceType, CancellationToken ct = default) => _http.GetAsync<List<FeatureOperatorResourceDto>>($"api/security/feature-operators/resources?resourceType={Uri.EscapeDataString(resourceType)}", ct);
     public Task<ApiResponse<List<FeatureOperatorEmployeeDto>>> GetFeatureOperatorEmployeesAsync(string? search = null, CancellationToken ct = default) => _http.GetAsync<List<FeatureOperatorEmployeeDto>>($"api/security/feature-operators/employees{(string.IsNullOrWhiteSpace(search) ? string.Empty : $"?search={Uri.EscapeDataString(search)}")}", ct);
     public Task<ApiResponse<FeatureOperatorAssignmentDto>> AddFeatureOperatorAsync(SaveFeatureOperatorAssignmentRequest request, CancellationToken ct = default) => _http.PostAsync<FeatureOperatorAssignmentDto>("api/security/feature-operators", request, ct);

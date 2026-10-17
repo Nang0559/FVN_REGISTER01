@@ -20,6 +20,7 @@ public interface ISecurityClientService
     Task<ApiResponse<EffectivePermissionPreviewDto>> GetEffectivePermissionPreviewAsync(int userId, CancellationToken ct = default);
     Task<ApiResponse<List<FeatureOperatorAssignmentDto>>> GetFeatureOperatorsAsync(int functionCode, string resourceType, int? resourceId = null, CancellationToken ct = default);
     Task<ApiResponse<List<FeatureOperatorEmployeeDto>>> GetFeatureOperatorEmployeesAsync(string? search = null, CancellationToken ct = default);
+    Task<ApiResponse<List<FeatureOperatorEmployeeDto>>> GetFeatureOperatorEmployeesByDepartmentAsync(string? search, int? deptCode, CancellationToken ct = default);
     Task<ApiResponse<List<FeatureOperatorResourceDto>>> GetFeatureOperatorResourcesAsync(string resourceType, CancellationToken ct = default);
     Task<ApiResponse<FeatureOperatorAssignmentDto>> AddFeatureOperatorAsync(SaveFeatureOperatorAssignmentRequest request, CancellationToken ct = default);
     Task<ApiResponse<object>> RemoveFeatureOperatorAsync(int id, CancellationToken ct = default);

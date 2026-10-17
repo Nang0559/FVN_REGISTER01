@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Calendar;
@@ -22,9 +23,11 @@ public sealed class WorkCalendarService : IWorkCalendarService
     private readonly IUnitOfWork _uow;
     private readonly IAuthorizationService _authorization;
     private readonly ICurrentUserService _currentUser;
+    private readonly IOtRegistrationPolicy _registrationPolicy;
 
-    public WorkCalendarService(IUnitOfWork uow, IAuthorizationService authorization, ICurrentUserService currentUser)
+    public WorkCalendarService(IUnitOfWork uow, IAuthorizationService authorization, ICurrentUserService currentUser, IOtRegistrationPolicy registrationPolicy)
     {
+        _registrationPolicy = registrationPolicy;
         _uow = uow;
         _authorization = authorization;
         _currentUser = currentUser;
@@ -44,6 +47,15 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var canViewTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
         var canCreateLeave = await _authorization.CanAccessAsync(user, SecurityFunctionCodes.LeaveCreate, normalizedEmployeeCode, null, ct);
         var canCreateOt = await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTCreate, normalizedEmployeeCode, null, ct);
+        if (canCreateOt)
+        {
+            // Chính sách người đăng ký: chỉ registrar của phòng ban nhân viên được mở "Đăng ký OT".
+            // Người còn lại thấy lựa chọn "Phản hồi nhân sự" / "Phản hồi cấp trên" thay vì đăng ký trực tiếp.
+            var targetDept = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                .Where(x => x.EmployeeCode == normalizedEmployeeCode)
+                .Select(x => (int?)x.DeptCode).FirstOrDefaultAsync(ct);
+            canCreateOt = await _registrationPolicy.IsRegistrarAsync(user, targetDept ?? user.DeptCode ?? 0, "OT", ct);
+        }
         var canCreateTrip = await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripCreate, normalizedEmployeeCode, null, ct);
         var workYears = await _uow.Repository<F03WorkYear>().Query().AsNoTracking().Where(x => x.IsActive == true && x.StartDate <= end && x.EndDate >= start).OrderBy(x => x.WorkYear).ToListAsync(ct);
         var holidays = await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(x => x.IsActive == true && x.Source == "HRM" && x.HolidayDate >= start && x.HolidayDate <= end).OrderBy(x => x.HolidayDate).ToListAsync(ct);

@@ -27,6 +27,7 @@ namespace FVN_REGISTER.API.Controllers
         private readonly IOTService _otService;
         private readonly IOTQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _workflow;
+        private readonly IOtRegistrationPolicy _registrationPolicy;
 
         public OTController(
             IOTService otService,
@@ -36,9 +37,11 @@ namespace FVN_REGISTER.API.Controllers
             IUserLogService userLog,
             ILogger<OTController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
-            AppAuthorizationService authorization)
+            AppAuthorizationService authorization,
+            IOtRegistrationPolicy registrationPolicy)
             : base(currentUser, userLog, logger, options)
         {
+            _registrationPolicy = registrationPolicy;
             _authorization = authorization;
             _otService = otService;
             _queryService = queryService;
@@ -218,6 +221,11 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Chưa đăng nhập."));
             if (!ModelState.IsValid) return BadRequest(ModelState);
             if (dto.Employees == null || dto.Employees.Count == 0) return BadRequest(ApiResponse<object>.Fail("Phải có ít nhất 1 nhân viên."));
+
+            // Chính sách người đăng ký (OT.RegistrarManage / rule phòng ban): chỉ registrar của phòng ban của TỪNG nhân viên
+            // được đăng ký OT (kể cả cho chính mình). Nhân viên khác phải báo cấp quản lý / người được chỉ định.
+            if (!await _registrationPolicy.CanRegisterForEmployeesAsync(UserInfo, dto.Employees.Select(x => x.EmployeeCode), "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail("Bạn không có quyền đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT (hoặc dùng \"Phản hồi cấp trên\" trên lịch)."));
             return HandleResult(await _otService.CreateAsync(dto, UserInfo, ct));
         }
 
@@ -299,6 +307,8 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, UserInfo.DeptCode ?? 0, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail("Bạn không có quyền đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT (hoặc dùng \"Phản hồi cấp trên\" trên lịch)."));
             return HandleResult(await _otService.JoinAsync(id, UserInfo, ct));
         }
 

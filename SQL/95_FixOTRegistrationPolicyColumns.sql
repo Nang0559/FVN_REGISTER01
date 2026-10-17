@@ -2,7 +2,7 @@
 ===============================================================================
 70 - BỔ SUNG CỘT CÒN THIẾU CHO BẢNG CHÍNH SÁCH NGƯỜI ĐĂNG KÝ OT / PHẢN HỒI CẤP TRÊN
 ===============================================================================
-Chạy SAU 68_OTTripRegistrationPolicy.sql và 69_SupervisorFeedbackCompletion.sql. Idempotent.
+Chạy SAU 93_OTTripRegistrationPolicy.sql và 94_SupervisorFeedbackCompletion.sql. Idempotent.
 
 Lý do: các entity F03OTRegistrationRule / F03OTRegistrar / F03OTRegistrarPosition / F03SupervisorFeedback
 kế thừa BaseAuditEntity nên EF Core luôn SELECT các cột IsActive, LastModifiedSource, CreatedBy (int, NOT NULL).

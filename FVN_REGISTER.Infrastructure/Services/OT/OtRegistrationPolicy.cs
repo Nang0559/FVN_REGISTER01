@@ -1,22 +1,34 @@
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Registration;
+using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.OT;
+using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.OT;
 
-/// <summary>Single source of truth for department-level OT/Trip registrar policy.</summary>
+/// <summary>
+/// Single source of truth for "who may register OT / Trip".
+/// Registrar of a department = (a) active Feature Operator assignment of OT.RegistrarManage covering the department
+/// (department / block = nhóm phòng ban / all), OR (b) the department rule: Everyone / assigned users / approver positions.
+/// Everybody else is NOT a registrar: they cannot create OT and cannot add other people to a Trip; they report to their
+/// supervisor (calendar "Phản hồi cấp trên") or to HR.
+/// </summary>
 public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
 {
     private readonly FVNWEBAPPContext _db;
 
     public OtRegistrationPolicy(FVNWEBAPPContext db) => _db = db;
 
-    public async Task<bool> CanRegisterForOthersAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
+    public async Task<bool> IsRegistrarAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
     {
+        if (user == null) return false;
+        if (await IsAssignedRegistrarAsync(user, deptCode, ct)) return true;
+
         var rule = await ResolveAsync(deptCode, NormalizeType(registerType), ct);
         if (rule == null) return false;
         return rule.Mode switch
@@ -29,23 +41,77 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
         };
     }
 
+    public async Task<bool> CanRegisterForEmployeesAsync(UserIdentityDto user, IEnumerable<string> employeeCodes, string registerType = "OT", CancellationToken ct = default)
+    {
+        if (user == null) return false;
+        var codes = (employeeCodes ?? Array.Empty<string>())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var depts = codes.Count == 0
+            ? new List<int>()
+            : (await _db.Set<F03Employee>().AsNoTracking()
+                .Where(e => codes.Contains(e.EmployeeCode))
+                .Select(e => (int?)e.DeptCode)
+                .Distinct()
+                .ToListAsync(ct)).Select(d => d ?? 0).Distinct().ToList();
+
+        // Không xác định được phòng ban nhân viên (mã lạ): xét theo phòng ban của người đăng ký; service tạo đơn sẽ báo lỗi mã lạ.
+        if (depts.Count == 0) depts.Add(user.DeptCode ?? 0);
+
+        foreach (var dept in depts)
+            if (!await IsRegistrarAsync(user, dept, registerType, ct))
+                return false;
+        return true;
+    }
+
+    public Task<bool> CanRegisterForOthersAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
+        => IsRegistrarAsync(user, deptCode, registerType, ct);
+
     public async Task<bool> CanRegisterSelfOnlyAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
-        => !await CanRegisterForOthersAsync(user, deptCode, registerType, ct);
+        => !await IsRegistrarAsync(user, deptCode, registerType, ct);
 
     public async Task<RegistrationPolicyDecisionDto> GetDecisionAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
     {
         var type = NormalizeType(registerType);
         var rule = await ResolveAsync(deptCode, type, ct);
-        var others = rule != null && await CanRegisterForOthersAsync(user, deptCode, type, ct);
+        var registrar = await IsRegistrarAsync(user, deptCode, type, ct);
         return new RegistrationPolicyDecisionDto
         {
             DepartmentCode = deptCode,
             RegisterType = type,
             Mode = rule?.Mode ?? RegistrationRuleMode.AssignedPositions,
-            CanRegisterForOthers = others,
-            CanRegisterSelfOnly = !others,
+            CanRegister = registrar,
+            CanRegisterForOthers = registrar,
+            CanRegisterSelfOnly = !registrar,
             IsFallback = rule == null || rule.DepartmentCode == 0
         };
+    }
+
+    private async Task<bool> IsAssignedRegistrarAsync(UserIdentityDto user, int deptCode, CancellationToken ct)
+    {
+        var code = user.EmployeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(code)) return false;
+
+        var rows = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
+            .Where(x => x.IsActive == true
+                        && x.FunctionCode == SecurityFunctionCodes.OTRegistrarManage
+                        && x.ResourceType == FeatureOperatorCatalog.OtRegistrar
+                        && x.EmployeeCode == code)
+            .Select(x => new { x.ResourceId, x.ScopeCode })
+            .ToListAsync(ct);
+        if (rows.Count == 0) return false;
+
+        string? block = null;
+        if (rows.Any(x => !x.ResourceId.HasValue && (x.ScopeCode ?? string.Empty).StartsWith("Block:", StringComparison.OrdinalIgnoreCase)))
+            block = await _db.Set<F03Department>().AsNoTracking()
+                .Where(d => d.DeptCode == deptCode)
+                .Select(d => d.BlockCode)
+                .FirstOrDefaultAsync(ct);
+
+        return rows.Any(x => FeatureOperatorAuthorizationPolicy.OtRegistrarCovers(x.ResourceId, x.ScopeCode, deptCode, block));
     }
 
     private async Task<F03OTRegistrationRule?> ResolveAsync(int deptCode, string registerType, CancellationToken ct)

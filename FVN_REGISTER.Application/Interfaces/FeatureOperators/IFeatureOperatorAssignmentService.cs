@@ -40,6 +40,11 @@ public interface IFeatureOperatorAssignmentService
         string? search,
         CancellationToken ct = default);
 
+    Task<List<FeatureOperatorEmployeeDto>> GetEmployeesByDepartmentAsync(
+        string? search,
+        int? deptCode,
+        CancellationToken ct = default);
+
     Task<List<FeatureOperatorResourceDto>> GetResourcesAsync(
         string resourceType,
         CancellationToken ct = default);
