@@ -25,7 +25,7 @@ public static class DayTypeCatalog
     public static string[] Codes => All.Select(x => x.Code).ToArray();
 
     public static DayTypeInfo FromHolidayType(byte? holidayType)
-        => All.FirstOrDefault(x => x.HolidayType == holidayType) ?? All.First(x => x.Code == "SUNDAY");
+        => All.FirstOrDefault(x => x.HolidayType == holidayType) ?? All.First(x => x.Code == "COMPANY_HOLIDAY");
 
     public static string HolidayTypeCode(byte? holidayType) => FromHolidayType(holidayType).HolidayTypeCode;
     public static string HolidayTypeLabel(byte? holidayType) => FromHolidayType(holidayType).Label;
