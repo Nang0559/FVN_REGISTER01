@@ -360,6 +360,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                   (
                       (
                           run.SqlSessionId IS NOT NULL
+                          AND run.SqlSessionLoginTime IS NOT NULL
+                          AND run.SqlConnectionId IS NOT NULL
                           AND NOT EXISTS
                           (
                               SELECT 1
@@ -389,12 +391,12 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 SELECT COUNT(*) AS Value
                 FROM dbo.F03HrmAttendanceCalculationRun
                 WHERE Status=N'Running'
-                  AND SqlSessionId IS NULL
+                  AND (SqlSessionId IS NULL OR SqlSessionLoginTime IS NULL OR SqlConnectionId IS NULL)
                 """).SingleAsync(ct);
 
             if (unresolvedLegacy > 0)
                 _logger.LogWarning(
-                    "[HRM_ATTENDANCE_WORKER] Còn {Count} Run cũ chưa có SQL session metadata; không tự động đổi trạng thái vì SQL vẫn có thể đang giữ khóa attendance.",
+                    "[HRM_ATTENDANCE_WORKER] Còn {Count} Run chưa có đủ SQL session metadata; không tự động đổi trạng thái vì SQL vẫn có thể đang giữ khóa attendance.",
                     unresolvedLegacy);
         }
         catch (Exception ex)
