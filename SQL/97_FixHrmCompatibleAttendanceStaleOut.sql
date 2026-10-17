@@ -108,31 +108,23 @@ SET @Patch = N'
 SET @Definition = STUFF(@Definition, @MarkerPos, 0, @Patch);
 
 /*
-  OBJECT_DEFINITION returns the procedure body as it was originally created.
-  Depending on the deployment script it can start with CREATE PROCEDURE,
-  CREATE OR ALTER PROCEDURE, or ALTER PROCEDURE. The procedure already exists,
-  so normalize only CREATE forms to ALTER; an existing ALTER header is already
-  executable as-is.
+  OBJECT_DEFINITION can return a header with different casing or whitespace,
+  depending on how the procedure was deployed and the database collation.
+  Locate the header case-insensitively and normalize only its header token.
 */
-SET @HeaderPos = CHARINDEX(N'CREATE OR ALTER PROCEDURE', @Definition);
-IF @HeaderPos > 0
+DECLARE @UpperDefinition nvarchar(max) = UPPER(@Definition);
+DECLARE @CreatePos int = PATINDEX(N'%CREATE%PROCEDURE%', @UpperDefinition);
+DECLARE @AlterPos int = PATINDEX(N'%ALTER%PROCEDURE%', @UpperDefinition);
+DECLARE @ProcKeywordPos int;
+DECLARE @HeaderStart int;
+
+IF @CreatePos > 0
 BEGIN
-    SET @Definition = STUFF(@Definition, @HeaderPos, LEN(N'CREATE OR ALTER PROCEDURE'), N'ALTER PROCEDURE');
+    SET @ProcKeywordPos = CHARINDEX(N'PROCEDURE', @UpperDefinition, @CreatePos);
+    SET @Definition = STUFF(@Definition, @CreatePos, @ProcKeywordPos - @CreatePos + LEN(N'PROCEDURE'), N'ALTER PROCEDURE');
 END
-ELSE
-BEGIN
-    SET @HeaderPos = CHARINDEX(N'CREATE PROCEDURE', @Definition);
-    IF @HeaderPos > 0
-    BEGIN
-        SET @Definition = STUFF(@Definition, @HeaderPos, LEN(N'CREATE PROCEDURE'), N'ALTER PROCEDURE');
-    END
-    ELSE
-    BEGIN
-        SET @HeaderPos = CHARINDEX(N'ALTER PROCEDURE', @Definition);
-        IF @HeaderPos = 0
-            THROW 50004, 'Cannot find a CREATE/ALTER PROCEDURE header in dbo.usp_HrmCompatibleTimeKeepingForStaff.', 1;
-    END
-END;
+ELSE IF @AlterPos = 0
+    THROW 50004, 'Cannot find a CREATE/ALTER PROCEDURE header in dbo.usp_HrmCompatibleTimeKeepingForStaff.', 1;
 
 EXEC sys.sp_executesql @Definition;
 
