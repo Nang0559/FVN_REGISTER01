@@ -1,16 +1,9 @@
 /*
   Fix stale OUT records leaking from the previous attendance day.
 
-  Context:
-    SQL/22_02_HrmCompatibleTimeKeepingForStaff.sql already contains the
-    multi-night candidate-shift scan introduced in commit 5234d2f0.
-    This migration keeps that logic intact and adds the missing guard for:
-      1) a selected shift whose OUT is earlier than its IN;
-      2) an OUT with no IN on the current day which actually belongs to a
-         previous shift.
-
-  The patch is applied to the deployed procedure definition so this file is
-  safe to run against databases where the procedure already exists.
+  The patch is applied to the deployed procedure definition so this file
+  updates an existing procedure instead of attempting to CREATE a second
+  procedure with the same name.
 */
 SET NOCOUNT ON;
 
@@ -19,6 +12,7 @@ DECLARE @Definition nvarchar(max);
 DECLARE @Marker nvarchar(200);
 DECLARE @Patch nvarchar(max);
 DECLARE @MarkerPos int;
+DECLARE @HeaderPos int;
 
 IF @ObjectId IS NULL
     THROW 50001, 'dbo.usp_HrmCompatibleTimeKeepingForStaff does not exist. Deploy SQL/22_02_HrmCompatibleTimeKeepingForStaff.sql first.', 1;
@@ -28,6 +22,13 @@ SET @Definition = OBJECT_DEFINITION(@ObjectId);
 IF @Definition IS NULL
     THROW 50002, 'Cannot read the definition of dbo.usp_HrmCompatibleTimeKeepingForStaff.', 1;
 
+/* Idempotent: do not patch the procedure twice. */
+IF CHARINDEX(N'FIX STALE OUT:', @Definition) > 0
+BEGIN
+    PRINT N'SKIP: stale-OUT fix is already present in dbo.usp_HrmCompatibleTimeKeepingForStaff.';
+    RETURN;
+END;
+
 /*
   Do not depend on tabs or CR/LF style here. OBJECT_DEFINITION can preserve
   the procedure's original indentation/line endings, so only the unique
@@ -35,6 +36,9 @@ IF @Definition IS NULL
 */
 SET @Marker = N'-- Neu chua co ca, chi ket thuc phan tinh Work/OT; IN/OUT raw van duoc';
 SET @MarkerPos = CHARINDEX(@Marker, @Definition);
+
+IF @MarkerPos = 0
+    THROW 50003, 'Patch marker was not found in dbo.usp_HrmCompatibleTimeKeepingForStaff. The procedure version is not compatible with this migration.', 1;
 
 SET @Patch = N'
 		/*
@@ -101,16 +105,26 @@ SET @Patch = N'
 
 ';
 
-IF CHARINDEX(N'FIX STALE OUT:', @Definition) > 0
-BEGIN
-    PRINT N'SKIP: stale-OUT fix is already present in dbo.usp_HrmCompatibleTimeKeepingForStaff.';
-    RETURN;
-END;
-
-IF @MarkerPos = 0
-    THROW 50003, 'Patch marker was not found in dbo.usp_HrmCompatibleTimeKeepingForStaff. The procedure version is not compatible with this migration.', 1;
-
 SET @Definition = STUFF(@Definition, @MarkerPos, 0, @Patch);
+
+/*
+  OBJECT_DEFINITION may return either CREATE PROCEDURE or CREATE OR ALTER
+  PROCEDURE depending on how the procedure was deployed. The object already
+  exists, so force the generated batch to use ALTER PROCEDURE.
+*/
+SET @HeaderPos = CHARINDEX(N'CREATE OR ALTER PROCEDURE', @Definition);
+IF @HeaderPos > 0
+BEGIN
+    SET @Definition = STUFF(@Definition, @HeaderPos, LEN(N'CREATE OR ALTER PROCEDURE'), N'ALTER PROCEDURE');
+END
+ELSE
+BEGIN
+    SET @HeaderPos = CHARINDEX(N'CREATE PROCEDURE', @Definition);
+    IF @HeaderPos = 0
+        THROW 50004, 'Cannot find CREATE PROCEDURE header in dbo.usp_HrmCompatibleTimeKeepingForStaff.', 1;
+
+    SET @Definition = STUFF(@Definition, @HeaderPos, LEN(N'CREATE PROCEDURE'), N'ALTER PROCEDURE');
+END;
 
 EXEC sys.sp_executesql @Definition;
 
