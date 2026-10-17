@@ -15,6 +15,7 @@
 
 -- 1) Sessions currently executing the calculation proc (original batch text via input buffer).
 SELECT  r.session_id,
+        s.login_time AS session_login_time,
         s.host_name, s.program_name, s.login_name,
         r.status, r.command,
         r.start_time,
@@ -38,11 +39,18 @@ WHERE l.resource_type = N'APPLICATION'
   AND l.resource_description LIKE N'%FVN_REGISTER:ATTENDANCE:%';
 
 -- 3) Run rows that are still 'Running' (the worker closes its own stale rows on startup).
-SELECT  CalculationBatchId, DeptCode, EmployeeCode, FromDate, ToDate, TriggeredBy, StartedAt,
-        DATEDIFF(minute, StartedAt, GETDATE()) AS running_minutes
-FROM dbo.F03HrmAttendanceCalculationRun
-WHERE Status = N'Running'
-ORDER BY StartedAt;
+SELECT  run.CalculationBatchId, run.DeptCode, run.EmployeeCode,
+        run.FromDate, run.ToDate, run.TriggeredBy, run.StartedAt,
+        run.SqlSessionId, run.SqlSessionLoginTime,
+        CASE WHEN sessionInfo.session_id IS NULL THEN N'NOT FOUND'
+             ELSE N'CONNECTED' END AS SqlSessionState,
+        DATEDIFF(minute,run.StartedAt,GETDATE()) AS running_minutes
+FROM dbo.F03HrmAttendanceCalculationRun AS run
+LEFT JOIN sys.dm_exec_sessions AS sessionInfo
+  ON sessionInfo.session_id=run.SqlSessionId
+ AND CONVERT(datetime2(0),sessionInfo.login_time)=run.SqlSessionLoginTime
+WHERE run.Status=N'Running'
+ORDER BY run.StartedAt;
 
 -- 4) Stop an orphaned session (replace 123 with a session_id from query 1), then re-run query 1/3.
 -- KILL 123;
