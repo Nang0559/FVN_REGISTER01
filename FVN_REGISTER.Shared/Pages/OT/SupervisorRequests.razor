@@ -142,12 +142,12 @@
         get
         {
             var type = _otTypes.FirstOrDefault(x => x.OTTypeCode == _otTypeCode);
-            return type?.OTTypeName ?? _otTypeCode switch
+            return type?.OTTypeName ?? (_otTypeCode switch
             {
                 "RESTDAY" => "OT ngày nghỉ công ty / Chủ nhật (200%)",
                 "HOL" => "OT ngày lễ (300%)",
                 _ => "OT ngày thường (150%)"
-            };
+            });
         }
     }
     private void Cancel() => _selected = null;
