@@ -12,6 +12,7 @@ using FVN_REGISTER.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FVN_REGISTER.Contract.Dtos.OT;
 
 namespace FVN_REGISTER.API.Controllers;
 
