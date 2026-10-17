@@ -50,7 +50,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         _health.Started(nameof(HrmAttendanceCalculationWorker));
 
         // Recover abandoned calculation audit rows before any new calculation starts.
-        // Exact session_id + login_time matching prevents SQL SPID reuse from keeping
+        // Exact session_id + login_time + connection_id matching prevents SQL SPID reuse from keeping
         // an old Run alive or incorrectly failing a calculation owned by another API instance.
         await ReconcileAbandonedRunsAsync(stoppingToken);
 
@@ -364,8 +364,11 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                           (
                               SELECT 1
                               FROM sys.dm_exec_sessions AS sessionInfo
+                              INNER JOIN sys.dm_exec_connections AS connectionInfo
+                                ON connectionInfo.session_id=sessionInfo.session_id
                               WHERE sessionInfo.session_id=run.SqlSessionId
-                                AND CONVERT(datetime2(0),sessionInfo.login_time)=run.SqlSessionLoginTime
+                                AND CONVERT(datetime2(3),sessionInfo.login_time)=run.SqlSessionLoginTime
+                                AND connectionInfo.connection_id=run.SqlConnectionId
                           )
                       )
                       OR
