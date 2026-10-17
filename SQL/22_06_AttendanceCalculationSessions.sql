@@ -38,7 +38,7 @@ FROM sys.dm_tran_locks AS l
 WHERE l.resource_type = N'APPLICATION'
   AND l.resource_description LIKE N'%FVN_REGISTER:ATTENDANCE:%';
 
--- 3) Run rows that are still 'Running' (the worker closes its own stale rows on startup).
+-- 3) Run rows that are still 'Running' with exact SQL session identity (startup recovery updates only confirmed abandoned rows).
 SELECT  run.CalculationBatchId, run.DeptCode, run.EmployeeCode,
         run.FromDate, run.ToDate, run.TriggeredBy, run.StartedAt,
         run.SqlSessionId, run.SqlSessionLoginTime,
