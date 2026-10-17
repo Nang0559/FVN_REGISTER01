@@ -253,6 +253,17 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
             var subject = await _provider.GetSubjectAsync(snapshot.RequestId, ct);
             if (subject == null) continue;
 
+            // Backward-compatible repair for OT requests created by versions that initialized
+            // and notified the approval route but accidentally left RequestStatus = Draft.
+            // A required, currently actionable snapshot proves this OT was submitted.
+            if (Module == RequestModule.Overtime
+                && subject.OverallStatus == ApprovalStatus.Draft)
+            {
+                await _provider.ApplyOverallStatusAsync(snapshot.RequestId, calculated, ct);
+                subject = await _provider.GetSubjectAsync(snapshot.RequestId, ct);
+                if (subject == null) continue;
+            }
+
             if (subject.OverallStatus is not
                 (ApprovalStatus.Pending
                 or ApprovalStatus.InProgress
