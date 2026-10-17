@@ -1,4 +1,5 @@
 using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
+using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Registration;
@@ -20,6 +21,7 @@ public sealed class RegistrationPolicyController : BaseApiController
 {
     private readonly FVNWEBAPPContext _db;
     private readonly AppAuthorizationService _authorization;
+    private readonly IOtRegistrationPolicy _policy;
 
     public RegistrationPolicyController(
         FVNWEBAPPContext db,
@@ -27,32 +29,35 @@ public sealed class RegistrationPolicyController : BaseApiController
         IUserLogService userLog,
         ILogger<RegistrationPolicyController> logger,
         Microsoft.Extensions.Options.IOptionsMonitor<Application.Configuration.AuthDebugOptions> options,
-        AppAuthorizationService authorization)
+        AppAuthorizationService authorization,
+        IOtRegistrationPolicy policy)
         : base(currentUser, userLog, logger, options)
     {
         _db = db;
         _authorization = authorization;
+        _policy = policy;
     }
 
+    /// <summary>
+    /// Quyền đăng ký của user hiện tại. Dùng CHUNG IOtRegistrationPolicy với OTController/TripController/Calendar
+    /// (chức vụ approver, rule phòng ban và Feature Operator OT.RegistrarManage) để UI và API không lệch nhau.
+    /// OT: không phải registrar thì không đăng ký được (kể cả cho chính mình) và phải báo cấp trên / người được chỉ định.
+    /// TRIP: đi một mình ai có quyền TripCreate cũng tạo được; thêm người đi cùng phải là registrar.
+    /// </summary>
     [HttpGet("decision")]
     public async Task<IActionResult> Decision([FromQuery] string registerType = "OT", [FromQuery] int? deptCode = null, CancellationToken ct = default)
     {
         if (UserInfo == null) return Unauthorized();
         var type = NormalizeType(registerType);
         var dept = deptCode ?? UserInfo.DeptCode ?? 0;
-        var rule = await ResolveRuleAsync(dept, type, ct);
+        var decision = await _policy.GetDecisionAsync(UserInfo, dept, type, ct);
         var canCreate = await _authorization.HasPersonalAsync(UserInfo, type == "OT" ? SecurityFunctionCodes.OTCreate : SecurityFunctionCodes.TripCreate, ct);
-        var canOthers = canCreate && MatchesOthers(rule, UserInfo);
+        var isRegistrar = decision.CanRegisterForOthers;
 
-        return Ok(ApiResponse<RegistrationPolicyDecisionDto>.Ok(new RegistrationPolicyDecisionDto
-        {
-            DepartmentCode = dept,
-            RegisterType = type,
-            Mode = rule?.Mode ?? RegistrationRuleMode.AssignedPositions,
-            CanRegisterForOthers = canOthers,
-            CanRegisterSelfOnly = canCreate,
-            IsFallback = rule == null || rule.DepartmentCode == 0
-        }));
+        decision.CanRegisterForOthers = canCreate && isRegistrar;
+        decision.CanRegister = canCreate && (type == "TRIP" || isRegistrar);
+        decision.CanRegisterSelfOnly = canCreate && type == "TRIP" && !isRegistrar;
+        return Ok(ApiResponse<RegistrationPolicyDecisionDto>.Ok(decision));
     }
 
     [HttpGet]

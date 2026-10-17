@@ -12,6 +12,8 @@
 @using FVN_REGISTER.Contract.Requests.Approvals
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
+@using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -20,12 +22,21 @@
 @inject IApprovalRouteClientService ApprovalRouteService
 @inject ICurrentUserClientService CurrentUser
 @inject ISnackbar Snackbar
+@inject IHttpClientWithAuth PolicyHttp
 @inject NavigationManager Nav
 
 <PageTitle>@Language.T("ot.taoDonOt")</PageTitle>
 
 <MudText Typo="Typo.h5" Class="mb-1"><MudIcon Icon="@Icons.Material.Filled.MoreTime" Class="mr-2" />@Language.T("ot.taoDonTangCaOt")</MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@Language.T("ot.dangKyLamThemGio")</MudText>
+
+@if (_policyLoaded && !CanRegisterOt)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        Bạn không có quyền tự đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT,
+        hoặc dùng "Phản hồi cấp trên" ở ô có dấu "?" trên lịch.
+    </MudAlert>
+}
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
@@ -75,7 +86,10 @@ else if (_form != null)
             <MudCard Elevation="2" Class="mt-4 pa-4">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
                     <MudText Typo="Typo.subtitle1">@Language.T("ot.nhanVienThamGia2", _employees.Count)</MudText>
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">@Language.T("ot.themNhanVienPhongBan")</MudButton>
+                    @if (CanRegisterOtForOthers)
+                    {
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">@Language.T("ot.themNhanVienPhongBan")</MudButton>
+                    }
                 </MudStack>
 
                 @if (!_employees.Any())
@@ -152,7 +166,7 @@ else if (_form != null)
                 <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
             }
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@_submitting">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@(_submitting || (_policyLoaded && !CanRegisterOt))">
                 @(_submitting ? Language.T("calendar.feedback.sending") : Language.T("ot.guiDonOt"))
             </MudButton>
         </MudItem>
@@ -220,6 +234,7 @@ else if (_form != null)
             _recent = combined.Data.RecentOTRequests;
             _balance = combined.Data.Balance;
             await LoadApprovalRouteAsync();
+            await LoadRegistrationPolicyAsync();
 
             var types = await OTService.GetActiveOTTypesAsync(_cts.Token);
             if (types.IsSuccess && types.Data != null)
@@ -247,9 +262,23 @@ else if (_form != null)
         finally { _loading = false; }
     }
 
+    private RegistrationPolicyDecisionDto? _policy;
+    private bool _policyLoaded;
+    private bool CanRegisterOt => _policy?.CanRegister == true;
+    private bool CanRegisterOtForOthers => _policy?.CanRegisterForOthers == true;
+
+    // Quyền đăng ký lấy từ cùng policy với API (API vẫn là nơi chặn cuối cùng).
+    private async Task LoadRegistrationPolicyAsync()
+    {
+        var dept = CurrentUser.User?.DeptCode ?? 0;
+        var result = await PolicyHttp.GetAsync<RegistrationPolicyDecisionDto>($"api/registration-policy/decision?registerType=OT&deptCode={dept}", _cts.Token, showLoading: false);
+        _policy = result.IsSuccess ? result.Data : null;
+        _policyLoaded = true;
+    }
+
     private async Task AddDepartmentEmployees()
     {
-        if (_form == null) return;
+        if (_form == null || !CanRegisterOtForOthers) return;
         var result = await OTService.GetDeptEmployeesAsync(_form.DeptCode, _cts.Token);
         if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocNhanVien"), Severity.Warning); return; }
         foreach (var source in result.Data)
