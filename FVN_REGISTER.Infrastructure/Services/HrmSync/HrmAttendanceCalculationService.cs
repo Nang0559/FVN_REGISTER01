@@ -147,6 +147,8 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
       outputs.Add(new SymbolOutput(row.Id,null,null,null));
      }
 
+    }
+
    // Smaller chunks reduce lock duration, log/rollback cost, and OPENJSON payload size.
    foreach(var chunk in outputs.Chunk(250))
    {
@@ -155,10 +157,10 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     await _db.Database.ExecuteSqlInterpolatedAsync($"""
      UPDATE a SET
          a.WorkSymbol=j.ws,a.OtSymbol=j.os,a.SymbolRuleCode=j.rc,
-         a.OtDisplayValue=COALESCE(j.os,a.OtDisplayValue),
+         a.OtDisplayValue=j.os,
          a.AttendanceDisplayValue=CASE WHEN j.ws IS NOT NULL AND ISNULL(a.LeaveTotal,0)=0
          AND (a.DayType<>N'NORMAL' OR ISNULL(a.AttendanceDisplayValue,N'')=N'' OR a.AttendanceDisplayValue=a.ShiftAbbr)
-         THEN j.ws ELSE a.AttendanceDisplayValue END
+         THEN j.ws WHEN j.ws IS NULL AND a.AttendanceDisplayValue=a.WorkSymbol THEN a.ShiftAbbr ELSE a.AttendanceDisplayValue END
      FROM dbo.F03HrmAttendanceCalculated AS a
      INNER JOIN OPENJSON({json}) WITH (id bigint '$.id',ws nvarchar(50) '$.ws',os nvarchar(50) '$.os',rc nvarchar(100) '$.rc') AS j ON j.id=a.Id
      """,ct);
