@@ -36,6 +36,7 @@
 :r "67_AttendanceSymbolRules.sql"
 :r "83_HrmHolidaySync.sql"
 :r "84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql"
+:r "22_07_AttendanceCalculationRunSessionRecovery.sql"
 :r "22_03_CalculateHrmAttendance.sql"
 :r "87_BackfillHolidaySymbols.sql"
 :r "88_RemoveLegacyDayTypes.sql"
