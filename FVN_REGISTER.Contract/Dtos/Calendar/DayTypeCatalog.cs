@@ -15,7 +15,7 @@ public static class DayTypeCatalog
         // HRM 0001: nghỉ công ty từ thứ Hai đến thứ Bảy; dùng rule NT/T.
         new("COMPANY_HOLIDAY", 1, "COMPANY", "Nghỉ công ty (T2-T7)", "nghỉ công ty", true, "NT"),
         // HRM 0002 và Chủ nhật mặc định; dùng rule CN/CNK riêng.
-        new("SUNDAY", 3, "SUNDAY", "Nghỉ Chủ nhật (CN)", "nghỉ Chủ nhật", true, "CN"),
+        new("SUNDAY", null, "SUNDAY", "Nghỉ Chủ nhật (CN)", "nghỉ Chủ nhật", true, "CN"),
         // HRM 0003.
         new("NATIONAL_HOLIDAY", 2, "NATIONAL", "Nghỉ lễ (L)", "nghỉ lễ", true, "L"),
         // Loại legacy cho dữ liệu tùy chỉnh cũ, không dùng cho ba mã HRM chuẩn.
