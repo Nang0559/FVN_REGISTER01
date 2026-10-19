@@ -22,24 +22,75 @@ public sealed class HrmAttendanceExcelExportService : IHrmAttendanceExcelExportS
     }
 
     public Task<ServiceResult<byte[]>> ExportAttendanceAsync(Guid batchId, CancellationToken ct = default)
-        => ExportAsync(batchId, false, ct);
+        => ExportAsync(new[] { batchId }, false, null, ct);
 
     public Task<ServiceResult<byte[]>> ExportOtAsync(Guid batchId, CancellationToken ct = default)
-        => ExportAsync(batchId, true, ct);
+        => ExportAsync(new[] { batchId }, true, null, ct);
 
-    private const int MaxDayColumns = 31;
+    public Task<ServiceResult<byte[]>> ExportAttendanceByJobAsync(Guid jobId, CancellationToken ct = default)
+        => ExportJobAsync(jobId, false, ct);
 
-    private async Task<ServiceResult<byte[]>> ExportAsync(Guid batchId, bool ot, CancellationToken ct)
+    public Task<ServiceResult<byte[]>> ExportOtByJobAsync(Guid jobId, CancellationToken ct = default)
+        => ExportJobAsync(jobId, true, ct);
+
+    private async Task<ServiceResult<byte[]>> ExportJobAsync(Guid jobId, bool ot, CancellationToken ct)
     {
         try
         {
+            var job = (await _uow.SqlQueryRawAsync<JobExportRangeRow>(@"
+SELECT FromDate,ToDate,Status
+FROM dbo.F03HrmAttendanceCalculationJob
+WHERE JobId=@JobId;", ct, JobParam(jobId))).FirstOrDefault();
+
+            if (job is null)
+                return ServiceResult<byte[]>.Fail("Không tìm thấy job tính công để xuất Excel.");
+            if (!string.Equals(job.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                return ServiceResult<byte[]>.Fail($"Chỉ có thể xuất Excel khi job đã hoàn tất. Trạng thái hiện tại: {job.Status}.");
+
+            var runs = await _uow.SqlQueryRawAsync<RunBatchRow>(@"
+SELECT CalculationBatchId,FromDate,ToDate
+FROM dbo.F03HrmAttendanceCalculationRun
+WHERE Status=N'Succeeded'
+  AND TriggeredBy LIKE CONCAT(N'HRM-JOB:',REPLACE(CONVERT(nvarchar(36),@JobId),N'-',N''),N':%')
+ORDER BY FromDate;", ct, JobParam(jobId));
+
+            var batchIds = runs.Select(x => x.CalculationBatchId).Distinct().ToList();
+            if (batchIds.Count == 0)
+                return ServiceResult<byte[]>.Fail("Job hoàn tất nhưng không có batch chấm công nào để xuất.");
+
+            return await ExportAsync(
+                batchIds,
+                ot,
+                new DateRange(job.FromDate.Date, job.ToDate.Date),
+                ct);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<byte[]>.Fail($"Không thể chuẩn bị dữ liệu xuất Excel cho job: {ex.Message}");
+        }
+    }
+
+    private const int MaxDayColumns = 31;
+
+    private async Task<ServiceResult<byte[]>> ExportAsync(
+        IReadOnlyList<Guid> batchIds,
+        bool ot,
+        DateRange? requestedRange,
+        CancellationToken ct)
+    {
+        try
+        {
+            if (batchIds.Count == 0)
+                return ServiceResult<byte[]>.Fail("Không có batch chấm công để xuất.");
+
             _uow.SetCommandTimeout(120);
+            var filter = BuildBatchFilter(batchIds, out var batchParameters);
 
             if (ot)
             {
-                // Dùng cùng nguồn với lịch (F03HrmAttendanceCalculated): OtSymbol/WorkSymbol/SymbolRuleCode do rule
-                // F03AttendanceSymbolRules ghi lúc tính công, DayType do dbo.fn_ResolveDayType (ngày nghỉ HRM).
-                var rows = await _uow.SqlQueryRawAsync<OtRow>(@"
+                // Use the same F03HrmAttendanceCalculated rows as the calendar, across every daily
+                // batch belonging to the durable job. This preserves the selected job date range.
+                var rows = await _uow.SqlQueryRawAsync<OtRow>($@"
 SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        CheckInTime,CheckOutTime,
        WorkMinutesDay,WorkMinutesNight,
@@ -47,23 +98,24 @@ SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        OTRecognizedMinutesDay,OTRecognizedMinutesNight,
        AttendanceDisplayValue,DayType,WorkSymbol,OtSymbol,SymbolRuleCode
 FROM dbo.F03HrmAttendanceCalculated
-WHERE CalculationBatchId=@BatchId
-ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, BatchParam(batchId));
+WHERE CalculationBatchId IN ({filter})
+ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, batchParameters);
 
                 if (rows.Count == 0)
-                    return ServiceResult<byte[]>.Fail("Không có dữ liệu tính OT của batch này.");
+                    return ServiceResult<byte[]>.Fail("Không có dữ liệu tính OT của batch/job này.");
 
-                var range = await ResolveRangeAsync(batchId, rows.Min(x => x.WorkDate), rows.Max(x => x.WorkDate), ct);
+                var range = requestedRange is null
+                    ? await ResolveRangeAsync(batchIds, rows.Min(x => x.WorkDate), rows.Max(x => x.WorkDate), ct)
+                    : ValidateRange(requestedRange.From, requestedRange.To);
                 if (!range.IsSuccess)
                     return ServiceResult<byte[]>.Fail(range.Message ?? "Khoảng ngày không hợp lệ.");
 
                 var holidays = await LoadHolidaysAsync(range.Data!.From, range.Data!.To, ct);
-                var employees = await LoadEmployeesAsync(batchId, ct);
-
+                var employees = await LoadEmployeesAsync(batchIds, ct);
                 return ServiceResult<byte[]>.Ok(BuildOtWorkbook(rows, range.Data!.From, range.Data!.To, holidays, employees));
             }
 
-            var attendance = await _uow.SqlQueryRawAsync<AttendanceRow>(@"
+            var attendance = await _uow.SqlQueryRawAsync<AttendanceRow>($@"
 SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        WorkMinutesDay,WorkMinutesNight,
        CheckInTime,CheckOutTime,
@@ -71,19 +123,24 @@ SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        HrmHoliday,HrmEmployeeHoliday,IsLocked,
        AttendanceDisplayValue
 FROM dbo.F03HrmAttendanceCalculated
-WHERE CalculationBatchId=@BatchId
-ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, BatchParam(batchId));
+WHERE CalculationBatchId IN ({filter})
+ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, batchParameters);
 
             if (attendance.Count == 0)
-                return ServiceResult<byte[]>.Fail("Không có dữ liệu chấm công của batch này.");
+                return ServiceResult<byte[]>.Fail("Không có dữ liệu chấm công của batch/job này.");
 
-            var attendanceRange = await ResolveRangeAsync(batchId, attendance.Min(x => x.WorkDate), attendance.Max(x => x.WorkDate), ct);
+            var attendanceRange = requestedRange is null
+                ? await ResolveRangeAsync(batchIds, attendance.Min(x => x.WorkDate), attendance.Max(x => x.WorkDate), ct)
+                : ValidateRange(requestedRange.From, requestedRange.To);
             if (!attendanceRange.IsSuccess)
                 return ServiceResult<byte[]>.Fail(attendanceRange.Message ?? "Khoảng ngày không hợp lệ.");
 
-            var attendanceEmployees = await LoadEmployeesAsync(batchId, ct);
-
-            return ServiceResult<byte[]>.Ok(BuildAttendanceWorkbook(attendance, attendanceRange.Data!.From, attendanceRange.Data!.To, attendanceEmployees));
+            var attendanceEmployees = await LoadEmployeesAsync(batchIds, ct);
+            return ServiceResult<byte[]>.Ok(BuildAttendanceWorkbook(
+                attendance,
+                attendanceRange.Data!.From,
+                attendanceRange.Data!.To,
+                attendanceEmployees));
         }
         catch (Exception ex)
         {
@@ -95,39 +152,60 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, BatchParam(batchId));
         }
     }
 
-    private static SqlParameter BatchParam(Guid batchId)
-        => new("@BatchId", SqlDbType.UniqueIdentifier) { Value = batchId };
+    private static SqlParameter JobParam(Guid jobId)
+        => new("@JobId", SqlDbType.UniqueIdentifier) { Value = jobId };
 
-    /// <summary>
-    /// Khoảng ngày xuất phải đúng khoảng người dùng đã chọn trên UI khi tính giờ
-    /// (lưu ở F03HrmAttendanceCalculationRun). Chỉ fallback về min/max WorkDate khi không tìm thấy run.
-    /// </summary>
-    private async Task<ServiceResult<DateRange>> ResolveRangeAsync(Guid batchId, DateTime fallbackFrom, DateTime fallbackTo, CancellationToken ct)
+    private static string BuildBatchFilter(IReadOnlyList<Guid> batchIds, out SqlParameter[] parameters)
     {
-        var runs = await _uow.SqlQueryRawAsync<RunRangeRow>(@"
+        var names = new string[batchIds.Count];
+        parameters = new SqlParameter[batchIds.Count];
+        for (var i = 0; i < batchIds.Count; i++)
+        {
+            names[i] = $"@BatchId{i}";
+            parameters[i] = new SqlParameter(names[i], SqlDbType.UniqueIdentifier) { Value = batchIds[i] };
+        }
+        return string.Join(",", names);
+    }
+
+    private async Task<ServiceResult<DateRange>> ResolveRangeAsync(
+        IReadOnlyList<Guid> batchIds,
+        DateTime fallbackFrom,
+        DateTime fallbackTo,
+        CancellationToken ct)
+    {
+        var filter = BuildBatchFilter(batchIds, out var parameters);
+        var runs = await _uow.SqlQueryRawAsync<RunRangeRow>($@"
 SELECT FromDate,ToDate
 FROM dbo.F03HrmAttendanceCalculationRun
-WHERE CalculationBatchId=@BatchId;", ct, BatchParam(batchId));
+WHERE CalculationBatchId IN ({filter});", ct, parameters);
 
-        var run = runs.FirstOrDefault();
-        var from = (run?.FromDate ?? fallbackFrom).Date;
-        var to = (run?.ToDate ?? fallbackTo).Date;
+        var from = runs.Count == 0 ? fallbackFrom.Date : runs.Min(x => x.FromDate.Date);
+        var to = runs.Count == 0 ? fallbackTo.Date : runs.Max(x => x.ToDate.Date);
+        return ValidateRange(from, to);
+    }
 
+    private static ServiceResult<DateRange> ValidateRange(DateTime from, DateTime to)
+    {
+        from = from.Date;
+        to = to.Date;
         if (to < from)
-            return ServiceResult<DateRange>.Fail("Khoảng ngày của batch không hợp lệ.");
+            return ServiceResult<DateRange>.Fail("Khoảng ngày xuất không hợp lệ.");
 
         var days = (to - from).Days + 1;
         if (days > MaxDayColumns)
             return ServiceResult<DateRange>.Fail(
-                $"Khoảng ngày {from:dd/MM/yyyy} - {to:dd/MM/yyyy} gồm {days} ngày, vượt quá {MaxDayColumns} cột của template Excel. Vui lòng tính giờ và xuất theo khoảng tối đa {MaxDayColumns} ngày.");
+                $"Khoảng ngày {from:dd/MM/yyyy} - {to:dd/MM/yyyy} gồm {days} ngày, vượt quá {MaxDayColumns} cột của template Excel. Vui lòng xuất theo khoảng tối đa {MaxDayColumns} ngày.");
 
         return ServiceResult<DateRange>.Ok(new DateRange(from, to));
     }
 
     /// <summary>Thông tin nhân viên (ngày sinh, ngày vào, chức vụ) từ danh mục nhân viên của FVN.</summary>
-    private async Task<Dictionary<string, EmployeeInfoRow>> LoadEmployeesAsync(Guid batchId, CancellationToken ct)
+    private async Task<Dictionary<string, EmployeeInfoRow>> LoadEmployeesAsync(
+        IReadOnlyList<Guid> batchIds,
+        CancellationToken ct)
     {
-        var rows = await _uow.SqlQueryRawAsync<EmployeeInfoRow>(@"
+        var filter = BuildBatchFilter(batchIds, out var parameters);
+        var rows = await _uow.SqlQueryRawAsync<EmployeeInfoRow>($@"
 SELECT LTRIM(RTRIM(e.EmployeeCode)) AS EmployeeCode,
        e.BirthDate,
        e.FirstWorkingDate,
@@ -137,8 +215,8 @@ LEFT JOIN dbo.F03Positions p ON p.PositionCode=e.PositionCode
 WHERE LTRIM(RTRIM(e.EmployeeCode)) IN
       (SELECT DISTINCT LTRIM(RTRIM(c.EmployeeCode))
        FROM dbo.F03HrmAttendanceCalculated c
-       WHERE c.CalculationBatchId=@BatchId)
-ORDER BY CASE WHEN e.IsActive=0 THEN 1 ELSE 0 END;", ct, BatchParam(batchId));
+       WHERE c.CalculationBatchId IN ({filter}))
+ORDER BY CASE WHEN e.IsActive=0 THEN 1 ELSE 0 END;", ct, parameters);
 
         var result = new Dictionary<string, EmployeeInfoRow>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
@@ -487,6 +565,20 @@ ORDER BY HolidayDate;", ct, pFrom, pTo);
     {
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
+    }
+
+    private sealed class RunBatchRow
+    {
+        public Guid CalculationBatchId { get; set; }
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+    }
+
+    private sealed class JobExportRangeRow
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+        public string Status { get; set; } = string.Empty;
     }
 
     private sealed class EmployeeInfoRow
