@@ -236,8 +236,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 chunkTo,
                 triggeredBy,
                 reopenPayrollPeriod: true,
-                skipCoveredDates,
-                ct);
+                skipCoveredDates: skipCoveredDates,
+                ct: ct);
 
             if (!queued)
             {
@@ -265,7 +265,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             triggeredBy,
             reopenPayrollPeriod,
             skipCoveredDates: false,
-            ct);
+            ct: ct);
     }
 
     private async Task<bool> EnqueueCompanyWideAsync(
