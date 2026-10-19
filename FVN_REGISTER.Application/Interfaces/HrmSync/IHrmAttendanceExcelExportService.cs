@@ -5,5 +5,7 @@ namespace FVN_REGISTER.Application.Interfaces.HrmSync;
 public interface IHrmAttendanceExcelExportService
 {
     Task<ServiceResult<byte[]>> ExportAttendanceAsync(Guid batchId, CancellationToken ct = default);
+    Task<ServiceResult<byte[]>> ExportAttendanceByJobAsync(Guid jobId, CancellationToken ct = default);
     Task<ServiceResult<byte[]>> ExportOtAsync(Guid batchId, CancellationToken ct = default);
+    Task<ServiceResult<byte[]>> ExportOtByJobAsync(Guid jobId, CancellationToken ct = default);
 }
