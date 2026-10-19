@@ -144,6 +144,15 @@
                 Security = Language.T("guide.dbLaAuthorityIsadminKhong");
                 break;
         }
+
+        // Keep the shared overview identical to the contextual '?' drawer.
+        // Feature-specific Steps above remain the detailed operating procedure.
+        var sharedPrefix = $"help.{_feature}.";
+        Title = Language.T(sharedPrefix + "title");
+        Summary = Language.T(sharedPrefix + "summary");
+        Flow = Language.T(sharedPrefix + "flow");
+        Example = Language.T(sharedPrefix + "example");
+        Security = Language.T(sharedPrefix + "security");
     }
 
     private void Back() => Navigation.NavigateTo("/");
