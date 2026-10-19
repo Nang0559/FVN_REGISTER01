@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Infrastructure.Models.Data;
@@ -7,7 +8,7 @@ using System.Data;
 
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync;
 
-public class HrmAttendanceCalculationJobService
+public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobService
 {
     private readonly FVNWEBAPPContext _db;
     public HrmAttendanceCalculationJobService(FVNWEBAPPContext db) => _db=db;
