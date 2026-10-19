@@ -70,6 +70,19 @@ IF NOT EXISTS
 (
     SELECT 1 FROM sys.indexes
     WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationJob')
+      AND name=N'IX_F03HrmAttendanceCalculationJob_PriorityQueue'
+)
+BEGIN
+    CREATE INDEX IX_F03HrmAttendanceCalculationJob_PriorityQueue
+        ON dbo.F03HrmAttendanceCalculationJob(Status,Priority,CreatedAt)
+        INCLUDE(JobId,DeptCode,EmployeeCode,FromDate,ToDate,SkipCoveredDates,LastProgressAt);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationJob')
       AND name=N'IX_F03HrmAttendanceCalculationJob_Trigger'
 )
 BEGIN
