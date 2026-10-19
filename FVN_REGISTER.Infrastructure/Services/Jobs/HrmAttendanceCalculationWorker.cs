@@ -89,6 +89,9 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                     lastDailyRunDate = now.Date;
                 }
 
+                // Reconcile missing company-wide coverage periodically as well as at startup.
+                // Failed/abandoned catch-up jobs are re-enqueued from the first uncovered open date.
+                await RunCatchUpAsync(stoppingToken);
                 await RunTodayAsync(stoppingToken);
                 await Task.Delay(TimeSpan.FromMinutes(refreshMinutes), stoppingToken);
             }
@@ -520,10 +523,32 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
               AND r.EmployeeCode IS NULL
         """).SingleOrDefaultAsync(ct);
 
-        if (last.HasValue)
-            return last.Value.Date.AddDays(1);
+        DateTime? start = last.HasValue
+            ? last.Value.Date.AddDays(1)
+            : await GetPayrollPeriodStartAsync(yesterday, ct);
+        if (!start.HasValue)
+            return null;
 
-        return await GetPayrollPeriodStartAsync(yesterday, ct);
+        // Locked/exported payroll periods are intentionally not recalculated. Skip a closed period
+        // as a unit so startup recovery does not repeatedly enqueue the same uncalculable dates.
+        var candidate = start.Value.Date;
+        while (candidate <= yesterday.Date)
+        {
+            var period = await db.PayrollCalculationPeriods.AsNoTracking()
+                .Where(x => x.IsActive != false
+                    && x.FromDate <= DateOnly.FromDateTime(candidate)
+                    && x.ToDate >= DateOnly.FromDateTime(candidate))
+                .OrderByDescending(x => x.Id)
+                .Select(x => new { x.ToDate, x.Status })
+                .FirstOrDefaultAsync(ct);
+
+            if (period is null || (period.Status != "Locked" && period.Status != "Exported"))
+                return candidate;
+
+            candidate = period.ToDate.ToDateTime(TimeOnly.MinValue).AddDays(1);
+        }
+
+        return null;
     }
 
     private async Task<DateTime?> GetPayrollPeriodStartAsync(DateTime date, CancellationToken ct)
