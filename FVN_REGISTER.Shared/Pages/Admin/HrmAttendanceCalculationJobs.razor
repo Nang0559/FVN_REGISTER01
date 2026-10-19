@@ -183,7 +183,7 @@
     [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
 
     private static bool CanCancel(HrmAttendanceCalculationJobDto x) => x.Status is "Queued" or "Running" or "CancelRequested";
-    private static bool CanResume(HrmAttendanceCalculationJobDto x) => x.Status is "Cancelled" or "Failed" or "Stalled" or "Terminated";
+    private static bool CanResume(HrmAttendanceCalculationJobDto x) => x.IsStalled || x.Status is "Cancelled" or "Failed" or "Stalled" or "Terminated";
     private static bool CanTerminate(HrmAttendanceCalculationJobDto x) => x.SqlSessionId.HasValue && (x.IsBlocked || x.IsStalled || x.Status == "Running" || x.Status == "CancelRequested");
     private static double Progress(HrmAttendanceCalculationJobDto x) => x.TotalDateCount <= 0 ? 0 : Math.Min(100, x.CompletedDateCount * 100d / x.TotalDateCount);
     private static Color StatusColor(HrmAttendanceCalculationJobDto x) => x.IsStalled ? Color.Error : x.IsBlocked ? Color.Warning : x.Status switch { "Completed" => Color.Success, "Cancelled" => Color.Warning, "Failed" or "Terminated" => Color.Error, _ => Color.Info };
