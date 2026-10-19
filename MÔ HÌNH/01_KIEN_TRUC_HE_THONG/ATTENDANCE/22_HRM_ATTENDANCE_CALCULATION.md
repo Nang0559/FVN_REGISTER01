@@ -259,6 +259,8 @@ Mapping canonical do `SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql` th
 
 Không join `NNLLoai` trực tiếp với `LNLMa`: `NNLLoai=1` phải chọn `LNLMa=0003`, không phải `0001`. `0001` là `NORMAL`; `0002` được tách thành `SUNDAY` hoặc `COMPANY_HOLIDAY` theo ngày thực tế.
 
+`F03CompanyHolidays.HolidayType=1` là bucket `COMPANY` rộng cho cả `SUNDAY` và `COMPANY_HOLIDAY`; `HolidayType=2` là `NATIONAL`. Consumer cần phân biệt Chủ nhật/nghỉ công ty phải đọc `DayType`, không suy ra từ `HolidayType`.
+
 `F03CompanyHolidays` là source ngày nghỉ công ty/ngày lễ được đồng bộ; không hard-code ngày nghỉ trong Calendar UI. Màu nền là policy riêng của Calendar: `NORMAL` không tô màu dù có giờ công; `COMPANY_HOLIDAY` dùng `LightYellow`; `SUNDAY` dùng `Navy`; `NATIONAL_HOLIDAY` giữ màu HRM (ví dụ `HotPink`). Symbol Rule chỉ tạo Work/OT symbol, không quyết định màu nền.
 
 ## 22. Split rule cho ca/kíp đặc biệt
