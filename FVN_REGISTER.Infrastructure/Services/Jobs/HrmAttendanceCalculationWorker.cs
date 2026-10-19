@@ -153,7 +153,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             if (guard is null)
             {
                 _logger.LogDebug(
-                    "[HRM_ATTENDANCE_WORKER] Bỏ qua refresh hôm nay: một lần tính company-wide khác đang chạy.");
+                    "[HRM_ATTENDANCE_WORKER] Bỏ qua enqueue refresh hôm nay: một instance scheduler khác đang chuẩn bị job company-wide.");
                 return;
             }
 
@@ -184,7 +184,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             if (guard is null)
             {
                 _logger.LogInformation(
-                    "[HRM_ATTENDANCE_WORKER] Bỏ qua lần chạy hằng ngày: một lần tính company-wide khác đang chạy.");
+                    "[HRM_ATTENDANCE_WORKER] Bỏ qua enqueue lần chạy hằng ngày: một instance scheduler khác đang chuẩn bị job company-wide.");
                 return;
             }
 
@@ -441,9 +441,9 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     }
 
     /// <summary>
-    /// Takes a session-scoped SQL applock on a dedicated, non-pooled connection that stays open for the
-    /// whole company-wide run. Returns null when another run (this or another API instance) holds it.
-    /// If this process dies, SQL Server drops the session and the lock goes with it.
+    /// Takes a session-scoped SQL applock on a dedicated, non-pooled connection for the scheduler's enqueue/reconciliation pass.
+    /// It prevents multiple API instances from scheduling the same company-wide range simultaneously; actual SQL execution
+    /// and recovery are owned by HrmAttendanceCalculationJobWorker. If this process dies, SQL Server drops the lock.
     /// </summary>
     private async Task<CompanyRunGuard?> TryAcquireCompanyRunGuardAsync(CancellationToken ct)
     {
