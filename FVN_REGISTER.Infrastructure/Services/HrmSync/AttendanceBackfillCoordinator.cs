@@ -214,7 +214,8 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                     request,
                     $"CALENDAR-BACKFILL:{employeeCode}",
                     CancellationToken.None,
-                    skipCoveredDates: !refreshToday);
+                    skipCoveredDates: !refreshToday,
+                    priority: 0);
 
                 if (!enqueue.IsSuccess || enqueue.Data is null)
                 {
