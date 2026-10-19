@@ -147,6 +147,9 @@
 
         // Keep the shared overview identical to the contextual '?' drawer.
         // Feature-specific Steps above remain the detailed operating procedure.
+        if (string.Equals(_feature, "CALENDAR", StringComparison.OrdinalIgnoreCase))
+            _feature = "WORK_CALENDAR";
+
         var sharedPrefix = $"help.{_feature}.";
         Title = Language.T(sharedPrefix + "title");
         Summary = Language.T(sharedPrefix + "summary");
