@@ -1,20 +1,11 @@
-using FVN_REGISTER.Contract.Dtos.HrmSync;
-using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Infrastructure.Services.HrmSync;
+using FVN_REGISTER.Infrastructure.Models.Data;
 
 namespace FVN_REGISTER.Application.Interfaces.HrmSync;
 
-public interface IHrmAttendanceCalculationJobService
+// Compatibility facade for existing controller DI. The implementation lives in Infrastructure;
+// this concrete type lets ASP.NET resolve the service without changing the large Program.cs registration block.
+public sealed class IHrmAttendanceCalculationJobService : HrmAttendanceCalculationJobService
 {
-    Task<ServiceResult<HrmAttendanceCalculationJobDto>> EnqueueAsync(
-        HrmAttendanceCalculationJobCommandDto request,
-        string triggeredBy,
-        CancellationToken ct = default);
-
-    Task<ServiceResult<HrmAttendanceCalculationJobDto>> GetAsync(Guid jobId, CancellationToken ct = default);
-
-    Task<ServiceResult<List<HrmAttendanceCalculationJobDto>>> ListAsync(CancellationToken ct = default);
-
-    Task<ServiceResult> RequestCancelAsync(Guid jobId, string requestedBy, CancellationToken ct = default);
-
-    Task<ServiceResult> ResumeAsync(Guid jobId, string requestedBy, CancellationToken ct = default);
+    public IHrmAttendanceCalculationJobService(FVNWEBAPPContext db) : base(db) { }
 }
