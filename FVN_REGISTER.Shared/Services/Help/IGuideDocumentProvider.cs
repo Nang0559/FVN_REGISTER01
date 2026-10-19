@@ -1,9 +1,8 @@
 namespace FVN_REGISTER.Shared.Services.Help;
 
 /// <summary>
-/// Supplies the Markdown user guide to <c>/huong-dan</c>. Hosts that can read the guide files (the Web server) register an
-/// implementation; hosts that cannot (e.g. the MAUI shell) simply do not, and the page falls back to the short overview in
-/// <c>Localization/*.help.json</c>.
+/// Supplies the Markdown user guide to <c>/huong-dan</c>. The Web host reads it from the published Guide folder; the MAUI
+/// host reads the packaged Markdown and embeds screenshot assets so the same FeatureGuide page works in both hosts.
 /// </summary>
 public interface IGuideDocumentProvider
 {
