@@ -67,6 +67,7 @@
             <MudTd>
                 <b>@ShortId(context.JobId)</b>
                 <MudText Typo="Typo.caption">@context.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm:ss")</MudText>
+                <MudText Typo="Typo.caption">@context.TriggeredBy</MudText>
             </MudTd>
             <MudTd>
                 Dept @(context.DeptCode?.ToString() ?? "-")
@@ -77,6 +78,8 @@
             <MudTd>
                 <MudProgressLinear Value="@Progress(context)" Size="Size.Small" />
                 <MudText Typo="Typo.caption">@context.CompletedDateCount / @context.TotalDateCount ngày</MudText>
+                <MudText Typo="Typo.caption">Cập nhật tiến độ: @(context.LastProgressAt?.ToLocalTime().ToString("dd/MM HH:mm:ss") ?? "Chưa có")</MudText>
+                @if (!string.IsNullOrWhiteSpace(context.ErrorMessage)) { <MudText Typo="Typo.caption" Color="Color.Error">@context.ErrorMessage</MudText> }
                 @if (context.CurrentWorkDate.HasValue) { <MudText Typo="Typo.caption">Đang xử lý: @context.CurrentWorkDate.Value.ToString("dd/MM/yyyy")</MudText> }
             </MudTd>
             <MudTd>
