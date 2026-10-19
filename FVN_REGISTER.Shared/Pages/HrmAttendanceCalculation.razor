@@ -42,7 +42,7 @@
  @if(_completedJobId.HasValue)
  {
   <MudAlert Severity="Severity.Success" Class="mt-4">
-   Đã hoàn tất job @_completedJobId.Value.ToString("N")[..8] (@_completedFrom?.ToString("dd/MM/yyyy") → @_completedTo?.ToString("dd/MM/yyyy")). Kết quả đã được lưu; có thể xuất Excel theo toàn bộ job.
+   Đã hoàn tất job @ShortJobId(_completedJobId.Value) (@_completedFrom?.ToString("dd/MM/yyyy") → @_completedTo?.ToString("dd/MM/yyyy")). Kết quả đã được lưu; có thể xuất Excel theo toàn bộ job.
   </MudAlert>
   <MudStack Row="true" Spacing="2" Class="mt-3">
    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceAsync">
@@ -102,7 +102,7 @@
 
  private async Task ExportOtAsync()
  {
-  if (_result is null) return;
+  if (!_completedJobId.HasValue) return;
   _exporting = true;
   try
   {
@@ -206,6 +206,8 @@
    _running = false;
   }
  }
+
+ private static string ShortJobId(Guid id) => id.ToString("N")[..8];
 
  public void Dispose()
  {
