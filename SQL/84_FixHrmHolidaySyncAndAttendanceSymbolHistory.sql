@@ -85,6 +85,21 @@ BEGIN
     IF @SyncLockResult < 0
         THROW 51481, N'Không lấy được khóa đồng bộ ngày nghỉ HRM; vui lòng thử lại.', 1;
 
+    /* Keep the type constraint aligned with the canonical HRM mapping before
+       applying 0001= NORMAL, 0002=SUNDAY, 0003=NATIONAL_HOLIDAY.
+       Include legacy DayTypes during transition so existing records remain valid. */
+    IF EXISTS (SELECT 1 FROM sys.check_constraints
+               WHERE name = N'CK_F03HrmHolidayTypes_DayType'
+                 AND parent_object_id = OBJECT_ID(N'dbo.F03HrmHolidayTypes'))
+        ALTER TABLE dbo.F03HrmHolidayTypes DROP CONSTRAINT CK_F03HrmHolidayTypes_DayType;
+
+    ALTER TABLE dbo.F03HrmHolidayTypes WITH CHECK
+        ADD CONSTRAINT CK_F03HrmHolidayTypes_DayType
+        CHECK (DayType IN
+            (N'NORMAL', N'COMPANY_SATURDAY', N'SUNDAY',
+             N'COMPANY_HOLIDAY', N'NATIONAL_HOLIDAY', N'OTHER',
+             N'COMPENSATORY'));
+
     ;WITH TypeSource AS
     (
         SELECT
@@ -107,21 +122,6 @@ BEGIN
             END
         FROM HRM.dbo.DM_Loainghile AS t
     )
-    /* Keep the type constraint aligned with the canonical HRM mapping before
-       applying 0001= NORMAL, 0002=SUNDAY, 0003=NATIONAL_HOLIDAY.
-       Include legacy DayTypes during transition so existing records remain valid. */
-    IF EXISTS (SELECT 1 FROM sys.check_constraints
-               WHERE name = N'CK_F03HrmHolidayTypes_DayType'
-                 AND parent_object_id = OBJECT_ID(N'dbo.F03HrmHolidayTypes'))
-        ALTER TABLE dbo.F03HrmHolidayTypes DROP CONSTRAINT CK_F03HrmHolidayTypes_DayType;
-
-    ALTER TABLE dbo.F03HrmHolidayTypes WITH CHECK
-        ADD CONSTRAINT CK_F03HrmHolidayTypes_DayType
-        CHECK (DayType IN
-            (N'NORMAL', N'COMPANY_SATURDAY', N'SUNDAY',
-             N'COMPANY_HOLIDAY', N'NATIONAL_HOLIDAY', N'OTHER',
-             N'COMPENSATORY'));
-
     UPDATE d
        SET d.LNLTen = s.LNLTen,
            d.LNLLoai = s.LNLLoai,
@@ -192,12 +192,21 @@ BEGIN
             HolidaySymbol = LEFT(NULLIF(LTRIM(RTRIM(t.LNLKyHieu)), N''), 50),
             TypeName = LEFT(t.LNLTen, 200),
             TypeColor = LEFT(t.LNLMauSac, 50),
-            DayType = COALESCE(t.DayType, N'NATIONAL_HOLIDAY'),
-            HolidayType = CONVERT(tinyint, CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
-                WHEN N'COMPANY_HOLIDAY' THEN 1
-                WHEN N'SUNDAY' THEN 1
-                WHEN N'NATIONAL_HOLIDAY' THEN 2
-                ELSE 4 END),
+            /* HRM 0002 là một danh mục bao gồm Chủ nhật và ngày nghỉ công ty:
+               phân loại theo ngày thực tế để Sunday= SUNDAY, Mon-Sat=COMPANY_HOLIDAY. */
+            DayType = CASE
+                WHEN t.LNLMa = '0002' AND DATEDIFF(day, '19000107', CONVERT(date, n.NNLNgay)) % 7 = 0 THEN N'SUNDAY'
+                WHEN t.LNLMa = '0002' THEN N'COMPANY_HOLIDAY'
+                ELSE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
+            END,
+            HolidayType = CONVERT(tinyint, CASE
+                WHEN t.LNLMa = '0002' THEN 1
+                ELSE CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
+                    WHEN N'COMPANY_HOLIDAY' THEN 1
+                    WHEN N'SUNDAY' THEN 1
+                    WHEN N'NATIONAL_HOLIDAY' THEN 2
+                    ELSE 4 END
+            END),
             rn = ROW_NUMBER() OVER
             (
                 PARTITION BY CONVERT(date, n.NNLNgay)
@@ -214,7 +223,7 @@ BEGIN
            mới thử LNLLoai (nhóm loại); khi đó chọn một DayType xác định để không nhân dòng. */
         OUTER APPLY
         (
-            SELECT TOP (1) x.DayType, x.LNLKyHieu, x.LNLTen, x.LNLMauSac
+            SELECT TOP (1) x.LNLMa, x.DayType, x.LNLKyHieu, x.LNLTen, x.LNLMauSac
             FROM TypeSource AS x
             WHERE ISNULL(x.DLocked, 0) = 0
               AND (x.LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), n.NNLLoai))), 4) OR x.LNLLoai = RTRIM(n.NNLLoai))
