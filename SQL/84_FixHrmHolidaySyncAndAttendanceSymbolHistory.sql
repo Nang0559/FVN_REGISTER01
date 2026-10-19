@@ -86,7 +86,8 @@ BEGIN
         THROW 51481, N'Không lấy được khóa đồng bộ ngày nghỉ HRM; vui lòng thử lại.', 1;
 
     /* Keep the type constraint aligned with the canonical HRM mapping before
-       applying 0001= NORMAL, 0002=SUNDAY, 0003=NATIONAL_HOLIDAY.
+       applying 0001=NORMAL, 0002=SUNDAY/COMPANY_HOLIDAY by actual date,
+       0003=NATIONAL_HOLIDAY. tblNgayNghiLe.NNLLoai 1 -> LNLMa 0003; NNLLoai 2 -> LNLMa 0002.
        Include legacy DayTypes during transition so existing records remain valid. */
     IF EXISTS (SELECT 1 FROM sys.check_constraints
                WHERE name = N'CK_F03HrmHolidayTypes_DayType'
