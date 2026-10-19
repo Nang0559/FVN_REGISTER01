@@ -1,247 +1,323 @@
-# FVN REGISTER — HƯỚNG DẪN SỬ DỤNG
+# HƯỚNG DẪN SỬ DỤNG HỆ THỐNG FVN REGISTER (USER GUIDE)
 
-## 1. Luồng sử dụng chung
+Tài liệu này hướng dẫn chi tiết các thao tác nghiệp vụ trên hệ thống **FCC Smart Portal (FVN Register)** dành cho toàn bộ các vai trò: Nhân viên (User), Cấp quản lý phê duyệt (Approver), Nhân sự/Tổng vụ (HR/GA Admin) và Quản trị hệ thống (SuperAdmin).
 
-```mermaid
-flowchart LR
-    LOGIN[Đăng nhập] --> HOME[Dashboard]
-    HOME --> CAL[Work Calendar]
-    HOME --> ACT[Action / Approval]
-    HOME --> MOD[Leave / OT / Trip / Equipment]
-    MOD --> PRE[Nhập + Validate / Preview]
-    PRE --> SUB[Submit]
-    SUB --> AP[Approval Snapshot / Approval]
-    AP -->|Approved| EXEC[Execution]
-    AP -->|Rejected| END[Rejected]
-    EXEC --> REC[Reconciliation]
-    REC -->|Matched| END2[Resolved]
-    REC -->|Mismatch| CONF[Confirmation]
-    CONF --> EVI[Evidence / Review]
-    EVI --> HR[HR Resolution]
-    HR --> END2
-```
+---
 
-## 2. Đăng nhập và Dashboard
+## MỤC LỤC
+1. [Tổng quan Không gian làm việc & Lịch cá nhân](#1-tổng-quan-không-gian-làm-việc--lịch-cá-nhân)
+2. [Hướng dẫn Nghiệp vụ Nhân sự (Nghỉ phép, OT, Công tác)](#2-hướng-dẫn-nghiệp-vụ-nhân-sự-nghỉ-phép-ot-công-tác)
+3. [Hướng dẫn Phê duyệt & Xử lý Đối soát Chấm công](#3-hướng-dẫn-phê-duyệt--xử-lý-đối-soát-chấm-công)
+4. [Quản lý Thiết bị & Import Dữ liệu Linh hoạt](#4-quản-lý-thiết-bị--import-dữ-liệu-linh-hoạt)
+5. [Cổng Thông tin Nội bộ & Biểu mẫu Công khai](#5-cổng-thông-tin-nội-bộ--biểu-mẫu-công-khai)
+6. [Quản trị Bảo mật, Endpoint & Phân quyền](#6-quản-trị-bảo-mật-endpoint--phân-quyền)
+7. [Cấu hình Động cơ Lõi (Dành cho Admin/HR)](#7-cấu-hình-động-cơ-lõi-dành-cho-adminhr)
 
-1. Đăng nhập bằng tài khoản được cấp.
-2. Kiểm tra Dashboard, Notification và Action.
-3. Nếu không thấy module/chức năng, liên hệ Admin/HR để kiểm tra capability và data scope.
-4. Không chia sẻ mật khẩu hoặc token.
+---
 
-Dashboard chỉ tổng hợp dữ liệu theo quyền; thao tác nghiệp vụ phải thực hiện ở module nguồn.
+## 1. TỔNG QUAN KHÔNG GIAN LÀM VIỆC & LỊCH CÁ NHÂN
 
-## 3. Tạo request
+### 1.1. Bảng điều khiển Trung tâm (Workspace Dashboard)
+Ngay sau khi đăng nhập thành công, hệ thống đưa bạn đến màn hình **Workspace** trung tâm. Giao diện này tự động co giãn thông tin dựa trên quyền hạn (`Capability`) và phạm vi dữ liệu (`Data Scope`) của bạn.
 
-1. Mở Leave, OT, Trip hoặc Equipment.
-2. Nhập dữ liệu.
-3. Kiểm tra validation/hạn mức/file nếu có.
-4. Preview.
-5. Submit.
-6. Theo dõi trạng thái trong module, Dashboard, Notification hoặc Calendar.
+![Giao diện Tổng quan sau khi đăng nhập](../../screenshots/state-1-depth-0-8f4e87f9.png)
 
-Sau Submit, Approval Snapshot giữ hierarchy tại thời điểm gửi. Thay đổi approver về sau không tự sửa lịch sử của request đã Submit.
+**Các thao tác chính trên màn hình:**
+* **Cụm nút Thao tác nhanh (Góc trên bên phải):** Bấm trực tiếp vào **`+ TẠO LEAVE`**, **`+ TẠO OT`**, hoặc **`+ TẠO CÔNG TÁC`** để mở nhanh biểu mẫu đăng ký mà không cần tìm kiếm trên thanh menu.
+* **Tổng quan phòng ban (Dành cho Quản lý):** Theo dõi tỷ lệ đi làm thực tế (Real-time), số lượng nhân sự đang nghỉ phép, đi công tác hoặc làm thêm giờ trong ngày.
+* **Thẻ chỉ số công việc:** Kiểm tra nhanh số lượng đơn đang chờ duyệt, số giờ OT lũy kế trong tháng, số ngày phép đã dùng và số thiết bị đang quản lý.
+* **Nhiệm vụ của tôi (Action Items):** Khu vực cực kỳ quan trọng hiển thị các yêu cầu cần bạn giải trình hoặc xác nhận (Ví dụ: *Xác nhận đối soát OT*, *Xác nhận đối soát chấm công*). Các trạng thái được gắn nhãn màu rõ ràng:
+  * 🔴 **Rejected / Cảnh báo đỏ:** Cần bổ sung bằng chứng hoặc đã bị HR từ chối.
+  * 🟡 **Chờ duyệt / HR request:** Đang trong luồng xử lý hoặc HR yêu cầu giải trình thêm.
+  * 🟢 **Complete:** Đã đối soát và chốt công thành công.
 
-## 4. Phê duyệt
+---
 
-```mermaid
-flowchart TD
-    I[Approval Inbox / Action] --> D[Open Detail]
-    D --> C{Kiểm tra}
-    C -->|Đúng| A[Approve]
-    C -->|Không phù hợp| R[Reject + Reason]
-    A --> N{Còn level?}
-    N -->|Yes| I
-    N -->|No| OK[Business Approved]
-    R --> U[Requester notified]
-```
+### 1.2. Lịch làm việc cá nhân (Work Calendar)
+Menu truy cập: **Tổng quan** ➔ **Lịch làm việc** (`/calendar`).
 
-`Escalated` do timeout không đồng nghĩa Rejected. Approver chỉ thao tác trên request thuộc required step và data scope của mình.
+Đây là nơi nhân viên tự làm chủ dữ liệu chấm công của mình. Hệ thống tự động đồng bộ dữ liệu quẹt thẻ (In/Out) từ máy chấm công HRM và đặt cạnh dữ liệu đơn từ đã đăng ký.
 
-## 5. Leave
+![Giao diện Lịch làm việc cá nhân](../../screenshots/state-2-depth-1--calendar-f69e2163.png)
 
-**Create → chọn loại phép → chọn ngày → kiểm tra balance → Preview → Submit → theo dõi Approval.**
+**Hướng dẫn tra cứu và xử lý trên Lịch:**
+1. **Nhận diện Cảnh báo thông minh (Anomaly Detection):** 
+   * Chú ý hộp thông báo màu cam **"Cần xử lý trong tháng"** ở đầu trang và biểu tượng dấu hỏi màu cam **`?`** gắn trực tiếp trên ô ngày (Ví dụ: Ngày 01/10 phát hiện 61 phút OT thực tế nhưng đơn đang chờ duyệt hoặc chưa làm đơn).
+2. **Bộ lọc sự kiện thông minh:** Bạn có thể bấm vào các tab lọc nhanh phía trên lịch để tách biệt dữ liệu:
+   * **`Tất cả`**: Hiển thị toàn bộ ca làm việc, giờ vào/ra và đơn từ.
+   * **`Công ty`**: Chỉ xem lịch nghỉ lễ, lịch làm việc chuẩn của nhà máy.
+   * **`Chấm công`**: Chỉ xem dữ liệu giờ quẹt thẻ thực tế (`In - Out`) và số giờ công tính toán (`8h / 8h`).
+   * **`Nghỉ phép` / `Làm thêm giờ` / `Công tác`**: Lọc riêng các ngày có phát sinh đơn nghiệp vụ tương ứng.
+3. **Chuyển đổi chế độ xem:** Sử dụng nút **`Tháng`** (xem dạng lưới lịch truyền thống) hoặc **`Danh sách`** (xem dạng bảng liệt kê chi tiết theo dòng) ở góc phải lịch.
 
-Leave Approved mới là planned business state dùng cho reconciliation. Half-day được xử lý theo day value/loại buổi; không coi half-day là full-day conflict.
+---
 
-## 6. OT
+### 1.3. Trung tâm công việc (Work Inbox)
+Menu truy cập: **Tổng quan** ➔ **Trung tâm công việc** (`/work/inbox`).
 
-**Create → chọn ngày/giờ → kiểm tra limit → Preview → Submit → Approval → Actual → Reconciliation.**
+![Giao diện Trung tâm công việc](../../screenshots/state-3-depth-1--work-inbox-e9455449.png)
 
-Hạn mức được kiểm tra server-side theo policy hiện hành. Approved OT là Planned; Actual lấy từ attendance/calculation chính thức.
+**Cách sử dụng:**
+* Mọi thông báo cá nhân, yêu cầu giải trình đối soát công (`ATTENDANCE`, `OT`) và các đơn chờ bạn phê duyệt (`Approval Inbox`) được gom về một danh sách duy nhất.
+* Bấm trực tiếp vào từng thẻ thông báo để đi thẳng tới màn hình xử lý chi tiết của vụ việc đó.
 
-## 7. Trip
+---
 
-**Create → nhập khoảng ngày/nội dung → Preview → Submit → Approval → Execution/Actual → Reconciliation.**
+## 2. HƯỚNG DẪN NGHIỆP VỤ NHÂN SỰ (NGHỈ PHÉP, OT, CÔNG TÁC)
 
-Trip dùng approval workflow chung và dữ liệu source riêng; Calendar chỉ hiển thị projection.
+### 2.1. Quản lý Nghỉ phép (Leave Management)
 
-## 8. Equipment
+#### A. Xem tổng quan và lịch sử nghỉ phép
+Menu truy cập: **Nghỉ phép** ➔ **Tổng quan** (`/leave`) hoặc **Lịch sử nghỉ phép** (`/leave/history`).
 
-**Create → tạo QR → Submit → Approval → Asset/QR Active → Scan → Repair Request → Repair Approval → Repair History.**
+![Tổng quan Nghỉ phép](../../screenshots/state-11-depth-1--leave-a42bd6b1.png)
 
-Được cấp quyền dùng Equipment không tự động có quyền approve. QR có thể được tạo trước nhưng chỉ có hiệu lực nghiệp vụ sau khi request được duyệt.
+#### B. Các bước tạo đơn xin nghỉ phép mới
+Menu truy cập: **Nghỉ phép** ➔ **Tạo đơn mới** (`/leave/create`).
 
-## 9. Work Calendar
+![Màn hình Đăng ký nghỉ phép](../../screenshots/state-13-depth-1--leave-create-44320abb.png)
 
-Calendar là màn hình theo ngày, gồm Company Calendar, Shift, Attendance, Registration, Issues/Actions và Registration Opportunity.
+1. Bấm nút **`+ ĐĂNG KÝ NGHỈ`** màu xanh để mở form nhập liệu.
+2. Chọn **Hình thức nghỉ** (Phép năm, Nghỉ ốm, Nghỉ việc riêng có hưởng lương...).
+3. Chọn **Từ ngày - Đến ngày** và ca nghỉ tương ứng.
+4. Nhập lý do xin nghỉ chi tiết.
+5. **Chọn người phê duyệt:** Hệ thống áp dụng cơ chế **Auto-Routing (Định tuyến tự động)** dựa trên chức vụ (`Position`) của bạn trong HRM để lọc ra đúng danh sách Quản lý có thẩm quyền duyệt, giúp bạn không bao giờ chọn nhầm sếp.
+6. Bấm **Gửi đơn** để kích hoạt luồng phê duyệt.
 
-### Click một ngày
+---
 
-- **Detail:** mở request/business detail.
-- **Confirmation:** mở case mismatch/action để xử lý.
-- **Registration:** mở form Leave/OT/Trip với ngày đã chọn.
-- **Info:** chỉ xem thông tin.
+### 2.2. Quản lý Làm thêm giờ (Overtime - OT)
 
-### Ngày tương lai
+#### A. Các bước tạo đơn đăng ký Tăng ca (OT)
+Menu truy cập: **Làm thêm giờ (OT)** ➔ **Đăng ký OT** (`/ot/create`).
 
-Không có attendance thực tế ở ngày tương lai là bình thường. Calendar có thể hiển thị request đã đăng ký cùng trạng thái như Pending/Approved/Rejected theo dữ liệu source.
+![Màn hình Tạo đơn Tăng ca](../../screenshots/state-16-depth-1--ot-create-170daec2.png)
 
-### Dấu `?`
+1. **Thông tin đơn:**
+   * Chọn **Ngày OT**, **Giờ bắt đầu** và **Giờ kết thúc** dự kiến.
+   * Chọn **Loại OT** (Tăng ca ngày thường, Tăng ca ngày nghỉ hàng tuần, hoặc Holiday OT).
+   * Nhập **Lý do tổng quát** cho ca làm thêm.
+2. **Kiểm soát Hạn mức (Quota):** Quan sát hộp **"Số dư giờ OT"** ở cột bên phải. Hệ thống tự động tính toán số giờ OT trong tuần, trong tháng (giới hạn 40h) và trong năm (giới hạn 200h/300h) để cảnh báo ngay nếu vượt trần luật lao động.
+3. **Danh sách nhân viên tham gia:** 
+   * Nếu bạn tự đăng ký cho mình, thông tin của bạn sẽ được ghi nhận.
+   * Nếu bạn là Tổ trưởng/Quản lý đăng ký cho cả chuyền, bấm nút **`+ THÊM NHÂN VIÊN PHÒNG BAN`** để chọn hàng loạt nhân viên cùng tăng ca.
+4. **Người phê duyệt:** Kiểm tra người duyệt ở mục Cấp phê duyệt (do hệ thống tự động định tuyến theo Policy) và bấm nút **`GỬI ĐƠN OT`**.
 
-`?` là marker của **Issue**, không phải request và không phải ActionId. Click marker để xem issue và các ActionOption.
+#### B. Tra cứu danh sách đơn OT toàn hệ thống
+Menu truy cập: **Quản lý OT** ➔ **Danh sách đơn OT** (`/ot/list`).
 
-### Ca và ký hiệu chấm công
+![Danh sách đơn tăng ca](../../screenshots/state-35-depth-1--ot-list-15dcf220.png)
 
-**Ca (`C1/C2/C3/HC/...`) lấy từ HRM**, cụ thể từ kết quả `F03HrmAttendanceCalculated`. Calendar không tự suy ra lại ca từ In/Out.
+* Sử dụng bộ lọc **Từ ngày - Đến ngày**, **Trạng thái** (`Pending`, `Approved`, `Rejected`) và ô tìm kiếm từ khóa để rà soát các đơn tăng ca đã phát sinh trong bộ phận.
 
-Phần ký hiệu Work/OT được tạo bởi Calendar Symbol Rules. Rule dùng DayType + Shift + khoảng In/Out/OT + block để tạo ký hiệu; thay đổi Rule được thực hiện ở màn hình quản trị Rule, không sửa code UI.
+---
 
-Nguyên tắc DayType:
-- Thứ 7 nghỉ công ty → `T`.
-- Chủ nhật → `CN`.
-- Lễ quốc gia → `NL`.
-- Thứ 7 đi làm bình thường, không phải ngày nghỉ công ty → vẫn classification ngày thường và màu lịch ngày thường.
+### 2.3. Quản lý Công tác (Business Trip)
 
-### Phân loại ngày và màu nền
+Menu truy cập: **Công tác** ➔ **Đăng ký công tác** (`/trip/create`).
 
-- HRM `LNLMa=0001` → `NORMAL`: ngày thường, không tạo dòng ngày nghỉ và **không tô màu nền**, kể cả khi đã có giờ vào/ra hoặc giờ công.
-- HRM `tblNgayNghiLe.NNLLoai=2` → danh mục `LNLMa=0002`: nếu là Chủ nhật thì `SUNDAY` màu `Navy`; nếu là thứ Hai–thứ Bảy thì `COMPANY_HOLIDAY` màu `LightYellow`.
-- HRM `NNLLoai=1` → danh mục `LNLMa=0003` → `NATIONAL_HOLIDAY`: giữ màu ngày lễ cấu hình từ HRM, ví dụ `HotPink`.
-- `NNLLoai` là mã nhóm trên từng ngày, không phải `LNLMa`; không ghép hai cột này theo cùng một số.
+![Màn hình Đăng ký công tác](../../screenshots/state-19-depth-1--trip-create-a99d7672.png)
 
-Màu nền do phân loại ngày trong Company Calendar quyết định. Có dữ liệu attendance hoặc symbol không tự làm đổi màu. Nếu một ngày thường bị tô màu nghỉ, hãy báo HR/IT kiểm tra DayType và bản đồng bộ HRM; không phải do số giờ công.
+**Các bước thực hiện:**
+1. Nhập **Ngày bắt đầu** và **Ngày kết thúc** chuyến công tác.
+2. Điền đầy đủ **Địa điểm công tác**, **Khách hàng / đối tác** làm việc và **Mục đích công tác**.
+3. Khai báo **Phương tiện di chuyển** (Ô tô công ty, máy bay, tàu...), **Chi phí dự kiến (VNĐ)** và thông tin **Lưu trú** (Khách sạn).
+4. Nếu đi theo đoàn, nhập mã các nhân viên đi cùng (cách nhau bằng dấu phẩy) vào ô **Nhân viên đi cùng**.
+5. Chọn **Người phê duyệt** hợp lệ từ danh sách thả xuống.
+6. Bạn có thể bấm **`LƯU NHÁP`** nếu chưa chốt lịch trình, hoặc bấm **`GỬI DUYỆT`** để trình ký ngay lập tức.
 
-OT dùng block 15 phút theo Rule. Ví dụ C1 `05:49 → 14:05` không sinh `K0.25`; nếu phần OT trong OT window chỉ 5 phút và Rule dùng FLOOR 15 phút thì OT = 0. C1 `05:47 → 18:05` cho phần OT chuẩn 4 giờ → `K4`.
+---
 
-### Ký hiệu kíp 12 giờ
+## 3. HƯỚNG DẪN PHÊ DUYỆT & XỬ LÝ ĐỐI SOÁT CHẤM CÔNG
 
-Rule hỗ trợ split Work/OT, ví dụ:
+### 3.1. Xử lý Danh sách chờ phê duyệt (Dành cho Quản lý / Approver)
+Menu truy cập: **Phê duyệt** ➔ **Danh sách chờ duyệt** (`/approvals`).
 
-| Ngày | Kíp | Ký hiệu |
-|---|---|---|
-| T7 nghỉ công ty | 06:00–18:00 | `T8` + `TK4` |
-| T7 nghỉ công ty | 10:00–22:00 | `T28` + `T4` |
-| T7 nghỉ công ty | 18:00–06:00 | `T38` + `TK4` |
-| CN | 06:00–18:00 | `CN8` + `CNK4` |
-| CN | 10:00–22:00 | `CNC28` + `CN4` |
-| CN | 18:00–06:00 | `CNC38` + `CNK4` |
-| Lễ | 06:00–18:00 | `NL8` + `NLK4` |
-| Lễ | 10:00–22:00 | `NLC28` + `NL4` |
-| Lễ | 18:00–06:00 | `NLC38` + `NLK4` |
+![Màn hình Danh sách chờ phê duyệt](../../screenshots/state-10-depth-1--approvals-24f57bb6.png)
 
-Ký hiệu lẻ được tính theo block Rule; Rule có thể tách phần Work và OT. Ví dụ kíp 06:00–18:00 làm 11h45 trên T7 → `T7.75 + TK4`, không gộp thành `T11.75`.
+**Thao tác của Người phê duyệt:**
+1. Toàn bộ đơn Nghỉ phép, OT, Công tác, Yêu cầu thiết bị, Phiếu bàn giao quyền của cấp dưới đều đổ về bảng tập trung này.
+2. Bạn có thể lọc theo **Loại đơn** hoặc gạt nút **`Chờ tôi duyệt`** để chỉ hiện những đơn đang dừng ở cấp của bạn.
+3. Kiểm tra thông tin, tiến trình duyệt và bấm nút **Phê duyệt (Approve)** hoặc **Từ chối (Reject)** (kèm lý do bắt buộc) ngay trên từng dòng.
 
-### Dấu `?` và OT
+---
 
-`?` là trạng thái reconciliation/action, không phải một phần của symbol. Vì vậy có thể thấy `C3 + K4 + ?`: `C3` từ HRM Shift, `K4` từ Symbol Rule, còn `?` do Execution Reconciliation xác định khi Actual OT chưa có Approved OT tương ứng.
+### 3.2. Quy trình Đối soát Chấm công Tự động (Reconciliation Engine)
+Hệ thống sở hữu động cơ đối soát tự động giữa **Kế hoạch (Đơn đã duyệt)** và **Thực tế (Dữ liệu quẹt thẻ HRM)**:
+* **Trường hợp Khớp (`Matched`):** Thời gian quẹt thẻ khớp với đơn OT/Nghỉ phép ➔ Hệ thống tự động chuyển trạng thái **Complete** (Màu xanh), nhân viên và HR không cần can thiệp.
+* **Trường hợp Lệch (`Mismatch`):** Ví dụ đăng ký OT 3 tiếng nhưng chỉ quẹt thẻ 2 tiếng, hoặc có quẹt thẻ nhưng không có đơn ➔ Hệ thống gắn cờ cảnh báo trên **Lịch làm việc** và đẩy nhiệm vụ vào mục **Nhiệm vụ của tôi** trên trang chủ.
+  1. **Nhân viên:** Bấm vào nhiệm vụ để gửi phản hồi giải trình (`Confirmation`) và đính kèm bằng chứng (`Evidence`).
+  2. **Nhân sự (HR):** Kiểm tra giải trình, bấm chấp thuận (`Approve`) hoặc yêu cầu bổ sung thêm (`NeedMoreEvidence`) trước khi chốt sổ tính lương.
 
-## 10. Action / Confirmation / Notification
+---
 
-- **Action:** việc cần người dùng xử lý.
-- **Confirmation:** bước xác nhận mismatch.
-- **Notification:** thông báo/delivery.
+## 4. QUẢN LÝ THIẾT BỊ & IMPORT DỮ LIỆU LINH HOẠT
 
-Hoàn thành Action không tự thay đổi business result. Xử lý mismatch phải đi qua reconciliation workflow.
+Phân hệ Thiết bị cho phép các phòng ban (IT, GA, QA, Sản xuất) quản lý tài sản, gắn mã QR, theo dõi lịch sử bảo trì/sửa chữa với cấu trúc cột dữ liệu tùy biến động (Flexible Schema).
 
-## 11. HR Review và Evidence
+### 4.1. Sổ quản lý thiết bị toàn hệ thống
+Menu truy cập: **Thiết bị** ➔ **Sổ quản lý thiết bị** (`/equipment`).
 
-Khi mismatch yêu cầu review, người dùng có thể được yêu cầu xác nhận, nhập lý do hoặc gửi evidence. Evidence có lifecycle riêng. Reject/NeedMoreEvidence không làm reconciliation tự động Resolved.
+![Sổ quản lý thiết bị](../../screenshots/state-22-depth-1--equipment-fa009aa5.png)
 
-HR correction không sửa trực tiếp attendance snapshot; correction phải đi qua calculation pipeline theo thiết kế.
+**Các thao tác nghiệp vụ:**
+* Theo dõi toàn bộ danh sách máy móc, thiết bị, người đang giữ, phòng ban quản lý và trạng thái hoạt động.
+* Thực hiện các giao dịch vòng đời tài sản: **Tạo yêu cầu bàn giao**, **Khai báo kiểm tra định kỳ (Checksheet qua QR)** và **Báo hỏng/Yêu cầu sửa chữa** thông qua luồng phê duyệt chuẩn.
 
-## 12. Reports và Export
+---
 
-Reports hỗ trợ Leave, OT, Trip, Equipment và Attendance theo data scope. **View và Export là hai capability độc lập.** Bộ lọc trên UI không mở rộng quyền truy cập server.
+### 4.2. Import Excel Thiết bị qua vùng đệm an toàn (Staging Workspace)
+Menu truy cập: **Thiết bị** ➔ **Import Excel thiết bị** (`/equipment/workspace`).
 
-## 13. Khi gặp lỗi
+Để tránh việc tải file Excel bị lỗi làm hỏng dữ liệu gốc, hệ thống cung cấp cơ chế kiểm duyệt qua vùng đệm (Staging):
 
-```mermaid
-flowchart TD
-    ERR[Lỗi] --> AUTH{Đăng nhập?}
-    AUTH -->|No| LOGIN[Đăng nhập lại]
-    AUTH -->|Yes| CAP{Có capability?}
-    CAP -->|No| ADM[Liên hệ Admin]
-    CAP -->|Yes| SCOPE{Đúng data scope?}
-    SCOPE -->|No| OWNER[Liên hệ HR/Quản lý]
-    SCOPE -->|Yes| DATA{Dữ liệu hợp lệ?}
-    DATA -->|No| FIX[Sửa dữ liệu]
-    DATA -->|Yes| SUPPORT[IT / Support]
-```
+![Màn hình Nhập dữ liệu thiết bị từ Excel](../../screenshots/state-23-depth-1--equipment-workspace-ef05e87b.png)
 
-Khi báo lỗi: ghi module, request code nếu có, thời điểm, thao tác ngay trước lỗi và ảnh màn hình. Không gửi password/token.
+**Quy trình 4 bước Import chuẩn:**
+1. **Chọn phòng ban & Mẫu dữ liệu:** Tại mục `1. Chọn phòng ban và mẫu dữ liệu`, chọn đúng bộ phận của bạn (Ví dụ: *13 - General Affairs*) và chọn phiên bản mẫu thiết bị tương ứng.
+2. **Tải file mẫu:** Bấm nút **`TẢI MẪU DỮ LIỆU`** để lấy file Excel chuẩn có sẵn các cột đặc thù của phòng ban đó. Điền dữ liệu thiết bị vào file.
+3. **Upload & Kiểm tra lỗi tự động (Staging):** Tải file Excel lên hệ thống. Hệ thống sẽ tạo ra một **Hồ sơ cha (Batch)** trong bảng lịch sử phía trên, tự động đếm **Tổng dòng**, phân loại số dòng **Hợp lệ** và số dòng **Lỗi**.
+4. **Xử lý lỗi & Ghi nhận:** Bấm nút **`MỞ HỒ SƠ`** ở dòng tương ứng để xem chi tiết từng dòng bị lỗi định dạng. Sau khi dữ liệu đã hợp lệ 100%, thực hiện xác nhận để đẩy chính thức vào Sổ quản lý thiết bị.
 
-## 14. Execution Reconciliation — kết quả HR, xác nhận và khiếu nại
+---
 
-Khi một mismatch đã được HR xử lý, **HR Resolution không mặc định đồng nghĩa đóng vụ việc**. Nếu policy yêu cầu nhân viên xác nhận, hệ thống tạo một Action mới cho nhân viên.
+## 5. CỔNG THÔNG TIN NỘI BỘ & BIỂU MẪU CÔNG KHAI
 
-**Nhân viên:**
-- **Chấp nhận** → vụ việc chuyển Resolved.
-- **Khiếu nại** → hệ thống kiểm tra policy, giới hạn số vòng appeal và yêu cầu evidence mới nếu có; sau đó chuyển case về HR.
-- Khi đạt số vòng tối đa → case chuyển **Chờ quyết định cuối**.
+Giúp số hóa hoàn toàn bảng tin giấy và thay thế các công cụ khảo sát bên ngoài (như Google Forms), đảm bảo dữ liệu nằm an toàn trong máy chủ công ty.
 
-**HR:** nhiều HR có thể được cấp quyền xử lý, nhưng một case chỉ có một người claim/lock để thay đổi tại một thời điểm.
+### 5.1. Xem bản tin và Tham gia khảo sát (Dành cho Nhân viên)
+Menu truy cập: **Công khai** ➔ **Thông tin công khai** (`/public-information`).
 
-**Timeout:** theo policy snapshot của case, hệ thống hoặc escalate sang final decision hoặc auto-accept kết quả HR.
+![Bảng thông tin công khai](../../screenshots/state-4-depth-1--public-information-4ea37cde.png)
 
-**Lịch:** trạng thái Chờ nhân viên xác nhận / Đang xem xét khiếu nại / Chờ quyết định cuối đều là trạng thái cần xử lý. ActionId của reconciliation luôn trỏ tới action hiện tại.
+* Nhân viên đọc các thông báo chính thức từ BGĐ và phòng GA/HR (có đính kèm văn bản đóng dấu mộc).
+* Bấm sang mục **Biểu mẫu đăng ký** (`/public-forms`) để điền các phiếu khảo sát, đăng ký suất ăn, đăng ký xe đưa đón hoặc sự kiện công ty.
 
-**Payroll:** case chưa resolved vẫn là payroll-readiness blocker theo thiết kế hiện tại; không hiểu PayrollCutoffMode là tự động bỏ qua case.
+---
 
-## 15. Quản trị Calendar Symbol Rules
+### 5.2. Quản trị Nội dung & Thiết kế Biểu mẫu động (Dành cho HR/GA Admin)
 
-Chỉ người có capability quản trị Rule và được chỉ định làm operator (khi feature đã cấu hình operator) mới được tạo/sửa/kích hoạt Rule.
+#### A. Đăng tải thông báo mới
+Menu truy cập: **Công khai** ➔ **Quản lý nội dung công khai** (`/admin/public-information`).
 
-Tại màn hình quản trị Rule:
-1. Chọn DayType và Shift/Pattern.
-2. Khai báo từng Work/OT segment.
-3. Chọn block và rounding.
-4. Khai báo prefix/template và split sequence.
-5. Dùng **Test Rule** với một bộ In/Out thực tế.
-6. Chỉ kích hoạt sau khi kết quả test đúng.
+![Màn hình Quản lý nội dung công khai](../../screenshots/state-6-depth-1--admin-public-information-5c84d052.png)
 
-Không sửa JavaScript/C# để thay một ký hiệu nghiệp vụ. Nếu nghiệp vụ đổi `K4`, `T8`, `CNK4`, `NL8` hoặc block/rounding, sửa Rule và kiểm thử lại.
+1. Chọn **Loại nội dung** (Thông báo, Tin tức, Nội dung HR...).
+2. Nhập **Tiêu đề**, **Tóm tắt**, **Nội dung chi tiết** và thiết lập khoảng thời gian **Hiệu lực từ - đến**.
+3. Gạt nút **Đánh dấu quan trọng** nếu muốn ghim thông báo lên đầu.
+4. Đính kèm file PDF/Word/Ảnh văn bản gốc và bấm **`LƯU NHẬP`** hoặc xuất bản.
 
-Rule test phải được hiểu là mô phỏng; dữ liệu ca thực tế trên Calendar vẫn lấy từ HRM.
+#### B. Tự thiết kế Biểu mẫu khảo sát / Đăng ký
+Menu truy cập: **Công khai** ➔ **Quản lý biểu mẫu đăng ký** (`/admin/public-forms`).
 
-## 15. Equipment và Endpoint Agent — thao tác chuẩn
+![Màn hình Thiết kế Biểu mẫu đăng ký](../../screenshots/state-7-depth-1--admin-public-forms-b7bb1924.png)
 
-### Người dùng/nhân viên
-- Mở Sổ thiết bị để xem Equipment được phép theo scope.
-- Nếu được giao thiết bị, có thể xem thông tin tài sản và các thao tác được capability cho phép.
-- Không tự nhập DeviceKey hoặc credential.
+1. Khai báo **Mã biểu mẫu**, **Tiêu đề**, **Thời gian mở/đóng form**.
+2. Cấu hình tùy chọn: গạt nút **`Cho phép đăng ký nhiều lần`** hoặc **`Yêu cầu Approval`** (nếu đơn đăng ký cần sếp duyệt).
+3. Chọn **Đối tượng đăng ký** (Áp dụng cho *Toàn công ty* hoặc giới hạn theo phòng ban/vị trí trích xuất trực tiếp từ HRM).
+4. **Thiết kế câu hỏi động:** Bấm **`+ THÊM CÂU HỎI`**, đặt mã câu hỏi (`Q1`, `Q2`...), nhập nội dung câu hỏi, chọn kiểu dữ liệu đầu vào (`Text`, trắc nghiệm, số...) và đánh dấu **Bắt buộc**. Bấm **`LƯU NHẬP`** để hoàn tất.
 
-### IT / Endpoint Operator
-1. Mở Sổ thiết bị.
-2. Chọn Equipment là laptop/desktop/máy có OS.
-3. Mở Endpoint Agent.
-4. Kiểm tra Endpoint Agent được phép và OS family.
-5. Nếu chưa bật, người có Equipment.Manage bật eligibility.
-6. Chọn Cấp credential.
-7. Sao chép secret một lần.
-8. Cài Agent trên đúng máy và bảo vệ secret bằng DPAPI.
-9. Quay lại Equipment để kiểm tra Agent status, version, LastSeen và installation identity.
-10. Khi cần đổi secret, dùng Rotate credential; khi cần vô hiệu hóa, dùng Thu hồi credential.
+#### C. Tổng hợp và Xuất kết quả khảo sát
+Menu truy cập: **Công khai** ➔ **Tổng hợp đăng ký biểu mẫu** (`/admin/public-forms/submissions`).
 
-### Không sử dụng flow cũ
-Không bắt đầu bằng việc mở một form riêng và nhập DeviceKey để gắn credential vào máy. Nếu security-center còn hiển thị chức năng legacy, chức năng đó chỉ phục vụ audit/technical compatibility; Equipment vẫn là entry point nghiệp vụ.
+![Màn hình Tổng hợp đăng ký biểu mẫu](../../screenshots/state-8-depth-1--admin-public-forms-submissions-43541eaf.png)
 
-### Các trường hợp thường gặp
-| Tình huống | Xử lý |
-|---|---|
-| Equipment không có OS | Không bật Endpoint Agent |
-| Chưa có Endpoint | Cấp credential từ Equipment, sau đó cài Agent |
-| Credential hết/thu hồi | Rotate hoặc provision lại theo capability |
-| Đổi người sử dụng | Không tạo DeviceKey mới |
-| Cài lại Windows | Kiểm tra AgentInstallationId + hardware identity |
-| Đổi tên máy | Không coi là Endpoint mới nếu identity vẫn hợp lệ |
-| Secret đã mất | Không thể xem lại; rotate/provision credential mới |
+* Chọn biểu mẫu cần thống kê, lọc theo phòng ban/thời gian, bấm **`XEM`** để kiểm tra danh sách nhân viên đã nộp và bấm **`XUẤT EXCEL`** để lấy báo cáo.
+
+---
+
+## 6. QUẢN TRỊ BẢO MẬT, ENDPOINT & PHÂN QUYỀN
+
+### 6.1. Phiếu thay đổi quyền / Bàn giao công việc (Access Handover)
+Menu truy cập: **Thay đổi quyền** ➔ **Phiếu thay đổi quyền / bàn giao** (`/security/access-change`).
+
+Khi có nhân sự nghỉ việc hoặc luân chuyển bộ phận, quyền hạn trên hệ thống không được cấp phát tùy tiện mà phải thông qua phiếu bàn giao có phê duyệt:
+
+![Màn hình Phiếu thay đổi quyền và bàn giao](../../screenshots/state-9-depth-1--security-access-change-69558bb3.png)
+
+**Quy trình thực hiện:**
+1. **Nguyên tắc bảo mật cốt lõi:** Người tiếp nhận công việc phải là người trực tiếp đăng nhập và lập phiếu (Hệ thống sẽ từ chối nếu người lập không phải là người tiếp nhận).
+2. Tại tab **`LẬP PHIẾU`**, chọn **Nghiệp vụ** cần nhận bàn giao (Nghỉ phép, OT, Thiết bị...) và chọn tên **Nhân sự cũ**.
+3. Hệ thống tự động quét và liệt kê danh sách các quyền (`Function`/`Capability`) của nhân sự cũ trong mục **Quyền sẽ chuyển**.
+4. Nhập **Lý do** bàn giao và bấm **`GỬI PHIẾU PHÊ DUYỆT`**. Sau khi các cấp quản lý duyệt xong, phiếu sẽ chuyển sang tab **`IT XỬ LÝ`** để kích hoạt quyền chính thức.
+
+---
+
+### 6.2. Quản trị Thiết bị đầu cuối (Endpoint Governance & Inventory)
+Dành cho bộ phận IT kiểm soát an toàn thông tin và tính tuân thủ phần mềm trên các máy tính trạm trong nhà máy.
+
+#### A. Thiết lập Danh mục Phần mềm/Dịch vụ chuẩn (Allowlist Catalog)
+Menu truy cập: **Endpoint Governance** ➔ **Danh mục phần mềm / dịch vụ** (`/endpoint-governance`).
+
+![Màn hình Endpoint Governance Catalog](../../screenshots/state-20-depth-1--endpoint-governance-a425f265.png)
+
+1. Khai báo các phần mềm hoặc dịch vụ được phép cài đặt (`Allowed`), nhà phát hành (`Publisher`) và ràng buộc phiên bản (`Version constraint`).
+2. Tích chọn đầy đủ 6 mục trong **Checklist trước khi đưa catalog vào Common Approval** (đảm bảo đã rà soát nghiệp vụ và chuẩn hóa tên).
+3. Lưu bản nháp (`Draft`) hoặc Import từ Excel, sau đó trình duyệt để ban hành tiêu chuẩn tuân thủ (`Compliance Policy`).
+
+#### B. Giám sát Kiểm kê Endpoint (Inventory)
+Menu truy cập: **Endpoint Governance** ➔ **Danh mục Endpoint** (`/endpoint-inventory`).
+
+![Màn hình Danh mục Endpoint](../../screenshots/state-21-depth-1--endpoint-inventory-4a39bb5d.png)
+
+* Theo dõi trạng thái kết nối (`Online`/`Offline`) của các máy tính có cài đặt Endpoint Agent, số lượng phần mềm đang chạy, tình trạng Antivirus và đối chiếu mức độ tuân thủ theo Catalog đã ban hành.
+
+---
+
+## 7. CẤU HÌNH ĐỘNG CƠ LÕI (DÀNH CHO ADMIN/HR)
+
+Phần này hướng dẫn Quản trị viên cấu hình các quy tắc vận hành tự động của hệ thống tại cụm menu **Dữ liệu**.
+
+### 7.1. Quản lý Dữ liệu gốc (Master Data) & Phân quyền tự động
+
+* **Quản lý Bộ phận (`/admin/departments`) & Nhân viên (`/admin/employees`):** Tra cứu cơ cấu tổ chức và hồ sơ nhân sự được đồng bộ từ HRM.
+  ![Quản lý Bộ phận](../../screenshots/state-24-depth-1--admin-departments-4a539b41.png)
+* **Quản lý Hình thức nghỉ (`/admin/leave-types`):** Định nghĩa các mã nghỉ phép (`AL`, `SL`, `UL`...), cấu hình loại nghỉ có trừ phép năm hay không và ánh xạ với mã chấm công HRM.
+  ![Quản lý Hình thức nghỉ phép](../../screenshots/state-27-depth-1--admin-leave-types-bc4273c5.png)
+* **Mapping Role HRM ➔ F03User (`/admin/hrm-role-rules`):** Thiết lập luật gán quyền tự động. Ví dụ: Cấu hình hễ nhân sự thuộc phòng *57 - IT* có chức vụ *Sub-Leader* thì tự động gán quyền *Approver*; nhân sự phòng *13 - General Affairs* chức vụ *Manager* thì gán quyền *Admin*.
+  ![Mapping Role HRM sang User](../../screenshots/state-29-depth-1--admin-hrm-role-rules-0c532829.png)
+
+---
+
+### 7.2. Cấu hình Ma trận & Chính sách Phê duyệt (Approval Engine)
+
+#### A. Quản lý Người phê duyệt (`/admin/approvers`)
+![Quản lý Người phê duyệt](../../screenshots/state-26-depth-1--admin-approvers-dda756c3.png)
+
+* Hệ thống tự động đọc cơ cấu HRM để đề xuất danh sách người duyệt mới hoặc thay đổi cấp duyệt. Admin chỉ cần bấm **`ÁP DỤNG HRM`** để cập nhật hàng loạt, hoặc thêm/sửa từng người duyệt theo từng phòng ban, từng loại đơn (`Leave`, `Overtime`, `Trip`, `Equipment`) và cấp duyệt (`Cấp 1`, `Cấp 2`, `Cấp 3`).
+
+#### B. Thiết lập Chính sách Phê duyệt (`/admin/approval-policies`)
+![Cấu hình Approval Policy](../../screenshots/state-30-depth-1--admin-approval-policies-d58cb2c8.png)
+
+* Định nghĩa một đơn từ của một **Phòng ban** và **Chức vụ người yêu cầu** cụ thể sẽ phải đi qua mấy cấp duyệt, cấp nào là bắt buộc. 
+* Hệ thống áp dụng nguyên tắc **Snapshot Invariant**: Khi nhân viên vừa bấm gửi đơn, lộ trình duyệt sẽ được đóng băng theo đúng Policy tại giây phút đó, việc thay đổi Policy sau này không làm gãy các đơn cũ đang chạy.
+
+---
+
+### 7.3. Cấu hình Chính sách Đối soát & Tính công HRM
+
+#### A. Chính sách xử lý đối soát công (`/admin/execution-policies`)
+![Chính sách xử lý đối soát công](../../screenshots/state-31-depth-1--admin-execution-policies-53f8c12f.png)
+
+* Thiết lập thời gian giới hạn (**SLA**) cho từng phân hệ (`ATTENDANCE`, `LEAVE`, `OT`, `TRIP`): Quy định nhân viên có bao nhiêu giờ để phản hồi giải trình (VD: `48 giờ`), HR có bao nhiêu giờ để xử lý, cho phép khiếu nại tối đa mấy vòng và cách thức chốt công khi đến ngày khóa sổ lương (`Payroll cutoff`).
+
+#### B. Rule ký hiệu chấm công (`/admin/attendance-symbol-rules`) & Tính giờ HRM (`/hrm/attendance-calculation`)
+![Rule ký hiệu chấm công](../../screenshots/state-32-depth-1--admin-attendance-symbol-rules-963427d3.png)
+
+* **Rule ký hiệu chấm công:** Định nghĩa cách hệ thống phiên dịch từ `Loại ngày` + `Ca làm việc` + `Giờ In/Out` sang các ký hiệu hiển thị trên Lịch cá nhân (Ví dụ: `C1`, `HC`, `K(hours)`). Có sẵn công cụ **Test Rule** ở cuối trang để Admin nhập thử giờ vào/ra và bấm **`TÍNH THỬ`** kiểm tra kết quả ngay lập tức.
+
+![Tính giờ theo HRM](../../screenshots/state-34-depth-1--hrm-attendance-calculation-3b261f97.png)
+
+* **Tính giờ theo HRM:** Chạy batch tính toán giờ công từ dữ liệu thô của HRM và lưu vào bảng đệm của FVN Register. Hệ thống tuân thủ tuyệt đối nguyên tắc **Read-Only Boundary**: Chỉ đọc dữ liệu từ HRM để đối soát, tuyệt đối không ghi đè ngược lại làm ảnh hưởng tới phần mềm tính lương hiện hữu.
+
+---
+
+### 7.4. Quản lý Tiến trình chạy ngầm (Background Jobs)
+Menu truy cập: **Dữ liệu** ➔ **Lịch chạy background** (`/admin/background-jobs`).
+
+![Quản lý Lịch chạy background](../../screenshots/state-28-depth-1--admin-background-jobs-57b7fb08.png)
+
+**Hướng dẫn vận hành cho Admin:**
+* Đây là bảng điều khiển toàn bộ các tác vụ tự động hóa của hệ thống: *Đồng bộ HRM*, *Gửi email trong hàng đợi*, *Leo thang phê duyệt (Escalation)*, *Sinh lịch kiểm tra thiết bị*, *Đối soát thực thi công*...
+* **Thay đổi chu kỳ chạy:** Chọn nhanh các mốc thời gian (`5 phút`, `15 phút`, `30 phút`, `1 giờ`, `6 giờ`, `24 giờ`) hoặc nhập số phút tùy chỉnh rồi bấm **`LƯU`**. Thay đổi sẽ có hiệu lực ngay trong vòng 15 giây mà không cần khởi động lại máy chủ.
+* **Kích hoạt khẩn cấp:** Bấm vào biểu tượng nút **Play (`▶`)** màu xanh ở cột bên phải của bất kỳ tác vụ nào nếu bạn muốn ép hệ thống chạy tác vụ đó ngay lập tức (Ví dụ: Cần đồng bộ gấp một nhân viên vừa mới vào công ty).
