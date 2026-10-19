@@ -1,7 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Utils;
-using FVN_REGISTER.Infrastructure.Models.Data;
+using FVN_REGISTER.Infrastructure;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
