@@ -393,3 +393,14 @@ button.fcc-calendar-issue-marker.fcc-fb {
         margin: 0 6px 0 0;
         cursor: default;
     }
+
+
+/* Rendered Markdown guide (/huong-dan) */
+.guide-md { line-height: 1.6; }
+.guide-md h2, .guide-md h3, .guide-md h4 { margin: 1.2rem 0 .6rem; }
+.guide-md img { max-width: 100%; height: auto; border: 1px solid rgba(128,128,128,.35); border-radius: 6px; margin: .5rem 0; }
+.guide-md table { border-collapse: collapse; width: 100%; margin: .75rem 0; display: block; overflow-x: auto; }
+.guide-md th, .guide-md td { border: 1px solid rgba(128,128,128,.4); padding: .4rem .6rem; text-align: left; vertical-align: top; }
+.guide-md code { font-family: monospace; font-size: .85em; padding: .1rem .3rem; border-radius: 4px; background: rgba(128,128,128,.18); }
+.guide-md pre { overflow-x: auto; padding: .75rem; border-radius: 6px; background: rgba(128,128,128,.12); }
+.guide-md blockquote { margin: .75rem 0; padding: .25rem .9rem; border-left: 4px solid rgba(128,128,128,.5); }
