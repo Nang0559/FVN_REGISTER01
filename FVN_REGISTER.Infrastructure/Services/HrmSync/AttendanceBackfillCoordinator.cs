@@ -68,8 +68,10 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
             }
             else
             {
-                completion = Task.Run(() => RunAsync(key, deptCode, from, to));
+                var completionSource = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                completion = completionSource.Task;
                 _inFlight[key] = new InFlight(from, to, completion);
+                _ = StartTrackedRunAsync(key, deptCode, from, to, completionSource);
             }
         }
 
@@ -84,6 +86,35 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
         return error is null
             ? new AttendanceBackfillResult(AttendanceBackfillStatus.Ready)
             : new AttendanceBackfillResult(AttendanceBackfillStatus.Failed, error);
+    }
+
+    private async Task StartTrackedRunAsync(
+        string employeeCode,
+        int? deptCode,
+        DateOnly from,
+        DateOnly to,
+        TaskCompletionSource<string?> completionSource)
+    {
+        string? error;
+        try
+        {
+            error = await RunAsync(employeeCode, deptCode, from, to);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Attendance backfill coordinator task failed unexpectedly. EmployeeCode={EmployeeCode}, From={From}, To={To}",
+                employeeCode, from, to);
+            error = "Không thể chuẩn bị dữ liệu chấm công cho lịch.";
+        }
+
+        completionSource.TrySetResult(error);
+        lock (_gate)
+        {
+            if (_inFlight.TryGetValue(employeeCode, out var current)
+                && ReferenceEquals(current.Completion, completionSource.Task))
+                _inFlight.Remove(employeeCode);
+        }
     }
 
     private async Task<string?> RunAsync(string employeeCode, int? deptCode, DateOnly from, DateOnly to)
@@ -246,11 +277,6 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                 "Attendance calendar backfill coordinator failed. EmployeeCode={EmployeeCode}, From={From}, To={To}",
                 employeeCode, from, to);
             return "Không thể chuẩn bị dữ liệu chấm công cho lịch.";
-        }
-        finally
-        {
-            lock (_gate)
-                _inFlight.Remove(employeeCode);
         }
     }
 
