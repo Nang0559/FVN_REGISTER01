@@ -15,6 +15,7 @@ BEGIN
         FromDate date NOT NULL,
         ToDate date NOT NULL,
         ReopenPayrollPeriod bit NOT NULL CONSTRAINT DF_F03HrmAttendanceCalculationJob_Reopen DEFAULT(0),
+        Priority tinyint NOT NULL CONSTRAINT DF_F03HrmAttendanceCalculationJob_Priority DEFAULT(1),
         TriggeredBy nvarchar(100) NOT NULL,
         Status nvarchar(30) NOT NULL CONSTRAINT DF_F03HrmAttendanceCalculationJob_Status DEFAULT(N'Queued'),
         CurrentWorkDate date NULL,
@@ -33,6 +34,14 @@ BEGIN
         CONSTRAINT CK_F03HrmAttendanceCalculationJob_Status CHECK (Status IN
             (N'Queued',N'Running',N'CancelRequested',N'Cancelled',N'Completed',N'Failed',N'Stalled',N'Terminated'))
     );
+END;
+GO
+
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationJob', N'Priority') IS NULL
+BEGIN
+    ALTER TABLE dbo.F03HrmAttendanceCalculationJob
+        ADD Priority tinyint NOT NULL
+            CONSTRAINT DF_F03HrmAttendanceCalculationJob_Priority DEFAULT(1) WITH VALUES;
 END;
 GO
 
