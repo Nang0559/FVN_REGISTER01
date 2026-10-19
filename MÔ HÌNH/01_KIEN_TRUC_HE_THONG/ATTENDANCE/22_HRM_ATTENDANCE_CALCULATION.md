@@ -190,7 +190,7 @@ Không tạo lại công thức Work/OT C# riêng, pipeline reconciliation thay 
 
 00_Deploy_All.sql là entry point deploy.
 
-Sau các prerequisite attendance (`22_00` đến `22_05`) và `SQL/66_CalendarHolidayClassification.sql` + `SQL/67_AttendanceSymbolRules.sql`, cài `SQL/83_HrmHolidaySync.sql` rồi `SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql`. `83` tạo cấu trúc/bootstrap; `84` thay procedure sync an toàn theo `HolidayDate`, áp mapping `NNLLoai=1 → LNLMa=0003`, `NNLLoai=2 → LNLMa=0002` và chạy initial sync. `SQL/87_BackfillHolidaySymbols.sql` là bước backfill tùy chọn sau khi đã đồng bộ. Không chạy `SQL/90_NormalizeDayTypesToHrm.sql`: script cũ này gộp mất `SUNDAY` và trái với DayType contract hiện tại.
+Cài các prerequisite attendance `22_00` và `SQL/66_CalendarHolidayClassification.sql` + `SQL/67_AttendanceSymbolRules.sql` trước `SQL/83_HrmHolidaySync.sql`; sau khi có `22_05_HrmAttendanceBatchSnapshot.sql`, cài `SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql`. `83` tạo cấu trúc/bootstrap; `84` thay procedure sync an toàn theo `HolidayDate`, áp mapping `NNLLoai=1 → LNLMa=0003`, `NNLLoai=2 → LNLMa=0002` và chạy initial sync. `SQL/87_BackfillHolidaySymbols.sql` là bước backfill tùy chọn sau khi đã đồng bộ. Không chạy `SQL/90_NormalizeDayTypesToHrm.sql`: script cũ này gộp mất `SUNDAY` và trái với DayType contract hiện tại.
 
 ## 18. Nguyên tắc cuối
 
