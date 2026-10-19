@@ -22,6 +22,7 @@
 @inject IOTClientService OTClient
 @inject IExecutionReconciliationClientService ExecutionService
 @inject IHrmAttendanceCalculationClientService AttendanceCalculation
+@inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
 
 <PageTitle>@Language.T("calendar.title")</PageTitle>
@@ -123,6 +124,7 @@
     private DateTime? _recalcFrom = DateTime.Today.AddDays(-1);
     private DateTime? _recalcTo = DateTime.Today;
     private bool _forceRecalcRunning;
+    private HrmAttendanceCalculationJobClientService? _forceJobClient;
 
     private bool IsCurrentEmployee =>
         !string.IsNullOrWhiteSpace(_currentEmployeeCode)
@@ -130,6 +132,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _forceJobClient = new HrmAttendanceCalculationJobClientService(Http);
         try
         {
             await CurrentUser.InitializeAsync();
@@ -189,7 +192,7 @@
     private async Task ForceRecalculateAsync()
     {
         if (_forceRecalcRunning) return;
-        if (_recalcFrom is null || _recalcTo is null || _recalcFrom.Value.Date > _recalcTo.Value.Date)
+        if (_forceJobClient is null || _recalcFrom is null || _recalcTo is null || _recalcFrom.Value.Date > _recalcTo.Value.Date)
         {
             Snackbar.Add("Khoảng ngày tính lại không hợp lệ.", Severity.Warning);
             return;
@@ -199,6 +202,7 @@
             Snackbar.Add("Mỗi lần chỉ được buộc tính lại tối đa 7 ngày.", Severity.Warning);
             return;
         }
+
         _forceRecalcRunning = true;
         try
         {
@@ -209,12 +213,43 @@
                 ReopenPayrollPeriod = false
             };
             var result = await AttendanceCalculation.ForceRecalculateSelfAsync(request);
-            Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã buộc tính lại chấm công." : "Buộc tính lại thất bại."), result.IsSuccess ? Severity.Success : Severity.Error);
-            if (result.IsSuccess)
+            if (!result.IsSuccess || result.Data is null)
             {
-                if (_calendar is not null) await _calendar.RefreshAsync();
-                await LoadAlertsAsync();
+                Snackbar.Add(result.Message ?? "Buộc tính lại thất bại.", Severity.Error);
+                return;
             }
+
+            var job = result.Data;
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            Snackbar.Add($"Đã đưa yêu cầu vào hàng đợi ({job.JobId:N}). Phép tính tiếp tục ở server nếu bạn rời trang.", Severity.Info);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                if (job.Status == "Completed")
+                {
+                    Snackbar.Add("Đã hoàn tất buộc tính lại chấm công.", Severity.Success);
+                    if (_calendar is not null) await _calendar.RefreshAsync();
+                    await LoadAlertsAsync();
+                    return;
+                }
+
+                if (job.Status is "Failed" or "Cancelled" or "Terminated")
+                {
+                    Snackbar.Add(job.ErrorMessage ?? $"Job kết thúc với trạng thái {job.Status}.", Severity.Error);
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+                var latest = await _forceJobClient.GetAsync(job.JobId);
+                if (!latest.IsSuccess || latest.Data is null)
+                {
+                    Snackbar.Add(latest.Message ?? "Không đọc được trạng thái job; job vẫn được lưu để kiểm tra lại.", Severity.Warning);
+                    return;
+                }
+                job = latest.Data;
+            }
+
+            Snackbar.Add($"Job {job.JobId:N} vẫn đang chạy nền. Bạn có thể tiếp tục sử dụng phần mềm; dữ liệu sẽ cập nhật sau khi job hoàn tất.", Severity.Info);
         }
         catch (Exception ex)
         {
