@@ -12,7 +12,7 @@ namespace FVN_REGISTER.Shared.Tests;
 [Collection("LocalizationStore")]
 public sealed class HelpRegistryTests
 {
-    private static readonly Regex PageDirective = new(@"^\s*@page\s+""([^"" ]+)""", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex PageDirective = new(@"^\s*@page\s+""([^""]+)""", RegexOptions.Compiled | RegexOptions.Multiline);
 
     [Theory]
     [InlineData("/", "HOME_WORKSPACE")]
