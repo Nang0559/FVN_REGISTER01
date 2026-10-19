@@ -5,7 +5,7 @@ namespace FVN_REGISTER.Application.Interfaces.HrmSync;
 
 public interface IHrmAttendanceCalculationJobService
 {
-    Task<ServiceResult<HrmAttendanceCalculationJobDto>> EnqueueAsync(HrmAttendanceCalculationJobCommandDto request,string triggeredBy,CancellationToken ct=default);
+    Task<ServiceResult<HrmAttendanceCalculationJobDto>> EnqueueAsync(HrmAttendanceCalculationJobCommandDto request,string triggeredBy,CancellationToken ct=default,bool skipCoveredDates=false);
     Task<ServiceResult<HrmAttendanceCalculationJobDto>> GetAsync(Guid jobId,CancellationToken ct=default);
     Task<ServiceResult<List<HrmAttendanceCalculationJobDto>>> ListAsync(CancellationToken ct=default);
     Task<ServiceResult> RequestCancelAsync(Guid jobId,string requestedBy,CancellationToken ct=default);
