@@ -100,6 +100,21 @@ BEGIN
              N'COMPANY_HOLIDAY', N'NATIONAL_HOLIDAY', N'OTHER',
              N'COMPENSATORY'));
 
+    /* F03CompanyHolidays cũng phải cho phép SUNDAY.
+       Một số DB đã chạy migration 89/90 nên constraint cũ chỉ cho phép 4 loại.
+       Khôi phục tập DayType tương thích với HRM mapping hiện tại. */
+    IF EXISTS (SELECT 1 FROM sys.check_constraints
+               WHERE name = N'CK_F03CompanyHolidays_DayType'
+                 AND parent_object_id = OBJECT_ID(N'dbo.F03CompanyHolidays'))
+        ALTER TABLE dbo.F03CompanyHolidays DROP CONSTRAINT CK_F03CompanyHolidays_DayType;
+
+    ALTER TABLE dbo.F03CompanyHolidays WITH CHECK
+        ADD CONSTRAINT CK_F03CompanyHolidays_DayType
+        CHECK (DayType IS NULL OR DayType IN
+            (N'NORMAL', N'COMPANY_SATURDAY', N'SUNDAY',
+             N'COMPANY_HOLIDAY', N'NATIONAL_HOLIDAY', N'OTHER',
+             N'COMPENSATORY'));
+
     ;WITH TypeSource AS
     (
         SELECT
