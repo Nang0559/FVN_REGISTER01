@@ -107,6 +107,51 @@ public static class HelpRegistry
     /// <summary>Routes that intentionally have no help text (login, the guide page itself, the public landing page).</summary>
     public static readonly IReadOnlyList<string> RoutesWithoutHelp = new[] { "login", "huong-dan", "public" };
 
+    /// <summary>The user guide that <c>/huong-dan</c> renders (copied next to the app by FVN_REGISTER.Web.csproj).</summary>
+    public const string GuideFile = "04_USER_GUIDE.md";
+
+    // Feature code -> sections of GuideFile. An id like "7.3" is the heading "### 7.3. ..."; an id starting with "~" is a
+    // heading matched by its exact text (used for the appendix). Codes without an entry (or whose section is missing from
+    // the file) fall back to the short overview stored in Localization/*.help.json.
+    // To document a new screen: add a "### 7.5. ..." section to the .md and list "7.5" here (GuideMarkdownTests checks the ids).
+    private static readonly IReadOnlyDictionary<string, string[]> GuideMap = new Dictionary<string, string[]>(StringComparer.Ordinal)
+    {
+        ["HOME_WORKSPACE"] = new[] { "1.1" },
+        ["WORK_CALENDAR"] = new[] { "1.2" },
+        ["APPROVAL_INBOX"] = new[] { "1.3", "3.1" },
+        ["LEAVE"] = new[] { "2.1" },
+        ["OT"] = new[] { "2.2" },
+        ["TRIP"] = new[] { "2.3" },
+        ["EXECUTION"] = new[] { "3.2" },
+        ["EQUIPMENT_WORKSPACE"] = new[] { "4.1", "4.2" },
+        ["EQUIPMENT_CHECKLIST"] = new[] { "4.1" },
+        ["EQUIPMENT_REPAIR"] = new[] { "4.1" },
+        ["EQUIPMENT_HANDOVER"] = new[] { "4.1" },
+        ["EQUIPMENT_IMPORT"] = new[] { "4.2" },
+        ["EQUIPMENT_SCHEMA"] = new[] { "4.2" },
+        ["PUBLIC_INFORMATION_CMS"] = new[] { "5.2" },
+        ["PUBLIC_FORMS"] = new[] { "5.1", "5.2" },
+        ["SECURITY_CENTER"] = new[] { "6.1" },
+        ["ENDPOINT_MANAGEMENT"] = new[] { "6.2" },
+        ["ADMIN_ORGANIZATION"] = new[] { "7.1" },
+        ["ADMIN_POLICIES"] = new[] { "7.2", "7.3" },
+        ["HRM_ATTENDANCE_CALCULATION"] = new[] { "7.3" },
+        ["ADMIN_ATTENDANCE_SYMBOL_RULES"] = new[] { "7.3" },
+        ["ADMIN_HRM_SYNC"] = new[] { "7.4" },
+        ["ADMIN_HRM_ATTENDANCE_JOBS"] = new[] { "7.4" },
+        ["ADMIN_SYSTEM"] = new[] { "7.4" },
+        ["PAYROLL_TABLE"] = new[] { "~Nghiệp vụ, chấm công và báo cáo" },
+        ["REPORTS"] = new[] { "~Nghiệp vụ, chấm công và báo cáo" },
+        ["HISTORY"] = new[] { "~Nghiệp vụ, chấm công và báo cáo" },
+    };
+
+    public static IReadOnlyDictionary<string, string[]> GuideSections => GuideMap;
+
+    /// <summary>The guide sections that document <paramref name="featureCode"/>; empty when the guide has none for it.</summary>
+    public static string[] GuideSectionsFor(string? featureCode) =>
+        featureCode is not null && GuideMap.TryGetValue(featureCode, out var ids) ? ids : Array.Empty<string>();
+
+
     /// <summary>Every feature code that appears in a rule (plus the home code).</summary>
     public static IReadOnlyCollection<string> AllFeatureCodes { get; } =
         Rules.Select(r => r.Feature).Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToArray();
