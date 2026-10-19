@@ -72,7 +72,10 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var ot = canViewOt ? await _uow.Repository<VF03OTRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true && x.OTDate >= start && x.OTDate <= end && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected).ToListAsync(ct) : new List<VF03OTRequest>();
         var trips = canViewTrip ? await _uow.Repository<F03TripRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true && x.EndDate >= start && x.StartDate <= end && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected).ToListAsync(ct) : new List<F03TripRequest>();
         var dayTypeColors = await LoadDayTypeColorsAsync(ct);
-        dayTypeColors.TryGetValue("COMPANY_HOLIDAY", out var sundayColor);
+        dayTypeColors.TryGetValue("SUNDAY", out var sundayColor);
+        if (string.IsNullOrWhiteSpace(sundayColor))
+            dayTypeColors.TryGetValue("COMPANY_HOLIDAY", out sundayColor);
+        sundayColor ??= "Navy";
         var holidayByDate = holidays.GroupBy(x => x.HolidayDate.Date).ToDictionary(x => x.Key, x => x.First());
         var workYearByDate = new Dictionary<DateTime, F03WorkYear>();
         foreach (var workYear in workYears) { var yearStart = workYear.StartDate.Date < start ? start : workYear.StartDate.Date; var yearEnd = workYear.EndDate.Date > end ? end : workYear.EndDate.Date; for (var date = yearStart; date <= yearEnd; date = date.AddDays(1)) workYearByDate[date] = workYear; }
@@ -80,7 +83,12 @@ public sealed class WorkCalendarService : IWorkCalendarService
         for (var date = start; date <= end; date = date.AddDays(1))
         {
             var holiday = holidayByDate.GetValueOrDefault(date.Date); var workYear = workYearByDate.GetValueOrDefault(date.Date); var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday; var future = date.Date > DateTime.Today; var past = date.Date < DateTime.Today; var working = workYear != null && holiday == null; var holidayType = GetHolidayTypeCode(holiday?.HolidayType);
-            var holidayColor = holiday == null ? null : (FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday.HolidayColor) ?? (holiday.DayType != null && dayTypeColors.TryGetValue(holiday.DayType, out var typeColor) ? typeColor : null));
+            var configuredHolidayColor = holiday == null ? null : (FVN_REGISTER.Contract.Dtos.Calendar.CalendarColor.Normalize(holiday.HolidayColor) ?? (holiday.DayType != null && dayTypeColors.TryGetValue(holiday.DayType, out var typeColor) ? typeColor : null));
+            // HRM type 0002 (LNLKyHieu=CT): Sunday keeps Navy; company-rest days Monday-Saturday use LightYellow.
+            var isCompanyRestType = holiday != null && string.Equals(holiday.HolidaySymbol?.Trim(), "CT", StringComparison.OrdinalIgnoreCase);
+            var holidayColor = holiday == null ? null : isCompanyRestType
+                ? (date.DayOfWeek == DayOfWeek.Sunday ? (configuredHolidayColor ?? sundayColor) : "LightYellow")
+                : configuredHolidayColor;
             var day = new WorkCalendarDayDto { Date = date, WorkYear = workYear?.WorkYear, IsWeekend = weekend, IsFuture = future, IsPast = past, IsWorkingDay = working, HolidayName = holiday == null ? null : $"[{holidayType}]|{holiday.Description}", HolidayCode = holiday == null ? null : $"HOL-{holidayType}-{holiday.HolidayDate:yyyyMMdd}", HolidayType = holiday == null ? null : holidayType, HolidaySymbol = holiday?.HolidaySymbol, HolidayTypeName = holiday?.HolidayTypeName, HolidayColor = holidayColor, DayColor = holiday != null ? holidayColor : (date.DayOfWeek == DayOfWeek.Sunday ? sundayColor : null), IsOtRegistrar = canCreateOt, CanRegisterLeave = canCreateLeave && future && workYear != null && holiday == null, CanRegisterOT = canCreateOt && future && workYear != null, MustReportOtToSupervisor = mustReportOtToSupervisor, CanRegisterTrip = canCreateTrip && future && workYear != null && holiday == null, AvailabilityNote = holiday != null ? $"Ngày nghỉ {GetHolidayTypeLabel(holiday.HolidayType)}: {holiday.Description} — chỉ đăng ký OT." : !future ? "Chỉ mở đăng ký từ ngày sau hôm nay." : workYear == null ? "Chưa cấu hình năm làm việc." : null };
             result.Days.Add(day);
         }
