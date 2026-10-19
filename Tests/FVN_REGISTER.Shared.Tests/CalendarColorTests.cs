@@ -61,6 +61,14 @@ public sealed class CalendarColorTests
     }
 
     [Fact]
+    public void Hrm_type_0002_uses_navy_on_sunday_and_light_yellow_on_weekdays()
+    {
+        Assert.Equal("Navy", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 18), "SUNDAY", "Navy", "Navy"));
+        Assert.Equal("LightYellow", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 19), "SUNDAY", "Navy", "Navy"));
+        Assert.Equal("LightYellow", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 17), "SUNDAY", "Navy", "Navy"));
+    }
+
+    [Fact]
     public void Sunday_without_holiday_uses_navy_fallback()
     {
         Assert.Equal("Navy", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 18), null, null, null));
@@ -69,7 +77,7 @@ public sealed class CalendarColorTests
     [Fact]
     public void Other_holiday_types_keep_their_hrm_configured_color()
     {
-        Assert.Equal("Crimson", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 19), "NATIONAL_HOLIDAY", "Crimson", "Navy"));
+        Assert.Equal("HotPink", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 19), "NATIONAL_HOLIDAY", "HotPink", "Navy"));
     }
 
 }
