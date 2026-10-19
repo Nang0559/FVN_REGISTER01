@@ -27,6 +27,7 @@ public sealed class HrmAttendanceCalculationJobDto
     public bool IsBlocked { get; set; }
     public bool IsStalled { get; set; }
     public bool SkipCoveredDates { get; set; }
+    public byte Priority { get; set; }
     public string? ErrorMessage { get; set; }
 }
 
