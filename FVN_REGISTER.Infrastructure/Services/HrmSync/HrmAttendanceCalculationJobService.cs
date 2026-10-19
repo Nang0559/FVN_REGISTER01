@@ -76,7 +76,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
             SELECT COUNT(*) AS [Value] FROM sys.dm_exec_requests r
             WHERE r.database_id=DB_ID(N'FVN_REGISTER') AND r.session_id<>@@SPID
               AND EXISTS(SELECT 1 FROM dbo.F03HrmAttendanceCalculationRun run WHERE run.Status=N'Running' AND run.SqlSessionId=r.session_id
-                AND run.TriggeredBy LIKE CONCAT(N'HRM-JOB:',CONVERT(nvarchar(36),{jobId}),N'%'))
+                AND run.TriggeredBy LIKE CONCAT(N'HRM-JOB:',REPLACE(CONVERT(nvarchar(36),{jobId}),N'-',N''),N'%'))
             """).SingleAsync(ct);
         if(live>0)return ServiceResult.Fail("Job vẫn còn SQL session đang chạy. Không thể Resume song song.");
         var changed=await _db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -97,7 +97,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
                 CONVERT(bit,CASE WHEN j.Status IN(N'Running',N'CancelRequested') AND j.LastProgressAt IS NOT NULL AND DATEDIFF(MINUTE,j.LastProgressAt,SYSUTCDATETIME())>=10 AND live.SqlSessionId IS NULL THEN 1 ELSE 0 END) AS IsStalled,
                 CASE WHEN j.Status=N'Completed' THEN N'Completed' WHEN j.Status=N'Cancelled' THEN N'Cancelled' WHEN j.Status=N'CancelRequested' THEN N'Cancel requested' WHEN live.BlockingSessionId IS NOT NULL AND live.BlockingSessionId<>0 THEN N'Blocked' WHEN j.Status=N'Running' AND live.SqlSessionId IS NULL AND j.LastProgressAt IS NOT NULL AND DATEDIFF(MINUTE,j.LastProgressAt,SYSUTCDATETIME())>=10 THEN N'Stalled' ELSE j.Status END AS DisplayStatus
             FROM dbo.F03HrmAttendanceCalculationJob j
-            OUTER APPLY(SELECT TOP(1) r.SqlSessionId,r.Status AS SqlStatus,er.wait_type AS WaitType,er.blocking_session_id AS BlockingSessionId,er.wait_time AS WaitTimeMs FROM dbo.F03HrmAttendanceCalculationRun r LEFT JOIN sys.dm_exec_requests er ON er.session_id=r.SqlSessionId AND er.database_id=DB_ID(N'FVN_REGISTER') WHERE r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',CONVERT(nvarchar(36),j.JobId),N'%') ORDER BY r.StartedAt DESC) live
+            OUTER APPLY(SELECT TOP(1) r.SqlSessionId,r.Status AS SqlStatus,er.wait_type AS WaitType,er.blocking_session_id AS BlockingSessionId,er.wait_time AS WaitTimeMs FROM dbo.F03HrmAttendanceCalculationRun r LEFT JOIN sys.dm_exec_requests er ON er.session_id=r.SqlSessionId AND er.database_id=DB_ID(N'FVN_REGISTER') WHERE r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',REPLACE(CONVERT(nvarchar(36),j.JobId),N'-',N''),N'%') ORDER BY r.StartedAt DESC) live
             {filter}
             """;
         if(!jobId.HasValue)sql+=" ORDER BY CASE WHEN j.Status IN(N'Queued',N'Running',N'CancelRequested') THEN 0 ELSE 1 END, CASE WHEN j.TriggeredBy LIKE N'HRM-ATTENDANCE-WORKER%' THEN 1 ELSE 0 END, j.CreatedAt DESC";
