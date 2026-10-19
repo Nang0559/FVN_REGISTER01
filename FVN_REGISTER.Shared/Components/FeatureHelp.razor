@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Components.Routing
 @using FVN_REGISTER.Shared.Services.Language
+@using FVN_REGISTER.Shared.Services.Help
 @implements IDisposable
 @inject NavigationManager Navigation
 @inject ILanguageService Language
@@ -12,49 +13,65 @@
     <MudDrawerHeader>
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="w-100">
             <div>
-                <MudText Typo="Typo.h6">@_content.Title</MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("help.context") • @_content.FeatureCode</MudText>
+                <MudText Typo="Typo.h6">@(_featureCode is null ? Language.T("help.notAvailable.title") : _content.Title)</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("help.context") • @(_featureCode ?? "/" + _route)</MudText>
             </div>
             <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="Close" />
         </MudStack>
     </MudDrawerHeader>
     <MudDivider />
     <MudDrawerContainer Class="pa-4">
-        <MudText Typo="Typo.body2" Class="mb-4">@_content.Summary</MudText>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.flow")</MudText>
-        <MudPaper Outlined="true" Class="pa-3 mb-4" Style="white-space:pre-line;font-family:monospace;font-size:.82rem">@_content.Flow</MudPaper>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.steps")</MudText>
-        <MudList T="string" Dense="true" Class="mb-4">
-            @foreach (var step in _content.Steps)
-            {
-                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
-            }
-        </MudList>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.example")</MudText>
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@_content.Example</MudAlert>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.security")</MudText>
-        <MudText Typo="Typo.body2" Class="mb-4">@_content.Security</MudText>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MenuBook" OnClick="OpenGuide">@Language.T("help.openGuide")</MudButton>
+        @if (_featureCode is null)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">@Language.T("help.notAvailable.summary")</MudAlert>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("help.notAvailable.route"): /@_route</MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mb-4">@_content.Summary</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.flow")</MudText>
+            <MudPaper Outlined="true" Class="pa-3 mb-4" Style="white-space:pre-line;font-family:monospace;font-size:.82rem">@_content.Flow</MudPaper>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.steps")</MudText>
+            <MudList T="string" Dense="true" Class="mb-4">
+                @foreach (var step in _content.Steps)
+                {
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
+                }
+            </MudList>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.example")</MudText>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@_content.Example</MudAlert>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@Language.T("help.security")</MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">@_content.Security</MudText>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MenuBook" OnClick="OpenGuide">@Language.T("help.openGuide")</MudButton>
+        }
     </MudDrawerContainer>
 </MudDrawer>
 
 @code {
     private bool _open;
-    private HelpContent _content = new("HOME_WORKSPACE", string.Empty, string.Empty, string.Empty, Array.Empty<string>(), string.Empty, string.Empty);
+    private string _route = string.Empty;
+    private string? _featureCode;
+    private HelpContent _content = HelpContent.Empty;
 
     protected override void OnInitialized()
     {
         Language.LanguageChanged += OnLanguageChanged;
         Navigation.LocationChanged += OnLocationChanged;
-        _content = ResolveCurrentContent();
+        Refresh(Navigation.Uri);
     }
 
-    private HelpContent ResolveCurrentContent() =>
-        HelpCatalog.Resolve(Language.Current, Navigation.ToBaseRelativePath(Navigation.Uri));
+    // Resolve from the page the user is on right now; the drawer never keeps text from a previous page.
+    private void Refresh(string uri)
+    {
+        _route = string.Join('/', HelpRegistry.Normalize(Navigation.ToBaseRelativePath(uri)));
+        var code = HelpRegistry.Resolve(_route);
+        _featureCode = HelpRegistry.HasContent(Language.Current, code) ? code : null;
+        _content = _featureCode is null ? HelpContent.Empty : HelpContent.Load(Language.Current, _featureCode);
+    }
 
     private void Open()
     {
-        _content = ResolveCurrentContent();
+        Refresh(Navigation.Uri);
         _open = true;
     }
 
@@ -62,19 +79,20 @@
 
     private void OpenGuide()
     {
-        Navigation.NavigateTo($"/huong-dan?feature={Uri.EscapeDataString(_content.FeatureCode)}");
+        if (_featureCode is null) return;
+        Navigation.NavigateTo($"/huong-dan?feature={Uri.EscapeDataString(_featureCode)}");
         _open = false;
     }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        _content = ResolveCurrentContent();
+        Refresh(Navigation.Uri);
         _ = InvokeAsync(StateHasChanged);
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        _content = HelpCatalog.Resolve(Language.Current, Navigation.ToBaseRelativePath(e.Location));
+        Refresh(e.Location);
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -84,56 +102,16 @@
         Navigation.LocationChanged -= OnLocationChanged;
     }
 
-    private sealed record HelpContent(string FeatureCode, string Title, string Summary, string Flow, IReadOnlyList<string> Steps, string Example, string Security);
-
-    private static class HelpCatalog
+    private sealed record HelpContent(string Title, string Summary, string Flow, IReadOnlyList<string> Steps, string Example, string Security)
     {
-        public static HelpContent Resolve(LanguageCode language, string route)
-        {
-            var segments = NormalizeSegments(route);
-            var feature =
-                HasPrefix(segments, "equipment", "checklist") ? "EQUIPMENT_CHECKLIST" :
-                HasPrefix(segments, "equipment", "schema") ? "EQUIPMENT_SCHEMA" :
-                HasPrefix(segments, "equipment", "import") ? "EQUIPMENT_IMPORT" :
-                HasPrefix(segments, "equipment", "repair") ? "EQUIPMENT_REPAIR" :
-                HasPrefix(segments, "equipment", "handover") ? "EQUIPMENT_HANDOVER" :
-                HasPrefix(segments, "equipment") ? "EQUIPMENT_WORKSPACE" :
-                HasPrefix(segments, "public-information") || HasPrefix(segments, "thong-tin-cong-khai") ? "PUBLIC_INFORMATION_CMS" :
-                HasPrefix(segments, "security") || HasPrefix(segments, "admin") ? "SECURITY_CENTER" :
-                HasPrefix(segments, "approval") || HasPrefix(segments, "inbox") ? "APPROVAL_INBOX" :
-                HasPrefix(segments, "calendar") || HasPrefix(segments, "work-calendar") ? "WORK_CALENDAR" :
-                HasPrefix(segments, "reports") || HasPrefix(segments, "report") ? "REPORTS" :
-                HasPrefix(segments, "leave") ? "LEAVE" :
-                HasPrefix(segments, "ot") ? "OT" :
-                HasPrefix(segments, "trip") ? "TRIP" :
-                "HOME_WORKSPACE";
+        public static readonly HelpContent Empty = new(string.Empty, string.Empty, string.Empty, Array.Empty<string>(), string.Empty, string.Empty);
 
-            return new HelpContent(
-                feature,
-                LocalizationStore.Get(language, $"help.{feature}.title"),
-                LocalizationStore.Get(language, $"help.{feature}.summary"),
-                LocalizationStore.Get(language, $"help.{feature}.flow"),
-                LocalizationStore.Steps(language, feature),
-                LocalizationStore.Get(language, $"help.{feature}.example"),
-                LocalizationStore.Get(language, $"help.{feature}.security"));
-        }
-
-        private static string[] NormalizeSegments(string route)
-        {
-            var clean = route.Split('?', '#')[0].Trim('/');
-            return clean.Length == 0
-                ? Array.Empty<string>()
-                : clean.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        }
-
-        private static bool HasPrefix(string[] segments, params string[] prefix)
-        {
-            if (segments.Length < prefix.Length) return false;
-            for (var i = 0; i < prefix.Length; i++)
-            {
-                if (!string.Equals(segments[i], prefix[i], StringComparison.OrdinalIgnoreCase)) return false;
-            }
-            return true;
-        }
+        public static HelpContent Load(LanguageCode language, string feature) => new(
+            LocalizationStore.Get(language, $"help.{feature}.title"),
+            LocalizationStore.Get(language, $"help.{feature}.summary"),
+            LocalizationStore.Get(language, $"help.{feature}.flow"),
+            LocalizationStore.Steps(language, feature),
+            LocalizationStore.Get(language, $"help.{feature}.example"),
+            LocalizationStore.Get(language, $"help.{feature}.security"));
     }
 }
