@@ -12,6 +12,7 @@ Tài liệu này hướng dẫn chi tiết các thao tác nghiệp vụ trên h�
 5. [Cổng Thông tin Nội bộ & Biểu mẫu Công khai](#5-cổng-thông-tin-nội-bộ--biểu-mẫu-công-khai)
 6. [Quản trị Bảo mật, Endpoint & Phân quyền](#6-quản-trị-bảo-mật-endpoint--phân-quyền)
 7. [Cấu hình Động cơ Lõi (Dành cho Admin/HR)](#7-cấu-hình-động-cơ-lõi-dành-cho-adminhr)
+8. [Phụ lục A — Bộ ảnh chụp màn hình bổ sung](#phụ-lục-a-bộ-ảnh-chụp-màn-hình-bổ-sung)
 
 ---
 
@@ -314,3 +315,188 @@ Menu truy cập: **Dữ liệu** ➔ **Lịch chạy background** (`/admin/backg
 * Đây là bảng điều khiển toàn bộ các tác vụ tự động hóa của hệ thống: *Đồng bộ HRM*, *Gửi email trong hàng đợi*, *Leo thang phê duyệt (Escalation)*, *Sinh lịch kiểm tra thiết bị*, *Đối soát thực thi công*...
 * **Thay đổi chu kỳ chạy:** Chọn nhanh các mốc thời gian (`5 phút`, `15 phút`, `30 phút`, `1 giờ`, `6 giờ`, `24 giờ`) hoặc nhập số phút tùy chỉnh rồi bấm **`LƯU`**. Thay đổi sẽ có hiệu lực ngay trong vòng 15 giây mà không cần khởi động lại máy chủ.
 * **Kích hoạt khẩn cấp:** Bấm vào biểu tượng nút **Play (`▶`)** màu xanh ở cột bên phải của bất kỳ tác vụ nào nếu bạn muốn ép hệ thống chạy tác vụ đó ngay lập tức (Ví dụ: Cần đồng bộ gấp một nhân viên vừa mới vào công ty).
+
+---
+
+## PHỤ LỤC A. BỘ ẢNH CHỤP MÀN HÌNH BỔ SUNG
+
+Thư mục `MÔ HÌNH/screenshots` có **69 ảnh** theo manifest: **60 ảnh ở trạng thái sẵn sàng** và **9 ảnh chưa sẵn sàng**. Phần nội dung chính phía trên đã dùng 20 ảnh; phụ lục này bổ sung các ảnh sẵn sàng còn lại để tổng tài liệu tham chiếu đủ 60 ảnh. Một số ảnh ghi lại các tab hoặc trạng thái thao tác khác nhau của cùng một màn hình, nên được giữ riêng thay vì coi là ảnh trùng.
+
+### Lịch làm việc và trung tâm công việc
+
+**Ảnh 56 — Năm & ngày nghỉ**  
+![Năm & ngày nghỉ](../../screenshots/state-56-depth-1--admin-work-calendar-ee29b723.png)  
+Đường dẫn: `/admin/work-calendar` · Tệp: `state-56-depth-1--admin-work-calendar-ee29b723.png`
+
+**Ảnh 58 — Open**  
+![Open](../../screenshots/state-58-depth-2--calendar-1a165859.png)  
+Đường dẫn: `/calendar` · Tệp: `state-58-depth-2--calendar-1a165859.png`
+
+**Ảnh 59 — Open**  
+![Open](../../screenshots/state-59-depth-2--calendar-f995a9d4.png)  
+Đường dẫn: `/calendar` · Tệp: `state-59-depth-2--calendar-f995a9d4.png`
+
+
+### Nghiệp vụ, chấm công và báo cáo
+
+**Ảnh 12 — Lịch sử nghỉ phép**  
+![Lịch sử nghỉ phép](../../screenshots/state-12-depth-1--leave-history-1cac4286.png)  
+Đường dẫn: `/leave/history` · Tệp: `state-12-depth-1--leave-history-1cac4286.png`
+
+**Ảnh 14 — Tổng quan**  
+![Tổng quan](../../screenshots/state-14-depth-1--ot-003940c0.png)  
+Đường dẫn: `/ot` · Tệp: `state-14-depth-1--ot-003940c0.png`
+
+**Ảnh 15 — Lịch sử OT**  
+![Lịch sử OT](../../screenshots/state-15-depth-1--ot-history-d33a6413.png)  
+Đường dẫn: `/ot/history` · Tệp: `state-15-depth-1--ot-history-d33a6413.png`
+
+**Ảnh 17 — Yêu cầu OT từ nhân viên**  
+![Yêu cầu OT từ nhân viên](../../screenshots/state-17-depth-1--ot-supervisor-requests-4ae53c61.png)  
+Đường dẫn: `/ot/supervisor-requests` · Tệp: `state-17-depth-1--ot-supervisor-requests-4ae53c61.png`
+
+**Ảnh 18 — Tổng quan**  
+![Tổng quan](../../screenshots/state-18-depth-1--trip-fcd38afb.png)  
+Đường dẫn: `/trip` · Tệp: `state-18-depth-1--trip-fcd38afb.png`
+
+**Ảnh 19 — Lịch sử công tác**  
+![Lịch sử công tác](../../screenshots/state-19-depth-1--trip-history-8a0cb941.png)  
+Đường dẫn: `/trip/history` · Tệp: `state-19-depth-1--trip-history-8a0cb941.png`
+
+**Ảnh 36 — Trạng thái phòng ban**  
+![Trạng thái phòng ban](../../screenshots/state-36-depth-1--leave-department-status-d9fb7004.png)  
+Đường dẫn: `/leave/department-status` · Tệp: `state-36-depth-1--leave-department-status-d9fb7004.png`
+
+**Ảnh 40 — Hạn mức OT**  
+![Hạn mức OT](../../screenshots/state-40-depth-1--admin-ot-limit-rules-8f27179d.png)  
+Đường dẫn: `/admin/ot-limit-rules` · Tệp: `state-40-depth-1--admin-ot-limit-rules-8f27179d.png`
+
+**Ảnh 41 — Bảng công tính lương**  
+![Bảng công tính lương](../../screenshots/state-41-depth-1--payroll-table-3ebfa058.png)  
+Đường dẫn: `/payroll/table` · Tệp: `state-41-depth-1--payroll-table-3ebfa058.png`
+
+**Ảnh 42 — Trung tâm báo cáo**  
+![Trung tâm báo cáo](../../screenshots/state-42-depth-1--reports-2484c266.png)  
+Đường dẫn: `/reports` · Tệp: `state-42-depth-1--reports-2484c266.png`
+
+**Ảnh 43 — Nghỉ phép**  
+![Nghỉ phép](../../screenshots/state-43-depth-1--report-leave-23bbe355.png)  
+Đường dẫn: `/report/leave` · Tệp: `state-43-depth-1--report-leave-23bbe355.png`
+
+**Ảnh 44 — OT**  
+![OT](../../screenshots/state-44-depth-1--report-ot-b6ce71f3.png)  
+Đường dẫn: `/report/ot` · Tệp: `state-44-depth-1--report-ot-b6ce71f3.png`
+
+**Ảnh 45 — Công tác**  
+![Công tác](../../screenshots/state-45-depth-1--report-operations-5d00a7c9.png)  
+Đường dẫn: `/report/operations` · Tệp: `state-45-depth-1--report-operations-5d00a7c9.png`
+
+**Ảnh 46 — Thiết bị**  
+![Thiết bị](../../screenshots/state-46-depth-1--report-operations-4e430460.png)  
+Đường dẫn: `/report/operations` · Tệp: `state-46-depth-1--report-operations-4e430460.png`
+
+**Ảnh 47 — Chấm công**  
+![Chấm công](../../screenshots/state-47-depth-1--report-operations-1f62d69e.png)  
+Đường dẫn: `/report/operations` · Tệp: `state-47-depth-1--report-operations-1f62d69e.png`
+
+
+### Thông tin công khai và biểu mẫu
+
+**Ảnh 5 — Biểu mẫu đăng ký**  
+![Biểu mẫu đăng ký](../../screenshots/state-5-depth-1--public-forms-02074056.png)  
+Đường dẫn: `/public-forms` · Tệp: `state-5-depth-1--public-forms-02074056.png`
+
+**Ảnh 57 — THÔNG TIN**  
+![THÔNG TIN](../../screenshots/state-57-depth-2--thong-tin-cong-khai-9bdcbe3e.png)  
+Đường dẫn: `/thong-tin-cong-khai` · Tệp: `state-57-depth-2--thong-tin-cong-khai-9bdcbe3e.png`
+
+**Ảnh 60 — Open**  
+![Open](../../screenshots/state-60-depth-2--admin-public-information-19432fd5.png)  
+Đường dẫn: `/admin/public-information` · Tệp: `state-60-depth-2--admin-public-information-19432fd5.png`
+
+**Ảnh 61 — Open**  
+![Open](../../screenshots/state-61-depth-2--admin-public-information-33af45bd.png)  
+Đường dẫn: `/admin/public-information` · Tệp: `state-61-depth-2--admin-public-information-33af45bd.png`
+
+**Ảnh 62 — ARCHIVE**  
+![ARCHIVE](../../screenshots/state-62-depth-2--admin-public-information-f9f859e0.png)  
+Đường dẫn: `/admin/public-information` · Tệp: `state-62-depth-2--admin-public-information-f9f859e0.png`
+
+**Ảnh 63 — Open**  
+![Open](../../screenshots/state-63-depth-2--admin-public-forms-a7bf0c6f.png)  
+Đường dẫn: `/admin/public-forms` · Tệp: `state-63-depth-2--admin-public-forms-a7bf0c6f.png`
+
+**Ảnh 64 — Open**  
+![Open](../../screenshots/state-64-depth-2--admin-public-forms-submissions-6a5496b7.png)  
+Đường dẫn: `/admin/public-forms/submissions` · Tệp: `state-64-depth-2--admin-public-forms-submissions-6a5496b7.png`
+
+
+### Phê duyệt và bảo mật
+
+**Ảnh 49 — Security Center**  
+![Security Center](../../screenshots/state-49-depth-1--admin-security-4bd4f3a4.png)  
+Đường dẫn: `/admin/security` · Tệp: `state-49-depth-1--admin-security-4bd4f3a4.png`
+
+**Ảnh 51 — Đăng ký chức năng hệ thống**  
+![Đăng ký chức năng hệ thống](../../screenshots/state-51-depth-1--admin-security-function-registry-9dac5b62.png)  
+Đường dẫn: `/admin/security/function-registry` · Tệp: `state-51-depth-1--admin-security-function-registry-9dac5b62.png`
+
+**Ảnh 65 — LẬP PHIẾU**  
+![LẬP PHIẾU](../../screenshots/state-65-depth-2--security-access-change-f723bc77.png)  
+Đường dẫn: `/security/access-change` · Tệp: `state-65-depth-2--security-access-change-f723bc77.png`
+
+**Ảnh 66 — PHIẾU CỦA TÔI**  
+![PHIẾU CỦA TÔI](../../screenshots/state-66-depth-2--security-access-change-4fc829a1.png)  
+Đường dẫn: `/security/access-change` · Tệp: `state-66-depth-2--security-access-change-4fc829a1.png`
+
+**Ảnh 67 — CHỜ TÔI DUYỆT**  
+![CHỜ TÔI DUYỆT](../../screenshots/state-67-depth-2--security-access-change-709debda.png)  
+Đường dẫn: `/security/access-change` · Tệp: `state-67-depth-2--security-access-change-709debda.png`
+
+**Ảnh 68 — IT XỬ LÝ**  
+![IT XỬ LÝ](../../screenshots/state-68-depth-2--security-access-change-52a5dacb.png)  
+Đường dẫn: `/security/access-change` · Tệp: `state-68-depth-2--security-access-change-52a5dacb.png`
+
+**Ảnh 69 — LÀM MỚI**  
+![LÀM MỚI](../../screenshots/state-69-depth-2--approvals-d9cb0bc0.png)  
+Đường dẫn: `/approvals` · Tệp: `state-69-depth-2--approvals-d9cb0bc0.png`
+
+
+### Quản trị và cấu hình hệ thống
+
+**Ảnh 26 — Nhân viên**  
+![Nhân viên](../../screenshots/state-26-depth-1--admin-employees-8b7744d7.png)  
+Đường dẫn: `/admin/employees` · Tệp: `state-26-depth-1--admin-employees-8b7744d7.png`
+
+**Ảnh 31 — Conflict HRM**  
+![Conflict HRM](../../screenshots/state-31-depth-1--admin-hrm-sync-review-e146b0c0.png)  
+Đường dẫn: `/admin/hrm-sync-review` · Tệp: `state-31-depth-1--admin-hrm-sync-review-e146b0c0.png`
+
+**Ảnh 48 — Quản trị viên**  
+![Quản trị viên](../../screenshots/state-48-depth-1--admin-managers-3c076b93.png)  
+Đường dẫn: `/admin/managers` · Tệp: `state-48-depth-1--admin-managers-3c076b93.png`
+
+**Ảnh 50 — Thiết bị & phiên đăng nhập**  
+![Thiết bị & phiên đăng nhập](../../screenshots/state-50-depth-1--admin-sessions-0ff96757.png)  
+Đường dẫn: `/admin/sessions` · Tệp: `state-50-depth-1--admin-sessions-0ff96757.png`
+
+**Ảnh 52 — Email mẫu**  
+![Email mẫu](../../screenshots/state-52-depth-1--admin-email-templates-46ef5414.png)  
+Đường dẫn: `/admin/email-templates` · Tệp: `state-52-depth-1--admin-email-templates-46ef5414.png`
+
+**Ảnh 53 — Cấu hình SMTP**  
+![Cấu hình SMTP](../../screenshots/state-53-depth-1--admin-email-profiles-b30b6e68.png)  
+Đường dẫn: `/admin/email-profiles` · Tệp: `state-53-depth-1--admin-email-profiles-b30b6e68.png`
+
+**Ảnh 54 — Quản trị ngôn ngữ**  
+![Quản trị ngôn ngữ](../../screenshots/state-54-depth-1--admin-localization-abe59762.png)  
+Đường dẫn: `/admin/localization` · Tệp: `state-54-depth-1--admin-localization-abe59762.png`
+
+**Ảnh 55 — Email chờ gửi**  
+![Email chờ gửi](../../screenshots/state-55-depth-1--admin-email-queue-1824bb90.png)  
+Đường dẫn: `/admin/email-queue` · Tệp: `state-55-depth-1--admin-email-queue-1824bb90.png`
+
+
+### Ảnh chưa đưa vào hướng dẫn
+
+Manifest hiện đánh dấu 9 ảnh là `ready=false`; các ảnh này không được nhúng như ảnh hướng dẫn chính thức để tránh minh họa trạng thái chưa xác nhận. Khi chụp lại hoặc xác nhận được trạng thái, có thể bổ sung sau.
