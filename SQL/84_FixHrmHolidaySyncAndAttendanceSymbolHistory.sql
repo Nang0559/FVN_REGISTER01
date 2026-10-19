@@ -95,10 +95,10 @@ BEGIN
             t.LNLMauSac,
             DLocked = ISNULL(t.DLocked, 0),
             GuessDayType = CASE
-                /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
+                /* 0001=Normal (không phải ngày nghỉ lịch); 0002=Sunday/company rest; 0003=National holiday. */
                 WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0003' THEN N'NATIONAL_HOLIDAY' -- HRM 003: Nghỉ lễ
                 WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0002' THEN N'SUNDAY' -- HRM 002: Nghỉ Chủ nhật
-                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'COMPANY_HOLIDAY' -- HRM 001: Nghỉ công ty T2-T7
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'NORMAL' -- HRM 001: Ngày nghỉ thường, không dùng làm ngày nghỉ trên lịch
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
@@ -133,7 +133,7 @@ BEGIN
                 /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
                 WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0003' THEN N'NATIONAL_HOLIDAY' -- HRM 003: Nghỉ lễ
                 WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0002' THEN N'SUNDAY' -- HRM 002: Nghỉ Chủ nhật
-                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'COMPANY_HOLIDAY' -- HRM 001: Nghỉ công ty T2-T7
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'NORMAL' -- HRM 001: Ngày nghỉ thường, không dùng làm ngày nghỉ trên lịch
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
