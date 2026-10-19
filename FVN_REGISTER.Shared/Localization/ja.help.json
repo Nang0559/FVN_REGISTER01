@@ -69,6 +69,12 @@
   "help.PUBLIC_INFORMATION_CMS.steps": "下書きを作成する。|内容と有効期間を入力する。|Preview する。|Publish する。|終了時に Archive する。",
   "help.PUBLIC_INFORMATION_CMS.summary": "通知、規定、ガイド、ポリシーを Draft → Published → Archived で管理します。",
   "help.PUBLIC_INFORMATION_CMS.title": "公開情報 CMS",
+  "help.REPORTS.example": "Leave.View があってもレポート出力権限があるとは限りません。export には独立した capability が必要です。",
+  "help.REPORTS.flow": "REPORT CENTER → VIEW CAPABILITY → DATA SCOPE → QUERY → TABLE/CHART → OPTIONAL EXCEL",
+  "help.REPORTS.security": "ReportDispatcher が View/Export capability を検証し、service は Own/Department/All を適用します。SQL view は read model であり、権限を付与しません。",
+  "help.REPORTS.steps": "レポートセンターを開く。|許可された業務グループを選択する。|期間とフィルターを選択する。|表またはグラフを確認する。|対応する Export 権限がある場合のみ Excel 出力する。",
+  "help.REPORTS.summary": "付与された capability とデータ範囲に従って Leave、OT、Trip、Equipment、Attendance を検索します。",
+  "help.REPORTS.title": "レポート",
   "help.security": "権限とデータ",
   "help.SECURITY_CENTER.example": "LeaveApprove + Department は部署範囲での承認を許可しますが、全社データ閲覧を意味しません。",
   "help.SECURITY_CENTER.flow": "USER → ROLE → FUNCTION/ACTION → SCOPE → AUDIT",
@@ -83,5 +89,11 @@
   "help.TRIP.security": "TripCreate/TripEdit/TripApprove は独立した capability です。",
   "help.TRIP.steps": "計画を作成する。|参加者と部署を確認する。|Submit する。|Approval Inbox を確認する。",
   "help.TRIP.summary": "Workflow と scope に従って出張を管理します。",
-  "help.TRIP.title": "出張"
+  "help.TRIP.title": "出張",
+  "help.WORK_CALENDAR.example": "会社休日が表示されても、すべての業務が自動的に禁止されるわけではありません。各 module の validator が判定します。",
+  "help.WORK_CALENDAR.flow": "COMPANY CALENDAR → WORK CALENDAR → LEAVE / OT / TRIP → MODULE VALIDATOR",
+  "help.WORK_CALENDAR.security": "Calendar API は許可された範囲のデータのみ返します。カレンダー閲覧権限は作成・編集・取消・承認権限を付与しません。",
+  "help.WORK_CALENDAR.steps": "Leave、OT、Trip からカレンダーを開く。|フィルターでイベント種別を選択する。|日付を選択して開いているフォームに反映する。|イベントを開いて詳細を確認する。|競合警告がある場合は保存/送信前にサーバー validator の判断を待つ。",
+  "help.WORK_CALENDAR.summary": "許可された範囲で会社カレンダー、休暇、OT、出張、勤怠データを統合して表示します。",
+  "help.WORK_CALENDAR.title": "勤務カレンダー"
 }
