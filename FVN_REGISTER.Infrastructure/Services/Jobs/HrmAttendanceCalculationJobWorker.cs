@@ -64,7 +64,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE dbo.F03HrmAttendanceCalculationJob
             SET Status=CASE WHEN CancelRequestedAt IS NULL THEN N'Running' ELSE N'CancelRequested' END,
-                StartedAt=COALESCE(StartedAt,SYSUTCDATETIME()),LastProgressAt=COALESCE(LastProgressAt,SYSUTCDATETIME()),UpdatedAt=SYSUTCDATETIME()
+                StartedAt=COALESCE(StartedAt,SYSUTCDATETIME()),LastProgressAt=SYSUTCDATETIME(),UpdatedAt=SYSUTCDATETIME()
             WHERE JobId={job.JobId}
             """,CancellationToken.None);
 
