@@ -73,3 +73,6 @@ Kỳ hiện hành theo thiết kế là **ngày 21 → ngày 20**. Payroll input
 
 ## 21. Khi báo lỗi cần gửi gì?
 Module, thời điểm, thao tác, mã request nếu có và ảnh màn hình. Không gửi password, access token hoặc secret.
+
+## 22. Vì sao ngày thường có giờ công nhưng lịch không được tô màu?
+Đó là hành vi đúng. `NORMAL` là ngày làm việc bình thường; dữ liệu chấm công chỉ cung cấp ca, giờ vào/ra, giờ công và ký hiệu, không quyết định màu nền. Màu `LightYellow` chỉ dùng cho ngày `COMPANY_HOLIDAY` từ HRM `LNLMa=0002` trên thứ Hai–thứ Bảy; Chủ nhật dùng `Navy`; ngày lễ `NATIONAL_HOLIDAY` giữ màu HRM. Nếu ngày `NORMAL` bị tô màu, cần kiểm tra DayType/đồng bộ HRM, không phải bản thân dữ liệu công.
