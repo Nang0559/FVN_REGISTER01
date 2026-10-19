@@ -107,6 +107,21 @@ BEGIN
             END
         FROM HRM.dbo.DM_Loainghile AS t
     )
+    /* Keep the type constraint aligned with the canonical HRM mapping before
+       applying 0001= NORMAL, 0002=SUNDAY, 0003=NATIONAL_HOLIDAY.
+       Include legacy DayTypes during transition so existing records remain valid. */
+    IF EXISTS (SELECT 1 FROM sys.check_constraints
+               WHERE name = N'CK_F03HrmHolidayTypes_DayType'
+                 AND parent_object_id = OBJECT_ID(N'dbo.F03HrmHolidayTypes'))
+        ALTER TABLE dbo.F03HrmHolidayTypes DROP CONSTRAINT CK_F03HrmHolidayTypes_DayType;
+
+    ALTER TABLE dbo.F03HrmHolidayTypes WITH CHECK
+        ADD CONSTRAINT CK_F03HrmHolidayTypes_DayType
+        CHECK (DayType IN
+            (N'NORMAL', N'COMPANY_SATURDAY', N'SUNDAY',
+             N'COMPANY_HOLIDAY', N'NATIONAL_HOLIDAY', N'OTHER',
+             N'COMPENSATORY'));
+
     UPDATE d
        SET d.LNLTen = s.LNLTen,
            d.LNLLoai = s.LNLLoai,
