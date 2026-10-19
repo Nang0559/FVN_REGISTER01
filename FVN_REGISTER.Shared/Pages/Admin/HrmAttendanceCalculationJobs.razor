@@ -72,7 +72,7 @@
                 @if (!string.IsNullOrWhiteSpace(context.EmployeeCode)) { <div>NV: @context.EmployeeCode</div> }
                 <MudText Typo="Typo.caption">@context.FromDate.ToString("dd/MM/yyyy") → @context.ToDate.ToString("dd/MM/yyyy")</MudText>
             </MudTd>
-            <MudTd><MudChip Color="@StatusColor(context)" Size="Size.Small">@context.DisplayStatus</MudChip></MudTd>
+            <MudTd><MudChip T="string" Color="@StatusColor(context)" Size="Size.Small">@context.DisplayStatus</MudChip></MudTd>
             <MudTd>
                 <MudProgressLinear Value="@Progress(context)" Size="Size.Small" />
                 <MudText Typo="Typo.caption">@context.CompletedDateCount / @context.TotalDateCount ngày</MudText>
@@ -172,14 +172,14 @@
     private async Task ForceTerminateAsync(HrmAttendanceCalculationJobDto job)
     {
         if (_client is null) return;
-        var confirmed = await DialogService.ShowMessageBox("Xác nhận Force terminate", $"Kết thúc SQL session {job.SqlSessionId}. Chỉ dùng khi SQL thực sự treo/block lâu. Sau đó Resume để chạy phần còn thiếu?", yesText: "Force terminate", cancelText: "Hủy") ?? false;
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Xác nhận Force terminate?\n\nKết thúc SQL session {job.SqlSessionId}. Chỉ dùng khi SQL thực sự treo/block lâu. Sau đó Resume để chạy phần còn thiếu.");
         if (!confirmed) return;
         var response = await _client.ForceTerminateAsync(job.JobId, _disposeCts.Token);
         Snackbar.Add(response.IsSuccess ? "Đã gửi Force terminate. Theo dõi trạng thái rollback/stopped trên màn hình." : response.Message ?? "Không thể Force terminate.", response.IsSuccess ? Severity.Success : Severity.Error);
         await LoadAsync();
     }
 
-    [Inject] public IDialogService DialogService { get; set; } = default!;
+    [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
 
     private static bool CanCancel(HrmAttendanceCalculationJobDto x) => x.Status is "Queued" or "Running" or "CancelRequested";
     private static bool CanResume(HrmAttendanceCalculationJobDto x) => x.Status is "Cancelled" or "Failed" or "Stalled" or "Terminated";
