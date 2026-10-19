@@ -129,6 +129,7 @@ BEGIN
            d.LNLMauSac = s.LNLMauSac,
            d.DLocked = s.DLocked,
            d.SyncedAt = SYSUTCDATETIME(),
+           d.DayTypeIsManual = CASE WHEN s.LNLMa IN ('0001', '0002', '0003') THEN 0 ELSE d.DayTypeIsManual END,
            d.DayType = CASE
                WHEN s.LNLMa = '0001' THEN N'NORMAL'
                WHEN s.LNLMa = '0002' THEN N'SUNDAY'
