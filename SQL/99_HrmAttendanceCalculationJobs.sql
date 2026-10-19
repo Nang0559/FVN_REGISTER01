@@ -36,6 +36,14 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationJob', N'SkipCoveredDates') IS NULL
+BEGIN
+    ALTER TABLE dbo.F03HrmAttendanceCalculationJob
+        ADD SkipCoveredDates bit NOT NULL
+            CONSTRAINT DF_F03HrmAttendanceCalculationJob_SkipCoveredDates DEFAULT(0) WITH VALUES;
+END;
+GO
+
 IF NOT EXISTS
 (
     SELECT 1 FROM sys.indexes
