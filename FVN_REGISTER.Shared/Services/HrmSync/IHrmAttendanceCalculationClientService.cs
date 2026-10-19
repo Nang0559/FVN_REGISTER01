@@ -7,4 +7,6 @@ public interface IHrmAttendanceCalculationClientService
  Task<ApiResponse<HrmAttendanceCalculationResultDto>> ForceRecalculateSelfAsync(HrmAttendanceCalculationRequestDto request,CancellationToken ct=default);
  Task<ApiResponse<byte[]>> ExportAttendanceAsync(Guid batchId,CancellationToken ct=default);
  Task<ApiResponse<byte[]>> ExportOtAsync(Guid batchId,CancellationToken ct=default);
+ Task<ApiResponse<byte[]>> ExportAttendanceByJobAsync(Guid jobId,CancellationToken ct=default);
+ Task<ApiResponse<byte[]>> ExportOtByJobAsync(Guid jobId,CancellationToken ct=default);
 }
