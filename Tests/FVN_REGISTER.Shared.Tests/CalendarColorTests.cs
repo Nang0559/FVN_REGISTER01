@@ -38,7 +38,8 @@ public sealed class CalendarColorTests
         Assert.Null(CalendarColor.ContrastText(null));
     }
 
-    // 3 loại nghỉ HRM hiện tại: NT=OrangeRed, CT=Red, L=Crimson -> cả ba đều nền đậm, chữ phải trắng và đồng nhất.
+    // Kiểm tra tương phản màu HRM độc lập với DayType. NT/0001 có thể còn màu trong danh mục nguồn,
+    // nhưng DayType=NORMAL không được áp màu đó lên nền lịch (được kiểm tra riêng bên dưới).
     [Theory]
     [InlineData("OrangeRed")]
     [InlineData("Red")]
