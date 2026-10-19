@@ -133,7 +133,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                 if(done.Contains(dateOnly))
                 {
                     await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);
-                    if(await YieldForQueuedJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
+                    if(await YieldToHigherPriorityJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
                     continue;
                 }
                 if(covered.Contains(dateOnly))
