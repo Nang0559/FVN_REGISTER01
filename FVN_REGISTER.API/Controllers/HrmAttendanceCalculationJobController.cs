@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
 using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
@@ -18,11 +19,11 @@ namespace FVN_REGISTER.API.Controllers;
 [Route("api/hrm-attendance-calculation/jobs")]
 public sealed class HrmAttendanceCalculationJobController : BaseApiController
 {
-    private readonly HrmAttendanceCalculationJobService _jobs;
+    private readonly IHrmAttendanceCalculationJobService _jobs;
     private readonly IAuthorizationService _authorization;
     private readonly FVNWEBAPPContext _db;
 
-    public HrmAttendanceCalculationJobController(HrmAttendanceCalculationJobService jobs,IAuthorizationService authorization,FVN_REGISTER.Application.Interfaces.Users.ICurrentUserService currentUser,FVN_REGISTER.Application.Interfaces.Users.IUserLogService userLog,ILogger<HrmAttendanceCalculationJobController> logger,Microsoft.Extensions.Options.IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options,FVNWEBAPPContext db)
+    public HrmAttendanceCalculationJobController(IHrmAttendanceCalculationJobService jobs,IAuthorizationService authorization,FVN_REGISTER.Application.Interfaces.Users.ICurrentUserService currentUser,FVN_REGISTER.Application.Interfaces.Users.IUserLogService userLog,ILogger<HrmAttendanceCalculationJobController> logger,Microsoft.Extensions.Options.IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options,FVNWEBAPPContext db)
         :base(currentUser,userLog,logger,options){_jobs=jobs;_authorization=authorization;_db=db;}
 
     [HttpGet]
