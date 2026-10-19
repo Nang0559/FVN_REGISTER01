@@ -77,20 +77,41 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                 """).ToListAsync(ct);
             var done=doneDates.ToHashSet();
             var covered=new HashSet<DateOnly>();
-            if(job.SkipCoveredDates && !string.IsNullOrWhiteSpace(job.EmployeeCode))
+            if(job.SkipCoveredDates)
             {
-                var coveredRuns=await db.Database.SqlQuery<CoverageRun>($"""
-                    SELECT r.FromDate,r.ToDate
-                    FROM dbo.F03HrmAttendanceCalculationRun r
-                    WHERE r.Status=N'Succeeded'
-                      AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
-                      AND r.FromDate<={DateOnly.FromDateTime(job.ToDate)}
-                      AND r.ToDate>={DateOnly.FromDateTime(job.FromDate)}
-                      AND (
-                           r.EmployeeCode={job.EmployeeCode}
-                           OR (r.EmployeeCode IS NULL AND (r.DeptCode IS NULL OR r.DeptCode={job.DeptCode}))
-                      )
-                    """).ToListAsync(ct);
+                var coveredRuns = job.EmployeeCode is not null
+                    ? await db.Database.SqlQuery<CoverageRun>($"""
+                        SELECT r.FromDate,r.ToDate
+                        FROM dbo.F03HrmAttendanceCalculationRun r
+                        WHERE r.Status=N'Succeeded'
+                          AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
+                          AND r.FromDate<={DateOnly.FromDateTime(job.ToDate)}
+                          AND r.ToDate>={DateOnly.FromDateTime(job.FromDate)}
+                          AND (
+                               r.EmployeeCode={job.EmployeeCode}
+                               OR (r.EmployeeCode IS NULL AND (r.DeptCode IS NULL OR r.DeptCode={job.DeptCode}))
+                          )
+                        """).ToListAsync(ct)
+                    : job.DeptCode is null
+                        ? await db.Database.SqlQuery<CoverageRun>($"""
+                            SELECT r.FromDate,r.ToDate
+                            FROM dbo.F03HrmAttendanceCalculationRun r
+                            WHERE r.Status=N'Succeeded'
+                              AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
+                              AND r.EmployeeCode IS NULL AND r.DeptCode IS NULL
+                              AND r.FromDate<={DateOnly.FromDateTime(job.ToDate)}
+                              AND r.ToDate>={DateOnly.FromDateTime(job.FromDate)}
+                            """).ToListAsync(ct)
+                        : await db.Database.SqlQuery<CoverageRun>($"""
+                            SELECT r.FromDate,r.ToDate
+                            FROM dbo.F03HrmAttendanceCalculationRun r
+                            WHERE r.Status=N'Succeeded'
+                              AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
+                              AND r.EmployeeCode IS NULL
+                              AND (r.DeptCode IS NULL OR r.DeptCode={job.DeptCode})
+                              AND r.FromDate<={DateOnly.FromDateTime(job.ToDate)}
+                              AND r.ToDate>={DateOnly.FromDateTime(job.FromDate)}
+                            """).ToListAsync(ct);
                 foreach(var run in coveredRuns)
                 {
                     var first=run.FromDate<DateOnly.FromDateTime(job.FromDate)?DateOnly.FromDateTime(job.FromDate):run.FromDate;
