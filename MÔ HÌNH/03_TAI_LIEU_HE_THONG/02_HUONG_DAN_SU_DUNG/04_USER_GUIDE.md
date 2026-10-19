@@ -769,7 +769,7 @@ Giúp Admin/IT kiểm tra các công việc nền như đồng bộ HRM, cập n
 
 ---
 
-## 8. Báo cáo và tra cứu số liệu
+## 8. Nghiệp vụ, chấm công và báo cáo
 
 ### 8.1. Xem báo cáo theo quyền được cấp
 
