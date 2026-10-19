@@ -91,7 +91,6 @@ Menu truy cập: **Nghỉ phép** ➔ **Tạo đơn mới** (`/leave/create`).
 #### A. Các bước tạo đơn đăng ký Tăng ca (OT)
 Menu truy cập: **Làm thêm giờ (OT)** ➔ **Đăng ký OT** (`/ot/create`).
 
-![Màn hình Tạo đơn Tăng ca](../../screenshots/state-16-depth-1--ot-create-170daec2.png)
 
 1. **Thông tin đơn:**
    * Chọn **Ngày OT**, **Giờ bắt đầu** và **Giờ kết thúc** dự kiến.
@@ -106,7 +105,7 @@ Menu truy cập: **Làm thêm giờ (OT)** ➔ **Đăng ký OT** (`/ot/create`).
 #### B. Tra cứu danh sách đơn OT toàn hệ thống
 Menu truy cập: **Quản lý OT** ➔ **Danh sách đơn OT** (`/ot/list`).
 
-![Danh sách đơn tăng ca](../../screenshots/state-35-depth-1--ot-list-15dcf220.png)
+![Danh sách đơn tăng ca](../../screenshots/state-39-depth-1--ot-list-b1fc7114.png)
 
 * Sử dụng bộ lọc **Từ ngày - Đến ngày**, **Trạng thái** (`Pending`, `Approved`, `Rejected`) và ô tìm kiếm từ khóa để rà soát các đơn tăng ca đã phát sinh trong bộ phận.
 
@@ -116,7 +115,7 @@ Menu truy cập: **Quản lý OT** ➔ **Danh sách đơn OT** (`/ot/list`).
 
 Menu truy cập: **Công tác** ➔ **Đăng ký công tác** (`/trip/create`).
 
-![Màn hình Đăng ký công tác](../../screenshots/state-19-depth-1--trip-create-a99d7672.png)
+![Màn hình Đăng ký công tác](../../screenshots/state-20-depth-1--trip-create-b0a46d6e.png)
 
 **Các bước thực hiện:**
 1. Nhập **Ngày bắt đầu** và **Ngày kết thúc** chuyến công tác.
@@ -158,7 +157,6 @@ Phân hệ Thiết bị cho phép các phòng ban (IT, GA, QA, Sản xuất) qu�
 ### 4.1. Sổ quản lý thiết bị toàn hệ thống
 Menu truy cập: **Thiết bị** ➔ **Sổ quản lý thiết bị** (`/equipment`).
 
-![Sổ quản lý thiết bị](../../screenshots/state-22-depth-1--equipment-fa009aa5.png)
 
 **Các thao tác nghiệp vụ:**
 * Theo dõi toàn bộ danh sách máy móc, thiết bị, người đang giữ, phòng ban quản lý và trạng thái hoạt động.
@@ -171,7 +169,7 @@ Menu truy cập: **Thiết bị** ➔ **Import Excel thiết bị** (`/equipment
 
 Để tránh việc tải file Excel bị lỗi làm hỏng dữ liệu gốc, hệ thống cung cấp cơ chế kiểm duyệt qua vùng đệm (Staging):
 
-![Màn hình Nhập dữ liệu thiết bị từ Excel](../../screenshots/state-23-depth-1--equipment-workspace-ef05e87b.png)
+![Màn hình Nhập dữ liệu thiết bị từ Excel](../../screenshots/state-24-depth-1--equipment-workspace-656cb5f6.png)
 
 **Quy trình 4 bước Import chuẩn:**
 1. **Chọn phòng ban & Mẫu dữ liệu:** Tại mục `1. Chọn phòng ban và mẫu dữ liệu`, chọn đúng bộ phận của bạn (Ví dụ: *13 - General Affairs*) và chọn phiên bản mẫu thiết bị tương ứng.
@@ -249,7 +247,7 @@ Dành cho bộ phận IT kiểm soát an toàn thông tin và tính tuân thủ 
 #### A. Thiết lập Danh mục Phần mềm/Dịch vụ chuẩn (Allowlist Catalog)
 Menu truy cập: **Endpoint Governance** ➔ **Danh mục phần mềm / dịch vụ** (`/endpoint-governance`).
 
-![Màn hình Endpoint Governance Catalog](../../screenshots/state-20-depth-1--endpoint-governance-a425f265.png)
+![Màn hình Endpoint Governance Catalog](../../screenshots/state-21-depth-1--endpoint-governance-6b3b51a9.png)
 
 1. Khai báo các phần mềm hoặc dịch vụ được phép cài đặt (`Allowed`), nhà phát hành (`Publisher`) và ràng buộc phiên bản (`Version constraint`).
 2. Tích chọn đầy đủ 6 mục trong **Checklist trước khi đưa catalog vào Common Approval** (đảm bảo đã rà soát nghiệp vụ và chuẩn hóa tên).
@@ -258,7 +256,7 @@ Menu truy cập: **Endpoint Governance** ➔ **Danh mục phần mềm / dịch 
 #### B. Giám sát Kiểm kê Endpoint (Inventory)
 Menu truy cập: **Endpoint Governance** ➔ **Danh mục Endpoint** (`/endpoint-inventory`).
 
-![Màn hình Danh mục Endpoint](../../screenshots/state-21-depth-1--endpoint-inventory-4a39bb5d.png)
+![Màn hình Danh mục Endpoint](../../screenshots/state-22-depth-1--endpoint-inventory-00116dfc.png)
 
 * Theo dõi trạng thái kết nối (`Online`/`Offline`) của các máy tính có cài đặt Endpoint Agent, số lượng phần mềm đang chạy, tình trạng Antivirus và đối chiếu mức độ tuân thủ theo Catalog đã ban hành.
 
@@ -271,23 +269,20 @@ Phần này hướng dẫn Quản trị viên cấu hình các quy tắc vận h
 ### 7.1. Quản lý Dữ liệu gốc (Master Data) & Phân quyền tự động
 
 * **Quản lý Bộ phận (`/admin/departments`) & Nhân viên (`/admin/employees`):** Tra cứu cơ cấu tổ chức và hồ sơ nhân sự được đồng bộ từ HRM.
-  ![Quản lý Bộ phận](../../screenshots/state-24-depth-1--admin-departments-4a539b41.png)
+  ![Quản lý Bộ phận](../../screenshots/state-25-depth-1--admin-departments-94af9429.png)
 * **Quản lý Hình thức nghỉ (`/admin/leave-types`):** Định nghĩa các mã nghỉ phép (`AL`, `SL`, `UL`...), cấu hình loại nghỉ có trừ phép năm hay không và ánh xạ với mã chấm công HRM.
-  ![Quản lý Hình thức nghỉ phép](../../screenshots/state-27-depth-1--admin-leave-types-bc4273c5.png)
 * **Mapping Role HRM ➔ F03User (`/admin/hrm-role-rules`):** Thiết lập luật gán quyền tự động. Ví dụ: Cấu hình hễ nhân sự thuộc phòng *57 - IT* có chức vụ *Sub-Leader* thì tự động gán quyền *Approver*; nhân sự phòng *13 - General Affairs* chức vụ *Manager* thì gán quyền *Admin*.
-  ![Mapping Role HRM sang User](../../screenshots/state-29-depth-1--admin-hrm-role-rules-0c532829.png)
+  ![Mapping Role HRM sang User](../../screenshots/state-32-depth-1--admin-hrm-role-rules-731fb3d4.png)
 
 ---
 
 ### 7.2. Cấu hình Ma trận & Chính sách Phê duyệt (Approval Engine)
 
 #### A. Quản lý Người phê duyệt (`/admin/approvers`)
-![Quản lý Người phê duyệt](../../screenshots/state-26-depth-1--admin-approvers-dda756c3.png)
 
 * Hệ thống tự động đọc cơ cấu HRM để đề xuất danh sách người duyệt mới hoặc thay đổi cấp duyệt. Admin chỉ cần bấm **`ÁP DỤNG HRM`** để cập nhật hàng loạt, hoặc thêm/sửa từng người duyệt theo từng phòng ban, từng loại đơn (`Leave`, `Overtime`, `Trip`, `Equipment`) và cấp duyệt (`Cấp 1`, `Cấp 2`, `Cấp 3`).
 
 #### B. Thiết lập Chính sách Phê duyệt (`/admin/approval-policies`)
-![Cấu hình Approval Policy](../../screenshots/state-30-depth-1--admin-approval-policies-d58cb2c8.png)
 
 * Định nghĩa một đơn từ của một **Phòng ban** và **Chức vụ người yêu cầu** cụ thể sẽ phải đi qua mấy cấp duyệt, cấp nào là bắt buộc. 
 * Hệ thống áp dụng nguyên tắc **Snapshot Invariant**: Khi nhân viên vừa bấm gửi đơn, lộ trình duyệt sẽ được đóng băng theo đúng Policy tại giây phút đó, việc thay đổi Policy sau này không làm gãy các đơn cũ đang chạy.
@@ -297,16 +292,15 @@ Phần này hướng dẫn Quản trị viên cấu hình các quy tắc vận h
 ### 7.3. Cấu hình Chính sách Đối soát & Tính công HRM
 
 #### A. Chính sách xử lý đối soát công (`/admin/execution-policies`)
-![Chính sách xử lý đối soát công](../../screenshots/state-31-depth-1--admin-execution-policies-53f8c12f.png)
 
 * Thiết lập thời gian giới hạn (**SLA**) cho từng phân hệ (`ATTENDANCE`, `LEAVE`, `OT`, `TRIP`): Quy định nhân viên có bao nhiêu giờ để phản hồi giải trình (VD: `48 giờ`), HR có bao nhiêu giờ để xử lý, cho phép khiếu nại tối đa mấy vòng và cách thức chốt công khi đến ngày khóa sổ lương (`Payroll cutoff`).
 
 #### B. Rule ký hiệu chấm công (`/admin/attendance-symbol-rules`) & Tính giờ HRM (`/hrm/attendance-calculation`)
-![Rule ký hiệu chấm công](../../screenshots/state-32-depth-1--admin-attendance-symbol-rules-963427d3.png)
+![Rule ký hiệu chấm công](../../screenshots/state-35-depth-1--admin-attendance-symbol-rules-e1b4aa6b.png)
 
 * **Rule ký hiệu chấm công:** Định nghĩa cách hệ thống phiên dịch từ `Loại ngày` + `Ca làm việc` + `Giờ In/Out` sang các ký hiệu hiển thị trên Lịch cá nhân (Ví dụ: `C1`, `HC`, `K(hours)`). Có sẵn công cụ **Test Rule** ở cuối trang để Admin nhập thử giờ vào/ra và bấm **`TÍNH THỬ`** kiểm tra kết quả ngay lập tức.
 
-![Tính giờ theo HRM](../../screenshots/state-34-depth-1--hrm-attendance-calculation-3b261f97.png)
+![Tính giờ theo HRM](../../screenshots/state-37-depth-1--hrm-attendance-calculation-8fe5444f.png)
 
 * **Tính giờ theo HRM:** Chạy batch tính toán giờ công từ dữ liệu thô của HRM và lưu vào bảng đệm của FVN Register. Hệ thống tuân thủ tuyệt đối nguyên tắc **Read-Only Boundary**: Chỉ đọc dữ liệu từ HRM để đối soát, tuyệt đối không ghi đè ngược lại làm ảnh hưởng tới phần mềm tính lương hiện hữu.
 
@@ -315,7 +309,6 @@ Phần này hướng dẫn Quản trị viên cấu hình các quy tắc vận h
 ### 7.4. Quản lý Tiến trình chạy ngầm (Background Jobs)
 Menu truy cập: **Dữ liệu** ➔ **Lịch chạy background** (`/admin/background-jobs`).
 
-![Quản lý Lịch chạy background](../../screenshots/state-28-depth-1--admin-background-jobs-57b7fb08.png)
 
 **Hướng dẫn vận hành cho Admin:**
 * Đây là bảng điều khiển toàn bộ các tác vụ tự động hóa của hệ thống: *Đồng bộ HRM*, *Gửi email trong hàng đợi*, *Leo thang phê duyệt (Escalation)*, *Sinh lịch kiểm tra thiết bị*, *Đối soát thực thi công*...
