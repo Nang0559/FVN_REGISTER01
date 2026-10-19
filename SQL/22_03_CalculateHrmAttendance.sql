@@ -40,6 +40,23 @@ BEGIN
   BCTGDKNTheogio float NULL,BCLoaiDKN varchar(10) NULL,BCDangKyLTN float NULL,BCDangKyLTD float NULL,BCTGUuDaiN int NULL,BCTGUuDaiD int NULL,
   BCNgayLe int NULL,BCNgayLeNV int NULL,BCDaXacNhanLamThem bit NULL,DLocked bit NULL
  );
+ /*
+    Freeze the employee scope once for the whole run. The DELETE and cursor
+    must operate on exactly the same employees; do not re-read HRM department
+    membership independently for every date.
+ */
+ CREATE TABLE #EmployeesToCalculate
+ (
+     HrmEmployeeId int NOT NULL PRIMARY KEY
+ );
+
+ INSERT #EmployeesToCalculate(HrmEmployeeId)
+ SELECT NV.NVMa
+ FROM HRM.dbo.tblNhanVien AS NV
+ WHERE ISNULL(NV.DLocked,0)=0
+   AND (@HrmDeptId IS NULL OR NV.NVMaBP=@HrmDeptId)
+   AND (@HrmEmployeeId IS NULL OR NV.NVMa=@HrmEmployeeId);
+
  DECLARE @LockHeld bit=0; -- chỉ release app lock khi phiên này THỰC SỰ đang giữ nó
  BEGIN TRY
  DECLARE @D date=@FromDate;
@@ -68,50 +85,28 @@ BEGIN
   SET @LockHeld=1;
 
   /*
-     Delete by the CURRENT employee scope, not by the department stored on an
-     old attendance row. An employee may have moved departments since that row
-     was calculated (e.g. HrmDeptId 7 -> current NVMaBP 27). The old row must
-     still be replaced when the employee is recalculated in the new department.
-     Keep the employee/date boundary so other departments and dates are untouched.
+     Delete by the frozen employee scope, not by the department stored on an
+     old attendance row. This replaces old rows after department transfers
+     (e.g. stored HrmDeptId 7, current department 27) without touching employees
+     outside this run or dates outside the requested range.
   */
   DELETE A
   FROM dbo.F03HrmAttendanceCalculated AS A
-  WHERE A.WorkDate=@D
-    AND (@HrmEmployeeId IS NULL OR A.HrmEmployeeId=@HrmEmployeeId)
-    AND
-    (
-        @HrmDeptId IS NULL
-        OR EXISTS
-        (
-            SELECT 1
-            FROM HRM.dbo.tblNhanVien AS NV
-            WHERE NV.NVMa=A.HrmEmployeeId
-              AND NV.NVMaBP=@HrmDeptId
-              AND ISNULL(NV.DLocked,0)=0
-        )
-    );
+  INNER JOIN #EmployeesToCalculate AS E
+      ON E.HrmEmployeeId=A.HrmEmployeeId
+  WHERE A.WorkDate=@D;
 
   -- OT actual is also current-state; clear the same employee/date scope
   -- inside the same date transaction so a failed calculation rolls it back.
-  DELETE oa
-  FROM dbo.F03HrmOTActual oa
-  WHERE oa.WorkDate=@D
-    AND
-    (
-        @HrmDeptId IS NULL
-        OR EXISTS
-        (
-            SELECT 1
-            FROM HRM.dbo.tblNhanVien nv
-            WHERE nv.NVMa=oa.HrmEmployeeId
-              AND nv.NVMaBP=@HrmDeptId
-        )
-    )
-    AND (@HrmEmployeeId IS NULL OR oa.HrmEmployeeId=@HrmEmployeeId);
+  DELETE OA
+  FROM dbo.F03HrmOTActual AS OA
+  INNER JOIN #EmployeesToCalculate AS E
+      ON E.HrmEmployeeId=OA.HrmEmployeeId
+  WHERE OA.WorkDate=@D;
 
   DECLARE @StaffID int;
   DECLARE staff_cur CURSOR LOCAL FAST_FORWARD FOR
-   SELECT NVMa FROM HRM.dbo.tblNhanVien WHERE ISNULL(DLocked,0)=0 AND (@HrmDeptId IS NULL OR NVMaBP=@HrmDeptId) AND (@HrmEmployeeId IS NULL OR NVMa=@HrmEmployeeId);
+   SELECT HrmEmployeeId FROM #EmployeesToCalculate ORDER BY HrmEmployeeId;
   OPEN staff_cur; FETCH NEXT FROM staff_cur INTO @StaffID;
   WHILE @@FETCH_STATUS=0
   BEGIN
