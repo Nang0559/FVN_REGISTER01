@@ -226,6 +226,8 @@ BEGIN
                 WHEN t.LNLMa = '0002' THEN N'COMPANY_HOLIDAY'
                 ELSE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
             END,
+            /* HolidayType=1 is the broad COMPANY bucket for both SUNDAY and COMPANY_HOLIDAY;
+               use DayType for the exact date classification. HolidayType=2 is NATIONAL. */
             HolidayType = CONVERT(tinyint, CASE
                 WHEN t.LNLMa = '0002' THEN 1
                 ELSE CASE COALESCE(t.DayType, N'NATIONAL_HOLIDAY')
