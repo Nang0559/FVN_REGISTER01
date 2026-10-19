@@ -103,7 +103,6 @@ Current SQL directory:
 :r "94_SupervisorFeedbackCompletion.sql"
 :r "95_FixOTRegistrationPolicyColumns.sql"
 :r "96_SupervisorFeedbackResponseNote.sql"
-:r "98A_FixHrmDayTypeMappingBySymbol.sql"
 :r "55_ExecutionResolutionPolicy.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"

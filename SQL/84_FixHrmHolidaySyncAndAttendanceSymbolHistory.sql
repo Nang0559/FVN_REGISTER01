@@ -96,14 +96,9 @@ BEGIN
             DLocked = ISNULL(t.DLocked, 0),
             GuessDayType = CASE
                 /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
-                /* Theo ký hiệu HRM (DM_Loainghile.LNLKyHieu): L = Ngày lễ, CT = Chủ nhật/Nghỉ công ty, NT = Ngày nghỉ thường.
-                   KHÔNG đoán theo số LNLMa (0001 là NT chứ không phải nghỉ công ty). Fallback theo LNLLoai: 1=L, 2=CT, 3=NT. */
-                WHEN UPPER(LTRIM(RTRIM(ISNULL(t.LNLKyHieu, N'')))) = N'L'  THEN N'NATIONAL_HOLIDAY'
-                WHEN UPPER(LTRIM(RTRIM(ISNULL(t.LNLKyHieu, N'')))) = N'CT' THEN N'COMPANY_HOLIDAY'
-                WHEN UPPER(LTRIM(RTRIM(ISNULL(t.LNLKyHieu, N'')))) = N'NT' THEN N'OTHER'
-                WHEN RTRIM(t.LNLLoai) = '1' THEN N'NATIONAL_HOLIDAY'
-                WHEN RTRIM(t.LNLLoai) = '2' THEN N'COMPANY_HOLIDAY'
-                WHEN RTRIM(t.LNLLoai) = '3' THEN N'OTHER'
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0003' THEN N'NATIONAL_HOLIDAY' -- HRM 003: Nghỉ lễ
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0002' THEN N'SUNDAY' -- HRM 002: Nghỉ Chủ nhật
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'COMPANY_HOLIDAY' -- HRM 001: Nghỉ công ty T2-T7
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
@@ -136,14 +131,9 @@ BEGIN
             DLocked = ISNULL(t.DLocked, 0),
             GuessDayType = CASE
                 /* Ánh xạ tường minh cho 3 loại HRM hiện có; loại mới chưa biết thì đoán theo tên. */
-                /* Theo ký hiệu HRM (DM_Loainghile.LNLKyHieu): L = Ngày lễ, CT = Chủ nhật/Nghỉ công ty, NT = Ngày nghỉ thường.
-                   KHÔNG đoán theo số LNLMa (0001 là NT chứ không phải nghỉ công ty). Fallback theo LNLLoai: 1=L, 2=CT, 3=NT. */
-                WHEN UPPER(LTRIM(RTRIM(ISNULL(t.LNLKyHieu, N'')))) = N'L'  THEN N'NATIONAL_HOLIDAY'
-                WHEN UPPER(LTRIM(RTRIM(ISNULL(t.LNLKyHieu, N'')))) = N'CT' THEN N'COMPANY_HOLIDAY'
-                WHEN UPPER(LTRIM(RTRIM(ISNULL(t.LNLKyHieu, N'')))) = N'NT' THEN N'OTHER'
-                WHEN RTRIM(t.LNLLoai) = '1' THEN N'NATIONAL_HOLIDAY'
-                WHEN RTRIM(t.LNLLoai) = '2' THEN N'COMPANY_HOLIDAY'
-                WHEN RTRIM(t.LNLLoai) = '3' THEN N'OTHER'
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0003' THEN N'NATIONAL_HOLIDAY' -- HRM 003: Nghỉ lễ
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0002' THEN N'SUNDAY' -- HRM 002: Nghỉ Chủ nhật
+                WHEN RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0001' THEN N'COMPANY_HOLIDAY' -- HRM 001: Nghỉ công ty T2-T7
                 WHEN LOWER(t.LNLTen) LIKE N'%công ty%' THEN N'COMPANY_HOLIDAY'
                 WHEN LOWER(t.LNLTen) LIKE N'%lễ%'
                   OR LOWER(t.LNLTen) LIKE N'%tết%'
