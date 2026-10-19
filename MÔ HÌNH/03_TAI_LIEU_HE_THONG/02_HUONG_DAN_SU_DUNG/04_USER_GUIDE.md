@@ -112,6 +112,15 @@ Nguyên tắc DayType:
 - Lễ quốc gia → `NL`.
 - Thứ 7 đi làm bình thường, không phải ngày nghỉ công ty → vẫn classification ngày thường và màu lịch ngày thường.
 
+### Phân loại ngày và màu nền
+
+- HRM `LNLMa=0001` → `NORMAL`: ngày thường, không tạo dòng ngày nghỉ và **không tô màu nền**, kể cả khi đã có giờ vào/ra hoặc giờ công.
+- HRM `tblNgayNghiLe.NNLLoai=2` → danh mục `LNLMa=0002`: nếu là Chủ nhật thì `SUNDAY` màu `Navy`; nếu là thứ Hai–thứ Bảy thì `COMPANY_HOLIDAY` màu `LightYellow`.
+- HRM `NNLLoai=1` → danh mục `LNLMa=0003` → `NATIONAL_HOLIDAY`: giữ màu ngày lễ cấu hình từ HRM, ví dụ `HotPink`.
+- `NNLLoai` là mã nhóm trên từng ngày, không phải `LNLMa`; không ghép hai cột này theo cùng một số.
+
+Màu nền do phân loại ngày trong Company Calendar quyết định. Có dữ liệu attendance hoặc symbol không tự làm đổi màu. Nếu một ngày thường bị tô màu nghỉ, hãy báo HR/IT kiểm tra DayType và bản đồng bộ HRM; không phải do số giờ công.
+
 OT dùng block 15 phút theo Rule. Ví dụ C1 `05:49 → 14:05` không sinh `K0.25`; nếu phần OT trong OT window chỉ 5 phút và Rule dùng FLOOR 15 phút thì OT = 0. C1 `05:47 → 18:05` cho phần OT chuẩn 4 giờ → `K4`.
 
 ### Ký hiệu kíp 12 giờ
