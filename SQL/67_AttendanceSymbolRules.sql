@@ -139,8 +139,11 @@ FROM (VALUES
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03AttendanceSymbolRules r WHERE r.RuleCode=v.RuleCode);
 
 /* Reclassify seeded rules already present in the database.
-   NT templates belong to HRM 001 (company-declared Mon-Sat holidays);
-   CT/CN templates belong to HRM 002 (Sunday). */
+   HRM LNLMa=0001 is NORMAL and must not produce holiday rules.
+   HRM LNLMa=0002 is the shared Sunday/company-rest catalog:
+   NNLLoai=2 + Mon-Sat -> COMPANY_HOLIDAY (NT/T/TK rules);
+   NNLLoai=2 + Sunday -> SUNDAY (CT/CN/CNK rules).
+   HRM NNLLoai=1 -> LNLMa=0003 -> NATIONAL_HOLIDAY (HOL/NL rules). */
 UPDATE dbo.F03AttendanceSymbolRules
    SET DayType = N'COMPANY_HOLIDAY',
        RuleName = REPLACE(RuleName, N'Ngày nghỉ thường (NT)', N'Nghỉ công ty (T2-T7)')
