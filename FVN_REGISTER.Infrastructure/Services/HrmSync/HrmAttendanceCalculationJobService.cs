@@ -34,8 +34,13 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
             // Calendar backfill is idempotent: join an overlapping durable job, wait for it,
             // then re-check coverage. Manual jobs still report the duplicate instead of
             // pretending that an overlapping range satisfies the entire requested range.
-            if(skipCoveredDates && existing.IsSuccess && existing.Data is not null)
-                return existing;
+            if(existing.IsSuccess && existing.Data is not null)
+            {
+                var activeFrom=existing.Data.FromDate.Date;
+                var activeTo=existing.Data.ToDate.Date;
+                if(skipCoveredDates || (activeFrom<=from && activeTo>=to))
+                    return existing;
+            }
             return ServiceResult<HrmAttendanceCalculationJobDto>.Fail($"Đã có job {active:N} đang xử lý hoặc chờ chạy cho cùng phạm vi.");
         }
         var jobId=Guid.NewGuid();var total=(to-from).Days+1;
