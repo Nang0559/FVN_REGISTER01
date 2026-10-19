@@ -24,6 +24,8 @@ public static class DayTypeCatalog
 
     public static string[] Codes => All.Select(x => x.Code).ToArray();
 
+    // HolidayType=1 is a broad COMPANY bucket shared by SUNDAY and COMPANY_HOLIDAY.
+    // Use the persisted DayType when the caller needs the exact calendar classification.
     public static DayTypeInfo FromHolidayType(byte? holidayType)
         => All.FirstOrDefault(x => x.HolidayType == holidayType) ?? All.First(x => x.Code == "COMPANY_HOLIDAY");
 
