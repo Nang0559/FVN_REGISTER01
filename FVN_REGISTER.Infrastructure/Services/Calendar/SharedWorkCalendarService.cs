@@ -319,7 +319,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                     },
                 // Màu ô: ngày nghỉ HRM / Chủ nhật (WorkCalendarService) > màu loại ngày ghi trên dòng chấm công
                 // (vd NT = ngày nghỉ riêng của nhân viên, không có bản ghi ngày nghỉ công ty).
-                DayColor = baseDay.DayColor ?? ResolveAttendanceDayColor(attendance, dayTypeColors),
+                DayColor = baseDay.DayColor ?? ResolveAttendanceDayColor(date, attendance, dayTypeColors),
                 Shift = shift,
                 Attendance = attendance,
                 Registrations = registrations,
@@ -447,10 +447,25 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         return result;
     }
 
-    private static string? ResolveAttendanceDayColor(CalendarAttendanceInfoDto? attendance, IReadOnlyDictionary<string, string> dayTypeColors)
+    private static string? ResolveAttendanceDayColor(
+        DateOnly date,
+        CalendarAttendanceInfoDto? attendance,
+        IReadOnlyDictionary<string, string> dayTypeColors)
     {
         var dayType = attendance?.DayType;
-        return !string.IsNullOrWhiteSpace(dayType) && dayTypeColors.TryGetValue(dayType, out var color) ? color : null;
+        if (string.IsNullOrWhiteSpace(dayType))
+            return null;
+
+        dayTypeColors.TryGetValue(dayType, out var configuredColor);
+        dayTypeColors.TryGetValue("SUNDAY", out var sundayColor);
+
+        // Reuse the same policy as company-holiday calendar data.
+        // In particular, NORMAL must never inherit HRM catalog 0001's display color.
+        return CalendarHolidayColorPolicy.Resolve(
+            date.ToDateTime(TimeOnly.MinValue),
+            dayType,
+            configuredColor,
+            sundayColor);
     }
 
     private sealed class DayTypeColorRow
