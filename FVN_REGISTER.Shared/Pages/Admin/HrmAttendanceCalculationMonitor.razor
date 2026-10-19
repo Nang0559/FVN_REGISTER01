@@ -1,0 +1,253 @@
+@page "/admin/hrm-attendance-calculation-monitor"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.HrmSync
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Services.HrmSync
+@using Microsoft.AspNetCore.Authorization
+@implements IAsyncDisposable
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Giám sát tính công HRM</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudIcon Icon="@Icons.Material.Filled.MonitorHeart" Color="Color.Primary" Size="Size.Large" />
+        <div>
+            <MudText Typo="Typo.h5" Style="font-weight:700">Giám sát tính công HRM</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Theo dõi SQL session, blocking, tiến độ từng ngày và xử lý phiên treo mà không cần mở SSMS.</MudText>
+        </div>
+        <MudSpacer />
+        <MudChip Color="Color.Default" Size="Size.Small">Tự làm mới: 5 giây</MudChip>
+        <MudButton Variant="Variant.Outlined" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+    </MudStack>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudTable Items="_items" Dense="true" Hover="true" Striped="true" Loading="_loading" RowClick="SelectRow">
+                <HeaderContent>
+                    <MudTh>Batch</MudTh>
+                    <MudTh>Phạm vi</MudTh>
+                    <MudTh>Trạng thái</MudTh>
+                    <MudTh>Tiến độ</MudTh>
+                    <MudTh>SQL</MudTh>
+                    <MudTh>Wait / Block</MudTh>
+                    <MudTh>Thời gian</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <b>@ShortId(context.CalculationBatchId)</b>
+                        <MudText Typo="Typo.caption">@context.StartedAt.ToLocalTime().ToString("dd/MM HH:mm:ss")</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <b>Dept @(context.DeptCode?.ToString() ?? "-")</b><br />
+                        @context.FromDate.ToString("dd/MM/yyyy") → @context.ToDate.ToString("dd/MM/yyyy")
+                        @if (!string.IsNullOrWhiteSpace(context.EmployeeCode))
+                        {
+                            <MudText Typo="Typo.caption">NV: @context.EmployeeCode</MudText>
+                        }
+                    </MudTd>
+                    <MudTd><MudChip Color="@StatusColor(context)" Size="Size.Small">@context.DisplayStatus</MudChip></MudTd>
+                    <MudTd>
+                        <MudProgressLinear Value="@Progress(context)" Size="Size.Small" Class="my-1" />
+                        <MudText Typo="Typo.caption">@context.CompletedDateCount / @context.TotalDateCount ngày</MudText>
+                        @if (context.CurrentWorkDate.HasValue)
+                        {
+                            <MudText Typo="Typo.caption">Ngày gần nhất: @context.CurrentWorkDate.Value.ToString("dd/MM/yyyy")</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <b>@(context.SqlSessionId?.ToString() ?? "-")</b><br />
+                        <MudText Typo="Typo.caption">@context.SqlStatus</MudText>
+                    </MudTd>
+                    <MudTd>
+                        @if (context.IsBlocked)
+                        {
+                            <MudText Color="Color.Error">@context.WaitType</MudText>
+                            <MudText Typo="Typo.caption">Block: @context.BlockingSessionId / @FormatWait(context.WaitTimeMs)</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption">@(context.WaitType ?? "-")</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>@FormatDuration(context.ElapsedSeconds)</MudTd>
+                    <MudTd>
+                        @if (CanTerminate(context))
+                        {
+                            <MudButton Size="Size.Small" Color="@(_armedBatchId == context.CalculationBatchId ? Color.Error : Color.Warning)" Variant="Variant.Outlined" OnClick="@(() => ForceTerminateAsync(context))">
+                                @(_armedBatchId == context.CalculationBatchId ? "Xác nhận dừng" : "Dừng phiên")
+                            </MudButton>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            @if (_selected is null)
+            {
+                <MudPaper Class="pa-4" Outlined="true">
+                    <MudText Typo="Typo.h6">Chi tiết phiên</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Chọn một batch để xem SQL session, wait, blocking và câu lệnh hiện tại.</MudText>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Class="pa-4" Outlined="true">
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudText Typo="Typo.h6">Chi tiết batch</MudText>
+                            <MudSpacer />
+                            <MudChip Color="@StatusColor(_selected)" Size="Size.Small">@_selected.DisplayStatus</MudChip>
+                        </MudStack>
+                        <MudDivider />
+                        <MudText><b>Batch:</b> @_selected.CalculationBatchId</MudText>
+                        <MudText><b>Phạm vi:</b> Dept @_selected.DeptCode / @_selected.FromDate.ToString("dd/MM/yyyy") → @_selected.ToDate.ToString("dd/MM/yyyy")</MudText>
+                        <MudText><b>Tiến độ:</b> @_selected.CompletedDateCount / @_selected.TotalDateCount ngày</MudText>
+                        <MudText><b>Tiến triển cuối:</b> @(_selected.LastProgressAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "-")</MudText>
+                        <MudText><b>SQL Session:</b> @(_selected.SqlSessionId?.ToString() ?? "-")</MudText>
+                        <MudText><b>SQL status:</b> @(_selected.SqlStatus ?? "-")</MudText>
+                        <MudText><b>Wait:</b> @(_selected.WaitType ?? "-")</MudText>
+                        <MudText><b>Blocking:</b> @(_selected.BlockingSessionId?.ToString() ?? "-")</MudText>
+                        <MudText><b>CPU:</b> @(_selected.CpuTimeMs?.ToString("N0") ?? "-") ms</MudText>
+                        <MudText><b>Reads:</b> @(_selected.Reads?.ToString("N0") ?? "-") / logical @(_selected.LogicalReads?.ToString("N0") ?? "-")</MudText>
+                        @if (_selected.IsStalled)
+                        {
+                            <MudAlert Severity="Severity.Error">Không còn SQL request tương ứng với batch nhưng run vẫn đang Running. Đây là trạng thái nghi ngờ treo/mất session.</MudAlert>
+                        }
+                        @if (_selected.IsBlocked)
+                        {
+                            <MudAlert Severity="Severity.Warning">SQL đang bị blocking bởi session @_selected.BlockingSessionId. Không nên chạy thêm calculation song song.</MudAlert>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_selected.CurrentStatement))
+                        {
+                            <MudText Typo="Typo.subtitle2">SQL statement</MudText>
+                            <MudPaper Class="pa-2" Style="max-height:220px;overflow:auto"><MudText Typo="Typo.caption" Style="white-space:pre-wrap">@_selected.CurrentStatement</MudText></MudPaper>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+</MudStack>
+
+@code {
+    private readonly CancellationTokenSource _disposeCts = new();
+    private HrmAttendanceCalculationMonitorClientService? _client;
+    private List<HrmAttendanceCalculationMonitorDto> _items = new();
+    private HrmAttendanceCalculationMonitorDto? _selected;
+    private Guid? _armedBatchId;
+    private bool _loading;
+    private string? _error;
+
+    private HrmAttendanceCalculationMonitorClientService Client => _client ?? throw new InvalidOperationException("Monitor client chưa được khởi tạo.");
+
+    protected override async Task OnInitializedAsync()
+    {
+        _client = new HrmAttendanceCalculationMonitorClientService(Http);
+        await LoadAsync();
+        _ = RefreshLoopAsync(_disposeCts.Token);
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var response = await Client.GetAsync(_disposeCts.Token);
+            if (response.IsSuccess && response.Data is not null)
+            {
+                _items = response.Data;
+                if (_selected is not null)
+                    _selected = _items.FirstOrDefault(x => x.CalculationBatchId == _selected.CalculationBatchId);
+                _error = null;
+            }
+            else
+                _error = response.Message ?? "Không thể tải trạng thái tính công HRM.";
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+                await LoadAsync();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+    }
+
+    private void SelectRow(TableRowClickEventArgs<HrmAttendanceCalculationMonitorDto> args)
+    {
+        _selected = args.Item;
+        _armedBatchId = null;
+    }
+
+    private async Task ForceTerminateAsync(HrmAttendanceCalculationMonitorDto item)
+    {
+        if (_armedBatchId != item.CalculationBatchId)
+        {
+            _armedBatchId = item.CalculationBatchId;
+            Snackbar.Add("Nhấn lại 'Xác nhận dừng' để kết thúc SQL session. Chỉ dùng khi phiên thực sự treo hoặc bị block.", Severity.Warning);
+            return;
+        }
+
+        _armedBatchId = null;
+        var response = await Client.ForceTerminateAsync(item.CalculationBatchId, _disposeCts.Token);
+        if (response.IsSuccess)
+            Snackbar.Add("Đã gửi yêu cầu kết thúc SQL session. Hãy theo dõi rollback/trạng thái batch trên màn hình.", Severity.Success);
+        else
+            Snackbar.Add(response.Message ?? "Không thể kết thúc SQL session.", Severity.Error);
+        await LoadAsync();
+    }
+
+    private static bool CanTerminate(HrmAttendanceCalculationMonitorDto x)
+        => x.SqlSessionId.HasValue && (x.IsBlocked || x.IsStalled || x.RunStatus.Equals("Running", StringComparison.OrdinalIgnoreCase));
+
+    private static double Progress(HrmAttendanceCalculationMonitorDto x)
+        => x.TotalDateCount <= 0 ? 0 : Math.Min(100, x.CompletedDateCount * 100d / x.TotalDateCount);
+
+    private static Color StatusColor(HrmAttendanceCalculationMonitorDto x)
+        => x.IsStalled ? Color.Error : x.IsBlocked ? Color.Warning : x.DisplayStatus switch
+        {
+            "Completed" => Color.Success,
+            "Succeeded" => Color.Success,
+            "Failed" => Color.Error,
+            "Timeout" => Color.Error,
+            "Terminated" => Color.Error,
+            _ => Color.Info
+        };
+
+    private static string FormatDuration(int seconds)
+        => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"hh\:mm\:ss" : @"mm\:ss");
+
+    private static string FormatWait(int? milliseconds)
+        => milliseconds is null ? "-" : TimeSpan.FromMilliseconds(milliseconds.Value).ToString(@"mm\:ss");
+
+    private static string ShortId(Guid id) => id.ToString("N")[..8];
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
+        await Task.CompletedTask;
+    }
+}
