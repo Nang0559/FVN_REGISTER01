@@ -1,4 +1,7 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Jobs;
 
@@ -20,6 +23,16 @@ public sealed class BackgroundWorkerHealthRegistry
     }
 
     private readonly ConcurrentDictionary<string, State> _states = new(StringComparer.OrdinalIgnoreCase);
+
+    public BackgroundWorkerHealthRegistry(
+        IServiceProvider services,
+        IHostApplicationLifetime lifetime,
+        ILogger<HrmAttendanceCalculationJobWorker> workerLogger)
+    {
+        // HrmAttendanceCalculationWorker already causes this singleton to be created during host startup.
+        // Start the persistent manual-calculation worker from here without requiring another Program.cs registration.
+        _ = new HrmAttendanceCalculationJobWorker(services, workerLogger, this).StartAsync(lifetime.ApplicationStopping);
+    }
 
     public void Started(string name)
         => _states.TryAdd(name, new State());
