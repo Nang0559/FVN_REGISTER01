@@ -1,7 +1,7 @@
 /*
 88 - DỌN LOẠI NGÀY / KÝ HIỆU CŨ, CHỈ GIỮ 3 LOẠI NGHỈ CỦA HRM
 ===============================================================================
-HRM DM_Loainghile chỉ có: 0002 CT (Chủ nhật/Nghỉ công ty), 0003 L (Ngày lễ), 0001 NT (Ngày nghỉ thường).
+HRM DM_Loainghile hiện có: 0001 NT (NORMAL, không tạo ngày nghỉ lịch); 0002 CT (Chủ nhật hoặc nghỉ công ty T2-T7 tùy ngày thực tế); 0003 L (ngày lễ). tblNgayNghiLe.NNLLoai=2 ánh xạ tới LNLMa=0002, NNLLoai=1 ánh xạ tới LNLMa=0003.
 Script này:
   1) Sao lưu rồi xóa các dòng ngày nghỉ FVN cũ (Source = 'FVN', đã bị tắt khi đồng bộ HRM).
   2) Sao lưu rồi xóa MỌI rule ký hiệu có DayType ngoài 6 loại hợp lệ (gồm COMPENSATORY - Nghỉ bù, HRM không có loại này).
