@@ -31,6 +31,17 @@
             <div class="guide-md">@guideHtml</div>
         </MudPaper>
     }
+    else if (!string.IsNullOrWhiteSpace(_guideLoadError))
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">
+            Không tải được nội dung Markdown (@HelpRegistry.GuideFile): @_guideLoadError
+        </MudAlert>
+        <MudPaper Outlined="true" Class="pa-5">
+            <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
+            <MudText Typo="Typo.h5" Class="mb-3">@Title</MudText>
+            <MudText Typo="Typo.body1">@Summary</MudText>
+        </MudPaper>
+    }
     else
     {
     <MudPaper Outlined="true" Class="pa-5">
@@ -62,6 +73,7 @@
     private string _feature = HelpRegistry.Home;
     private bool _missing;
     private MarkupString? _guideHtml;
+    private string? _guideLoadError;
     private string[] _sectionOverride = Array.Empty<string>();
     private string[] _usedSections = Array.Empty<string>();
     private string Title = string.Empty;
@@ -194,16 +206,43 @@
 
         var provider = Services.GetService(typeof(IGuideDocumentProvider)) as IGuideDocumentProvider;
         var ids = _sectionOverride.Length > 0 ? _sectionOverride : HelpRegistry.GuideSectionsFor(_feature);
-        if (provider is null || ids.Length == 0) return;
+        if (provider is null)
+        {
+            _guideLoadError = "Host chưa đăng ký IGuideDocumentProvider.";
+            return;
+        }
+        if (ids.Length == 0)
+        {
+            _guideLoadError = $"Chưa ánh xạ mục Markdown cho chức năng {_feature}.";
+            return;
+        }
 
-        var markdown = await provider.GetMarkdownAsync(HelpRegistry.GuideFile);
-        if (string.IsNullOrWhiteSpace(markdown)) return;
+        try
+        {
+            var markdown = await provider.GetMarkdownAsync(HelpRegistry.GuideFile);
+            if (string.IsNullOrWhiteSpace(markdown))
+            {
+                _guideLoadError = "Không tìm thấy file trong thư mục Guide hoặc tài nguyên đóng gói của ứng dụng.";
+                return;
+            }
 
-        var found = ids.Where(id => GuideMarkdown.ExtractSection(markdown, id).Length > 0).ToArray();
-        if (found.Length == 0) return;
+            var sections = ids
+                .Select(id => (Id: id, Text: GuideMarkdown.ExtractSection(markdown, id)))
+                .Where(item => item.Text.Length > 0)
+                .ToArray();
+            if (sections.Length == 0)
+            {
+                _guideLoadError = $"Không tìm thấy heading cho mục: {string.Join(", ", ids)}.";
+                return;
+            }
 
-        _usedSections = found.Select(id => id.TrimStart('~')).ToArray();
-        _guideHtml = new MarkupString(GuideMarkdown.ToHtml(GuideMarkdown.ExtractSections(markdown, found)));
+            _usedSections = sections.Select(item => item.Id.TrimStart('~')).ToArray();
+            _guideHtml = new MarkupString(GuideMarkdown.ToHtml(string.Join("\n\n", sections.Select(item => item.Text))));
+        }
+        catch (Exception ex)
+        {
+            _guideLoadError = ex.Message;
+        }
     }
 
     private void Back() => Navigation.NavigateTo("/");
