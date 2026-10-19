@@ -52,4 +52,24 @@ public sealed class CalendarColorTests
     [InlineData("Color [Crimson]", "Crimson")]
     public void Normalize_keeps_hrm_named_colors(string raw, string expected)
         => Assert.Equal(expected, CalendarColor.Normalize(raw));
+    [Fact]
+    public void Company_rest_type_uses_navy_on_sunday_and_light_yellow_on_other_weekdays()
+    {
+        Assert.Equal("Navy", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 18), "CT", "Navy", "Navy"));
+        Assert.Equal("LightYellow", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 19), "CT", "Navy", "Navy"));
+        Assert.Equal("LightYellow", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 17), "CT", "Navy", "Navy"));
+    }
+
+    [Fact]
+    public void Sunday_without_holiday_uses_navy_fallback()
+    {
+        Assert.Equal("Navy", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 18), null, null, null));
+    }
+
+    [Fact]
+    public void Other_holiday_types_keep_their_hrm_configured_color()
+    {
+        Assert.Equal("Crimson", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 19), "L", "Crimson", "Navy"));
+    }
+
 }
