@@ -229,6 +229,7 @@ builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 // Background workers (BackgroundService) - trước đây chưa được đăng ký nên không chạy
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
+builder.Services.AddHostedService<HrmAttendanceCalculationJobWorker>();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
