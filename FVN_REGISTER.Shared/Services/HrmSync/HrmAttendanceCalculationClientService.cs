@@ -14,4 +14,8 @@ public sealed class HrmAttendanceCalculationClientService:IHrmAttendanceCalculat
   => _http.GetFileAsync($"api/hrm-attendance-calculation/export/attendance/{batchId}",ct);
  public Task<ApiResponse<byte[]>> ExportOtAsync(Guid batchId,CancellationToken ct=default)
   => _http.GetFileAsync($"api/hrm-attendance-calculation/export/ot/{batchId}",ct);
+ public Task<ApiResponse<byte[]>> ExportAttendanceByJobAsync(Guid jobId,CancellationToken ct=default)
+  => _http.GetFileAsync($"api/hrm-attendance-calculation/export/attendance/job/{jobId}",ct);
+ public Task<ApiResponse<byte[]>> ExportOtByJobAsync(Guid jobId,CancellationToken ct=default)
+  => _http.GetFileAsync($"api/hrm-attendance-calculation/export/ot/job/{jobId}",ct);
 }
