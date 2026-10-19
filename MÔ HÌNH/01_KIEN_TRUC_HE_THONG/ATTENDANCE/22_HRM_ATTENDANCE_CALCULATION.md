@@ -190,6 +190,8 @@ Không tạo lại công thức Work/OT C# riêng, pipeline reconciliation thay 
 
 00_Deploy_All.sql là entry point deploy.
 
+Sau các prerequisite attendance (`22_00` đến `22_05`) và `SQL/66_CalendarHolidayClassification.sql` + `SQL/67_AttendanceSymbolRules.sql`, cài `SQL/83_HrmHolidaySync.sql` rồi `SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql`. `83` tạo cấu trúc/bootstrap; `84` thay procedure sync an toàn theo `HolidayDate`, áp mapping `NNLLoai=1 → LNLMa=0003`, `NNLLoai=2 → LNLMa=0002` và chạy initial sync. `SQL/87_BackfillHolidaySymbols.sql` là bước backfill tùy chọn sau khi đã đồng bộ. Không chạy `SQL/90_NormalizeDayTypesToHrm.sql`: script cũ này gộp mất `SUNDAY` và trái với DayType contract hiện tại.
+
 ## 18. Nguyên tắc cuối
 
 > **HRM sở hữu luật và dữ liệu chấm công. FVN sở hữu lần chạy, snapshot kết quả và giao diện sử dụng.**
@@ -237,17 +239,27 @@ Ví dụ: C1 có Work window 06:00–14:00 và OT window 14:00–18:00. Attendan
 
 `05:47 → 18:05` của C1 có OT nằm trong OT window là 4 giờ; phần 5 phút sau đó không làm tăng block, nên ký hiệu OT là `K4`.
 
-## 21. Day Type và prefix ký hiệu
+## 21. DayType, HRM holiday mapping và prefix ký hiệu
 
-Day Type phải lấy từ Company Calendar/holiday classification, không suy ra chỉ từ thứ trong tuần.
+DayType phải lấy từ Company Calendar/holiday classification; không suy ra chỉ từ việc có attendance hoặc chỉ từ thứ trong tuần.
 
-- Ngày thường → prefix Work theo Rule ngày thường.
-- Thứ 7 **nghỉ công ty** → `T`.
-- Chủ nhật → `CN`.
-- Ngày lễ quốc gia → `NL`.
-- Thứ 7 đi làm bình thường, không được khai báo là ngày nghỉ công ty → vẫn là ngày thường về màu và classification, không tự đổi sang `T`.
+Hai mã nguồn HRM không được đánh đồng:
 
-`F03CompanyHolidays` là source để phân biệt ngày nghỉ công ty và ngày lễ quốc gia theo `HolidayType`; không hard-code danh sách ngày lễ trong Calendar UI.
+- `DM_Loainghile.LNLMa`: mã danh mục `0001`, `0002`, `0003`.
+- `tblNgayNghiLe.NNLLoai`: mã nhóm của từng ngày nghỉ; theo dữ liệu HRM hiện tại, `1` là ngày lễ và `2` là Chủ nhật/nghỉ công ty.
+
+Mapping canonical do `SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql` thực hiện:
+
+| HRM source | DayType | Ký hiệu Work/OT | Ý nghĩa |
+|---|---|---|---|
+| `LNLMa=0001` | `NORMAL` | Rule ngày thường (`HC`, `K...` theo ca/rule) | Ngày thường; không tạo `F03CompanyHolidays` |
+| `NNLLoai=2` + Chủ nhật → `LNLMa=0002` | `SUNDAY` | `CN...`, `CNK...` | Nghỉ Chủ nhật |
+| `NNLLoai=2` + thứ Hai–thứ Bảy → `LNLMa=0002` | `COMPANY_HOLIDAY` | `T...`, `TK...` | Nghỉ công ty |
+| `NNLLoai=1` → `LNLMa=0003` | `NATIONAL_HOLIDAY` | `NL...`, `NLK...` | Ngày lễ quốc gia |
+
+Không join `NNLLoai` trực tiếp với `LNLMa`: `NNLLoai=1` phải chọn `LNLMa=0003`, không phải `0001`. `0001` là `NORMAL`; `0002` được tách thành `SUNDAY` hoặc `COMPANY_HOLIDAY` theo ngày thực tế.
+
+`F03CompanyHolidays` là source ngày nghỉ công ty/ngày lễ được đồng bộ; không hard-code ngày nghỉ trong Calendar UI. Màu nền là policy riêng của Calendar: `NORMAL` không tô màu dù có giờ công; `COMPANY_HOLIDAY` dùng `LightYellow`; `SUNDAY` dùng `Navy`; `NATIONAL_HOLIDAY` giữ màu HRM (ví dụ `HotPink`). Symbol Rule chỉ tạo Work/OT symbol, không quyết định màu nền.
 
 ## 22. Split rule cho ca/kíp đặc biệt
 
