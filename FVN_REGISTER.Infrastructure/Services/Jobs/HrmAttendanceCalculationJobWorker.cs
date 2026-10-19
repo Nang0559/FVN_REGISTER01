@@ -51,11 +51,15 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
         if(guard is null)return false;
 
         var job=await db.Database.SqlQuery<JobRow>($"""
-            SELECT TOP(1) JobId,DeptCode,EmployeeCode,FromDate,ToDate,ReopenPayrollPeriod,TriggeredBy,Status,CancelRequestedAt
+            SELECT TOP(1) JobId,DeptCode,EmployeeCode,FromDate,ToDate,ReopenPayrollPeriod,SkipCoveredDates,TriggeredBy,Status,CancelRequestedAt
             FROM dbo.F03HrmAttendanceCalculationJob WITH(READPAST,UPDLOCK,ROWLOCK)
             WHERE Status IN(N'Queued',N'Running',N'CancelRequested') ORDER BY CreatedAt
             """).FirstOrDefaultAsync(ct);
-        if(job is null)return false;
+        if(job is null)
+        {
+            _health.Success(nameof(HrmAttendanceCalculationJobWorker)); // Successful idle poll is a worker heartbeat.
+            return false;
+        }
 
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE dbo.F03HrmAttendanceCalculationJob
@@ -72,6 +76,28 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                   AND r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',CONVERT(nvarchar(36),{job.JobId}),N'%') AND r.FromDate=r.ToDate
                 """).ToListAsync(ct);
             var done=doneDates.ToHashSet();
+            var covered=new HashSet<DateOnly>();
+            if(job.SkipCoveredDates && !string.IsNullOrWhiteSpace(job.EmployeeCode))
+            {
+                var coveredRuns=await db.Database.SqlQuery<CoverageRun>($"""
+                    SELECT r.FromDate,r.ToDate
+                    FROM dbo.F03HrmAttendanceCalculationRun r
+                    WHERE r.Status=N'Succeeded'
+                      AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
+                      AND r.FromDate<={DateOnly.FromDateTime(job.ToDate)}
+                      AND r.ToDate>={DateOnly.FromDateTime(job.FromDate)}
+                      AND (
+                           r.EmployeeCode={job.EmployeeCode}
+                           OR (r.EmployeeCode IS NULL AND (r.DeptCode IS NULL OR r.DeptCode={job.DeptCode}))
+                      )
+                    """).ToListAsync(ct);
+                foreach(var run in coveredRuns)
+                {
+                    var first=run.FromDate<DateOnly.FromDateTime(job.FromDate)?DateOnly.FromDateTime(job.FromDate):run.FromDate;
+                    var last=run.ToDate>DateOnly.FromDateTime(job.ToDate)?DateOnly.FromDateTime(job.ToDate):run.ToDate;
+                    for(var day=first;day<=last;day=day.AddDays(1)) covered.Add(day);
+                }
+            }
             var locked=await db.PayrollCalculationPeriods.AsNoTracking()
                 .Where(x=>x.IsActive!=false&&(x.Status=="Locked"||x.Status=="Exported")&&x.FromDate<=DateOnly.FromDateTime(job.ToDate)&&x.ToDate>=DateOnly.FromDateTime(job.FromDate))
                 .Select(x=>new DateRange(x.FromDate,x.ToDate)).ToListAsync(ct);
@@ -84,6 +110,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                 { await MarkAsync(db,job.JobId,"Cancelled","Người dùng yêu cầu dừng tại boundary ngày.",CancellationToken.None);return true; }
                 var dateOnly=DateOnly.FromDateTime(date);
                 if(done.Contains(dateOnly)){await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);continue;}
+                if(covered.Contains(dateOnly)){completed++;await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);continue;}
                 if(locked.Any(x=>x.From<=dateOnly&&x.To>=dateOnly)){completed++;await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);continue;}
 
                 await db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -164,7 +191,8 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
     private sealed class JobRow
     {
         public Guid JobId{get;set;}public int? DeptCode{get;set;}public string? EmployeeCode{get;set;}public DateTime FromDate{get;set;}public DateTime ToDate{get;set;}
-        public bool ReopenPayrollPeriod{get;set;}public string TriggeredBy{get;set;}=string.Empty;public string Status{get;set;}=string.Empty;public DateTime? CancelRequestedAt{get;set;}
+        public bool ReopenPayrollPeriod{get;set;}public bool SkipCoveredDates{get;set;}public string TriggeredBy{get;set;}=string.Empty;public string Status{get;set;}=string.Empty;public DateTime? CancelRequestedAt{get;set;}
     }
     private sealed record DateRange(DateOnly From,DateOnly To);
+    private sealed record CoverageRun(DateOnly FromDate,DateOnly ToDate);
 }
