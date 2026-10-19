@@ -122,6 +122,8 @@ Calendar đọc official result theo employee + WorkDate. Attendance provider kh
 
 `NNLLoai=1` phải được ánh xạ tường minh tới `LNLMa=0003`; `NNLLoai=2` tới `LNLMa=0002`. Không dùng phép ghép `NNLLoai=1` → `LNLMa=0001`, vì `0001` là `NORMAL`.
 
+`F03CompanyHolidays.HolidayType` vẫn là nhóm phân loại nghiệp vụ rộng: `1=COMPANY` được dùng cho cả `SUNDAY` và `COMPANY_HOLIDAY`; `2=NATIONAL` cho ngày lễ. Vì vậy, **không suy ra DayType chi tiết từ HolidayType**. Dùng cột `DayType` để phân biệt Chủ nhật với ngày nghỉ công ty T2-T7.
+
 Quy tắc màu dùng chung:
 
 1. `NORMAL` luôn trả về màu nền rỗng/transparent. Màu `LightYellow` còn lưu trong danh mục HRM `0001` không được áp lên ngày thường.
