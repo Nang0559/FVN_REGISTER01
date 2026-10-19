@@ -1,7 +1,8 @@
 /*
     Align the persisted attendance/OT symbol rules with Bang_Quy_Dinh_OT.xlsx.
-    HRM day type codes: 001=COMPANY_HOLIDAY (T/TK), 002=SUNDAY (CN/CNK),
-    003=NATIONAL_HOLIDAY (NL/NLK). NORMAL uses K, OTHER uses DT.
+    HRM holiday mapping: LNLMa=0001 -> NORMAL; NNLLoai=2 maps to LNLMa=0002 and splits by date
+    (SUNDAY -> CN/CNK; Mon-Sat COMPANY_HOLIDAY -> T/TK); NNLLoai=1 maps to LNLMa=0003 -> NATIONAL_HOLIDAY (NL/NLK).
+    NORMAL uses K, OTHER uses DT. NNLLoai is not LNLMa/LNLLoai.
     This migration is idempotent; run it after SQL/67_AttendanceSymbolRules.sql.
 */
 SET XACT_ABORT ON;
