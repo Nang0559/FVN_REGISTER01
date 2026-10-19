@@ -53,7 +53,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
         var job=await db.Database.SqlQuery<JobRow>($"""
             SELECT TOP(1) JobId,DeptCode,EmployeeCode,FromDate,ToDate,ReopenPayrollPeriod,SkipCoveredDates,Priority,TriggeredBy,Status,CancelRequestedAt
             FROM dbo.F03HrmAttendanceCalculationJob WITH(READPAST,UPDLOCK,ROWLOCK)
-            WHERE Status IN(N'Queued',N'Running',N'CancelRequested') ORDER BY CASE WHEN Status=N'Running' THEN 0 ELSE 1 END,Priority ASC,CreatedAt ASC
+            WHERE Status IN(N'Queued',N'Running',N'CancelRequested') ORDER BY CASE WHEN Status=N'Running' THEN 0 ELSE 1 END,Priority ASC,UpdatedAt ASC,CreatedAt ASC
             """).FirstOrDefaultAsync(ct);
         if(job is null)
         {
@@ -133,7 +133,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                 if(done.Contains(dateOnly))
                 {
                     await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);
-                    if(await YieldToHigherPriorityJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
+                    if(await YieldForQueuedJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
                     continue;
                 }
                 if(covered.Contains(dateOnly))
@@ -185,7 +185,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
     }
 
     private static async Task<bool> YieldToHigherPriorityJobAsync(FVNWEBAPPContext db,Guid jobId,byte priority,CancellationToken ct)
-        => await db.Database.SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM dbo.F03HrmAttendanceCalculationJob WHERE Status=N'Queued' AND Priority<{priority} AND JobId<>{jobId}").SingleAsync(ct)>0;
+        => await db.Database.SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM dbo.F03HrmAttendanceCalculationJob WHERE Status=N'Queued' AND Priority<={priority} AND JobId<>{jobId}").SingleAsync(ct)>0;
 
     private static Task<int> RequeueAtBoundaryAsync(FVNWEBAPPContext db,Guid jobId)
         => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03HrmAttendanceCalculationJob SET Status=N'Queued',UpdatedAt=SYSUTCDATETIME() WHERE JobId={jobId} AND Status=N'Running' AND CancelRequestedAt IS NULL",CancellationToken.None);
