@@ -91,7 +91,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
     {
         var filter=jobId.HasValue?$"WHERE j.JobId={jobId.Value}":"";var top=jobId.HasValue?"":"TOP(50)";
         var sql=$"""
-            SELECT {top} j.JobId,j.DeptCode,j.EmployeeCode,j.FromDate,j.ToDate,j.SkipCoveredDates,j.Status,j.CurrentWorkDate,j.CompletedDateCount,j.TotalDateCount,j.CreatedAt,j.StartedAt,j.LastProgressAt,j.FinishedAt,j.CancelRequestedAt,j.LastCalculationBatchId,j.ErrorMessage,
+            SELECT {top} j.JobId,j.DeptCode,j.EmployeeCode,j.FromDate,j.ToDate,j.SkipCoveredDates,j.Status,j.TriggeredBy,j.CurrentWorkDate,j.CompletedDateCount,j.TotalDateCount,j.CreatedAt,j.StartedAt,j.LastProgressAt,j.FinishedAt,j.CancelRequestedAt,j.LastCalculationBatchId,j.ErrorMessage,
                 live.SqlSessionId,live.SqlStatus,live.WaitType,live.BlockingSessionId,live.WaitTimeMs,
                 CONVERT(bit,CASE WHEN live.BlockingSessionId IS NOT NULL AND live.BlockingSessionId<>0 THEN 1 ELSE 0 END) AS IsBlocked,
                 CONVERT(bit,CASE WHEN j.Status IN(N'Running',N'CancelRequested') AND j.LastProgressAt IS NOT NULL AND DATEDIFF(MINUTE,j.LastProgressAt,SYSUTCDATETIME())>=10 AND live.SqlSessionId IS NULL THEN 1 ELSE 0 END) AS IsStalled,
@@ -100,7 +100,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
             OUTER APPLY(SELECT TOP(1) r.SqlSessionId,r.Status AS SqlStatus,er.wait_type AS WaitType,er.blocking_session_id AS BlockingSessionId,er.wait_time AS WaitTimeMs FROM dbo.F03HrmAttendanceCalculationRun r LEFT JOIN sys.dm_exec_requests er ON er.session_id=r.SqlSessionId AND er.database_id=DB_ID(N'FVN_REGISTER') WHERE r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',CONVERT(nvarchar(36),j.JobId),N'%') ORDER BY r.StartedAt DESC) live
             {filter}
             """;
-        if(!jobId.HasValue)sql+=" ORDER BY j.CreatedAt DESC";
+        if(!jobId.HasValue)sql+=" ORDER BY CASE WHEN j.Status IN(N'Queued',N'Running',N'CancelRequested') THEN 0 ELSE 1 END, CASE WHEN j.TriggeredBy LIKE N'HRM-ATTENDANCE-WORKER%' THEN 1 ELSE 0 END, j.CreatedAt DESC";
         return await _db.Database.SqlQueryRaw<HrmAttendanceCalculationJobDto>(sql).ToListAsync(ct);
     }
 }
