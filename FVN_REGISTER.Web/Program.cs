@@ -91,10 +91,27 @@ builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.Deta
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", true); app.UseHsts(); }
 app.UseStaticFiles();
-// Screenshots of the user guide (/huong-dan). Only this one folder is exposed, read-only.
-var guideScreenshots = Path.Combine(app.Environment.ContentRootPath, "Guide", "screenshots");
-if (Directory.Exists(guideScreenshots))
-    app.UseStaticFiles(new StaticFileOptions { FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(guideScreenshots), RequestPath = "/guide-assets/screenshots" });
+// Screenshots for the Markdown user guide. During "dotnet run", content may be copied to
+// the build output (AppContext.BaseDirectory) rather than the project ContentRootPath.
+// Expose only the dedicated screenshots folder, not the whole Guide directory.
+var guideScreenshotCandidates = new[]
+{
+    Path.Combine(app.Environment.ContentRootPath, "Guide", "screenshots"),
+    Path.Combine(AppContext.BaseDirectory, "Guide", "screenshots")
+};
+var guideScreenshots = guideScreenshotCandidates.FirstOrDefault(Directory.Exists);
+if (guideScreenshots is not null)
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(guideScreenshots),
+        RequestPath = "/guide-assets/screenshots"
+    });
+}
+else
+{
+    app.Logger.LogWarning("Guide screenshots folder was not found. Checked: {Paths}", string.Join("; ", guideScreenshotCandidates));
+}
 app.UseAntiforgery(); app.UseAuthentication(); app.UseAuthorization();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(FVN_REGISTER.Shared.Routes).Assembly);
 app.Run();
