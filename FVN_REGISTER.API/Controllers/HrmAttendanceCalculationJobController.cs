@@ -74,7 +74,7 @@ public sealed class HrmAttendanceCalculationJobController : BaseApiController
         var target=await _db.Database.SqlQuery<TerminateTarget>($"""
             SELECT TOP(1) r.CalculationBatchId,r.Status AS RunStatus,r.SqlSessionId,r.SqlSessionLoginTime,r.SqlConnectionId
             FROM dbo.F03HrmAttendanceCalculationRun r
-            WHERE r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',CONVERT(nvarchar(36),{jobId}),N'%')
+            WHERE r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',REPLACE(CONVERT(nvarchar(36),{jobId}),N'-',N''),N'%')
             ORDER BY CASE WHEN r.Status=N'Running' THEN 0 ELSE 1 END,r.StartedAt DESC
             """).SingleOrDefaultAsync(ct);
         if(target is null)return NotFound(ApiResponse<object>.Fail("Job chưa có calculation run để dừng."));
