@@ -1,7 +1,8 @@
 /*
-87 - BACKFILL KÝ HIỆU NGHỈ HRM (L / CT / NT) CHO DỮ LIỆU ĐÃ TÍNH
+87 - BACKFILL KÝ HIỆU NGHỈ HRM (CT / L) CHO DỮ LIỆU ĐÃ TÍNH
 Chạy sau 83 + 84 (đã có HolidaySymbol) và sau khi dbo.usp_SyncHrmHolidays đã chạy ít nhất một lần.
-Chỉ cập nhật DayType và ký hiệu hiển thị của ngày nghỉ trong 12 tháng gần nhất ở bảng Calculated;
+Chỉ cập nhật DayType và ký hiệu hiển thị của ngày nghỉ HRM thực sự (0002/0003) trong 12 tháng gần nhất ở bảng Calculated;
+HRM LNLMa=0001 (NT/NORMAL) không phải ngày nghỉ, không có dòng F03CompanyHolidays và không được backfill thành ký hiệu nghỉ;
 không đụng tới giờ công/OT. Ký hiệu theo rule (WorkSymbol/OtSymbol) vẫn do rule quyết định:
 sau script này hãy lưu lại một rule (hoặc tính công lại tháng cần thiết) để rule áp theo DayType mới.
 Idempotent.
