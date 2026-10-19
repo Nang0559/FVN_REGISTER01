@@ -12,11 +12,17 @@ import { createHash } from 'node:crypto';
  *     AuthorizeRouteView sees an anonymous user and redirects to /login. All navigation after
  *     login goes through window.Blazor.navigateTo() or real clicks.
  *  2. Expand every collapsed MudNavGroup first, otherwise their child links are never found.
+ *     Groups are expanded one by one BY INDEX (a group that refuses to open can no longer block
+ *     the groups after it), and nav links are additionally read straight from the DOM so a menu
+ *     group below the fold ("Báo cáo & thống kê", "Hệ thống") is still discovered.
  *  3. Phase 1 clicks every navigation link (one screenshot per page).
  *     Phase 2 explores in-page tabs/buttons/links of every captured page.
  *  4. Readiness = no loader + no fetch/xhr + no SignalR render traffic + stable DOM.
  *  5. manifest.json is rewritten after every screenshot and the crawl stops by itself after
  *     PLAYWRIGHT_CRAWL_BUDGET_MINUTES so reports/artifacts are always produced.
+ *  6. Phase 2 is capped per page (PLAYWRIGHT_MAX_TARGETS_PER_PAGE / PLAYWRIGHT_PAGE_BUDGET_SECONDS),
+ *     clicks tabs first, and does not reload the page between consecutive tab clicks, so one busy
+ *     page (e.g. the calendar toolbar) can no longer eat the whole crawl budget.
  */
 
 const username = process.env.PLAYWRIGHT_USERNAME?.trim() ?? '';
@@ -27,6 +33,10 @@ const maxClicks = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_CLICK_T
 const maxDepth = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_DEPTH ?? '12', 10) || 12);
 const budgetMinutes = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_CRAWL_BUDGET_MINUTES ?? '40', 10) || 40);
 const expandScrollContainers = (process.env.PLAYWRIGHT_EXPAND_SCROLL ?? 'true').toLowerCase() !== 'false';
+const maxTargetsPerPage = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_MAX_TARGETS_PER_PAGE ?? '30', 10) || 30);
+const pageBudgetSeconds = Math.max(10, Number.parseInt(process.env.PLAYWRIGHT_PAGE_BUDGET_SECONDS ?? '150', 10) || 150);
+// Very long tables (thousands of rows) make a full-page PNG huge and slow; keep the top part only.
+const maxShotHeight = Math.max(2_000, Number.parseInt(process.env.PLAYWRIGHT_MAX_SHOT_HEIGHT ?? '12000', 10) || 12_000);
 
 // A route that does not exist: renders the lightweight NotFound view inside MainLayout.
 // Used only to reset same-route state (tabs, dialogs) without creating a new circuit.
@@ -73,17 +83,27 @@ const ACTION_WORDS = [
   'upload', 'tạo', 'thêm', 'sửa', 'cập nhật', 'phân công', 'cấp quyền', 'thu hồi', 'xác nhận', 'đồng bộ',
   'nhập', 'tải lên', 'thực hiện', 'yes', 'ok', 'có', 'đồng ý', 'accept', 'proceed', 'continue', 'tiếp tục',
   'chấp nhận', 'apply', 'áp dụng', 'send', 'clear',
+  // Added after run 15 clicked "BUỘC TÍNH LẠI" on the live site: recalculation / lock / run actions
+  // and file exports (labels such as EXCEL, XUẤT, PDF) must never be clicked by the crawler.
+  'buộc', 'tính lại', 'recalculate', 'recalc', 'recompute', 'force', 'prepare', 'chuẩn bị',
+  'khóa', 'khoá', 'lock', 'unlock', 'mở khóa', 'run', 'chạy', 'trigger', 'retry', 'resend', 'gửi lại',
+  'rebuild', 'resolve', 'giải quyết', 'finalize', 'print', 'in bảng công',
+  'excel', 'pdf', 'csv', 'xuất', 'tải về',
 ];
 const ACTION_SOURCE = wholeWords(ACTION_WORDS);
 const LOGOUT_SOURCE = wholeWords(LOGOUT_WORDS);
 const HREF_BLOCK_SOURCE =
   '(?:^|/)api/|(?:^|[/.?&=_-])(?:download|export|logout|signout|sign-out|log-out|sync|approve|reject|delete|remove|cancel|revoke|execute|confirm)(?:[/?#&=_-]|$)|\\.(?:pdf|xlsx?|docx?|csv|zip)(?:[?#]|$)';
+// Menu links only need to avoid logout/api/file URLs. The strict list above also rejects "sync",
+// which silently removed menu pages such as "Đồng bộ HRM" / "Conflict HRM" from the crawl.
+const NAV_HREF_BLOCK_SOURCE =
+  '(?:^|/)api/|(?:^|[/.?&=_-])(?:download|export|logout|signout|sign-out|log-out)(?:[/?#&=_-]|$)|\\.(?:pdf|xlsx?|docx?|csv|zip)(?:[?#]|$)';
 const NAV_SCOPE = '.mud-navmenu, .mud-drawer, nav, [role="navigation"]';
 const TARGET_SELECTOR = 'a[href], .mud-nav-link, .mud-tab, button, [role="button"], [role="link"], [role="tab"]';
 
 class SessionLostError extends Error {}
 
-type Target = { key: string; label: string; href: string; idx: number };
+type Target = { key: string; label: string; href: string; idx: number; isTab?: boolean };
 type Tracker = ReturnType<typeof installTracker>;
 type Scope = 'nav' | 'content';
 
@@ -122,7 +142,7 @@ async function settleForScreenshot(page: Page): Promise<void> {
 }
 
 async function saveScreenshot(page: Page, name: string): Promise<void> {
-  const options = {
+  const options: NonNullable<Parameters<Page['screenshot']>[0]> = {
     path: path.join(screenshotDir, `${safeFileName(name)}.png`),
     fullPage: true,
     animations: 'disabled' as const,
@@ -133,6 +153,14 @@ async function saveScreenshot(page: Page, name: string): Promise<void> {
   let styleTag: ElementHandle | undefined;
   if (expandScrollContainers) {
     styleTag = await page.addStyleTag({ content: EXPAND_SCROLL_CSS }).catch(() => undefined);
+  }
+  const size = await page.evaluate(() => ({
+    width: Math.max(document.documentElement.scrollWidth, window.innerWidth),
+    height: document.documentElement.scrollHeight,
+  })).catch(() => undefined);
+  if (size && size.height > maxShotHeight) {
+    console.warn(`Page is ${size.height}px tall; screenshot limited to the top ${maxShotHeight}px: ${name}`);
+    options.clip = { x: 0, y: 0, width: size.width, height: maxShotHeight };
   }
   try {
     await page.screenshot(options);
@@ -402,7 +430,7 @@ async function closeTransientUi(page: Page): Promise<void> {
 
 let fallbackGroupExpandDone = false;
 
-/** Opens the drawer if needed and expands every collapsed MudNavGroup (13 groups start collapsed). */
+/** Opens the drawer if needed and expands every collapsed MudNavGroup (13+ groups start collapsed). */
 async function expandNavigation(page: Page): Promise<{ visibleLinks: number; expandedGroups: number }> {
   const visibleLinks = () => page.locator('.mud-navmenu a.mud-nav-link:visible').count().catch(() => 0);
   let expandedGroups = 0;
@@ -415,16 +443,26 @@ async function expandNavigation(page: Page): Promise<{ visibleLinks: number; exp
     }
   }
 
-  for (let round = 0; round < 6; round++) {
-    const collapsed = page.locator('.mud-navmenu [aria-expanded="false"]:visible');
-    const count = await collapsed.count().catch(() => 0);
-    if (count === 0) break;
-    for (let i = 0; i < Math.min(count, 25); i++) {
-      const clicked = await collapsed.first().click({ timeout: 2_000 }).then(() => true).catch(() => false);
-      if (clicked) expandedGroups++;
+  // Walk the group headers BY INDEX instead of always clicking `.first()`: the old loop could get
+  // stuck on one header that never opened and never reach the groups after it (the run stopped
+  // right before "Báo cáo & thống kê"). Nested groups appear after their parent opens, so repeat.
+  for (let round = 0; round < 8; round++) {
+    const headers = page.locator('.mud-navmenu [aria-expanded]:visible');
+    const total = Math.min(await headers.count().catch(() => 0), 60);
+    let progressed = false;
+    for (let i = 0; i < total; i++) {
+      const header = headers.nth(i);
+      if ((await header.getAttribute('aria-expanded', { timeout: 1_000 }).catch(() => null)) !== 'false') continue;
+      await header.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
+      const clicked = await header.click({ timeout: 3_000 }).then(() => true).catch(() => false);
+      if (clicked) {
+        expandedGroups++;
+        progressed = true;
+      }
       await page.waitForTimeout(150);
     }
     await page.waitForTimeout(350); // MudCollapse animation
+    if (!progressed) break;
   }
 
   // Fallback if this MudBlazor build does not expose aria-expanded on group headers:
@@ -441,7 +479,46 @@ async function expandNavigation(page: Page): Promise<{ visibleLinks: number; exp
       await page.waitForTimeout(350);
     }
   }
+
+  const stillCollapsed = await page.locator('.mud-navmenu [aria-expanded="false"]').evaluateAll(headers =>
+    headers.map(header => (header.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60)),
+  ).catch(() => [] as string[]);
+  if (stillCollapsed.length) {
+    console.warn(`Navigation groups still collapsed after expanding: ${stillCollapsed.join(' | ')}`);
+  }
   return { visibleLinks: await visibleLinks(), expandedGroups };
+}
+
+/**
+ * Reads every menu link straight from the DOM, whether or not it is currently visible/scrolled into
+ * view. Phase 1 merges this with the visible links, so a menu group that is below the fold or still
+ * collapsed cannot hide its pages from the crawl. Navigation goes through navigateInApp(), which
+ * does not need the link to be clickable.
+ */
+async function collectNavRoutesFromDom(page: Page): Promise<Target[]> {
+  return page.evaluate(args => {
+    const logout = new RegExp(args.logoutSource, 'iu');
+    const hrefBlock = new RegExp(args.navHrefBlockSource, 'i');
+    const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
+    const selector = args.navScope.split(',').map(scope => `${scope.trim()} a[href]`).join(', ');
+    const result: Array<{ key: string; label: string; href: string; idx: number }> = [];
+    const seen = new Set<string>();
+    for (const element of [...document.querySelectorAll(selector)] as HTMLAnchorElement[]) {
+      const rawHref = element.getAttribute('href') ?? '';
+      if (!rawHref || rawHref.startsWith('#') || /^(javascript|mailto|tel):/i.test(rawHref)) continue;
+      if (element.target === '_blank' || element.closest('.mud-dialog, .mud-overlay, .mud-popover')) continue;
+      const url = new URL(element.href, location.href);
+      if (url.origin !== location.origin) continue;
+      if (hrefBlock.test(url.pathname + url.search)) continue;
+      const label = normalize(element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || '').slice(0, 180);
+      if (logout.test(label)) continue;
+      const href = url.href.split('#')[0];
+      if (seen.has(href)) continue;
+      seen.add(href);
+      result.push({ key: `A|${label}|${href}|dom`, label, href, idx: -1 });
+    }
+    return result;
+  }, { navScope: NAV_SCOPE, logoutSource: LOGOUT_SOURCE, navHrefBlockSource: NAV_HREF_BLOCK_SOURCE });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -454,6 +531,7 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
     const action = new RegExp(args.actionSource, 'iu');
     const logout = new RegExp(args.logoutSource, 'iu');
     const hrefBlock = new RegExp(args.hrefBlockSource, 'i');
+    const navHrefBlock = new RegExp(args.navHrefBlockSource, 'i');
     const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
 
     document.querySelectorAll('[data-pw-i]').forEach(element => element.removeAttribute('data-pw-i'));
@@ -477,7 +555,7 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
       return false;
     };
 
-    const result: Array<{ key: string; label: string; href: string; idx: number }> = [];
+    const result: Array<{ key: string; label: string; href: string; idx: number; isTab: boolean }> = [];
     const occurrence = new Map<string, number>();
     const elements = [...document.querySelectorAll(args.selector)] as HTMLElement[];
 
@@ -510,7 +588,7 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
         const url = new URL((element as HTMLAnchorElement).href, location.href);
         if (url.origin !== location.origin) continue;
         if ((element as HTMLAnchorElement).target === '_blank') continue;
-        if (hrefBlock.test(url.pathname + url.search)) continue;
+        if ((inNav ? navHrefBlock : hrefBlock).test(url.pathname + url.search)) continue;
         if (logout.test(label)) continue;
         href = url.href;
         if (href.split('#')[0] === location.href.split('#')[0]) continue; // link to the current page
@@ -530,7 +608,7 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
       occurrence.set(identity, index + 1);
       const idx = result.length;
       element.setAttribute('data-pw-i', String(idx));
-      result.push({ key: `${identity}|${index}`, label, href, idx });
+      result.push({ key: `${identity}|${index}`, label, href, idx, isTab });
     }
     return result;
   }, {
@@ -540,6 +618,7 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
     actionSource: ACTION_SOURCE,
     logoutSource: LOGOUT_SOURCE,
     hrefBlockSource: HREF_BLOCK_SOURCE,
+    navHrefBlockSource: NAV_HREF_BLOCK_SOURCE,
   });
 }
 
@@ -653,23 +732,46 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   async function explore(depth: number, parentUrl: string): Promise<void> {
     if (depth > maxDepth || outOfBudget()) return;
 
-    const targets = await collectTargets(page, 'content');
-    console.log(`Explore ${new URL(parentUrl).pathname}: ${targets.length} safe click targets.`);
+    const discovered = await collectTargets(page, 'content');
+    // Tabs first (they reveal whole report/screen sections), then real links, then plain buttons.
+    // The per-page cap keeps a busy toolbar (e.g. the calendar) from using up the crawl budget.
+    const rank = (target: Target) => (target.isTab ? 0 : target.href ? 1 : 2);
+    const targets = discovered
+      .map((target, order) => ({ target, order }))
+      .sort((a, b) => rank(a.target) - rank(b.target) || a.order - b.order)
+      .map(entry => entry.target)
+      .slice(0, maxTargetsPerPage);
+    console.log(`Explore ${new URL(parentUrl).pathname}: ${discovered.length} safe click targets (${targets.length} kept, cap ${maxTargetsPerPage}).`);
     if (targets.length) {
       console.log(`Discovered targets: ${targets.slice(0, 60).map(target =>
         `${target.label || '(unlabelled)'}${target.href ? ` -> ${target.href}` : ''}`).join(' | ')}`);
     }
 
     const parentPath = pathKeyOf(parentUrl);
+    const pageDeadline = Date.now() + pageBudgetSeconds * 1000;
+    let needRestore = true; // false only while we are clicking plain tabs one after another
     for (const target of targets) {
       if (outOfBudget()) break;
+      if (Date.now() > pageDeadline) {
+        console.warn(`Per-page budget (${pageBudgetSeconds}s) reached on ${parentPath}; moving to the next page.`);
+        break;
+      }
       const clickKey = `${parentPath}|${target.key}`;
       if (attemptedClicks.has(clickKey)) continue;
       attemptedClicks.add(clickKey);
 
       try {
-        await restore(page, tracker, parentUrl);
-        const clicked = await clickTarget(page, target, 'content');
+        let freshlyRestored = false;
+        if (needRestore) {
+          await restore(page, tracker, parentUrl);
+          freshlyRestored = true;
+        }
+        let clicked = await clickTarget(page, target, 'content');
+        if (!clicked && !freshlyRestored) {
+          await restore(page, tracker, parentUrl); // DOM changed after the previous tab: retry once clean
+          clicked = await clickTarget(page, target, 'content');
+        }
+        needRestore = true; // anything we click may change the page; relaxed below for plain tabs
         if (!clicked) continue;
         clicks++;
 
@@ -690,8 +792,11 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
           visitedPaths.add(pathKeyOf(child.url.href));
           // Same-route states (tabs/dialogs) cannot be restored, so only real navigations recurse.
           await explore(depth + 1, child.url.href);
+        } else if (target.isTab && !navigated) {
+          needRestore = false; // next tab on the same page: no reload needed
         }
       } catch (error) {
+        needRestore = true;
         if (error instanceof SessionLostError) throw error;
         console.warn(`Skipped target ${target.label}: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -709,7 +814,13 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
     }
 
     // Phase 1: click every navigation link (all groups are expanded) and capture each page.
-    const navTargets = (await collectTargets(page, 'nav')).filter(target => target.href);
+    const visibleNavTargets = (await collectTargets(page, 'nav')).filter(target => target.href);
+    const domNavTargets = await collectNavRoutesFromDom(page);
+    const visiblePaths = new Set(visibleNavTargets.map(target => pathKeyOf(target.href)));
+    const domOnly = domNavTargets.filter(target => !visiblePaths.has(pathKeyOf(target.href)));
+    console.log(`Navigation links: ${visibleNavTargets.length} clickable, ${domOnly.length} extra found only in the DOM`
+      + `${domOnly.length ? ` (${domOnly.map(target => `${target.label} -> ${new URL(target.href).pathname}`).join(' | ')})` : ''}.`);
+    const navTargets = [...visibleNavTargets, ...domOnly];
     const seenHref = new Set<string>();
     const navRoutes = navTargets.filter(target => {
       const key = pathKeyOf(target.href);
