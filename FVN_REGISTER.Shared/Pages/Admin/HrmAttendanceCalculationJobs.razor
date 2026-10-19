@@ -1,0 +1,193 @@
+@page "/admin/hrm-attendance-calculation-jobs"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.HrmSync
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Services.HrmSync
+@using Microsoft.AspNetCore.Authorization
+@implements IAsyncDisposable
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Điều khiển tính công HRM</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudIcon Icon="@Icons.Material.Filled.Engineering" Color="Color.Primary" Size="Size.Large" />
+        <div>
+            <MudText Typo="Typo.h5" Style="font-weight:700">Điều khiển tính công HRM</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Tính theo từng ngày, không giữ HTTP request dài; có thể dừng an toàn, Resume và kết thúc SQL session khi thực sự treo.</MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+    </MudStack>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">Tạo phép tính</MudText>
+        <MudGrid Class="mt-1">
+            <MudItem xs="12" sm="3">
+                <MudNumericField T="int?" @bind-Value="_deptCode" Label="Mã phòng ban" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudTextField @bind-Value="_employeeCode" Label="Mã nhân viên (bỏ trống = toàn bộ phạm vi)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudDatePicker @bind-Date="_from" Label="Từ ngày" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudDatePicker @bind-Date="_to" Label="Đến ngày" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+        <MudStack Row="true" Class="mt-3" AlignItems="AlignItems.Center">
+            <MudCheckBox @bind-Value="_reopenPayroll" Label="Cho phép mở lại kỳ payroll Calculated" />
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartAsync" Disabled="_busy">Đưa vào hàng đợi</MudButton>
+        </MudStack>
+        <MudAlert Severity="Severity.Info" Class="mt-3">
+            Không dùng Cancel trình duyệt để dừng SQL. Nút Dừng an toàn chỉ đánh dấu yêu cầu dừng; worker sẽ dừng ở boundary ngày. Nếu SQL thực sự treo/block lâu, dùng Force terminate sau bước xác nhận.
+        </MudAlert>
+    </MudPaper>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+
+    <MudTable Items="_jobs" Dense="true" Hover="true" Striped="true" Loading="_loading">
+        <HeaderContent>
+            <MudTh>Job</MudTh>
+            <MudTh>Phạm vi</MudTh>
+            <MudTh>Trạng thái</MudTh>
+            <MudTh>Tiến độ</MudTh>
+            <MudTh>SQL</MudTh>
+            <MudTh>Wait</MudTh>
+            <MudTh>Hành động</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <b>@ShortId(context.JobId)</b>
+                <MudText Typo="Typo.caption">@context.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm:ss")</MudText>
+            </MudTd>
+            <MudTd>
+                Dept @(context.DeptCode?.ToString() ?? "-")
+                @if (!string.IsNullOrWhiteSpace(context.EmployeeCode)) { <div>NV: @context.EmployeeCode</div> }
+                <MudText Typo="Typo.caption">@context.FromDate.ToString("dd/MM/yyyy") → @context.ToDate.ToString("dd/MM/yyyy")</MudText>
+            </MudTd>
+            <MudTd><MudChip Color="@StatusColor(context)" Size="Size.Small">@context.DisplayStatus</MudChip></MudTd>
+            <MudTd>
+                <MudProgressLinear Value="@Progress(context)" Size="Size.Small" />
+                <MudText Typo="Typo.caption">@context.CompletedDateCount / @context.TotalDateCount ngày</MudText>
+                @if (context.CurrentWorkDate.HasValue) { <MudText Typo="Typo.caption">Đang xử lý: @context.CurrentWorkDate.Value.ToString("dd/MM/yyyy")</MudText> }
+            </MudTd>
+            <MudTd>
+                <b>@(context.SqlSessionId?.ToString() ?? "-")</b>
+                <MudText Typo="Typo.caption">@(context.SqlStatus ?? "-")</MudText>
+            </MudTd>
+            <MudTd>
+                @if (context.IsBlocked) { <MudText Color="Color.Error">@context.WaitType</MudText><MudText Typo="Typo.caption">Block: @context.BlockingSessionId / @FormatWait(context.WaitTimeMs)</MudText> }
+                else { <MudText Typo="Typo.caption">@(context.WaitType ?? "-")</MudText> }
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true" Spacing="1">
+                    @if (CanCancel(context)) { <MudButton Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" OnClick="@(() => CancelAsync(context))">Dừng an toàn</MudButton> }
+                    @if (CanResume(context)) { <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" OnClick="@(() => ResumeAsync(context))">Resume</MudButton> }
+                    @if (CanTerminate(context)) { <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" OnClick="@(() => ForceTerminateAsync(context))">Force terminate</MudButton> }
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudStack>
+
+@code {
+    private readonly CancellationTokenSource _disposeCts = new();
+    private HrmAttendanceCalculationJobClientService? _client;
+    private List<HrmAttendanceCalculationJobDto> _jobs = new();
+    private int? _deptCode;
+    private string? _employeeCode;
+    private DateTime? _from = DateTime.Today.AddDays(-1);
+    private DateTime? _to = DateTime.Today;
+    private bool _reopenPayroll;
+    private bool _loading;
+    private bool _busy;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _client = new HrmAttendanceCalculationJobClientService(Http);
+        await LoadAsync();
+        _ = RefreshLoopAsync(_disposeCts.Token);
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_client is null) return;
+        _loading = true;
+        try
+        {
+            var response = await _client.GetAsync(_disposeCts.Token);
+            if (response.IsSuccess && response.Data is not null) { _jobs = response.Data; _error = null; }
+            else _error = response.Message ?? "Không tải được job tính công.";
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested) { }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try { while (await timer.WaitForNextTickAsync(ct)) await LoadAsync(); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+    }
+
+    private async Task StartAsync()
+    {
+        if (_client is null || !_from.HasValue || !_to.HasValue) { Snackbar.Add("Vui lòng chọn đủ khoảng ngày.", Severity.Warning); return; }
+        _busy = true;
+        try
+        {
+            var response = await _client.StartAsync(new HrmAttendanceCalculationJobCommandDto { DeptCode = _deptCode, EmployeeCode = _employeeCode, FromDate = _from.Value.Date, ToDate = _to.Value.Date, ReopenPayrollPeriod = _reopenPayroll }, _disposeCts.Token);
+            if (response.IsSuccess) Snackbar.Add("Đã đưa phép tính vào hàng đợi. Có thể rời trang mà không làm hủy SQL.", Severity.Success);
+            else Snackbar.Add(response.Message ?? "Không thể tạo job.", Severity.Error);
+            await LoadAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task CancelAsync(HrmAttendanceCalculationJobDto job)
+    {
+        if (_client is null) return;
+        var response = await _client.CancelAsync(job.JobId, _disposeCts.Token);
+        Snackbar.Add(response.IsSuccess ? "Đã yêu cầu dừng an toàn; worker sẽ dừng sau ngày hiện tại." : response.Message ?? "Không thể dừng job.", response.IsSuccess ? Severity.Success : Severity.Error);
+        await LoadAsync();
+    }
+
+    private async Task ResumeAsync(HrmAttendanceCalculationJobDto job)
+    {
+        if (_client is null) return;
+        var response = await _client.ResumeAsync(job.JobId, _disposeCts.Token);
+        Snackbar.Add(response.IsSuccess ? "Job đã được đưa lại vào hàng đợi. Các ngày đã hoàn tất sẽ được bỏ qua." : response.Message ?? "Không thể Resume.", response.IsSuccess ? Severity.Success : Severity.Error);
+        await LoadAsync();
+    }
+
+    private async Task ForceTerminateAsync(HrmAttendanceCalculationJobDto job)
+    {
+        if (_client is null) return;
+        var confirmed = await DialogService.ShowMessageBox("Xác nhận Force terminate", $"Kết thúc SQL session {job.SqlSessionId}. Chỉ dùng khi SQL thực sự treo/block lâu. Sau đó Resume để chạy phần còn thiếu?", yesText: "Force terminate", cancelText: "Hủy") ?? false;
+        if (!confirmed) return;
+        var response = await _client.ForceTerminateAsync(job.JobId, _disposeCts.Token);
+        Snackbar.Add(response.IsSuccess ? "Đã gửi Force terminate. Theo dõi trạng thái rollback/stopped trên màn hình." : response.Message ?? "Không thể Force terminate.", response.IsSuccess ? Severity.Success : Severity.Error);
+        await LoadAsync();
+    }
+
+    [Inject] public IDialogService DialogService { get; set; } = default!;
+
+    private static bool CanCancel(HrmAttendanceCalculationJobDto x) => x.Status is "Queued" or "Running" or "CancelRequested";
+    private static bool CanResume(HrmAttendanceCalculationJobDto x) => x.Status is "Cancelled" or "Failed" or "Stalled" or "Terminated";
+    private static bool CanTerminate(HrmAttendanceCalculationJobDto x) => x.SqlSessionId.HasValue && (x.IsBlocked || x.IsStalled || x.Status == "Running" || x.Status == "CancelRequested");
+    private static double Progress(HrmAttendanceCalculationJobDto x) => x.TotalDateCount <= 0 ? 0 : Math.Min(100, x.CompletedDateCount * 100d / x.TotalDateCount);
+    private static Color StatusColor(HrmAttendanceCalculationJobDto x) => x.IsStalled ? Color.Error : x.IsBlocked ? Color.Warning : x.Status switch { "Completed" => Color.Success, "Cancelled" => Color.Warning, "Failed" or "Terminated" => Color.Error, _ => Color.Info };
+    private static string FormatWait(int? ms) => ms is null ? "-" : TimeSpan.FromMilliseconds(ms.Value).ToString(@"mm\:ss");
+    private static string ShortId(Guid id) => id.ToString("N")[..8];
+
+    public async ValueTask DisposeAsync() { _disposeCts.Cancel(); _disposeCts.Dispose(); await Task.CompletedTask; }
+}
