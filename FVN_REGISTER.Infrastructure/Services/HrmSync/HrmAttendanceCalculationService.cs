@@ -40,22 +40,34 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     return ServiceResult<HrmAttendanceCalculationResultDto>.Fail($"Không tìm thấy nhân viên '{employeeCode}'.");
   }
 
+  ct.ThrowIfCancellationRequested();
+
   var pDept=new SqlParameter("@DeptCode",SqlDbType.Int){Value=(object?)dept??DBNull.Value};
   var pEmployee=new SqlParameter("@EmployeeCode",SqlDbType.NVarChar,50){Value=(object?)employeeCode??DBNull.Value};
   var pFrom=new SqlParameter("@FromDate",SqlDbType.Date){Value=request.FromDate.Date};
   var pTo=new SqlParameter("@ToDate",SqlDbType.Date){Value=request.ToDate.Date};
   var pBy=new SqlParameter("@TriggeredBy",SqlDbType.NVarChar,100){Value=(object?)triggeredBy??"SYSTEM"};
 
+  // The SQL procedure commits each WorkDate in its own transaction. Once the
+  // calculation has started it must not be aborted just because the HTTP client
+  // disconnects. Otherwise SQL can leave a Running calculation batch and the UI
+  // reports the misleading "Operation cancelled by user" error. Cancellation is
+  // still honoured before the long-running SQL operation starts.
   _uow.SetCommandTimeout(1800);
+  var startedAt=DateTime.UtcNow;
   try
   {
    var rows=await _uow.SqlQueryRawAsync<HrmAttendanceCalculationResultDto>(
     "EXEC dbo.usp_CalculateHrmAttendance @DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy",
-    ct,pDept,pEmployee,pFrom,pTo,pBy);
+    CancellationToken.None,pDept,pEmployee,pFrom,pTo,pBy);
    var result=rows.FirstOrDefault();
 
+   _logger.LogInformation(
+    "HRM-compatible attendance calculation SQL completed. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}, ElapsedSeconds={ElapsedSeconds}",
+    dept,employeeCode,request.FromDate,request.ToDate,(DateTime.UtcNow-startedAt).TotalSeconds);
+
    // Nối rule ký hiệu (F03AttendanceSymbolRules) vào kết quả tính công thật:
-   // lịch, xuất chấm công và xuất OT đều đọc các cột WorkSymbol/OtSymbol/SymbolRuleCode/DayType này.
+   // lịch, xuất chấm công và xuất OT đều đọc các cột WorkSymbol/OtSymbol/SymbolRuleCode/DayType.
    if(result != null)
    {
     // The HRM procedure has already committed the calculated batch at this point.
@@ -68,9 +80,11 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
    {
     var from=DateOnly.FromDateTime(request.FromDate.Date);
     var to=DateOnly.FromDateTime(request.ToDate.Date);
+    // This is part of the committed calculation workflow, so do not use the
+    // request-abort token after the calculation itself has succeeded.
     var periods=await _db.PayrollCalculationPeriods
       .Where(x=>x.IsActive!=false && x.Status=="Calculated" && x.FromDate<=to && x.ToDate>=from)
-      .ToListAsync(ct);
+      .ToListAsync(CancellationToken.None);
     foreach(var period in periods)
     {
      period.Status="Open";
@@ -78,7 +92,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
      period.ModifiedBy=0;
      period.LastModifiedSource="HRM_ATTENDANCE_RECALC";
     }
-    if(periods.Count>0) await _db.SaveChangesAsync(ct);
+    if(periods.Count>0) await _db.SaveChangesAsync(CancellationToken.None);
    }
 
    return result==null
@@ -91,13 +105,45 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     dept,employeeCode,request.FromDate,request.ToDate);
    return ServiceResult<HrmAttendanceCalculationResultDto>.Fail(ex.Message);
   }
+  catch(SqlException ex) when(ex.Number==-2)
+  {
+   _logger.LogError(ex,
+    "HRM-compatible attendance calculation SQL timeout after {ElapsedSeconds}s. This is a command timeout, not a client cancellation. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}",
+    (DateTime.UtcNow-startedAt).TotalSeconds,dept,employeeCode,request.FromDate,request.ToDate);
+   return ServiceResult<HrmAttendanceCalculationResultDto>.Fail(
+    $"Tính giờ HRM-compatible vượt quá thời gian SQL cho phép (30 phút). Phạm vi {request.FromDate:dd/MM/yyyy}–{request.ToDate:dd/MM/yyyy} chưa hoàn tất; các ngày đã commit theo từng ngày vẫn được giữ lại và có thể backfill phần còn thiếu.");
+  }
+  catch(SqlException ex) when(IsSqlCancellation(ex))
+  {
+   _logger.LogWarning(ex,
+    "HRM-compatible attendance calculation was cancelled by SQL Server/client attention. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}",
+    dept,employeeCode,request.FromDate,request.ToDate);
+   return ServiceResult<HrmAttendanceCalculationResultDto>.Fail(
+    "Lần tính HRM-compatible đã bị hủy ở tầng SQL. Các ngày đã commit vẫn được giữ lại; hãy chạy backfill để tính tiếp phần còn thiếu.");
+  }
+  catch(OperationCanceledException ex)
+  {
+   _logger.LogWarning(ex,
+    "HRM-compatible attendance calculation was cancelled before SQL completion. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}",
+    dept,employeeCode,request.FromDate,request.ToDate);
+   return ServiceResult<HrmAttendanceCalculationResultDto>.Fail(
+    "Lần tính HRM-compatible đã bị hủy trước khi hoàn tất. Các ngày đã commit vẫn được giữ lại; hãy chạy backfill để tính tiếp phần còn thiếu.");
+  }
   catch(Exception ex)
   {
-   _logger.LogError(ex,"HRM-compatible attendance calculation failed. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}",
-    dept,employeeCode,request.FromDate,request.ToDate);
+   _logger.LogError(ex,"HRM-compatible attendance calculation failed. Dept={Dept}, EmployeeCode={EmployeeCode}, From={From}, To={To}, ElapsedSeconds={ElapsedSeconds}",
+    dept,employeeCode,request.FromDate,request.ToDate,(DateTime.UtcNow-startedAt).TotalSeconds);
    return ServiceResult<HrmAttendanceCalculationResultDto>.Fail("Tính giờ HRM-compatible thất bại.");
   }
   finally { _uow.SetCommandTimeout(30); }
+ }
+
+ private static bool IsSqlCancellation(SqlException ex)
+ {
+  if(ex.Number==-2) return false;
+  return ex.Message.Contains("Operation cancelled by user",StringComparison.OrdinalIgnoreCase)
+      || ex.Message.Contains("operation canceled by user",StringComparison.OrdinalIgnoreCase)
+      || ex.Message.Contains("cancelled by user",StringComparison.OrdinalIgnoreCase);
  }
 
  /// <summary>
@@ -107,8 +153,6 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
  /// </summary>
  private async Task ApplySymbolRulesAsync(Guid batchId,CancellationToken ct)
  {
-  // The post-calculation symbol pass can touch thousands of rows. Use a dedicated
-  // timeout for BOTH the batch read and updates, and always restore the DbContext value.
   var previousTimeout=_db.Database.GetCommandTimeout();
   _db.Database.SetCommandTimeout(600);
   try
@@ -129,7 +173,6 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     ct.ThrowIfCancellationRequested();
     if(!row.CheckInTime.HasValue||!row.CheckOutTime.HasValue)
     {
-     // A recalculation can remove a formerly valid punch. Clear its old symbol snapshot.
      outputs.Add(new SymbolOutput(row.Id,null,null,null));
      continue;
     }
@@ -145,12 +188,10 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
     else
     {
      unmatched[$"{dayType}/{row.ShiftAbbr}"]=unmatched.GetValueOrDefault($"{dayType}/{row.ShiftAbbr}")+1;
-     // Persist the unmatched result too, so a rule change cannot leave yesterday's symbol visible.
      outputs.Add(new SymbolOutput(row.Id,null,null,null));
     }
    }
 
-   // Smaller chunks reduce lock duration, log/rollback cost, and OPENJSON payload size.
    foreach(var chunk in outputs.Chunk(250))
    {
     ct.ThrowIfCancellationRequested();
@@ -196,17 +237,12 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   employeeCode=employeeCode.Trim();
   if(employeeCode.Length==0) return ServiceResult.Fail("Mã nhân viên là bắt buộc.");
 
-  // Future dates are registration/calendar data, not attendance-calculation input.
-  // Calendar may prepare data through today, but never calculate future attendance.
   var effectiveTo = to > DateOnly.FromDateTime(DateTime.Today)
       ? DateOnly.FromDateTime(DateTime.Today)
       : to;
   if(from > effectiveTo)
    return ServiceResult.Ok();
 
-  // The in-memory coordinator coalesces requests inside one API process. This SQL
-  // session applock is the cross-instance guard: after waiting, every caller must
-  // re-read coverage so only the first caller calculates missing dates.
   await using var backfillGuard = await TryAcquireEmployeeBackfillGuardAsync(employeeCode,ct);
   if(backfillGuard is null)
    return ServiceResult.Fail($"Backfill chấm công của nhân viên {employeeCode} đang được xử lý ở tiến trình khác. Vui lòng tải lại lịch sau ít phút.");
@@ -227,9 +263,6 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
 
   var gaps=FindGaps(from,effectiveTo,runs);
 
-  // Closed/exported payroll periods are immutable. They must be served from
-  // F03HrmAttendanceHistory by the calendar provider and must never be reopened
-  // or recalculated just because a user navigates to an old month.
   var lockedPeriods=await _db.PayrollCalculationPeriods.AsNoTracking()
    .Where(x=>x.IsActive!=false
       && (x.Status=="Locked" || x.Status=="Exported")
@@ -330,7 +363,6 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
    }
    catch
    {
-    // Disposing this non-pooled connection releases its session-owned applock.
    }
    finally
    {
@@ -378,10 +410,8 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
       next.Add(piece);
       continue;
      }
-
      if(piece.From<exclusion.From)
       next.Add(new DateRange(piece.From,exclusion.From.AddDays(-1)));
-
      if(piece.To>exclusion.To)
       next.Add(new DateRange(exclusion.To.AddDays(1),piece.To));
     }
