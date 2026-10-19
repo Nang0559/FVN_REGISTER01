@@ -29,7 +29,7 @@ Tiếp nhận đăng ký, kiểm tra theo quy tắc/hạn mức được cấu h
 Theo dõi yêu cầu, quyết định phê duyệt và trạng thái thực hiện; khi có dữ liệu thực tế phù hợp, hỗ trợ đối chiếu và làm rõ chênh lệch.
 
 ### Lịch làm việc và ngày công cá nhân — điểm khác biệt người dùng dễ cảm nhận
-Lịch tổng hợp theo ngày/tháng lịch công ty, ca làm, dữ liệu chấm công thực tế, đăng ký nghỉ phép, OT, công tác và cảnh báo/sai lệch theo dữ liệu đã có. Nhân viên có thể chủ động xem kế hoạch và thông tin ngày công của mình tại một nơi; quản lý xem nhân viên thuộc phạm vi được cấp quyền. Đây là góc nhìn tổng hợp, không thay thế dữ liệu gốc của từng module.
+Lịch tổng hợp theo ngày/tháng lịch công ty, ca làm, dữ liệu chấm công thực tế, đăng ký nghỉ phép, OT, công tác và cảnh báo/sai lệch theo dữ liệu đã có. Nhân viên có thể chủ động xem kế hoạch và thông tin ngày công của mình tại một nơi; quản lý xem nhân viên thuộc phạm vi được cấp quyền. Màu nền phản ánh phân loại ngày nghỉ từ Company Calendar/HRM, không phụ thuộc việc ngày đó đã có dữ liệu chấm công hay chưa. Đây là góc nhìn tổng hợp, không thay thế dữ liệu gốc của từng module.
 
 ### Chấm công, đối soát và HR Review
 Hiển thị dữ liệu chấm công từ nguồn chính thức, hỗ trợ so sánh kế hoạch với thực tế và đưa trường hợp thiếu/sai lệch vào quy trình xác minh. HRM/nguồn chấm công chính thức vẫn là nguồn chuẩn của dữ liệu và quy tắc tính công. Cần phân biệt rõ kế hoạch đã duyệt, dữ liệu thực tế và kết quả đã được HR xác minh.
