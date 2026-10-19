@@ -118,6 +118,7 @@ Database/ is documentation/history only and is not executed by deployment.
 :r "94_SupervisorFeedbackCompletion.sql"
 :r "95_FixOTRegistrationPolicyColumns.sql"
 :r "96_SupervisorFeedbackResponseNote.sql"
+:r "98A_FixHrmDayTypeMappingBySymbol.sql"
 :r "68_EndpointEquipmentAgentIntegration.sql"
 :r "69_Endpoint_LanscopeDeployment.sql"
 :r "70_RequestModuleCanonicalization.sql"

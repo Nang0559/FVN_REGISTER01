@@ -103,7 +103,7 @@ IF OBJECT_ID(N'dbo.usp_SyncHrmHolidays', N'P') IS NULL
 GO
 
 /* 5. Một hàm duy nhất quyết định DayType -------------------------------------
-   HRM 001 = Nghỉ công ty T2-T7; 002 = Chủ nhật; 003 = Nghỉ lễ.
+   HRM: L = Ngày lễ (NATIONAL_HOLIDAY), CT = Chủ nhật/Nghỉ công ty (COMPANY_HOLIDAY), NT = Ngày nghỉ thường (OTHER).
    Ưu tiên bản ghi HRM, sau đó cờ HRM, Chủ nhật mặc định và NORMAL.
    Chủ nhật xác định bằng DATEDIFF để không phụ thuộc SET DATEFIRST. */
 CREATE OR ALTER FUNCTION dbo.fn_ResolveDayType
@@ -117,7 +117,7 @@ AS
 RETURN
 (
     SELECT
-        /* HRM 001 = nghỉ công ty T2-T7; 002 = Chủ nhật; 003 = nghỉ lễ.
+        /* HRM: L = lễ, CT = Chủ nhật/nghỉ công ty, NT = ngày nghỉ thường.
            Cờ HRM là fallback khi chưa có bản ghi đồng bộ. */
         DayType = COALESCE(
             (SELECT TOP (1) h.DayType
