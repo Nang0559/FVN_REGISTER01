@@ -18,6 +18,23 @@ public sealed class DayTypeCatalogTests
             new[] { "NORMAL", "COMPANY_HOLIDAY", "NATIONAL_HOLIDAY", "OTHER" },
             DayTypeCatalog.Codes);
 
+
+    [Theory]
+    [InlineData(2026, 10, 18, "SUNDAY", "Navy")]
+    [InlineData(2026, 10, 17, "COMPANY_HOLIDAY", "LightYellow")]
+    [InlineData(2026, 10, 19, "COMPANY_HOLIDAY", "LightYellow")]
+    [InlineData(2026, 9, 2, "NATIONAL_HOLIDAY", "HotPink")]
+    public void Hrm_holiday_colors_follow_code_and_actual_date(
+        int year, int month, int day, string dayType, string expectedColor)
+    {
+        var actual = CalendarHolidayColorPolicy.Resolve(
+            new DateTime(year, month, day), dayType,
+            dayType == "NATIONAL_HOLIDAY" ? "HotPink" : "Navy",
+            "Navy");
+
+        Assert.Equal(expectedColor, actual);
+    }
+
     [Fact]
     public void Rule_symbols_persisted_on_the_dto_win_over_the_hardcoded_fallback()
     {
