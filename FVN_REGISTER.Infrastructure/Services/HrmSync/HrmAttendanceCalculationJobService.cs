@@ -13,7 +13,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
     private readonly FVNWEBAPPContext _db;
     public HrmAttendanceCalculationJobService(FVNWEBAPPContext db) => _db=db;
 
-    public async Task<ServiceResult<HrmAttendanceCalculationJobDto>> EnqueueAsync(HrmAttendanceCalculationJobCommandDto request,string triggeredBy,CancellationToken ct=default)
+    public async Task<ServiceResult<HrmAttendanceCalculationJobDto>> EnqueueAsync(HrmAttendanceCalculationJobCommandDto request,string triggeredBy,CancellationToken ct=default,bool skipCoveredDates=false)
     {
         var from=request.FromDate.Date;var to=request.ToDate.Date;
         if(from>to)return ServiceResult<HrmAttendanceCalculationJobDto>.Fail("Khoảng ngày không hợp lệ.");
@@ -28,11 +28,20 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
               AND ((EmployeeCode={employee}) OR (EmployeeCode IS NULL AND {employee} IS NULL))
               AND FromDate<={to} AND ToDate>={from} ORDER BY CreatedAt
             """).FirstOrDefaultAsync(ct);
-        if(active!=Guid.Empty)return ServiceResult<HrmAttendanceCalculationJobDto>.Fail($"Đã có job {active:N} đang xử lý hoặc chờ chạy cho cùng phạm vi.");
+        if(active!=Guid.Empty)
+        {
+            var existing=await GetAsync(active,ct);
+            // Calendar backfill is idempotent: join an overlapping durable job, wait for it,
+            // then re-check coverage. Manual jobs still report the duplicate instead of
+            // pretending that an overlapping range satisfies the entire requested range.
+            if(skipCoveredDates && existing.IsSuccess && existing.Data is not null)
+                return existing;
+            return ServiceResult<HrmAttendanceCalculationJobDto>.Fail($"Đã có job {active:N} đang xử lý hoặc chờ chạy cho cùng phạm vi.");
+        }
         var jobId=Guid.NewGuid();var total=(to-from).Days+1;
         await _db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO dbo.F03HrmAttendanceCalculationJob(JobId,DeptCode,EmployeeCode,FromDate,ToDate,ReopenPayrollPeriod,TriggeredBy,Status,TotalDateCount)
-            VALUES({jobId},{request.DeptCode},{employee},{from},{to},{request.ReopenPayrollPeriod},{triggeredBy},N'Queued',{total})
+            INSERT INTO dbo.F03HrmAttendanceCalculationJob(JobId,DeptCode,EmployeeCode,FromDate,ToDate,ReopenPayrollPeriod,SkipCoveredDates,TriggeredBy,Status,TotalDateCount)
+            VALUES({jobId},{request.DeptCode},{employee},{from},{to},{request.ReopenPayrollPeriod},{skipCoveredDates},{triggeredBy},N'Queued',{total})
             """,CancellationToken.None);
         return await GetAsync(jobId,ct);
     }
@@ -77,7 +86,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
     {
         var filter=jobId.HasValue?$"WHERE j.JobId={jobId.Value}":"";var top=jobId.HasValue?"":"TOP(50)";
         var sql=$"""
-            SELECT {top} j.JobId,j.DeptCode,j.EmployeeCode,j.FromDate,j.ToDate,j.Status,j.CurrentWorkDate,j.CompletedDateCount,j.TotalDateCount,j.CreatedAt,j.StartedAt,j.LastProgressAt,j.FinishedAt,j.CancelRequestedAt,j.LastCalculationBatchId,j.ErrorMessage,
+            SELECT {top} j.JobId,j.DeptCode,j.EmployeeCode,j.FromDate,j.ToDate,j.SkipCoveredDates,j.Status,j.CurrentWorkDate,j.CompletedDateCount,j.TotalDateCount,j.CreatedAt,j.StartedAt,j.LastProgressAt,j.FinishedAt,j.CancelRequestedAt,j.LastCalculationBatchId,j.ErrorMessage,
                 live.SqlSessionId,live.SqlStatus,live.WaitType,live.BlockingSessionId,live.WaitTimeMs,
                 CONVERT(bit,CASE WHEN live.BlockingSessionId IS NOT NULL AND live.BlockingSessionId<>0 THEN 1 ELSE 0 END) AS IsBlocked,
                 CONVERT(bit,CASE WHEN j.Status IN(N'Running',N'CancelRequested') AND j.LastProgressAt IS NOT NULL AND DATEDIFF(MINUTE,j.LastProgressAt,SYSUTCDATETIME())>=10 AND live.SqlSessionId IS NULL THEN 1 ELSE 0 END) AS IsStalled,
