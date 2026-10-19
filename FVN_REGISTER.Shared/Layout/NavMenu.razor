@@ -122,6 +122,7 @@
             @if (Can(SecurityFunctionCodes.WorkCalendarSymbolRuleManage)){<MudNavLink href="/admin/attendance-symbol-rules" Icon="@Icons.Material.Filled.Rule">Rule ký hiệu chấm công</MudNavLink>}
             @if (CanManagement(SecurityFunctionCodes.DepartmentStatusView)){<MudNavLink href="/leave/department-status" Icon="@Icons.Material.Filled.Assessment">@Language.T("nav.departmentStatus")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.AttendanceCalculate)){<MudNavLink href="/hrm/attendance-calculation" Icon="@Icons.Material.Filled.AccessTime">@Language.T("nav.attendanceCalculation")</MudNavLink>}
+            @if (Can(SecurityFunctionCodes.AttendanceCalculate)){<MudNavLink href="/admin/hrm-attendance-calculation-jobs" Icon="@Icons.Material.Filled.QueryStats">Theo dõi job tính công</MudNavLink>}
         </MudNavGroup>
         <MudNavGroup Title="@Language.T("nav.otManagement")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">@if(CanManagement(SecurityFunctionCodes.OTView)){<MudNavLink href="/ot/list" Icon="@Icons.Material.Filled.FormatListBulleted">@Language.T("nav.otList")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.OTLimitManage)){<MudNavLink href="/admin/ot-limit-rules" Icon="@Icons.Material.Filled.Rule">@Language.T("nav.otLimits")</MudNavLink>}</MudNavGroup>
     }
