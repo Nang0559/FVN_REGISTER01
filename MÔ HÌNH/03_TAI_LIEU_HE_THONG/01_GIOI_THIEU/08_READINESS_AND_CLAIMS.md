@@ -70,7 +70,7 @@ Trong thư mục **.github/workflows** của branch đang rà soát, workflow hi
 
 | Trường | Giá trị cần điền |
 |---|---|
-| Repository / branch | Nang0559/FVN_REGISTER01 / feature/equipment-change-approval-workflow |
+| Repository / branch | Nang0559/FVN_REGISTER01 / fix/hrm-holiday-symbol-sync-consistency |
 | Commit được kiểm tra | Ghi SHA đầy đủ |
 | Môi trường kiểm tra | Development / UAT / Demo / Production |
 | Các module đã kiểm tra | Ghi rõ phạm vi |
