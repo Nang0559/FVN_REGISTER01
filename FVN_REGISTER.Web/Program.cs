@@ -39,6 +39,7 @@ builder.Services.AddMudServices(config =>
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<ILanguageService, LanguageService>();
 builder.Services.AddScoped<ILoadingService, LoadingService>();
+builder.Services.AddSingleton<FVN_REGISTER.Shared.Services.Help.IGuideDocumentProvider, FileGuideDocumentProvider>();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies").AddCookie("Cookies", options => { options.LoginPath = "/login"; options.AccessDeniedPath = "/access-denied"; });
 builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState(); builder.Services.AddScoped<CustomAuthStateProvider>(); builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>()); builder.Services.AddScoped<ITokenStorage, LocalStorageTokenService>(); var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
@@ -89,6 +90,11 @@ builder.Services.AddScoped<IEndpointCredentialClientService, EndpointCredentialC
 builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", true); app.UseHsts(); }
-app.UseStaticFiles(); app.UseAntiforgery(); app.UseAuthentication(); app.UseAuthorization();
+app.UseStaticFiles();
+// Screenshots of the user guide (/huong-dan). Only this one folder is exposed, read-only.
+var guideScreenshots = Path.Combine(app.Environment.ContentRootPath, "Guide", "screenshots");
+if (Directory.Exists(guideScreenshots))
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(guideScreenshots), RequestPath = "/guide-assets/screenshots" });
+app.UseAntiforgery(); app.UseAuthentication(); app.UseAuthorization();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(FVN_REGISTER.Shared.Routes).Assembly);
 app.Run();
