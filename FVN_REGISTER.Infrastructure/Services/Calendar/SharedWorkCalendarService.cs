@@ -424,7 +424,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         }
     }
 
-    /// <summary>Màu HRM (DM_Loainghile.LNLMauSac, đã chuẩn hoá CSS) theo DayType: COMPANY_HOLIDAY=CT, NATIONAL_HOLIDAY=L, OTHER=NT.</summary>
+    /// <summary>Màu HRM theo DayType: NORMAL không tô màu; SUNDAY=Navy; COMPANY_HOLIDAY (T2-T7)=LightYellow; NATIONAL_HOLIDAY giữ màu HRM (ví dụ HotPink); OTHER theo cấu hình.</summary>
     private async Task<Dictionary<string, string>> LoadDayTypeColorsAsync(CancellationToken cancellationToken)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
