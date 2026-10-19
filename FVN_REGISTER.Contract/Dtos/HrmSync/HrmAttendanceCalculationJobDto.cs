@@ -25,6 +25,7 @@ public sealed class HrmAttendanceCalculationJobDto
     public int? WaitTimeMs { get; set; }
     public bool IsBlocked { get; set; }
     public bool IsStalled { get; set; }
+    public bool SkipCoveredDates { get; set; }
     public string? ErrorMessage { get; set; }
 }
 
@@ -35,5 +36,4 @@ public sealed class HrmAttendanceCalculationJobCommandDto
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
     public bool ReopenPayrollPeriod { get; set; }
-    public bool SkipCoveredDates { get; set; }
 }
