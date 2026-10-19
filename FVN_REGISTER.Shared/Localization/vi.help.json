@@ -69,6 +69,12 @@
   "help.PUBLIC_INFORMATION_CMS.steps": "Tạo bản nháp.|Nhập nội dung và thời gian hiệu lực.|Preview.|Publish.|Archive khi kết thúc.",
   "help.PUBLIC_INFORMATION_CMS.summary": "Quản trị thông báo, quy định, hướng dẫn và chính sách theo Draft → Published → Archived.",
   "help.PUBLIC_INFORMATION_CMS.title": "CMS thông tin công khai",
+  "help.REPORTS.example": "Có quyền Leave.View không đồng nghĩa có quyền xuất báo cáo; thao tác export cần capability riêng.",
+  "help.REPORTS.flow": "REPORT CENTER → VIEW CAPABILITY → DATA SCOPE → QUERY → TABLE/CHART → OPTIONAL EXCEL",
+  "help.REPORTS.security": "ReportDispatcher kiểm tra capability View/Export; service tiếp tục áp dụng Own/Department/All. SQL view chỉ là read model, không cấp quyền.",
+  "help.REPORTS.steps": "Mở trung tâm báo cáo.|Chọn nhóm nghiệp vụ được phép xem.|Chọn thời gian và bộ lọc.|Xem bảng hoặc biểu đồ.|Chỉ xuất Excel khi có quyền Export tương ứng.",
+  "help.REPORTS.summary": "Tra cứu Leave, OT, Trip, Equipment và Attendance theo capability và phạm vi dữ liệu được cấp.",
+  "help.REPORTS.title": "Báo cáo",
   "help.security": "Quyền & dữ liệu",
   "help.SECURITY_CENTER.example": "LeaveApprove + Department cho phép duyệt trong phạm vi phòng ban; không đồng nghĩa xem toàn công ty.",
   "help.SECURITY_CENTER.flow": "USER → ROLE → FUNCTION/ACTION → SCOPE → AUDIT",
@@ -83,5 +89,11 @@
   "help.TRIP.security": "TripCreate/TripEdit/TripApprove là capability độc lập.",
   "help.TRIP.steps": "Tạo kế hoạch.|Kiểm tra người đi/phòng ban.|Submit.|Theo dõi Approval Inbox.",
   "help.TRIP.summary": "Quản lý công tác theo workflow và scope.",
-  "help.TRIP.title": "Công tác"
+  "help.TRIP.title": "Công tác",
+  "help.WORK_CALENDAR.example": "Ngày nghỉ công ty có thể xuất hiện trên lịch nhưng không tự động khóa mọi nghiệp vụ; validator của từng module vẫn quyết định.",
+  "help.WORK_CALENDAR.flow": "COMPANY CALENDAR → WORK CALENDAR → LEAVE / OT / TRIP → MODULE VALIDATOR",
+  "help.WORK_CALENDAR.security": "Calendar API chỉ trả dữ liệu trong phạm vi người dùng được phép. Quyền xem lịch không tự cấp quyền tạo, sửa, hủy hoặc phê duyệt.",
+  "help.WORK_CALENDAR.steps": "Mở lịch từ Leave, OT hoặc Trip.|Dùng bộ lọc để chọn loại sự kiện.|Chọn ngày để đưa ngày vào biểu mẫu đang mở.|Mở sự kiện để xem chi tiết.|Khi lịch cảnh báo xung đột, chờ validator phía server xác nhận trước khi lưu hoặc gửi.",
+  "help.WORK_CALENDAR.summary": "Lịch hợp nhất lịch công ty, nghỉ phép, OT, công tác và dữ liệu chấm công trong phạm vi được phép.",
+  "help.WORK_CALENDAR.title": "Lịch làm việc"
 }
