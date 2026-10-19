@@ -6,7 +6,7 @@ public sealed class HrmAttendanceCalculationClientService:IHrmAttendanceCalculat
 {
  private readonly IHttpClientWithAuth _http;
  public HrmAttendanceCalculationClientService(IHttpClientWithAuth http)=>_http=http;
- public Task<ApiResponse<HrmAttendanceCalculationResultDto>> CalculateAsync(HrmAttendanceCalculationRequestDto request,CancellationToken ct=default)
+ public Task<ApiResponse<HrmAttendanceCalculationJobDto>> CalculateAsync(HrmAttendanceCalculationRequestDto request,CancellationToken ct=default)
   => _http.PostAsync<HrmAttendanceCalculationResultDto>("api/hrm-attendance-calculation/calculate",request,ct);
  public Task<ApiResponse<HrmAttendanceCalculationJobDto>> ForceRecalculateSelfAsync(HrmAttendanceCalculationRequestDto request,CancellationToken ct=default)
   => _http.PostAsync<HrmAttendanceCalculationResultDto>("api/hrm-attendance-calculation/force-recalculate-self",request,ct);
