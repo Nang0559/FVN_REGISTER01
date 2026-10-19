@@ -151,6 +151,25 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                 var gap = refreshToday ? new DateRange(today, today) : missing[0];
                 // The job service caps each job at 93 calendar dates.
                 var chunkTo = gap.To > gap.From.AddDays(92) ? gap.From.AddDays(92) : gap.To;
+                // Do not race the legacy company-wide refresh or another calculation source
+                // for the same dates. Let the active SQL run finish, then re-read coverage.
+                var activeRuns = await db.Database.SqlQuery<int>($"""
+                    SELECT COUNT(*) AS [Value]
+                    FROM dbo.F03HrmAttendanceCalculationRun AS r
+                    WHERE r.Status=N'Running'
+                      AND r.FromDate<={chunkTo}
+                      AND r.ToDate>={gap.From}
+                      AND (
+                           r.EmployeeCode={employeeCode}
+                           OR (r.EmployeeCode IS NULL AND (r.DeptCode IS NULL OR r.DeptCode={deptCode}))
+                      )
+                    """).SingleAsync(timeout.Token);
+                if (activeRuns > 0)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(500), timeout.Token);
+                    continue;
+                }
+
                 var request = new HrmAttendanceCalculationJobCommandDto
                 {
                     DeptCode = deptCode,
