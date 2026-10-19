@@ -95,7 +95,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         await ApplyApprovalInfoAsync(result.Events, ct); return result;
     }
 
-    /// <summary>Màu (chuẩn hoá CSS) cấu hình trong HRM (DM_Loainghile.LNLMauSac) theo DayType: NORMAL không có màu, COMPANY_HOLIDAY = CT, NATIONAL_HOLIDAY = L, OTHER = NT. Rỗng nếu chưa đồng bộ.</summary>
+    /// <summary>Màu lấy từ HRM (DM_Loainghile.LNLMauSac): 0002 dùng Navy vào Chủ nhật và LightYellow vào ngày nghỉ công ty T2-T7; 0003 giữ màu lễ HRM (ví dụ HotPink). NORMAL không tạo ngày nghỉ trên lịch.</summary>
     private async Task<Dictionary<string, string>> LoadDayTypeColorsAsync(CancellationToken ct)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
