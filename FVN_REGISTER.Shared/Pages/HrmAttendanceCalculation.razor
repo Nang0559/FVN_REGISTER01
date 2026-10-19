@@ -30,6 +30,11 @@
   <MudItem xs="12" md="3"><MudDatePicker Label='@Language.T("common.endDate")' @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
   <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">@Language.T("hrm.tinhGio")</MudButton></MudItem>
  </MudGrid>
+ @* Tải Excel theo bộ phận + khoảng ngày đang chọn, từ dữ liệu đã tính: không cần chờ job hoàn tất. *@
+ <MudStack Row="true" Spacing="2" Class="mt-3">
+  <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceByRangeAsync">@Language.T("hrm.xuatChamCong")</MudButton>
+  <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="_exporting" OnClick="ExportOtByRangeAsync">@Language.T("hrm.xuatTinhOt")</MudButton>
+ </MudStack>
  @if(_running)
  {
   <MudProgressLinear Value="_jobProgress" Class="mt-4" />
@@ -83,6 +88,34 @@
   var r=await Departments.GetListAsync(true);
   if(r.IsSuccess&&r.Data is not null) _departments=r.Data;
  }
+ private Task ExportAttendanceByRangeAsync() => ExportByRangeAsync(false);
+ private Task ExportOtByRangeAsync() => ExportByRangeAsync(true);
+
+ private async Task ExportByRangeAsync(bool ot)
+ {
+  if (_fromDate is null || _toDate is null || _fromDate > _toDate)
+  {
+   Snackbar.Add(Language.T("common.khoangNgayKhongHopLe"), Severity.Warning);
+   return;
+  }
+  _exporting = true;
+  try
+  {
+   var from = _fromDate.Value.Date;
+   var to = _toDate.Value.Date;
+   var r = ot
+    ? await Calculation.ExportOtByRangeAsync(_deptCode, from, to, _disposeCts.Token)
+    : await Calculation.ExportAttendanceByRangeAsync(_deptCode, from, to, _disposeCts.Token);
+   if (r.IsSuccess && r.Data is not null)
+   {
+    await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data, $"{(ot ? "BangLamThem" : "BangChamCong")}_{from:yyyyMMdd}_{to:yyyyMMdd}.xls");
+    Snackbar.Add(Language.T(ot ? "hrm.daXuatBangTinhOt" : "hrm.daXuatBangChamCong"), Severity.Success);
+   }
+   else Snackbar.Add(r.Message ?? Language.T(ot ? "hrm.xuatOtThatBai" : "hrm.xuatChamCongThatBai"), Severity.Error);
+  }
+  finally { _exporting = false; }
+ }
+
  private async Task ExportAttendanceAsync()
  {
   if (!_completedJobId.HasValue) return;

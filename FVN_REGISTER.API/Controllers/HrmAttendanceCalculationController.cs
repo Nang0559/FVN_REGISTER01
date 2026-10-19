@@ -93,6 +93,26 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
 
  [HttpGet("export/attendance/{batchId:guid}")]
  public async Task<IActionResult> ExportAttendance(Guid batchId,CancellationToken ct){if(UserInfo==null||!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct))return Forbid();var result=await _excel.ExportAttendanceAsync(batchId,ct);if(!result.IsSuccess||result.Data is null)return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất chấm công thất bại."));return File(result.Data,"application/vnd.ms-excel",$"BangChamCong_{DateTime.Now:yyyyMMdd_HHmmss}.xls");}
+ /// <summary>Tải bảng chấm công theo bộ phận + khoảng ngày từ dữ liệu đã tính (không cần job/batch).</summary>
+ [HttpGet("export/attendance")]
+ public async Task<IActionResult> ExportAttendanceByRange([FromQuery] int? deptCode,[FromQuery] DateTime fromDate,[FromQuery] DateTime toDate,CancellationToken ct)
+ {
+  if(UserInfo==null || !await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct)) return Forbid();
+  var result=await _excel.ExportAttendanceByRangeAsync(deptCode,fromDate,toDate,ct);
+  if(!result.IsSuccess||result.Data is null) return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất chấm công thất bại."));
+  return File(result.Data,"application/vnd.ms-excel",$"BangChamCong_{fromDate:yyyyMMdd}_{toDate:yyyyMMdd}.xls");
+ }
+
+ /// <summary>Tải bảng làm thêm giờ theo bộ phận + khoảng ngày từ dữ liệu đã tính (không cần job/batch).</summary>
+ [HttpGet("export/ot")]
+ public async Task<IActionResult> ExportOtByRange([FromQuery] int? deptCode,[FromQuery] DateTime fromDate,[FromQuery] DateTime toDate,CancellationToken ct)
+ {
+  if(UserInfo==null || !await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct)) return Forbid();
+  var result=await _excel.ExportOtByRangeAsync(deptCode,fromDate,toDate,ct);
+  if(!result.IsSuccess||result.Data is null) return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất OT thất bại."));
+  return File(result.Data,"application/vnd.ms-excel",$"BangLamThem_{fromDate:yyyyMMdd}_{toDate:yyyyMMdd}.xls");
+ }
+
  [HttpGet("export/attendance/job/{jobId:guid}")]
  public async Task<IActionResult> ExportAttendanceByJob(Guid jobId, CancellationToken ct)
  {

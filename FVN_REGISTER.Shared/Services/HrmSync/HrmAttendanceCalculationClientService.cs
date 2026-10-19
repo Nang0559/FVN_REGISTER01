@@ -18,4 +18,10 @@ public sealed class HrmAttendanceCalculationClientService:IHrmAttendanceCalculat
   => _http.GetFileAsync($"api/hrm-attendance-calculation/export/attendance/job/{jobId}",ct);
  public Task<ApiResponse<byte[]>> ExportOtByJobAsync(Guid jobId,CancellationToken ct=default)
   => _http.GetFileAsync($"api/hrm-attendance-calculation/export/ot/job/{jobId}",ct);
+ public Task<ApiResponse<byte[]>> ExportAttendanceByRangeAsync(int? deptCode,DateTime fromDate,DateTime toDate,CancellationToken ct=default)
+  => _http.GetFileAsync(BuildRangeUrl("attendance",deptCode,fromDate,toDate),ct);
+ public Task<ApiResponse<byte[]>> ExportOtByRangeAsync(int? deptCode,DateTime fromDate,DateTime toDate,CancellationToken ct=default)
+  => _http.GetFileAsync(BuildRangeUrl("ot",deptCode,fromDate,toDate),ct);
+ private static string BuildRangeUrl(string kind,int? deptCode,DateTime fromDate,DateTime toDate)
+  => $"api/hrm-attendance-calculation/export/{kind}?fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}"+(deptCode.HasValue?$"&deptCode={deptCode.Value}":string.Empty);
 }

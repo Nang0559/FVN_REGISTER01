@@ -9,4 +9,6 @@ public interface IHrmAttendanceCalculationClientService
  Task<ApiResponse<byte[]>> ExportOtAsync(Guid batchId,CancellationToken ct=default);
  Task<ApiResponse<byte[]>> ExportAttendanceByJobAsync(Guid jobId,CancellationToken ct=default);
  Task<ApiResponse<byte[]>> ExportOtByJobAsync(Guid jobId,CancellationToken ct=default);
+ Task<ApiResponse<byte[]>> ExportAttendanceByRangeAsync(int? deptCode,DateTime fromDate,DateTime toDate,CancellationToken ct=default);
+ Task<ApiResponse<byte[]>> ExportOtByRangeAsync(int? deptCode,DateTime fromDate,DateTime toDate,CancellationToken ct=default);
 }
