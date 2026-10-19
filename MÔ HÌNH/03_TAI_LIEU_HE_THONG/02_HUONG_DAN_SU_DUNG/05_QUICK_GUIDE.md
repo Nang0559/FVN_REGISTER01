@@ -30,7 +30,10 @@ Click ngày để chọn `Detail / Confirmation / Registration / Info`.
 - T7 nghỉ công ty → `T...`.
 - CN → `CN...`.
 - Lễ quốc gia → `NL...`.
-- T7 đi làm bình thường → classification/màu ngày thường, không tự đổi thành `T`.
+- T7 đi làm bình thường → `NORMAL`, màu nền trong suốt, không tự đổi thành `T`.
+- `NORMAL` không tô màu dù đã có attendance.
+- `NNLLoai=2` → `LNLMa=0002`: Chủ nhật `SUNDAY` / `Navy`; thứ Hai–thứ Bảy `COMPANY_HOLIDAY` / `LightYellow`.
+- `NNLLoai=1` → `LNLMa=0003` → `NATIONAL_HOLIDAY`, giữ màu HRM (ví dụ `HotPink`). `NNLLoai` không phải `LNLMa`.
 - OT dùng block 15 phút theo Rule; `C1 05:49→14:05` không tạo `K0.25`; `C1 05:47→18:05` cho OT chuẩn 4 giờ → `K4`.
 
 Kíp 12h được split theo Rule, ví dụ `T8 + TK4`, `CN8 + CNK4`, `NL8 + NLK4` thay vì gộp thành một số giờ tổng.
