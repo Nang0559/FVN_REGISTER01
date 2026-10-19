@@ -31,7 +31,7 @@ BEGIN
         LNLKyHieu  nvarchar(50)  NULL,
         LNLMauSac  varchar(50)   NULL,
         DLocked    bit           NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_DLocked DEFAULT(0),
-        /* NORMAL (HRM 001) | SUNDAY (HRM 002) | NATIONAL_HOLIDAY (HRM 003) | COMPANY_HOLIDAY legacy | OTHER legacy */
+        /* NORMAL (HRM 0001) | SUNDAY/COMPANY_HOLIDAY (HRM 0002, theo ngày thực tế) | NATIONAL_HOLIDAY (HRM 0003) | OTHER legacy */
         DayType    nvarchar(40)  NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_DayType DEFAULT(N'NATIONAL_HOLIDAY'),
         DayTypeIsManual bit      NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_Manual DEFAULT(0),
         SyncedAt   datetime2(0)  NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_SyncedAt DEFAULT(SYSUTCDATETIME())
