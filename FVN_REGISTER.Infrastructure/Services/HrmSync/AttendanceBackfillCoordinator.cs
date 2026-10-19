@@ -171,24 +171,18 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                     if (!current.IsSuccess || current.Data is null)
                         return current.Message ?? $"Không đọc được trạng thái backfill job {jobId:N}.";
 
-                    switch (current.Data.Status)
-                    {
-                        case "Completed":
-                            // Re-query successful runs and only enqueue remaining gaps.
-                            goto NextCoverageCheck;
-                        case "Failed":
-                        case "Cancelled":
-                        case "Terminated":
-                            return current.Data.ErrorMessage
-                                ?? $"Backfill chấm công bị dừng với trạng thái {current.Data.Status}.";
-                    }
+                    if (current.Data.Status == "Completed")
+                        break; // Re-query successful runs and only enqueue remaining gaps.
+
+                    if (current.Data.Status is "Failed" or "Cancelled" or "Terminated")
+                        return current.Data.ErrorMessage
+                            ?? $"Backfill chấm công bị dừng với trạng thái {current.Data.Status}.";
 
                     await Task.Delay(TimeSpan.FromMilliseconds(500), timeout.Token);
                 }
 
-                break;
-
-                NextCoverageCheck: ;
+                if (timeout.IsCancellationRequested)
+                    break;
             }
 
             // The durable SQL job remains queued/running and can be rejoined by a later calendar
