@@ -18,7 +18,7 @@
             <MudText Typo="Typo.caption" Color="Color.Secondary">Theo dõi SQL session, blocking, tiến độ từng ngày và xử lý phiên treo mà không cần mở SSMS.</MudText>
         </div>
         <MudSpacer />
-        <MudChip Color="Color.Default" Size="Size.Small">Tự làm mới: 5 giây</MudChip>
+        <MudChip T="string" Color="Color.Default" Size="Size.Small">Tự làm mới: 5 giây</MudChip>
         <MudButton Variant="Variant.Outlined" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
     </MudStack>
 
@@ -53,7 +53,7 @@
                             <MudText Typo="Typo.caption">NV: @context.EmployeeCode</MudText>
                         }
                     </MudTd>
-                    <MudTd><MudChip Color="@StatusColor(context)" Size="Size.Small">@context.DisplayStatus</MudChip></MudTd>
+                    <MudTd><MudChip T="string" Color="@StatusColor(context)" Size="Size.Small">@context.DisplayStatus</MudChip></MudTd>
                     <MudTd>
                         <MudProgressLinear Value="@Progress(context)" Size="Size.Small" Class="my-1" />
                         <MudText Typo="Typo.caption">@context.CompletedDateCount / @context.TotalDateCount ngày</MudText>
@@ -105,7 +105,7 @@
                         <MudStack Row="true" AlignItems="AlignItems.Center">
                             <MudText Typo="Typo.h6">Chi tiết batch</MudText>
                             <MudSpacer />
-                            <MudChip Color="@StatusColor(_selected)" Size="Size.Small">@_selected.DisplayStatus</MudChip>
+                            <MudChip T="string" Color="@StatusColor(_selected)" Size="Size.Small">@_selected.DisplayStatus</MudChip>
                         </MudStack>
                         <MudDivider />
                         <MudText><b>Batch:</b> @_selected.CalculationBatchId</MudText>
