@@ -93,6 +93,24 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
 
  [HttpGet("export/attendance/{batchId:guid}")]
  public async Task<IActionResult> ExportAttendance(Guid batchId,CancellationToken ct){if(UserInfo==null||!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct))return Forbid();var result=await _excel.ExportAttendanceAsync(batchId,ct);if(!result.IsSuccess||result.Data is null)return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất chấm công thất bại."));return File(result.Data,"application/vnd.ms-excel",$"BangChamCong_{DateTime.Now:yyyyMMdd_HHmmss}.xls");}
+ [HttpGet("export/attendance/job/{jobId:guid}")]
+ public async Task<IActionResult> ExportAttendanceByJob(Guid jobId, CancellationToken ct)
+ {
+  if(UserInfo==null || !await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct)) return Forbid();
+  var result=await _excel.ExportAttendanceByJobAsync(jobId,ct);
+  if(!result.IsSuccess||result.Data is null) return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất chấm công thất bại."));
+  return File(result.Data,"application/vnd.ms-excel",$"BangChamCong_Job_{jobId:N}.xls");
+ }
+
+ [HttpGet("export/ot/job/{jobId:guid}")]
+ public async Task<IActionResult> ExportOtByJob(Guid jobId, CancellationToken ct)
+ {
+  if(UserInfo==null || !await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct)) return Forbid();
+  var result=await _excel.ExportOtByJobAsync(jobId,ct);
+  if(!result.IsSuccess||result.Data is null) return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất OT thất bại."));
+  return File(result.Data,"application/vnd.ms-excel",$"BangLamThem_Job_{jobId:N}.xls");
+ }
+
  [HttpGet("export/ot/{batchId:guid}")]
  public async Task<IActionResult> ExportOt(Guid batchId,CancellationToken ct){if(UserInfo==null||!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct))return Forbid();var result=await _excel.ExportOtAsync(batchId,ct);if(!result.IsSuccess||result.Data is null)return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất OT thất bại."));return File(result.Data,"application/vnd.ms-excel",$"BangLamThem_{DateTime.Now:yyyyMMdd_HHmmss}.xls");}
 
