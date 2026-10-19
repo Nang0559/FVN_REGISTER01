@@ -196,7 +196,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 yesterday < payrollStart.Value ? payrollStart.Value : yesterday,
                 yesterday,
                 "HRM-ATTENDANCE-WORKER",
-                ct);
+                ct,
+                skipCoveredDates: false);
         }
         catch (OperationCanceledException)
         {
@@ -218,28 +219,36 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         DateTime from,
         DateTime to,
         string triggeredBy,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool skipCoveredDates = true)
     {
-        var total = (to.Date - from.Date).Days + 1;
-        var done = 0;
+        if (from.Date > to.Date)
+            return;
 
-        for (var day = from.Date; day <= to.Date; day = day.AddDays(1))
+        // Persist each bounded range before returning. The dedicated job worker owns SQL execution,
+        // per-day progress, cancellation and recovery; this scheduler never holds a long SQL call.
+        for (var cursor = from.Date; cursor <= to.Date;)
         {
             ct.ThrowIfCancellationRequested();
+            var chunkTo = cursor.AddDays(92) < to.Date ? cursor.AddDays(92) : to.Date;
+            var queued = await EnqueueCompanyWideAsync(
+                cursor,
+                chunkTo,
+                triggeredBy,
+                reopenPayrollPeriod: true,
+                skipCoveredDates,
+                ct);
 
-            var ok = await CalculateCompanyWideAsync(day, day, triggeredBy, ct);
-            if (!ok)
+            if (!queued)
             {
                 _logger.LogWarning(
-                    "[HRM_ATTENDANCE_WORKER] Dừng tại {Day}: đã xong {Done}/{Total} ngày. Lần sau sẽ tiếp tục từ ngày này.",
-                    day.ToString("dd/MM/yyyy"), done, total);
+                    "[HRM_ATTENDANCE_WORKER] Không thể đưa range {From} -> {To} vào job queue; lần catch-up sau sẽ kiểm tra lại.",
+                    cursor.ToString("dd/MM/yyyy"),
+                    chunkTo.ToString("dd/MM/yyyy"));
                 return;
             }
 
-            done++;
-            _logger.LogInformation(
-                "[HRM_ATTENDANCE_WORKER] Tiến độ {Done}/{Total} ngày (vừa xong {Day}).",
-                done, total, day.ToString("dd/MM/yyyy"));
+            cursor = chunkTo.AddDays(1);
         }
     }
 
@@ -250,51 +259,64 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         CancellationToken ct,
         bool reopenPayrollPeriod = true)
     {
+        return await EnqueueCompanyWideAsync(
+            from.Date,
+            to.Date,
+            triggeredBy,
+            reopenPayrollPeriod,
+            skipCoveredDates: false,
+            ct);
+    }
+
+    private async Task<bool> EnqueueCompanyWideAsync(
+        DateTime from,
+        DateTime to,
+        string triggeredBy,
+        bool reopenPayrollPeriod,
+        bool skipCoveredDates,
+        CancellationToken ct)
+    {
         try
         {
             await using var scope = _serviceProvider.CreateAsyncScope();
-            var calculation = scope.ServiceProvider.GetRequiredService<IHrmAttendanceCalculationService>();
-
-            var result = await calculation.CalculateAsync(
-                new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
+            var jobs = scope.ServiceProvider.GetRequiredService<IHrmAttendanceCalculationJobService>();
+            var result = await jobs.EnqueueAsync(
+                new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationJobCommandDto
                 {
                     // NULL = all active HRM employees/company-wide.
                     DeptCode = null,
                     EmployeeCode = null,
-                    FromDate = from,
-                    ToDate = to,
+                    FromDate = from.Date,
+                    ToDate = to.Date,
                     ReopenPayrollPeriod = reopenPayrollPeriod
                 },
                 triggeredBy,
-                ct);
+                ct,
+                skipCoveredDates);
 
             if (result.IsSuccess && result.Data is not null)
             {
                 _health.Success(nameof(HrmAttendanceCalculationWorker));
                 _logger.LogInformation(
-                    "[HRM_ATTENDANCE_WORKER] Calculation OK {From} -> {To}: {Employees} nhân viên / {Rows} dòng. Batch={BatchId}",
+                    "[HRM_ATTENDANCE_WORKER] Job {JobId} đã được đưa vào hàng đợi: {From} -> {To}, SkipCoveredDates={SkipCoveredDates}",
+                    result.Data.JobId,
                     from.ToString("dd/MM/yyyy"),
                     to.ToString("dd/MM/yyyy"),
-                    result.Data.EmployeeCount,
-                    result.Data.CalculatedRows,
-                    result.Data.CalculationBatchId);
+                    skipCoveredDates);
                 return true;
             }
 
-            _health.Failure(
-                nameof(HrmAttendanceCalculationWorker),
-                new InvalidOperationException(result.Message ?? "Attendance calculation failed."));
-            _logger.LogWarning(
-                "[HRM_ATTENDANCE_WORKER] Calculation failed {From} -> {To}: {Message}",
+            _logger.LogInformation(
+                "[HRM_ATTENDANCE_WORKER] Bỏ qua/enqueue chưa thành công {From} -> {To}: {Message}",
                 from.ToString("dd/MM/yyyy"),
                 to.ToString("dd/MM/yyyy"),
                 result.Message ?? "Unknown error");
             return false;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             _logger.LogWarning(
-                "[HRM_ATTENDANCE_WORKER] Calculation bị hủy {From} -> {To}.",
+                "[HRM_ATTENDANCE_WORKER] Enqueue job bị hủy {From} -> {To}.",
                 from.ToString("dd/MM/yyyy"),
                 to.ToString("dd/MM/yyyy"));
             return false;
@@ -304,7 +326,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             _health.Failure(nameof(HrmAttendanceCalculationWorker), ex);
             _logger.LogError(
                 ex,
-                "[HRM_ATTENDANCE_WORKER] Lỗi khi tính {From} -> {To}.",
+                "[HRM_ATTENDANCE_WORKER] Lỗi khi enqueue job {From} -> {To}.",
                 from.ToString("dd/MM/yyyy"),
                 to.ToString("dd/MM/yyyy"));
             return false;
