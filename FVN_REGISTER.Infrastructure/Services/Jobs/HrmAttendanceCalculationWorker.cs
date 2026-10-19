@@ -515,41 +515,64 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         await using var scope = _serviceProvider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
 
-        var last = await db.Database.SqlQuery<DateTime?>($"""
-            SELECT MAX(CONVERT(datetime2, r.ToDate)) AS Value
+        // Today's refresh is intentionally independent and must not move the catch-up cursor
+        // past an uncovered day in the current payroll period.
+        var periodStart = await GetPayrollPeriodStartAsync(yesterday, ct);
+        if (!periodStart.HasValue || periodStart.Value.Date > yesterday.Date)
+            return null;
+
+        var from = DateOnly.FromDateTime(periodStart.Value.Date);
+        var to = DateOnly.FromDateTime(yesterday.Date);
+        var ranges = await db.Database.SqlQuery<CoverageRun>($"""
+            SELECT r.FromDate, r.ToDate
             FROM dbo.F03HrmAttendanceCalculationRun AS r
             WHERE r.Status=N'Succeeded'
               AND r.DeptCode IS NULL
               AND r.EmployeeCode IS NULL
-        """).SingleOrDefaultAsync(ct);
+              AND r.FromDate<={to}
+              AND r.ToDate>={from}
+            ORDER BY r.FromDate
+            """).ToListAsync(ct);
 
-        DateTime? start = last.HasValue
-            ? last.Value.Date.AddDays(1)
-            : await GetPayrollPeriodStartAsync(yesterday, ct);
-        if (!start.HasValue)
-            return null;
-
-        // Locked/exported payroll periods are intentionally not recalculated. Skip a closed period
-        // as a unit so startup recovery does not repeatedly enqueue the same uncalculable dates.
-        var candidate = start.Value.Date;
-        while (candidate <= yesterday.Date)
+        var covered = new HashSet<DateOnly>();
+        foreach (var range in ranges)
         {
+            var first = range.FromDate < from ? from : range.FromDate;
+            var last = range.ToDate > to ? to : range.ToDate;
+            for (var date = first; date <= last; date = date.AddDays(1))
+                covered.Add(date);
+        }
+
+        var candidate = from;
+        while (candidate <= to)
+        {
+            if (covered.Contains(candidate))
+            {
+                candidate = candidate.AddDays(1);
+                continue;
+            }
+
             var period = await db.PayrollCalculationPeriods.AsNoTracking()
                 .Where(x => x.IsActive != false
-                    && x.FromDate <= DateOnly.FromDateTime(candidate)
-                    && x.ToDate >= DateOnly.FromDateTime(candidate))
+                    && x.FromDate <= candidate
+                    && x.ToDate >= candidate)
                 .OrderByDescending(x => x.Id)
                 .Select(x => new { x.ToDate, x.Status })
                 .FirstOrDefaultAsync(ct);
 
-            if (period is null || (period.Status != "Locked" && period.Status != "Exported"))
-                return candidate;
+            if (period is not null && (period.Status == "Locked" || period.Status == "Exported"))
+            {
+                candidate = period.ToDate.AddDays(1);
+                continue;
+            }
 
-            candidate = period.ToDate.ToDateTime(TimeOnly.MinValue).AddDays(1);
+            return candidate.ToDateTime(TimeOnly.MinValue);
         }
 
         return null;
     }
+
+    private sealed record CoverageRun(DateOnly FromDate, DateOnly ToDate);
 
     private async Task<DateTime?> GetPayrollPeriodStartAsync(DateTime date, CancellationToken ct)
     {
