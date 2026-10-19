@@ -5,6 +5,7 @@
 @attribute [Authorize]
 @inherits AppComponentBase
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 
 <PageTitle>@Language.T("common.huongDanChucNang")</PageTitle>
 
@@ -20,6 +21,15 @@
     @if (_missing)
     {
         <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@Language.T("help.notAvailable.summary") (@_feature)</MudAlert>
+    }
+    else if (_guideHtml is { } guideHtml)
+    {
+        <MudPaper Outlined="true" Class="pa-5">
+            <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
+            <MudText Typo="Typo.h5" Class="mb-1">@Title</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-4">@HelpRegistry.GuideFile · § @string.Join(", ", _usedSections)</MudText>
+            <div class="guide-md">@guideHtml</div>
+        </MudPaper>
     }
     else
     {
@@ -51,6 +61,9 @@
 @code {
     private string _feature = HelpRegistry.Home;
     private bool _missing;
+    private MarkupString? _guideHtml;
+    private string[] _sectionOverride = Array.Empty<string>();
+    private string[] _usedSections = Array.Empty<string>();
     private string Title = string.Empty;
     private string Summary = string.Empty;
     private string Flow = string.Empty;
@@ -65,11 +78,12 @@
         foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
             var pair = part.Split('=', 2);
-            if (pair.Length == 2 && string.Equals(Uri.UnescapeDataString(pair[0]), "feature", StringComparison.OrdinalIgnoreCase))
-            {
+            if (pair.Length != 2) continue;
+            var name = Uri.UnescapeDataString(pair[0]);
+            if (string.Equals(name, "feature", StringComparison.OrdinalIgnoreCase))
                 _feature = Uri.UnescapeDataString(pair[1]);
-                break;
-            }
+            else if (string.Equals(name, "section", StringComparison.OrdinalIgnoreCase))
+                _sectionOverride = Uri.UnescapeDataString(pair[1]).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
         _feature = _feature.Trim().ToUpperInvariant();
@@ -170,6 +184,26 @@
         Flow = Language.T(sharedPrefix + "flow");
         Example = Language.T(sharedPrefix + "example");
         Security = Language.T(sharedPrefix + "security");
+    }
+
+    // The detailed text comes from the Markdown guide (04_USER_GUIDE.md) when the host can read it; otherwise the short
+    // overview from Localization/*.help.json is shown.
+    protected override async Task OnInitializedAsync()
+    {
+        if (_missing) return;
+
+        var provider = Services.GetService(typeof(IGuideDocumentProvider)) as IGuideDocumentProvider;
+        var ids = _sectionOverride.Length > 0 ? _sectionOverride : HelpRegistry.GuideSectionsFor(_feature);
+        if (provider is null || ids.Length == 0) return;
+
+        var markdown = await provider.GetMarkdownAsync(HelpRegistry.GuideFile);
+        if (string.IsNullOrWhiteSpace(markdown)) return;
+
+        var found = ids.Where(id => GuideMarkdown.ExtractSection(markdown, id).Length > 0).ToArray();
+        if (found.Length == 0) return;
+
+        _usedSections = found.Select(id => id.TrimStart('~')).ToArray();
+        _guideHtml = new MarkupString(GuideMarkdown.ToHtml(GuideMarkdown.ExtractSections(markdown, found)));
     }
 
     private void Back() => Navigation.NavigateTo("/");
