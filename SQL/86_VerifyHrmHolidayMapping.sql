@@ -6,23 +6,60 @@ USE [FVN_REGISTER];
 GO
 SET NOCOUNT ON;
 
--- 1. Ngày nghỉ HRM không khớp loại nào trong DM_Loainghile (cả theo LNLMa lẫn LNLLoai)
+-- 1. Ngày HRM không có danh mục đích theo đúng mapping canonical.
+-- NNLLoai=1 -> LNLMa=0003; NNLLoai=2 -> LNLMa=0002.
+-- Các mã khác mới dùng fallback LNLMa/LNLLoai.
 SELECT n.NNLMa, n.NNLNgay, n.NNLLoai
 FROM HRM.dbo.tblNgayNghiLe AS n
 WHERE ISNULL(n.DLocked, 0) = 0
-  AND NOT EXISTS (SELECT 1 FROM HRM.dbo.DM_Loainghile t
-                  WHERE ISNULL(t.DLocked, 0) = 0
-                    AND (RTRIM(t.LNLMa) = RTRIM(n.NNLLoai) OR RTRIM(t.LNLLoai) = RTRIM(n.NNLLoai)));
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM HRM.dbo.DM_Loainghile AS t
+      WHERE ISNULL(t.DLocked, 0) = 0
+        AND
+        (
+            (RTRIM(CONVERT(varchar(10), n.NNLLoai)) = '1'
+             AND RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0003')
+            OR
+            (RTRIM(CONVERT(varchar(10), n.NNLLoai)) = '2'
+             AND RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4) = '0002')
+            OR
+            (
+                RTRIM(CONVERT(varchar(10), n.NNLLoai)) NOT IN ('1', '2')
+                AND
+                (
+                    RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4)
+                        = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(10), n.NNLLoai))), 4)
+                    OR RTRIM(CONVERT(varchar(10), t.LNLLoai))
+                        = RTRIM(CONVERT(varchar(10), n.NNLLoai))
+                )
+            )
+        )
+  );
 
--- 2. Mã NNLLoai khớp mơ hồ: vừa là LNLMa của loại này, vừa là LNLLoai của loại khác
+-- 2. Mapping fallback mơ hồ chỉ áp dụng cho nhóm khác 1/2.
+-- Hai nhóm 1/2 đã được ánh xạ tường minh nên không tham gia phép dò mơ hồ.
 SELECT n.NNLLoai, COUNT(DISTINCT t.LNLMa) AS MatchedTypes
 FROM HRM.dbo.tblNgayNghiLe AS n
 JOIN HRM.dbo.DM_Loainghile AS t
-  ON RTRIM(t.LNLMa) = RTRIM(n.NNLLoai) OR RTRIM(t.LNLLoai) = RTRIM(n.NNLLoai)
+  ON
+  (
+      RTRIM(CONVERT(varchar(10), n.NNLLoai)) NOT IN ('1', '2')
+      AND
+      (
+          RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), t.LNLMa))), 4)
+              = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(10), n.NNLLoai))), 4)
+          OR RTRIM(CONVERT(varchar(10), t.LNLLoai))
+              = RTRIM(CONVERT(varchar(10), n.NNLLoai))
+      )
+  )
+WHERE ISNULL(n.DLocked, 0) = 0
+  AND ISNULL(t.DLocked, 0) = 0
 GROUP BY n.NNLLoai
 HAVING COUNT(DISTINCT t.LNLMa) > 1;
 
--- 3. DayType đang gán cho từng loại ngày nghỉ (kiểm tra bằng mắt; sửa tay + DayTypeIsManual = 1 nếu sai)
+-- 3. DayType đang gán cho từng loại ngày nghỉ. 0001/0002/0003 do sync ép về mapping canonical; chỉ cân nhắc mapping thủ công cho mã HRM khác.
 SELECT LNLMa, LNLTen, LNLLoai, DayType, DayTypeIsManual, DLocked
 FROM dbo.F03HrmHolidayTypes ORDER BY LNLMa;
 
