@@ -12,8 +12,14 @@ public static class CalendarHolidayColorPolicy
     {
         var configured = CalendarColor.Normalize(configuredHolidayColor);
         var sunday = CalendarColor.Normalize(sundayColor) ?? "Navy";
+        var normalizedDayType = dayType?.Trim();
 
-        if (string.Equals(dayType?.Trim(), "SUNDAY", StringComparison.OrdinalIgnoreCase)
+        // NORMAL is a working day. HRM may still keep a display color on catalog 0001,
+        // but that color must never paint an ordinary day merely because attendance exists.
+        if (string.Equals(normalizedDayType, "NORMAL", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        if (string.Equals(normalizedDayType, "SUNDAY", StringComparison.OrdinalIgnoreCase)
             || string.Equals(dayType?.Trim(), "COMPANY_HOLIDAY", StringComparison.OrdinalIgnoreCase))
             return date.DayOfWeek == DayOfWeek.Sunday ? "Navy" : "LightYellow";
 
