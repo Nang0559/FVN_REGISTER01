@@ -5,7 +5,7 @@ public sealed record DayTypeInfo(string Code, byte? HolidayType, string HolidayT
 
 /// <summary>
 /// Danh mục DayType dùng chung. Mã HRM được chuẩn hóa thành 4 chữ số:
-/// 0001 = NORMAL (ngày thường); 0002 = Chủ nhật/nghỉ công ty; 0003 = nghỉ lễ.
+/// 0001 = NORMAL; 0002 = SUNDAY hoặc COMPANY_HOLIDAY tùy ngày thực tế; 0003 = NATIONAL_HOLIDAY.
 /// </summary>
 public static class DayTypeCatalog
 {
