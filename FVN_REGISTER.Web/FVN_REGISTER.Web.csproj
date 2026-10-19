@@ -19,6 +19,9 @@
     <Folder Include="Utils\" />
     <!-- The Language Center needs the JSON catalog as physical publish content. -->
     <Content Include="..\FVN_REGISTER.Shared\Localization\*.json" Link="Localization\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- /huong-dan renders the Markdown guide (+ its screenshots) from the Guide folder next to the app. Edit the .md, rebuild/publish (or just replace Guide\*.md on the server). -->
+    <Content Include="..\MÔ HÌNH\03_TAI_LIEU_HE_THONG\02_HUONG_DAN_SU_DUNG\*.md" Link="Guide\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\MÔ HÌNH\screenshots\*.*" Link="Guide\screenshots\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
