@@ -13,7 +13,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
     private readonly FVNWEBAPPContext _db;
     public HrmAttendanceCalculationJobService(FVNWEBAPPContext db) => _db=db;
 
-    public async Task<ServiceResult<HrmAttendanceCalculationJobDto>> EnqueueAsync(HrmAttendanceCalculationJobCommandDto request,string triggeredBy,CancellationToken ct=default,bool skipCoveredDates=false,byte priority=1)
+    public async Task<ServiceResult<HrmAttendanceCalculationJobDto>> EnqueueAsync(HrmAttendanceCalculationJobCommandDto request,string triggeredBy,CancellationToken ct=default,bool skipCoveredDates=false,byte priority=1,bool forceNewCalculation=false)
     {
         var from=request.FromDate.Date;var to=request.ToDate.Date;
         if(from>to)return ServiceResult<HrmAttendanceCalculationJobDto>.Fail("Khoảng ngày không hợp lệ.");
@@ -28,7 +28,7 @@ public class HrmAttendanceCalculationJobService : IHrmAttendanceCalculationJobSe
               AND ((EmployeeCode={employee}) OR (EmployeeCode IS NULL AND {employee} IS NULL))
               AND FromDate<={to} AND ToDate>={from} ORDER BY CreatedAt
             """).FirstOrDefaultAsync(ct);
-        if(active!=Guid.Empty)
+        if(active!=Guid.Empty && !forceNewCalculation)
         {
             var existing=await GetAsync(active,ct);
             // Calendar backfill is idempotent: join an overlapping durable job, wait for it,
