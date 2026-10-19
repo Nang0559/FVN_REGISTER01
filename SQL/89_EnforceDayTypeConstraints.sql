@@ -4,10 +4,10 @@
 Danh sách constraint là allowlist tương thích chuyển tiếp của database:
   NORMAL, COMPANY_SATURDAY (legacy), SUNDAY, COMPANY_HOLIDAY, NATIONAL_HOLIDAY, OTHER.
 DayTypeCatalog là danh mục canonical cho UI; COMPANY_SATURDAY là legacy database value
-được giữ trong giai đoạn chuyển đổi, không phải loại HRM chuẩn hiện tại.
-SQL/84 có thể cho phép thêm COMPENSATORY trong constraint chuyển tiếp; SQL/89
-chỉ được chạy sau khi SQL/88 đã dọn dữ liệu legacy và các truy vấn kiểm tra bên dưới
-không còn dòng sai. Không chạy SQL/90 sau script này.
+được giữ trong giai đoạn chuyển đổi, không phải loại HRM chuẩn hiện tại. COMPENSATORY
+chỉ được giữ tương thích ở F03CompanyHolidays/F03HrmHolidayTypes; không hợp lệ cho
+F03AttendanceSymbolRules. SQL/89 chỉ được chạy sau khi SQL/88 đã dọn rule và dữ liệu
+tính công; các truy vấn kiểm tra bên dưới phải không còn dòng sai. Không chạy SQL/90.
 Idempotent.
 ===============================================================================
 */
