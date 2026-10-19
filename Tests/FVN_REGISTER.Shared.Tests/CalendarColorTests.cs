@@ -80,4 +80,12 @@ public sealed class CalendarColorTests
         Assert.Equal("HotPink", CalendarHolidayColorPolicy.Resolve(new DateTime(2026, 10, 19), "NATIONAL_HOLIDAY", "HotPink", "Navy"));
     }
 
+    [Fact]
+    public void Normal_attendance_day_never_uses_hrm_catalog_color()
+    {
+        // HRM 0001 may retain LightYellow in DM_Loainghile, but NORMAL is not a holiday.
+        Assert.Null(CalendarHolidayColorPolicy.Resolve(
+            new DateTime(2026, 10, 19), "NORMAL", "LightYellow", "Navy"));
+    }
+
 }
