@@ -1,9 +1,13 @@
 ﻿/*
 89 - CHẶN DỮ LIỆU LOẠI NGÀY SAI QUAY LẠI
 ===============================================================================
-Danh sách hợp lệ PHẢI trùng FVN_REGISTER.Contract.Dtos.Calendar.DayTypeCatalog.Codes:
-  NORMAL, COMPANY_SATURDAY, SUNDAY, COMPANY_HOLIDAY, NATIONAL_HOLIDAY, OTHER
-Chạy SAU 88 (88 đã xóa dữ liệu sai). Nếu còn dữ liệu sai, script dừng và báo rõ bảng nào.
+Danh sách constraint là allowlist tương thích chuyển tiếp của database:
+  NORMAL, COMPANY_SATURDAY (legacy), SUNDAY, COMPANY_HOLIDAY, NATIONAL_HOLIDAY, OTHER.
+DayTypeCatalog là danh mục canonical cho UI; COMPANY_SATURDAY là legacy database value
+được giữ trong giai đoạn chuyển đổi, không phải loại HRM chuẩn hiện tại.
+SQL/84 có thể cho phép thêm COMPENSATORY trong constraint chuyển tiếp; SQL/89
+chỉ được chạy sau khi SQL/88 đã dọn dữ liệu legacy và các truy vấn kiểm tra bên dưới
+không còn dòng sai. Không chạy SQL/90 sau script này.
 Idempotent.
 ===============================================================================
 */
