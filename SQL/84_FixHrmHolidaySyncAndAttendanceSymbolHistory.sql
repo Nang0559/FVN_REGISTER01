@@ -207,7 +207,17 @@ BEGIN
             TypeCode = RTRIM(n.NNLLoai),
             HolidaySymbol = LEFT(NULLIF(LTRIM(RTRIM(t.LNLKyHieu)), N''), 50),
             TypeName = LEFT(t.LNLTen, 200),
-            TypeColor = LEFT(t.LNLMauSac, 50),
+            /* HRM 0002 dùng chung một mã cho Chủ nhật và ngày nghỉ công ty.
+               Màu phải theo DayType thực tế, không được bê nguyên Navy của danh mục
+               0002 sang các ngày thứ Hai-thứ Bảy. 0003 vẫn giữ màu cấu hình từ HRM. */
+            TypeColor = LEFT(CASE
+                WHEN t.LNLMa = '0002'
+                     AND DATEDIFF(day, '19000107', CONVERT(date, n.NNLNgay)) % 7 = 0
+                    THEN N'Navy'
+                WHEN t.LNLMa = '0002'
+                    THEN N'LightYellow'
+                ELSE t.LNLMauSac
+            END, 50),
             /* HRM 0002 là một danh mục bao gồm Chủ nhật và ngày nghỉ công ty:
                phân loại theo ngày thực tế để Sunday= SUNDAY, Mon-Sat=COMPANY_HOLIDAY. */
             DayType = CASE
