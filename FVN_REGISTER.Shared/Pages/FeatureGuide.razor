@@ -1,5 +1,7 @@
 @page "/huong-dan"
 @using Microsoft.AspNetCore.Authorization
+@using FVN_REGISTER.Shared.Services.Help
+@using FVN_REGISTER.Shared.Services.Language
 @attribute [Authorize]
 @inherits AppComponentBase
 @inject NavigationManager Navigation
@@ -15,6 +17,12 @@
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back">@Language.T("common.back")</MudButton>
     </MudStack>
 
+    @if (_missing)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@Language.T("help.notAvailable.summary") (@_feature)</MudAlert>
+    }
+    else
+    {
     <MudPaper Outlined="true" Class="pa-5">
         <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
         <MudText Typo="Typo.h5" Class="mb-3">@Title</MudText>
@@ -37,10 +45,12 @@
         <MudText Typo="Typo.h6" Class="mb-2">@Language.T("common.quyenVaPhamVi")</MudText>
         <MudText Typo="Typo.body1">@Security</MudText>
     </MudPaper>
+    }
 </MudContainer>
 
 @code {
-    private string _feature = "HOME_WORKSPACE";
+    private string _feature = HelpRegistry.Home;
+    private bool _missing;
     private string Title = string.Empty;
     private string Summary = string.Empty;
     private string Flow = string.Empty;
@@ -50,12 +60,6 @@
 
     protected override void OnInitialized()
     {
-        Title = Language.T("help.HOME_WORKSPACE.title");
-        Summary = Language.T("guide.trangChuGomViecCan");
-        Flow = "USER → ACTION CENTER → MY WORK → NOTIFICATION/APPROVAL → MODULE";
-        Steps = new[] { Language.T("guide.kiemTraViecCanLam"), Language.T("guide.moThongBaoHoacHo"), Language.T("guide.chonModuleCanXuLy"), Language.T("guide.xemDashboardKhiCoCapability") };
-        Example = Language.T("guide.nguoiCoLeaveviewNhungKhong");
-        Security = Language.T("guide.capabilityVaDataScopeDuoc");
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         var query = uri.Query.TrimStart('?');
         foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
@@ -68,7 +72,20 @@
             }
         }
 
-        switch (_feature.ToUpperInvariant())
+        _feature = _feature.Trim().ToUpperInvariant();
+        if (_feature == "CALENDAR") _feature = "WORK_CALENDAR";
+
+        // A code without help text must be reported, never replaced by the home page text.
+        if (!HelpRegistry.HasContent(Language.Current, _feature))
+        {
+            _missing = true;
+            return;
+        }
+
+        // Default: the steps come from help.{FEATURE}.steps. The legacy cases below keep their longer detailed steps.
+        Steps = LocalizationStore.Steps(Language.Current, _feature);
+
+        switch (_feature)
         {
             case "APPROVAL_INBOX":
                 Title = Language.T("help.APPROVAL_INBOX.title");
@@ -147,9 +164,6 @@
 
         // Keep the shared overview identical to the contextual '?' drawer.
         // Feature-specific Steps above remain the detailed operating procedure.
-        if (string.Equals(_feature, "CALENDAR", StringComparison.OrdinalIgnoreCase))
-            _feature = "WORK_CALENDAR";
-
         var sharedPrefix = $"help.{_feature}.";
         Title = Language.T(sharedPrefix + "title");
         Summary = Language.T(sharedPrefix + "summary");
