@@ -73,7 +73,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
             var doneDates=await db.Database.SqlQuery<DateOnly>($"""
                 SELECT r.FromDate AS [Value] FROM dbo.F03HrmAttendanceCalculationRun r
                 WHERE r.Status=N'Succeeded' AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
-                  AND r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',CONVERT(nvarchar(36),{job.JobId}),N'%') AND r.FromDate=r.ToDate
+                  AND r.TriggeredBy LIKE CONCAT(N'HRM-JOB:',REPLACE(CONVERT(nvarchar(36),{job.JobId}),N'-',N''),N'%') AND r.FromDate=r.ToDate
                 """).ToListAsync(ct);
             var done=doneDates.ToHashSet();
             var covered=new HashSet<DateOnly>();
