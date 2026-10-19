@@ -19,7 +19,6 @@ namespace FVN_REGISTER.API.Controllers;
 [Route("api/hrm-attendance-calculation")]
 public sealed class HrmAttendanceCalculationController:BaseApiController
 {
- private readonly IHrmAttendanceCalculationService _service;
  private readonly IHrmAttendanceCalculationJobService _jobs;
  private readonly IAuthorizationService _authorization;
  private readonly IHrmAttendanceExcelExportService _excel;
@@ -28,7 +27,7 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
  private static readonly ConcurrentDictionary<string,SemaphoreSlim> SelfRecalculationGates=new(StringComparer.OrdinalIgnoreCase);
  private static readonly TimeSpan SelfRecalculationCooldownPeriod=TimeSpan.FromMinutes(5);
 
- public HrmAttendanceCalculationController(IHrmAttendanceCalculationService service,IHrmAttendanceCalculationJobService jobs,IHrmAttendanceExcelExportService excel,FVN_REGISTER.Application.Interfaces.Users.ICurrentUserService currentUser,FVN_REGISTER.Application.Interfaces.Users.IUserLogService userLog,IAuthorizationService authorization,FVNWEBAPPContext db,ILogger<HrmAttendanceCalculationController> logger,Microsoft.Extensions.Options.IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options):base(currentUser,userLog,logger,options){_service=service;_jobs=jobs;_excel=excel;_authorization=authorization;_db=db;}
+ public HrmAttendanceCalculationController(IHrmAttendanceCalculationJobService jobs,IHrmAttendanceExcelExportService excel,FVN_REGISTER.Application.Interfaces.Users.ICurrentUserService currentUser,FVN_REGISTER.Application.Interfaces.Users.IUserLogService userLog,IAuthorizationService authorization,FVNWEBAPPContext db,ILogger<HrmAttendanceCalculationController> logger,Microsoft.Extensions.Options.IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options):base(currentUser,userLog,logger,options){_jobs=jobs;_excel=excel;_authorization=authorization;_db=db;}
 
  [HttpGet("monitor")]
  public async Task<IActionResult> Monitor(CancellationToken ct){if(UserInfo==null||!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceCalculate,ct))return Forbid();return Ok(ApiResponse<List<HrmAttendanceCalculationMonitorDto>>.Ok(await QueryMonitorAsync(null,ct)));}
