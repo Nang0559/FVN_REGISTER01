@@ -5,14 +5,14 @@ public sealed record DayTypeInfo(string Code, byte? HolidayType, string HolidayT
 
 /// <summary>
 /// Danh mục DayType dùng chung. Mã HRM được chuẩn hóa thành 4 chữ số:
-/// 0001 = nghỉ công ty từ thứ Hai đến thứ Bảy; 0002 = Chủ nhật; 0003 = nghỉ lễ.
+/// 0001 = NORMAL (ngày thường); 0002 = Chủ nhật/nghỉ công ty; 0003 = nghỉ lễ.
 /// </summary>
 public static class DayTypeCatalog
 {
     public static readonly IReadOnlyList<DayTypeInfo> All = new DayTypeInfo[]
     {
         new("NORMAL", null, "NORMAL", "Ngày thường (T2-T7)", "ngày thường", false),
-        // HRM 0001: nghỉ công ty từ thứ Hai đến thứ Bảy; dùng rule NT/T.
+        // COMPANY_HOLIDAY là loại legacy; HRM 0001 hiện được chuẩn hóa thành NORMAL.
         new("COMPANY_HOLIDAY", 1, "COMPANY", "Nghỉ công ty (T2-T7)", "nghỉ công ty", true, "NT"),
         // HRM 0002 và Chủ nhật mặc định; dùng rule CN/CNK riêng.
         new("SUNDAY", null, "SUNDAY", "Nghỉ Chủ nhật (CN)", "nghỉ Chủ nhật", true, "CN"),
