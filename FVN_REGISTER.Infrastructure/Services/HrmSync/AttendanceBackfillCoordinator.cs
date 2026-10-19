@@ -17,7 +17,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync;
 public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinator
 {
     private sealed record InFlight(DateOnly From, DateOnly To, Task<string?> Completion);
-    private sealed record CoverageRun(DateOnly FromDate, DateOnly ToDate);
+    private sealed record CoverageRun(DateOnly FromDate, DateOnly ToDate, DateTime? FinishedAt);
     private sealed record DateRange(DateOnly From, DateOnly To);
 
     private readonly IServiceScopeFactory _scopeFactory;
@@ -25,6 +25,7 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
     private readonly ILogger<AttendanceBackfillCoordinator> _logger;
     private readonly TimeSpan _maxWait;
     private readonly TimeSpan _backgroundTimeout;
+    private readonly TimeSpan _currentDayFreshness;
     private readonly object _gate = new();
     private readonly Dictionary<string, InFlight> _inFlight = new(StringComparer.OrdinalIgnoreCase);
 
@@ -41,6 +42,8 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
             configuration.GetValue<int?>("Calendar:AttendanceBackfill:WaitSeconds") ?? 3, 0, 30));
         _backgroundTimeout = TimeSpan.FromSeconds(Math.Clamp(
             configuration.GetValue<int?>("Calendar:AttendanceBackfill:BackgroundTimeoutSeconds") ?? 300, 10, 3600));
+        _currentDayFreshness = TimeSpan.FromMinutes(Math.Clamp(
+            configuration.GetValue<int?>("Calendar:AttendanceBackfill:CurrentDayFreshnessMinutes") ?? 15, 1, 120));
     }
 
     public async Task<AttendanceBackfillResult> EnsureAsync(
@@ -104,7 +107,7 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
             while (!timeout.IsCancellationRequested)
             {
                 var runs = await db.Database.SqlQuery<CoverageRun>($"""
-                    SELECT r.FromDate, r.ToDate
+                    SELECT r.FromDate, r.ToDate, r.FinishedAt
                     FROM dbo.F03HrmAttendanceCalculationRun AS r
                     WHERE r.Status=N'Succeeded'
                       AND r.CalculationVersion=N'HRM-PORT-1.1-C3-OVERNIGHT'
@@ -117,10 +120,6 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                     ORDER BY r.FromDate
                     """).ToListAsync(timeout.Token);
 
-                var gaps = FindGaps(from, effectiveTo, runs);
-                if (gaps.Count == 0)
-                    return null;
-
                 var lockedPeriods = await db.PayrollCalculationPeriods.AsNoTracking()
                     .Where(x => x.IsActive != false
                         && (x.Status == "Locked" || x.Status == "Exported")
@@ -129,11 +128,27 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                     .Select(x => new DateRange(x.FromDate, x.ToDate))
                     .ToListAsync(timeout.Token);
 
+                var today = DateOnly.FromDateTime(DateTime.Today);
+                var latestTodayRun = runs
+                    .Where(x => x.FromDate <= today && x.ToDate >= today)
+                    .OrderByDescending(x => x.FinishedAt ?? DateTime.MinValue)
+                    .FirstOrDefault();
+                var refreshToday = from <= today
+                    && effectiveTo >= today
+                    && !lockedPeriods.Any(x => x.From <= today && x.To >= today)
+                    && (latestTodayRun is null
+                        || !latestTodayRun.FinishedAt.HasValue
+                        || DateTime.Now - latestTodayRun.FinishedAt.Value >= _currentDayFreshness);
+
+                var gaps = FindGaps(from, effectiveTo, runs);
                 var missing = SubtractRanges(gaps, lockedPeriods);
-                if (missing.Count == 0)
+                // Current-day freshness is separate from historical gap backfill: when today's
+                // source data is older than the configured freshness window, enqueue only today,
+                // not a company-wide recalculation and not the whole calendar range.
+                if (!refreshToday && missing.Count == 0)
                     return null;
 
-                var gap = missing[0];
+                var gap = refreshToday ? new DateRange(today, today) : missing[0];
                 // The job service caps each job at 93 calendar dates.
                 var chunkTo = gap.To > gap.From.AddDays(92) ? gap.From.AddDays(92) : gap.To;
                 var request = new HrmAttendanceCalculationJobCommandDto
@@ -149,7 +164,7 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                     request,
                     $"CALENDAR-BACKFILL:{employeeCode}",
                     CancellationToken.None,
-                    skipCoveredDates: true);
+                    skipCoveredDates: !refreshToday);
 
                 if (!enqueue.IsSuccess || enqueue.Data is null)
                 {
