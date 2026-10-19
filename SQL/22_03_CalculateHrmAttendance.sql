@@ -67,10 +67,29 @@ BEGIN
   END
   SET @LockHeld=1;
 
-  DELETE FROM dbo.F03HrmAttendanceCalculated
-  WHERE WorkDate=@D
-    AND (@HrmDeptId IS NULL OR HrmDeptId=@HrmDeptId)
-    AND (@HrmEmployeeId IS NULL OR HrmEmployeeId=@HrmEmployeeId);
+  /*
+     Delete by the CURRENT employee scope, not by the department stored on an
+     old attendance row. An employee may have moved departments since that row
+     was calculated (e.g. HrmDeptId 7 -> current NVMaBP 27). The old row must
+     still be replaced when the employee is recalculated in the new department.
+     Keep the employee/date boundary so other departments and dates are untouched.
+  */
+  DELETE A
+  FROM dbo.F03HrmAttendanceCalculated AS A
+  WHERE A.WorkDate=@D
+    AND (@HrmEmployeeId IS NULL OR A.HrmEmployeeId=@HrmEmployeeId)
+    AND
+    (
+        @HrmDeptId IS NULL
+        OR EXISTS
+        (
+            SELECT 1
+            FROM HRM.dbo.tblNhanVien AS NV
+            WHERE NV.NVMa=A.HrmEmployeeId
+              AND NV.NVMaBP=@HrmDeptId
+              AND ISNULL(NV.DLocked,0)=0
+        )
+    );
 
   -- OT actual is also current-state; clear the same employee/date scope
   -- inside the same date transaction so a failed calculation rolls it back.
@@ -98,6 +117,31 @@ BEGIN
   BEGIN
    DELETE FROM #Result;
    INSERT #Result EXEC dbo.usp_HrmCompatibleTimeKeepingForStaff @StaffID=@StaffID,@D=@D;
+
+   /*
+      The current-state table has a unique key on (HrmEmployeeId, WorkDate).
+      Fail with a source-specific diagnostic if the legacy HRM engine returns
+      more than one row for this employee/date; never silently discard a row.
+   */
+   IF EXISTS
+   (
+       SELECT 1
+       FROM #Result
+       WHERE BCMaNV=@StaffID
+         AND CONVERT(date,BCNgay)=@D
+       GROUP BY BCMaNV,CONVERT(date,BCNgay)
+       HAVING COUNT_BIG(*)>1
+   )
+   BEGIN
+       DECLARE @DuplicateResultMessage nvarchar(2048) =
+           N'HRM-compatible calculation returned multiple rows for employee '
+           + CONVERT(nvarchar(20),@StaffID)
+           + N' on '
+           + CONVERT(nvarchar(10),@D,23)
+           + N'. The date transaction was rolled back; inspect dbo.usp_HrmCompatibleTimeKeepingForStaff.';
+       THROW 51324,@DuplicateResultMessage,1;
+   END;
+
    INSERT dbo.F03HrmAttendanceCalculated(
     CalculationBatchId,CalculationVersion,WorkDate,HrmEmployeeId,EmployeeCode,FullName,HrmDeptId,DeptCode,HrmPositionId,ShiftId,ShiftAbbr,
     CheckInGate,CheckInTime,CheckOutGate,CheckOutTime,ExitGate,ExitTime,EntryGate,EntryTime,WorkMinutesDay,WorkMinutesNight,
