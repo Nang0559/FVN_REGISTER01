@@ -212,6 +212,8 @@ BEGIN
         ) AS t
         WHERE ISNULL(n.DLocked, 0) = 0
           AND n.NNLNgay IS NOT NULL
+          -- HRM 0001 = NORMAL: không tạo ngày nghỉ trong F03CompanyHolidays.
+          AND COALESCE(t.DayType, N'NATIONAL_HOLIDAY') <> N'NORMAL'
     )
     SELECT HrmCode, HolidayDate, Description, TypeCode, HolidaySymbol, TypeName, TypeColor, DayType, HolidayType
     INTO #HrmHolidaySource
@@ -283,9 +285,8 @@ BEGIN
           AND NOT EXISTS
           (
               SELECT 1
-              FROM HRM.dbo.tblNgayNghiLe AS n
-              WHERE RTRIM(n.NNLMa) = d.HrmHolidayCode
-                AND ISNULL(n.DLocked, 0) = 0
+              FROM #HrmHolidaySource AS s
+              WHERE s.HrmCode = d.HrmHolidayCode
           );
         SET @HolidaysDeleted = @@ROWCOUNT;
     END;
