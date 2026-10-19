@@ -135,6 +135,16 @@ Lịch làm việc tập trung thông tin theo từng ngày: ngày làm/ngày ng
 
 Màu nền của ngày thể hiện loại ngày theo lịch công ty. Ký hiệu công hoặc có giờ chấm công không tự làm ngày thường đổi thành ngày nghỉ.
 
+**Đăng ký từ một ngày trên lịch**
+
+- Với ngày tương lai được phép đăng ký, chọn ngày đó để xem các lựa chọn **Nghỉ phép**, **OT** hoặc **Công tác** mà hệ thống cho phép.
+- Với ngày được đánh dấu nghỉ theo lịch công ty, màn hình thông báo chỉ đăng ký OT; lựa chọn nghỉ phép và công tác không khả dụng.
+- Nếu ngày không có lựa chọn đăng ký, hãy kiểm tra loại ngày, trạng thái đã có đơn và điều kiện đăng ký của tài khoản. Không cố tạo đơn ngoài điều kiện được hiển thị.
+
+**Nếu dữ liệu chấm công chưa cập nhật**
+
+Trên lịch cá nhân có thể có chức năng **Buộc tính lại chấm công** cho dữ liệu của chính bạn. Chức năng này chỉ áp dụng khoảng tối đa 7 ngày mỗi lần và giới hạn gửi yêu cầu mới trong 5 phút. Chỉ dùng khi ngày đã phát sinh nhưng dữ liệu chưa được cập nhật; nếu vẫn thiếu sau khi tính lại, liên hệ HR/IT để kiểm tra nguồn dữ liệu.
+
 **Sau khi xem lịch**
 
 Nếu không có cảnh báo, bạn chỉ cần dùng lịch để tra cứu. Nếu có dấu **?**, mở chi tiết và xử lý theo mục 3.2. Nếu muốn đăng ký nghỉ/OT/công tác cho ngày được phép đăng ký, chọn thao tác đăng ký tương ứng trên lịch hoặc mở phân hệ đăng ký.
