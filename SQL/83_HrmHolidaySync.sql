@@ -31,7 +31,7 @@ BEGIN
         LNLKyHieu  nvarchar(50)  NULL,
         LNLMauSac  varchar(50)   NULL,
         DLocked    bit           NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_DLocked DEFAULT(0),
-        /* NORMAL | COMPANY_HOLIDAY (HRM 001) | SUNDAY (HRM 002) | NATIONAL_HOLIDAY (HRM 003) | OTHER legacy */
+        /* NORMAL (HRM 001) | SUNDAY (HRM 002) | NATIONAL_HOLIDAY (HRM 003) | COMPANY_HOLIDAY legacy | OTHER legacy */
         DayType    nvarchar(40)  NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_DayType DEFAULT(N'NATIONAL_HOLIDAY'),
         DayTypeIsManual bit      NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_Manual DEFAULT(0),
         SyncedAt   datetime2(0)  NOT NULL CONSTRAINT DF_F03HrmHolidayTypes_SyncedAt DEFAULT(SYSUTCDATETIME())
@@ -103,7 +103,7 @@ IF OBJECT_ID(N'dbo.usp_SyncHrmHolidays', N'P') IS NULL
 GO
 
 /* 5. Một hàm duy nhất quyết định DayType -------------------------------------
-   HRM 001 = Nghỉ công ty T2-T7; 002 = Chủ nhật; 003 = Nghỉ lễ.
+   HRM 001 = NORMAL; 002 = Chủ nhật/nghỉ công ty; 003 = Nghỉ lễ.
    Ưu tiên bản ghi HRM, sau đó cờ HRM, Chủ nhật mặc định và NORMAL.
    Chủ nhật xác định bằng DATEDIFF để không phụ thuộc SET DATEFIRST. */
 CREATE OR ALTER FUNCTION dbo.fn_ResolveDayType
@@ -117,7 +117,7 @@ AS
 RETURN
 (
     SELECT
-        /* HRM 001 = nghỉ công ty T2-T7; 002 = Chủ nhật; 003 = nghỉ lễ.
+        /* HRM 001 = NORMAL; 002 = Chủ nhật/nghỉ công ty; 003 = nghỉ lễ.
            Cờ HRM là fallback khi chưa có bản ghi đồng bộ. */
         DayType = COALESCE(
             (SELECT TOP (1) h.DayType
