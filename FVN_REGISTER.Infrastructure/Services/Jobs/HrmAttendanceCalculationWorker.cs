@@ -200,7 +200,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 yesterday,
                 "HRM-ATTENDANCE-WORKER",
                 ct,
-                skipCoveredDates: false);
+                skipCoveredDates: false,
+                forceNewCalculation: true);
         }
         catch (OperationCanceledException)
         {
@@ -223,7 +224,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         DateTime to,
         string triggeredBy,
         CancellationToken ct,
-        bool skipCoveredDates = true)
+        bool skipCoveredDates = true,
+        bool forceNewCalculation = false)
     {
         if (from.Date > to.Date)
             return;
@@ -240,7 +242,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 triggeredBy,
                 reopenPayrollPeriod: true,
                 skipCoveredDates: skipCoveredDates,
-                ct: ct);
+                ct: ct,
+                forceNewCalculation: forceNewCalculation);
 
             if (!queued)
             {
@@ -277,7 +280,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         string triggeredBy,
         bool reopenPayrollPeriod,
         bool skipCoveredDates,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool forceNewCalculation = false)
     {
         try
         {
@@ -296,7 +300,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 triggeredBy,
                 ct,
                 skipCoveredDates,
-                priority: 2);
+                priority: 2,
+                forceNewCalculation: forceNewCalculation);
 
             if (result.IsSuccess && result.Data is not null)
             {
