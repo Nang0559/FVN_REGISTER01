@@ -35,4 +35,5 @@ public sealed class HrmAttendanceCalculationJobCommandDto
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
     public bool ReopenPayrollPeriod { get; set; }
+    public bool SkipCoveredDates { get; set; }
 }
