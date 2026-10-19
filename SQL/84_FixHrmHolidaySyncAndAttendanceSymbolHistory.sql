@@ -252,8 +252,32 @@ BEGIN
             SELECT TOP (1) x.LNLMa, x.DayType, x.LNLKyHieu, x.LNLTen, x.LNLMauSac
             FROM TypeSource AS x
             WHERE ISNULL(x.DLocked, 0) = 0
-              AND (x.LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), n.NNLLoai))), 4) OR x.LNLLoai = RTRIM(n.NNLLoai))
-            ORDER BY CASE WHEN x.LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), n.NNLLoai))), 4) THEN 0 ELSE 1 END,
+              AND
+              (
+                  /* NNLLoai trong tblNgayNghiLe là nhóm đăng ký:
+                     1 = Nghỉ lễ (danh mục 0003), 2 = Nghỉ Chủ nhật/nghỉ công ty (0002).
+                     Không được ghép số 1 với LNLMa=0001 vì 0001 là NORMAL. */
+                  (RTRIM(CONVERT(varchar(10), n.NNLLoai)) = '1' AND x.LNLMa = '0003')
+                  OR (RTRIM(CONVERT(varchar(10), n.NNLLoai)) = '2' AND x.LNLMa = '0002')
+                  /* Chỉ dùng cách ghép cũ cho các nhóm khác 1/2. */
+                  OR
+                  (
+                      RTRIM(CONVERT(varchar(10), n.NNLLoai)) NOT IN ('1', '2')
+                      AND
+                      (
+                          x.LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), n.NNLLoai))), 4)
+                          OR x.LNLLoai = RTRIM(CONVERT(varchar(10), n.NNLLoai))
+                      )
+                  )
+              )
+            ORDER BY
+                     CASE
+                         WHEN RTRIM(CONVERT(varchar(10), n.NNLLoai)) = '1' AND x.LNLMa = '0003' THEN 0
+                         WHEN RTRIM(CONVERT(varchar(10), n.NNLLoai)) = '2' AND x.LNLMa = '0002' THEN 0
+                         WHEN RTRIM(CONVERT(varchar(10), n.NNLLoai)) NOT IN ('1', '2')
+                              AND x.LNLMa = RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), n.NNLLoai))), 4) THEN 1
+                         ELSE 2
+                     END,
                      CASE x.DayType
                          WHEN N'NATIONAL_HOLIDAY' THEN 1
                          WHEN N'COMPANY_HOLIDAY'  THEN 2
