@@ -114,7 +114,13 @@ BEGIN
            d.LNLMauSac = s.LNLMauSac,
            d.DLocked = s.DLocked,
            d.SyncedAt = SYSUTCDATETIME(),
-           d.DayType = CASE WHEN d.DayTypeIsManual = 1 THEN d.DayType ELSE s.GuessDayType END
+           d.DayType = CASE
+               WHEN s.LNLMa = '0001' THEN N'NORMAL'
+               WHEN s.LNLMa = '0002' THEN N'SUNDAY'
+               WHEN s.LNLMa = '0003' THEN N'NATIONAL_HOLIDAY'
+               WHEN d.DayTypeIsManual = 1 THEN d.DayType
+               ELSE s.GuessDayType
+           END
     FROM dbo.F03HrmHolidayTypes AS d
     INNER JOIN TypeSource AS s ON RIGHT('0000' + LTRIM(RTRIM(CONVERT(varchar(5), d.LNLMa))), 4) = s.LNLMa;
 
