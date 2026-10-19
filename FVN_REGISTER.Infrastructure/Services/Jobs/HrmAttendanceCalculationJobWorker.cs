@@ -51,9 +51,9 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
         if(guard is null)return false;
 
         var job=await db.Database.SqlQuery<JobRow>($"""
-            SELECT TOP(1) JobId,DeptCode,EmployeeCode,FromDate,ToDate,ReopenPayrollPeriod,SkipCoveredDates,TriggeredBy,Status,CancelRequestedAt
+            SELECT TOP(1) JobId,DeptCode,EmployeeCode,FromDate,ToDate,ReopenPayrollPeriod,SkipCoveredDates,Priority,TriggeredBy,Status,CancelRequestedAt
             FROM dbo.F03HrmAttendanceCalculationJob WITH(READPAST,UPDLOCK,ROWLOCK)
-            WHERE Status IN(N'Queued',N'Running',N'CancelRequested') ORDER BY CreatedAt
+            WHERE Status IN(N'Queued',N'Running',N'CancelRequested') ORDER BY CASE WHEN Status=N'Running' THEN 0 ELSE 1 END,Priority ASC,CreatedAt ASC
             """).FirstOrDefaultAsync(ct);
         if(job is null)
         {
@@ -130,9 +130,26 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                 if(await IsCancelRequestedAsync(db,job.JobId,ct))
                 { await MarkAsync(db,job.JobId,"Cancelled","Người dùng yêu cầu dừng tại boundary ngày.",CancellationToken.None);return true; }
                 var dateOnly=DateOnly.FromDateTime(date);
-                if(done.Contains(dateOnly)){await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);continue;}
-                if(covered.Contains(dateOnly)){completed++;await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);continue;}
-                if(locked.Any(x=>x.From<=dateOnly&&x.To>=dateOnly)){completed++;await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);continue;}
+                if(done.Contains(dateOnly))
+                {
+                    await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);
+                    if(await YieldToHigherPriorityJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
+                    continue;
+                }
+                if(covered.Contains(dateOnly))
+                {
+                    completed++;
+                    await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);
+                    if(await YieldToHigherPriorityJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
+                    continue;
+                }
+                if(locked.Any(x=>x.From<=dateOnly&&x.To>=dateOnly))
+                {
+                    completed++;
+                    await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,null,CancellationToken.None);
+                    if(await YieldToHigherPriorityJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
+                    continue;
+                }
 
                 await db.Database.ExecuteSqlInterpolatedAsync($"""
                     UPDATE dbo.F03HrmAttendanceCalculationJob
@@ -151,6 +168,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                 }
                 completed++;
                 await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,result.Data?.CalculationBatchId,CancellationToken.None);
+                if(await YieldToHigherPriorityJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}
             }
             await MarkAsync(db,job.JobId,"Completed",null,CancellationToken.None);
             _health.Success(nameof(HrmAttendanceCalculationJobWorker));
@@ -165,6 +183,12 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
             return true;
         }
     }
+
+    private static async Task<bool> YieldToHigherPriorityJobAsync(FVNWEBAPPContext db,Guid jobId,byte priority,CancellationToken ct)
+        => await db.Database.SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM dbo.F03HrmAttendanceCalculationJob WHERE Status=N'Queued' AND Priority<{priority} AND JobId<>{jobId}").SingleAsync(ct)>0;
+
+    private static Task<int> RequeueAtBoundaryAsync(FVNWEBAPPContext db,Guid jobId)
+        => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03HrmAttendanceCalculationJob SET Status=N'Queued',UpdatedAt=SYSUTCDATETIME() WHERE JobId={jobId} AND Status=N'Running' AND CancelRequestedAt IS NULL",CancellationToken.None);
 
     private static async Task<bool> IsCancelRequestedAsync(FVNWEBAPPContext db,Guid jobId,CancellationToken ct)
         =>await db.Database.SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM dbo.F03HrmAttendanceCalculationJob WHERE JobId={jobId} AND Status=N'CancelRequested'").SingleAsync(ct)>0;
@@ -212,7 +236,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
     private sealed class JobRow
     {
         public Guid JobId{get;set;}public int? DeptCode{get;set;}public string? EmployeeCode{get;set;}public DateTime FromDate{get;set;}public DateTime ToDate{get;set;}
-        public bool ReopenPayrollPeriod{get;set;}public bool SkipCoveredDates{get;set;}public string TriggeredBy{get;set;}=string.Empty;public string Status{get;set;}=string.Empty;public DateTime? CancelRequestedAt{get;set;}
+        public bool ReopenPayrollPeriod{get;set;}public bool SkipCoveredDates{get;set;}public byte Priority{get;set;}public string TriggeredBy{get;set;}=string.Empty;public string Status{get;set;}=string.Empty;public DateTime? CancelRequestedAt{get;set;}
     }
     private sealed record DateRange(DateOnly From,DateOnly To);
     private sealed record CoverageRun(DateOnly FromDate,DateOnly ToDate);
