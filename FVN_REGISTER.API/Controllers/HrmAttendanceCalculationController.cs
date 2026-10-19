@@ -141,5 +141,23 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
  }
 
  [HttpPost("calculate")]
- public async Task<IActionResult> Calculate([FromBody] HrmAttendanceCalculationRequestDto request,CancellationToken ct){if(UserInfo==null)return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));if(!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceCalculate,ct))return Forbid();if(request.FromDate.Date>request.ToDate.Date)return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));var result=await _service.CalculateAsync(request,UserInfo.EmployeeCode,ct);return result.IsSuccess?Ok(ApiResponse<HrmAttendanceCalculationResultDto>.Ok(result.Data!)):BadRequest(ApiResponse<object>.Fail(result.Message??"Tính giờ thất bại."));}
+ public async Task<IActionResult> Calculate([FromBody] HrmAttendanceCalculationRequestDto request,CancellationToken ct)
+ {
+  if(UserInfo==null)return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+  if(!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceCalculate,ct))return Forbid();
+  if(request.FromDate.Date>request.ToDate.Date)return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
+  var triggeredBy=string.IsNullOrWhiteSpace(UserInfo.EmployeeCode)?"HRM-UI":UserInfo.EmployeeCode!;
+  var command=new HrmAttendanceCalculationJobCommandDto
+  {
+   DeptCode=request.DeptCode,
+   EmployeeCode=request.EmployeeCode,
+   FromDate=request.FromDate.Date,
+   ToDate=request.ToDate.Date,
+   ReopenPayrollPeriod=request.ReopenPayrollPeriod
+  };
+  var result=await _jobs.EnqueueAsync(command,triggeredBy,ct,skipCoveredDates:false);
+  return result.IsSuccess&&result.Data is not null
+   ?Accepted($"api/hrm-attendance-calculation/jobs/{result.Data.JobId}",ApiResponse<HrmAttendanceCalculationJobDto>.Ok(result.Data,"Đã đưa phép tính vào hàng đợi. Request HTTP không giữ vòng đời SQL."))
+   :BadRequest(ApiResponse<object>.Fail(result.Message??"Không thể đưa phép tính vào hàng đợi."));
+}
 }
