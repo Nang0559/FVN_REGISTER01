@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Security;
+using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Responses;
