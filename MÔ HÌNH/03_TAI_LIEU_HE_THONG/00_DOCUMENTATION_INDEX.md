@@ -37,6 +37,14 @@ Bộ tài liệu giới thiệu, trình chiếu và đánh giá hiệu quả n�
 
 ## 4. Tài liệu kỹ thuật / triển khai
 
+Tài liệu canonical cho Work Calendar, HRM Attendance và OT reconciliation nằm trong `01_KIEN_TRUC_HE_THONG` / `02_NGHIEP_VU_MODULE`:
+
+- [`24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md`](../01_KIEN_TRUC_HE_THONG/24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md) — kiến trúc Calendar, DayType, màu ngày, registration availability và Action.
+- [`22_HRM_ATTENDANCE_CALCULATION.md`](../01_KIEN_TRUC_HE_THONG/ATTENDANCE/22_HRM_ATTENDANCE_CALCULATION.md) — HRM-compatible calculation, backfill, DayType và symbol rules.
+- [`18_OT_ATTENDANCE_RECONCILIATION.md`](../01_KIEN_TRUC_HE_THONG/EXECUTION/18_OT_ATTENDANCE_RECONCILIATION.md) — OT actual và reconciliation.
+- [`08_OT.md`](../02_NGHIEP_VU_MODULE/OT/08_OT.md) — OT business module.
+
+Tài liệu kỹ thuật triển khai khác:
 - `04_KY_THUAT_TRIEN_KHAI/ENDPOINT/` — tài liệu Endpoint Inventory & Compliance.
 - Thư mục `docs/` ở gốc repository hiện vẫn tồn tại và chứa ghi chú kỹ thuật/kiểm toán. Đây không phải cổng tài liệu người dùng hay bộ tài liệu PR; các ghi chú cần được phân loại/hợp nhất dần vào đúng khu vực chuẩn trong `MÔ HÌNH/`. Không dùng ghi chú rời làm bằng chứng nghiệm thu nếu chưa đối chiếu branch và commit hiện tại.
 
