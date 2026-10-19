@@ -295,7 +295,8 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 },
                 triggeredBy,
                 ct,
-                skipCoveredDates);
+                skipCoveredDates,
+                priority: 2);
 
             if (result.IsSuccess && result.Data is not null)
             {
