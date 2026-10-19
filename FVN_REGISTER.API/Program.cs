@@ -230,6 +230,7 @@ builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationJobWorker>();
+builder.Services.AddHostedService<HrmAttendanceStaleSweepWorker>();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
@@ -314,6 +315,7 @@ builder.Services.AddScoped<IHrmSyncReviewQueryService, HrmSyncReviewQueryService
 builder.Services.AddScoped<IHrmSyncService, HrmSyncService>();
 builder.Services.AddScoped<IHrmAttendanceCalculationService, HrmAttendanceCalculationService>();
 builder.Services.AddScoped<IHrmAttendanceCalculationJobService, HrmAttendanceCalculationJobService>();
+builder.Services.AddScoped<IHrmSourceFreshnessService, HrmSourceFreshnessService>();
 builder.Services.AddSingleton<IAttendanceBackfillCoordinator, AttendanceBackfillCoordinator>();
 builder.Services.AddScoped<IHrmAttendanceExcelExportService, HrmAttendanceExcelExportService>();
 builder.Services.AddScoped<IHrmUserRoleRuleService, HrmUserRoleRuleService>();

@@ -47,6 +47,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
         await using var scope=_services.CreateAsyncScope();
         var db=scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
         var calculation=scope.ServiceProvider.GetRequiredService<IHrmAttendanceCalculationService>();
+        var freshness=scope.ServiceProvider.GetRequiredService<IHrmSourceFreshnessService>();
         await using var guard=await TryAcquireGuardAsync(db,ct);
         if(guard is null)return false;
 
@@ -118,6 +119,13 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                     var last=run.ToDate>DateOnly.FromDateTime(job.ToDate)?DateOnly.FromDateTime(job.ToDate):run.ToDate;
                     for(var day=first;day<=last;day=day.AddDays(1)) covered.Add(day);
                 }
+                // A date covered by a successful run is only "covered" while HRM has not changed since.
+                // Stale dates are removed from the covered set so they are recalculated (employee scope).
+                if(job.EmployeeCode is not null)
+                {
+                    var stale=await freshness.GetStaleDatesAsync(job.EmployeeCode.Trim(),DateOnly.FromDateTime(job.FromDate),DateOnly.FromDateTime(job.ToDate),ct);
+                    covered.ExceptWith(stale);
+                }
             }
             var locked=await db.PayrollCalculationPeriods.AsNoTracking()
                 .Where(x=>x.IsActive!=false&&(x.Status=="Locked"||x.Status=="Exported")&&x.FromDate<=DateOnly.FromDateTime(job.ToDate)&&x.ToDate>=DateOnly.FromDateTime(job.FromDate))
@@ -156,6 +164,8 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                     SET CurrentWorkDate={dateOnly},LastProgressAt=SYSUTCDATETIME(),UpdatedAt=SYSUTCDATETIME() WHERE JobId={job.JobId}
                     """,CancellationToken.None);
 
+                // Fingerprint is captured BEFORE the calculation and committed only after it succeeds.
+                var capture=await freshness.CaptureAsync(job.EmployeeCode,dateOnly,CancellationToken.None);
                 var result=await calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto
                 {
                     DeptCode=job.DeptCode,EmployeeCode=job.EmployeeCode,FromDate=date,ToDate=date,ReopenPayrollPeriod=job.ReopenPayrollPeriod
@@ -166,6 +176,7 @@ public sealed class HrmAttendanceCalculationJobWorker : BackgroundService
                     _logger.LogError("[HRM_ATTENDANCE_JOB] Job {JobId} stopped at {Date}: {Message}",job.JobId,dateOnly,result.Message);
                     return true;
                 }
+                await freshness.CommitAsync(capture,result.Data?.CalculationBatchId,CancellationToken.None);
                 completed++;
                 await UpdateProgressAsync(db,job.JobId,dateOnly,completed,total,result.Data?.CalculationBatchId,CancellationToken.None);
                 if(await YieldToHigherPriorityJobAsync(db,job.JobId,job.Priority,ct)){await RequeueAtBoundaryAsync(db,job.JobId);return true;}

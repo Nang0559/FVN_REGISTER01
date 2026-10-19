@@ -126,6 +126,10 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
             var jobs = scope.ServiceProvider.GetRequiredService<IHrmAttendanceCalculationJobService>();
+            var freshness = scope.ServiceProvider.GetRequiredService<IHrmSourceFreshnessService>();
+            // Stale dates already handed to a job in this pass are not retried in the same pass,
+            // so a date that cannot be re-stamped can never cause a tight enqueue loop.
+            var attemptedStale = new HashSet<DateOnly>();
 
             var effectiveTo = to > DateOnly.FromDateTime(DateTime.Today)
                 ? DateOnly.FromDateTime(DateTime.Today)
@@ -164,15 +168,25 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                     .Where(x => x.FromDate <= today && x.ToDate >= today)
                     .OrderByDescending(x => x.FinishedAt ?? DateTime.MinValue)
                     .FirstOrDefault();
+                var staleDates = (await freshness.GetStaleDatesAsync(employeeCode, from, effectiveTo, timeout.Token))
+                    .Where(d => !attemptedStale.Contains(d)
+                        && !lockedPeriods.Any(x => x.From <= d && x.To >= d))
+                    .ToList();
                 var refreshToday = from <= today
                     && effectiveTo >= today
                     && !lockedPeriods.Any(x => x.From <= today && x.To >= today)
                     && (latestTodayRun is null
                         || !latestTodayRun.FinishedAt.HasValue
-                        || DateTime.Now - latestTodayRun.FinishedAt.Value >= _currentDayFreshness);
+                        || DateTime.Now - latestTodayRun.FinishedAt.Value >= _currentDayFreshness
+                        || staleDates.Contains(today));
 
                 var gaps = FindGaps(from, effectiveTo, runs);
-                var missing = SubtractRanges(gaps, lockedPeriods);
+                // Gaps (never calculated) plus stale dates (calculated, but HRM changed afterwards).
+                var missing = SubtractRanges(gaps, lockedPeriods)
+                    .Concat(AttendanceDateRanges.FromDates(staleDates)
+                        .Select(x => new DateRange(x.From, x.To)))
+                    .OrderBy(x => x.From)
+                    .ToList();
                 // Current-day freshness is separate from historical gap backfill: when today's
                 // source data is older than the configured freshness window, enqueue only today,
                 // not a company-wide recalculation and not the whole calendar range.
@@ -209,6 +223,12 @@ public sealed class AttendanceBackfillCoordinator : IAttendanceBackfillCoordinat
                     ToDate = chunkTo.ToDateTime(TimeOnly.MinValue),
                     ReopenPayrollPeriod = false
                 };
+
+                for (var day = gap.From; day <= chunkTo; day = day.AddDays(1))
+                {
+                    if (staleDates.Contains(day))
+                        attemptedStale.Add(day);
+                }
 
                 var enqueue = await jobs.EnqueueAsync(
                     request,
