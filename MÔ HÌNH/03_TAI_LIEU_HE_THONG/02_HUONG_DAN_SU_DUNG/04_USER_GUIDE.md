@@ -745,7 +745,7 @@ Hạn mức tuần chỉ được áp dụng khi có cấu hình tương ứng. 
 
 ![Màn hình tính giờ theo HRM](../../screenshots/state-37-depth-1--hrm-attendance-calculation-8fe5444f.png)
 
-Màn hình này dành cho người có quyền vận hành tính công/kiểm tra dữ liệu. HRM là nguồn dữ liệu chấm công chính thức; FVN_REGISTER đọc kết quả để hiển thị và đối soát, không phải nơi thay thế phần mềm HRM tính lương.
+Màn hình này dành cho người có quyền vận hành tính công/kiểm tra dữ liệu. Người được giao có thể mở [Tính giờ theo HRM](/hrm/attendance-calculation). HRM là nguồn dữ liệu chấm công chính thức; FVN_REGISTER đọc kết quả để hiển thị và đối soát, không phải nơi thay thế phần mềm HRM tính lương.
 
 ### 7.4. Theo dõi đồng bộ và các tác vụ tự động
 
