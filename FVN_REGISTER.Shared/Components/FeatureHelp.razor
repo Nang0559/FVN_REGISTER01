@@ -101,6 +101,8 @@
                 HasPrefix(segments, "public-information") || HasPrefix(segments, "thong-tin-cong-khai") ? "PUBLIC_INFORMATION_CMS" :
                 HasPrefix(segments, "security") || HasPrefix(segments, "admin") ? "SECURITY_CENTER" :
                 HasPrefix(segments, "approval") || HasPrefix(segments, "inbox") ? "APPROVAL_INBOX" :
+                HasPrefix(segments, "calendar") || HasPrefix(segments, "work-calendar") ? "WORK_CALENDAR" :
+                HasPrefix(segments, "reports") || HasPrefix(segments, "report") ? "REPORTS" :
                 HasPrefix(segments, "leave") ? "LEAVE" :
                 HasPrefix(segments, "ot") ? "OT" :
                 HasPrefix(segments, "trip") ? "TRIP" :
