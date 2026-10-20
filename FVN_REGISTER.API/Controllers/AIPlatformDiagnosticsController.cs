@@ -63,7 +63,7 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
         catch (HttpRequestException) { }
         return Ok(new
         {
-            reachable = true,
+            apiReachable = !readyBody.Contains("Không kết nối được AI API.", StringComparison.OrdinalIgnoreCase) && !readyBody.Contains("AI API quá thời gian", StringComparison.OrdinalIgnoreCase),
             readinessHttpStatus = (int)ready.StatusCode,
             readiness = TryParseJson(readyBody),
             capabilities = TryParseJson(capabilities),
