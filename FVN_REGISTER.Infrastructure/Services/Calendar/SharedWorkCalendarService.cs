@@ -537,7 +537,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 Code = issue.Code,
                 ModuleCode = issue.ModuleCode,
                 Severity = item.Severity,
-                Marker = item.FeedbackMarker ?? issue.Marker,
+                Marker = item.FeedbackMarker ?? issue.Marker ?? "?",
                 Title = issue.Title,
                 Summary = string.IsNullOrWhiteSpace(item.FeedbackLabel)
                     ? issue.Summary
