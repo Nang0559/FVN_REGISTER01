@@ -1,0 +1,161 @@
+@page "/late-early/create"
+@attribute [Authorize]
+@namespace FVN_REGISTER.Shared.Pages
+@using FVN_REGISTER.Contract.Requests.LateEarly
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.LateEarly
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Shared.Components
+@using Microsoft.AspNetCore.Authorization
+@inject ILateEarlyClientService LateEarlyService
+@inject IApprovalRouteClientService ApprovalRouteService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inherits AppComponentBase
+
+<PageTitle>Đăng ký đi muộn / về sớm</PageTitle>
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3" Elevation="1">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <div>
+                <MudText Typo="Typo.h6">Đăng ký đi muộn / về sớm</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Người được phân công có thể đăng ký hộ công nhân không sử dụng điện thoại.
+                </MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" Href="/late-early/history" StartIcon="@Icons.Material.Filled.History">Lịch sử</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudForm @ref="_form">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_employeeCode" Label="Mã nhân viên" Required="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  HelperText="Nhập mã công nhân cần đăng ký." />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="LateEarlyType" @bind-Value="_type" Label="Loại đăng ký"
+                               Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="LateEarlyType.LateArrival">Đi muộn</MudSelectItem>
+                        <MudSelectItem Value="LateEarlyType.EarlyLeave">Về sớm</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_workDate" Label="Ngày làm việc"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTimePicker @bind-Time="_plannedTime" Label="Giờ dự kiến"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="false" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_reasonCode" Label="Mã lý do" Required="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_reasonNote" Label="Diễn giải lý do"
+                                  Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  HelperText="Bắt buộc khi đăng ký bổ sung sau thời điểm phát sinh." />
+                </MudItem>
+            </MudGrid>
+
+            @if (_route is not null)
+            {
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle1">Người phê duyệt</MudText>
+                <ApprovalRouteSelector @ref="_selector" Route="_route" />
+            }
+            else if (!_loadingRoute)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    Không tải được luồng phê duyệt. Kiểm tra cấu hình Approval Policy cho loại yêu cầu Đi muộn/Về sớm.
+                </MudAlert>
+            }
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Text" Href="/late-early/history" Disabled="_saving">Đóng</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateAndSubmit"
+                           Disabled="_saving || _loadingRoute" StartIcon="@Icons.Material.Filled.Send">
+                    @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                    Tạo và gửi duyệt
+                </MudButton>
+            </MudStack>
+        </MudForm>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private MudForm? _form;
+    private ApprovalRoutePreviewDto? _route;
+    private ApprovalRouteSelector? _selector;
+    private string _employeeCode = string.Empty;
+    private string _reasonCode = string.Empty;
+    private string? _reasonNote;
+    private LateEarlyType _type = LateEarlyType.LateArrival;
+    private DateTime? _workDate = DateTime.Today;
+    private TimeSpan? _plannedTime;
+    private bool _saving;
+    private bool _loadingRoute = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.LateEarly);
+            _route = result.IsSuccess ? result.Data : null;
+        }
+        finally { _loadingRoute = false; }
+    }
+
+    private async Task CreateAndSubmit()
+    {
+        if (_saving) return;
+        await _form!.Validate();
+        if (!_form.IsValid || string.IsNullOrWhiteSpace(_employeeCode)
+            || string.IsNullOrWhiteSpace(_reasonCode) || !_workDate.HasValue || !_plannedTime.HasValue)
+        {
+            Snackbar.Add("Vui lòng nhập đủ mã nhân viên, ngày, giờ dự kiến và lý do.", Severity.Warning);
+            return;
+        }
+        if (_selector is not null && _selector.GetSelections().Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+        {
+            Snackbar.Add("Vui lòng chọn người phê duyệt cho các cấp bắt buộc.", Severity.Warning);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var created = await LateEarlyService.CreateAsync(new CreateLateEarlyRequestDto
+            {
+                EmployeeCode = _employeeCode.Trim(),
+                LateEarlyType = _type,
+                WorkDate = _workDate.Value.Date,
+                PlannedTime = _plannedTime.Value,
+                ReasonCode = _reasonCode.Trim(),
+                ReasonNote = string.IsNullOrWhiteSpace(_reasonNote) ? null : _reasonNote.Trim()
+            });
+            if (!created.IsSuccess || created.Data is null)
+            {
+                Snackbar.Add(created.Message ?? "Không tạo được đăng ký.", Severity.Error);
+                return;
+            }
+
+            var submitted = await LateEarlyService.SubmitAsync(created.Data.Id, _selector?.GetSelections());
+            if (!submitted.IsSuccess)
+            {
+                Snackbar.Add(submitted.Message ?? "Đã tạo bản nháp nhưng chưa gửi được phê duyệt.", Severity.Warning);
+                Navigation.NavigateTo("/late-early/history");
+                return;
+            }
+
+            Snackbar.Add("Đã gửi đăng ký đi muộn/về sớm.", Severity.Success);
+            Navigation.NavigateTo("/late-early/history");
+        }
+        finally { _saving = false; }
+    }
+}
