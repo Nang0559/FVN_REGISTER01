@@ -130,3 +130,9 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 ### HR integration readiness reporting (P4)
 
 `GET /api/ai/capabilities` now reports `hrFactsAuthorizationConfigured`, `hrReviewAuthorizationConfigured`, `hrReconciliationConfigured`, and `hrReadOnlyToolsOperational` independently. The operational flag requires both a trusted HR facts provider and a trusted reviewer authorization provider, in addition to the reconciliation service. The default unconfigured providers remain deny-by-default; the existence of HR reconciliation, inbox, or review code is not presented as proof that live FVN HR data access is enabled. `hr-evidence-reconciliation-foundation` is deliberately named as a foundation capability until the FVN-owned read-only facts adapter and per-actor reviewer policy are integrated and tested.
+
+
+### Additional P3/P4 regression hardening
+
+- Knowledge publication status now requires the document to remain `Approved` and at least one chunk's linked human review to remain `Approved` or `Corrected`. Stale active chunks are not reported as currently published after review revocation. Regression tests cover both revoked-review and valid-approved-review cases.
+- The shared HR reconciliation core now rejects undefined `HRCaseType` enum values even when invoked through the trusted-facts path. This closes a validation gap where `AnalyzeWithAuthorizedFactsAsync` bypasses the public facts-provider method. A regression test asserts invalid values fail before any HR case is persisted.
