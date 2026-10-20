@@ -21,11 +21,3 @@ public interface IDocumentDataEntryTemplateService
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DataEntryTemplateView>> ListAsync(string tenantCode, CancellationToken cancellationToken = default);
 }
-
-/// <summary>Optional multimodal provider. Implementations may inspect the original image directly; OCR remains the provider-neutral fallback.</summary>
-public interface IAIVisionModelProvider
-{
-    string ProviderName { get; }
-    string ModelVersion { get; }
-    Task<AIModelResponse> AnalyzeImageAsync(Stream image, string mediaType, AIModelRequest request, CancellationToken cancellationToken = default);
-}
