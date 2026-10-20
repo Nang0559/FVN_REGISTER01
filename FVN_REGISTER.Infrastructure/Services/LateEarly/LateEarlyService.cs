@@ -64,7 +64,7 @@ public sealed class LateEarlyService : ILateEarlyService
                 throw new ArgumentException("Lý do đăng ký là bắt buộc.");
 
             var employee = await _uow.Repository<F03Employee>().Query().AsNoTracking()
-                .Where(x => x.EmployeeCode == request.EmployeeCode.Trim())
+                .Where(x => x.IsActive == true && x.EmployeeCode == request.EmployeeCode.Trim())
                 .Select(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode, x.PositionCode })
                 .FirstOrDefaultAsync(ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy nhân viên được đăng ký.");
@@ -183,7 +183,7 @@ public sealed class LateEarlyService : ILateEarlyService
             var user = _currentUser.GetCurrentUser()
                 ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
             var entity = await _uow.Repository<F03LateEarlyRequest>().Query().AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
+                .FirstOrDefaultAsync(x => x.Id == requestId, ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy đăng ký.");
             var canView = await _authorization.CanAccessAsync(
                 user, SecurityFunctionCodes.LateEarlyView, entity.EmployeeCode, entity.DeptCode, ct);
