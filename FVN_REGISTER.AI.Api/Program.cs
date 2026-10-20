@@ -630,22 +630,36 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
         var historyJson = System.Text.Json.JsonSerializer.Serialize(previous);
         var contextJson = body.BusinessContext.GetRawText();
         int nextSequence;
+        var userMessageId = Guid.NewGuid();
         await using (var appendUserTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct))
         {
             nextSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
                 .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
-            db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
+            db.ConversationMessages.Add(new AiConversationMessageRecord { Id = userMessageId, ConversationId = conversation.Id,
                 TenantCode = tenant, ActorId = actor, Sequence = nextSequence, Role = "user", Content = query,
-                Status = "Completed", ContextJson = contextJson, CreatedAtUtc = DateTimeOffset.UtcNow });
+                Status = "Pending", ContextJson = contextJson, CreatedAtUtc = DateTimeOffset.UtcNow });
             await db.SaveChangesAsync(ct);
             await appendUserTx.CommitAsync(ct);
         }
-        var answer = await rag.AnswerWithConversationContextAsync(tenant, actor, scopes, query, contextJson,
-            historyJson, Math.Clamp(body.RetrievalLimit, 1, 20), ct);
+        RagAnswerResult answer;
+        try
+        {
+            answer = await rag.AnswerWithConversationContextAsync(tenant, actor, scopes, query, contextJson,
+                historyJson, Math.Clamp(body.RetrievalLimit, 1, 20), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            var failedTurn = await db.ConversationMessages.SingleAsync(x => x.Id == userMessageId, ct);
+            failedTurn.Status = "Failed";
+            await db.SaveChangesAsync(ct);
+            throw;
+        }
         await using (var appendAssistantTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct))
         {
             var assistantSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
                 .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
+            var completedTurn = await db.ConversationMessages.SingleAsync(x => x.Id == userMessageId, ct);
+            completedTurn.Status = "Completed";
             db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
                 TenantCode = tenant, ActorId = actor, Sequence = assistantSequence, Role = "assistant", Content = answer.Answer,
                 Status = answer.Status, CitationsJson = System.Text.Json.JsonSerializer.Serialize(answer.Citations),
