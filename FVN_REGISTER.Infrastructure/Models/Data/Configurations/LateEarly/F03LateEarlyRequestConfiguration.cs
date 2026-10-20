@@ -18,7 +18,6 @@ public sealed class F03LateEarlyRequestConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.CancelReason).HasMaxLength(500);
         builder.Property(x => x.WorkDate).HasColumnType("date");
         builder.Property(x => x.PlannedTime).HasColumnType("time(0)");
-        builder.Property(x => x.ActualTime).HasColumnType("time(0)");
         builder.HasIndex(x => x.RequestCode).IsUnique();
         builder.HasIndex(x => new { x.EmployeeCode, x.WorkDate, x.LateEarlyType });
     }
