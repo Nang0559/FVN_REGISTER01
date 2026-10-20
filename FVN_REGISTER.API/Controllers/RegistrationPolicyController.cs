@@ -51,9 +51,17 @@ public sealed class RegistrationPolicyController : BaseApiController
     {
         if (UserInfo == null) return Unauthorized();
         var type = NormalizeType(registerType);
+        if (type.Length == 0) return BadRequest(ApiResponse<object>.Fail("registerType chỉ nhận OT, TRIP hoặc LATE_EARLY."));
         var dept = deptCode ?? UserInfo.DeptCode ?? 0;
         var decision = await _policy.GetDecisionAsync(UserInfo, dept, type, ct);
-        var canCreate = await _authorization.HasPersonalAsync(UserInfo, type == "OT" ? SecurityFunctionCodes.OTCreate : SecurityFunctionCodes.TripCreate, ct);
+        var createFunction = type switch
+        {
+            "OT" => SecurityFunctionCodes.OTCreate,
+            "TRIP" => SecurityFunctionCodes.TripCreate,
+            "LATE_EARLY" => SecurityFunctionCodes.LateEarlyCreate,
+            _ => throw new InvalidOperationException("Unsupported registration type.")
+        };
+        var canCreate = await _authorization.HasPersonalAsync(UserInfo, createFunction, ct);
         var isRegistrar = decision.CanRegisterForOthers;
         var canSelfRegisterByPosition = false;
         if (type == "OT" && !string.IsNullOrWhiteSpace(UserInfo.PositionCode))
@@ -69,8 +77,9 @@ public sealed class RegistrationPolicyController : BaseApiController
 
         decision.CanRegisterForOthers = canCreate && isRegistrar;
         decision.CanRegisterSelfOnly = canCreate && !isRegistrar
-            && (type == "TRIP" || canSelfRegisterByPosition);
-        decision.CanRegister = canCreate && (type == "TRIP" || isRegistrar || canSelfRegisterByPosition);
+            && (type == "TRIP" || (type == "OT" && canSelfRegisterByPosition));
+        decision.CanRegister = canCreate && (type == "TRIP" || isRegistrar
+            || (type == "OT" && canSelfRegisterByPosition));
         return Ok(ApiResponse<RegistrationPolicyDecisionDto>.Ok(decision));
     }
 
@@ -79,7 +88,9 @@ public sealed class RegistrationPolicyController : BaseApiController
     public async Task<IActionResult> IsRegistrar([FromQuery] string registerType = "OT", CancellationToken ct = default)
     {
         if (UserInfo == null) return Unauthorized();
-        return Ok(ApiResponse<bool>.Ok(await _policy.IsAnyRegistrarAsync(UserInfo, NormalizeType(registerType), ct)));
+        var type = NormalizeType(registerType);
+        if (type.Length == 0) return BadRequest(ApiResponse<object>.Fail("registerType chỉ nhận OT, TRIP hoặc LATE_EARLY."));
+        return Ok(ApiResponse<bool>.Ok(await _policy.IsAnyRegistrarAsync(UserInfo, type, ct)));
     }
 
     [HttpGet]
@@ -89,6 +100,7 @@ public sealed class RegistrationPolicyController : BaseApiController
         if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTRegistrarManage, ct)) return Forbid();
 
         var type = NormalizeType(registerType);
+        if (type.Length == 0) return BadRequest(ApiResponse<object>.Fail("registerType chỉ nhận OT, TRIP hoặc LATE_EARLY."));
         var rules = await _db.Set<F03OTRegistrationRule>()
             .AsNoTracking()
             .Include(x => x.Registrars)
@@ -143,6 +155,7 @@ public sealed class RegistrationPolicyController : BaseApiController
         if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTRegistrarManage, ct)) return Forbid();
 
         var type = NormalizeType(dto.RegisterType);
+        if (type.Length == 0) return BadRequest(ApiResponse<object>.Fail("RegisterType chỉ nhận OT, TRIP hoặc LATE_EARLY."));
         if (dto.DepartmentCode < 0) return BadRequest(ApiResponse<object>.Fail("DepartmentCode không hợp lệ."));
         if (dto.Mode == RegistrationRuleMode.AssignedUsers && dto.UserIds.Count == 0)
             return BadRequest(ApiResponse<object>.Fail("Chế độ chỉ định user phải có ít nhất một user."));
@@ -261,7 +274,12 @@ public sealed class RegistrationPolicyController : BaseApiController
         PositionCodes = rule.RegistrarPositions.Select(x => x.PositionCode).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
     };
 
-    private static string NormalizeType(string value)
-        => string.Equals(value, "TRIP", StringComparison.OrdinalIgnoreCase) ? "TRIP"
-            : string.Equals(value, "LATE_EARLY", StringComparison.OrdinalIgnoreCase) ? "LATE_EARLY" : "OT";
+    private static string NormalizeType(string? value)
+        => value?.Trim().ToUpperInvariant() switch
+        {
+            "OT" => "OT",
+            "TRIP" => "TRIP",
+            "LATE_EARLY" or "LATEEARLY" => "LATE_EARLY",
+            _ => string.Empty
+        };
 }
