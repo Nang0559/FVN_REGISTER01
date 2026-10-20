@@ -129,6 +129,52 @@
             </MudPaper>
         </MudItem>
     </MudGrid>
+
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.h6">4. Hàng đợi và lỗi xử lý gần đây</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Tối đa 100 job mới nhất trong tenant hiện tại; hiển thị số lần thử, lease và mã lỗi nếu có.</MudText>
+            </div>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_loadingJobs" OnClick="LoadRecentJobsAsync">Làm mới job</MudButton>
+        </MudStack>
+        @if (_loadingJobs)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        <MudTable T="JsonElement" Items="_jobs" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh>Tài liệu</MudTh><MudTh>Trạng thái job / tài liệu</MudTh><MudTh>Lần thử</MudTh><MudTh>Lỗi</MudTh><MudTh>Lease / cập nhật</MudTh><MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Tài liệu">
+                    <MudText Typo="Typo.body2">@JobField(context, "fileName")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@JobField(context, "documentId")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Trạng thái">
+                    <MudChip T="string" Size="Size.Small" Color="@JobStatusColor(JobField(context, "jobStatus"))">@JobField(context, "jobStatus")</MudChip>
+                    <MudText Typo="Typo.caption">@JobField(context, "documentStatus")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Lần thử">@JobField(context, "attemptCount") / @JobField(context, "maxAttempts")</MudTd>
+                <MudTd DataLabel="Lỗi">
+                    @if (!string.IsNullOrWhiteSpace(JobField(context, "failureCode")))
+                    {
+                        <MudText Color="Color.Error" Typo="Typo.body2">@JobField(context, "failureCode")</MudText>
+                    }
+                    else { <MudText Color="Color.Secondary" Typo="Typo.body2">—</MudText> }
+                </MudTd>
+                <MudTd DataLabel="Lease / cập nhật">
+                    <MudText Typo="Typo.caption">Owner: @JobField(context, "leaseOwner")</MudText>
+                    <MudText Typo="Typo.caption">Hạn lease: @JobField(context, "leaseUntilUtc")</MudText>
+                    <MudText Typo="Typo.caption">Lỗi lúc: @JobField(context, "lastErrorAtUtc")</MudText>
+                </MudTd>
+                <MudTd><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => SelectJobDocument(context))">Theo dõi</MudButton></MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText Class="pa-3" Color="Color.Secondary">Chưa có job hoặc chưa tải danh sách.</MudText></NoRecordsContent>
+        </MudTable>
+    </MudPaper>
 </MudStack>
 
 @code {
@@ -147,6 +193,8 @@
     private string _schemaCode = "";
     private bool _uploading;
     private bool _loadingDocument;
+    private bool _loadingJobs;
+    private List<JsonElement> _jobs = new();
     private Guid? _documentId;
     private string _documentStatus = "";
     private string _extraction = "";
@@ -160,6 +208,7 @@
             return;
         }
         await LoadReadinessAsync();
+        await LoadRecentJobsAsync();
     }
 
     private async Task LoadReadinessAsync()
@@ -203,6 +252,48 @@
         }
         catch { return "—"; }
     }
+
+    private async Task LoadRecentJobsAsync()
+    {
+        _loadingJobs = true;
+        try
+        {
+            var result = await Http.GetAsync<JsonElement>("api/ai/platform-test/jobs?limit=100", showLoading: false);
+            if (result.IsSuccess && result.Data.ValueKind == JsonValueKind.Array)
+                _jobs = result.Data.EnumerateArray().Select(x => x.Clone()).ToList();
+            else
+                _error = result.Message ?? "Không tải được danh sách job AI.";
+        }
+        catch (Exception ex) { _error = $"Không tải được job AI: {ex.Message}"; }
+        finally { _loadingJobs = false; }
+    }
+
+    private void SelectJobDocument(JsonElement job)
+    {
+        if (TryReadGuid(job, "documentId", out var id))
+        {
+            _documentId = id;
+            _documentStatus = "";
+            _extraction = "";
+            _ = RefreshDocumentAsync();
+        }
+    }
+
+    private static string JobField(JsonElement row, string property)
+    {
+        if (row.ValueKind != JsonValueKind.Object || !row.TryGetProperty(property, out var value) ||
+            value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return "—";
+        return value.ValueKind == JsonValueKind.String ? value.GetString() ?? "—" : value.ToString();
+    }
+
+    private static Color JobStatusColor(string status) => status.ToLowerInvariant() switch
+    {
+        "completed" or "succeeded" or "done" => Color.Success,
+        "failed" or "deadletter" or "dead-letter" => Color.Error,
+        "running" or "processing" or "leased" => Color.Info,
+        "retry" or "retrying" or "queued" or "pending" => Color.Warning,
+        _ => Color.Default
+    };
 
     private async Task TestPromptAsync()
     {
