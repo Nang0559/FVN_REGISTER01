@@ -25,9 +25,9 @@ The P1–P8 sequence is a separate product architecture roadmap, not a renumberi
 | Product phase | Status on this branch | Notes |
 |---|---|---|
 | P1 — AI Foundation | Existing foundation / partial | Existing provider, model, ingestion and safety components; orchestrator/prompt/context governance still requires a complete exit gate |
-| P2 — FVN Business Context | First authenticated host context endpoint added / integration partial | Added typed contracts and `GET /api/ai/business-context/me`, which derives actor identity from the authenticated server principal and loads effective permissions/managed scopes from `IAuthorizationService`. AI-service consumption, canonical tenant configuration, stable scope mapping, module catalog and end-to-end authorization tests remain |
+| P2 — FVN Business Context | Authenticated context projection + fail-closed AI ports / integration partial | `GET /api/ai/business-context/me` derives actor from the server principal, loads effective permissions/scopes from `IAuthorizationService`, returns module/function metadata and disables caching. AI-side context/catalog/executor ports are registered with fail-closed defaults; readiness exposes their configuration state. Trusted signed handoff, canonical tenant configuration, stable managed-scope mapping and end-to-end authorization tests remain |
 | P3 — FVN Knowledge | Existing foundation / partial | Existing RAG uses ACL-filtered cosine retrieval; hybrid search and full policy lifecycle remain |
-| P4 — Business Tools | Not implemented | Requires allow-listed read-only tools and fresh host authorization |
+| P4 — Business Tools | Contracts + fail-closed gateway only | Context/catalog/executor ports and default-deny adapter are registered; no business tool is exposed or executable yet. Implement allow-listed typed handlers, fresh host authorization, managed-scope enforcement and provenance before enabling any tool |
 | P5 — Task Assistant | Not implemented | Must use workflow-owned task APIs |
 | P6 — Controlled Learning | Existing foundation / partial | Existing feedback/release pipeline; broader approved knowledge lifecycle and evaluation gates remain |
 | P7 — Document Intelligence | Existing foundation / partial | Existing OCR/extraction foundation; handwriting/vision and cross-module validation remain |
@@ -76,3 +76,11 @@ The platform should be described as:
 **Implementation-complete foundation — exit gate pending; not production-complete.**
 
 No Phase 3/4/5 row should be labelled implementation-complete until the remaining exit-gate items above are demonstrated in CI/integration environments.
+
+
+## P1–P8 integration hardening update
+
+- The FVN business-context projection groups the caller's effective function metadata by module and sends `Cache-Control: no-store` to prevent cross-account context replay by browser/proxy caches.
+- The AI service registers `IAuthorizedFvnBusinessContextProvider`, `IAuthorizedFvnBusinessToolCatalog` and `IAuthorizedFvnBusinessToolExecutor` through a single fail-closed default. Missing host integration returns `FVN_BUSINESS_GATEWAY_NOT_CONFIGURED`; it does not synthesize an identity or expose tools.
+- `/api/ai/capabilities` reports whether the trusted context provider, catalog and executor are actually configured. Contracts/default-deny wiring are not counted as a production business-tool capability.
+- Added unit tests proving context lookup, tool discovery and tool execution fail closed when the trusted host adapter is absent.
