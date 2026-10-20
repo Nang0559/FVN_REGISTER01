@@ -40,7 +40,7 @@ public sealed class LateEarlyApprovalProvider
     public override async Task<LateEarlyRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
     {
         var entity = await _uow.Repository<F03LateEarlyRequest>().Query().AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
+            .FirstOrDefaultAsync(x => x.Id == requestId, ct);
         if (entity == null) return null;
 
         var employee = await _uow.Repository<F03Employee>().Query().AsNoTracking()
@@ -54,7 +54,7 @@ public sealed class LateEarlyApprovalProvider
     public override async Task<List<LateEarlyRequestSubject>> GetSubjectsAsync(List<int> requestIds, CancellationToken ct)
     {
         var entities = await _uow.Repository<F03LateEarlyRequest>().Query().AsNoTracking()
-            .Where(x => requestIds.Contains(x.Id) && x.IsActive == true)
+            .Where(x => requestIds.Contains(x.Id))
             .ToListAsync(ct);
         var employeeCodes = entities.Select(x => x.EmployeeCode).Distinct().ToList();
         var employees = await _uow.Repository<F03Employee>().Query().AsNoTracking()
