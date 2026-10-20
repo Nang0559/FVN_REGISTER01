@@ -39,7 +39,7 @@ BEGIN
   ModelProvider NVARCHAR(64) NULL,
   ModelVersion NVARCHAR(128) NULL,
   CreatedAtUtc DATETIMEOFFSET(7) NOT NULL,
-  CONSTRAINT FK_AiConversationMessages_Conversation FOREIGN KEY(ConversationId) REFERENCES ai.AiConversations(Id) ON DELETE CASCADE,
+  CONSTRAINT FK_AiConversationMessages_ConversationOwner FOREIGN KEY(TenantCode,ConversationId,ActorId) REFERENCES ai.AiConversations(TenantCode,Id,ActorId) ON DELETE CASCADE,
   CONSTRAINT CK_AiConversationMessages_Sequence CHECK(Sequence>0),
   CONSTRAINT CK_AiConversationMessages_Role CHECK(Role IN(N'user',N'assistant',N'system')),
   CONSTRAINT CK_AiConversationMessages_ContextJson CHECK(ContextJson IS NULL OR ISJSON(ContextJson)=1),
