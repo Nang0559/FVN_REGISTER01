@@ -589,7 +589,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             return "Ngày nghỉ công ty — chỉ đăng ký OT.";
 
         if (day.IsToday)
-            return "Hôm nay không mở đăng ký.";
+            return "Hôm nay không mở đăng ký nghỉ/OT/công tác; có thể đăng ký đi muộn/về sớm theo chính sách.";
 
         if (day.IsPast)
             return "Ngày đã qua — chỉ xem và xử lý chênh lệch.";
@@ -610,10 +610,10 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         CalendarDayDto day,
         IReadOnlySet<string>? allowedModules)
     {
-        if (!day.IsFuture)
+        if (!day.IsFuture && !day.IsToday)
             yield break;
 
-        if (day.CanRegisterLeave && IsAllowed("LEAVE", allowedModules))
+        if (day.IsFuture && day.CanRegisterLeave && IsAllowed("LEAVE", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
@@ -625,7 +625,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             };
         }
 
-        if (day.CanRegisterOT && IsAllowed("Overtime", allowedModules))
+        if (day.IsFuture && day.CanRegisterOT && IsAllowed("Overtime", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
@@ -637,7 +637,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             };
         }
 
-        if (day.CanRegisterTrip && IsAllowed("TRIP", allowedModules))
+        if (day.IsFuture && day.CanRegisterTrip && IsAllowed("TRIP", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
@@ -651,7 +651,8 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
 
         // LateEarly is allowed on the current day as well as future work dates.
         // It is an explanatory registration overlay and never changes HRM attendance symbols.
-        if ((day.IsToday || day.IsFuture) && IsAllowed("LATE_EARLY", allowedModules))
+        if ((day.IsToday || day.IsFuture) && day.IsWorkingDay && day.Holiday is null
+            && IsAllowed("LATE_EARLY", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
