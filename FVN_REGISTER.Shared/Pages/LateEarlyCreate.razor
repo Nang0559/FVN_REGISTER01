@@ -96,6 +96,9 @@
     private MudForm? _form;
     private ApprovalRoutePreviewDto? _route;
     private ApprovalRouteSelector? _selector;
+    [Parameter, SupplyParameterFromQuery(Name = "date")]
+    public DateTime? CalendarDate { get; set; }
+
     private string _employeeCode = string.Empty;
     private string _reasonCode = string.Empty;
     private string? _reasonNote;
@@ -104,6 +107,12 @@
     private TimeSpan? _plannedTime;
     private bool _saving;
     private bool _loadingRoute;
+
+    protected override Task OnInitializedAsync()
+    {
+        if (CalendarDate.HasValue) _workDate = CalendarDate.Value.Date;
+        return Task.CompletedTask;
+    }
 
     private async Task LoadApprovalRouteAsync()
     {
