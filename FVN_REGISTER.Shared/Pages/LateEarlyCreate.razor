@@ -172,7 +172,14 @@
     private async Task OnEmployeePickedAsync(OTEmployeeDto? employee)
     {
         _pickerValue = employee;
-        if (employee == null) return;
+        if (employee == null)
+        {
+            _employeeCode = string.Empty;
+            _employeeDisplay = string.Empty;
+            _route = null;
+            _selector = null;
+            return;
+        }
         _employeeCode = employee.EmployeeCode;
         _employeeDisplay = $"{employee.EmployeeCode} — {employee.EmployeeName}";
         _route = null;
