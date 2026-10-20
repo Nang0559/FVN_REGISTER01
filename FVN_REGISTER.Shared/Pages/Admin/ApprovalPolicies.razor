@@ -9,6 +9,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject IApprovalPolicyClientService PolicyService
+@inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
 @inject ILoadingService Loading
 
@@ -102,6 +103,53 @@
                    OnClick="SaveAsync" Disabled="@_loading">
             @(_editingId.HasValue? Language.T("hrm.capNhat") : Language.T("approval.themPolicy"))
         </MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
+    <MudText Typo="Typo.h6" Class="mb-1">Điều kiện phê duyệt Đi muộn / Về sớm</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+        Cấu hình theo phòng ban; phòng ban chưa có cấu hình riêng sẽ dùng cấu hình mặc định DeptCode = 0.
+        Cấp 2 chỉ được bắt buộc khi có chính sách yêu cầu và đã cấu hình cấp 2 trong Approval Policy.
+    </MudText>
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudSelect T="int" Label="Phòng ban áp dụng" Value="_lateEarlyRule.DeptCode"
+                       ValueChanged="LateEarlyRuleDepartmentChanged" Variant="Variant.Outlined">
+                <MudSelectItem T="int" Value="0">0 — Mặc định toàn công ty</MudSelectItem>
+                @foreach (var dept in _departments)
+                {
+                    <MudSelectItem T="int" Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudNumericField T="int" @bind-Value="_lateEarlyRule.MonthlyLimit" Min="0" Max="31"
+                             Label="Số lượt tối đa / tháng (0 = không giới hạn)" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="4" Class="d-flex align-center">
+            <MudSwitch T="bool" @bind-Value="_lateEarlyRule.IsActive" Color="Color.Primary">Áp dụng chính sách</MudSwitch>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudSwitch T="bool" @bind-Value="_lateEarlyRule.RequireLevel2ForRetroactive" Color="Color.Primary">
+                Đăng ký bổ sung phải có cấp duyệt thứ hai
+            </MudSwitch>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudNumericField T="int" @bind-Value="_lateEarlyRule.EarlyLeaveLevel2BeforeMinutes"
+                             Min="0" Max="1440" Label="Về sớm trước giờ kết thúc ca từ (phút) thì yêu cầu cấp 2"
+                             Variant="Variant.Outlined" />
+        </MudItem>
+    </MudGrid>
+    @if (_lateEarlyRule.IsFallback)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">Đang kế thừa cấu hình mặc định toàn công ty. Lưu tại đây sẽ tạo cấu hình riêng cho phòng ban.</MudAlert>
+    }
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => LoadLateEarlyRuleAsync(_lateEarlyRule.DeptCode))"
+                   Disabled="_lateEarlyRuleLoading">Tải lại</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveLateEarlyRuleAsync"
+                   Disabled="@(_lateEarlyRuleLoading || _lateEarlyRuleSaving)">Lưu điều kiện Đi muộn / Về sớm</MudButton>
     </MudStack>
 </MudPaper>
 
@@ -472,6 +520,45 @@ private List<DepartmentDto> _departments = new();
 private ApprovalPolicyRequest _form = NewForm();
 private int? _editingId;
 private bool _loading;
+private LateEarlyApprovalRuleDto _lateEarlyRule = new();
+private bool _lateEarlyRuleLoading;
+private bool _lateEarlyRuleSaving;
+
+private async Task LateEarlyRuleDepartmentChanged(int deptCode)
+    => await LoadLateEarlyRuleAsync(deptCode);
+
+private async Task LoadLateEarlyRuleAsync(int deptCode)
+{
+    _lateEarlyRuleLoading = true;
+    try
+    {
+        var result = await Http.GetAsync<LateEarlyApprovalRuleDto>(
+            $"api/approval-policies/late-early-rules?deptCode={deptCode}", showLoading: false);
+        if (result.IsSuccess && result.Data != null)
+            _lateEarlyRule = result.Data;
+        else
+            Snackbar.Add(result.Message ?? "Không tải được điều kiện phê duyệt Đi muộn/Về sớm.", Severity.Warning);
+    }
+    finally { _lateEarlyRuleLoading = false; }
+}
+
+private async Task SaveLateEarlyRuleAsync()
+{
+    _lateEarlyRuleSaving = true;
+    try
+    {
+        var result = await Http.PutAsync<LateEarlyApprovalRuleDto>(
+            "api/approval-policies/late-early-rules", _lateEarlyRule);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã lưu điều kiện phê duyệt Đi muộn/Về sớm.", Severity.Success);
+            await LoadLateEarlyRuleAsync(_lateEarlyRule.DeptCode);
+        }
+        else
+            Snackbar.Add(result.Message ?? "Không thể lưu điều kiện phê duyệt.", Severity.Error);
+    }
+    finally { _lateEarlyRuleSaving = false; }
+}
 
 private IEnumerable<ApprovalPolicyDto> FilteredPolicies
 {
@@ -540,6 +627,7 @@ private async Task LoadAsync()
             _departments = departments.Data ?? new();
         else
             Snackbar.Add(departments.Message ?? Language.T("common.khongTaiDuocDanhSach2"), Severity.Error);
+        await LoadLateEarlyRuleAsync(_lateEarlyRule.DeptCode);
     }
     finally
     {
