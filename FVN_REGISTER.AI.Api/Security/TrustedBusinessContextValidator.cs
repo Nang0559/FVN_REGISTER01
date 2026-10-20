@@ -20,6 +20,21 @@ public static class TrustedBusinessContextValidator
             string.IsNullOrWhiteSpace(actor) || actor.Length > 128)
             return false;
 
+        var allowedProperties = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "tenantCode", "actorId", "departmentCode", "positionCode",
+            "roleCodes", "permissionCodes", "functionScopeCodes",
+            "managedScopeCodes", "contextVersion"
+        };
+        foreach (var property in context.EnumerateObject())
+        {
+            if (!allowedProperties.Contains(property.Name))
+            {
+                error = $"Business context contains unsupported property '{property.Name}'.";
+                return false;
+            }
+        }
+
         var raw = context.GetRawText();
         if (raw.Length > MaximumJsonLength)
         {
