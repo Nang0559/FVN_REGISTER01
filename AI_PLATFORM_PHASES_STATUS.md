@@ -149,3 +149,13 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 ### Document intelligence runtime readiness (P7)
 
 `GET /api/ai/capabilities` now reports document pipeline registration, text extraction registration, OCR configuration presence, malware scanner adapter readiness, and a combined `documentIntelligenceOperational` flag. The combined flag requires the pipeline, text extractor, and a non-default malware scanner. `ocrConfigurationPresent` deliberately means only that executable names and a bounded DPI are configured; it does not claim that Tesseract/Poppler binaries or language packs are installed and executable. Production rollout still requires an environment-level OCR smoke test and malware-scanner connectivity test.
+
+
+### P2 conversation persistence and bounded turn context
+
+- Added tenant- and actor-owned conversation/message records and SQL migration script `SQL/AI/016_ConversationPersistence.sql`.
+- Added signed AI API operations to create a conversation, list only the current actor's active conversations, retrieve only an owned transcript, and submit a question to an owned conversation.
+- Every user turn stores the strict, validated business-context projection used for that turn. EmployeeCode and unknown fields remain excluded by the shared validator.
+- Prior turns are loaded only from the same tenant, actor, and conversation; at most 12 completed turns are passed as a separate `conversationHistory` property. Current RAG evidence remains a distinct property and only current-question search results can be cited. Conversation history is explicitly treated as untrusted context, never as evidence or instructions.
+- Message sequence allocation is serialized per append and protected by a unique tenant/conversation/sequence index. Conversations expire after 90 days; the migration includes a bounded purge procedure for an externally scheduled SQL Agent job. The API hides expired conversations even before physical purge.
+- This provides persistence and bounded context inside the signed AI API. The authenticated FVN web/API proxy still needs matching user-facing conversation routes before the feature can be considered end-to-end available in the product UI. SQL migration 016 must be applied before enabling these endpoints.
