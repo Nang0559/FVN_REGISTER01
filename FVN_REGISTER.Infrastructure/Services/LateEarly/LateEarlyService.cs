@@ -56,6 +56,8 @@ public sealed class LateEarlyService : ILateEarlyService
                 ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
             if (!Enum.IsDefined(request.LateEarlyType))
                 throw new ArgumentException("Loại đăng ký không hợp lệ.");
+            if (request.PlannedTime < TimeSpan.Zero || request.PlannedTime >= TimeSpan.FromDays(1))
+                throw new ArgumentException("Giờ dự kiến phải nằm trong khoảng 00:00 đến 23:59.");
             if (string.IsNullOrWhiteSpace(request.EmployeeCode))
                 throw new ArgumentException("Phải chọn nhân viên cần đăng ký.");
             if (string.IsNullOrWhiteSpace(request.ReasonCode))
