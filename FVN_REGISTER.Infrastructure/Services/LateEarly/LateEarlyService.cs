@@ -252,9 +252,11 @@ public sealed class LateEarlyService : ILateEarlyService
             if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                 query = query.Where(x => x.EmployeeCode == user.EmployeeCode || x.RegisteredByEmployeeCode == user.EmployeeCode);
             else if (scope == AuthorizationScopeCodes.Department)
-                query = query.Where(x => x.DeptCode == user.DeptCode);
+                query = query.Where(x => x.DeptCode == user.DeptCode
+                    || x.RegisteredByEmployeeCode == user.EmployeeCode);
             else if (scope != AuthorizationScopeCodes.All)
-                query = query.Where(x => false);
+                query = query.Where(x => x.EmployeeCode == user.EmployeeCode
+                    || x.RegisteredByEmployeeCode == user.EmployeeCode);
 
             var entities = await query.OrderByDescending(x => x.WorkDate).ThenByDescending(x => x.CreatedAt).ToListAsync(ct);
             var codes = entities.Select(x => x.EmployeeCode).Distinct().ToList();
