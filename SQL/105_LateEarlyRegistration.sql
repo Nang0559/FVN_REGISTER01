@@ -100,4 +100,19 @@ WHERE p.RegistrationRuleId = @OtRuleId AND p.RegisterType = N'OT'
   AND NOT EXISTS (SELECT 1 FROM dbo.F03OTRegistrarPositions x
                   WHERE x.RegistrationRuleId = @LeRuleId AND x.PositionCode = p.PositionCode AND x.RegisterType = N'LATE_EARLY');
 
+/* 5) Make the module visible to the shared calendar provider registry. */
+IF OBJECT_ID(N'dbo.F03CalendarModuleDefinitions', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM dbo.F03CalendarModuleDefinitions WHERE ModuleCode = N'LATE_EARLY')
+BEGIN
+    INSERT dbo.F03CalendarModuleDefinitions(ModuleCode, ModuleName, SupportsCalendar, DefaultEnabled)
+    VALUES (N'LATE_EARLY', N'Đi muộn / Về sớm', 1, 1);
+END;
+
+IF OBJECT_ID(N'dbo.F03CalendarModulePolicies', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM dbo.F03CalendarModulePolicies WHERE ModuleCode = N'LATE_EARLY')
+BEGIN
+    INSERT dbo.F03CalendarModulePolicies(ModuleCode, IsEnabled)
+    VALUES (N'LATE_EARLY', 1);
+END;
+
 COMMIT TRANSACTION;
