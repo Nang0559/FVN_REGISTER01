@@ -76,17 +76,7 @@ public sealed class XlsxTemplateWriter
 
         sheetEntry.Delete();
         var replacement = archive.CreateEntry(sheetPath, CompressionLevel.Optimal);
-        using (var output = replacement.Open()) using (var writer = new StreamWriter(output, new UTF8Encoding(false)))
-            writer.Write(sheetXml.ToString(SaveOptions.DisableFormatting));
-        archive.GetEntry("xl/workbook.xml")?.Delete();
-        var workbookReplacement = archive.CreateEntry("xl/workbook.xml", CompressionLevel.Optimal);
-        using (var output = workbookReplacement.Open()) using (var writer = new StreamWriter(output, new UTF8Encoding(false)))
-            writer.Write(workbook.ToString(SaveOptions.DisableFormatting));
-        archive.GetEntry("xl/_rels/workbook.xml.rels")?.Delete();
-        var relReplacement = archive.CreateEntry("xl/_rels/workbook.xml.rels", CompressionLevel.Optimal);
-        using (var output = relReplacement.Open()) using (var writer = new StreamWriter(output, new UTF8Encoding(false)))
-            writer.Write(rels.ToString(SaveOptions.DisableFormatting));
-        archive.Dispose();
+        using (var output = replacement.Open()) using (var writer = new StreamWriter(output, new UTF8Encoding(false))) writer.Write(sheetXml.ToString(SaveOptions.DisableFormatting));
         return input.ToArray();
     }
 
@@ -101,7 +91,10 @@ public sealed class XlsxTemplateWriter
             if (v.ValueKind == JsonValueKind.Number && decimal.TryParse(v.GetRawText(), NumberStyles.Number, CultureInfo.InvariantCulture, out var number))
                 cell.Add(new XElement(Main + "v", number.ToString(CultureInfo.InvariantCulture)));
             else
-                cell.SetAttributeValue("t", "inlineStr").Add(new XElement(Main + "is", new XElement(Main + "t", v.ToString())));
+            {
+                cell.SetAttributeValue("t", "inlineStr");
+                cell.Add(new XElement(Main + "is", new XElement(Main + "t", v.ToString())));
+            }
             return cell;
         }
         cell.SetAttributeValue("t", "inlineStr");
