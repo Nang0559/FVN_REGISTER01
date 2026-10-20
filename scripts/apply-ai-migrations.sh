@@ -27,6 +27,7 @@ migrations=(
   015_DocumentDataEntry.sql
   016_ConversationPersistence.sql
   017_DeadLetterDocumentStatus.sql
+  018_ConversationPendingRecovery.sql
 )
 
 scalar() {
@@ -58,7 +59,7 @@ for file in "${migrations[@]}"; do
   id="${file%.sql}"
   checksum="$(sha256sum "$MIGRATIONS_DIR/$file" | awk '{print toupper($1)}')"
   num="${id:0:3}"
-  if [[ "$fresh" == "1" || "$num" == "010" || "$num" == "011" || "$num" == "012" || "$num" == "013" || "$num" == "014" || "$num" == "015" || "$num" == "016" || "$num" == "017" ]]; then
+  if [[ "$fresh" == "1" || "$num" == "010" || "$num" == "011" || "$num" == "012" || "$num" == "013" || "$num" == "014" || "$num" == "015" || "$num" == "016" || "$num" == "017" || "$num" == "018" ]]; then
     checksumSql="'$checksum'"
   else
     checksumSql="NULL"
@@ -74,4 +75,4 @@ for file in "${migrations[@]}"; do
   "
 done
 
-echo "Applied all 17 AI migrations; checksum ledger updated."
+echo "Applied all 18 AI migrations; checksum ledger updated."
