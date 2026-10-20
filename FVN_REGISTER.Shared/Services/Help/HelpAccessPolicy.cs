@@ -40,6 +40,9 @@ public static class HelpAccessPolicy
         ["PROFILE"] = Array.Empty<int>()
     };
 
+    public static bool HasPolicy(string? featureCode) =>
+        !string.IsNullOrWhiteSpace(featureCode) && RequiredAny.ContainsKey(featureCode);
+
     public static bool CanView(PermissionSnapshotDto? permissions, string? featureCode)
     {
         if (permissions is null || string.IsNullOrWhiteSpace(featureCode) || !RequiredAny.TryGetValue(featureCode, out var required)) return false;
