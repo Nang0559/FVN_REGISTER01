@@ -85,7 +85,7 @@ The SQL queue records lease ownership, retry/dead-letter state and document stat
 
 - **Phase readiness:** `../AI_PLATFORM_PHASES_STATUS.md`
 - **Operations:** `AI_PLATFORM_OPERATIONS.md`
-- **Migrations:** `../SQL/AI/001_*.sql` through `018_ConversationPendingRecovery.sql`
+- **Migrations:** `../SQL/AI/001_*.sql` through `019_DeadLetterProcedureAndTriggerCompatibility.sql`
 - **CI:** `.github/workflows/ai-platform-sql-validation.yml`
 
 This document must not describe planned hybrid retrieval, real authorization adapters, or complete policy lifecycle as already implemented.
