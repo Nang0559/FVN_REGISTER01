@@ -44,8 +44,8 @@
                 <MudItem xs="12" sm="6">
                     <MudSelect T="LateEarlyType" @bind-Value="_type" Label="Loại đăng ký"
                                Variant="Variant.Outlined" Margin="Margin.Dense">
-                        <MudSelectItem Value="LateEarlyType.LateArrival">Đi muộn</MudSelectItem>
-                        <MudSelectItem Value="LateEarlyType.EarlyLeave">Về sớm</MudSelectItem>
+                        <MudSelectItem Value="@LateEarlyType.LateArrival">Đi muộn</MudSelectItem>
+                        <MudSelectItem Value="@LateEarlyType.EarlyLeave">Về sớm</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6">
@@ -71,7 +71,7 @@
             {
                 <MudDivider Class="my-3" />
                 <MudText Typo="Typo.subtitle1">Người phê duyệt</MudText>
-                <ApprovalRouteSelector @ref="_selector" Route="_route" />
+                <ApprovalRouteSelector @ref="_selector" Route="@_route" />
             }
             else if (!_loadingRoute)
             {
