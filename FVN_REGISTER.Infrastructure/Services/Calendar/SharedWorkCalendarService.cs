@@ -648,6 +648,20 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 IsEnabled = true
             };
         }
+
+        // LateEarly is allowed on the current day as well as future work dates.
+        // It is an explanatory registration overlay and never changes HRM attendance symbols.
+        if ((day.IsToday || day.IsFuture) && IsAllowed("LATE_EARLY", allowedModules))
+        {
+            yield return new CalendarRegistrationOpportunityDto
+            {
+                WorkDate = day.Date,
+                ModuleCode = "LATE_EARLY",
+                Title = "Đăng ký đi muộn / về sớm",
+                Route = $"/late-early/create?date={day.Date:yyyy-MM-dd}",
+                IsEnabled = true
+            };
+        }
     }
 
     private static bool IsAllowed(string moduleCode, IReadOnlySet<string>? allowedModules) =>
