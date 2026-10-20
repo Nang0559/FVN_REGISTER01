@@ -133,7 +133,21 @@ public sealed class AIBusinessContextController : ControllerBase
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var managedScopeSnapshot = JsonSerializer.Serialize(managedScopes);
+        // Encode only stable scope selectors; never send remarks or employee lists to the model.
+        // Keep the encoding deterministic so contextVersion changes when a managed boundary changes.
+        var managedScopeCodes = managedScopes
+            .Select(scope => string.Join("|",
+                scope.NodeType ?? string.Empty,
+                scope.NodeCode ?? string.Empty,
+                scope.FactoryCode ?? string.Empty,
+                Convert.ToString(scope.DeptCode, CultureInfo.InvariantCulture) ?? string.Empty,
+                Convert.ToString(scope.SubDepartmentCode, CultureInfo.InvariantCulture) ?? string.Empty,
+                scope.IncludeChildren ? "1" : "0"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var managedScopeSnapshot = JsonSerializer.Serialize(managedScopeCodes);
         var contextVersionSource = string.Join("|",
             tenantCode,
             user.UserId.ToString(CultureInfo.InvariantCulture),
@@ -203,6 +217,7 @@ public sealed class AIBusinessContextController : ControllerBase
                 roleCodes = snapshot.RoleCodes.Select(x => x.ToString(CultureInfo.InvariantCulture)).ToArray(),
                 permissionCodes,
                 functionScopeCodes = scopeCodes,
+                managedScopeCodes,
                 retrievedAtUtc = DateTimeOffset.UtcNow,
                 contextVersion
             },
