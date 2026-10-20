@@ -151,6 +151,34 @@ group.MapGet("/business-context/me", async (HttpRequest req, IServiceProvider se
 });
 
 
+// A signed host snapshot is accepted only after the endpoint filter verifies its body hash and replay nonce.
+group.MapPost("/business-context/snapshot", async (System.Text.Json.JsonElement payload, HttpRequest req, CancellationToken ct) =>
+{
+ var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
+ var actor=req.Headers["X-Actor-Id"].ToString().Trim();
+ if(payload.ValueKind!=System.Text.Json.JsonValueKind.Object ||
+    !payload.TryGetProperty("context",out var context) ||
+    context.ValueKind!=System.Text.Json.JsonValueKind.Object ||
+    !context.TryGetProperty("tenantCode",out var tenantElement) ||
+    !context.TryGetProperty("actorId",out var actorElement) ||
+    !string.Equals(tenantElement.GetString(),tenant,StringComparison.Ordinal) ||
+    !string.Equals(actorElement.GetString(),actor,StringComparison.Ordinal))
+  return Results.Forbid();
+ if(!context.TryGetProperty("contextVersion",out var versionElement) ||
+    string.IsNullOrWhiteSpace(versionElement.GetString()))
+  return Results.BadRequest(new{error="A versioned trusted FVN_REGISTER context is required."});
+ req.HttpContext.Response.Headers.CacheControl="no-store, no-cache, must-revalidate";
+ req.HttpContext.Response.Headers.Pragma="no-cache";
+ return Results.Ok(new
+ {
+  accepted=true,
+  contextVersion=versionElement.GetString(),
+  context,
+  modules=payload.TryGetProperty("modules",out var modules)?modules:default,
+  functions=payload.TryGetProperty("functions",out var functions)?functions:default
+ });
+});
+
 group.MapGet("/operations/jobs", async (HttpRequest req, IServiceProvider services, int? limit, CancellationToken ct) =>
 {
  var db = services.GetService<AiPlatformDbContext>();
