@@ -75,7 +75,7 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
         // 1) registrar của phòng ban của chính mình (rule Everyone / chức vụ approver / user chỉ định)
         if (await IsRegistrarAsync(user, user.DeptCode ?? 0, type, ct)) return true;
 
-        // 2) được chỉ định qua Feature Operator OT.RegistrarManage (phòng ban / khối / toàn công ty) — kể cả phòng ban KHÁC phòng mình
+        // 2) được chỉ định qua Feature Operator riêng của loại đăng ký (phòng ban / khối / toàn công ty), kể cả phòng ban KHÁC phòng mình
         var code = user.EmployeeCode?.Trim();
         if (!string.IsNullOrWhiteSpace(code)
             && await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking().AnyAsync(x =>
@@ -121,7 +121,7 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
 
         var rows = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
             .Where(x => x.IsActive == true
-                        &&  x.FunctionCode == RegistrarFunctionCode(registerType)
+                        && x.FunctionCode == RegistrarFunctionCode(registerType)
                         && x.ResourceType == RegistrarResourceType(registerType)
                         && x.EmployeeCode == code)
             .Select(x => new { x.ResourceId, x.ScopeCode })
