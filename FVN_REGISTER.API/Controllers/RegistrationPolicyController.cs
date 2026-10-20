@@ -77,8 +77,8 @@ public sealed class RegistrationPolicyController : BaseApiController
 
         decision.CanRegisterForOthers = canCreate && isRegistrar;
         decision.CanRegisterSelfOnly = canCreate && !isRegistrar
-            && (type == "TRIP" || (type == "OT" && canSelfRegisterByPosition));
-        decision.CanRegister = canCreate && (type == "TRIP" || isRegistrar
+            && (type == "TRIP" || type == "LATE_EARLY" || (type == "OT" && canSelfRegisterByPosition));
+        decision.CanRegister = canCreate && (type == "TRIP" || type == "LATE_EARLY" || isRegistrar
             || (type == "OT" && canSelfRegisterByPosition));
         return Ok(ApiResponse<RegistrationPolicyDecisionDto>.Ok(decision));
     }
