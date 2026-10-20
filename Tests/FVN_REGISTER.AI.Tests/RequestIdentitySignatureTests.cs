@@ -95,6 +95,10 @@ public sealed class RequestIdentitySignatureTests
         var signature = Convert.ToHexString(HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(Key), Encoding.UTF8.GetBytes(canonical)));
 
+        Assert.True(RequestIdentitySignature.TryValidate(Key, "POST",
+            "/api/ai/v1/business-context/snapshot", Tenant, Actor, timestamp, nonce,
+            signature, now, out _, string.Empty, bodyHash));
+
         Assert.False(RequestIdentitySignature.TryValidate(Key, "POST",
             "/api/ai/v1/business-context/snapshot", Tenant, "E9999", timestamp, nonce,
             signature, now, out _, string.Empty, bodyHash));
