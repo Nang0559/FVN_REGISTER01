@@ -625,24 +625,33 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
             .Select(x => new { role = x.Role, content = x.Content }).ToListAsync(ct);
         var historyJson = System.Text.Json.JsonSerializer.Serialize(previous);
         var contextJson = body.BusinessContext.GetRawText();
-        var now = DateTimeOffset.UtcNow;
-        var nextSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
-            .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
-        db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
-            TenantCode = tenant, ActorId = actor, Sequence = nextSequence, Role = "user", Content = query,
-            Status = "Completed", ContextJson = contextJson, CreatedAtUtc = now });
-        await db.SaveChangesAsync(ct);
+        int nextSequence;
+        await using (var appendUserTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct))
+        {
+            nextSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
+                .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
+            db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
+                TenantCode = tenant, ActorId = actor, Sequence = nextSequence, Role = "user", Content = query,
+                Status = "Completed", ContextJson = contextJson, CreatedAtUtc = DateTimeOffset.UtcNow });
+            await db.SaveChangesAsync(ct);
+            await appendUserTx.CommitAsync(ct);
+        }
         var answer = await rag.AnswerWithConversationContextAsync(tenant, actor, scopes, query, contextJson,
             historyJson, Math.Clamp(body.RetrievalLimit, 1, 20), ct);
-        var assistantSequence = nextSequence + 1;
-        db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
-            TenantCode = tenant, ActorId = actor, Sequence = assistantSequence, Role = "assistant", Content = answer.Answer,
-            Status = answer.Status, CitationsJson = System.Text.Json.JsonSerializer.Serialize(answer.Citations),
-            ModelProvider = answer.ModelProvider, ModelVersion = answer.ModelVersion, CreatedAtUtc = DateTimeOffset.UtcNow });
-        conversation.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        conversation.ContextVersion = body.BusinessContext.GetProperty("contextVersion").GetString();
-        if (conversation.Title == "New conversation") conversation.Title = query.Length <= 200 ? query : query[..197] + "...";
-        await db.SaveChangesAsync(ct);
+        await using (var appendAssistantTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct))
+        {
+            var assistantSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
+                .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
+            db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
+                TenantCode = tenant, ActorId = actor, Sequence = assistantSequence, Role = "assistant", Content = answer.Answer,
+                Status = answer.Status, CitationsJson = System.Text.Json.JsonSerializer.Serialize(answer.Citations),
+                ModelProvider = answer.ModelProvider, ModelVersion = answer.ModelVersion, CreatedAtUtc = DateTimeOffset.UtcNow });
+            conversation.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            conversation.ContextVersion = body.BusinessContext.GetProperty("contextVersion").GetString();
+            if (conversation.Title == "New conversation") conversation.Title = query.Length <= 200 ? query : query[..197] + "...";
+            await db.SaveChangesAsync(ct);
+            await appendAssistantTx.CommitAsync(ct);
+        }
         req.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
         req.HttpContext.Response.Headers.Pragma = "no-cache";
         return Results.Ok(new { conversation.Id, answer });
