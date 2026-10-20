@@ -38,6 +38,21 @@ const pageBudgetSeconds = Math.max(10, Number.parseInt(process.env.PLAYWRIGHT_PA
 // Very long tables (thousands of rows) make a full-page PNG huge and slow; keep the top part only.
 const maxShotHeight = Math.max(2_000, Number.parseInt(process.env.PLAYWRIGHT_MAX_SHOT_HEIGHT ?? '12000', 10) || 12_000);
 
+// ---- Switches for building a user manual from the screenshots --------------------------------
+// ANNOTATE: next to every state screenshot also write "<name>.annotated.png" with every button/link/tab
+//   outlined and numbered, plus buttons-inventory.csv listing them. Nothing is clicked, so it is risk free.
+const annotateControls = (process.env.PLAYWRIGHT_ANNOTATE ?? 'true').toLowerCase() !== 'false';
+// OPEN_FORMS: also click buttons whose label only OPENS a form/dialog (Tạo, Thêm, Sửa, Đăng ký, Create, Add, Edit)
+//   and screenshot the result. The dialog/form is never submitted (Lưu/Gửi/Xác nhận/... stay blocked).
+//   Use a test/staging environment: a "Tạo ..." button on some page could still create data immediately.
+const openForms = (process.env.PLAYWRIGHT_OPEN_FORMS ?? 'false').toLowerCase() === 'true';
+// Buttons that are NOT inside a native <form submit> are clickable too (MudBlazor pages are often wrapped in a form).
+const includeFormControls = (process.env.PLAYWRIGHT_INCLUDE_FORM_CONTROLS ?? 'true').toLowerCase() !== 'false';
+// A table with 12 identical "Mở hồ sơ" buttons only needs 1-2 screenshots for a manual.
+const rowButtonSample = Math.max(1, Number.parseInt(process.env.PLAYWRIGHT_ROW_BUTTON_SAMPLE ?? '1', 10) || 1);
+// Capture only part of the site, e.g. PLAYWRIGHT_ROUTE_FILTER='/equipment|/admin/import' (regex on the URL path).
+const routeFilter = process.env.PLAYWRIGHT_ROUTE_FILTER?.trim() ? new RegExp(process.env.PLAYWRIGHT_ROUTE_FILTER.trim(), 'i') : undefined;
+
 // A route that does not exist: renders the lightweight NotFound view inside MainLayout.
 // Used only to reset same-route state (tabs, dialogs) without creating a new circuit.
 const RESET_ROUTE = '/pw-reset-blank';
@@ -90,7 +105,15 @@ const ACTION_WORDS = [
   'rebuild', 'resolve', 'giải quyết', 'finalize', 'print', 'in bảng công',
   'excel', 'pdf', 'csv', 'xuất', 'tải về',
 ];
+// Words that normally only OPEN a form / dialog / page. Everything else in ACTION_WORDS still blocks the click.
+// "nhập", "import", "upload", "excel", "cập nhật" are deliberately NOT here: they commit or parse data.
+const OPEN_FORM_WORDS = ['tạo', 'thêm', 'sửa', 'create', 'new', 'add', 'edit', 'đăng ký'];
+const COMMIT_WORDS = [
+  ...ACTION_WORDS.filter(word => !OPEN_FORM_WORDS.includes(word)),
+  'token', 'secret', 'otp', 'mật khẩu', 'password', 'api key', 'cấp lại', 'đặt lại',
+];
 const ACTION_SOURCE = wholeWords(ACTION_WORDS);
+const COMMIT_SOURCE = wholeWords(COMMIT_WORDS);
 const LOGOUT_SOURCE = wholeWords(LOGOUT_WORDS);
 const HREF_BLOCK_SOURCE =
   '(?:^|/)api/|(?:^|[/.?&=_-])(?:download|export|logout|signout|sign-out|log-out|sync|approve|reject|delete|remove|cancel|revoke|execute|confirm)(?:[/?#&=_-]|$)|\\.(?:pdf|xlsx?|docx?|csv|zip)(?:[?#]|$)';
@@ -106,6 +129,10 @@ class SessionLostError extends Error {}
 type Target = { key: string; label: string; href: string; idx: number; isTab?: boolean };
 type Tracker = ReturnType<typeof installTracker>;
 type Scope = 'nav' | 'content';
+type ControlInfo = {
+  n: number; label: string; tag: string; href: string; area: 'nav' | 'appbar' | 'content' | 'dialog';
+  disabled: boolean; inForm: boolean;
+};
 
 function safeFileName(value: string): string {
   const cleaned = value
@@ -141,7 +168,82 @@ async function settleForScreenshot(page: Page): Promise<void> {
   await page.waitForTimeout(300);
 }
 
-async function saveScreenshot(page: Page, name: string): Promise<void> {
+/** Outlines and numbers every visible control (button, link, tab) so the manual can refer to "button 3". */
+async function drawControlOverlay(page: Page): Promise<ControlInfo[]> {
+  return page.evaluate(() => {
+    document.getElementById('pw-annotations')?.remove();
+    window.scrollTo(0, 0);
+    const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
+    const dialogs = [...document.querySelectorAll('.mud-dialog')]
+      .filter(dialog => (dialog as HTMLElement).getClientRects().length > 0);
+    const roots: ParentNode[] = dialogs.length ? dialogs : [document];
+    const selector = 'button, a[href], [role="button"], [role="tab"], [role="menuitem"], input[type="submit"], input[type="button"]';
+
+    const layer = document.createElement('div');
+    layer.id = 'pw-annotations';
+    layer.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none;';
+    document.body.appendChild(layer);
+
+    const colors = { content: '#e53935', dialog: '#fb8c00', appbar: '#1e88e5', nav: '#1e88e5' } as const;
+    const seen = new Set<Element>();
+    const controls: Array<{
+      n: number; label: string; tag: string; href: string; area: 'nav' | 'appbar' | 'content' | 'dialog';
+      disabled: boolean; inForm: boolean;
+    }> = [];
+    for (const root of roots) {
+      for (const element of [...root.querySelectorAll(selector)] as HTMLElement[]) {
+        if (seen.has(element) || element.closest('#pw-annotations')) continue;
+        seen.add(element);
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        if (rect.width < 8 || rect.height < 8 || style.visibility === 'hidden' || style.display === 'none') continue;
+        const area = dialogs.length ? 'dialog'
+          : element.closest('.mud-appbar, header') ? 'appbar'
+            : element.closest('.mud-navmenu, .mud-drawer, nav') ? 'nav' : 'content';
+        const n = controls.length + 1;
+        const color = colors[area];
+        const box = document.createElement('div');
+        box.style.cssText = `position:absolute;left:${rect.left + scrollX}px;top:${rect.top + scrollY}px;`
+          + `width:${rect.width}px;height:${rect.height}px;outline:2px solid ${color};outline-offset:1px;`
+          + `background:${color}22;box-sizing:border-box;`;
+        const badge = document.createElement('div');
+        badge.textContent = String(n);
+        badge.style.cssText = `position:absolute;left:-9px;top:-9px;min-width:18px;height:18px;padding:0 3px;`
+          + `border-radius:9px;background:${color};color:#fff;font:700 11px/18px Arial,sans-serif;text-align:center;`;
+        box.appendChild(badge);
+        layer.appendChild(box);
+        const anchor = element as HTMLAnchorElement;
+        controls.push({
+          n,
+          label: normalize(element.getAttribute('aria-label') || element.getAttribute('title') || element.innerText || element.textContent
+            || (element as HTMLInputElement).value || '').slice(0, 120),
+          tag: element.tagName.toLowerCase(),
+          href: element.tagName === 'A' ? (anchor.getAttribute('href') ?? '') : '',
+          area,
+          disabled: element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true',
+          inForm: !!element.closest('form'),
+        });
+      }
+    }
+    return controls;
+  }).catch(() => [] as ControlInfo[]);
+}
+
+async function saveAnnotatedScreenshot(page: Page, options: NonNullable<Parameters<Page['screenshot']>[0]>): Promise<ControlInfo[]> {
+  try {
+    const controls = await drawControlOverlay(page);
+    if (!controls.length) return [];
+    await page.screenshot({ ...options, path: String(options.path).replace(/\.png$/i, '.annotated.png') });
+    return controls;
+  } catch (error) {
+    console.warn(`Annotated screenshot failed: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  } finally {
+    await page.evaluate(() => document.getElementById('pw-annotations')?.remove()).catch(() => undefined);
+  }
+}
+
+async function saveScreenshot(page: Page, name: string, annotate = false): Promise<ControlInfo[]> {
   const options: NonNullable<Parameters<Page['screenshot']>[0]> = {
     path: path.join(screenshotDir, `${safeFileName(name)}.png`),
     fullPage: true,
@@ -162,8 +264,10 @@ async function saveScreenshot(page: Page, name: string): Promise<void> {
     console.warn(`Page is ${size.height}px tall; screenshot limited to the top ${maxShotHeight}px: ${name}`);
     options.clip = { x: 0, y: 0, width: size.width, height: maxShotHeight };
   }
+  let controls: ControlInfo[] = [];
   try {
     await page.screenshot(options);
+    if (annotate) controls = await saveAnnotatedScreenshot(page, options);
   } catch (error) {
     if (!styleTag) throw error;
     await styleTag.evaluate(element => (element as unknown as Element).remove()).catch(() => undefined);
@@ -172,6 +276,7 @@ async function saveScreenshot(page: Page, name: string): Promise<void> {
   } finally {
     await styleTag?.evaluate(element => (element as unknown as Element).remove()).catch(() => undefined);
   }
+  return controls;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -599,9 +704,9 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
         if (!label || logout.test(label)) continue;
       } else {
         if (!label || action.test(label)) continue;
-        if (element.closest('form')) continue;
+        if (!args.includeFormControls && element.closest('form')) continue;
       }
-      if (hasRealHref && element.closest('form') && !inNav) continue;
+      if (hasRealHref && !args.includeFormControls && element.closest('form') && !inNav) continue;
 
       const identity = `${element.tagName}|${label}|${href}`;
       const index = occurrence.get(identity) ?? 0;
@@ -615,7 +720,8 @@ async function collectTargets(page: Page, scope: Scope): Promise<Target[]> {
     scope,
     navScope: NAV_SCOPE,
     selector: TARGET_SELECTOR,
-    actionSource: ACTION_SOURCE,
+    actionSource: openForms ? COMMIT_SOURCE : ACTION_SOURCE,
+    includeFormControls,
     logoutSource: LOGOUT_SOURCE,
     hrefBlockSource: HREF_BLOCK_SOURCE,
     navHrefBlockSource: NAV_HREF_BLOCK_SOURCE,
@@ -662,6 +768,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   const attemptedClicks = new Set<string>();
   const capturedStates: Array<{
     number: number; depth: number; reason: string; url: string; signature: string; screenshot: string; ready: boolean;
+    annotated?: string; controls?: ControlInfo[];
   }> = [];
   let captured = 0;
   let clicks = 0;
@@ -674,12 +781,22 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   const outOfBudget = () => Date.now() > deadline || visitedStates.size >= maxStates || clicks >= maxClicks;
 
   async function writeManifest(status: string): Promise<void> {
+    const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const inventory = ['screenshot,annotated_screenshot,url,n,area,tag,label,href,disabled,in_form'];
+    for (const state of capturedStates) {
+      for (const control of state.controls ?? []) {
+        inventory.push([state.screenshot, state.annotated, state.url, control.n, control.area, control.tag,
+          control.label, control.href, control.disabled, control.inForm].map(csvCell).join(','));
+      }
+    }
+    await writeFile(path.join(screenshotDir, 'buttons-inventory.csv'), '\uFEFF' + inventory.join('\n'), 'utf8').catch(() => undefined);
     await writeFile(path.join(screenshotDir, 'manifest.json'), JSON.stringify({
       baseUrl: origin,
       generatedAt: new Date().toISOString(),
       status,
       abortReason,
-      limits: { maxStates, maxClicks, maxDepth, budgetMinutes },
+      limits: { maxStates, maxClicks, maxDepth, budgetMinutes, openForms, annotateControls, rowButtonSample,
+        routeFilter: routeFilter?.source },
       summary: {
         states: visitedStates.size,
         screenshots: captured,
@@ -718,10 +835,12 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
     captured++;
     await settleForScreenshot(page);
     const screenshotName = `state-${captured}-depth-${depth}-${url.pathname}${url.search}`;
-    await saveScreenshot(page, screenshotName);
+    const controls = await saveScreenshot(page, screenshotName, annotateControls);
     capturedStates.push({
       number: captured, depth, reason, url: url.href, signature,
       screenshot: `${safeFileName(screenshotName)}.png`, ready,
+      annotated: controls.length ? `${safeFileName(screenshotName)}.annotated.png` : undefined,
+      controls,
     });
     console.log(`Captured state #${captured}: depth=${depth}, ready=${ready}, reason=${reason}, url=${url.pathname}${url.search}`);
     await writeManifest('running');
@@ -732,7 +851,15 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
   async function explore(depth: number, parentUrl: string): Promise<void> {
     if (depth > maxDepth || outOfBudget()) return;
 
-    const discovered = await collectTargets(page, 'content');
+    const allTargets = await collectTargets(page, 'content');
+    // Repeated row buttons (12 x "Mở hồ sơ") add nothing to a manual: keep the first rowButtonSample of each label.
+    const rowCount = new Map<string, number>();
+    const discovered = allTargets.filter(target => {
+      if (target.isTab || target.href) return true;
+      const seen = (rowCount.get(target.label) ?? 0) + 1;
+      rowCount.set(target.label, seen);
+      return seen <= rowButtonSample;
+    });
     // Tabs first (they reveal whole report/screen sections), then real links, then plain buttons.
     // The per-page cap keeps a busy toolbar (e.g. the calendar) from using up the crawl budget.
     const rank = (target: Target) => (target.isTab ? 0 : target.href ? 1 : 2);
@@ -835,6 +962,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
       if (outOfBudget()) break;
       const key = pathKeyOf(route.href);
       if (visitedPaths.has(key)) continue;
+      if (routeFilter && !routeFilter.test(new URL(route.href).pathname)) continue;
       try {
         await closeTransientUi(page);
         const clicked = await clickTarget(page, route, 'nav').catch(() => false);
@@ -857,6 +985,7 @@ test('recursively captures authenticated read-only UI states', async ({ page, ba
     console.log(`Phase 2: exploring in-page interactions on ${routes.length} pages.`);
     for (const route of routes) {
       if (outOfBudget()) break;
+      if (routeFilter && !routeFilter.test(new URL(route.url).pathname)) continue;
       try {
         await restore(page, tracker, route.url);
         await explore(2, route.url);
