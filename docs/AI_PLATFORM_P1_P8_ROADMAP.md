@@ -1,0 +1,79 @@
+# FVN_REGISTER AI Platform — P1–P8 Architecture Roadmap
+
+**Status:** Architecture target and implementation sequence  
+**Baseline branch:** `feature/ai-platform-phase1-6-integration`  
+**Runtime:** .NET 9 / SQL Server / hybrid on-premises-first
+
+This roadmap is the product/platform sequence. It is deliberately distinct from the earlier AI Core phase labels used for ingestion, document understanding, extraction, RAG and learning. Existing implementation status remains in the root `AI_PLATFORM_PHASES_STATUS.md`.
+
+## Governing principle
+
+> AI capability may improve over time; AI authority must not increase merely because the model becomes more capable.
+
+Qwen (or another provider) interprets language, reasons over bounded context and proposes tool calls. FVN_REGISTER remains authoritative for identity, permissions, managed scope, policy, business facts, workflow transitions and writes. The model never receives database credentials, arbitrary SQL access or unrestricted HTTP execution.
+
+## Target sequence
+
+| Product phase | Capability | Required boundary / exit gate |
+|---|---|---|
+| P1 — AI Foundation | Orchestrator, provider/model registry, prompt versions, conversation context, structured responses, safety | Provider-neutral contracts; bounded context; traceable model/prompt versions; fail-closed configuration |
+| P2 — FVN Business Context | Module/function/action catalog, user/employee/org context, roles, permissions, scopes, policies and business vocabulary | Metadata discoverable without bulk database exposure; trusted short-lived context; host re-authorizes every invocation |
+| P3 — FVN Knowledge | Ingestion, versioned documents, chunking, embeddings, hybrid retrieval, effective dates, provenance and citations | Tenant/ACL filtering before retrieval; source/version/page/section citations; supersession and expiry |
+| P4 — Business Tools | Read-only employee/org/calendar/OT/leave/equipment/execution tools | Allow-listed typed tools; host-side authorization and managed-scope checks on every call; source provenance |
+| P5 — Task Assistant | My Tasks, deadline/priority explanation, missing evidence and recommendations | Tasks from workflow APIs; AI recommends only; workflow owns status and assignment |
+| P6 — Controlled Learning | Feedback, candidate knowledge, human review, release/evaluation, supersession and rollback | Feedback is not automatically policy; approved/versioned release only; regression evaluation and rollback |
+| P7 — Document Intelligence | OCR, vision, handwriting, classification, extraction, validation, confidence and human correction | No direct business posting; extraction remains a candidate until human/domain validation |
+| P8 — Transaction Agent and Production/Quality | Preview, explicit confirmation, authorized commands, audit; production/QC/inventory knowledge and analysis | Fresh authorization + domain policy + confirmation + idempotent command + audit; enable incrementally |
+
+P7 and P8 are capability tracks that reuse P1–P6. Transaction execution must not be enabled merely because document extraction exists.
+
+## P2 — FVN Business Context design
+
+```text
+Authenticated FVN_REGISTER session
+       |
+       v
+FVN Business Gateway
+       +--> User / Employee / Department / Position
+       +--> Role / Permission / Managed Scope
+       +--> Module / Function / Action catalog
+       +--> Approval Policy / Work Calendar metadata
+       |
+       v
+Short-lived authorized context + allow-listed tool catalog
+       |
+       v
+AI Orchestrator --> Qwen
+```
+
+Three data classes must remain separate:
+
+1. **Business metadata:** module/function/action definitions, descriptions, state vocabulary and policy identifiers. Safe to index as bounded metadata.
+2. **User context:** authenticated actor, employee, organization, roles, permissions and managed scopes. Resolve per request/session; never trust values supplied in a prompt.
+3. **Business facts:** actual OT, leave, attendance, calendar, equipment and execution records. Retrieve only through purpose-built FVN_REGISTER tools filtered by the current caller.
+
+The initial application contracts are in:
+- `FVN_REGISTER.AI.Application/Contracts/FvnBusinessContextContracts.cs`
+- `FVN_REGISTER.AI.Application/Abstractions/FvnBusinessPorts.cs`
+
+These are integration ports, not evidence that a production host adapter is already wired. Until a trusted FVN_REGISTER adapter is implemented and verified, business tools must remain unavailable (fail closed).
+
+## Tool execution contract
+
+For a question such as “Can E0001 approve OT on 20/10?” the model must not infer authority from title or role labels. The host resolves current employee/department/position, permission, managed scope, approval policy, registration and calendar facts. The tool response returns authorized facts and provenance. The model may explain the result; it cannot override it.
+
+Every invocation must bind tenant and actor from trusted gateway context; validate tool code and input against a registered schema; re-check permission and managed scope at execution time; apply current business policy and workflow preconditions; return structured results with source provenance; audit actor, tool/version, input hash, decision, result and correlation ID; and require explicit human confirmation for any command that changes business state.
+
+No generic `ExecuteSql`, unrestricted `HttpRequest`, reflection-based method dispatch or model-selected service type is allowed.
+
+## Relationship to existing AI Core phases
+
+The existing Core implementation (ingestion, document understanding, extraction, RAG, learning and HR pilot) is reusable infrastructure. Its historical phase numbers are retained in the root status file. Do not renumber those implementation records to match P1–P8. P1–P8 describes the target product architecture and dependency order.
+
+## Delivery gates
+
+- P2 is not complete until the real host adapter is wired, integration tests prove caller isolation and scope filtering, and unauthorized tool access is denied.
+- P3 is not complete until effective-date/supersession lifecycle, hybrid retrieval benchmark, citation correctness and authorization red-team tests pass.
+- P4 is not complete until each tool has contract and host integration tests for role, permission, department and managed-scope boundaries.
+- P7 is not complete until OCR/extraction confidence and human correction are persisted with provenance.
+- P8 is not complete until preview/confirmation, idempotency, transaction audit, rollback/recovery and adversarial tool-call tests pass.
