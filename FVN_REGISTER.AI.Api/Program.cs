@@ -549,6 +549,110 @@ group.MapPost("/assistant/ask", async (AssistantAskRequest body, HttpRequest req
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
 
+// Conversation endpoints are tenant + actor bound to the authenticated signed FVN gateway identity.
+group.MapPost("/conversations", async (CreateAIConversationRequest body, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var db = services.GetService<AiPlatformDbContext>();
+    if (db is null) return Results.Problem("AI SQL connection is not configured.", statusCode:503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    if (string.IsNullOrWhiteSpace(tenant) || tenant.Length > 64 || string.IsNullOrWhiteSpace(actor) || actor.Length > 128)
+        return Results.BadRequest(new { error = "Signed tenant and actor context is required." });
+    var title = string.IsNullOrWhiteSpace(body.Title) ? "New conversation" : body.Title.Trim();
+    if (title.Length > 200) return Results.BadRequest(new { error = "Conversation title cannot exceed 200 characters." });
+    var now = DateTimeOffset.UtcNow;
+    var conversation = new AiConversationRecord { Id = Guid.NewGuid(), TenantCode = tenant, ActorId = actor,
+        Title = title, Status = "Active", CreatedAtUtc = now, UpdatedAtUtc = now, ExpiresAtUtc = now.AddDays(90) };
+    db.Conversations.Add(conversation);
+    await db.SaveChangesAsync(ct);
+    return Results.Created($"/api/ai/v1/conversations/{conversation.Id}", new { conversation.Id, conversation.Title, conversation.Status, conversation.CreatedAtUtc, conversation.ExpiresAtUtc });
+});
+
+group.MapGet("/conversations", async (HttpRequest req, IServiceProvider services, int? limit, CancellationToken ct) =>
+{
+    var db = services.GetService<AiPlatformDbContext>();
+    if (db is null) return Results.Problem("AI SQL connection is not configured.", statusCode:503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(actor)) return Results.BadRequest(new { error = "Signed tenant and actor context is required." });
+    var take = Math.Clamp(limit ?? 30, 1, 100);
+    var rows = await db.Conversations.AsNoTracking().Where(x => x.TenantCode == tenant && x.ActorId == actor &&
+            x.Status == "Active" && x.ExpiresAtUtc > DateTimeOffset.UtcNow)
+        .OrderByDescending(x => x.UpdatedAtUtc).Take(take)
+        .Select(x => new { x.Id, x.Title, x.Status, x.CreatedAtUtc, x.UpdatedAtUtc, x.ExpiresAtUtc }).ToListAsync(ct);
+    return Results.Ok(rows);
+});
+
+group.MapGet("/conversations/{conversationId:guid}", async (Guid conversationId, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var db = services.GetService<AiPlatformDbContext>();
+    if (db is null) return Results.Problem("AI SQL connection is not configured.", statusCode:503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    var conversation = await db.Conversations.AsNoTracking().SingleOrDefaultAsync(x => x.Id == conversationId &&
+        x.TenantCode == tenant && x.ActorId == actor && x.Status == "Active" && x.ExpiresAtUtc > DateTimeOffset.UtcNow, ct);
+    if (conversation is null) return Results.NotFound();
+    var messages = await db.ConversationMessages.AsNoTracking().Where(x => x.TenantCode == tenant &&
+        x.ActorId == actor && x.ConversationId == conversationId).OrderBy(x => x.Sequence)
+        .Select(x => new { x.Id, x.Sequence, x.Role, x.Content, x.Status, x.CitationsJson, x.ModelProvider, x.ModelVersion, x.CreatedAtUtc }).ToListAsync(ct);
+    return Results.Ok(new { conversation.Id, conversation.Title, conversation.CreatedAtUtc, conversation.UpdatedAtUtc, messages });
+});
+
+group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var db = services.GetService<AiPlatformDbContext>();
+    if (db is null) return Results.Problem("AI SQL connection is not configured.", statusCode:503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    var query = body.Query?.Trim();
+    if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(actor)) return Results.BadRequest(new { error = "Signed tenant and actor context is required." });
+    if (body.ConversationId == Guid.Empty || string.IsNullOrWhiteSpace(query) || query.Length > 4000)
+        return Results.BadRequest(new { error = "A conversation ID and a question of 1 to 4000 characters are required." });
+    if (!TrustedBusinessContextValidator.TryValidate(body.BusinessContext, tenant, actor, out var contextError))
+        return contextError.StartsWith("Business context identity", StringComparison.Ordinal) ? Results.Forbid() : Results.BadRequest(new { error = contextError });
+    var conversation = await db.Conversations.SingleOrDefaultAsync(x => x.Id == body.ConversationId &&
+        x.TenantCode == tenant && x.ActorId == actor && x.Status == "Active" && x.ExpiresAtUtc > DateTimeOffset.UtcNow, ct);
+    if (conversation is null) return Results.NotFound();
+    var rag = services.GetService<IRagAnswerService>();
+    var access = services.GetService<IAuthorizedKnowledgeAccessProvider>();
+    if (rag is null || access is null) return Results.Problem("RAG or trusted knowledge authorization is not configured.", statusCode:503);
+    try
+    {
+        var scopes = await access.GetSearchScopesAsync(tenant, actor, ct);
+        var previous = await db.ConversationMessages.AsNoTracking().Where(x => x.TenantCode == tenant &&
+            x.ActorId == actor && x.ConversationId == conversation.Id && x.Status == "Completed")
+            .OrderByDescending(x => x.Sequence).Take(12).OrderBy(x => x.Sequence)
+            .Select(x => new { role = x.Role, content = x.Content }).ToListAsync(ct);
+        var historyJson = System.Text.Json.JsonSerializer.Serialize(previous);
+        var contextJson = body.BusinessContext.GetRawText();
+        var now = DateTimeOffset.UtcNow;
+        var nextSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
+            .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
+        db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
+            TenantCode = tenant, ActorId = actor, Sequence = nextSequence, Role = "user", Content = query,
+            Status = "Completed", ContextJson = contextJson, CreatedAtUtc = now });
+        await db.SaveChangesAsync(ct);
+        var answer = await rag.AnswerWithConversationContextAsync(tenant, actor, scopes, query, contextJson,
+            historyJson, Math.Clamp(body.RetrievalLimit, 1, 20), ct);
+        var assistantSequence = nextSequence + 1;
+        db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
+            TenantCode = tenant, ActorId = actor, Sequence = assistantSequence, Role = "assistant", Content = answer.Answer,
+            Status = answer.Status, CitationsJson = System.Text.Json.JsonSerializer.Serialize(answer.Citations),
+            ModelProvider = answer.ModelProvider, ModelVersion = answer.ModelVersion, CreatedAtUtc = DateTimeOffset.UtcNow });
+        conversation.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        conversation.ContextVersion = body.BusinessContext.GetProperty("contextVersion").GetString();
+        if (conversation.Title == "New conversation") conversation.Title = query.Length <= 200 ? query : query[..197] + "...";
+        await db.SaveChangesAsync(ct);
+        req.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        req.HttpContext.Response.Headers.Pragma = "no-cache";
+        return Results.Ok(new { conversation.Id, answer });
+    }
+    catch (UnauthorizedAccessException) { return Results.Forbid(); }
+    catch (InvalidOperationException ex) when (ex.Message == "KNOWLEDGE_AUTHORIZATION_PROVIDER_NOT_CONFIGURED")
+    { return Results.Problem("Trusted FVN_REGISTER knowledge authorization adapter is not configured.", statusCode:503); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
 group.MapPost("/feedback/evaluation", async (FeedbackEvaluationRequest body, HttpRequest req,
     IServiceProvider services, CancellationToken ct) =>
 {
