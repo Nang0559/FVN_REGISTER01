@@ -54,7 +54,7 @@ app.MapGet("/health/ready",async (IServiceProvider sp,IOptions<AIPlatformOptions
   }
  }
  var ready=databaseConnected&&providerConfigured&&chatModelAvailable&&embeddingModelAvailable&&scannerConfigured;
- var result=new{status=ready?"ready":"not-ready",database=databaseConnected?"connected":"unavailable",provider=ai.DefaultProvider,providerConfigured,chatModelAvailable,embeddingModelAvailable,malwareScannerConfigured=scannerConfigured};
+ var result=new{status=ready?"ready":"not-ready",database=databaseConnected?"connected":"unavailable",provider=ai.DefaultProvider,model=ai.Model,embeddingModel=ai.EmbeddingModel,malwareScannerProvider=scanner.Provider,providerConfigured,chatModelAvailable,embeddingModelAvailable,malwareScannerConfigured=scannerConfigured};
  return ready?Results.Ok(result):Results.Json(result,statusCode:503);
 });
 app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o)=>{
