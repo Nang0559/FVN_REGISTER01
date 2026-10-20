@@ -1,4 +1,5 @@
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Contract.Requests.Approvals;
 using System.ComponentModel.DataAnnotations;
 
 namespace FVN_REGISTER.Contract.Requests.LateEarly;
