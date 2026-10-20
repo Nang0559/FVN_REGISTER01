@@ -19,14 +19,46 @@ builder.Services.AddHealthChecks();
 var app=builder.Build();
 var replayCleanupCounter = 0;
 app.MapHealthChecks("/health");
-app.MapGet("/health/ready",async (IServiceProvider sp,CancellationToken ct)=>{
+app.MapGet("/health/ready",async (IServiceProvider sp,IOptions<AIPlatformOptions> aiOptions,IOptions<MalwareScannerOptions> scannerOptions,IHttpClientFactory clients,CancellationToken ct)=>{
  var db=sp.GetService<AiPlatformDbContext>();
- if(db is null) return Results.Problem("AI SQL connection is not configured.",statusCode:503);
- return await db.Database.CanConnectAsync(ct)?Results.Ok(new{status="ready",database="connected"}):Results.Problem("AI SQL database is unavailable.",statusCode:503);
+ var databaseConnected=db is not null&&await db.Database.CanConnectAsync(ct);
+ var ai=aiOptions.Value;
+ var scannerConfigured=string.Equals(scannerOptions.Value.Provider,"ClamAV",StringComparison.OrdinalIgnoreCase);
+ var providerConfigured=string.Equals(ai.DefaultProvider,"Ollama",StringComparison.OrdinalIgnoreCase)&&Uri.TryCreate(ai.Endpoint,UriKind.Absolute,out var modelEndpoint)&&(modelEndpoint.Scheme==Uri.UriSchemeHttp||modelEndpoint.Scheme==Uri.UriSchemeHttps)&&!string.IsNullOrWhiteSpace(ai.Model)&&!string.IsNullOrWhiteSpace(ai.EmbeddingModel);
+ var chatModelAvailable=false;
+ var embeddingModelAvailable=false;
+ if(providerConfigured)
+ {
+  try
+  {
+   using var client=clients.CreateClient();
+   client.Timeout=TimeSpan.FromSeconds(5);
+   using var response=await client.GetAsync(new Uri(ai.Endpoint!.TrimEnd('/')+"/api/tags"),ct);
+   if(response.IsSuccessStatusCode)
+   {
+    using var json=await System.Text.Json.JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct),cancellationToken:ct);
+    if(json.RootElement.TryGetProperty("models",out var models)&&models.ValueKind==System.Text.Json.JsonValueKind.Array)
+    {
+     var names=models.EnumerateArray().Where(x=>x.TryGetProperty("name",out _)).Select(x=>x.GetProperty("name").GetString()??"").ToArray();
+     static bool HasModel(string[] names,string? configured)=>!string.IsNullOrWhiteSpace(configured)&&names.Any(name=>string.Equals(name,configured,StringComparison.OrdinalIgnoreCase)||string.Equals(name,configured+":latest",StringComparison.OrdinalIgnoreCase));
+     chatModelAvailable=HasModel(names,ai.Model);
+     embeddingModelAvailable=HasModel(names,ai.EmbeddingModel);
+    }
+   }
+  }
+  catch(Exception ex) when(ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or UriFormatException)
+  {
+   app.Logger.LogWarning(ex,"AI readiness check could not query Ollama model inventory.");
+  }
+ }
+ var ready=databaseConnected&&providerConfigured&&chatModelAvailable&&embeddingModelAvailable&&scannerConfigured;
+ var result=new{status=ready?"ready":"not-ready",database=databaseConnected?"connected":"unavailable",provider=ai.DefaultProvider,providerConfigured,chatModelAvailable,embeddingModelAvailable,malwareScannerConfigured=scannerConfigured};
+ return ready?Results.Ok(result):Results.Json(result,statusCode:503);
 });
 app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o)=>{
  var s=o.Value;
- return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured=!string.Equals(s.DefaultProvider,"Unconfigured",StringComparison.OrdinalIgnoreCase),capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","pdf-text-extraction","docx-text-extraction","image-ocr","scanned-pdf-ocr","generic-document-classification","schema-registry","schema-driven-extraction","extraction-validation","human-review-persistence","feedback-capture","feedback-evaluation","knowledge-publication","acl-scoped-vector-search","hr-evidence-reconciliation","hr-case-inbox","hr-case-review-audit"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
+ var providerConfigured=string.Equals(s.DefaultProvider,"Ollama",StringComparison.OrdinalIgnoreCase)&&Uri.TryCreate(s.Endpoint,UriKind.Absolute,out var endpoint)&&(endpoint.Scheme==Uri.UriSchemeHttp||endpoint.Scheme==Uri.UriSchemeHttps)&&!string.IsNullOrWhiteSpace(s.Model)&&!string.IsNullOrWhiteSpace(s.EmbeddingModel);
+ return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured,modelConfigured=!string.IsNullOrWhiteSpace(s.Model),embeddingModelConfigured=!string.IsNullOrWhiteSpace(s.EmbeddingModel),malwareScannerConfigured=string.Equals(app.Configuration["AIPlatform:MalwareScanner:Provider"],"ClamAV",StringComparison.OrdinalIgnoreCase),capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","pdf-text-extraction","docx-text-extraction","image-ocr","scanned-pdf-ocr","generic-document-classification","schema-registry","schema-driven-extraction","extraction-validation","human-review-persistence","feedback-capture","feedback-evaluation","knowledge-publication","acl-scoped-vector-search","hr-evidence-reconciliation","hr-case-inbox","hr-case-review-audit"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
 });
 var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  var configured=app.Configuration[$"{AIPlatformOptions.SectionName}:ApiKey"];
