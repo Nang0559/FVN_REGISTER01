@@ -45,9 +45,9 @@ IF NOT EXISTS
 )
 BEGIN
     INSERT dbo.F03OTRegistrationRules
-        (DepartmentCode, RegisterType, Mode, IsActive, CreatedBy, LastModifiedSource)
+        (DepartmentCode, RegisterType, Mode, IsActive, CreatedBy)
     VALUES
-        (0, N'LATE_EARLY', 3, 1, 0, N'108_LATE_EARLY_INDEPENDENT_REGISTRAR');
+        (0, N'LATE_EARLY', 3, 1, 0);
 END;
 GO
 
