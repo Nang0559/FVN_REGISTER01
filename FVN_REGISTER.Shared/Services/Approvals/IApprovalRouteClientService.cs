@@ -8,5 +8,6 @@ public interface IApprovalRouteClientService
 {
     Task<ApiResponse<ApprovalRoutePreviewDto>> GetPreviewAsync(
         RequestModule requestType,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        string? employeeCode = null);
 }
