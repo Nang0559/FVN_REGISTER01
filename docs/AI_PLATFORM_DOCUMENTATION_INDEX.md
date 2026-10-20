@@ -8,10 +8,7 @@ This index lists the reusable AI Core design, product roadmap and operations doc
 | [P1–P8 Product Roadmap](AI_PLATFORM_P1_P8_ROADMAP.md) | Target architecture from AI foundation through business context, tools, learning, documents and transactions |
 | [AI Platform Phase Status](../AI_PLATFORM_PHASES_STATUS.md) | Canonical status of legacy AI Core phases and mapping to P1–P8 |
 | [AI Platform Operations](AI_PLATFORM_OPERATIONS.md) | Configuration/secrets, migrations, backup/restore, monitoring and cost controls |
-| [AI Platform Implementation Plan](AI_PLATFORM_IMPLEMENTATION_PLAN.md) | Work packages, dependencies and exit gates |
-| [HR Policy Assistant Design](AI_HR_POLICY_ASSISTANT.md) | Policy knowledge lifecycle and RAG application design |
-| [HR Evidence Reconciliation Pilot](AI_HR_RECONCILIATION_PILOT.md) | HR pilot scope and integration boundary |
-| [HR Case Assistant Implementation](AI_HR_CASE_ASSISTANT_IMPLEMENTATION.md) | HR facts gateway, evidence reconciliation, review workflow and deployment details |
+| [AI Platform Integration](AI_PLATFORM_INTEGRATION.md) | Authenticated FVN host integration, adapter boundaries and rollout requirements |
 
 ## Existing AI Core implementation track
 
