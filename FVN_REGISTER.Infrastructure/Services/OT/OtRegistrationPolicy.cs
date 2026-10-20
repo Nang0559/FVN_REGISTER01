@@ -88,7 +88,7 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
         // 3) được chỉ định trực tiếp trong rule của một phòng ban khác
         return await _db.Set<F03OTRegistrar>().AsNoTracking()
             .AnyAsync(x => x.UserId == user.UserId && x.RegisterType == type && x.IsActive != false
-                           && _db.Set<F03OTRegistrationRule>().Any(r => r.Id == x.RegistrationRuleId && r.IsActive && r.Mode == RegistrationRuleMode.AssignedUsers), ct);
+                           && _db.Set<F03OTRegistrationRule>().Any(r => r.Id == x.RegistrationRuleId && r.IsActive==true && r.Mode == RegistrationRuleMode.AssignedUsers), ct);
     }
 
     public Task<bool> CanRegisterForOthersAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
@@ -143,7 +143,7 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
             .AsNoTracking()
             .Include(x => x.Registrars)
             .Include(x => x.RegistrarPositions)
-            .Where(x => x.IsActive && x.RegisterType == registerType && (x.DepartmentCode == deptCode || x.DepartmentCode == 0))
+            .Where(x => x.IsActive == true && x.RegisterType == registerType && (x.DepartmentCode == deptCode || x.DepartmentCode == 0))
             .OrderByDescending(x => x.DepartmentCode == deptCode)
             .FirstOrDefaultAsync(ct);
 

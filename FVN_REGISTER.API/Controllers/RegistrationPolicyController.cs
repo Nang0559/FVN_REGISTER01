@@ -246,7 +246,7 @@ public sealed class RegistrationPolicyController : BaseApiController
             .AsNoTracking()
             .Include(x => x.Registrars)
             .Include(x => x.RegistrarPositions)
-            .Where(x => x.IsActive && x.RegisterType == registerType && (x.DepartmentCode == deptCode || x.DepartmentCode == 0))
+            .Where(x => x.IsActive == true && x.RegisterType == registerType && (x.DepartmentCode == deptCode || x.DepartmentCode == 0))
             .OrderByDescending(x => x.DepartmentCode == deptCode)
             .FirstOrDefaultAsync(ct);
 
@@ -269,7 +269,7 @@ public sealed class RegistrationPolicyController : BaseApiController
         DepartmentCode = rule.DepartmentCode,
         RegisterType = rule.RegisterType,
         Mode = rule.Mode,
-        IsActive = rule.IsActive,
+        IsActive = rule.IsActive == true,
         UserIds = rule.Registrars.Select(x => x.UserId).Distinct().ToList(),
         PositionCodes = rule.RegistrarPositions.Select(x => x.PositionCode).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
     };
