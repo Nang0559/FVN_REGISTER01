@@ -93,3 +93,12 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - Security hardening: signed request body SHA-256 is captured by middleware before Minimal API parameter binding, then validated by the HMAC endpoint filter. This avoids validating an empty/consumed body stream after JSON binding.
 
 - Snapshot ingress is capped at 1 MiB while streaming before JSON binding (including requests without Content-Length); oversized context payloads receive HTTP 413. Other signed API bodies are hashed incrementally before binding. Document upload endpoints retain their separately configured upload limit.
+
+## Contextual assistant request integration
+
+- Added the authenticated FVN gateway route `POST /api/ai/business-context/ask`. It derives actor and permissions from the active FVN session; the client supplies only a question and retrieval limit.
+- The gateway sends the question and current context together to `POST /api/ai/v1/assistant/ask` using the existing body-bound HMAC and replay protection.
+- The AI API verifies tenant and actor against signed headers and obtains knowledge scopes freshly for every request. The context is passed separately to RAG as identity/navigation metadata, not as evidence and not as an authorization grant.
+- RAG retains ACL-filtered evidence and citation validation. Tests cover context metadata separation and malformed context rejection.
+- The assistant request body is limited to 64 KiB while streaming. No snapshot persistence or conversation memory is introduced.
+- This is a request/response integration slice only. Production authorization adapter configuration, signed host-to-AI integration tests, end-to-end verification and build/CI validation remain outstanding; P2 and P4 are not marked complete.
