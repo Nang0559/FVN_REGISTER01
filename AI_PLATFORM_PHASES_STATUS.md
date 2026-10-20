@@ -31,7 +31,7 @@ The P1–P8 sequence is a separate product architecture roadmap, not a renumberi
 | P5 — Task Assistant | Not implemented | Must use workflow-owned task APIs |
 | P6 — Controlled Learning | Existing foundation / partial | Existing feedback/release pipeline; broader approved knowledge lifecycle and evaluation gates remain |
 | P7 — Document Intelligence | Existing foundation / partial | Existing OCR/extraction foundation; handwriting/vision and cross-module validation remain |
-| P8 — Transaction Agent / Production & Quality | Not implemented | Requires explicit preview/confirmation, idempotent commands and audit before any write capability |
+| P8 — Transaction Agent / Production & Quality | Disabled foundation / not executable | Typed preview/confirmation contracts and a default-deny command gateway are registered; no write endpoint or trusted host executor is enabled. Requires fresh host authorization, confirmation UI, durable idempotency/audit and recovery tests before any write capability |
 
 ## Phase 5 hardening completed in this branch
 
@@ -107,3 +107,6 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - Replay-protection hardening: signed AI API requests now return HTTP 503 without executing when SQL nonce persistence fails; duplicate nonce remains HTTP 401. Expired-nonce cleanup is best-effort maintenance and cannot bypass the unique `(TenantCode, Nonce)` constraint. Assistant context identity mismatches now return HTTP 403 instead of a generic validation error.
 - Context privacy schema is now allowlist-only at the AI API boundary: only tenant/actor, department/position, role/permission/function/managed-scope codes, and contextVersion are accepted. Unknown fields (including employeeCode) are rejected rather than silently passed to the model. Added a regression test for employeeCode injection.
 - Knowledge authorization remains deliberately fail-closed. The AI repository does not yet define a canonical mapping from FVN function/scope grants and managed organizational scopes to the `AccessScopeJson` values assigned when knowledge documents are published. Do not map `managedScopeCodes` directly or assume every function permission grants document access. The production adapter requires an explicit, reviewed FVN permission-to-knowledge-scope policy and a fresh host-side authorization check for search, publication, and unpublication.
+
+
+- P8 safety foundation: added typed preview/confirmation/execution contracts and `IAuthorizedFvnBusinessCommandGateway`; DI registers a default-deny implementation. Tests assert preview and execution both fail closed when the trusted FVN adapter is absent. This does not enable transaction writes and does not make P8 production-ready.
