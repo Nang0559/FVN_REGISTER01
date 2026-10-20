@@ -16,6 +16,10 @@ IF OBJECT_ID(N'dbo.F03FeatureOperatorAssignments', N'U') IS NULL
     THROW 51802, N'F03FeatureOperatorAssignments is required. Run SQL/14C_SecurityFeatureOperatorAssignments.sql first.', 1;
 IF OBJECT_ID(N'dbo.F03LateEarlyRequests', N'U') IS NULL
     THROW 51803, N'F03LateEarlyRequests is required. Run the LateEarly schema scripts first.', 1;
+IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NULL
+    THROW 51806, N'F03Functions.FunctionKey is required. Run SQL/46_SecurityFunctionRegistry.sql first.', 1;
+IF COL_LENGTH(N'dbo.F03Functions', N'DisplayOrder') IS NULL
+    THROW 51807, N'F03Functions.DisplayOrder is required by the current security catalog schema.', 1;
 
 /* Permit the third registration type in the existing shared rule store. */
 IF EXISTS
@@ -169,4 +173,13 @@ END;
 GO
 
 PRINT N'108_LateEarlyIndependentRegistrar completed. LateEarly registrar assignments are now independent from OT.';
+
+SELECT FunctionCode, FunctionKey, FunctionName, IsActive
+FROM dbo.F03Functions
+WHERE FunctionCode = 3406 OR FunctionKey = N'LateEarly.RegistrarManage';
+
+SELECT DepartmentCode, RegisterType, Mode, IsActive
+FROM dbo.F03OTRegistrationRules
+WHERE RegisterType = N'LATE_EARLY'
+ORDER BY DepartmentCode;
 GO
