@@ -67,9 +67,10 @@ public sealed class LateEarlyService : ILateEarlyService
                 .FirstOrDefaultAsync(ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy nhân viên được đăng ký.");
 
-            if (!await _authorization.CanAccessAsync(
-                    user, SecurityFunctionCodes.LateEarlyCreate, employee.EmployeeCode, employee.DeptCode, ct))
-                throw new UnauthorizedAccessException("Bạn không có quyền tạo đăng ký đi muộn/về sớm trong phạm vi nhân viên này.");
+            if (!await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.LateEarlyCreate, ct))
+                throw new UnauthorizedAccessException("Bạn không có quyền tạo đăng ký đi muộn/về sớm.");
+            if (string.IsNullOrWhiteSpace(user.EmployeeCode))
+                throw new UnauthorizedAccessException("Tài khoản đăng ký chưa được liên kết với mã nhân viên.");
 
             var onBehalf = !string.Equals(user.EmployeeCode, employee.EmployeeCode, StringComparison.OrdinalIgnoreCase);
             if (onBehalf && !await _registrationPolicy.CanRegisterForEmployeesAsync(
@@ -131,8 +132,7 @@ public sealed class LateEarlyService : ILateEarlyService
                 .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy đăng ký đi muộn/về sớm.");
 
-            if (!await _authorization.CanAccessAsync(
-                    user, SecurityFunctionCodes.LateEarlyEdit, entity.EmployeeCode, entity.DeptCode, ct))
+            if (!await CanManageRequestAsync(user, entity, SecurityFunctionCodes.LateEarlyEdit, ct))
                 throw new UnauthorizedAccessException("Bạn không có quyền gửi đăng ký này.");
 
             if (entity.RequestStatus is not (ApprovalStatus.Draft or ApprovalStatus.NeedsRevision))
@@ -183,8 +183,9 @@ public sealed class LateEarlyService : ILateEarlyService
             var entity = await _uow.Repository<F03LateEarlyRequest>().Query().AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy đăng ký.");
-            if (!await _authorization.CanAccessAsync(
-                    user, SecurityFunctionCodes.LateEarlyView, entity.EmployeeCode, entity.DeptCode, ct))
+            var canView = await _authorization.CanAccessAsync(
+                user, SecurityFunctionCodes.LateEarlyView, entity.EmployeeCode, entity.DeptCode, ct);
+            if (!canView && !await CanManageRequestAsync(user, entity, SecurityFunctionCodes.LateEarlyView, ct))
                 throw new UnauthorizedAccessException("Bạn không có quyền xem đăng ký này.");
             return ServiceResult<LateEarlyRequestDto>.Ok(await MapAsync(entity, ct));
         }
@@ -237,8 +238,7 @@ public sealed class LateEarlyService : ILateEarlyService
             var entity = await _uow.Repository<F03LateEarlyRequest>().Query()
                 .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy đăng ký.");
-            if (!await _authorization.CanAccessAsync(
-                    user, SecurityFunctionCodes.LateEarlyCancel, entity.EmployeeCode, entity.DeptCode, ct))
+            if (!await CanManageRequestAsync(user, entity, SecurityFunctionCodes.LateEarlyCancel, ct))
                 throw new UnauthorizedAccessException("Bạn không có quyền hủy đăng ký này.");
             if (entity.RequestStatus is not (ApprovalStatus.Draft or ApprovalStatus.Pending or ApprovalStatus.NeedsRevision))
                 throw new InvalidOperationException("Chỉ bản nháp hoặc yêu cầu chưa hoàn tất mới được hủy.");
@@ -254,6 +254,23 @@ public sealed class LateEarlyService : ILateEarlyService
         {
             return ServiceResult.Fail(ex.Message);
         }
+    }
+
+    private async Task<bool> CanManageRequestAsync(
+        FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto user,
+        F03LateEarlyRequest entity,
+        int functionCode,
+        CancellationToken ct)
+    {
+        if (!await _authorization.HasPersonalAsync(user, functionCode, ct))
+            return false;
+
+        if (string.Equals(user.EmployeeCode, entity.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return string.Equals(user.EmployeeCode, entity.RegisteredByEmployeeCode, StringComparison.OrdinalIgnoreCase)
+            && await _registrationPolicy.CanRegisterForEmployeesAsync(
+                user, new[] { entity.EmployeeCode }, "LATE_EARLY", ct);
     }
 
     private async Task<LateEarlyRequestDto> MapAsync(F03LateEarlyRequest entity, CancellationToken ct)
