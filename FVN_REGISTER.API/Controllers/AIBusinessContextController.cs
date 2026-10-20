@@ -144,9 +144,16 @@ public sealed class AIBusinessContextController : ControllerBase
         var user = _currentUser.GetCurrentUser();
         if (user is null || !user.IsLoggedIn || user.UserId <= 0) return Unauthorized();
         var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
-        var envelope = new { query = input.Query.Trim(), retrievalLimit = Math.Clamp(input.RetrievalLimit, 1, 20), businessContext = ok.Value.GetType().GetProperty("context")?.GetValue(ok.Value) };
-        if (envelope.businessContext is null)
+        using var snapshotDocument = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+        if (!snapshotDocument.RootElement.TryGetProperty("context", out var businessContext) ||
+            businessContext.ValueKind != JsonValueKind.Object)
             return Problem("Authenticated FVN business context could not be constructed.", statusCode: 503);
+        var envelope = new
+        {
+            query = input.Query.Trim(),
+            retrievalLimit = Math.Clamp(input.RetrievalLimit, 1, 20),
+            businessContext = businessContext.Clone()
+        };
 
         var body = JsonSerializer.SerializeToUtf8Bytes(envelope);
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
