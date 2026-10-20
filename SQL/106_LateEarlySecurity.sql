@@ -83,8 +83,8 @@ DECLARE @GrantMap TABLE(SourceCode int NOT NULL, TargetCode int NOT NULL);
 INSERT @GrantMap(SourceCode, TargetCode)
 VALUES (2201,3401),(2102,3402),(2203,3403),(2204,3404),(2205,3405),(2105,3405);
 
-INSERT dbo.F03RoleFunctions(IdRole, IdFunction, ScopeCode, AccessMode)
-SELECT DISTINCT sourceGrant.IdRole, targetFunction.Id, sourceGrant.ScopeCode, sourceGrant.AccessMode
+INSERT dbo.F03RoleFunctions(IdRole, IdFunction)
+SELECT DISTINCT sourceGrant.IdRole, targetFunction.Id
 FROM @GrantMap mapping
 JOIN dbo.F03Functions sourceFunction ON sourceFunction.FunctionCode = mapping.SourceCode AND sourceFunction.IsActive = 1
 JOIN dbo.F03RoleFunctions sourceGrant ON sourceGrant.IdFunction = sourceFunction.Id
