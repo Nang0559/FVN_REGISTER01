@@ -75,6 +75,13 @@ app.Use(async (http, next) =>
 {
  if (http.Request.Path.StartsWithSegments("/api/ai/v1"))
  {
+  // Context snapshots are small authorization projections, never document uploads.
+  if (http.Request.Path.Equals("/api/ai/v1/business-context/snapshot", StringComparison.OrdinalIgnoreCase) &&
+      http.Request.ContentLength is > 1_048_576)
+  {
+   http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+   return;
+  }
   http.Request.EnableBuffering();
   using var hash = SHA256.Create();
   var digest = await hash.ComputeHashAsync(http.Request.Body, http.RequestAborted);
