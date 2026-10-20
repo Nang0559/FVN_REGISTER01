@@ -77,7 +77,7 @@ function New-SignedRequest {
         $sha.Dispose()
     }
 
-    $canonical = @(
+    $canonical = [string]::Join([char]10, @(
         $Method.ToUpperInvariant()
         $Path
         $TenantCode.Trim()
@@ -85,7 +85,7 @@ function New-SignedRequest {
         $timestamp
         $nonce
         $bodyHash
-    ) -join [Environment]::NewLine
+    ))
 
     $keyBytes = [Text.Encoding]::UTF8.GetBytes($signingKey)
     $hmac = [System.Security.Cryptography.HMACSHA256]::new($keyBytes)
