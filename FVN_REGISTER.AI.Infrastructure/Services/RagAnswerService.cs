@@ -28,17 +28,17 @@ public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelPro
     {
         if (string.IsNullOrWhiteSpace(businessContextJson) || businessContextJson.Length > 32_768)
             throw new ArgumentException("Business context must contain 1 to 32768 characters.", nameof(businessContextJson));
-        if (string.IsNullOrWhiteSpace(conversationHistoryJson) || conversationHistoryJson.Length > 48_000)
+        if (string.IsNullOrWhiteSpace(conversationHistoryJson) || conversationHistoryJson.Length > 24_000)
             throw new ArgumentException("Conversation history must contain 1 to 48000 characters.", nameof(conversationHistoryJson));
         using var context = JsonDocument.Parse(businessContextJson);
         using var history = JsonDocument.Parse(conversationHistoryJson);
         if (context.RootElement.ValueKind != JsonValueKind.Object ||
             history.RootElement.ValueKind != JsonValueKind.Array ||
-            history.RootElement.GetArrayLength() > 12 ||
+            history.RootElement.GetArrayLength() > 8 ||
             history.RootElement.EnumerateArray().Any(x => x.ValueKind != JsonValueKind.Object ||
                 !x.TryGetProperty("role", out var role) || role.GetString() is not ("user" or "assistant") ||
                 !x.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.String ||
-                content.GetString()!.Length > 4000))
+                content.GetString()!.Length > 2500))
             throw new ArgumentException("Conversation history has an invalid or excessive shape.", nameof(conversationHistoryJson));
         return AnswerCoreAsync(tenantCode, actorId, allowedScopes, query, businessContextJson,
             history.RootElement.GetRawText(), retrievalLimit, cancellationToken);
