@@ -139,3 +139,8 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 
 
 - Vector retrieval now joins the source document and requires `AiDocuments.Status = 'Approved'` in addition to tenant match, active chunk, and current approved/corrected human review. This prevents a stale active chunk from being retrieved after its source document is rejected, archived, or otherwise leaves the approved state. Publication-status queries apply the same document/review checks.
+
+
+### Controlled-learning runtime readiness (P6)
+
+`GET /api/ai/capabilities` now separates the presence of feedback evaluation, golden dataset, and release-management services from `learningAdministrationAuthorized`. `controlledLearningOperational` requires all four conditions. The default administration authorization provider is deny-by-default, so evaluation code being registered does not imply that users can administer/promote model releases. The endpoint reports readiness only; it does not grant release permissions.
