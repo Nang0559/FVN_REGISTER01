@@ -512,7 +512,7 @@
                     <MudPaper Class="pa-4 mt-4" Outlined="true" Style="border-radius:16px">
                         <MudText Typo="Typo.h6">Chức vụ được phép đăng ký @(_posRegisterType == "LATE_EARLY" ? "Đi muộn / Về sớm" : _posRegisterType == "TRIP" ? "Trip" : "OT")</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                            Chọn chức vụ được đăng ký OT, Trip hoặc Đi muộn/Về sớm theo phòng ban (hoặc mặc định toàn công ty).
+                            Chọn chức vụ được phép tự đăng ký theo loại nghiệp vụ đang chọn và theo phòng ban (hoặc mặc định toàn công ty).
                             Chức vụ không được chọn (ví dụ Staff, Worker) sẽ không tự đăng ký hộ; người được chỉ định tại Feature Operator vẫn có thể đăng ký trong phạm vi được giao.
                             Phòng ban đã có cấu hình riêng sẽ dùng cấu hình riêng thay cho mặc định toàn công ty.
                         </MudText>
@@ -532,13 +532,20 @@
                         {
                             <MudGrid>
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="string" Label="Áp dụng cho" Variant="Variant.Outlined"
-                                               Value="_posRegisterType" ValueChanged="RegistrarPositionTypeChanged"
-                                               Disabled="@(_posLoading || _posSaving)">
-                                        <MudSelectItem T="string" Value="@("OT")">Đăng ký OT</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("TRIP")">Đăng ký Trip</MudSelectItem>
-                                         <MudSelectItem T="string" Value="@("LATE_EARLY")">Đăng ký Đi muộn / Về sớm</MudSelectItem>
-                                    </MudSelect>
+                                    @if (IsLateEarlyRegistrarFunction)
+                                        {
+                                            <MudText Typo="Typo.body2" Class="pt-3">Áp dụng cho: Đi muộn / Về sớm</MudText>
+                                        }
+                                        else
+                                        {
+    <MudSelect T="string" Label="Áp dụng cho" Variant="Variant.Outlined"
+                                                   Value="_posRegisterType" ValueChanged="RegistrarPositionTypeChanged"
+                                                   Disabled="@(_posLoading || _posSaving)">
+                                            <MudSelectItem T="string" Value="@("OT")">Đăng ký OT</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("TRIP")">Đăng ký Trip</MudSelectItem>
+                                             <MudSelectItem T="string" Value="@("LATE_EARLY")">Đăng ký Đi muộn / Về sớm</MudSelectItem>
+                                        </MudSelect>
+                                        }
                                 </MudItem>
                                 <MudItem xs="12" md="9">
                                     <MudSelect T="string" MultiSelection="true" Variant="Variant.Outlined"
