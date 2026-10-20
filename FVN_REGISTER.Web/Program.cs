@@ -14,6 +14,7 @@ using FVN_REGISTER.Shared.Services.Jobs;
 using FVN_REGISTER.Shared.Services.Language;
 using FVN_REGISTER.Shared.Services.Loading;
 using FVN_REGISTER.Shared.Services.Leaves;
+using FVN_REGISTER.Shared.Services.LateEarly;
 using FVN_REGISTER.Shared.Services.Notifications;
 using FVN_REGISTER.Shared.Services.OTs;
 using FVN_REGISTER.Shared.Services.Security;
@@ -78,7 +79,8 @@ builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementC
 builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>();
 builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();
 builder.Services.AddScoped<ILeaveEntitlementClientService, LeaveEntitlementClientService>();
-builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
+builder.Services.AddScoped<ITripClientService, TripClientService>();
+builder.Services.AddScoped<ILateEarlyClientService, LateEarlyClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
 builder.Services.AddScoped<IExecutionReconciliationClientService, ExecutionReconciliationClientService>();
 builder.Services.AddScoped<IExecutionResolutionPolicyClientService, ExecutionResolutionPolicyClientService>();
 builder.Services.AddScoped<IWorkYearManagementClientService, WorkYearManagementClientService>();
