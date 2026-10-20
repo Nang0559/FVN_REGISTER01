@@ -58,6 +58,19 @@ public sealed class KnowledgeIndexingService(
         await using var transaction=IsInMemory()?null:await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,cancellationToken);
         try
         {
+            // Re-check the approval boundary after potentially long extraction/embedding work and
+            // inside the publication transaction. A review revoked while embeddings were generated
+            // must never be published using the earlier, stale approval snapshot.
+            var stillApproved = await db.Documents.AsNoTracking().AnyAsync(
+                x => x.Id == documentId && x.TenantCode == tenantCode && x.Status == "Approved",
+                cancellationToken);
+            var stillReviewed = await db.Reviews.AsNoTracking().AnyAsync(
+                x => x.Id == reviewId && x.DocumentId == documentId && x.TenantCode == tenantCode &&
+                     (x.Decision == "Approved" || x.Decision == "Corrected"),
+                cancellationToken);
+            if (!stillApproved || !stillReviewed)
+                throw new UnauthorizedAccessException("Document approval or human review changed before knowledge publication.");
+
             var existing=await db.KnowledgeChunks.Where(x=>x.TenantCode==tenantCode&&x.DocumentId==documentId).ToDictionaryAsync(x=>x.ChunkOrdinal,cancellationToken);
             foreach(var item in existing.Values)item.IsActive=false;
             await db.SaveChangesAsync(cancellationToken);
