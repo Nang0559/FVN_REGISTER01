@@ -120,3 +120,8 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 ### Signed context snapshot semantics
 
 `POST /api/ai/v1/business-context/snapshot` now reuses the strict business-context allowlist validator used by assistant requests, rejects unknown top-level fields, and bounds module/function metadata arrays. Its response explicitly reports `validated=true`, `persisted=false`, and `usableForAuthorization=false`: the endpoint validates a signed projection but does not store it or turn it into an authorization grant. Authorization for each RAG request continues to come from a fresh `IAuthorizedKnowledgeAccessProvider` lookup.
+
+
+### Knowledge publication approval revalidation
+
+`KnowledgeIndexingService` now re-reads the document's approved status and the matching human review decision inside the serializable publication transaction, after extraction and embedding have completed. If approval/review changed during that work, publication aborts before deactivating existing chunks or upserting replacement vectors. This narrows the stale-approval window; host-side publication authorization still must be supplied by the trusted FVN authorization adapter and is not replaced by this database check.
