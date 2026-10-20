@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.LateEarly;
 using FVN_REGISTER.Core.Enums;
@@ -48,7 +49,8 @@ public sealed class LateEarlyApprovalProvider
         var requireLevel2 = ctx.Extra.TryGetValue("RequireLevel2", out var value)
             && value is bool required && required;
         if (!requireLevel2)
-            return result;
+            return ServiceResult<List<ApprovalStepSnapshotDto>>.Ok(
+                result.Data.Where(x => x.IsRequired).ToList());
 
         var secondLevel = result.Data
             .Where(x => x.Level >= 2)
