@@ -15,6 +15,9 @@ using FVN_REGISTER.Core.Entities.LateEarly;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Core.Entities.Common;
 
 namespace FVN_REGISTER.Infrastructure.Services.LateEarly;
 
@@ -25,6 +28,7 @@ namespace FVN_REGISTER.Infrastructure.Services.LateEarly;
 public sealed class LateEarlyService : ILateEarlyService
 {
     private readonly IUnitOfWork _uow;
+    private readonly FVNWEBAPPContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
     private readonly IOtRegistrationPolicy _registrationPolicy;
@@ -33,6 +37,7 @@ public sealed class LateEarlyService : ILateEarlyService
 
     public LateEarlyService(
         IUnitOfWork uow,
+        FVNWEBAPPContext db,
         ICurrentUserService currentUser,
         IAuthorizationService authorization,
         IOtRegistrationPolicy registrationPolicy,
@@ -40,6 +45,7 @@ public sealed class LateEarlyService : ILateEarlyService
         IApprovalSelectionService approvalSelections)
     {
         _uow = uow;
+        _db = db;
         _currentUser = currentUser;
         _authorization = authorization;
         _registrationPolicy = registrationPolicy;
@@ -84,6 +90,22 @@ public sealed class LateEarlyService : ILateEarlyService
                 || (request.WorkDate.Date == now.Date && request.PlannedTime < now.TimeOfDay);
             if (retroactive && string.IsNullOrWhiteSpace(request.ReasonNote))
                 throw new ArgumentException("Đăng ký bổ sung sau thời điểm phát sinh phải ghi rõ lý do.");
+
+            var policy = await GetLateEarlyPolicyAsync(employee.DeptCode, ct);
+            if (policy.IsActive && policy.MonthlyLimit > 0)
+            {
+                var monthStart = new DateTime(request.WorkDate.Year, request.WorkDate.Month, 1);
+                var monthEnd = monthStart.AddMonths(1);
+                var used = await _uow.Repository<F03LateEarlyRequest>().Query().AsNoTracking()
+                    .CountAsync(x => x.EmployeeCode == employee.EmployeeCode
+                        && x.WorkDate >= monthStart && x.WorkDate < monthEnd
+                        && x.IsActive == true
+                        && x.RequestStatus != ApprovalStatus.Cancelled
+                        && x.RequestStatus != ApprovalStatus.Rejected, ct);
+                if (used >= policy.MonthlyLimit)
+                    throw new InvalidOperationException(
+                        $"Nhân viên đã đạt giới hạn {policy.MonthlyLimit} lượt đăng ký Đi muộn/Về sớm trong tháng {request.WorkDate:MM/yyyy}.");
+            }
 
             var duplicate = await _uow.Repository<F03LateEarlyRequest>().Query()
                 .AnyAsync(x => x.IsActive == true
@@ -158,9 +180,18 @@ public sealed class LateEarlyService : ILateEarlyService
             entity.RequestStatus = ApprovalStatus.Pending;
             await _uow.SaveChangesAsync(ct);
 
+            var lateEarlyPolicy = await GetLateEarlyPolicyAsync(entity.DeptCode ?? employee.DeptCode, ct);
+            var requireLevel2 = lateEarlyPolicy.IsActive
+                && ((entity.IsRetroactive && lateEarlyPolicy.RequireLevel2ForRetroactive)
+                    || (entity.LateEarlyType == LateEarlyType.EarlyLeave
+                        && lateEarlyPolicy.EarlyLeaveLevel2BeforeMinutes > 0
+                        && await IsEarlyLeaveThresholdReachedAsync(
+                            entity.EmployeeCode, entity.WorkDate, entity.PlannedTime,
+                            lateEarlyPolicy.EarlyLeaveLevel2BeforeMinutes, ct)));
+
             var context = ApprovalBuildContext.ForLateEarly(
                 entity.Id, entity.EmployeeCode, entity.DeptCode ?? employee.DeptCode,
-                employee.PositionCode, entity.IsRetroactive, entity.LateEarlyType.ToString());
+                employee.PositionCode, entity.IsRetroactive, entity.LateEarlyType.ToString(), requireLevel2);
 
             var approval = await _workflow.InitApprovalAsync(entity.Id, context, ct);
             if (!approval.IsSuccess)
@@ -260,6 +291,63 @@ public sealed class LateEarlyService : ILateEarlyService
         {
             return ServiceResult.Fail(ex.Message);
         }
+    }
+
+    private async Task<LateEarlyApprovalRuleDto> GetLateEarlyPolicyAsync(int deptCode, CancellationToken ct)
+    {
+        var codes = new[] { $"LATE_EARLY_POLICY_{deptCode}", "LATE_EARLY_POLICY_0" };
+        var rows = await _db.BusinessRules.AsNoTracking()
+            .Where(x => x.Module == RequestModule.LateEarly && codes.Contains(x.Code) && x.IsActive == true)
+            .ToListAsync(ct);
+        var selected = rows.FirstOrDefault(x => x.Code == codes[0])
+            ?? rows.FirstOrDefault(x => x.Code == codes[1]);
+        if (selected == null)
+            return new LateEarlyApprovalRuleDto { DeptCode = deptCode };
+        try
+        {
+            return JsonSerializer.Deserialize<LateEarlyApprovalRuleDto>(selected.ConfigJson ?? "{}")
+                ?? new LateEarlyApprovalRuleDto { DeptCode = deptCode };
+        }
+        catch (JsonException)
+        {
+            throw new InvalidOperationException(
+                $"Cấu hình Approval Policy Đi muộn/Về sớm của phòng ban {deptCode} không hợp lệ. HR cần lưu lại cấu hình.");
+        }
+    }
+
+    private async Task<bool> IsEarlyLeaveThresholdReachedAsync(
+        string employeeCode, DateTime workDate, TimeSpan plannedTime, int thresholdMinutes, CancellationToken ct)
+    {
+        // Shift end is resolved from the HRM shift reference for this employee/date.
+        // Overnight shifts are normalized onto the following day before calculating the difference.
+        var minutesBeforeShiftEnd = await _db.Database.SqlQuery<int?>($"""
+            SELECT TOP (1)
+                CASE
+                    WHEN DATEDIFF(MINUTE, CAST('00:00' AS time), s.EndTime)
+                         < DATEDIFF(MINUTE, CAST('00:00' AS time), s.StartTime)
+                    THEN (DATEDIFF(MINUTE, CAST('00:00' AS time), s.EndTime) + 1440)
+                         - CASE WHEN DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time))
+                                    < DATEDIFF(MINUTE, CAST('00:00' AS time), s.StartTime)
+                                THEN DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time)) + 1440
+                                ELSE DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time)) END
+                    ELSE DATEDIFF(MINUTE, CAST({plannedTime} AS time), s.EndTime)
+                END AS [Value]
+            FROM dbo.F03HrmShiftReference r
+            INNER JOIN dbo.F03Shifts s
+                ON (s.HrmCode = r.HrmShiftCode OR s.ShiftCode = r.HrmShiftCode
+                    OR s.ShiftAbbr = r.HrmShiftAbbr)
+            WHERE r.IsActive = 1
+              AND r.EmployeeCode = {employeeCode}
+              AND r.WorkDate = {workDate.Date}
+              AND s.IsActive = 1
+            ORDER BY r.SourceUpdatedAt DESC, r.Id DESC
+            """).FirstOrDefaultAsync(ct);
+
+        if (!minutesBeforeShiftEnd.HasValue)
+            throw new InvalidOperationException(
+                "Không xác định được ca làm việc HRM của nhân viên trong ngày đăng ký nên chưa thể áp dụng ngưỡng duyệt về sớm. Hãy đồng bộ lịch ca HRM rồi thử lại.");
+
+        return minutesBeforeShiftEnd.Value >= thresholdMinutes;
     }
 
     private async Task<bool> CanManageRequestAsync(
