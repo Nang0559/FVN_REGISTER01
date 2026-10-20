@@ -49,3 +49,31 @@ BEGIN
  CREATE INDEX IX_AiConversationMessages_Owner_Conversation ON ai.AiConversationMessages(TenantCode,ActorId,ConversationId,Sequence);
 END;
 GO
+
+/*
+ Run from a controlled SQL Agent schedule. The API also hides expired sessions;
+ this procedure physically removes expired conversations and their messages.
+*/
+CREATE OR ALTER PROCEDURE ai.usp_PurgeExpiredConversations
+    @BatchSize INT = 500
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @BatchSize < 1 OR @BatchSize > 5000
+        THROW 51016, 'BatchSize must be between 1 and 5000.', 1;
+
+    DECLARE @Expired TABLE (Id UNIQUEIDENTIFIER PRIMARY KEY);
+    INSERT INTO @Expired(Id)
+    SELECT TOP (@BatchSize) Id
+    FROM ai.AiConversations WITH (READPAST, UPDLOCK, ROWLOCK)
+    WHERE ExpiresAtUtc <= TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')
+    ORDER BY ExpiresAtUtc;
+
+    DELETE c
+    FROM ai.AiConversations AS c
+    INNER JOIN @Expired AS e ON e.Id = c.Id;
+
+    SELECT @@ROWCOUNT AS DeletedConversations;
+END;
+GO
