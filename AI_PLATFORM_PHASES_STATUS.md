@@ -25,7 +25,7 @@ The P1–P8 sequence is a separate product architecture roadmap, not a renumberi
 | Product phase | Status on this branch | Notes |
 |---|---|---|
 | P1 — AI Foundation | Existing foundation / partial | Existing provider, model, ingestion and safety components; orchestrator/prompt/context governance still requires a complete exit gate |
-| P2 — FVN Business Context | Contracts added / host integration pending | Added typed user-context, module/function/action/tool/provenance contracts and trusted gateway ports. No production host adapter or live catalog is claimed yet |
+| P2 — FVN Business Context | First authenticated host context endpoint added / integration partial | Added typed contracts and `GET /api/ai/business-context/me`, which derives actor identity from the authenticated server principal and loads effective permissions/managed scopes from `IAuthorizationService`. AI-service consumption, canonical tenant configuration, stable scope mapping, module catalog and end-to-end authorization tests remain |
 | P3 — FVN Knowledge | Existing foundation / partial | Existing RAG uses ACL-filtered cosine retrieval; hybrid search and full policy lifecycle remain |
 | P4 — Business Tools | Not implemented | Requires allow-listed read-only tools and fresh host authorization |
 | P5 — Task Assistant | Not implemented | Must use workflow-owned task APIs |
