@@ -96,6 +96,7 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlV
                 WHERE k.TenantCode = {tenantCode} AND k.IsActive = 1
                   AND r.TenantCode = {tenantCode} AND r.DocumentId = k.DocumentId
                   AND (r.Decision = N'Approved' OR r.Decision = N'Corrected')
+                  AND k.Content IS NOT NULL
                   AND k.EmbeddingJson IS NOT NULL
                   AND EXISTS (
                     SELECT 1 FROM OPENJSON(k.AccessScopeJson) AS acl
@@ -127,7 +128,7 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlV
                 ["chunkOrdinal"] = row.ChunkOrdinal.ToString()
             };
             results.Add(new KnowledgeSearchCandidate(
-                new KnowledgeChunk(row.Id.ToString(), row.DocumentId.ToString(), row.Content, metadata), score));
+                new KnowledgeChunk(row.Id.ToString(), row.DocumentId.ToString(), row.Content!, metadata), score));
         }
         return results.OrderByDescending(x => x.Score).Take(limit).ToArray();
     }
