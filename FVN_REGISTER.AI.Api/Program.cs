@@ -46,7 +46,7 @@ app.MapGet("/health/ready",async (IServiceProvider sp,IOptions<AIPlatformOptions
     }
    }
   }
-  catch(Exception ex) when(ex is HttpRequestException or System.Text.Json.JsonException or UriFormatException || ex is TaskCanceledException && !ct.IsCancellationRequested)
+  catch(Exception ex) when((ex is HttpRequestException || ex is System.Text.Json.JsonException || ex is UriFormatException) || (ex is TaskCanceledException && !ct.IsCancellationRequested))
   {
    app.Logger.LogWarning(ex,"AI readiness check could not query Ollama model inventory.");
   }
