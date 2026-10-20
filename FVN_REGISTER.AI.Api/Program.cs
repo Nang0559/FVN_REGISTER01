@@ -632,8 +632,10 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
         var contextJson = body.BusinessContext.GetRawText();
         int nextSequence;
         var userMessageId = Guid.NewGuid();
-        await using (var appendUserTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct))
+        await using (var appendUserTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct))
         {
+            var appendLock = $"ai-conversation:{tenant}:{conversation.Id:N}";
+            await db.Database.ExecuteSqlInterpolatedAsync($"DECLARE @lockResult int; EXEC @lockResult = sys.sp_getapplock @Resource = {appendLock}, @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 10000; IF @lockResult < 0 THROW 51019, 'Conversation append lock unavailable.', 1;", ct);
             nextSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
                 .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
             db.ConversationMessages.Add(new AiConversationMessageRecord { Id = userMessageId, ConversationId = conversation.Id,
@@ -655,8 +657,10 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
             await db.SaveChangesAsync(ct);
             throw;
         }
-        await using (var appendAssistantTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct))
+        await using (var appendAssistantTx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct))
         {
+            var appendLock = $"ai-conversation:{tenant}:{conversation.Id:N}";
+            await db.Database.ExecuteSqlInterpolatedAsync($"DECLARE @lockResult int; EXEC @lockResult = sys.sp_getapplock @Resource = {appendLock}, @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 10000; IF @lockResult < 0 THROW 51019, 'Conversation append lock unavailable.', 1;", ct);
             var assistantSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
                 .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
             var completedTurn = await db.ConversationMessages.SingleAsync(x => x.Id == userMessageId, ct);
