@@ -29,7 +29,7 @@
 
     <MudGrid>
         <MudItem xs="12" md="8">
-            <MudTable Items="_items" Dense="true" Hover="true" Striped="true" Loading="_loading" OnRowClick="SelectRow">
+            <MudTable Items="_items" Dense="true" Hover="true" Striped="true" Loading="_loading">
                 <HeaderContent>
                     <MudTh>Batch</MudTh>
                     <MudTh>Phạm vi</MudTh>
@@ -79,6 +79,9 @@
                     </MudTd>
                     <MudTd>@FormatDuration(context.ElapsedSeconds)</MudTd>
                     <MudTd>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => SelectRow(context))">
+                            Chi tiết
+                        </MudButton>
                         @if (CanTerminate(context))
                         {
                             <MudButton Size="Size.Small" Color="@(_armedBatchId == context.CalculationBatchId ? Color.Error : Color.Warning)" Variant="Variant.Outlined" OnClick="@(() => ForceTerminateAsync(context))">
@@ -195,9 +198,9 @@
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
 
-    private void SelectRow(TableRowClickEventArgs<HrmAttendanceCalculationMonitorDto> args)
+    private void SelectRow(HrmAttendanceCalculationMonitorDto item)
     {
-        _selected = args.Item;
+        _selected = item;
         _armedBatchId = null;
     }
 
