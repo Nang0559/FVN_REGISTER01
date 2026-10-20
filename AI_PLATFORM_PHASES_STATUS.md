@@ -88,3 +88,6 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - The signed host forwarding route uses the configured API key, tenant, actor, timestamp, nonce and body-bound HMAC signature. `POST /api/ai/business-context/ai` now forwards the host-generated permission/scope snapshot to the AI snapshot endpoint; the AI service checks the snapshot tenant/actor against the signed headers. This enables trusted context handoff, but does not configure business tool discovery or execution.
 
 - Managed-scope selectors are now normalized from the real `ManagedScopeDto` fields (`NodeType`, `NodeCode`, `FactoryCode`, `DeptCode`, `SubDepartmentCode`, `IncludeChildren`), sorted deterministically, and included in `contextVersion`. Free-text remarks and employee lists are deliberately excluded.
+
+
+- Security hardening: signed request body SHA-256 is captured by middleware before Minimal API parameter binding, then validated by the HMAC endpoint filter. This avoids validating an empty/consumed body stream after JSON binding.
