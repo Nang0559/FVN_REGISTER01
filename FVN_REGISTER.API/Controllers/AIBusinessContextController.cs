@@ -223,7 +223,7 @@ public sealed class AIBusinessContextController : ControllerBase
             },
             modules,
             functions,
-            managedScopes
+            managedScopeCodes
         });
     }
 }
