@@ -4,6 +4,7 @@ using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Core.Entities.HRM;
 using FVN_REGISTER.Core.Entities.LateEarly;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Calendar;
