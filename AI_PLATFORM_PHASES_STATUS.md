@@ -144,3 +144,8 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 ### Controlled-learning runtime readiness (P6)
 
 `GET /api/ai/capabilities` now separates the presence of feedback evaluation, golden dataset, and release-management services from `learningAdministrationAuthorized`. `controlledLearningOperational` requires all four conditions. The default administration authorization provider is deny-by-default, so evaluation code being registered does not imply that users can administer/promote model releases. The endpoint reports readiness only; it does not grant release permissions.
+
+
+### Document intelligence runtime readiness (P7)
+
+`GET /api/ai/capabilities` now reports document pipeline registration, text extraction registration, OCR configuration presence, malware scanner adapter readiness, and a combined `documentIntelligenceOperational` flag. The combined flag requires the pipeline, text extractor, and a non-default malware scanner. `ocrConfigurationPresent` deliberately means only that executable names and a bounded DPI are configured; it does not claim that Tesseract/Poppler binaries or language packs are installed and executable. Production rollout still requires an environment-level OCR smoke test and malware-scanner connectivity test.
