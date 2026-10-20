@@ -1,7 +1,8 @@
 using System.Text.Json;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Contracts;
-using Microsoft.AspNetCore.Http.HttpResults;
+using FVN_REGISTER.AI.Application.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.AI.Api;
 
@@ -15,7 +16,7 @@ public static class DocumentDataEntryEndpoints
             var tenant = Tenant(req); if (tenant is null) return Results.BadRequest(new { error = "Signed tenant context is required." });
             return Results.Ok(await service.ListAsync(tenant, ct));
         });
-        data.MapPost("/templates", async (HttpRequest req, IDocumentDataEntryTemplateService service, IOptionsSnapshot<AIPlatform.Application.Configuration.AIPlatformOptions> options, CancellationToken ct) =>
+        data.MapPost("/templates", async (HttpRequest req, IDocumentDataEntryTemplateService service, IOptionsSnapshot<AIPlatformOptions> options, CancellationToken ct) =>
         {
             var tenant = Tenant(req); var actor = Actor(req); if (tenant is null || actor is null) return Results.BadRequest(new { error = "Signed tenant and actor context are required." });
             if (!req.HasFormContentType) return Results.BadRequest(new { error = "multipart/form-data is required." });
@@ -32,7 +33,7 @@ public static class DocumentDataEntryEndpoints
             catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
             catch (InvalidDataException ex) { return Results.BadRequest(new { error = ex.Message }); }
         }).DisableAntiforgery();
-        data.MapPost("/runs", async (HttpRequest req, IDocumentDataEntryService service, IOptionsSnapshot<AIPlatform.Application.Configuration.AIPlatformOptions> options, CancellationToken ct) =>
+        data.MapPost("/runs", async (HttpRequest req, IDocumentDataEntryService service, IOptionsSnapshot<AIPlatformOptions> options, CancellationToken ct) =>
         {
             var tenant = Tenant(req); var actor = Actor(req); if (tenant is null || actor is null) return Results.BadRequest(new { error = "Signed tenant and actor context are required." });
             if (!req.HasFormContentType) return Results.BadRequest(new { error = "multipart/form-data is required." });
