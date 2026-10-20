@@ -119,6 +119,76 @@ public sealed class AIBusinessContextController : ControllerBase
         }
     }
 
+    /// <summary>Ask the AI using the current authenticated FVN context in the same signed request.</summary>
+    [HttpPost("ask")]
+    public async Task<IActionResult> AskAi([FromBody] AssistantAskGatewayRequest input, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(input.Query) || input.Query.Trim().Length > 4000)
+            return BadRequest(new { error = "Question must contain 1 to 4000 characters." });
+
+        var snapshotResult = await GetCurrentContext(cancellationToken);
+        if (snapshotResult is not OkObjectResult ok || ok.Value is null)
+            return snapshotResult;
+
+        var baseUrl = _configuration["AIPlatform:BaseUrl"];
+        var apiKey = _configuration["AIPlatform:ApiKey"];
+        var signingKey = _configuration["AIPlatform:ContextSigningKey"];
+        var tenant = _configuration["AIPlatform:TenantCode"]?.Trim();
+        const string path = "/api/ai/v1/assistant/ask";
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
+            string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(signingKey) || signingKey.Length < 32 ||
+            string.IsNullOrWhiteSpace(tenant) || tenant.Length > 64)
+            return Problem("AIPlatform BaseUrl, ApiKey, ContextSigningKey and TenantCode must be configured.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+
+        var user = _currentUser.GetCurrentUser();
+        if (user is null || !user.IsLoggedIn || user.UserId <= 0) return Unauthorized();
+        var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
+        var envelope = new { query = input.Query.Trim(), retrievalLimit = Math.Clamp(input.RetrievalLimit, 1, 20), businessContext = ok.Value.GetType().GetProperty("context")?.GetValue(ok.Value) };
+        if (envelope.businessContext is null)
+            return Problem("Authenticated FVN business context could not be constructed.", statusCode: 503);
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(envelope);
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
+        var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+        var bodyHash = Convert.ToHexString(SHA256.HashData(body));
+        var canonical = string.Join("\n", "POST", path, tenant, actor, timestamp, nonce, bodyHash);
+        var signature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingKey), Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, path.TrimStart('/'))) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        request.Headers.TryAddWithoutValidation("X-AI-API-Key", apiKey);
+        request.Headers.TryAddWithoutValidation("X-Tenant-Code", tenant);
+        request.Headers.TryAddWithoutValidation("X-Actor-Id", actor);
+        request.Headers.TryAddWithoutValidation("X-AI-Timestamp", timestamp);
+        request.Headers.TryAddWithoutValidation("X-AI-Nonce", nonce);
+        request.Headers.TryAddWithoutValidation("X-AI-Signature", signature);
+
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers.Vary = "Authorization";
+        try
+        {
+            using var upstream = await _httpClientFactory.CreateClient("FvnAi")
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            var payload = await upstream.Content.ReadAsStringAsync(cancellationToken);
+            return new ContentResult
+            {
+                StatusCode = (int)upstream.StatusCode,
+                ContentType = upstream.Content.Headers.ContentType?.ToString() ?? "application/json",
+                Content = payload
+            };
+        }
+        catch (HttpRequestException)
+        {
+            return Problem("AI service unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Problem("AI service timed out.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
     [HttpGet("me")]
     public async Task<IActionResult> GetCurrentContext(CancellationToken cancellationToken)
     {
@@ -243,3 +313,5 @@ public sealed class AIBusinessContextController : ControllerBase
         });
     }
 }
+
+public sealed record AssistantAskGatewayRequest(string Query, int RetrievalLimit = 8);
