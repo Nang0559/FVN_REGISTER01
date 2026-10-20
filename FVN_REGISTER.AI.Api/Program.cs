@@ -483,33 +483,11 @@ group.MapPost("/assistant/ask", async (AssistantAskRequest body, HttpRequest req
     var query = body.Query?.Trim();
     if (string.IsNullOrWhiteSpace(query) || query.Length > 4000)
         return Results.BadRequest(new { error = "Question must contain 1 to 4000 characters." });
-    if (body.BusinessContext.ValueKind != System.Text.Json.JsonValueKind.Object)
-        return Results.BadRequest(new { error = "A trusted FVN_REGISTER business context object is required." });
-    var context = body.BusinessContext;
-    static bool ReadString(System.Text.Json.JsonElement obj, string name, out string value)
-    {
-        value = string.Empty;
-        return obj.TryGetProperty(name, out var item) && item.ValueKind == System.Text.Json.JsonValueKind.String &&
-            !string.IsNullOrWhiteSpace(value = item.GetString()!.Trim());
-    }
     var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
     var actor = req.Headers["X-Actor-Id"].ToString().Trim();
-    if (!ReadString(context, "tenantCode", out var contextTenant) ||
-        !ReadString(context, "actorId", out var contextActor) ||
-        !ReadString(context, "contextVersion", out var version) ||
-        !string.Equals(contextTenant, tenant, StringComparison.Ordinal) ||
-        !string.Equals(contextActor, actor, StringComparison.Ordinal))
-        return Results.Forbid();
-    if (version.Length > 128 || !context.TryGetProperty("permissionCodes", out var permissions) ||
-        permissions.ValueKind != System.Text.Json.JsonValueKind.Array ||
-        permissions.GetArrayLength() > 500 ||
-        !context.TryGetProperty("managedScopeCodes", out var managedScopes) ||
-        managedScopes.ValueKind != System.Text.Json.JsonValueKind.Array ||
-        managedScopes.GetArrayLength() > 500)
-        return Results.BadRequest(new { error = "Business context is incomplete or exceeds supported limits." });
-    var contextJson = context.GetRawText();
-    if (contextJson.Length > 32_768)
-        return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+    if (!TrustedBusinessContextValidator.TryValidate(body.BusinessContext, tenant, actor, out var contextError))
+        return Results.BadRequest(new { error = contextError });
+    var contextJson = body.BusinessContext.GetRawText();
 
     var rag = services.GetService<IRagAnswerService>();
     var access = services.GetService<IAuthorizedKnowledgeAccessProvider>();
