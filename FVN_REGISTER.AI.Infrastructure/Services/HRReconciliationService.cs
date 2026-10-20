@@ -55,6 +55,8 @@ public sealed class HRReconciliationService(IAuthorizedHRFactsProvider factsProv
     private async Task<HRReconciliationAnalysis> AnalyzeWithFactsCoreAsync(string tenantCode, string actorId,
         HRCaseAnalysisRequest request, OfficialHRFacts facts, CancellationToken cancellationToken)
     {
+        if (!Enum.IsDefined(request.CaseType))
+            throw new ArgumentException("Unsupported HR case type.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.UserStatement) || request.UserStatement.Length > 8000)
             throw new ArgumentException("User statement must contain 1 to 8000 characters.", nameof(request));
         if (request.EvidenceText?.Length > 100_000)
