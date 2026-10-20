@@ -115,3 +115,8 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 ### Runtime capability reporting
 
 `GET /api/ai/capabilities` now reports `knowledgeAuthorizationConfigured`, `ragServiceConfigured`, `ragOperational`, `businessCommandGatewayConfigured`, and `transactionExecutionEnabled`. `ragOperational` is true only when the model provider is configured, the RAG service exists, and a non-default knowledge authorization provider is registered. `transactionExecutionEnabled` is explicitly false while the default-deny command gateway is active. The capability list describes implemented platform features; the separate readiness flags describe whether dependent authorization/execution adapters are actually configured. This endpoint is diagnostic metadata, not an authorization decision.
+
+
+### Signed context snapshot semantics
+
+`POST /api/ai/v1/business-context/snapshot` now reuses the strict business-context allowlist validator used by assistant requests, rejects unknown top-level fields, and bounds module/function metadata arrays. Its response explicitly reports `validated=true`, `persisted=false`, and `usableForAuthorization=false`: the endpoint validates a signed projection but does not store it or turn it into an authorization grant. Authorization for each RAG request continues to come from a fresh `IAuthorizedKnowledgeAccessProvider` lookup.
