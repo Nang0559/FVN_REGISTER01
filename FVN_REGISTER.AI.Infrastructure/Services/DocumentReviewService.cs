@@ -6,7 +6,7 @@ namespace FVN_REGISTER.AI.Infrastructure.Services;
 
 public sealed class DocumentReviewService(AiPlatformDbContext db, FVN_REGISTER.AI.Application.Abstractions.IAuthorizedDocumentReviewProvider authorization) : FVN_REGISTER.AI.Application.Abstractions.IDocumentReviewService
 {
-    public async Task<FVN_REGISTER.AI.Application.Contracts.ReviewReceipt> ReviewAsync(Guid extractionId, string tenantCode, string reviewerId, string decision, string? correctedPayloadJson, string? comment, CancellationToken cancellationToken = default)
+    public async Task<FVN_REGISTER.AI.Application.Abstractions.ReviewReceipt> ReviewAsync(Guid extractionId, string tenantCode, string reviewerId, string decision, string? correctedPayloadJson, string? comment, CancellationToken cancellationToken = default)
     {
         tenantCode = Required(tenantCode, 64, nameof(tenantCode));
         reviewerId = Required(reviewerId, 128, nameof(reviewerId));
@@ -28,7 +28,7 @@ public sealed class DocumentReviewService(AiPlatformDbContext db, FVN_REGISTER.A
         if (decision == "Corrected") extraction.CandidateJson = correctedPayloadJson!;
         db.Reviews.Add(review);
         await db.SaveChangesAsync(cancellationToken);
-        return new FVN_REGISTER.AI.Application.Contracts.ReviewReceipt(review.Id, review.DocumentId, review.Decision, now);
+        return new FVN_REGISTER.AI.Application.Abstractions.ReviewReceipt(review.Id, review.DocumentId, review.Decision, now);
     }
     private static string Required(string value, int max, string name) => string.IsNullOrWhiteSpace(value) || value.Trim().Length > max ? throw new ArgumentException($"Value must contain 1 to {max} characters.", name) : value.Trim();
 }
