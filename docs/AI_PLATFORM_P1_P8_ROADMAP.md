@@ -27,6 +27,22 @@ Qwen (or another provider) interprets language, reasons over bounded context and
 
 P7 and P8 are capability tracks that reuse P1–P6. Transaction execution must not be enabled merely because document extraction exists.
 
+### P8 transaction command boundary (implemented as a disabled foundation)
+
+The AI application now defines typed `FvnBusinessCommandPreviewRequest`, `FvnBusinessCommandPreview`, `FvnBusinessCommandConfirmation` and `FvnBusinessCommandExecutionResult` contracts, plus `IAuthorizedFvnBusinessCommandGateway`. The infrastructure registers `UnconfiguredFvnBusinessCommandGateway` as the default-deny implementation. Both preview and confirmed execution throw `FVN_BUSINESS_COMMAND_GATEWAY_NOT_CONFIGURED` until a trusted FVN host adapter is explicitly registered. Unit tests cover both fail-closed paths.
+
+This is deliberately **not** an executable transaction agent. No AI endpoint exposes a write command, no model can produce a valid human confirmation, and no transaction is executed by this default implementation. A production host adapter must:
+- resolve tenant/actor from the authenticated FVN principal, never from model arguments;
+- perform fresh permission, managed-scope and domain-policy checks on preview and again at commit;
+- bind an opaque, short-lived preview token to a canonical command hash, tenant, actor and exact change set;
+- require confirmation from the trusted FVN UI, not a model-generated flag;
+- enforce unique idempotency keys and single-use preview tokens transactionally;
+- write immutable audit records with before/after references, actor, command version, correlation and outcome;
+- provide recovery/reconciliation for uncertain commit outcomes and tests for replay, expiry, scope change and concurrent retries.
+
+The current state-changing boundary therefore remains disabled. Do not advertise P8 as complete until the host adapter, durable idempotency/audit store, confirmation UI and end-to-end tests are deployed.
+
+
 ## P2 — FVN Business Context design
 
 ```text
