@@ -79,6 +79,23 @@ public sealed class TrustedBusinessContextValidatorTests
     }
 
     [Fact]
+    public void Rejects_unapproved_personal_data_properties()
+    {
+        const string json = """
+            {
+              "tenantCode":"FCCVN","actorId":"42","employeeCode":"NV001",
+              "contextVersion":"v1","roleCodes":[],"permissionCodes":[],
+              "functionScopeCodes":[],"managedScopeCodes":[]
+            }
+            """;
+        using var document = JsonDocument.Parse(json);
+
+        Assert.False(TrustedBusinessContextValidator.TryValidate(
+            document.RootElement, "FCCVN", "42", out var error));
+        Assert.Contains("unsupported property", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Rejects_missing_required_code_arrays()
     {
         const string json = """
