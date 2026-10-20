@@ -209,9 +209,17 @@
         if (_missing) return;
 
         // The query string selects a topic only; it never grants access. Always use the server's effective permissions.
-        var permissionResponse = await SecurityClient.GetMyPermissionsAsync();
-        if (!permissionResponse.IsSuccess || permissionResponse.Data is null ||
-            !HelpAccessPolicy.CanView(permissionResponse.Data, _feature))
+        try
+        {
+            var permissionResponse = await SecurityClient.GetMyPermissionsAsync();
+            if (!permissionResponse.IsSuccess || permissionResponse.Data is null ||
+                !HelpAccessPolicy.CanView(permissionResponse.Data, _feature))
+            {
+                _accessDenied = true;
+                return;
+            }
+        }
+        catch
         {
             _accessDenied = true;
             return;
