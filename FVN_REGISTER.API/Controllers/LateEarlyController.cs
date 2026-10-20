@@ -1,4 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.LateEarly;
+using FVN_REGISTER.Application.Interfaces.OT;
+using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Requests.LateEarly;
@@ -19,15 +21,54 @@ public sealed class LateEarlyController : ControllerBase
     private readonly ILateEarlyService _service;
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
+    private readonly IOTQueryService _employeeQuery;
+    private readonly IOtRegistrationPolicy _registrationPolicy;
 
     public LateEarlyController(
         ILateEarlyService service,
         ICurrentUserService currentUser,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        IOTQueryService employeeQuery,
+        IOtRegistrationPolicy registrationPolicy)
     {
         _service = service;
         _currentUser = currentUser;
         _authorization = authorization;
+        _employeeQuery = employeeQuery;
+        _registrationPolicy = registrationPolicy;
+    }
+
+    /// <summary>
+    /// Tra cứu nhân viên theo cùng nguồn dữ liệu và thuật toán lookup đang dùng ở đơn OT.
+    /// Chỉ registrar Đi muộn/Về sớm trong phòng ban/phạm vi được chỉ định mới được tra cứu nhân viên khác.
+    /// </summary>
+    [HttpGet("search-employees")]
+    public async Task<ActionResult<List<OTEmployeeDto>>> SearchEmployees(
+        [FromQuery] string? keyword, [FromQuery] string? codes,
+        [FromQuery] int? deptCode, [FromQuery] int take = 20, CancellationToken ct = default)
+    {
+        var user = _currentUser.GetCurrentUser();
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+        if (!await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.LateEarlyCreate, ct))
+            return Forbid();
+
+        var department = deptCode ?? user.DeptCode;
+        if (department == null && !string.IsNullOrWhiteSpace(user.EmployeeCode))
+            department = await _employeeQuery.GetEmployeeDeptCodeAsync(user.EmployeeCode, ct);
+        if (department == null)
+            return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
+
+        if (!await _registrationPolicy.IsRegistrarAsync(user, department.Value, "LATE_EARLY", ct))
+            return StatusCode(403, ApiResponse<object>.Fail(
+                "Bạn không có quyền đăng ký Đi muộn/Về sớm cho nhân viên trong phòng ban này."));
+
+        var codeList = string.IsNullOrWhiteSpace(codes)
+            ? null
+            : codes.Split(new[] { ',', ';', '\\n', '\\r', ' ', '\\t' },
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var rows = await _employeeQuery.SearchEmployeesAsync(
+            department.Value, keyword, codeList, Math.Clamp(take, 1, 50), ct);
+        return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(rows));
     }
 
     [HttpPost]
