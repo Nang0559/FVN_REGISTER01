@@ -73,7 +73,7 @@ public sealed class RagAnswerServiceTests
     public async Task AnswerWithContextAsync_RejectsNonObjectContext()
     {
         var service = CreateService(new StubSearch([]), new StubModelProvider("{}"));
-        await Assert.ThrowsAsync<System.Text.Json.JsonException>(() =>
+        await Assert.ThrowsAsync<ArgumentException>(() =>
             service.AnswerWithContextAsync("FCCVN", "42", ["EMPLOYEE"], "Question?", "[]"));
     }
 
