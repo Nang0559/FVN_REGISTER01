@@ -250,12 +250,7 @@ public sealed class AIBusinessContextController : ControllerBase
     {
         if (input.ConversationId == Guid.Empty || string.IsNullOrWhiteSpace(input.Query) || input.Query.Trim().Length > 4000)
             return Task.FromResult<IActionResult>(BadRequest(new { error = "Conversation ID and question of 1 to 4000 characters are required." }));
-        return ForwardConversationAsync(HttpMethod.Post, "/api/ai/v1/conversations/ask", new
-        {
-            conversationId = input.ConversationId,
-            query = input.Query.Trim(),
-            retrievalLimit = Math.Clamp(input.RetrievalLimit, 1, 20)
-        }, true, ct);
+        return ForwardConversationAsync(HttpMethod.Post, "/api/ai/v1/conversations/ask", input, true, ct);
     }
 
     private async Task<IActionResult> ForwardConversationAsync(HttpMethod method, string path, object? payload,
