@@ -1,0 +1,28 @@
+name: _AI Platform Verify
+
+on:
+  push:
+    branches:
+      - test/playwright-ui
+    paths:
+      - .github/workflows/_ai-platform-verify.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-integration:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/ai-platform-phase1-6-integration
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 9.0.x
+      - name: Restore
+        run: dotnet restore FVN_REGISTER.sln
+      - name: Build
+        run: dotnet build FVN_REGISTER.sln --configuration Release --no-restore
+      - name: AI tests
+        run: dotnet test Tests/FVN_REGISTER.AI.Tests/FVN_REGISTER.AI.Tests.csproj --configuration Release --no-build
