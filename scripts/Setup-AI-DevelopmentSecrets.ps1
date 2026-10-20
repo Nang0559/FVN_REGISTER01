@@ -48,15 +48,28 @@ try {
     $connectionString = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
     if ([string]::IsNullOrWhiteSpace($connectionString)) { throw "Connection string cannot be empty." }
 
+    # Validate key names case-insensitively. DbConnectionStringBuilder may normalize
+    # keyword names, so ContainsKey("Data Source") is not reliable across providers.
     $builder = New-Object System.Data.Common.DbConnectionStringBuilder
     $builder.ConnectionString = $connectionString
-    if (-not $builder.ContainsKey("Data Source") -and -not $builder.ContainsKey("Server") -and -not $builder.ContainsKey("Address") -and -not $builder.ContainsKey("Network Address")) {
+    $keys = @($builder.Keys | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() })
+    $hasServer = ($keys -contains "data source") -or ($keys -contains "server") -or
+                 ($keys -contains "address") -or ($keys -contains "network address")
+    if (-not $hasServer) {
         throw "Connection string must include Server or Data Source."
     }
-    if (-not $builder.ContainsKey("Initial Catalog") -and -not $builder.ContainsKey("Database")) {
+    $hasDatabase = ($keys -contains "initial catalog") -or ($keys -contains "database")
+    if (-not $hasDatabase) {
         throw "Connection string must specify Database=FVN_REGISTER."
     }
-    $dbName = if ($builder.ContainsKey("Initial Catalog")) { [string]$builder["Initial Catalog"] } else { [string]$builder["Database"] }
+    $dbName = $null
+    foreach ($key in @($builder.Keys)) {
+        $normalizedKey = ([string]$key).Trim().ToLowerInvariant()
+        if ($normalizedKey -eq "initial catalog" -or $normalizedKey -eq "database") {
+            $dbName = [string]$builder[$key]
+            break
+        }
+    }
     if ($dbName -and $dbName -ne "FVN_REGISTER") {
         $confirm = Read-Host "Database is '$dbName', not FVN_REGISTER. Continue? (y/N)"
         if ($confirm -notin @("y", "Y", "yes", "YES")) { throw "Cancelled: database is not FVN_REGISTER." }
