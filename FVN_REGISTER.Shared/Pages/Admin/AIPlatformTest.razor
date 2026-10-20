@@ -74,7 +74,7 @@
             <MudPaper Outlined="true" Class="pa-4" Style="height:100%">
                 <MudText Typo="Typo.h6" Class="mb-1">2. Thử câu hỏi AI / RAG</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Truy vấn chạy qua backend đã xác thực. Kết quả phụ thuộc tài liệu tri thức đã được duyệt và publish.</MudText>
-                <MudTextField @bind-Value="_prompt" Label="Câu hỏi kiểm thử" Lines="4" MaxLength="4000" Counter="true" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_prompt" Label="Câu hỏi kiểm thử" Lines="4" MaxLength="4000" Variant="Variant.Outlined" />
                 <MudNumericField T="int" @bind-Value="_retrievalLimit" Label="Số nguồn truy xuất tối đa" Min="1" Max="10" Variant="Variant.Outlined" Class="mt-3" />
                 <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="@(_testingPrompt || string.IsNullOrWhiteSpace(_prompt))" OnClick="TestPromptAsync" Class="mt-3">
                     @if (_testingPrompt) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
