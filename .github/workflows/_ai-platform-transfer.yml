@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: write
-  workflows: write
 
 jobs:
   transfer:
@@ -41,7 +40,7 @@ jobs:
           rm -rf target/Tests/FVN_REGISTER.AI.Tests
           mkdir -p target/Tests
           cp -a source/Tests/FVN_REGISTER.AI.Tests target/Tests/FVN_REGISTER.AI.Tests
-          mkdir -p target/SQL target/docs target/scripts target/.github/workflows
+          mkdir -p target/SQL target/docs target/scripts
           rm -rf target/SQL/AI
           cp -a source/SQL/AI target/SQL/AI
           cp source/docs/AI_PLATFORM_ARCHITECTURE.md target/docs/AI_PLATFORM_ARCHITECTURE.md
@@ -49,8 +48,6 @@ jobs:
           cp source/docs/AI_PLATFORM_OPERATIONS.md target/docs/AI_PLATFORM_OPERATIONS.md
           cp source/AI_PLATFORM_PHASES_STATUS.md target/AI_PLATFORM_PHASES_STATUS.md
           cp source/scripts/apply-ai-migrations.sh target/scripts/apply-ai-migrations.sh
-          cp source/.github/workflows/ai-platform-validation.yml target/.github/workflows/ai-platform-validation.yml
-          cp source/.github/workflows/ai-platform-sql-validation.yml target/.github/workflows/ai-platform-sql-validation.yml
           mkdir -p target/FVN_REGISTER.API/Controllers target/FVN_REGISTER.Shared/Pages
           cp source/FVN_REGISTER.API/Controllers/AIHRCaseController.cs target/FVN_REGISTER.API/Controllers/AIHRCaseController.cs
           cp source/FVN_REGISTER.Shared/Pages/AIHRCaseWorkspace.razor target/FVN_REGISTER.Shared/Pages/AIHRCaseWorkspace.razor
@@ -61,8 +58,7 @@ jobs:
           text = program.read_text(encoding='utf-8')
           if 'AddHttpClient("FvnAi"' not in text:
               m = re.search(r'(?m)^builder\.Services\.', text)
-              if not m:
-                  raise SystemExit('Cannot find builder.Services registration anchor in target Program.cs')
+              if not m: raise SystemExit('Cannot find builder.Services registration anchor in target Program.cs')
               text = text[:m.start()] + 'builder.Services.AddHttpClient("FvnAi", client => client.Timeout = TimeSpan.FromSeconds(90));\n' + text[m.start():]
               program.write_text(text, encoding='utf-8')
           app = Path('target/FVN_REGISTER.API/appsettings.json')
@@ -85,7 +81,7 @@ jobs:
           dotnet add FVN_REGISTER.Shared/FVN_REGISTER.Shared.csproj reference FVN_REGISTER.AI.Application/FVN_REGISTER.AI.Application.csproj 2>/dev/null || true
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add FVN_REGISTER.AI.Core FVN_REGISTER.AI.Application FVN_REGISTER.AI.Infrastructure FVN_REGISTER.AI.Api FVN_REGISTER.AI.Worker Tests/FVN_REGISTER.AI.Tests SQL/AI docs/AI_PLATFORM_ARCHITECTURE.md docs/AI_PLATFORM_DOCUMENTATION_INDEX.md docs/AI_PLATFORM_OPERATIONS.md AI_PLATFORM_PHASES_STATUS.md scripts/apply-ai-migrations.sh .github/workflows/ai-platform-validation.yml .github/workflows/ai-platform-sql-validation.yml FVN_REGISTER.API/Controllers/AIHRCaseController.cs FVN_REGISTER.API/Program.cs FVN_REGISTER.API/appsettings.json FVN_REGISTER.Shared/Pages/AIHRCaseWorkspace.razor FVN_REGISTER.API/FVN_REGISTER.API.csproj FVN_REGISTER.Shared/FVN_REGISTER.Shared.csproj "$SLN"
+          git add FVN_REGISTER.AI.Core FVN_REGISTER.AI.Application FVN_REGISTER.AI.Infrastructure FVN_REGISTER.AI.Api FVN_REGISTER.AI.Worker Tests/FVN_REGISTER.AI.Tests SQL/AI docs/AI_PLATFORM_ARCHITECTURE.md docs/AI_PLATFORM_DOCUMENTATION_INDEX.md docs/AI_PLATFORM_OPERATIONS.md AI_PLATFORM_PHASES_STATUS.md scripts/apply-ai-migrations.sh FVN_REGISTER.API/Controllers/AIHRCaseController.cs FVN_REGISTER.API/Program.cs FVN_REGISTER.API/appsettings.json FVN_REGISTER.Shared/Pages/AIHRCaseWorkspace.razor FVN_REGISTER.API/FVN_REGISTER.API.csproj FVN_REGISTER.Shared/FVN_REGISTER.Shared.csproj "$SLN"
           git diff --cached --quiet && exit 0
           git commit -m 'feat(ai): integrate AI Platform phase 1-6'
           git push origin HEAD:feature/ai-platform-phase1-6-integration
