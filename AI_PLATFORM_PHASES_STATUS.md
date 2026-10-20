@@ -110,3 +110,8 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 
 
 - P8 safety foundation: added typed preview/confirmation/execution contracts and `IAuthorizedFvnBusinessCommandGateway`; DI registers a default-deny implementation. Tests assert preview and execution both fail closed when the trusted FVN adapter is absent. This does not enable transaction writes and does not make P8 production-ready.
+
+
+### Runtime capability reporting
+
+`GET /api/ai/capabilities` now reports `knowledgeAuthorizationConfigured`, `ragServiceConfigured`, `ragOperational`, `businessCommandGatewayConfigured`, and `transactionExecutionEnabled`. `ragOperational` is true only when the model provider is configured, the RAG service exists, and a non-default knowledge authorization provider is registered. `transactionExecutionEnabled` is explicitly false while the default-deny command gateway is active. The capability list describes implemented platform features; the separate readiness flags describe whether dependent authorization/execution adapters are actually configured. This endpoint is diagnostic metadata, not an authorization decision.
