@@ -1,6 +1,7 @@
 @namespace FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Requests.Approvals
+@using FVN_REGISTER.Core.Enums
 @using MudBlazor
 @implements IDisposable
 
@@ -27,9 +28,16 @@
 
                 @if (level.Candidates.Count == 0)
                 {
-                    <MudAlert Severity="Severity.Error" Dense="true">
-                        @Language.T("approval.noApprover")
-                    </MudAlert>
+                    @if (level.Required)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true">
+                            @Language.T("approval.noApprover")
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Cấp duyệt có điều kiện; chưa bắt buộc theo chính sách hiện tại.</MudText>
+                    }
                 }
                 else
                 {
@@ -102,7 +110,8 @@
 
     public List<ApprovalSelectionDto> GetSelections()
         => _route?.Levels
-            .Where(x => x.Required)
+            .Where(x => x.Required || (_route.RequestType == RequestModule.LateEarly
+                && !string.IsNullOrWhiteSpace(GetSelected(x))))
             .Select(x => new ApprovalSelectionDto
             {
                 Level = x.Level,
