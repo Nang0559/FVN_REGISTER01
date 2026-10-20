@@ -132,3 +132,99 @@ BEGIN
 END;
 
 COMMIT TRANSACTION;
+GO
+
+/*
+  DB guard for proxy registration. It deliberately reuses the same registrar
+  rules and OT.RegistrarManage Feature Operator assignment as OT/Trip.
+  Self-registration is allowed by the LateEarlyCreate capability; only
+  on-behalf rows must pass the registrar scope.
+*/
+CREATE OR ALTER TRIGGER dbo.trg_F03LateEarlyRequests_RegistrarPolicy
+ON dbo.F03LateEarlyRequests
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT (UPDATE(EmployeeCode) OR UPDATE(RegisteredByEmployeeCode) OR UPDATE(DeptCode))
+        RETURN;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM inserted i
+        OUTER APPLY
+        (
+            SELECT TOP (1) rr.*
+            FROM dbo.F03OTRegistrationRules rr
+            WHERE rr.IsActive = 1
+              AND rr.RegisterType = N'LATE_EARLY'
+              AND rr.DepartmentCode IN (ISNULL(i.DeptCode, 0), 0)
+            ORDER BY CASE WHEN rr.DepartmentCode = ISNULL(i.DeptCode, 0) THEN 0 ELSE 1 END
+        ) policy_rule
+        OUTER APPLY
+        (
+            SELECT TOP (1) u.Id AS UserId, e.PositionCode
+            FROM dbo.F03Users u
+            LEFT JOIN dbo.F03Employees e ON e.EmployeeCode = u.EmployeeCode
+            WHERE u.EmployeeCode = i.RegisteredByEmployeeCode
+        ) registrar
+        WHERE UPPER(LTRIM(RTRIM(i.EmployeeCode))) <>
+              UPPER(LTRIM(RTRIM(i.RegisteredByEmployeeCode)))
+          AND NOT
+          (
+              policy_rule.Mode = 1
+              OR (policy_rule.Mode = 2 AND EXISTS
+                  (
+                      SELECT 1 FROM dbo.F03OTRegistrars x
+                      WHERE x.RegistrationRuleId = policy_rule.Id
+                        AND x.UserId = registrar.UserId
+                        AND x.RegisterType = N'LATE_EARLY'
+                  ))
+              OR (policy_rule.Mode = 3 AND EXISTS
+                  (
+                      SELECT 1 FROM dbo.F03OTRegistrarPositions x
+                      WHERE x.RegistrationRuleId = policy_rule.Id
+                        AND x.PositionCode = registrar.PositionCode
+                        AND x.RegisterType = N'LATE_EARLY'
+                  ))
+              OR EXISTS
+              (
+                  SELECT 1
+                  FROM dbo.F03FeatureOperatorAssignments fa
+                  WHERE fa.IsActive = 1
+                    AND fa.FunctionCode = 3095
+                    AND fa.ResourceType = N'OT_REGISTRAR'
+                    AND fa.EmployeeCode = i.RegisteredByEmployeeCode
+                    AND
+                    (
+                        fa.ResourceId = ISNULL(i.DeptCode, 0)
+                        OR
+                        (
+                            fa.ResourceId IS NULL
+                            AND
+                            (
+                                ISNULL(fa.ScopeCode, N'') IN (N'', N'All')
+                                OR fa.ScopeCode = N'Block:' +
+                                    ISNULL
+                                    (
+                                        (SELECT TOP (1) d.BlockCode
+                                         FROM dbo.F03Departments d
+                                         WHERE d.DeptCode = ISNULL(i.DeptCode, 0)),
+                                        N'#'
+                                    )
+                            )
+                        )
+                    )
+              )
+          )
+    )
+    BEGIN
+        THROW 51533, N'Người đăng ký hộ không có quyền đăng ký Đi muộn/Về sớm cho nhân viên này theo chính sách phòng ban.', 1;
+    END;
+END;
+GO
+
+PRINT N'105_LateEarlyRegistration: registrar DB guard installed.';
+GO
