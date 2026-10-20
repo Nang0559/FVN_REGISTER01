@@ -19,6 +19,7 @@ using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Language;
 using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.LateEarly;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.OT;
@@ -69,6 +70,7 @@ using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs;
 using FVN_REGISTER.Infrastructure.Services.Jobs;
 using FVN_REGISTER.Infrastructure.Services.Language;
 using FVN_REGISTER.Infrastructure.Services.Leaves;
+using FVN_REGISTER.Infrastructure.Services.LateEarly;
 using FVN_REGISTER.Infrastructure.Services.Notifications;
 using FVN_REGISTER.Infrastructure.Services.OT;
 using FVN_REGISTER.Infrastructure.Services.OTs;
@@ -194,6 +196,7 @@ builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Trip
 builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<ILateEarlyService, LateEarlyService>();
 builder.Services.AddScoped<ITripActualService, TripActualService>();
 
 // Equipment
