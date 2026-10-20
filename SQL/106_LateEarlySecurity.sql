@@ -1,7 +1,8 @@
 /*
   106 - LateEarly dedicated security capabilities
   Run after SQL/46_SecurityFunctionRegistry.sql.
-  This registers function definitions only; role/user grants remain governed by Security Center.
+  Registers dedicated function definitions and seeds baseline role grants from
+  existing OT/Trip capabilities. Administrators can refine all grants in Security Center.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
