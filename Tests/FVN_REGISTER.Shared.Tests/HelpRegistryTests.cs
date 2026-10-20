@@ -118,10 +118,8 @@ public sealed class HelpRegistryTests
     [Fact]
     public void EveryRoutedFeature_HasAnExplicitHelpPermissionPolicy()
     {
-        var policyPath = Path.Combine(FindRepositoryRoot(), "FVN_REGISTER.Shared", "Services", "Help", "HelpAccessPolicy.cs");
-        var policySource = File.ReadAllText(policyPath);
         var missing = HelpRegistry.AllFeatureCodes
-            .Where(code => !Regex.IsMatch(policySource, "\\[\\\"" + Regex.Escape(code) + "\\\"\\]\\s*="))
+            .Where(code => !HelpAccessPolicy.HasPolicy(code))
             .OrderBy(code => code, StringComparer.Ordinal)
             .ToArray();
         Assert.Empty(missing);
