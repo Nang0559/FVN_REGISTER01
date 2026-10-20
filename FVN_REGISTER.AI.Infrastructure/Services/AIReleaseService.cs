@@ -75,7 +75,7 @@ public sealed class AIReleaseService(AiPlatformDbContext db, IGoldenDatasetServi
 
     private async Task<IDbContextTransaction?> BeginProductionTransactionAsync(CancellationToken cancellationToken)
     {
-        if (db.Database.IsInMemory()) return null;
+        if (string.Equals(db.Database.ProviderName,"Microsoft.EntityFrameworkCore.InMemory",StringComparison.Ordinal)) return null;
         return await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
     }
 
