@@ -27,7 +27,7 @@ public sealed class RequestIdentitySignatureTests
     }
 
     [Fact]
-    public void TryValidate_RejectsReplayedNonce()
+    public void TryValidate_ValidatesSignatureButLeavesReplayPersistenceToGatewayMiddleware()
     {
         var now = DateTimeOffset.UtcNow;
         var timestamp = now.ToUnixTimeSeconds().ToString();
@@ -36,7 +36,9 @@ public sealed class RequestIdentitySignatureTests
 
         Assert.True(RequestIdentitySignature.TryValidate(Key, Method, Path, Tenant, Actor,
             timestamp, nonce, signature, now, out _));
-        Assert.False(RequestIdentitySignature.TryValidate(Key, Method, Path, Tenant, Actor,
+        // HMAC validation is intentionally stateless. The API endpoint filter persists
+        // nonces in SQL and rejects duplicates across requests/replicas.
+        Assert.True(RequestIdentitySignature.TryValidate(Key, Method, Path, Tenant, Actor,
             timestamp, nonce, signature, now, out _));
     }
 
