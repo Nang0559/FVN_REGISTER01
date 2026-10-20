@@ -9,6 +9,7 @@ namespace FVN_REGISTER.Core.Enums
         Attendance,
         Payroll,
         AccessChange,
-        Endpoint
+        Endpoint,
+        LateEarly
     }
 }

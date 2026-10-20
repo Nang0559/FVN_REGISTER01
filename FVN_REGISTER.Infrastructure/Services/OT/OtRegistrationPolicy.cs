@@ -148,5 +148,6 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
             .FirstOrDefaultAsync(ct);
 
     private static string NormalizeType(string value)
-        => string.Equals(value, "TRIP", StringComparison.OrdinalIgnoreCase) ? "TRIP" : "OT";
+        => string.Equals(value, "TRIP", StringComparison.OrdinalIgnoreCase) ? "TRIP"
+            : string.Equals(value, "LATE_EARLY", StringComparison.OrdinalIgnoreCase) ? "LATE_EARLY" : "OT";
 }
