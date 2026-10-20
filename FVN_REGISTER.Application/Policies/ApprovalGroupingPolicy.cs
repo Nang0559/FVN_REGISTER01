@@ -52,9 +52,10 @@ namespace FVN_REGISTER.Application.Policies
             RequestModule.Leave => 0,
             RequestModule.Overtime => 1,
             RequestModule.Trip => 2,
-            RequestModule.Equipment => 3,
-            RequestModule.Attendance => 4,
-            RequestModule.Payroll => 5,
+            RequestModule.LateEarly => 3,
+            RequestModule.Equipment => 4,
+            RequestModule.Attendance => 5,
+            RequestModule.Payroll => 6,
             _ => 99
         };
 
