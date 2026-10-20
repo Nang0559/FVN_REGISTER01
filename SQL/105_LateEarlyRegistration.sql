@@ -49,13 +49,20 @@ BEGIN
         RegisteredByEmployeeCode NVARCHAR(50) NOT NULL,      -- người đăng ký hộ (có thể = EmployeeCode)
         IsOnBehalf BIT NOT NULL CONSTRAINT DF_F03LateEarlyRequests_IsOnBehalf DEFAULT(0),
         IsRetroactive BIT NOT NULL CONSTRAINT DF_F03LateEarlyRequests_IsRetro DEFAULT(0), -- đăng ký bổ sung sau giờ
-        ActualTime TIME(0) NULL,                             -- giờ thực tế (cổng/HR xác nhận)
-        ConfirmedBy INT NULL,
-        ConfirmedAt DATETIME2 NULL,
         CancelReason NVARCHAR(500) NULL,
         CONSTRAINT CK_F03LateEarlyRequests_Type CHECK (LateEarlyType IN (1,2))
     );
 END;
+
+-- Actual punch time is never entered manually. It is read from F03HrmAttendanceCalculated
+-- (or F03HrmAttendanceHistory when the current row is absent). Remove obsolete manual fields
+-- when this script is upgraded from an earlier draft of the schema.
+IF COL_LENGTH(N'dbo.F03LateEarlyRequests', N'ActualTime') IS NOT NULL
+    ALTER TABLE dbo.F03LateEarlyRequests DROP COLUMN ActualTime;
+IF COL_LENGTH(N'dbo.F03LateEarlyRequests', N'ConfirmedBy') IS NOT NULL
+    ALTER TABLE dbo.F03LateEarlyRequests DROP COLUMN ConfirmedBy;
+IF COL_LENGTH(N'dbo.F03LateEarlyRequests', N'ConfirmedAt') IS NOT NULL
+    ALTER TABLE dbo.F03LateEarlyRequests DROP COLUMN ConfirmedAt;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_F03LateEarlyRequests_RequestCode' AND object_id = OBJECT_ID(N'dbo.F03LateEarlyRequests'))
     CREATE UNIQUE INDEX UX_F03LateEarlyRequests_RequestCode ON dbo.F03LateEarlyRequests(RequestCode);
@@ -65,6 +72,13 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03LateEarlyRequests_
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03LateEarlyRequests_Dept_Date_Status' AND object_id = OBJECT_ID(N'dbo.F03LateEarlyRequests'))
     CREATE INDEX IX_F03LateEarlyRequests_Dept_Date_Status ON dbo.F03LateEarlyRequests(DeptCode, WorkDate, RequestStatus) WHERE IsActive = 1;
+
+-- One live request per employee/date/type. Cancelled and rejected rows are deactivated
+-- by the application, so the filtered unique index also closes the concurrent-create race.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_F03LateEarlyRequests_Employee_Date_Type_Active' AND object_id = OBJECT_ID(N'dbo.F03LateEarlyRequests'))
+    CREATE UNIQUE INDEX UX_F03LateEarlyRequests_Employee_Date_Type_Active
+        ON dbo.F03LateEarlyRequests(EmployeeCode, WorkDate, LateEarlyType)
+        WHERE IsActive = 1;
 
 /* 3) Chặn trùng: một công nhân chỉ có 1 đơn còn hiệu lực / loại / ngày
       (RequestStatus: 4 = Cancelled, 3 = Rejected cần khớp enum ApprovalStatus - kiểm tra trước khi deploy) */
