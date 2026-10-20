@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.LateEarly;
 using FVN_REGISTER.Core.Enums;
@@ -35,6 +36,32 @@ public sealed class LateEarlyApprovalProvider
         IOptionsMonitor<AuthDebugOptions> options)
         : base(uow, email, notification, userResolver, routeService, selectionService, logger, options)
     {
+    }
+
+    public override async Task<ServiceResult<List<ApprovalStepSnapshotDto>>> BuildHierarchyResultAsync(
+        ApprovalBuildContext ctx, CancellationToken ct, bool strict = true)
+    {
+        var result = await base.BuildHierarchyResultAsync(ctx, ct, strict);
+        if (!result.IsSuccess || result.Data == null)
+            return result;
+
+        var requireLevel2 = ctx.Extra.TryGetValue("RequireLevel2", out var value)
+            && value is bool required && required;
+        if (!requireLevel2)
+            return result;
+
+        var secondLevel = result.Data
+            .Where(x => x.Level >= 2)
+            .OrderBy(x => x.Level)
+            .FirstOrDefault();
+        if (secondLevel == null)
+            return ServiceResult<List<ApprovalStepSnapshotDto>>.Fail(
+                "Chính sách yêu cầu cấp duyệt thứ hai nhưng chưa có người duyệt cấp 2 được chọn. Hãy cấu hình Approval Policy và chọn người duyệt cấp 2.");
+
+        var promoted = result.Data.Select(x => x.Level == secondLevel.Level
+            ? x with { IsRequired = true }
+            : x).ToList();
+        return ServiceResult<List<ApprovalStepSnapshotDto>>.Ok(promoted);
     }
 
     public override async Task<LateEarlyRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
