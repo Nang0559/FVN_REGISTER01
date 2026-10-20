@@ -211,36 +211,35 @@ group.MapGet("/business-context/me", async (HttpRequest req, IServiceProvider se
 });
 
 
-// A signed host snapshot is accepted only after the endpoint filter verifies its body hash and replay nonce.
+// A signed snapshot is validated as metadata only. It is not persisted and never becomes an ACL grant.
 group.MapPost("/business-context/snapshot", async (System.Text.Json.JsonElement payload, HttpRequest req, CancellationToken ct) =>
 {
  var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
  var actor=req.Headers["X-Actor-Id"].ToString().Trim();
  if(payload.ValueKind!=System.Text.Json.JsonValueKind.Object ||
+    payload.EnumerateObject().Any(x=>x.Name is not ("context" or "modules" or "functions")) ||
     !payload.TryGetProperty("context",out var context) ||
-    context.ValueKind!=System.Text.Json.JsonValueKind.Object ||
-    !context.TryGetProperty("tenantCode",out var tenantElement) ||
-    !context.TryGetProperty("actorId",out var actorElement) ||
-    tenantElement.ValueKind!=System.Text.Json.JsonValueKind.String ||
-    actorElement.ValueKind!=System.Text.Json.JsonValueKind.String ||
-    !string.Equals(tenantElement.GetString(),tenant,StringComparison.Ordinal) ||
-    !string.Equals(actorElement.GetString(),actor,StringComparison.Ordinal))
-  return Results.Forbid();
- if(!context.TryGetProperty("contextVersion",out var versionElement) ||
-    versionElement.ValueKind!=System.Text.Json.JsonValueKind.String ||
-    string.IsNullOrWhiteSpace(versionElement.GetString()))
-  return Results.BadRequest(new{error="A versioned trusted FVN_REGISTER context is required."});
- if(!payload.TryGetProperty("modules",out var modules) ||
-    modules.ValueKind!=System.Text.Json.JsonValueKind.Array ||
-    !payload.TryGetProperty("functions",out var functions) ||
-    functions.ValueKind!=System.Text.Json.JsonValueKind.Array)
-  return Results.BadRequest(new{error="Trusted module and function metadata arrays are required."});
+    context.ValueKind!=System.Text.Json.JsonValueKind.Object)
+  return Results.BadRequest(new{error="Snapshot must contain only context, modules and functions objects."});
+ if(!TrustedBusinessContextValidator.TryValidate(context,tenant,actor,out var contextError))
+  return contextError.StartsWith("Business context identity",StringComparison.Ordinal)
+   ? Results.Forbid()
+   : Results.BadRequest(new{error=contextError});
+ var versionElement=context.GetProperty("contextVersion");
+ if(!payload.TryGetProperty("modules",out var modules) || modules.ValueKind!=System.Text.Json.JsonValueKind.Array ||
+    !payload.TryGetProperty("functions",out var functions) || functions.ValueKind!=System.Text.Json.JsonValueKind.Array ||
+    modules.GetArrayLength()>200 || functions.GetArrayLength()>1000 ||
+    modules.EnumerateArray().Any(x=>x.ValueKind!=System.Text.Json.JsonValueKind.Object) ||
+    functions.EnumerateArray().Any(x=>x.ValueKind!=System.Text.Json.JsonValueKind.Object))
+  return Results.BadRequest(new{error="Module and function metadata must be bounded arrays of objects."});
  req.HttpContext.Response.Headers.CacheControl="no-store, no-cache, must-revalidate";
  req.HttpContext.Response.Headers.Pragma="no-cache";
  return Results.Ok(new
  {
-  accepted=true,
-  acceptedAtUtc=DateTimeOffset.UtcNow,
+  validated=true,
+  persisted=false,
+  usableForAuthorization=false,
+  validatedAtUtc=DateTimeOffset.UtcNow,
   expiresAtUtc=DateTimeOffset.UtcNow.AddMinutes(2),
   contextVersion=versionElement.GetString(),
   context,
