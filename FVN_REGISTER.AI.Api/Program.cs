@@ -117,6 +117,39 @@ var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  }
  return await next(ctx);
 });
+group.MapGet("/operations/jobs", async (HttpRequest req, IServiceProvider services, int? limit, CancellationToken ct) =>
+{
+ var db = services.GetService<AiPlatformDbContext>();
+ if (db is null) return Results.Problem("AI SQL connection is not configured.", statusCode:503);
+ var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+ var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+ if (string.IsNullOrWhiteSpace(tenant) || tenant.Length > 64 || string.IsNullOrWhiteSpace(actor))
+  return Results.BadRequest(new { error = "Signed tenant and actor context is required." });
+ var take = Math.Clamp(limit ?? 100, 1, 200);
+ var jobs = await (from job in db.IngestionJobs.AsNoTracking()
+                   join document in db.Documents.AsNoTracking() on job.DocumentId equals document.Id
+                   where document.TenantCode == tenant
+                   orderby job.CreatedAtUtc descending
+                   select new
+                   {
+                    jobId = job.Id,
+                    documentId = job.DocumentId,
+                    fileName = document.FileName,
+                    documentStatus = document.Status,
+                    jobStatus = job.Status,
+                    attemptCount = job.AttemptCount,
+                    maxAttempts = job.MaxAttempts,
+                    nextAttemptAtUtc = job.NextAttemptAtUtc,
+                    lastAttemptAtUtc = job.LastAttemptAtUtc,
+                    lastErrorAtUtc = job.LastErrorAtUtc,
+                    failureCode = job.FailureCode,
+                    leaseOwner = job.LeaseOwner,
+                    leaseUntilUtc = job.LeaseUntilUtc,
+                    createdAtUtc = job.CreatedAtUtc,
+                    completedAtUtc = job.CompletedAtUtc
+                   }).Take(take).ToListAsync(ct);
+ return Results.Ok(jobs);
+});
 group.MapPost("/documents",async (HttpRequest req,IServiceProvider services,IOptions<AIPlatformOptions> o,CancellationToken ct)=>{
  var service=services.GetService<IDocumentIngestionService>();
  if(service is null) return Results.Problem("AI SQL connection is not configured. Apply the AI schema and configure ConnectionStrings:FvnAi.",statusCode:503);
