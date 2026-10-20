@@ -18,21 +18,17 @@
   <ItemGroup>
     <ProjectReference Include="..\FVN_REGISTER.Application\FVN_REGISTER.Application.csproj" />
     <ProjectReference Include="..\FVN_REGISTER.Infrastructure\FVN_REGISTER.Infrastructure.csproj" />
+    <ProjectReference Include="..\FVN_REGISTER.AI.Application\FVN_REGISTER.AI.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- LocalizationController edits and serves these files, so they must exist in the API's own publish folder
          (<publish>/Localization), not only in the Web project's. -->
-    <Content Include="..\FVN_REGISTER.Shared\Localization\*.json"
-             Link="Localization\%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\FVN_REGISTER.Shared\Localization\*.json" Link="Localization\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 
     <!-- HrmAttendanceExcelExportService loads GA.xls / "OT - GA.xls" from <root>/Templates/HRM.
          The API publish profile uses DeleteExistingFiles=true, so these must be part of the build output
          or every publish wipes them from the server. -->
-    <Content Include="Templates\HRM\*.xls"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Templates\HRM\*.xls" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

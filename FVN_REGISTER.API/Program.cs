@@ -100,6 +100,7 @@ var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<stri
     "https://localhost:7264", "http://localhost:5120", "http://localhost:5017", "https://localhost:7135"
 };
 
+builder.Services.AddHttpClient("FvnAi", client => client.Timeout = TimeSpan.FromSeconds(90));
 builder.Services.Configure<ForwardedHeadersOptions>(options=>{options.ForwardedHeaders=ForwardedHeaders.XForwardedFor|ForwardedHeaders.XForwardedProto;foreach(var value in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()??Array.Empty<string>())if(IPAddress.TryParse(value,out var ip))options.KnownProxies.Add(ip);});
 builder.Services.AddRateLimiter(options=>{options.RejectionStatusCode=StatusCodes.Status429TooManyRequests;options.OnRejected=async(context,token)=>{context.HttpContext.Response.Headers.RetryAfter="60";await context.HttpContext.Response.WriteAsJsonAsync(new{message="Quá nhiều yêu cầu. Vui lòng thử lại sau.",status=429},token);};options.AddPolicy("EndpointAnonymous",httpContext=>RateLimitPartition.GetFixedWindowLimiter($"{httpContext.Request.Path}:{httpContext.Connection.RemoteIpAddress?.ToString()??"unknown"}",_=>new FixedWindowRateLimiterOptions{PermitLimit=60,Window=TimeSpan.FromMinutes(1),QueueLimit=0,AutoReplenishment=true}));});
 builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
