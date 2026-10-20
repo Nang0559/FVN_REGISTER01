@@ -154,11 +154,26 @@ var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  {
   return Results.Unauthorized();
  }
+ catch (Exception ex) when (ex is not OperationCanceledException || !ctx.HttpContext.RequestAborted.IsCancellationRequested)
+ {
+  app.Logger.LogError(ex, "AI request replay protection could not persist nonce. Tenant={TenantCode}", tenant);
+  return Results.Problem("Replay protection is temporarily unavailable; request was not processed.", statusCode:503);
+ }
+
+ // Nonce cleanup is maintenance only. A cleanup failure must not weaken the
+ // uniqueness check above or turn a valid, already-recorded request into a retry.
  if ((Interlocked.Increment(ref replayCleanupCounter) & 0xFF) == 0)
  {
-  await replayDb.Database.ExecuteSqlRawAsync(
-   "DELETE TOP (1000) FROM ai.AiRequestNonces WHERE ExpiresAtUtc < TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')",
-   ctx.HttpContext.RequestAborted);
+  try
+  {
+   await replayDb.Database.ExecuteSqlRawAsync(
+    "DELETE TOP (1000) FROM ai.AiRequestNonces WHERE ExpiresAtUtc < TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')",
+    ctx.HttpContext.RequestAborted);
+  }
+  catch (Exception ex) when (ex is not OperationCanceledException || !ctx.HttpContext.RequestAborted.IsCancellationRequested)
+  {
+   app.Logger.LogWarning(ex, "AI request nonce cleanup failed; replay protection remains enforced by the unique key.");
+  }
  }
  return await next(ctx);
 });
