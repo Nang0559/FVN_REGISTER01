@@ -109,6 +109,17 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
         return await RelayAsync(upstream, ct);
     }
 
+    [HttpGet("jobs")]
+    public async Task<IActionResult> GetRecentJobs([FromQuery] int limit = 100, CancellationToken ct = default)
+    {
+        if (!await CanManageDiagnosticsAsync(ct)) return Forbid();
+        var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture);
+        var boundedLimit = Math.Clamp(limit, 1, 200);
+        using var upstream = await SendSignedAiAsync(HttpMethod.Get,
+            $"/api/ai/v1/operations/jobs?limit={boundedLimit}", null, actor, ct);
+        return await RelayAsync(upstream, ct);
+    }
+
     [HttpGet("documents/{documentId:guid}")]
     public async Task<IActionResult> GetDocumentStatus(Guid documentId, CancellationToken ct)
     {
