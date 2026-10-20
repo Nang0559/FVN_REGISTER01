@@ -36,6 +36,10 @@
                     <MudTextField @bind-Value="_employeeCode" Label="Mã nhân viên" Required="true"
                                   Variant="Variant.Outlined" Margin="Margin.Dense"
                                   HelperText="Nhập mã công nhân cần đăng ký." />
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                               OnClick="LoadApprovalRouteAsync" Disabled="@_loadingRoute || string.IsNullOrWhiteSpace(_employeeCode)">
+                        Tải luồng duyệt theo nhân viên
+                    </MudButton>
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudSelect T="LateEarlyType" @bind-Value="_type" Label="Loại đăng ký"
@@ -99,14 +103,18 @@
     private DateTime? _workDate = DateTime.Today;
     private TimeSpan? _plannedTime;
     private bool _saving;
-    private bool _loadingRoute = true;
+    private bool _loadingRoute;
 
-    protected override async Task OnInitializedAsync()
+    private async Task LoadApprovalRouteAsync()
     {
+        _loadingRoute = true;
         try
         {
-            var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.LateEarly);
+            var result = await ApprovalRouteService.GetPreviewAsync(
+                RequestModule.LateEarly, default, _employeeCode.Trim());
             _route = result.IsSuccess ? result.Data : null;
+            if (_route is null)
+                Snackbar.Add(result.Message ?? "Không tải được luồng duyệt cho nhân viên.", Severity.Warning);
         }
         finally { _loadingRoute = false; }
     }
