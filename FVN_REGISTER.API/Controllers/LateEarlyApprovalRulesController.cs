@@ -54,15 +54,18 @@ public sealed class LateEarlyApprovalRulesController : BaseApiController
                 && (x.Code == ownCode || x.Code == fallbackCode))
             .ToListAsync(ct);
 
-        var own = rows.FirstOrDefault(x => x.Code == ownCode && x.IsActive == true);
-        var fallback = rows.FirstOrDefault(x => x.Code == fallbackCode && x.IsActive == true);
-        var selected = own ?? fallback;
+        var own = rows.FirstOrDefault(x => x.Code == ownCode);
+        var fallback = rows.FirstOrDefault(x => x.Code == fallbackCode);
+        var selected = (own?.IsActive == true ? own : null)
+            ?? (fallback?.IsActive == true ? fallback : null)
+            ?? fallback
+            ?? own;
         var result = selected == null
             ? new LateEarlyApprovalRuleDto { DeptCode = deptCode, IsFallback = deptCode != 0 }
             : JsonSerializer.Deserialize<LateEarlyApprovalRuleDto>(selected.ConfigJson ?? "{}")
                 ?? new LateEarlyApprovalRuleDto();
         result.DeptCode = deptCode;
-        result.IsFallback = own == null && deptCode != 0 && fallback != null;
+        result.IsFallback = (own?.IsActive != true) && deptCode != 0 && fallback != null;
         return Ok(ApiResponse<LateEarlyApprovalRuleDto>.Ok(result));
     }
 
