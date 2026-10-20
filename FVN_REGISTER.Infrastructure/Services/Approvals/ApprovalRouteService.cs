@@ -124,6 +124,8 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             // Optional levels are returned too: LateEarly may promote level 2 to required
             // at submission time based on the department's configurable business rule.
             var levelRequired = group.Any(x => x.Required);
+            if (!levelRequired && requestType != RequestModule.LateEarly)
+                continue;
 
             var approvalPositionCodes = group
                 .Select(x => x.ApprovalPositionCode)
