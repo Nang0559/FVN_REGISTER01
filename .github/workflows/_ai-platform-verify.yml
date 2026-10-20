@@ -1,5 +1,6 @@
 name: _AI Platform Verify
 
+# One-shot integration verification; this file is removed after the run.
 on:
   push:
     branches:
