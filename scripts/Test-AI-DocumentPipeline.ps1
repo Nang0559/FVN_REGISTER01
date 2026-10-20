@@ -77,7 +77,7 @@ function New-SignedRequest {
         $sha.Dispose()
     }
 
-    $canonical = [string]::Join([char]10, @(
+    $canonical = [string]::Join(([char]10).ToString(), @(
         $Method.ToUpperInvariant()
         $Path
         $TenantCode.Trim()
