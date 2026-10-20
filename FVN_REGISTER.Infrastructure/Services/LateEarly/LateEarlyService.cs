@@ -116,6 +116,10 @@ public sealed class LateEarlyService : ILateEarlyService
             await _uow.SaveChangesAsync(ct);
             return ServiceResult<LateEarlyRequestDto>.Ok(ToDto(entity, employee.EmployeeName), "Đã tạo bản nháp đăng ký.");
         }
+        catch (DbUpdateException)
+        {
+            return ServiceResult<LateEarlyRequestDto>.Fail("Đăng ký cùng loại trong ngày đã được tạo đồng thời. Hãy tải lại lịch sử.");
+        }
         catch (Exception ex) when (ex is UnauthorizedAccessException or KeyNotFoundException
             or ArgumentException or InvalidOperationException)
         {
