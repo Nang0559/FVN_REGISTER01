@@ -244,6 +244,7 @@ public sealed class LateEarlyService : ILateEarlyService
                 throw new InvalidOperationException("Chỉ bản nháp hoặc yêu cầu chưa hoàn tất mới được hủy.");
 
             entity.RequestStatus = ApprovalStatus.Cancelled;
+            entity.IsActive = false;
             entity.CancelReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
             await _uow.SaveChangesAsync(ct);
             return ServiceResult.Ok("Đã hủy đăng ký.");
