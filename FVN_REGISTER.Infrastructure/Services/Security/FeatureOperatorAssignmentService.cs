@@ -328,6 +328,8 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             // Resource = department; Status carries BlockCode so the UI can offer "nhóm phòng ban" (khối).
             "OT_REGISTRAR" => await _uow.Repository<F03Department>().Query().AsNoTracking().Where(x => x.IsActive == true)
                 .OrderBy(x => x.DeptCode).Select(x => new FeatureOperatorResourceDto { Id = x.DeptCode, Code = x.DeptCode.ToString(), Name = x.DeptName, Status = x.BlockCode }).ToListAsync(ct),
+            "LATE_EARLY_REGISTRAR" => await _uow.Repository<F03Department>().Query().AsNoTracking().Where(x => x.IsActive == true)
+                .OrderBy(x => x.DeptCode).Select(x => new FeatureOperatorResourceDto { Id = x.DeptCode, Code = x.DeptCode.ToString(), Name = x.DeptName, Status = x.BlockCode }).ToListAsync(ct),
             _ when FeatureOperatorCatalog.IsModuleWideResourceType(type) => new List<FeatureOperatorResourceDto>(),
             _ => throw new ArgumentException($"ResourceType không được hỗ trợ: {resourceType}")
         };
