@@ -72,16 +72,16 @@ app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o,IServiceProvide
 // Endpoint filters execute after binding, so hashing Request.Body inside the filter is too late.
 const string SignedBodyHashItemKey = "FVN_REGISTER.AI.SignedBodySha256";
 const long MaximumBusinessContextSnapshotBytes = 1_048_576;
+const long MaximumAssistantAskBytes = 65_536;
 app.Use(async (http, next) =>
 {
  if (http.Request.Path.StartsWithSegments("/api/ai/v1"))
  {
   // Context snapshots are small authorization projections, never document uploads.
-  var isContextSnapshot = string.Equals(
-   http.Request.Path.Value,
-   "/api/ai/v1/business-context/snapshot",
-   StringComparison.OrdinalIgnoreCase);
-  if (isContextSnapshot && http.Request.ContentLength is > MaximumBusinessContextSnapshotBytes)
+  var isContextSnapshot = string.Equals(http.Request.Path.Value, "/api/ai/v1/business-context/snapshot", StringComparison.OrdinalIgnoreCase);
+  var isAssistantAsk = string.Equals(http.Request.Path.Value, "/api/ai/v1/assistant/ask", StringComparison.OrdinalIgnoreCase);
+  var maximumSignedBodyBytes = isContextSnapshot ? MaximumBusinessContextSnapshotBytes : isAssistantAsk ? MaximumAssistantAskBytes : long.MaxValue;
+  if ((isContextSnapshot || isAssistantAsk) && http.Request.ContentLength is long contentLength && contentLength > maximumSignedBodyBytes)
   {
    http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
    return;
@@ -96,7 +96,7 @@ app.Use(async (http, next) =>
   {
    bytesRead += read;
    // Enforce the limit while streaming too; Content-Length may be absent or untrusted.
-   if (isContextSnapshot && bytesRead > MaximumBusinessContextSnapshotBytes)
+   if ((isContextSnapshot || isAssistantAsk) && bytesRead > maximumSignedBodyBytes)
    {
     http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
     return;
