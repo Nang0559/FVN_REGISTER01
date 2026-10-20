@@ -102,3 +102,4 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - RAG retains ACL-filtered evidence and citation validation. Tests cover context metadata separation and malformed context rejection.
 - The assistant request body is limited to 64 KiB while streaming. No snapshot persistence or conversation memory is introduced.
 - This is a request/response integration slice only. Production authorization adapter configuration, signed host-to-AI integration tests, end-to-end verification and build/CI validation remain outstanding; P2 and P4 are not marked complete.
+- Privacy hardening for the assistant handoff: the FVN gateway now projects only tenant/actor identifiers, department/position, role and permission/scope codes, and context version. It excludes employee code and does not forward the complete `/me` response or other personal fields to the model.
