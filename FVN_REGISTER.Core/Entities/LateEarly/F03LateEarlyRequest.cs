@@ -35,10 +35,6 @@ public class F03LateEarlyRequest : BaseRequestEntity
     /// <summary>Đăng ký bổ sung sau thời điểm đã xảy ra (cần lý do + cấp duyệt cao hơn).</summary>
     public bool IsRetroactive { get; set; }
 
-    public TimeSpan? ActualTime { get; set; }
-    public int? ConfirmedBy { get; set; }
-    public DateTime? ConfirmedAt { get; set; }
-
     [StringLength(500)]
     public string? CancelReason { get; set; }
 }
