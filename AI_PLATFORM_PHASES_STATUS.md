@@ -162,3 +162,5 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 
 
 - Follow-up: the FVN authenticated API controller now exposes conversation create/list/transcript/ask proxy routes. Each upstream request is signed with the current session's actor ID; browser-supplied actor IDs are not accepted. The proxy constructs the strict business-context projection from the current FVN authorization snapshot. The conversation prompt is limited to the latest eight turns, each truncated to 2,500 characters for the AI request-size budget. UI wiring and applying SQL migration 016 remain deployment/product rollout tasks.
+
+- Conversation turns are recorded as `Pending` before model execution, changed to `Completed` only after a successful response, and marked `Failed` if the model call errors. Failed/incomplete turns are excluded from subsequent prompt history. Conversation reads and lists use no-store cache headers.
