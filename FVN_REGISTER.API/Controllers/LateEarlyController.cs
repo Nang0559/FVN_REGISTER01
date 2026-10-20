@@ -64,7 +64,7 @@ public sealed class LateEarlyController : ControllerBase
 
         var codeList = string.IsNullOrWhiteSpace(codes)
             ? null
-            : codes.Split(new[] { ',', ';', '\\n', '\\r', ' ', '\\t' },
+            : codes.Split(new[] { ',', ';', '\n', '\r', ' ', '\t' },
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var rows = await _employeeQuery.SearchEmployeesAsync(
             department.Value, keyword, codeList, Math.Clamp(take, 1, 50), ct);
