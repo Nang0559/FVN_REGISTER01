@@ -48,6 +48,10 @@ public sealed class AIBusinessContextController : ControllerBase
         if (user is null || !user.IsLoggedIn || user.UserId <= 0)
             return Unauthorized();
 
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers.Vary = "Authorization";
+
         var baseUrl = _configuration["AIPlatform:BaseUrl"];
         var apiKey = _configuration["AIPlatform:ApiKey"];
         var signingKey = _configuration["AIPlatform:ContextSigningKey"];
