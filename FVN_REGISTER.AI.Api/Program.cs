@@ -21,7 +21,9 @@ var replayCleanupCounter = 0;
 app.MapHealthChecks("/health");
 app.MapGet("/health/ready",async (IServiceProvider sp,IOptions<AIPlatformOptions> aiOptions,IOptions<MalwareScannerOptions> scannerOptions,IHttpClientFactory clients,CancellationToken ct)=>{
  var db=sp.GetService<AiPlatformDbContext>();
- var databaseConnected=db is not null&&await db.Database.CanConnectAsync(ct);
+ var databaseConnected=false;
+ try{databaseConnected=db is not null&&await db.Database.CanConnectAsync(ct);}
+ catch(Exception ex) when(ex is not OperationCanceledException||!ct.IsCancellationRequested){app.Logger.LogWarning(ex,"AI readiness check could not connect to SQL Server.");}
  var ai=aiOptions.Value;
  var scannerConfigured=string.Equals(scannerOptions.Value.Provider,"ClamAV",StringComparison.OrdinalIgnoreCase);
  var providerConfigured=string.Equals(ai.DefaultProvider,"Ollama",StringComparison.OrdinalIgnoreCase)&&Uri.TryCreate(ai.Endpoint,UriKind.Absolute,out var modelEndpoint)&&(modelEndpoint.Scheme==Uri.UriSchemeHttp||modelEndpoint.Scheme==Uri.UriSchemeHttps)&&!string.IsNullOrWhiteSpace(ai.Model)&&!string.IsNullOrWhiteSpace(ai.EmbeddingModel);
