@@ -4,8 +4,8 @@
 
 ## Current branch
 
-- Branch: `feature/ai-platform-phase1-6`
-- The root file is the **single source of truth** for phase readiness. Do not maintain a second status document under `docs/`.
+- Branch: `feature/ai-platform-phase1-6-integration`
+- The root file is the **single source of truth** for legacy AI Core phase readiness. Product roadmap P1–P8 is defined separately in [docs/AI_PLATFORM_P1_P8_ROADMAP.md](docs/AI_PLATFORM_P1_P8_ROADMAP.md).
 
 ## Phase status
 
@@ -17,6 +17,21 @@
 | 4 — RAG & Knowledge Base | Foundation / partial | Human-approved publication, ACL/tenant-filtered cosine retrieval, citation validation, retention cleanup | Policy effective/expiry/replacement lifecycle, real authorization adapter, UI, retrieval-quality benchmark and red-team tests |
 | 5 — Active Learning & Controlled Release | Foundation / partial | Release-bound extraction/feedback, release-scoped golden evaluations, candidate/active/retired/rollback lifecycle, human-decision gate | Real FVN_REGISTER authorization adapter, field-level quality/calibration, drift/cost/PII governance, full pipeline-to-release evaluation workflow |
 | 6 — FVN_REGISTER AI Applications | Pilot foundation / integration pending | HR Assistant adapter boundary, deterministic reconciliation and human-review workspace | Real FVN_REGISTER gateway/authorization, production HR data integration and UI/API pilot verification |
+
+## P1–P8 product roadmap status
+
+The P1–P8 sequence is a separate product architecture roadmap, not a renumbering of the Core phases above.
+
+| Product phase | Status on this branch | Notes |
+|---|---|---|
+| P1 — AI Foundation | Existing foundation / partial | Existing provider, model, ingestion and safety components; orchestrator/prompt/context governance still requires a complete exit gate |
+| P2 — FVN Business Context | Contracts added / host integration pending | Added typed user-context, module/function/action/tool/provenance contracts and trusted gateway ports. No production host adapter or live catalog is claimed yet |
+| P3 — FVN Knowledge | Existing foundation / partial | Existing RAG uses ACL-filtered cosine retrieval; hybrid search and full policy lifecycle remain |
+| P4 — Business Tools | Not implemented | Requires allow-listed read-only tools and fresh host authorization |
+| P5 — Task Assistant | Not implemented | Must use workflow-owned task APIs |
+| P6 — Controlled Learning | Existing foundation / partial | Existing feedback/release pipeline; broader approved knowledge lifecycle and evaluation gates remain |
+| P7 — Document Intelligence | Existing foundation / partial | Existing OCR/extraction foundation; handwriting/vision and cross-module validation remain |
+| P8 — Transaction Agent / Production & Quality | Not implemented | Requires explicit preview/confirmation, idempotent commands and audit before any write capability |
 
 ## Phase 5 hardening completed in this branch
 
