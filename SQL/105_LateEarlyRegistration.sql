@@ -73,6 +73,21 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03LateEarlyRequests_
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_F03LateEarlyRequests_Dept_Date_Status' AND object_id = OBJECT_ID(N'dbo.F03LateEarlyRequests'))
     CREATE INDEX IX_F03LateEarlyRequests_Dept_Date_Status ON dbo.F03LateEarlyRequests(DeptCode, WorkDate, RequestStatus) WHERE IsActive = 1;
 
+-- Historical rejected/cancelled requests are retained but excluded from the live-request key.
+UPDATE dbo.F03LateEarlyRequests
+SET IsActive = 0
+WHERE IsActive = 1 AND RequestStatus IN (4,5);
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.F03LateEarlyRequests
+    WHERE IsActive = 1
+    GROUP BY EmployeeCode, WorkDate, LateEarlyType
+    HAVING COUNT(*) > 1
+)
+    THROW 51505, N'Có đăng ký Đi muộn/Về sớm đang hoạt động bị trùng nhân viên + ngày + loại. Hãy rà soát dữ liệu trước khi tạo unique index.', 1;
+
 -- One live request per employee/date/type. Cancelled and rejected rows are deactivated
 -- by the application, so the filtered unique index also closes the concurrent-create race.
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_F03LateEarlyRequests_Employee_Date_Type_Active' AND object_id = OBJECT_ID(N'dbo.F03LateEarlyRequests'))
