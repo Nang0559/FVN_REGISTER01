@@ -195,6 +195,23 @@ public sealed class HRReconciliationTests
             analysis.CaseId, new HRCaseReviewRequest("Approved", "Không hợp lệ", null)));
     }
 
+    [Fact]
+    public async Task AnalyzeWithAuthorizedFactsAsync_RejectsUndefinedCaseType()
+    {
+        var workDate = new DateOnly(2026, 10, 1);
+        var facts = new OfficialHRFacts("E0001", workDate, "Approved",
+            null, null, 2m, null, null, 2m, 2m, "HC", false,
+            null, null, "FVN_REGISTER", "OT:REQ-001", DateTimeOffset.UtcNow);
+        await using var db = CreateDb();
+        var service = new HRReconciliationService(new StubFactsProvider(facts), db, new UnconfiguredAIModelProvider());
+        var request = new HRCaseAnalysisRequest((HRCaseType)999, "E0001", workDate,
+            "Invalid case type", null, null);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.AnalyzeWithAuthorizedFactsAsync("FCCVN", "42",
+            new AuthorizedHRCaseAnalysisRequest(request, facts)));
+        Assert.Empty(db.HRCases);
+    }
+
     private sealed class AllowReviewer : IHRCaseReviewerAuthorization
     {
         public Task<bool> CanReviewCaseAsync(string tenantCode, string actorId, string employeeCode,
