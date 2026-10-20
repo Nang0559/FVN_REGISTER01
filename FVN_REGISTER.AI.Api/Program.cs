@@ -477,6 +477,59 @@ group.MapPost("/rag/answer", async (RagAnswerRequest body, HttpRequest req,
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
 
+// One signed request carries the authenticated host context and the user's question.
+group.MapPost("/assistant/ask", async (AssistantAskRequest body, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var query = body.Query?.Trim();
+    if (string.IsNullOrWhiteSpace(query) || query.Length > 4000)
+        return Results.BadRequest(new { error = "Question must contain 1 to 4000 characters." });
+    if (body.BusinessContext.ValueKind != System.Text.Json.JsonValueKind.Object)
+        return Results.BadRequest(new { error = "A trusted FVN_REGISTER business context object is required." });
+    var context = body.BusinessContext;
+    static bool ReadString(System.Text.Json.JsonElement obj, string name, out string value)
+    {
+        value = string.Empty;
+        return obj.TryGetProperty(name, out var item) && item.ValueKind == System.Text.Json.JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(value = item.GetString()!.Trim());
+    }
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    if (!ReadString(context, "tenantCode", out var contextTenant) ||
+        !ReadString(context, "actorId", out var contextActor) ||
+        !ReadString(context, "contextVersion", out var version) ||
+        !string.Equals(contextTenant, tenant, StringComparison.Ordinal) ||
+        !string.Equals(contextActor, actor, StringComparison.Ordinal))
+        return Results.Forbid();
+    if (version.Length > 128 || !context.TryGetProperty("permissionCodes", out var permissions) ||
+        permissions.ValueKind != System.Text.Json.JsonValueKind.Array ||
+        permissions.GetArrayLength() > 500 ||
+        !context.TryGetProperty("managedScopeCodes", out var managedScopes) ||
+        managedScopes.ValueKind != System.Text.Json.JsonValueKind.Array ||
+        managedScopes.GetArrayLength() > 500)
+        return Results.BadRequest(new { error = "Business context is incomplete or exceeds supported limits." });
+    var contextJson = context.GetRawText();
+    if (contextJson.Length > 32_768)
+        return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+
+    var rag = services.GetService<IRagAnswerService>();
+    var access = services.GetService<IAuthorizedKnowledgeAccessProvider>();
+    if (rag is null) return Results.Problem("RAG answer service is not configured.", statusCode: 503);
+    if (access is null) return Results.Problem("Trusted knowledge authorization is not configured.", statusCode: 503);
+    try
+    {
+        // Always resolve retrieval scopes freshly; the host snapshot is never an ACL grant.
+        var scopes = await access.GetSearchScopesAsync(tenant, actor, ct);
+        req.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        req.HttpContext.Response.Headers.Pragma = "no-cache";
+        return Results.Ok(await rag.AnswerWithContextAsync(tenant, actor, scopes, query,
+            contextJson, Math.Clamp(body.RetrievalLimit, 1, 20), ct));
+    }
+    catch (UnauthorizedAccessException) { return Results.Forbid(); }
+    catch (InvalidOperationException ex) when (ex.Message == "KNOWLEDGE_AUTHORIZATION_PROVIDER_NOT_CONFIGURED")
+    { return Results.Problem("Trusted FVN_REGISTER knowledge authorization adapter is not configured.", statusCode: 503); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
 group.MapPost("/feedback/evaluation", async (FeedbackEvaluationRequest body, HttpRequest req,
     IServiceProvider services, CancellationToken ct) =>
 {
@@ -577,3 +630,4 @@ public sealed record KnowledgePublishRequest(Guid ReviewId);
 public sealed record KnowledgeSearchRequest(string Query, int Limit);
 public sealed record FeedbackEvaluationRequest(DateTimeOffset FromUtc, DateTimeOffset ToUtc);
 public sealed record RagAnswerRequest(string Query, int RetrievalLimit);
+public sealed record AssistantAskRequest(string Query, int RetrievalLimit, System.Text.Json.JsonElement BusinessContext);
