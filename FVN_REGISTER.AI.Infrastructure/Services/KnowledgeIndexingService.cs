@@ -55,7 +55,7 @@ public sealed class KnowledgeIndexingService(
         await Parallel.ForEachAsync(Enumerable.Range(0,pieces.Count),new ParallelOptions{MaxDegreeOfParallelism=MaximumEmbeddingConcurrency,CancellationToken=cancellationToken},async(index,ct)=>{vectorArray[index]=await embeddings.GenerateAsync(pieces[index].Text,ct);});
         var vectors=vectorArray.ToList();
 
-        await using var transaction=db.Database.IsInMemory()?null:await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,cancellationToken);
+        await using var transaction=IsInMemory()?null:await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,cancellationToken);
         try
         {
             var existing=await db.KnowledgeChunks.Where(x=>x.TenantCode==tenantCode&&x.DocumentId==documentId).ToDictionaryAsync(x=>x.ChunkOrdinal,cancellationToken);
@@ -70,10 +70,11 @@ public sealed class KnowledgeIndexingService(
 
     public async Task UnpublishDocumentAsync(string tenantCode,Guid documentId,CancellationToken cancellationToken=default)
     {
-        tenantCode=Required(tenantCode,64);await using var transaction=db.Database.IsInMemory()?null:await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,cancellationToken);
+        tenantCode=Required(tenantCode,64);await using var transaction=IsInMemory()?null:await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,cancellationToken);
         try{var rows=await db.KnowledgeChunks.Where(x=>x.TenantCode==tenantCode&&x.DocumentId==documentId&&x.IsActive).ToListAsync(cancellationToken);foreach(var row in rows)row.IsActive=false;await db.SaveChangesAsync(cancellationToken);if(transaction is not null)await transaction.CommitAsync(cancellationToken);}catch{if(transaction is not null)await transaction.RollbackAsync(CancellationToken.None);throw;}
     }
 
+    private bool IsInMemory()=>string.Equals(db.Database.ProviderName,"Microsoft.EntityFrameworkCore.InMemory",StringComparison.Ordinal);
     private static Guid StableChunkId(Guid documentId,Guid reviewId,int ordinal,string text){var bytes=SHA256.HashData(Encoding.UTF8.GetBytes($"{documentId:N}|{reviewId:N}|{ordinal}|{text}"));Span<byte> guidBytes=stackalloc byte[16];bytes.AsSpan(0,16).CopyTo(guidBytes);return new Guid(guidBytes);}
     private static List<TextChunk> SplitIntoChunks(string text,int maximumCharacters,int overlapCharacters)
     {
