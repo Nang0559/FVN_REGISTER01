@@ -60,11 +60,10 @@
     private HelpContent _content = HelpContent.Empty;
     private bool _permissionDenied;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         Language.LanguageChanged += OnLanguageChanged;
         Navigation.LocationChanged += OnLocationChanged;
-        await RefreshAsync(Navigation.Uri);
     }
 
     private async Task RefreshAsync(string uri)
@@ -102,11 +101,13 @@
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
+        if (!_open) return;
         _ = InvokeAsync(async () => { await RefreshAsync(Navigation.Uri); StateHasChanged(); });
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
+        if (!_open) return;
         _ = InvokeAsync(async () => { await RefreshAsync(e.Location); StateHasChanged(); });
     }
 
