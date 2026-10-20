@@ -12,7 +12,7 @@ namespace FVN_REGISTER.Core.Constants;
 public sealed record FeatureOperatorDefinition(int FunctionCode,string ResourceType,bool ResourceScoped,bool AssignmentGrantsCapability=false,bool AssignmentIsAuthority=false);
 public static class FeatureOperatorCatalog
 {
- /// <summary>Người được chỉ định đăng ký OT/Trip cho nhiều người. ResourceId = DeptCode; ScopeCode = Department | All | Block:{BlockCode}.</summary>
+ /// <summary>Người được chỉ định đăng ký OT/Trip/LateEarly cho nhiều người. ResourceId = DeptCode; ScopeCode = Department | All | Block:{BlockCode}.</summary>
  public const string OtRegistrar="OT_REGISTRAR";
  public const string Equipment="EQUIPMENT"; public const string ExecutionPolicy="EXECUTION_POLICY"; public const string ApprovalPolicy="APPROVAL_POLICY"; public const string OtLimitRule="OT_LIMIT_RULE"; public const string WorkCalendar="WORK_CALENDAR"; public const string AttendanceSymbolRule="ATTENDANCE_SYMBOL_RULE"; public const string HrmUserRoleRule="HRM_USER_ROLE_RULE"; public const string PublicInformation="PUBLIC_INFORMATION"; public const string PublicForm="PUBLIC_FORM"; public const string ExecutionReview="EXECUTION_REVIEW"; public const string EquipmentSchema="EQUIPMENT_SCHEMA"; public const string EndpointSoftwareCatalog="ENDPOINT_SOFTWARE_CATALOG";
  private static readonly IReadOnlyDictionary<int,FeatureOperatorDefinition> Definitions=new Dictionary<int,FeatureOperatorDefinition>
