@@ -56,7 +56,7 @@ The initial application contracts are in:
 - `FVN_REGISTER.AI.Application/Contracts/FvnBusinessContextContracts.cs`
 - `FVN_REGISTER.AI.Application/Abstractions/FvnBusinessPorts.cs`
 
-These are integration ports, not evidence that a production host adapter is already wired. The AI service now registers a single fail-closed default for context lookup, tool catalog and execution; missing host integration returns `FVN_BUSINESS_GATEWAY_NOT_CONFIGURED`. The FVN host exposes an authenticated context projection grouped by module/function metadata, disables response caching, and provides a signed `GET /api/ai/business-context/ai` forwarding route. The signed host-to-AI forwarding route is present, but the AI-side context-provider adapter and stable managed-scope contract are still pending. The AI endpoint therefore fails closed with HTTP 503 until the adapter is configured; business tools remain unavailable.
+These are integration ports, not evidence that a production host adapter is already wired. The AI service now registers a single fail-closed default for context lookup, tool catalog and execution; missing host integration returns `FVN_BUSINESS_GATEWAY_NOT_CONFIGURED`. The FVN host exposes an authenticated context projection grouped by module/function metadata, emits deterministic managed-scope selectors (excluding remarks and employee lists), disables response caching, and provides a signed `GET /api/ai/business-context/ai` forwarding route. The signed host-to-AI forwarding route is present, and the host projection now emits deterministic managed-scope selectors derived from the real managed-scope DTO fields. The AI-side production context-provider adapter is still pending. The AI endpoint therefore fails closed with HTTP 503 until the adapter is configured; business tools remain unavailable.
 
 ## Tool execution contract
 
@@ -87,3 +87,5 @@ The existing Core implementation (ingestion, document understanding, extraction,
 - P4 remains not implemented: no production business tool handler is registered, and no arbitrary SQL/HTTP execution path is introduced.
 
 - The FVN gateway signs the AI context request with the configured API key, tenant, authenticated actor, timestamp, nonce and SHA-256 body digest. This proves the request's service origin and prevents replay; it does not replace the missing live authorization adapter or authorize model-selected actions.
+
+- Unit tests cover the content-bound gateway signature: exact requests validate, while changing actor identity or body digest invalidates the signature. SQL nonce persistence remains the replay boundary in the AI API middleware.
