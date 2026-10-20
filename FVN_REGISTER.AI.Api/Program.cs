@@ -501,7 +501,9 @@ group.MapPost("/assistant/ask", async (AssistantAskRequest body, HttpRequest req
     var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
     var actor = req.Headers["X-Actor-Id"].ToString().Trim();
     if (!TrustedBusinessContextValidator.TryValidate(body.BusinessContext, tenant, actor, out var contextError))
-        return Results.BadRequest(new { error = contextError });
+        return contextError.StartsWith("Business context identity", StringComparison.Ordinal)
+            ? Results.Forbid()
+            : Results.BadRequest(new { error = contextError });
     var contextJson = body.BusinessContext.GetRawText();
 
     var rag = services.GetService<IRagAnswerService>();
