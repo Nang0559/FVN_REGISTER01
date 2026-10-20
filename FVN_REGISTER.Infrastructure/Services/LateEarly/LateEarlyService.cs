@@ -325,11 +325,19 @@ public sealed class LateEarlyService : ILateEarlyService
                 CASE
                     WHEN DATEDIFF(MINUTE, CAST('00:00' AS time), s.EndTime)
                          < DATEDIFF(MINUTE, CAST('00:00' AS time), s.StartTime)
-                    THEN (DATEDIFF(MINUTE, CAST('00:00' AS time), s.EndTime) + 1440)
-                         - CASE WHEN DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time))
-                                    < DATEDIFF(MINUTE, CAST('00:00' AS time), s.StartTime)
-                                THEN DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time)) + 1440
-                                ELSE DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time)) END
+                    THEN
+                        CASE
+                            WHEN DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time))
+                                 >= DATEDIFF(MINUTE, CAST('00:00' AS time), s.StartTime)
+                                THEN DATEDIFF(MINUTE, CAST('00:00' AS time), s.EndTime) + 1440
+                                     - DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time))
+                            WHEN DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time))
+                                 <= DATEDIFF(MINUTE, CAST('00:00' AS time), s.EndTime)
+                                THEN DATEDIFF(MINUTE, CAST('00:00' AS time), s.EndTime)
+                                     - DATEDIFF(MINUTE, CAST('00:00' AS time), CAST({plannedTime} AS time))
+                            ELSE 0
+                        END
+                    WHEN CAST({plannedTime} AS time) <= s.StartTime THEN 0
                     ELSE DATEDIFF(MINUTE, CAST({plannedTime} AS time), s.EndTime)
                 END AS [Value]
             FROM dbo.F03HrmShiftReference r
