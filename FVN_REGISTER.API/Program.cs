@@ -262,6 +262,7 @@ builder.Services.AddScoped<IApprovalHistoryService, ApprovalHistoryService>();
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, TripHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, LateEarlyHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, EquipmentHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
