@@ -6,7 +6,7 @@ namespace FVN_REGISTER.Core.Constants;
 /// </param>
 /// <param name="AssignmentIsAuthority">
 /// When true the assignment itself is the authority (no role tick needed) but it does NOT grant the RBAC capability
-/// of the function. Used by OT.RegistrarManage: "được chỉ định đăng ký OT/Trip cho nhiều người" must not also open the
+/// of the function. Used by registrar assignment functions: being designated must not grant the
 /// registrar-policy admin page that the same function code protects.
 /// </param>
 public sealed record FeatureOperatorDefinition(int FunctionCode,string ResourceType,bool ResourceScoped,bool AssignmentGrantsCapability=false,bool AssignmentIsAuthority=false);
