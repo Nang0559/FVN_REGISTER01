@@ -633,6 +633,7 @@ private string RequestTypeName(RequestModule type) => type switch
     RequestModule.Leave => Language.T("dashboard.leaveType"),
     RequestModule.Overtime => Language.T("approval.tangCa"),
     RequestModule.Trip => Language.T("dashboard.tripType"),
+        RequestModule.LateEarly => "Đi muộn / Về sớm",
     RequestModule.Equipment => Language.T("help.EQUIPMENT_WORKSPACE.title"),
     _ => type.ToString()
 };
