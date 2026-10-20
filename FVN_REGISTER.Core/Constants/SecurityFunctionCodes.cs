@@ -6,6 +6,12 @@ public static class SecurityFunctionCodes
  public const int LeaveView=2001,LeaveCreate=2002,LeaveEdit=2003,LeaveCancel=2004,LeaveApprove=2005,LeaveExport=2006;
  public const int OTView=2101,OTCreate=2102,OTEdit=2103,OTCancel=2104,OTApprove=2105,OTReconcile=2106,OTExport=2107;
  public const int TripView=2201,TripCreate=2202,TripEdit=2203,TripCancel=2204,TripApprove=2205,TripExport=2206;
+ [SecurityFunctionDefinition("LateEarly.View","Xem đăng ký đi muộn/về sớm",ModuleCode="LateEarly",ActionCode="View",ScopeCode=AuthorizationScopeCodes.Own)] public const int LateEarlyView=3401;
+ [SecurityFunctionDefinition("LateEarly.Create","Tạo đăng ký đi muộn/về sớm",ModuleCode="LateEarly",ActionCode="Create",ScopeCode=AuthorizationScopeCodes.Own)] public const int LateEarlyCreate=3402;
+ [SecurityFunctionDefinition("LateEarly.Edit","Sửa đăng ký đi muộn/về sớm",ModuleCode="LateEarly",ActionCode="Edit",ScopeCode=AuthorizationScopeCodes.Own)] public const int LateEarlyEdit=3403;
+ [SecurityFunctionDefinition("LateEarly.Cancel","Hủy đăng ký đi muộn/về sớm",ModuleCode="LateEarly",ActionCode="Cancel",ScopeCode=AuthorizationScopeCodes.Own)] public const int LateEarlyCancel=3404;
+ [SecurityFunctionDefinition("LateEarly.Approve","Duyệt đăng ký đi muộn/về sớm",ModuleCode="LateEarly",ActionCode="Approve",ScopeCode=AuthorizationScopeCodes.Department)] public const int LateEarlyApprove=3405;
+ [SecurityFunctionDefinition("LateEarly.RegistrarManage","Chỉ định người đăng ký Đi muộn/Về sớm",ModuleCode="LateEarly",ActionCode="RegistrarManage",ScopeCode=AuthorizationScopeCodes.All)] public const int LateEarlyRegistrarManage=3406;
  public const int EquipmentView=2301,EquipmentCreate=2302,EquipmentEdit=2303,EquipmentRepair=2304,EquipmentApprove=2305,EquipmentImport=2306,EquipmentExport=2307,EquipmentCancel=2308,EquipmentAssign=2309,EquipmentTransfer=2310,EquipmentReturn=2311,EquipmentLiquidate=2312,EquipmentQR=2313,EquipmentHistory=2314,EquipmentInspectionManage=2315,EquipmentInspectionExecute=2316,EquipmentInspectionApprove=2317,EquipmentInspectionReport=2318,EquipmentManage=2319;
  [SecurityFunctionDefinition("Equipment.FormManage","Quản lý biểu mẫu thiết bị",ModuleCode="Equipment",ActionCode="FormManage",ScopeCode=AuthorizationScopeCodes.Own)] public const int EquipmentFormManage=2320;
  public const int UserManagementView=2401,UserManagementCreate=2402,UserManagementEdit=2403,UserManagementLock=2404,UserManagementResetPassword=2405,UserManagementAssignPermission=2406,UserManagementManageTwoFactor=2407;
@@ -20,7 +26,7 @@ public static class SecurityFunctionCodes
  public const int DepartmentView=3001,DepartmentManage=3002,EmployeeView=3011,EmployeeManage=3012,LeaveTypeView=3021,LeaveTypeManage=3022,ApproverView=3031,ApproverManage=3032,WorkCalendarView=3041,WorkCalendarManage=3042,CalendarView=3043;
  [SecurityFunctionDefinition("WorkCalendar.SymbolRuleManage","Quản lý rule ký hiệu chấm công",ModuleCode="WorkCalendar",ActionCode="SymbolRuleManage",ScopeCode=AuthorizationScopeCodes.All)] public const int WorkCalendarSymbolRuleManage=3044;
  public const int DepartmentStatusView=3051,OTLimitManage=3061,ApprovalPolicyManage=3071,HrmUserRoleRuleManage=3072,EmailQueueManage=3081,EmailTemplateManage=3082,SecurityAccessChangeView=3091,SecurityAccessChangeCreate=3092,SecurityAccessChangeApprove=3093,SecurityAccessChangeExecute=3094;
- [SecurityFunctionDefinition("OT.RegistrarManage","Quản lý người đăng ký OT/Trip",ModuleCode="OT",ActionCode="RegistrarManage",ScopeCode=AuthorizationScopeCodes.All)] public const int OTRegistrarManage=3095;
+ [SecurityFunctionDefinition("OT.RegistrarManage","Chỉ định người đăng ký OT/Trip",ModuleCode="OT",ActionCode="RegistrarManage",ScopeCode=AuthorizationScopeCodes.All)] public const int OTRegistrarManage=3095;
  [SecurityFunctionDefinition("Language.View","Xem quản trị ngôn ngữ",ModuleCode="Language",ActionCode="View",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageView=3201;
  [SecurityFunctionDefinition("Language.Manage","Quản lý định nghĩa ngôn ngữ",ModuleCode="Language",ActionCode="Manage",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageManage=3202;
  [SecurityFunctionDefinition("Language.Import","Nhập Excel ngôn ngữ",ModuleCode="Language",ActionCode="Import",ScopeCode=AuthorizationScopeCodes.All)] public const int LanguageImport=3203;

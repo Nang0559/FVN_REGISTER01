@@ -122,9 +122,9 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             .FirstOrDefaultAsync(ct);
         if (function == null) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Function không tồn tại hoặc đã inactive.");
 
-        // OT/Trip registrar: assignment is the authority; resource = department, "Block:{code}" = nhóm phòng ban, "All" = toàn công ty.
-        if (type == FeatureOperatorCatalog.OtRegistrar)
-            return await AddOtRegistrarAsync(request, actorUserId, employee, ct);
+        // OT/Trip/LateEarly registrar: assignment is the authority; each function has its own resource type and independent assignments.
+        if (type == FeatureOperatorCatalog.OtRegistrar || type == FeatureOperatorCatalog.LateEarlyRegistrar)
+            return await AddRegistrarAsync(request, actorUserId, employee, type, ct);
 
         // Legacy functions: assignment never grants RBAC (role grant is a prerequisite).
         // Capability-granting functions (FeatureOperatorCatalog.AssignmentGrantsCapability, e.g.
@@ -221,8 +221,8 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         return ServiceResult<FeatureOperatorAssignmentDto>.Ok(new FeatureOperatorAssignmentDto { Id = entity.Id, ScopeCode = entity.ScopeCode, FunctionCode = entity.FunctionCode, ResourceType = entity.ResourceType, ResourceId = entity.ResourceId, EmployeeCode = selectedEmployee.EmployeeCode, EmployeeName = selectedEmployee.EmployeeName ?? selectedEmployee.EmployeeCode, DeptCode = selectedEmployee.DeptCode, DeptName = selectedEmployee.DeptName, PositionCode = selectedEmployee.PositionCode, PositionName = selectedEmployee.PositionName, Remark = entity.Remark });
     }
 
-    private async Task<ServiceResult<FeatureOperatorAssignmentDto>> AddOtRegistrarAsync(
-        SaveFeatureOperatorAssignmentRequest request, int actorUserId, EmployeeOperatorInfo employee, CancellationToken ct)
+    private async Task<ServiceResult<FeatureOperatorAssignmentDto>> AddRegistrarAsync(
+        SaveFeatureOperatorAssignmentRequest request, int actorUserId, EmployeeOperatorInfo employee, string resourceType, CancellationToken ct)
     {
         var employeeCode = employee.EmployeeCode;
         var hasActiveUser = await _uow.Repository<F03User>().Query().AsNoTracking()
@@ -262,14 +262,14 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         }
 
         var exists = await _uow.Repository<F03FeatureOperatorAssignment>().Query().AnyAsync(x =>
-            x.IsActive == true && x.FunctionCode == request.FunctionCode && x.ResourceType == FeatureOperatorCatalog.OtRegistrar
+            x.IsActive == true && x.FunctionCode == request.FunctionCode && x.ResourceType == resourceType
             && x.ResourceId == resourceId && x.ScopeCode == storedScope && x.EmployeeCode == employeeCode, ct);
         if (exists) return ServiceResult<FeatureOperatorAssignmentDto>.Fail("Nhân viên đã được chỉ định với phạm vi này.");
 
         var entity = new F03FeatureOperatorAssignment
         {
             FunctionCode = request.FunctionCode,
-            ResourceType = FeatureOperatorCatalog.OtRegistrar,
+            ResourceType = resourceType,
             ResourceId = resourceId,
             EmployeeCode = employeeCode,
             ScopeCode = storedScope,
@@ -327,6 +327,8 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             "EQUIPMENT_SCHEMA" => await GetEquipmentSchemaResourcesAsync(ct),
             // Resource = department; Status carries BlockCode so the UI can offer "nhóm phòng ban" (khối).
             "OT_REGISTRAR" => await _uow.Repository<F03Department>().Query().AsNoTracking().Where(x => x.IsActive == true)
+                .OrderBy(x => x.DeptCode).Select(x => new FeatureOperatorResourceDto { Id = x.DeptCode, Code = x.DeptCode.ToString(), Name = x.DeptName, Status = x.BlockCode }).ToListAsync(ct),
+            "LATE_EARLY_REGISTRAR" => await _uow.Repository<F03Department>().Query().AsNoTracking().Where(x => x.IsActive == true)
                 .OrderBy(x => x.DeptCode).Select(x => new FeatureOperatorResourceDto { Id = x.DeptCode, Code = x.DeptCode.ToString(), Name = x.DeptName, Status = x.BlockCode }).ToListAsync(ct),
             _ when FeatureOperatorCatalog.IsModuleWideResourceType(type) => new List<FeatureOperatorResourceDto>(),
             _ => throw new ArgumentException($"ResourceType không được hỗ trợ: {resourceType}")

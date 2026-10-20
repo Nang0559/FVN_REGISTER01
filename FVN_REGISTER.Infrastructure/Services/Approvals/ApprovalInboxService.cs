@@ -21,6 +21,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _tripWorkflow;
         private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _equipmentWorkflow;
         private readonly IApprovalWorkflowOrchestrator<PayrollPeriodSubject> _payrollWorkflow;
+        private readonly IApprovalWorkflowOrchestrator<LateEarlyRequestSubject> _lateEarlyWorkflow;
         private readonly IApprovalGroupingPolicy _groupingPolicy;
         private readonly IAuthorizationService _authorization;
         private readonly IApprovalPolicyService _approvalPolicies;
@@ -33,6 +34,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IApprovalWorkflowOrchestrator<TripRequestSubject> tripWorkflow,
             IApprovalWorkflowOrchestrator<EquipmentRequestSubject> equipmentWorkflow,
             IApprovalWorkflowOrchestrator<PayrollPeriodSubject> payrollWorkflow,
+            IApprovalWorkflowOrchestrator<LateEarlyRequestSubject> lateEarlyWorkflow,
             IApprovalGroupingPolicy groupingPolicy,
             IAuthorizationService authorization,
             IApprovalPolicyService approvalPolicies,
@@ -47,6 +49,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _tripWorkflow = tripWorkflow;
             _equipmentWorkflow = equipmentWorkflow;
             _payrollWorkflow = payrollWorkflow;
+            _lateEarlyWorkflow = lateEarlyWorkflow;
             _groupingPolicy = groupingPolicy;
             _authorization = authorization;
             _approvalPolicies = approvalPolicies;
@@ -70,7 +73,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     [RequestModule.Overtime] = await _otWorkflow.GetPendingForApproverAsync(approverKey, ct),
                     [RequestModule.Trip] = await _tripWorkflow.GetPendingForApproverAsync(approverKey, ct),
                     [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(approverKey, ct),
-                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(approverKey, ct)
+                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.LateEarly] = await _lateEarlyWorkflow.GetPendingForApproverAsync(approverKey, ct)
                 };
 
                 var scopedByModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>();
@@ -83,6 +87,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                         RequestModule.Trip => SecurityFunctionCodes.TripApprove,
                         RequestModule.Equipment => SecurityFunctionCodes.EquipmentApprove,
                         RequestModule.Payroll => ApprovalSecurityFunctionCodes.PayrollApprove,
+                        RequestModule.LateEarly => SecurityFunctionCodes.LateEarlyApprove,
                         _ => 0
                     };
                     if (functionCode == 0) continue;
@@ -158,6 +163,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     RequestModule.Trip => await _tripWorkflow.ApproveAsync(action, ct),
                     RequestModule.Equipment => await _equipmentWorkflow.ApproveAsync(action, ct),
                     RequestModule.Payroll => await _payrollWorkflow.ApproveAsync(action, ct),
+                    RequestModule.LateEarly => await _lateEarlyWorkflow.ApproveAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
                 if (result.Success)
@@ -192,6 +198,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     RequestModule.Trip => await _tripWorkflow.RejectAsync(action, ct),
                     RequestModule.Equipment => await _equipmentWorkflow.RejectAsync(action, ct),
                     RequestModule.Payroll => await _payrollWorkflow.RejectAsync(action, ct),
+                    RequestModule.LateEarly => await _lateEarlyWorkflow.RejectAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
                 if (result.Success)

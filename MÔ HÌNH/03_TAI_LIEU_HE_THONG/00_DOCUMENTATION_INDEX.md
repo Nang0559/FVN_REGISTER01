@@ -28,12 +28,12 @@ Bộ tài liệu giới thiệu, trình chiếu và đánh giá hiệu quả n�
 
 ## 3. Tài liệu người dùng và Help
 
-- `02_HUONG_DAN_SU_DUNG/04_USER_GUIDE.md` — hướng dẫn sử dụng đầy đủ.
-- `02_HUONG_DAN_SU_DUNG/05_QUICK_GUIDE.md` — tra cứu nhanh.
-- `02_HUONG_DAN_SU_DUNG/06_FAQ.md` — câu hỏi thường gặp.
-- `02_HUONG_DAN_SU_DUNG/EQUIPMENT/` — hướng dẫn chi tiết Equipment.
+- [04_USER_GUIDE.md](02_HUONG_DAN_SU_DUNG/04_USER_GUIDE.md) — hướng dẫn chính thức theo công việc và vai trò; Help chức năng mở các mục trong tài liệu này.
+- [05_QUICK_GUIDE.md](02_HUONG_DAN_SU_DUNG/05_QUICK_GUIDE.md) — tra cứu nhanh các thao tác phổ biến.
+- [06_FAQ.md](02_HUONG_DAN_SU_DUNG/06_FAQ.md) — câu hỏi và tình huống thường gặp.
+- `02_HUONG_DAN_SU_DUNG/EQUIPMENT/` — hướng dẫn chi tiết nghiệp vụ Equipment.
 
-`FeatureHelp` là Help UI dùng chung. Nội dung Help phải tham chiếu tài liệu chuẩn; không tạo Help riêng cho từng module nếu nội dung có thể dùng chung.
+`FeatureHelp` là Help UI dùng chung. Giữ nguyên `04_USER_GUIDE.md` làm nguồn nội dung Help để không phải đổi cơ chế mở trợ giúp theo từng chức năng. `HelpRegistry` ánh xạ route tới các heading trong tài liệu; khi đổi số/mã heading phải rà lại `GuideMap` và các kiểm thử `GuideMarkdownTests`.
 
 ## 4. Tài liệu kỹ thuật / triển khai
 

@@ -121,10 +121,10 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         {
             var policy = group[0];
 
-            // Cấp không bắt buộc (không dòng policy nào của cấp này có Required = 1):
-            // không tra người duyệt và không đưa vào luồng phê duyệt.
+            // Optional levels are returned too: LateEarly may promote level 2 to required
+            // at submission time based on the department's configurable business rule.
             var levelRequired = group.Any(x => x.Required);
-            if (!levelRequired)
+            if (!levelRequired && requestType != RequestModule.LateEarly)
                 continue;
 
             var approvalPositionCodes = group
@@ -191,7 +191,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .OrderBy(x => x.ApproverName)
                 .ToList();
 
-            if (candidates.Count == 0)
+            if (candidates.Count == 0 && levelRequired)
             {
                 return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                     $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +

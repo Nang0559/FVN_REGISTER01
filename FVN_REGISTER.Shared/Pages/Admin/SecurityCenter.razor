@@ -369,7 +369,7 @@
                             </MudSelect>
                         </MudItem>
 
-                        @if (IsOtRegistrarFunction)
+                        @if (IsRegistrarFunction)
                         {
                             <MudItem xs="12" md="4">
                                 <MudSelect T="string" Label="Phạm vi chỉ định" Variant="Variant.Outlined"
@@ -393,7 +393,7 @@
                             }
                         }
 
-@if (!IsOtRegistrarFunction || _registrarScopeMode == "Department")
+@if (!IsRegistrarFunction || _registrarScopeMode == "Department")
                         {
                         <MudItem xs="12" md="4">
                             @if (IsGlobalOperatorFunction)
@@ -408,7 +408,7 @@
                             }
                             else
                             {
-                                <MudSelect T="int?" Label="@(IsOtRegistrarFunction ? "Phòng ban" : Language.T("security.doiTuongCuThe"))" Variant="Variant.Outlined"
+                                <MudSelect T="int?" Label="@(IsRegistrarFunction ? "Phòng ban" : Language.T("security.doiTuongCuThe"))" Variant="Variant.Outlined"
                                            Value="_operatorResourceId" ValueChanged="OperatorResourceChanged"
                                            Disabled="@(_operatorResources.Count == 0)">
                                     @foreach (var resource in _operatorResources)
@@ -507,13 +507,13 @@
                     </MudTable>
                 </MudPaper>
 
-                @if (IsOtRegistrarFunction)
+                @if (IsRegistrarFunction)
                 {
                     <MudPaper Class="pa-4 mt-4" Outlined="true" Style="border-radius:16px">
-                        <MudText Typo="Typo.h6">Chức vụ được phép đăng ký OT / Trip</MudText>
+                        <MudText Typo="Typo.h6">Chức vụ được phép đăng ký @(_posRegisterType == "LATE_EARLY" ? "Đi muộn / Về sớm" : _posRegisterType == "TRIP" ? "Trip" : "OT")</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                            Chọn các chức vụ được đăng ký OT/Trip theo phòng ban (hoặc mặc định toàn công ty).
-                            Chức vụ không được chọn (ví dụ Staff, Worker) sẽ không tự đăng ký được, trừ khi được chỉ định ở phần trên.
+                            Chọn chức vụ được phép tự đăng ký theo loại nghiệp vụ đang chọn và theo phòng ban (hoặc mặc định toàn công ty).
+                            Chức vụ không được chọn (ví dụ Staff, Worker) sẽ không tự đăng ký hộ; người được chỉ định tại Feature Operator vẫn có thể đăng ký trong phạm vi được giao.
                             Phòng ban đã có cấu hình riêng sẽ dùng cấu hình riêng thay cho mặc định toàn công ty.
                         </MudText>
 
@@ -532,12 +532,20 @@
                         {
                             <MudGrid>
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="string" Label="Áp dụng cho" Variant="Variant.Outlined"
-                                               Value="_posRegisterType" ValueChanged="RegistrarPositionTypeChanged"
-                                               Disabled="@(_posLoading || _posSaving)">
-                                        <MudSelectItem T="string" Value="@("OT")">Đăng ký OT</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("TRIP")">Đăng ký Trip</MudSelectItem>
-                                    </MudSelect>
+                                    @if (IsLateEarlyRegistrarFunction)
+                                        {
+                                            <MudText Typo="Typo.body2" Class="pt-3">Áp dụng cho: Đi muộn / Về sớm</MudText>
+                                        }
+                                        else
+                                        {
+    <MudSelect T="string" Label="Áp dụng cho" Variant="Variant.Outlined"
+                                                   Value="_posRegisterType" ValueChanged="RegistrarPositionTypeChanged"
+                                                   Disabled="@(_posLoading || _posSaving)">
+                                            <MudSelectItem T="string" Value="@("OT")">Đăng ký OT</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("TRIP")">Đăng ký Trip</MudSelectItem>
+                                             <MudSelectItem T="string" Value="@("LATE_EARLY")">Đăng ký Đi muộn / Về sớm</MudSelectItem>
+                                        </MudSelect>
+                                        }
                                 </MudItem>
                                 <MudItem xs="12" md="9">
                                     <MudSelect T="string" MultiSelection="true" Variant="Variant.Outlined"
@@ -732,7 +740,8 @@
         SecurityFunctionCodes.WorkCalendarManage,
         SecurityFunctionCodes.WorkCalendarSymbolRuleManage,
         SecurityFunctionCodes.HrmUserRoleRuleManage,
-        SecurityFunctionCodes.OTRegistrarManage
+        SecurityFunctionCodes.OTRegistrarManage,
+        SecurityFunctionCodes.LateEarlyRegistrarManage
     };
     private List<SecurityFunctionDto> _operatorFunctions = new();
     private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
@@ -959,8 +968,10 @@
     private bool IsGlobalOperatorFunction
         => FeatureOperatorCatalog.IsModuleWide(_operatorFunctionCode);
 
-    // ---- OT.RegistrarManage: chỉ định người được đăng ký OT/Trip cho nhiều người (phòng ban / nhóm phòng ban / toàn công ty)
+    // ---- OT.RegistrarManage: chỉ định người được đăng ký OT / Trip / LateEarly (phòng ban / nhóm phòng ban / toàn công ty)
     private bool IsOtRegistrarFunction => _operatorFunctionCode == SecurityFunctionCodes.OTRegistrarManage;
+    private bool IsLateEarlyRegistrarFunction => _operatorFunctionCode == SecurityFunctionCodes.LateEarlyRegistrarManage;
+    private bool IsRegistrarFunction => IsOtRegistrarFunction || IsLateEarlyRegistrarFunction;
     private string _registrarScopeMode = "Department";
     private string? _registrarBlockCode;
 
@@ -971,7 +982,7 @@
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(x => x);
 
-    private bool RegistrarScopeIsComplete => !IsOtRegistrarFunction || _registrarScopeMode switch
+    private bool RegistrarScopeIsComplete => !IsRegistrarFunction || _registrarScopeMode switch
     {
         "Department" => _operatorResourceId.HasValue,
         "Block" => !string.IsNullOrWhiteSpace(_registrarBlockCode),
@@ -979,7 +990,7 @@
     };
 
     // Chọn phòng ban => danh sách nhân viên chỉ gồm phòng ban đó (không cần gõ tìm trước).
-    private int? OperatorEmployeeDeptFilter => IsOtRegistrarFunction && _registrarScopeMode == "Department" ? _operatorResourceId : null;
+    private int? OperatorEmployeeDeptFilter => IsRegistrarFunction && _registrarScopeMode == "Department" ? _operatorResourceId : null;
     private int OperatorEmployeeMinCharacters => OperatorEmployeeDeptFilter.HasValue ? 0 : 2;
 
     private string RegistrarScopeCode => _registrarScopeMode switch
@@ -998,7 +1009,7 @@
         await LoadFeatureOperatorsAsync();
     }
 
-    // ---- OT.RegistrarManage: chức vụ được phép đăng ký OT/Trip (rule AssignedPositions của F03OTRegistrationRules).
+    // ---- OT.RegistrarManage: chức vụ được phép đăng ký theo từng RegisterType (F03OTRegistrationRules).
     // Phạm vi "Toàn công ty" = rule mặc định (DepartmentCode = 0); phạm vi phòng ban = rule riêng của phòng ban đó.
     private List<PositionDto> _posOptions = new();
     private HashSet<string> _posSelected = new(StringComparer.OrdinalIgnoreCase);
@@ -1047,7 +1058,7 @@
 
     private async Task LoadRegistrarPositionsAsync()
     {
-        if (!IsOtRegistrarFunction || !RegistrarPositionScopeReady)
+        if (!IsRegistrarFunction || !RegistrarPositionScopeReady)
         {
             _posRule = null;
             _posFallback = null;
@@ -1132,8 +1143,10 @@
         => FeatureOperatorCatalog.AssignmentGrantsCapability(_operatorFunctionCode);
 
     private string OperatorAssignmentHint
-        => IsOtRegistrarFunction
-            ? "Người được chỉ định được đăng ký OT/Trip cho nhiều người trong phạm vi đã chọn (cộng với chức vụ approver theo chính sách phòng ban). Nhân viên không thuộc diện này không tự đăng ký OT mà phải báo cấp quản lý hoặc người được chỉ định. Chọn phòng ban sẽ lọc danh sách nhân viên của phòng ban đó."
+        => IsLateEarlyRegistrarFunction
+            ? "Người được chỉ định chỉ có quyền đăng ký Đi muộn/Về sớm cho nhân viên trong phạm vi phòng ban/khối/toàn công ty đã chọn. Danh sách này độc lập với người đăng ký OT và Trip. Chọn phòng ban sẽ lọc danh sách nhân viên của phòng ban đó."
+            : IsOtRegistrarFunction
+            ? "Người được chỉ định có quyền đăng ký OT và Trip cho nhân viên trong phạm vi phòng ban/khối/toàn công ty đã chọn. Quyền đăng ký Đi muộn/Về sớm được quản lý riêng. Chọn phòng ban sẽ lọc danh sách nhân viên của phòng ban đó."
             : OperatorGrantsCapability
             ? Language.T("security.operatorGrantsHint")
             : IsGlobalOperatorFunction
@@ -1176,7 +1189,7 @@
     private async Task OperatorResourceChanged(int? value)
     {
         _operatorResourceId = value;
-        if (IsOtRegistrarFunction)
+        if (IsRegistrarFunction)
         {
             // Đổi phòng ban => danh sách nhân viên đổi theo, bỏ lựa chọn cũ.
             _operatorEmployee = null;
@@ -1189,6 +1202,7 @@
     {
         _operatorFunctionCode = value;
         _operatorResourceType = GetResourceTypeForFunction(value);
+        _posRegisterType = IsLateEarlyRegistrarFunction ? "LATE_EARLY" : "OT";
         _operatorResourceId = null;
         _registrarScopeMode = "Department";
         _registrarBlockCode = null;
@@ -1210,7 +1224,7 @@
                 _operatorResourceId);
             _operatorAssignments = assignments.IsSuccess ? assignments.Data ?? new() : new();
 
-            if (IsOtRegistrarFunction)
+            if (IsRegistrarFunction)
                 await LoadRegistrarPositionsAsync();
         }
         finally { _loadingOperators = false; }
@@ -1227,11 +1241,11 @@
                 {
                     FunctionCode = _operatorFunctionCode,
                     ResourceType = _operatorResourceType,
-                    ResourceId = IsOtRegistrarFunction
+                    ResourceId = IsRegistrarFunction
                         ? (_registrarScopeMode == "Department" ? _operatorResourceId : null)
                         : IsGlobalOperatorFunction ? null : _operatorResourceId,
                     EmployeeCode = _operatorEmployeeCode,
-                    ScopeCode = IsOtRegistrarFunction ? RegistrarScopeCode : OperatorGrantsCapability ? _operatorScope : null
+                    ScopeCode = IsRegistrarFunction ? RegistrarScopeCode : OperatorGrantsCapability ? _operatorScope : null
                 });
 
             if (!result.IsSuccess)

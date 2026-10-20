@@ -31,6 +31,7 @@
     <PackageReference Include="MudBlazor.ThemeManager" Version="4.0.0" />
     <PackageReference Include="Blazored.TextEditor" Version="1.0.2" />
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="Markdig" Version="0.37.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -12,6 +12,7 @@ using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Entities.Payroll;
 using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Entities.Trips;
+using FVN_REGISTER.Core.Entities.LateEarly;
 using FVN_REGISTER.Core.Entities.Views;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Entities.PublicForms;
@@ -55,6 +56,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03OTReasonCode> OvertimeReasonCodes { get; set; }
     public DbSet<F03OTType> OTTypes { get; set; }
     public DbSet<F03TripRequest> TripRequests { get; set; }
+    public DbSet<F03LateEarlyRequest> LateEarlyRequests { get; set; }
     public DbSet<F03StagingTrip> StagingTrips { get; set; }
     public DbSet<F03EquipmentAsset> EquipmentAssets { get; set; }
     public DbSet<F03EquipmentRequest> EquipmentRequests { get; set; }

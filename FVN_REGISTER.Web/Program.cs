@@ -14,6 +14,7 @@ using FVN_REGISTER.Shared.Services.Jobs;
 using FVN_REGISTER.Shared.Services.Language;
 using FVN_REGISTER.Shared.Services.Loading;
 using FVN_REGISTER.Shared.Services.Leaves;
+using FVN_REGISTER.Shared.Services.LateEarly;
 using FVN_REGISTER.Shared.Services.Notifications;
 using FVN_REGISTER.Shared.Services.OTs;
 using FVN_REGISTER.Shared.Services.Security;
@@ -39,6 +40,7 @@ builder.Services.AddMudServices(config =>
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<ILanguageService, LanguageService>();
 builder.Services.AddScoped<ILoadingService, LoadingService>();
+builder.Services.AddSingleton<FVN_REGISTER.Shared.Services.Help.IGuideDocumentProvider, FileGuideDocumentProvider>();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies").AddCookie("Cookies", options => { options.LoginPath = "/login"; options.AccessDeniedPath = "/access-denied"; });
 builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState(); builder.Services.AddScoped<CustomAuthStateProvider>(); builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>()); builder.Services.AddScoped<ITokenStorage, LocalStorageTokenService>(); var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
@@ -77,7 +79,8 @@ builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementC
 builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>();
 builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();
 builder.Services.AddScoped<ILeaveEntitlementClientService, LeaveEntitlementClientService>();
-builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
+builder.Services.AddScoped<ITripClientService, TripClientService>();
+builder.Services.AddScoped<ILateEarlyClientService, LateEarlyClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
 builder.Services.AddScoped<IExecutionReconciliationClientService, ExecutionReconciliationClientService>();
 builder.Services.AddScoped<IExecutionResolutionPolicyClientService, ExecutionResolutionPolicyClientService>();
 builder.Services.AddScoped<IWorkYearManagementClientService, WorkYearManagementClientService>();
@@ -89,6 +92,28 @@ builder.Services.AddScoped<IEndpointCredentialClientService, EndpointCredentialC
 builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", true); app.UseHsts(); }
-app.UseStaticFiles(); app.UseAntiforgery(); app.UseAuthentication(); app.UseAuthorization();
+app.UseStaticFiles();
+// Screenshots for the Markdown user guide. During "dotnet run", content may be copied to
+// the build output (AppContext.BaseDirectory) rather than the project ContentRootPath.
+// Expose only the dedicated screenshots folder, not the whole Guide directory.
+var guideScreenshotCandidates = new[]
+{
+    Path.Combine(app.Environment.ContentRootPath, "Guide", "screenshots"),
+    Path.Combine(AppContext.BaseDirectory, "Guide", "screenshots")
+};
+var guideScreenshots = guideScreenshotCandidates.FirstOrDefault(Directory.Exists);
+if (guideScreenshots is not null)
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(guideScreenshots),
+        RequestPath = "/guide-assets/screenshots"
+    });
+}
+else
+{
+    app.Logger.LogWarning("Guide screenshots folder was not found. Checked: {Paths}", string.Join("; ", guideScreenshotCandidates));
+}
+app.UseAntiforgery(); app.UseAuthentication(); app.UseAuthorization();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(FVN_REGISTER.Shared.Routes).Assembly);
 app.Run();

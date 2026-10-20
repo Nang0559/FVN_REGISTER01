@@ -212,6 +212,27 @@ public sealed class FeatureOperatorAuthorizationPolicyTests
             SecurityFunctionCodes.WorkCalendarManage, employeeExists: true, activeUserExists: true, hasRbacCapability: false));
     }
 
+    [Fact]
+    public void LateEarlyRegistrar_IsIndependentAssignmentAuthority()
+    {
+        Assert.NotEqual(SecurityFunctionCodes.OTRegistrarManage, SecurityFunctionCodes.LateEarlyRegistrarManage);
+        Assert.True(FeatureOperatorCatalog.TryGet(SecurityFunctionCodes.LateEarlyRegistrarManage, out var lateEarly));
+        Assert.Equal(FeatureOperatorCatalog.LateEarlyRegistrar, lateEarly.ResourceType);
+        Assert.True(lateEarly.ResourceScoped);
+        Assert.True(FeatureOperatorCatalog.IsAssignmentAuthority(SecurityFunctionCodes.LateEarlyRegistrarManage));
+        Assert.False(FeatureOperatorCatalog.AssignmentGrantsCapability(SecurityFunctionCodes.LateEarlyRegistrarManage));
+        Assert.NotEqual(FeatureOperatorCatalog.OtRegistrar, lateEarly.ResourceType);
+    }
+
+    [Fact]
+    public void LateEarlyRegistrar_CanBeAssignedWithoutRoleGrant()
+    {
+        Assert.True(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.LateEarlyRegistrarManage, employeeExists: true, activeUserExists: true, hasRbacCapability: false));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.LateEarlyRegistrarManage, employeeExists: true, activeUserExists: false, hasRbacCapability: false));
+    }
+
     [Theory]
     [InlineData(120, null, 120, "A", true)]            // đúng phòng ban
     [InlineData(120, "Department", 121, "A", false)]   // phòng ban khác

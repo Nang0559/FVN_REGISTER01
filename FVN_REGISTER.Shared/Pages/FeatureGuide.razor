@@ -2,9 +2,12 @@
 @using Microsoft.AspNetCore.Authorization
 @using FVN_REGISTER.Shared.Services.Help
 @using FVN_REGISTER.Shared.Services.Language
+@using FVN_REGISTER.Shared.Services.Security
 @attribute [Authorize]
 @inherits AppComponentBase
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
+@inject ISecurityClientService SecurityClient
 
 <PageTitle>@Language.T("common.huongDanChucNang")</PageTitle>
 
@@ -17,9 +20,33 @@
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back">@Language.T("common.back")</MudButton>
     </MudStack>
 
-    @if (_missing)
+    @if (_accessDenied)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Tài khoản hiện tại chưa được cấp quyền xem hướng dẫn này. Nội dung được ẩn theo quyền hiệu lực; hãy liên hệ quản trị viên nếu bạn cần truy cập.</MudAlert>
+    }
+    else if (_missing)
     {
         <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@Language.T("help.notAvailable.summary") (@_feature)</MudAlert>
+    }
+    else if (_guideHtml is { } guideHtml)
+    {
+        <MudPaper Outlined="true" Class="pa-5">
+            <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
+            <MudText Typo="Typo.h5" Class="mb-1">@Title</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-4">@HelpRegistry.GuideFile · § @string.Join(", ", _usedSections)</MudText>
+            <div class="guide-md">@guideHtml</div>
+        </MudPaper>
+    }
+    else if (!string.IsNullOrWhiteSpace(_guideLoadError))
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">
+            Không tải được nội dung Markdown (@HelpRegistry.GuideFile): @_guideLoadError
+        </MudAlert>
+        <MudPaper Outlined="true" Class="pa-5">
+            <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
+            <MudText Typo="Typo.h5" Class="mb-3">@Title</MudText>
+            <MudText Typo="Typo.body1">@Summary</MudText>
+        </MudPaper>
     }
     else
     {
@@ -51,6 +78,10 @@
 @code {
     private string _feature = HelpRegistry.Home;
     private bool _missing;
+    private bool _accessDenied;
+    private MarkupString? _guideHtml;
+    private string? _guideLoadError;
+    private string[] _usedSections = Array.Empty<string>();
     private string Title = string.Empty;
     private string Summary = string.Empty;
     private string Flow = string.Empty;
@@ -65,11 +96,10 @@
         foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
             var pair = part.Split('=', 2);
-            if (pair.Length == 2 && string.Equals(Uri.UnescapeDataString(pair[0]), "feature", StringComparison.OrdinalIgnoreCase))
-            {
+            if (pair.Length != 2) continue;
+            var name = Uri.UnescapeDataString(pair[0]);
+            if (string.Equals(name, "feature", StringComparison.OrdinalIgnoreCase))
                 _feature = Uri.UnescapeDataString(pair[1]);
-                break;
-            }
         }
 
         _feature = _feature.Trim().ToUpperInvariant();
@@ -170,6 +200,70 @@
         Flow = Language.T(sharedPrefix + "flow");
         Example = Language.T(sharedPrefix + "example");
         Security = Language.T(sharedPrefix + "security");
+    }
+
+    // The detailed text comes from the Markdown guide (04_USER_GUIDE.md) when the host can read it; otherwise the short
+    // overview from Localization/*.help.json is shown.
+    protected override async Task OnInitializedAsync()
+    {
+        if (_missing) return;
+
+        // The query string selects a topic only; it never grants access. Always use the server's effective permissions.
+        try
+        {
+            var permissionResponse = await SecurityClient.GetMyPermissionsAsync();
+            if (!permissionResponse.IsSuccess || permissionResponse.Data is null ||
+                !HelpAccessPolicy.CanView(permissionResponse.Data, _feature))
+            {
+                _accessDenied = true;
+                return;
+            }
+        }
+        catch
+        {
+            _accessDenied = true;
+            return;
+        }
+
+        var provider = Services.GetService(typeof(IGuideDocumentProvider)) as IGuideDocumentProvider;
+        var ids = HelpRegistry.GuideSectionsFor(_feature);
+        if (provider is null)
+        {
+            _guideLoadError = "Host chưa đăng ký IGuideDocumentProvider.";
+            return;
+        }
+        if (ids.Length == 0)
+        {
+            _guideLoadError = $"Chưa ánh xạ mục Markdown cho chức năng {_feature}.";
+            return;
+        }
+
+        try
+        {
+            var markdown = await provider.GetMarkdownAsync(HelpRegistry.GuideFile);
+            if (string.IsNullOrWhiteSpace(markdown))
+            {
+                _guideLoadError = "Không tìm thấy file trong thư mục Guide hoặc tài nguyên đóng gói của ứng dụng.";
+                return;
+            }
+
+            var sections = ids
+                .Select(id => (Id: id, Text: GuideMarkdown.ExtractSection(markdown, id)))
+                .Where(item => item.Text.Length > 0)
+                .ToArray();
+            if (sections.Length == 0)
+            {
+                _guideLoadError = $"Không tìm thấy heading cho mục: {string.Join(", ", ids)}.";
+                return;
+            }
+
+            _usedSections = sections.Select(item => item.Id.TrimStart('~')).ToArray();
+            _guideHtml = new MarkupString(GuideMarkdown.ToHtml(string.Join("\n\n", sections.Select(item => item.Text))));
+        }
+        catch (Exception ex)
+        {
+            _guideLoadError = ex.Message;
+        }
     }
 
     private void Back() => Navigation.NavigateTo("/");

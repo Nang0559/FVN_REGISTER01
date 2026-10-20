@@ -58,6 +58,13 @@
 
     <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Package the shared Markdown guide and its referenced screenshots for FeatureGuide in MAUI. -->
+    <MauiAsset Include="..\MÔ HÌNH\03_TAI_LIEU_HE_THONG\02_HUONG_DAN_SU_DUNG\04_USER_GUIDE.md" LogicalName="04_USER_GUIDE.md" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.png" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.jpg" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.jpeg" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.webp" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.gif" LogicalName="screenshots/%(Filename)%(Extension)" />
   </ItemGroup>
 
 	<ItemGroup>

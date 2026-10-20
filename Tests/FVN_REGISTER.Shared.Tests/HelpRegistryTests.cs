@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using FVN_REGISTER.Shared.Services.Help;
 using FVN_REGISTER.Shared.Services.Language;
+using FVN_REGISTER.Contract.Dtos.Security;
+using FVN_REGISTER.Core.Constants;
 using Xunit;
 
 namespace FVN_REGISTER.Shared.Tests;
@@ -93,6 +95,35 @@ public sealed class HelpRegistryTests
         Assert.Empty(offenders);
     }
 
+    [Fact]
+    public void HelpAccessPolicy_UsesEffectiveFunctionGrants_NotSingleLegacyRole()
+    {
+        var approver = new PermissionSnapshotDto { RoleCodes = new List<int> { UserPermissionCodes.User } };
+        approver.FunctionCodes.Add(SecurityFunctionCodes.OTApprove);
+        Assert.True(HelpAccessPolicy.CanView(approver, "APPROVAL_INBOX"));
+        Assert.False(HelpAccessPolicy.CanView(approver, "SECURITY_CENTER"));
+
+        var hr = new PermissionSnapshotDto { RoleCodes = new List<int> { UserPermissionCodes.HR } };
+        hr.FunctionCodes.Add(SecurityFunctionCodes.AttendanceCalculate);
+        Assert.True(HelpAccessPolicy.CanView(hr, "HRM_ATTENDANCE_CALCULATION"));
+        Assert.False(HelpAccessPolicy.CanView(hr, "ADMIN_WORK_CALENDAR"));
+    }
+
+    [Fact]
+    public void HelpAccessPolicy_DeniesMissingSnapshotsAndUnknownFeatures()
+    {
+        Assert.False(HelpAccessPolicy.CanView(null, "APPROVAL_INBOX"));
+        Assert.False(HelpAccessPolicy.CanView(new PermissionSnapshotDto(), "NOT_A_FEATURE"));
+    }
+    [Fact]
+    public void EveryRoutedFeature_HasAnExplicitHelpPermissionPolicy()
+    {
+        var missing = HelpRegistry.AllFeatureCodes
+            .Where(code => !HelpAccessPolicy.HasPolicy(code))
+            .OrderBy(code => code, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Empty(missing);
+    }
     private static string FindRepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
