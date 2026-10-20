@@ -19,7 +19,7 @@ public sealed class F03OTRegistrationRule : BaseAuditEntity
     [Required, StringLength(20)]
     public string RegisterType { get; set; } = "OT";
 
-    public bool IsActive { get; set; } = true;
+
 
     public ICollection<F03OTRegistrar> Registrars { get; set; } = new List<F03OTRegistrar>();
     public ICollection<F03OTRegistrarPosition> RegistrarPositions { get; set; } = new List<F03OTRegistrarPosition>();
