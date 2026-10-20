@@ -29,8 +29,7 @@ public sealed class XlsxTemplateWriter
         var relsEntry = archive.GetEntry("xl/_rels/workbook.xml.rels") ?? throw new InvalidDataException("XLSX workbook relationships are missing.");
         var workbook = LoadXml(workbookEntry);
         var rels = LoadXml(relsEntry);
-        var sheet = workbook.Root?.Element(Main + "sheets")?.Elements(Main + "sheet")
-            .FirstOrDefault(x => string.Equals((string?)x.Attribute("name"), definition.WorksheetName, StringComparison.OrdinalIgnoreCase))
+        var sheet = workbook.Root?.Element(Main + "sheets")?.Elements(Main + "sheet").FirstOrDefault(x => string.Equals((string?)x.Attribute("name"), definition.WorksheetName, StringComparison.OrdinalIgnoreCase))
             ?? workbook.Root?.Element(Main + "sheets")?.Elements(Main + "sheet").FirstOrDefault()
             ?? throw new InvalidDataException("XLSX contains no worksheet.");
         var relationshipId = (string?)sheet.Attribute(Rel + "id") ?? throw new InvalidDataException("XLSX worksheet relationship is missing.");
@@ -41,65 +40,41 @@ public sealed class XlsxTemplateWriter
         var sheetEntry = archive.GetEntry(sheetPath) ?? archive.GetEntry(NormalizeTarget(target)) ?? throw new InvalidDataException($"XLSX worksheet '{definition.WorksheetName}' is missing.");
         var sheetXml = LoadXml(sheetEntry);
         var sheetData = sheetXml.Root?.Element(Main + "sheetData") ?? throw new InvalidDataException("XLSX sheetData is missing.");
-
         var templateRows = sheetData.Elements(Main + "row").ToDictionary(x => ParseRowNumber(x), x => x);
         var styleCache = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var column in definition.Columns)
         {
             if (!IsValidColumnLetter(column.ColumnLetter)) throw new ArgumentException($"Invalid XLSX column '{column.ColumnLetter}'.", nameof(definition));
-            var style = templateRows.Values.SelectMany(r => r.Elements(Main + "c"))
-                .FirstOrDefault(c => string.Equals(ColumnFromReference((string?)c.Attribute("r") ?? ""), column.ColumnLetter, StringComparison.OrdinalIgnoreCase))
-                ?.Attribute("s")?.Value;
-            styleCache[column.ColumnLetter] = style;
+            styleCache[column.ColumnLetter] = templateRows.Values.SelectMany(r => r.Elements(Main + "c")).FirstOrDefault(c => string.Equals(ColumnFromReference((string?)c.Attribute("r") ?? ""), column.ColumnLetter, StringComparison.OrdinalIgnoreCase))?.Attribute("s")?.Value;
         }
-
         for (var index = 0; index < rows.Count; index++)
         {
             var rowNumber = definition.DataStartRow + index;
             if (!templateRows.TryGetValue(rowNumber, out var rowElement))
             {
-                rowElement = new XElement(Main + "row", new XAttribute("r", rowNumber));
-                var next = sheetData.Elements(Main + "row").FirstOrDefault(x => ParseRowNumber(x) > rowNumber);
-                if (next is null) sheetData.Add(rowElement); else next.AddBeforeSelf(rowElement);
-                templateRows[rowNumber] = rowElement;
+                rowElement = new XElement(Main + "row", new XAttribute("r", rowNumber)); var next = sheetData.Elements(Main + "row").FirstOrDefault(x => ParseRowNumber(x) > rowNumber); if (next is null) sheetData.Add(rowElement); else next.AddBeforeSelf(rowElement); templateRows[rowNumber] = rowElement;
             }
             foreach (var column in definition.Columns)
             {
-                rows[index].Values.TryGetValue(column.Path, out var value);
-                var reference = column.ColumnLetter.ToUpperInvariant() + rowNumber.ToString(CultureInfo.InvariantCulture);
-                var cell = rowElement.Elements(Main + "c").FirstOrDefault(x => string.Equals((string?)x.Attribute("r"), reference, StringComparison.OrdinalIgnoreCase));
-                var style = cell?.Attribute("s")?.Value ?? styleCache[column.ColumnLetter];
-                cell?.Remove();
-                rowElement.Add(CreateCell(reference, value, column.DataType, style));
+                rows[index].Values.TryGetValue(column.Path, out var value); var reference = column.ColumnLetter.ToUpperInvariant() + rowNumber.ToString(CultureInfo.InvariantCulture); var cell = rowElement.Elements(Main + "c").FirstOrDefault(x => string.Equals((string?)x.Attribute("r"), reference, StringComparison.OrdinalIgnoreCase)); var style = cell?.Attribute("s")?.Value ?? styleCache[column.ColumnLetter]; cell?.Remove(); rowElement.Add(CreateCell(reference, value, column.DataType, style));
             }
         }
-
         sheetEntry.Delete();
         var replacement = archive.CreateEntry(sheetPath, CompressionLevel.Optimal);
         using (var output = replacement.Open()) using (var writer = new StreamWriter(output, new UTF8Encoding(false))) writer.Write(sheetXml.ToString(SaveOptions.DisableFormatting));
+        archive.Dispose();
         return input.ToArray();
     }
 
     private static XElement CreateCell(string reference, JsonElement? value, string dataType, string? style)
     {
-        var cell = new XElement(Main + "c", new XAttribute("r", reference));
-        if (!string.IsNullOrWhiteSpace(style)) cell.SetAttributeValue("s", style);
-        if (!value.HasValue || value.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return cell;
-        var v = value.Value;
+        var cell = new XElement(Main + "c", new XAttribute("r", reference)); if (!string.IsNullOrWhiteSpace(style)) cell.SetAttributeValue("s", style); if (!value.HasValue || value.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return cell; var v = value.Value;
         if (dataType.Equals("integer", StringComparison.OrdinalIgnoreCase) || dataType.Equals("decimal", StringComparison.OrdinalIgnoreCase))
         {
-            if (v.ValueKind == JsonValueKind.Number && decimal.TryParse(v.GetRawText(), NumberStyles.Number, CultureInfo.InvariantCulture, out var number))
-                cell.Add(new XElement(Main + "v", number.ToString(CultureInfo.InvariantCulture)));
-            else
-            {
-                cell.SetAttributeValue("t", "inlineStr");
-                cell.Add(new XElement(Main + "is", new XElement(Main + "t", v.ToString())));
-            }
+            if (v.ValueKind == JsonValueKind.Number && decimal.TryParse(v.GetRawText(), NumberStyles.Number, CultureInfo.InvariantCulture, out var number)) cell.Add(new XElement(Main + "v", number.ToString(CultureInfo.InvariantCulture))); else { cell.SetAttributeValue("t", "inlineStr"); cell.Add(new XElement(Main + "is", new XElement(Main + "t", v.ToString()))); }
             return cell;
         }
-        cell.SetAttributeValue("t", "inlineStr");
-        cell.Add(new XElement(Main + "is", new XElement(Main + "t", new XAttribute(XNamespace.Xml + "space", "preserve"), v.ValueKind == JsonValueKind.String ? v.GetString() : v.ToString())));
-        return cell;
+        cell.SetAttributeValue("t", "inlineStr"); cell.Add(new XElement(Main + "is", new XElement(Main + "t", new XAttribute(XNamespace.Xml + "space", "preserve"), v.ValueKind == JsonValueKind.String ? v.GetString() : v.ToString()))); return cell;
     }
 
     private static int ParseRowNumber(XElement row) => int.TryParse((string?)row.Attribute("r"), NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : 0;
