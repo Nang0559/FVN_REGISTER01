@@ -161,10 +161,13 @@ group.MapPost("/business-context/snapshot", async (System.Text.Json.JsonElement 
     context.ValueKind!=System.Text.Json.JsonValueKind.Object ||
     !context.TryGetProperty("tenantCode",out var tenantElement) ||
     !context.TryGetProperty("actorId",out var actorElement) ||
+    tenantElement.ValueKind!=System.Text.Json.JsonValueKind.String ||
+    actorElement.ValueKind!=System.Text.Json.JsonValueKind.String ||
     !string.Equals(tenantElement.GetString(),tenant,StringComparison.Ordinal) ||
     !string.Equals(actorElement.GetString(),actor,StringComparison.Ordinal))
   return Results.Forbid();
  if(!context.TryGetProperty("contextVersion",out var versionElement) ||
+    versionElement.ValueKind!=System.Text.Json.JsonValueKind.String ||
     string.IsNullOrWhiteSpace(versionElement.GetString()))
   return Results.BadRequest(new{error="A versioned trusted FVN_REGISTER context is required."});
  req.HttpContext.Response.Headers.CacheControl="no-store, no-cache, must-revalidate";
