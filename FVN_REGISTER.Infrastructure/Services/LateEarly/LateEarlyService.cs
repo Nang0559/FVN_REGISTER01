@@ -305,10 +305,14 @@ public sealed class LateEarlyService : ILateEarlyService
     {
         var codes = new[] { $"LATE_EARLY_POLICY_{deptCode}", "LATE_EARLY_POLICY_0" };
         var rows = await _db.BusinessRules.AsNoTracking()
-            .Where(x => x.Module == RequestModule.LateEarly && codes.Contains(x.Code) && x.IsActive == true)
+            .Where(x => x.Module == RequestModule.LateEarly && codes.Contains(x.Code))
             .ToListAsync(ct);
-        var selected = rows.FirstOrDefault(x => x.Code == codes[0])
-            ?? rows.FirstOrDefault(x => x.Code == codes[1]);
+        var own = rows.FirstOrDefault(x => x.Code == codes[0]);
+        var fallback = rows.FirstOrDefault(x => x.Code == codes[1]);
+        var selected = (own?.IsActive == true ? own : null)
+            ?? (fallback?.IsActive == true ? fallback : null)
+            ?? fallback
+            ?? own;
         if (selected == null)
             return new LateEarlyApprovalRuleDto { DeptCode = deptCode };
         try
