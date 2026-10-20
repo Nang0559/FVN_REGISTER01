@@ -29,8 +29,7 @@ public sealed class LateEarlyCalendarModuleProvider : ICalendarModuleProvider
             return Array.Empty<CalendarItemDto>();
 
         var requests = await _db.LateEarlyRequests.AsNoTracking()
-            .Where(x => x.IsActive == true
-                && x.EmployeeCode == context.EmployeeCode
+            .Where(x => x.EmployeeCode == context.EmployeeCode
                 && x.WorkDate >= context.From.ToDateTime(TimeOnly.MinValue)
                 && x.WorkDate <= context.To.ToDateTime(TimeOnly.MinValue)
                 && x.RequestStatus != ApprovalStatus.Cancelled)
