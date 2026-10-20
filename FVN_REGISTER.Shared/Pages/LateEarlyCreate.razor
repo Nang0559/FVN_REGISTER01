@@ -138,9 +138,17 @@
             Snackbar.Add("Vui lòng nhập đủ mã nhân viên, ngày, giờ dự kiến và lý do.", Severity.Warning);
             return;
         }
-        if (_selector is not null && _selector.GetSelections().Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+        if (_route is null)
         {
-            Snackbar.Add("Vui lòng chọn người phê duyệt cho các cấp bắt buộc.", Severity.Warning);
+            Snackbar.Add("Chưa tải được luồng duyệt cho nhân viên. Hãy tải luồng duyệt trước khi gửi.", Severity.Warning);
+            return;
+        }
+        var selections = _selector?.GetSelections() ?? new();
+        if (_route.Levels.Any(level => level.Required
+            && !selections.Any(selection => selection.Level == level.Level
+                && !string.IsNullOrWhiteSpace(selection.ApproverCode))))
+        {
+            Snackbar.Add("Vui lòng chọn người phê duyệt cho tất cả các cấp bắt buộc.", Severity.Warning);
             return;
         }
 
@@ -162,7 +170,7 @@
                 return;
             }
 
-            var submitted = await LateEarlyService.SubmitAsync(created.Data.Id, _selector?.GetSelections());
+            var submitted = await LateEarlyService.SubmitAsync(created.Data.Id, selections);
             if (!submitted.IsSuccess)
             {
                 Snackbar.Add(submitted.Message ?? "Đã tạo bản nháp nhưng chưa gửi được phê duyệt.", Severity.Warning);
