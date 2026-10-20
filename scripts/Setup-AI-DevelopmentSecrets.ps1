@@ -48,28 +48,34 @@ try {
     $connectionString = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
     if ([string]::IsNullOrWhiteSpace($connectionString)) { throw "Connection string cannot be empty." }
 
-    # Validate key names case-insensitively. DbConnectionStringBuilder may normalize
-    # keyword names, so ContainsKey("Data Source") is not reliable across providers.
-    $builder = New-Object System.Data.Common.DbConnectionStringBuilder
-    $builder.ConnectionString = $connectionString
-    $keys = @($builder.Keys | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() })
-    $hasServer = ($keys -contains "data source") -or ($keys -contains "server") -or
-                 ($keys -contains "address") -or ($keys -contains "network address")
-    if (-not $hasServer) {
-        throw "Connection string must include Server or Data Source."
-    }
-    $hasDatabase = ($keys -contains "initial catalog") -or ($keys -contains "database")
-    if (-not $hasDatabase) {
-        throw "Connection string must specify Database=FVN_REGISTER."
-    }
-    $dbName = $null
-    foreach ($key in @($builder.Keys)) {
-        $normalizedKey = ([string]$key).Trim().ToLowerInvariant()
-        if ($normalizedKey -eq "initial catalog" -or $normalizedKey -eq "database") {
-            $dbName = [string]$builder[$key]
-            break
+    # Accept pasted connection strings with or without surrounding quotes.
+    # Read-Host does not need quotes, but users often paste them from documentation.
+    $connectionString = $connectionString.Trim()
+    if ($connectionString.Length -ge 2) {
+        $first = $connectionString[0]
+        $last = $connectionString[$connectionString.Length - 1]
+        if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
+            $connectionString = $connectionString.Substring(1, $connectionString.Length - 2).Trim()
         }
     }
+
+    # Validate keywords against the raw string. DbConnectionStringBuilder.Keys can
+    # be provider/runtime-normalized differently across PowerShell/.NET versions.
+    $hasServer = $connectionString -match '(?i)(?:^|;)\s*(?:data\s*source|server|address|network\s*address)\s*='
+    if (-not $hasServer) {
+        throw "Connection string must include Server or Data Source. Check that the pasted text starts with 'Data Source=' or 'Server=' and has no extra characters."
+    }
+
+    $databaseMatch = [regex]::Match(
+        $connectionString,
+        '(?i)(?:^|;)\s*(?:initial\s+catalog|database)\s*=\s*(?:"([^"]*)"|''([^'']*)''|([^;]*))'
+    )
+    if (-not $databaseMatch.Success) {
+        throw "Connection string must specify Database=FVN_REGISTER."
+    }
+    $dbName = $databaseMatch.Groups[1].Value
+    if (-not $dbName) { $dbName = $databaseMatch.Groups[2].Value }
+    if (-not $dbName) { $dbName = $databaseMatch.Groups[3].Value.Trim() }
     if ($dbName -and $dbName -ne "FVN_REGISTER") {
         $confirm = Read-Host "Database is '$dbName', not FVN_REGISTER. Continue? (y/N)"
         if ($confirm -notin @("y", "Y", "yes", "YES")) { throw "Cancelled: database is not FVN_REGISTER." }
