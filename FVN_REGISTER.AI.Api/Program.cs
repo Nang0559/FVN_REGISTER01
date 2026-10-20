@@ -580,6 +580,8 @@ group.MapGet("/conversations", async (HttpRequest req, IServiceProvider services
             x.Status == "Active" && x.ExpiresAtUtc > DateTimeOffset.UtcNow)
         .OrderByDescending(x => x.UpdatedAtUtc).Take(take)
         .Select(x => new { x.Id, x.Title, x.Status, x.CreatedAtUtc, x.UpdatedAtUtc, x.ExpiresAtUtc }).ToListAsync(ct);
+    req.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+    req.HttpContext.Response.Headers.Pragma = "no-cache";
     return Results.Ok(rows);
 });
 
@@ -595,6 +597,8 @@ group.MapGet("/conversations/{conversationId:guid}", async (Guid conversationId,
     var messages = await db.ConversationMessages.AsNoTracking().Where(x => x.TenantCode == tenant &&
         x.ActorId == actor && x.ConversationId == conversationId).OrderBy(x => x.Sequence)
         .Select(x => new { x.Id, x.Sequence, x.Role, x.Content, x.Status, x.CitationsJson, x.ModelProvider, x.ModelVersion, x.CreatedAtUtc }).ToListAsync(ct);
+    req.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+    req.HttpContext.Response.Headers.Pragma = "no-cache";
     return Results.Ok(new { conversation.Id, conversation.Title, conversation.CreatedAtUtc, conversation.UpdatedAtUtc, messages });
 });
 
