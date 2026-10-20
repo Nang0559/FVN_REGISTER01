@@ -25,8 +25,7 @@ public sealed class LateEarlyHistoryHandler : BaseHistoryHandler<F03LateEarlyReq
                     join employee in Db.Employees.AsNoTracking()
                         on request.EmployeeCode equals employee.EmployeeCode into employees
                     from employee in employees.DefaultIfEmpty()
-                    where request.IsActive == true
-                        && (request.EmployeeCode == user.EmployeeCode
+                    where (request.EmployeeCode == user.EmployeeCode
                             || request.RegisteredByEmployeeCode == user.EmployeeCode)
                     select new { request, employee };
 
@@ -83,7 +82,7 @@ public sealed class LateEarlyHistoryHandler : BaseHistoryHandler<F03LateEarlyReq
                          join employee in Db.Employees.AsNoTracking()
                             on request.EmployeeCode equals employee.EmployeeCode into employees
                          from employee in employees.DefaultIfEmpty()
-                         where request.Id == id && request.IsActive == true
+                         where request.Id == id
                             && (request.EmployeeCode == user.EmployeeCode
                                 || request.RegisteredByEmployeeCode == user.EmployeeCode)
                          select new { request, employee }).FirstOrDefaultAsync(ct);
