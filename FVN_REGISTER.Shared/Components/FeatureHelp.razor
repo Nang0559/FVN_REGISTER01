@@ -1,6 +1,8 @@
 @using Microsoft.AspNetCore.Components.Routing
 @using FVN_REGISTER.Shared.Services.Language
 @using FVN_REGISTER.Shared.Services.Help
+@using FVN_REGISTER.Shared.Services.Security
+@inject ISecurityClientService SecurityClient
 @implements IDisposable
 @inject NavigationManager Navigation
 @inject ILanguageService Language
@@ -21,7 +23,11 @@
     </MudDrawerHeader>
     <MudDivider />
     <MudDrawerContainer Class="pa-4">
-        @if (_featureCode is null)
+        @if (_permissionDenied)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Tài khoản hiện tại chưa được cấp quyền xem hướng dẫn của chức năng này. Hãy liên hệ quản trị viên nếu bạn cần truy cập.</MudAlert>
+        }
+        else if (_featureCode is null)
         {
             <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">@Language.T("help.notAvailable.summary")</MudAlert>
             <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("help.notAvailable.route"): /@_route</MudText>
@@ -52,29 +58,39 @@
     private string _route = string.Empty;
     private string? _featureCode;
     private HelpContent _content = HelpContent.Empty;
+    private bool _permissionDenied;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Language.LanguageChanged += OnLanguageChanged;
         Navigation.LocationChanged += OnLocationChanged;
-        Refresh(Navigation.Uri);
+        await RefreshAsync(Navigation.Uri);
     }
 
-    // Resolve from the page the user is on right now; the drawer never keeps text from a previous page.
-    private void Refresh(string uri)
+    private async Task RefreshAsync(string uri)
     {
         _route = string.Join('/', HelpRegistry.Normalize(Navigation.ToBaseRelativePath(uri)));
         var code = HelpRegistry.Resolve(_route);
         _featureCode = HelpRegistry.HasContent(Language.Current, code) ? code : null;
-        _content = _featureCode is null ? HelpContent.Empty : HelpContent.Load(Language.Current, _featureCode);
+        _permissionDenied = false;
+        _content = HelpContent.Empty;
+        if (_featureCode is null) return;
+
+        var response = await SecurityClient.GetMyPermissionsAsync();
+        if (!response.IsSuccess || response.Data is null || !HelpAccessPolicy.CanView(response.Data, _featureCode))
+        {
+            _permissionDenied = true;
+            _featureCode = null;
+            return;
+        }
+        _content = HelpContent.Load(Language.Current, code!);
     }
 
-    private void Open()
+    private async Task Open()
     {
-        Refresh(Navigation.Uri);
+        await RefreshAsync(Navigation.Uri);
         _open = true;
     }
-
     private void Close() => _open = false;
 
     private void OpenGuide()
@@ -86,14 +102,12 @@
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        Refresh(Navigation.Uri);
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(async () => { await RefreshAsync(Navigation.Uri); StateHasChanged(); });
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        Refresh(e.Location);
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(async () => { await RefreshAsync(e.Location); StateHasChanged(); });
     }
 
     public void Dispose()
