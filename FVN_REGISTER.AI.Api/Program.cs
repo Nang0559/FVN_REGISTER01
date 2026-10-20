@@ -624,7 +624,8 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
     {
         var scopes = await access.GetSearchScopesAsync(tenant, actor, ct);
         var previous = await db.ConversationMessages.AsNoTracking().Where(x => x.TenantCode == tenant &&
-            x.ActorId == actor && x.ConversationId == conversation.Id && x.Status == "Completed")
+            x.ActorId == actor && x.ConversationId == conversation.Id &&
+            (x.Role == "user" || x.Role == "assistant") && x.Status != "Pending" && x.Status != "Failed")
             .OrderByDescending(x => x.Sequence).Take(8).OrderBy(x => x.Sequence)
             .Select(x => new { role = x.Role, content = x.Content.Length > 2500 ? x.Content.Substring(0, 2500) : x.Content }).ToListAsync(ct);
         var historyJson = System.Text.Json.JsonSerializer.Serialize(previous);
