@@ -148,11 +148,48 @@ public sealed class AIBusinessContextController : ControllerBase
         if (!snapshotDocument.RootElement.TryGetProperty("context", out var businessContext) ||
             businessContext.ValueKind != JsonValueKind.Object)
             return Problem("Authenticated FVN business context could not be constructed.", statusCode: 503);
+
+        // Minimize personal data: the employee code and the full host response are not sent to the model.
+        static string? ReadContextString(JsonElement source, string name)
+        {
+            return source.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+        static string[] ReadContextCodes(JsonElement source, string name)
+        {
+            if (!source.TryGetProperty(name, out var values) || values.ValueKind != JsonValueKind.Array)
+                return [];
+            return values.EnumerateArray()
+                .Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString()?.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value) && value!.Length <= 160)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(500)
+                .ToArray()!;
+        }
+        var safeBusinessContext = new
+        {
+            tenantCode = ReadContextString(businessContext, "tenantCode"),
+            actorId = ReadContextString(businessContext, "actorId"),
+            departmentCode = ReadContextString(businessContext, "departmentCode"),
+            positionCode = ReadContextString(businessContext, "positionCode"),
+            roleCodes = ReadContextCodes(businessContext, "roleCodes"),
+            permissionCodes = ReadContextCodes(businessContext, "permissionCodes"),
+            functionScopeCodes = ReadContextCodes(businessContext, "functionScopeCodes"),
+            managedScopeCodes = ReadContextCodes(businessContext, "managedScopeCodes"),
+            contextVersion = ReadContextString(businessContext, "contextVersion")
+        };
+        if (string.IsNullOrWhiteSpace(safeBusinessContext.tenantCode) ||
+            string.IsNullOrWhiteSpace(safeBusinessContext.actorId) ||
+            string.IsNullOrWhiteSpace(safeBusinessContext.contextVersion))
+            return Problem("Authenticated FVN business context is incomplete.", statusCode: 503);
+
         var envelope = new
         {
             query = input.Query.Trim(),
             retrievalLimit = Math.Clamp(input.RetrievalLimit, 1, 20),
-            businessContext = businessContext.Clone()
+            businessContext = safeBusinessContext
         };
 
         var body = JsonSerializer.SerializeToUtf8Bytes(envelope);
