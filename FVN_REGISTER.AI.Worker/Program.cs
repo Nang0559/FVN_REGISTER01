@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddFvnAiInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<IngestionWorker>();
+builder.Services.AddHostedService<DataEntryWorker>();
 builder.Services.AddHostedService<RetentionWorker>();
 builder.Services.AddHostedService<ConnectorWorker>();
 await builder.Build().RunAsync();
