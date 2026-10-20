@@ -56,7 +56,7 @@ The initial application contracts are in:
 - `FVN_REGISTER.AI.Application/Contracts/FvnBusinessContextContracts.cs`
 - `FVN_REGISTER.AI.Application/Abstractions/FvnBusinessPorts.cs`
 
-These are integration ports, not evidence that a production host adapter is already wired. Until a trusted FVN_REGISTER adapter is implemented and verified, business tools must remain unavailable (fail closed).
+These are integration ports, not evidence that a production host adapter is already wired. The AI service now registers a single fail-closed default for context lookup, tool catalog and execution; missing host integration returns `FVN_BUSINESS_GATEWAY_NOT_CONFIGURED`. The FVN host exposes an authenticated context projection grouped by module/function metadata and disables response caching. The signed host-to-AI context handoff, stable managed-scope contract and production adapter are still pending, so business tools remain unavailable.
 
 ## Tool execution contract
 
@@ -77,3 +77,11 @@ The existing Core implementation (ingestion, document understanding, extraction,
 - P4 is not complete until each tool has contract and host integration tests for role, permission, department and managed-scope boundaries.
 - P7 is not complete until OCR/extraction confidence and human correction are persisted with provenance.
 - P8 is not complete until preview/confirmation, idempotency, transaction audit, rollback/recovery and adversarial tool-call tests pass.
+
+
+## Current implementation boundary (branch update)
+
+- FVN host: `GET /api/ai/business-context/me` derives the actor from the authenticated server-side user, reads effective permission snapshots and managed scopes through `IAuthorizationService`, and returns module/function metadata. It is a read-only projection, not a permission grant to the model.
+- AI service: context, catalog and executor ports are registered to a fail-closed implementation until a trusted adapter is supplied. `/api/ai/capabilities` exposes explicit configuration flags for all three ports.
+- Tests: unit tests cover fail-closed context lookup, tool discovery and tool execution. These do not replace host/AI signed integration tests, tenant isolation tests or build/CI verification.
+- P4 remains not implemented: no production business tool handler is registered, and no arbitrary SQL/HTTP execution path is introduced.
