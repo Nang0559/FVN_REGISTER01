@@ -73,7 +73,7 @@
                         @if (context.RequestStatus is ApprovalStatus.Draft or ApprovalStatus.Pending or ApprovalStatus.NeedsRevision)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small"
-                                           Title="Hủy đăng ký" OnClick="@(() => Cancel(context))" />
+                                           title="Hủy đăng ký" OnClick="@(() => Cancel(context))" />
                         }
                     </MudTd>
                 </RowTemplate>
