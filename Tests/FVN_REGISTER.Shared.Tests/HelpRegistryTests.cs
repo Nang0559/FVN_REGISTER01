@@ -115,6 +115,17 @@ public sealed class HelpRegistryTests
         Assert.False(HelpAccessPolicy.CanView(null, "APPROVAL_INBOX"));
         Assert.False(HelpAccessPolicy.CanView(new PermissionSnapshotDto(), "NOT_A_FEATURE"));
     }
+    [Fact]
+    public void EveryRoutedFeature_HasAnExplicitHelpPermissionPolicy()
+    {
+        var policyPath = Path.Combine(FindRepositoryRoot(), "FVN_REGISTER.Shared", "Services", "Help", "HelpAccessPolicy.cs");
+        var policySource = File.ReadAllText(policyPath);
+        var missing = HelpRegistry.AllFeatureCodes
+            .Where(code => !Regex.IsMatch(policySource, "\\[\\\"" + Regex.Escape(code) + "\\\"\\]\\s*="))
+            .OrderBy(code => code, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Empty(missing);
+    }
     private static string FindRepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
