@@ -33,7 +33,7 @@
         <MudForm @ref="_form">
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_employeeCode" Label="Mã nhân viên" Required="true"
+                    <MudTextField T="string" Value="_employeeCode" ValueChanged="EmployeeCodeChanged" Label="Mã nhân viên" Required="true"
                                   Variant="Variant.Outlined" Margin="Margin.Dense"
                                   HelperText="Nhập mã công nhân cần đăng ký." />
                     <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
@@ -112,6 +112,13 @@
     {
         if (CalendarDate.HasValue) _workDate = CalendarDate.Value.Date;
         return Task.CompletedTask;
+    }
+
+    private void EmployeeCodeChanged(string value)
+    {
+        _employeeCode = value ?? string.Empty;
+        _route = null;
+        _selector = null;
     }
 
     private async Task LoadApprovalRouteAsync()
