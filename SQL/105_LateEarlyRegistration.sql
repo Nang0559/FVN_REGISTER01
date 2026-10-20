@@ -95,9 +95,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_F03LateEarlyRequests_
         ON dbo.F03LateEarlyRequests(EmployeeCode, WorkDate, LateEarlyType)
         WHERE IsActive = 1;
 
-/* 3) Chặn trùng: một công nhân chỉ có 1 đơn còn hiệu lực / loại / ngày
-      (RequestStatus: 4 = Cancelled, 3 = Rejected cần khớp enum ApprovalStatus - kiểm tra trước khi deploy) */
--- Kiểm tra trùng thực hiện ở tầng service (xem LateEarlyService.ValidateNoDuplicateAsync).
+/* 3) Duplicate protection is enforced twice:
+      - service validation for a clear user message;
+      - filtered unique index above for concurrent requests.
+      ApprovalStatus values: Rejected=4, Cancelled=5. Both are deactivated while retaining history. */
 
 /* 4) Fallback registrar rule (DepartmentCode = 0): mặc định lấy cùng chức vụ đã được phép đăng ký OT.
       HR có thể chỉnh lại theo từng bộ phận ở màn hình Quản lý người đăng ký. */
