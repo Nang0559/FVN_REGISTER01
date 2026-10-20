@@ -46,7 +46,9 @@ public static class HelpAccessPolicy
     public static bool CanView(PermissionSnapshotDto? permissions, string? featureCode)
     {
         if (permissions is null || string.IsNullOrWhiteSpace(featureCode) || !RequiredAny.TryGetValue(featureCode, out var required)) return false;
-        return required.Length == 0 || required.Any(permissions.Has);
+        return required.Length == 0
+            ? permissions.UserId > 0 && permissions.RoleCodes.Count > 0
+            : required.Any(permissions.Has);
     }
 
     public static IReadOnlyCollection<string> VisibleFeatures(PermissionSnapshotDto? permissions) =>
