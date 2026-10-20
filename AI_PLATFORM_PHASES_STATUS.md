@@ -136,3 +136,6 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 
 - Knowledge publication status now requires the document to remain `Approved` and at least one chunk's linked human review to remain `Approved` or `Corrected`. Stale active chunks are not reported as currently published after review revocation. Regression tests cover both revoked-review and valid-approved-review cases.
 - The shared HR reconciliation core now rejects undefined `HRCaseType` enum values even when invoked through the trusted-facts path. This closes a validation gap where `AnalyzeWithAuthorizedFactsAsync` bypasses the public facts-provider method. A regression test asserts invalid values fail before any HR case is persisted.
+
+
+- Vector retrieval now joins the source document and requires `AiDocuments.Status = 'Approved'` in addition to tenant match, active chunk, and current approved/corrected human review. This prevents a stale active chunk from being retrieved after its source document is rejected, archived, or otherwise leaves the approved state. Publication-status queries apply the same document/review checks.
