@@ -42,7 +42,7 @@ public sealed class LateEarlyApprovalProvider
         ApprovalBuildContext ctx, CancellationToken ct, bool strict = true)
     {
         var result = await base.BuildHierarchyResultAsync(ctx, ct, strict);
-        if (!result.IsSuccess || result.Data == null)
+        if (!result.Success || result.Data == null)
             return result;
 
         var requireLevel2 = ctx.Extra.TryGetValue("RequireLevel2", out var value)
