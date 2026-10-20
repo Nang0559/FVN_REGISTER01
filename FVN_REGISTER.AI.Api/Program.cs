@@ -105,8 +105,9 @@ app.Use(async (http, next) =>
   // Context snapshots are small authorization projections, never document uploads.
   var isContextSnapshot = string.Equals(http.Request.Path.Value, "/api/ai/v1/business-context/snapshot", StringComparison.OrdinalIgnoreCase);
   var isAssistantAsk = string.Equals(http.Request.Path.Value, "/api/ai/v1/assistant/ask", StringComparison.OrdinalIgnoreCase);
-  var maximumSignedBodyBytes = isContextSnapshot ? MaximumBusinessContextSnapshotBytes : isAssistantAsk ? MaximumAssistantAskBytes : long.MaxValue;
-  if ((isContextSnapshot || isAssistantAsk) && http.Request.ContentLength is long contentLength && contentLength > maximumSignedBodyBytes)
+  var isConversationAsk = string.Equals(http.Request.Path.Value, "/api/ai/v1/conversations/ask", StringComparison.OrdinalIgnoreCase);
+  var maximumSignedBodyBytes = isContextSnapshot ? MaximumBusinessContextSnapshotBytes : (isAssistantAsk || isConversationAsk) ? MaximumAssistantAskBytes : long.MaxValue;
+  if ((isContextSnapshot || isAssistantAsk || isConversationAsk) && http.Request.ContentLength is long contentLength && contentLength > maximumSignedBodyBytes)
   {
    http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
    return;
@@ -121,7 +122,7 @@ app.Use(async (http, next) =>
   {
    bytesRead += read;
    // Enforce the limit while streaming too; Content-Length may be absent or untrusted.
-   if ((isContextSnapshot || isAssistantAsk) && bytesRead > maximumSignedBodyBytes)
+   if ((isContextSnapshot || isAssistantAsk || isConversationAsk) && bytesRead > maximumSignedBodyBytes)
    {
     http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
     return;
