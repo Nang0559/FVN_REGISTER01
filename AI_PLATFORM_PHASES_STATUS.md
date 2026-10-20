@@ -91,3 +91,5 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 
 
 - Security hardening: signed request body SHA-256 is captured by middleware before Minimal API parameter binding, then validated by the HMAC endpoint filter. This avoids validating an empty/consumed body stream after JSON binding.
+
+- Snapshot ingress is capped at 1 MiB before JSON binding; oversized context payloads receive HTTP 413. Document upload endpoints retain their separately configured upload limit.
