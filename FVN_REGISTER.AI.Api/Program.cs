@@ -122,7 +122,8 @@ var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
    ctx.HttpContext.RequestAborted);
  }
  return await next(ctx);
-});// Trusted business context is accepted only through the signed gateway group above.
+});
+// Trusted business context is accepted only through the signed gateway group above.
 // Tenant and actor are taken exclusively from HMAC-validated headers, never request JSON.
 group.MapGet("/business-context/me", async (HttpRequest req, IServiceProvider services, CancellationToken ct) =>
 {
