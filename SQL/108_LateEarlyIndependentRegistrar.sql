@@ -20,6 +20,13 @@ IF COL_LENGTH(N'dbo.F03Functions', N'FunctionKey') IS NULL
     THROW 51806, N'F03Functions.FunctionKey is required. Run SQL/46_SecurityFunctionRegistry.sql first.', 1;
 IF COL_LENGTH(N'dbo.F03Functions', N'DisplayOrder') IS NULL
     THROW 51807, N'F03Functions.DisplayOrder is required by the current security catalog schema.', 1;
+IF COL_LENGTH(N'dbo.F03Functions', N'ModuleCode') IS NULL
+   OR COL_LENGTH(N'dbo.F03Functions', N'ActionCode') IS NULL
+   OR COL_LENGTH(N'dbo.F03Functions', N'ScopeCode') IS NULL
+   OR COL_LENGTH(N'dbo.F03Functions', N'LifecycleStatus') IS NULL
+   OR COL_LENGTH(N'dbo.F03Functions', N'SourceType') IS NULL
+   OR COL_LENGTH(N'dbo.F03Functions', N'LastSeenAt') IS NULL
+    THROW 51808, N'F03Functions security registry columns are missing. Run SQL/46_SecurityFunctionRegistry.sql first.', 1;
 
 /* Permit the third registration type in the existing shared rule store. */
 IF EXISTS
@@ -86,6 +93,18 @@ BEGIN
         N'All', N'Active', N'SecurityFunctionCodes', GETDATE(), 3406
     );
 END;
+
+UPDATE dbo.F03Functions
+SET IsActive = 1,
+    FunctionName = N'Chỉ định người đăng ký Đi muộn/Về sớm',
+    Detail = N'Quản lý danh sách người được chỉ định đăng ký Đi muộn/Về sớm theo phòng ban, khối hoặc toàn công ty.',
+    ModuleCode = N'LateEarly',
+    ActionCode = N'RegistrarManage',
+    ScopeCode = N'All',
+    LifecycleStatus = N'Active',
+    SourceType = N'SecurityFunctionCodes',
+    LastSeenAt = GETDATE()
+WHERE FunctionCode = 3406 AND FunctionKey = N'LateEarly.RegistrarManage';
 GO
 
 /* DB-level protection mirrors the application policy for on-behalf requests.
@@ -105,7 +124,7 @@ BEGIN
     (
         SELECT 1
         FROM inserted q
-        CROSS APPLY
+        OUTER APPLY
         (
             SELECT TOP (1) rr.*
             FROM dbo.F03OTRegistrationRules rr
@@ -121,10 +140,12 @@ BEGIN
             LEFT JOIN dbo.F03Employees e ON e.EmployeeCode = u.EmployeeCode
             WHERE u.Id = q.CreatedBy
         ) creator_info
-        WHERE ISNULL(q.IsOnBehalf, 0) = 1
-          AND UPPER(LTRIM(RTRIM(q.EmployeeCode))) <> UPPER(LTRIM(RTRIM(ISNULL(creator_info.EmployeeCode, N''))))
-          AND NOT
+        WHERE UPPER(LTRIM(RTRIM(q.EmployeeCode))) <> UPPER(LTRIM(RTRIM(ISNULL(creator_info.EmployeeCode, N''))))
+          AND
           (
+              policy_rule.Id IS NULL
+              OR NOT
+              (
               policy_rule.Mode = 1
               OR (policy_rule.Mode = 2 AND EXISTS
                   (SELECT 1 FROM dbo.F03OTRegistrars x
@@ -163,6 +184,7 @@ BEGIN
                             )
                         )
                     )
+              )
               )
           )
     )
