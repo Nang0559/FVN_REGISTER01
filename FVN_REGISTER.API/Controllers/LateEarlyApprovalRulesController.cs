@@ -47,13 +47,15 @@ public sealed class LateEarlyApprovalRulesController : BaseApiController
         if (!await CanManageAsync(ct)) return Forbid();
         if (deptCode < 0) return BadRequest(ApiResponse<object>.Fail("DeptCode không hợp lệ."));
 
+        var ownCode = CodePrefix + deptCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var fallbackCode = CodePrefix + "0";
         var rows = await _db.BusinessRules.AsNoTracking()
             .Where(x => x.Module == RequestModule.LateEarly
-                && (x.Code == CodePrefix + deptCode || x.Code == CodePrefix + "0"))
+                && (x.Code == ownCode || x.Code == fallbackCode))
             .ToListAsync(ct);
 
-        var own = rows.FirstOrDefault(x => x.Code == CodePrefix + deptCode && x.IsActive == true);
-        var fallback = rows.FirstOrDefault(x => x.Code == CodePrefix + "0" && x.IsActive == true);
+        var own = rows.FirstOrDefault(x => x.Code == ownCode && x.IsActive == true);
+        var fallback = rows.FirstOrDefault(x => x.Code == fallbackCode && x.IsActive == true);
         var selected = own ?? fallback;
         var result = selected == null
             ? new LateEarlyApprovalRuleDto { DeptCode = deptCode, IsFallback = deptCode != 0 }
