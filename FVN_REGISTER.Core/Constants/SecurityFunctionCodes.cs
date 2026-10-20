@@ -17,6 +17,11 @@ public static class SecurityFunctionCodes
  public const int UserManagementView=2401,UserManagementCreate=2402,UserManagementEdit=2403,UserManagementLock=2404,UserManagementResetPassword=2405,UserManagementAssignPermission=2406,UserManagementManageTwoFactor=2407;
  public const int HrmSyncViewStatus=2501,HrmSyncSync=2502,HrmSyncReview=2503,HrmSyncRetry=2504;
  public const int SecurityView=2601,SecurityManageRoles=2602,SecurityManageFunctions=2603,SecurityAudit=2604;
+ [SecurityFunctionDefinition("AIDocumentDataEntry.View","Xem biểu mẫu và kết quả nhập liệu AI",ModuleCode="AIDocumentDataEntry",ActionCode="View",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryView=3501;
+ [SecurityFunctionDefinition("AIDocumentDataEntry.TemplateManage","Quản lý biểu mẫu nhập liệu AI",ModuleCode="AIDocumentDataEntry",ActionCode="TemplateManage",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryTemplateManage=3502;
+ [SecurityFunctionDefinition("AIDocumentDataEntry.RunCreate","Tạo lượt nhập liệu AI",ModuleCode="AIDocumentDataEntry",ActionCode="RunCreate",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryRunCreate=3503;
+ [SecurityFunctionDefinition("AIDocumentDataEntry.Confirm","Xác nhận dữ liệu trích xuất AI",ModuleCode="AIDocumentDataEntry",ActionCode="Confirm",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryConfirm=3504;
+ [SecurityFunctionDefinition("AIDocumentDataEntry.Export","Xuất kết quả nhập liệu AI",ModuleCode="AIDocumentDataEntry",ActionCode="Export",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryExport=3505;
  public static readonly IReadOnlySet<int> SystemCriticalCodes=new HashSet<int>{SecurityView,SecurityManageRoles,SecurityManageFunctions,SecurityAudit};
  public static bool IsSystemCritical(int functionCode)=>SystemCriticalCodes.Contains(functionCode);
  public const int PublicInformationManage=2801,PublicFormManage=2807,PublicFormSubmissionView=2808,PublicFormExport=2809,PublicFormView=2819,PublicFormSubmit=2811,PublicFormFeedback=2812,PublicFormCreate=2813,PublicFormEdit=2814,PublicFormAssignAudience=2815,PublicFormResultView=2816,PublicFormResultExport=2817,PublicFormAuditView=2818,ExecutionReview=2802;
