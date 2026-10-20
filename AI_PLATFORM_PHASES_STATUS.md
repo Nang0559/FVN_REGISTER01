@@ -125,3 +125,8 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 ### Knowledge publication approval revalidation
 
 `KnowledgeIndexingService` now re-reads the document's approved status and the matching human review decision inside the serializable publication transaction, after extraction and embedding have completed. If approval/review changed during that work, publication aborts before deactivating existing chunks or upserting replacement vectors. This narrows the stale-approval window; host-side publication authorization still must be supplied by the trusted FVN authorization adapter and is not replaced by this database check.
+
+
+### HR integration readiness reporting (P4)
+
+`GET /api/ai/capabilities` now reports `hrFactsAuthorizationConfigured`, `hrReviewAuthorizationConfigured`, `hrReconciliationConfigured`, and `hrReadOnlyToolsOperational` independently. The operational flag requires both a trusted HR facts provider and a trusted reviewer authorization provider, in addition to the reconciliation service. The default unconfigured providers remain deny-by-default; the existence of HR reconciliation, inbox, or review code is not presented as proof that live FVN HR data access is enabled. `hr-evidence-reconciliation-foundation` is deliberately named as a foundation capability until the FVN-owned read-only facts adapter and per-actor reviewer policy are integrated and tested.
