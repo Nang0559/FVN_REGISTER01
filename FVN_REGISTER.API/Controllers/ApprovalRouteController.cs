@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Responses;
@@ -20,20 +21,24 @@ public sealed class ApprovalRouteController : ControllerBase
     private readonly IApprovalRouteService _routeService;
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
+    private readonly IOtRegistrationPolicy _registrationPolicy;
 
     public ApprovalRouteController(
         IApprovalRouteService routeService,
         ICurrentUserService currentUser,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        IOtRegistrationPolicy registrationPolicy)
     {
         _routeService = routeService;
         _currentUser = currentUser;
         _authorization = authorization;
+        _registrationPolicy = registrationPolicy;
     }
 
     [HttpGet("preview")]
     public async Task<ActionResult<ApiResponse<ApprovalRoutePreviewDto>>> Preview(
         [FromQuery] RequestModule requestType,
+        [FromQuery] string? employeeCode,
         CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
@@ -52,6 +57,7 @@ public sealed class ApprovalRouteController : ControllerBase
             RequestModule.Overtime => SecurityFunctionCodes.OTCreate,
             RequestModule.Trip => SecurityFunctionCodes.TripCreate,
             RequestModule.Equipment => SecurityFunctionCodes.EquipmentCreate,
+            RequestModule.LateEarly => SecurityFunctionCodes.LateEarlyCreate,
             _ => 0
         };
 
@@ -65,12 +71,14 @@ public sealed class ApprovalRouteController : ControllerBase
         if (!await _authorization.HasAsync(user, functionCode, ct))
             return Forbid();
 
-        // EmployeeCode is the only requester identity sent into route resolution.
-        // PositionCode/DeptCode are always loaded from F03Employee by the service.
-        var result = await _routeService.GetPreviewAsync(
-            requestType,
-            user.EmployeeCode,
-            ct);
+        // Resolve department and position from employee master, not client input.
+        var requesterCode = string.IsNullOrWhiteSpace(employeeCode) ? user.EmployeeCode : employeeCode.Trim();
+        if (requestType == RequestModule.LateEarly
+            && !string.Equals(requesterCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase)
+            && !await _registrationPolicy.CanRegisterForEmployeesAsync(user, new[] { requesterCode }, "LATE_EARLY", ct))
+            return Forbid();
+
+        var result = await _routeService.GetPreviewAsync(requestType, requesterCode, ct);
 
         var response = ApiResponse<ApprovalRoutePreviewDto>.FromResult(result);
 
