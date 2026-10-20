@@ -164,3 +164,18 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - Follow-up: the FVN authenticated API controller now exposes conversation create/list/transcript/ask proxy routes. Each upstream request is signed with the current session's actor ID; browser-supplied actor IDs are not accepted. The proxy constructs the strict business-context projection from the current FVN authorization snapshot. The conversation prompt is limited to the latest eight turns, each truncated to 2,500 characters for the AI request-size budget. UI wiring and applying SQL migration 016 remain deployment/product rollout tasks.
 
 - Conversation turns are recorded as `Pending` before model execution, changed to `Completed` only after a successful response, and marked `Failed` if the model call errors. Failed/incomplete turns are excluded from subsequent prompt history. Conversation reads and lists use no-store cache headers.
+
+
+### Conversation and migration review corrections (2026-10-20)
+
+- Corrected `AnswerWithConversationContextAsync` argument order: retrieval limit and cancellation token now precede the optional serialized history argument passed to `AnswerCoreAsync`.
+- Corrected the history validation error text to match the 24,000-character bound.
+- Conversation history now includes both user and assistant roles, excludes only `Pending` and `Failed`, and is still limited to the latest eight messages. Assistant status values such as `Supported`, `PartiallySupported`, and `NotFound` are therefore retained.
+- Migration runner now applies 001–016 and records SHA-256 checksums for 015/016. SQL integration workflow applies the full set twice and asserts data-entry tables, conversation tables, purge procedure, ownership FK, and migration checksums.
+- Documentation index now links only to files that exist. Operations, architecture and integration documentation were aligned to migration 016.
+- Data-entry FVN proxy authorization was changed from the generic system-critical `SecurityView` permission to dedicated function codes: View (3501), TemplateManage (3502), RunCreate (3503), Confirm (3504), Export (3505). Each host route checks the matching permission before forwarding.
+- Conversation message sequence allocation now uses a transaction-owned SQL application lock with a bounded 10-second wait and ReadCommitted transaction instead of Serializable range locking plus MAX+1 alone. The unique sequence index remains the final integrity guard.
+
+**Verification caveats:** SQL CI run 39462131988 successfully applied migrations 001–016 twice and passed the migration/checksum/schema verification and duplicate-ordinal test, but failed later in the pre-existing concurrent lease/dead-letter test step; remaining SQL CI steps were skipped. The full .NET build/test workflow for HEAD 5ed8035 is pending. No local build is claimed.
+
+**Outstanding risks:** conversation `Content` and per-turn `ContextJson` remain plaintext SQL columns and need a reviewed encryption-at-rest/application-key design before sensitive conversations are enabled in production. The 90-day expiry requires a scheduled purge job. A process crash can leave a user turn `Pending`; no recovery job has yet been added. Conversation API endpoint-level integration tests are still outstanding.
