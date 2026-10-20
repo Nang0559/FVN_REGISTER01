@@ -10,16 +10,16 @@
 @inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
 
-<PageTitle>Người đăng ký OT / Trip</PageTitle>
+<PageTitle>Người đăng ký OT / Trip / Đi muộn-Về sớm</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-1">Người đăng ký OT / Trip</MudText>
+<MudText Typo="Typo.h5" Class="mb-1">Người đăng ký OT / Trip / Đi muộn-Về sớm</MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
     Cấu hình theo phòng ban. Chế độ 1 cho phép tất cả; chế độ 2 chỉ định user; chế độ 3 chỉ định chức vụ.
 </MudText>
 
 <MudTabs ActivePanelIndex="_tab" ActivePanelIndexChanged="OnTabChanged" Rounded="true" Elevation="1">
     <MudTabPanel Text="Chính sách OT" />
-    <MudTabPanel Text="Chính sách Trip" />
+    <MudTabPanel Text="Chính sách Trip" />\n    <MudTabPanel Text="Đi muộn / Về sớm" />
 </MudTabs>
 
 <MudPaper Class="pa-4 mt-2">
@@ -92,7 +92,7 @@
     private async Task OnTabChanged(int index)
     {
         _tab = index;
-        await LoadAsync(index == 0 ? "OT" : "TRIP");
+        await LoadAsync(index switch { 0 => "OT", 1 => "TRIP", _ => "LATE_EARLY" });
     }
 
     private async Task LoadAsync(string type)
