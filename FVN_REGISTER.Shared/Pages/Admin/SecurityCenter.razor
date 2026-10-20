@@ -510,10 +510,10 @@
                 @if (IsOtRegistrarFunction)
                 {
                     <MudPaper Class="pa-4 mt-4" Outlined="true" Style="border-radius:16px">
-                        <MudText Typo="Typo.h6">Chức vụ được phép đăng ký OT / Trip</MudText>
+                        <MudText Typo="Typo.h6">Chức vụ được phép đăng ký OT / Trip / Đi muộn-Về sớm</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                            Chọn các chức vụ được đăng ký OT/Trip theo phòng ban (hoặc mặc định toàn công ty).
-                            Chức vụ không được chọn (ví dụ Staff, Worker) sẽ không tự đăng ký được, trừ khi được chỉ định ở phần trên.
+                            Chọn chức vụ được đăng ký OT, Trip hoặc Đi muộn/Về sớm theo phòng ban (hoặc mặc định toàn công ty).
+                            Chức vụ không được chọn (ví dụ Staff, Worker) sẽ không tự đăng ký hộ; người được chỉ định tại Feature Operator vẫn có thể đăng ký trong phạm vi được giao.
                             Phòng ban đã có cấu hình riêng sẽ dùng cấu hình riêng thay cho mặc định toàn công ty.
                         </MudText>
 
@@ -536,7 +536,7 @@
                                                Value="_posRegisterType" ValueChanged="RegistrarPositionTypeChanged"
                                                Disabled="@(_posLoading || _posSaving)">
                                         <MudSelectItem T="string" Value="@("OT")">Đăng ký OT</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("TRIP")">Đăng ký Trip</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("TRIP")">Đăng ký Trip</MudSelectItem>\n                                         <MudSelectItem T="string" Value="@("LATE_EARLY")">Đăng ký Đi muộn / Về sớm</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" md="9">
@@ -959,7 +959,7 @@
     private bool IsGlobalOperatorFunction
         => FeatureOperatorCatalog.IsModuleWide(_operatorFunctionCode);
 
-    // ---- OT.RegistrarManage: chỉ định người được đăng ký OT/Trip cho nhiều người (phòng ban / nhóm phòng ban / toàn công ty)
+    // ---- OT.RegistrarManage: chỉ định người được đăng ký OT / Trip / LateEarly (phòng ban / nhóm phòng ban / toàn công ty)
     private bool IsOtRegistrarFunction => _operatorFunctionCode == SecurityFunctionCodes.OTRegistrarManage;
     private string _registrarScopeMode = "Department";
     private string? _registrarBlockCode;
@@ -998,7 +998,7 @@
         await LoadFeatureOperatorsAsync();
     }
 
-    // ---- OT.RegistrarManage: chức vụ được phép đăng ký OT/Trip (rule AssignedPositions của F03OTRegistrationRules).
+    // ---- OT.RegistrarManage: chức vụ được phép đăng ký theo từng RegisterType (F03OTRegistrationRules).
     // Phạm vi "Toàn công ty" = rule mặc định (DepartmentCode = 0); phạm vi phòng ban = rule riêng của phòng ban đó.
     private List<PositionDto> _posOptions = new();
     private HashSet<string> _posSelected = new(StringComparer.OrdinalIgnoreCase);
@@ -1133,7 +1133,7 @@
 
     private string OperatorAssignmentHint
         => IsOtRegistrarFunction
-            ? "Người được chỉ định được đăng ký OT/Trip cho nhiều người trong phạm vi đã chọn (cộng với chức vụ approver theo chính sách phòng ban). Nhân viên không thuộc diện này không tự đăng ký OT mà phải báo cấp quản lý hoặc người được chỉ định. Chọn phòng ban sẽ lọc danh sách nhân viên của phòng ban đó."
+            ? "Người được chỉ định được đăng ký OT, Trip và Đi muộn/Về sớm cho nhân viên trong phạm vi phòng ban/khối/toàn công ty đã chọn. Đây là quyền đăng ký hộ; chức vụ được phép tự đăng ký được cấu hình riêng theo từng loại đăng ký bên dưới. Chọn phòng ban sẽ lọc danh sách nhân viên của phòng ban đó."
             : OperatorGrantsCapability
             ? Language.T("security.operatorGrantsHint")
             : IsGlobalOperatorFunction
