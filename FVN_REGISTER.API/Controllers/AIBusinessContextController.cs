@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -22,15 +24,81 @@ public sealed class AIBusinessContextController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
     private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public AIBusinessContextController(
         ICurrentUserService currentUser,
         IAuthorizationService authorization,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory)
     {
         _currentUser = currentUser;
         _authorization = authorization;
         _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
+    }
+
+
+    /// <summary>
+    /// Authenticated FVN-to-AI handoff. The actor is derived from the current FVN session;
+    /// the AI API accepts this request only after validating the gateway HMAC and replay nonce.
+    /// </summary>
+    [HttpGet("ai")]
+    public async Task<IActionResult> GetAiContext(CancellationToken cancellationToken)
+    {
+        var user = _currentUser.GetCurrentUser();
+        if (user is null || !user.IsLoggedIn || user.UserId <= 0)
+            return Unauthorized();
+
+        var baseUrl = _configuration["AIPlatform:BaseUrl"];
+        var apiKey = _configuration["AIPlatform:ApiKey"];
+        var signingKey = _configuration["AIPlatform:ContextSigningKey"];
+        var tenant = _configuration["AIPlatform:TenantCode"]?.Trim();
+        const string path = "/api/ai/v1/business-context/me";
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
+            string.IsNullOrWhiteSpace(apiKey) ||
+            string.IsNullOrWhiteSpace(signingKey) || signingKey.Length < 32 ||
+            string.IsNullOrWhiteSpace(tenant) || tenant.Length > 64)
+            return Problem("AIPlatform BaseUrl, ApiKey, ContextSigningKey and TenantCode must be configured.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+
+        var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
+        var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+        var bodyHash = Convert.ToHexString(SHA256.HashData(Array.Empty<byte>()));
+        var canonical = string.Join("\n", "GET", path, tenant, actor, timestamp, nonce, bodyHash);
+        var signature = Convert.ToHexString(HMACSHA256.HashData(
+            Encoding.UTF8.GetBytes(signingKey), Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(baseUri, path.TrimStart('/')));
+        request.Headers.TryAddWithoutValidation("X-AI-API-Key", apiKey);
+        request.Headers.TryAddWithoutValidation("X-Tenant-Code", tenant);
+        request.Headers.TryAddWithoutValidation("X-Actor-Id", actor);
+        request.Headers.TryAddWithoutValidation("X-AI-Timestamp", timestamp);
+        request.Headers.TryAddWithoutValidation("X-AI-Nonce", nonce);
+        request.Headers.TryAddWithoutValidation("X-AI-Signature", signature);
+
+        try
+        {
+            using var upstream = await _httpClientFactory.CreateClient("FvnAi")
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            var payload = await upstream.Content.ReadAsStringAsync(cancellationToken);
+            return new ContentResult
+            {
+                StatusCode = (int)upstream.StatusCode,
+                ContentType = upstream.Content.Headers.ContentType?.ToString() ?? "application/json",
+                Content = payload
+            };
+        }
+        catch (HttpRequestException)
+        {
+            return Problem("AI service unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Problem("AI service timed out.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
     }
 
     [HttpGet("me")]
