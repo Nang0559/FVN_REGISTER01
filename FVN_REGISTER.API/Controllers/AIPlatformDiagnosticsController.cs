@@ -97,7 +97,7 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
 
         var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture);
         using var form = new MultipartFormDataContent();
-        await using var input = file.OpenReadStream(maxBytes);
+        await using var input = file.OpenReadStream();
         using var fileContent = new StreamContent(input);
         fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
             string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
