@@ -58,7 +58,7 @@ Never edit an already-applied migration to change its historical behavior. The m
 
 ## 5. Apply and rollback
 
-Use `scripts/apply-ai-migrations.sh`. It applies all 18 migrations and verifies recorded checksums before executing them.
+Use `scripts/apply-ai-migrations.sh`. It applies all 19 migrations and verifies recorded checksums before executing them.
 
 Rollback is forward-only at the application/schema level: restore from a tested SQL backup for destructive rollback, or create a new compensating migration. Do not delete rows from `AiSchemaMigrations` to bypass the ledger.
 
@@ -121,4 +121,4 @@ CI verifies tenant predicates in the RAG retrieval query, tenant references in r
 
 ## 13. CI
 
-`.github/workflows/ai-platform-sql-validation.yml` runs SQL Server 2022 integration checks, applies migrations 001–018 twice, verifies checksums and constraints, tests duplicate legacy ordinal failure, concurrent lease claims, nonce replay, dead-letter document state, tenant-scoped deduplication, and the AI unit-test project.
+`.github/workflows/ai-platform-sql-validation.yml` runs SQL Server 2022 integration checks, applies migrations 001–019 twice, verifies checksums and constraints, tests duplicate legacy ordinal failure, concurrent lease claims, nonce replay, dead-letter document state, tenant-scoped deduplication, and the AI unit-test project.
