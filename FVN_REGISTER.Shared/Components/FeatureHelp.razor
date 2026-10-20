@@ -75,14 +75,22 @@
         _content = HelpContent.Empty;
         if (_featureCode is null) return;
 
-        var response = await SecurityClient.GetMyPermissionsAsync();
-        if (!response.IsSuccess || response.Data is null || !HelpAccessPolicy.CanView(response.Data, _featureCode))
+        try
+        {
+            var response = await SecurityClient.GetMyPermissionsAsync();
+            if (!response.IsSuccess || response.Data is null || !HelpAccessPolicy.CanView(response.Data, _featureCode))
+            {
+                _permissionDenied = true;
+                _featureCode = null;
+                return;
+            }
+            _content = HelpContent.Load(Language.Current, code!);
+        }
+        catch
         {
             _permissionDenied = true;
             _featureCode = null;
-            return;
         }
-        _content = HelpContent.Load(Language.Current, code!);
     }
 
     private async Task Open()
