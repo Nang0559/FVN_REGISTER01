@@ -206,7 +206,7 @@ public sealed class LateEarlyService : ILateEarlyService
                 ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
             var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.LateEarlyView, ct);
             var query = _uow.Repository<F03LateEarlyRequest>().Query().AsNoTracking()
-                .Where(x => x.IsActive == true);
+                ;
 
             if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                 query = query.Where(x => x.EmployeeCode == user.EmployeeCode || x.RegisteredByEmployeeCode == user.EmployeeCode);
