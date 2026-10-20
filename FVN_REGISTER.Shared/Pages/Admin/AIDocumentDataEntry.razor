@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using System.Net.Http.Json
 @using System.Text.Json
+@using FVN_REGISTER.AI.Application.Contracts
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using FVN_REGISTER.Core.Constants
@@ -30,7 +31,7 @@
         <MudItem xs="12" lg="5">
             <MudPaper Outlined="true" Class="pa-4">
                 <MudText Typo="Typo.h6">1. Đăng ký Excel mẫu</MudText>
-                <MudText Typo="body2" Color="Color.Secondary" Class="mb-3">Chỉ cấu hình một lần cho mỗi biểu mẫu. Mapping dùng path nghiệp vụ, vì vậy có thể tái sử dụng cho HR, sản xuất và chất lượng.</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Chỉ cấu hình một lần cho mỗi biểu mẫu. Mapping dùng path nghiệp vụ, vì vậy có thể tái sử dụng cho HR, sản xuất và chất lượng.</MudText>
                 <MudTextField @bind-Value="_templateCode" Label="Template code" Variant="Variant.Outlined" />
                 <MudTextField @bind-Value="_displayName" Label="Tên mẫu" Variant="Variant.Outlined" Class="mt-2" />
                 <MudGrid Spacing="2" Class="mt-1">
@@ -44,7 +45,7 @@
                 <MudTextField @bind-Value="_worksheetName" Label="Worksheet" Variant="Variant.Outlined" Class="mt-2" />
                 <InputFile OnChange="OnTemplateSelected" accept=".xlsx" class="mt-3" />
                 @if (_templateFile is not null) { <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@_templateFile.Name · @FormatBytes(_templateFile.Size)</MudAlert> }
-                <MudTextField @bind-Value="_definitionJson" Label="Mapping JSON" Lines="12" Variant="Variant.Outlined" Class="mt-3" HelperText="Ví dụ: columns [{path:'items[].itemCode',header:'Mã hàng',columnLetter:'A',dataType:'string',required:true}]. Dùng JSON hợp lệ." />
+                <MudTextField @bind-Value="_definitionJson" Label="Mapping JSON" Lines="12" Variant="Variant.Outlined" Class="mt-3" HelperText="JSON hợp lệ. Mỗi column khai báo path, header, columnLetter, dataType và required." />
                 <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="@(_loading || _templateFile is null)" OnClick="CreateTemplateAsync" Class="mt-3">Lưu Excel mẫu</MudButton>
             </MudPaper>
         </MudItem>
@@ -62,14 +63,15 @@
                 {
                     <MudDivider Class="my-3" />
                     <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="Typo.subtitle1">Run: @_runId</MudText><MudSpacer /><MudChip T="string" Size="Size.Small" Color="@StatusColor(_status)">@_status</MudChip></MudStack>
-                    <MudText Typo="caption" Color="Color.Secondary">Document: @_documentId</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Document: @_documentId</MudText>
                     @if (!string.IsNullOrWhiteSpace(_validation)) { <MudAlert Severity="@(_validation.Contains("\"valid\":true", StringComparison.OrdinalIgnoreCase) ? Severity.Success : Severity.Warning)" Dense="true" Class="mt-2">@_validation</MudAlert> }
                     <MudTextField @bind-Value="_candidateRows" Label="Dữ liệu AI nhận dạng — có thể sửa trực tiếp trước khi xác nhận" Lines="14" Variant="Variant.Outlined" Class="mt-3" />
                     <MudTextField @bind-Value="_comment" Label="Ghi chú xác nhận" Variant="Variant.Outlined" Class="mt-2" />
                     <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
                         <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.CheckCircle" Disabled="@(_loading || !string.Equals(_status, "AwaitingConfirmation", StringComparison.OrdinalIgnoreCase))" OnClick="ConfirmAsync">Xác nhận dữ liệu</MudButton>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_loading" OnClick="RefreshRunAsync">Kiểm tra trạng thái</MudButton>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" Disabled="@(_loading || !string.Equals(_status, "Confirmed", StringComparison.OrdinalIgnoreCase) && !string.Equals(_status, "Exported", StringComparison.OrdinalIgnoreCase))" OnClick="ExportAsync">Xuất Excel</MudButton>
+                        @if (string.Equals(_status, "Confirmed", StringComparison.OrdinalIgnoreCase) || string.Equals(_status, "Exported", StringComparison.OrdinalIgnoreCase))
+                        { <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" Href="@($"api/ai/document-data-entry/runs/{_runId:D}/export")" Target="_blank">Xuất Excel</MudButton> }
                     </MudStack>
                 }
             </MudPaper>
@@ -171,14 +173,6 @@
     {
         if (!_runId.HasValue) return; _loading = true; _error = "";
         try { var response = await Http.PostAsJsonAsync($"api/ai/document-data-entry/runs/{_runId:D}/confirm", new { rowsJson = _candidateRows, comment = _comment }, _json); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); _status = "Confirmed"; Snackbar.Add("Đã xác nhận dữ liệu.", Severity.Success); }
-        catch (Exception ex) { _error = ex.Message; }
-        finally { _loading = false; }
-    }
-
-    private async Task ExportAsync()
-    {
-        if (!_runId.HasValue) return; _loading = true; _error = "";
-        try { var response = await Http.GetAsync($"api/ai/document-data-entry/runs/{_runId:D}/export"); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); var bytes = await response.Content.ReadAsByteArrayAsync(); var fileName = response.Content.Headers.ContentDisposition?.FileNameStar?.Trim('"') ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? $"data-entry-{_runId:N}.xlsx"; await JSRuntime.InvokeVoidAsync("FvnDownloadFile", fileName, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); _status = "Exported"; }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }
