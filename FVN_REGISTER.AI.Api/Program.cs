@@ -180,6 +180,8 @@ group.MapPost("/business-context/snapshot", async (System.Text.Json.JsonElement 
  return Results.Ok(new
  {
   accepted=true,
+  acceptedAtUtc=DateTimeOffset.UtcNow,
+  expiresAtUtc=DateTimeOffset.UtcNow.AddMinutes(2),
   contextVersion=versionElement.GetString(),
   context,
   modules,
