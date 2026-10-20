@@ -170,6 +170,11 @@ group.MapPost("/business-context/snapshot", async (System.Text.Json.JsonElement 
     versionElement.ValueKind!=System.Text.Json.JsonValueKind.String ||
     string.IsNullOrWhiteSpace(versionElement.GetString()))
   return Results.BadRequest(new{error="A versioned trusted FVN_REGISTER context is required."});
+ if(!payload.TryGetProperty("modules",out var modules) ||
+    modules.ValueKind!=System.Text.Json.JsonValueKind.Array ||
+    !payload.TryGetProperty("functions",out var functions) ||
+    functions.ValueKind!=System.Text.Json.JsonValueKind.Array)
+  return Results.BadRequest(new{error="Trusted module and function metadata arrays are required."});
  req.HttpContext.Response.Headers.CacheControl="no-store, no-cache, must-revalidate";
  req.HttpContext.Response.Headers.Pragma="no-cache";
  return Results.Ok(new
@@ -177,8 +182,8 @@ group.MapPost("/business-context/snapshot", async (System.Text.Json.JsonElement 
   accepted=true,
   contextVersion=versionElement.GetString(),
   context,
-  modules=payload.TryGetProperty("modules",out var modules)?modules:default,
-  functions=payload.TryGetProperty("functions",out var functions)?functions:default
+  modules,
+  functions
  });
 });
 
