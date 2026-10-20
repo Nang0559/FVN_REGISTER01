@@ -31,14 +31,14 @@ public sealed class AIDocumentDataEntryController : BaseApiController
     { _authorization = authorization; _clients = clients; _configuration = configuration; }
 
     [HttpGet("templates")]
-    public Task<IActionResult> ListTemplates(CancellationToken ct) => ExecuteAuthorizedAsync("GET", "/api/ai/v1/data-entry/templates", null, ct);
+    public Task<IActionResult> ListTemplates(CancellationToken ct) => ExecuteAuthorizedAsync("GET", "/api/ai/v1/data-entry/templates", null, SecurityFunctionCodes.AIDocumentDataEntryView, ct);
 
     [HttpPost("templates")]
     [RequestSizeLimit(26 * 1024 * 1024)]
     public async Task<IActionResult> CreateTemplate([FromForm] IFormFile file, [FromForm] string templateCode, [FromForm] string displayName,
         [FromForm] string moduleCode, [FromForm] string schemaCode, [FromForm] string definitionJson, CancellationToken ct)
     {
-        if (!await CanUseAsync(ct)) return Forbid();
+        if (!await CanUseAsync(SecurityFunctionCodes.AIDocumentDataEntryTemplateManage, ct)) return Forbid();
         if (file is null || file.Length <= 0) return BadRequest(new { error = "Vui lòng chọn file Excel mẫu." });
         if (string.IsNullOrWhiteSpace(definitionJson)) return BadRequest(new { error = "Thiếu định nghĩa mapping Excel." });
         try { JsonSerializer.Deserialize<DataEntryTemplateDefinition>(definitionJson); } catch (JsonException) { return BadRequest(new { error = "Mapping Excel không phải JSON hợp lệ." }); }
@@ -46,51 +46,51 @@ public sealed class AIDocumentDataEntryController : BaseApiController
         await using var input = file.OpenReadStream(); using var content = new StreamContent(input);
         content.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(file.ContentType) ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : file.ContentType);
         form.Add(content, "file", Path.GetFileName(file.FileName)); form.Add(new StringContent(templateCode ?? ""), "templateCode"); form.Add(new StringContent(displayName ?? ""), "displayName"); form.Add(new StringContent(moduleCode ?? ""), "moduleCode"); form.Add(new StringContent(schemaCode ?? ""), "schemaCode"); form.Add(new StringContent(definitionJson), "definitionJson");
-        return await ExecuteAuthorizedAsync("POST", "/api/ai/v1/data-entry/templates", form, ct);
+        return await ExecuteAuthorizedAsync("POST", "/api/ai/v1/data-entry/templates", form, SecurityFunctionCodes.AIDocumentDataEntryTemplateManage, ct);
     }
 
     [HttpPost("runs")]
     [RequestSizeLimit(26 * 1024 * 1024)]
     public async Task<IActionResult> CreateRun([FromForm] IFormFile file, [FromForm] string templateCode, CancellationToken ct)
     {
-        if (!await CanUseAsync(ct)) return Forbid();
+        if (!await CanUseAsync(SecurityFunctionCodes.AIDocumentDataEntryRunCreate, ct)) return Forbid();
         if (file is null || file.Length <= 0) return BadRequest(new { error = "Vui lòng chọn giấy tờ cần nhập." });
         using var form = new MultipartFormDataContent(); await using var input = file.OpenReadStream(); using var content = new StreamContent(input);
         content.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
         form.Add(content, "file", Path.GetFileName(file.FileName)); form.Add(new StringContent(templateCode ?? ""), "templateCode");
-        return await ExecuteAuthorizedAsync("POST", "/api/ai/v1/data-entry/runs", form, ct);
+        return await ExecuteAuthorizedAsync("POST", "/api/ai/v1/data-entry/runs", form, SecurityFunctionCodes.AIDocumentDataEntryRunCreate, ct);
     }
 
     [HttpGet("runs/{runId:guid}")]
-    public Task<IActionResult> GetRun(Guid runId, CancellationToken ct) => ExecuteAuthorizedAsync("GET", $"/api/ai/v1/data-entry/runs/{runId:D}", null, ct);
+    public Task<IActionResult> GetRun(Guid runId, CancellationToken ct) => ExecuteAuthorizedAsync("GET", $"/api/ai/v1/data-entry/runs/{runId:D}", null, SecurityFunctionCodes.AIDocumentDataEntryView, ct);
 
     [HttpPost("runs/{runId:guid}/confirm")]
     public async Task<IActionResult> Confirm(Guid runId, [FromBody] ConfirmRequest request, CancellationToken ct)
     {
-        if (!await CanUseAsync(ct)) return Forbid();
+        if (!await CanUseAsync(SecurityFunctionCodes.AIDocumentDataEntryConfirm, ct)) return Forbid();
         var content = JsonContent.Create(request);
-        return await ExecuteAuthorizedAsync("POST", $"/api/ai/v1/data-entry/runs/{runId:D}/confirm", content, ct);
+        return await ExecuteAuthorizedAsync("POST", $"/api/ai/v1/data-entry/runs/{runId:D}/confirm", content, SecurityFunctionCodes.AIDocumentDataEntryConfirm, ct);
     }
 
     [HttpGet("runs/{runId:guid}/export")]
     public async Task<IActionResult> Export(Guid runId, CancellationToken ct)
     {
-        if (!await CanUseAsync(ct)) return Forbid();
+        if (!await CanUseAsync(SecurityFunctionCodes.AIDocumentDataEntryExport, ct)) return Forbid();
         var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture); using var response = await SendSignedAiAsync(HttpMethod.Get, $"/api/ai/v1/data-entry/runs/{runId:D}/export", null, actor, ct);
         if (!response.IsSuccessStatusCode) return await RelayAsync(response, ct);
         var bytes = await response.Content.ReadAsByteArrayAsync(ct); var fileName = response.Content.Headers.ContentDisposition?.FileNameStar?.Trim('"') ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? $"data-entry-{runId:N}.xlsx";
         return File(bytes, response.Content.Headers.ContentType?.MediaType ?? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
-    private async Task<IActionResult> ExecuteAuthorizedAsync(string method, string path, HttpContent? content, CancellationToken ct)
+    private async Task<IActionResult> ExecuteAuthorizedAsync(string method, string path, HttpContent? content, int functionCode, CancellationToken ct)
     {
-        if (!await CanUseAsync(ct)) return Forbid();
+        if (!await CanUseAsync(functionCode, ct)) return Forbid();
         var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture); using var response = await SendSignedAiAsync(new HttpMethod(method), path, content, actor, ct); return await RelayAsync(response, ct);
     }
 
-    private async Task<bool> CanUseAsync(CancellationToken ct)
+    private async Task<bool> CanUseAsync(int functionCode, CancellationToken ct)
     {
-        var user = UserInfo; return user is not null && await _authorization.CanAccessAsync(user, SecurityFunctionCodes.SecurityView, null, null, ct);
+        var user = UserInfo; return user is not null && await _authorization.CanAccessAsync(user, functionCode, null, null, ct);
     }
 
     private async Task<HttpResponseMessage> SendSignedAiAsync(HttpMethod method, string path, HttpContent? content, string actor, CancellationToken ct)
