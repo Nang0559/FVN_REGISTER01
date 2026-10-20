@@ -12,7 +12,7 @@ public sealed class DocumentRetentionService(AiPlatformDbContext db,IOriginalDoc
 
  public async Task<DocumentRetentionResult> ArchiveExpiredAsync(DateTimeOffset nowUtc,CancellationToken cancellationToken=default)
  {
-  var transaction = db.Database.IsInMemory() ? null : await db.Database.BeginTransactionAsync(cancellationToken);
+  var transaction = IsInMemory() ? null : await db.Database.BeginTransactionAsync(cancellationToken);
   try
   {
    if (transaction is not null)
@@ -63,4 +63,6 @@ public sealed class DocumentRetentionService(AiPlatformDbContext db,IOriginalDoc
    if(transaction is not null) await transaction.DisposeAsync();
   }
  }
+
+ private bool IsInMemory() => string.Equals(db.Database.ProviderName,"Microsoft.EntityFrameworkCore.InMemory",StringComparison.Ordinal);
 }
