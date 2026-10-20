@@ -105,7 +105,9 @@ Lịch làm việc tập trung thông tin theo từng ngày: ngày làm/ngày ng
 - Muốn kiểm tra ngày nghỉ công ty, Chủ nhật hoặc ngày lễ.
 - Thấy dấu **?** hoặc ký hiệu cảnh báo và cần biết phải làm gì.
 
-![Lịch làm việc cá nhân](../../screenshots/state-2-depth-1--calendar-f69e2163.png)
+![Lịch làm việc cá nhân — các vị trí thao tác được đánh số](../../screenshots/state-2-depth-1--calendar-f69e2163-annotated.svg)
+
+**Đối chiếu số trên ảnh:** ① mở Lịch làm việc; ② chuyển tháng hoặc đổi chế độ xem; ③ lọc loại thông tin; ④ chọn ngày cần xem chi tiết.
 
 **Cách tra cứu**
 
