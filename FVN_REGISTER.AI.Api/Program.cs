@@ -69,6 +69,33 @@ app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o,IServiceProvide
  return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured,modelConfigured=!string.IsNullOrWhiteSpace(s.Model),embeddingModelConfigured=!string.IsNullOrWhiteSpace(s.EmbeddingModel),malwareScannerConfigured=string.Equals(app.Configuration["AIPlatform:MalwareScanner:Provider"],"ClamAV",StringComparison.OrdinalIgnoreCase),businessContextConfigured,businessToolCatalogConfigured,businessToolExecutorConfigured,capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","pdf-text-extraction","docx-text-extraction","image-ocr","scanned-pdf-ocr","generic-document-classification","schema-registry","schema-driven-extraction","extraction-validation","human-review-persistence","feedback-capture","feedback-evaluation","knowledge-publication","acl-scoped-vector-search","hr-evidence-reconciliation","hr-case-inbox","hr-case-review-audit","fvn-business-context-contracts","fail-closed-business-tool-gateway"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
 });
 var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
+// Trusted business context is accepted only through the signed gateway group above.
+// Tenant and actor are taken exclusively from HMAC-validated headers, never request JSON.
+group.MapGet("/business-context/me", async (HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+ var tenant=req.Headers["X-Tenant-Code"].ToString().Trim();
+ var actor=req.Headers["X-Actor-Id"].ToString().Trim();
+ if(string.IsNullOrWhiteSpace(tenant)||tenant.Length>64||string.IsNullOrWhiteSpace(actor)||actor.Length>128)
+  return Results.BadRequest(new{error="Signed tenant and actor context is required."});
+ var contextProvider=services.GetRequiredService<IAuthorizedFvnBusinessContextProvider>();
+ var catalog=services.GetRequiredService<IAuthorizedFvnBusinessToolCatalog>();
+ var executor=services.GetRequiredService<IAuthorizedFvnBusinessToolExecutor>();
+ try
+ {
+  var context=await contextProvider.GetContextAsync(tenant,actor,ct);
+  if(!string.Equals(context.TenantCode,tenant,StringComparison.Ordinal)||
+     !string.Equals(context.ActorId,actor,StringComparison.Ordinal))
+   return Results.Forbid();
+  var modules=await catalog.GetModulesAsync(context,ct);
+  var tools=await catalog.GetAvailableToolsAsync(context,null,ct);
+  req.HttpContext.Response.Headers.CacheControl="no-store, no-cache, must-revalidate";
+  return Results.Ok(new{context,modules,tools,toolExecutionConfigured=executor is not FVN_REGISTER.AI.Infrastructure.Services.UnconfiguredFvnBusinessGateway});
+ }
+ catch(UnauthorizedAccessException){return Results.Forbid();}
+ catch(InvalidOperationException ex) when(ex.Message=="FVN_BUSINESS_GATEWAY_NOT_CONFIGURED")
+ {return Results.Problem("Trusted FVN_REGISTER business context adapter is not configured.",statusCode:503);}
+});
+
  var configured=app.Configuration[$"{AIPlatformOptions.SectionName}:ApiKey"];
  if(string.IsNullOrWhiteSpace(configured)) return Results.Problem("AI API key is not configured. Upload endpoints are disabled.",statusCode:503);
  if(!ctx.HttpContext.Request.Headers.TryGetValue("X-AI-API-Key",out var supplied)) return Results.Unauthorized();
