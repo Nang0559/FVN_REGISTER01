@@ -68,6 +68,22 @@ app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o,IServiceProvide
  var businessToolExecutorConfigured=businessExecutor is not FVN_REGISTER.AI.Infrastructure.Services.UnconfiguredFvnBusinessGateway;
  return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured,modelConfigured=!string.IsNullOrWhiteSpace(s.Model),embeddingModelConfigured=!string.IsNullOrWhiteSpace(s.EmbeddingModel),malwareScannerConfigured=string.Equals(app.Configuration["AIPlatform:MalwareScanner:Provider"],"ClamAV",StringComparison.OrdinalIgnoreCase),businessContextConfigured,businessToolCatalogConfigured,businessToolExecutorConfigured,capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","pdf-text-extraction","docx-text-extraction","image-ocr","scanned-pdf-ocr","generic-document-classification","schema-registry","schema-driven-extraction","extraction-validation","human-review-persistence","feedback-capture","feedback-evaluation","knowledge-publication","acl-scoped-vector-search","hr-evidence-reconciliation","hr-case-inbox","hr-case-review-audit","fvn-business-context-contracts","signed-fvn-context-snapshot","fail-closed-business-tool-gateway"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
 });
+// Buffer and hash signed request bodies before Minimal API argument binding consumes them.
+// Endpoint filters execute after binding, so hashing Request.Body inside the filter is too late.
+const string SignedBodyHashItemKey = "FVN_REGISTER.AI.SignedBodySha256";
+app.Use(async (http, next) =>
+{
+ if (http.Request.Path.StartsWithSegments("/api/ai/v1"))
+ {
+  http.Request.EnableBuffering();
+  using var hash = SHA256.Create();
+  var digest = await hash.ComputeHashAsync(http.Request.Body, http.RequestAborted);
+  http.Items[SignedBodyHashItemKey] = Convert.ToHexString(digest);
+  http.Request.Body.Position = 0;
+ }
+ await next();
+});
+
 var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  var configured=app.Configuration[$"{AIPlatformOptions.SectionName}:ApiKey"];
  if(string.IsNullOrWhiteSpace(configured)) return Results.Problem("AI API key is not configured. Upload endpoints are disabled.",statusCode:503);
@@ -86,11 +102,9 @@ var group=app.MapGroup("/api/ai/v1").AddEndpointFilter(async (ctx,next)=>{
  var bodySha256 = string.Empty;
  if (bindContent)
  {
-  request.EnableBuffering();
-  using var hash = SHA256.Create();
-  var digest = await hash.ComputeHashAsync(request.Body, ctx.HttpContext.RequestAborted);
-  bodySha256 = Convert.ToHexString(digest);
-  request.Body.Position = 0;
+  bodySha256 = ctx.HttpContext.Items[SignedBodyHashItemKey] as string ?? string.Empty;
+  if (string.IsNullOrWhiteSpace(bodySha256))
+   return Results.Problem("Signed request body digest was not captured before model binding.", statusCode:503);
  }
  if(!RequestIdentitySignature.TryValidate(signingKey??string.Empty,request.Method,request.Path.Value??"/",
      tenant,actor,timestamp,nonce,signature,DateTimeOffset.UtcNow,out var identityFailure,
