@@ -15,6 +15,7 @@ using FVN_REGISTER.Core.Entities.LateEarly;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Text.Json;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Core.Entities.Common;
@@ -91,6 +92,10 @@ public sealed class LateEarlyService : ILateEarlyService
             if (retroactive && string.IsNullOrWhiteSpace(request.ReasonNote))
                 throw new ArgumentException("Đăng ký bổ sung sau thời điểm phát sinh phải ghi rõ lý do.");
 
+            // Serialize the monthly quota check and insert so two different request types
+            // (late + early) cannot both pass the same remaining monthly allowance.
+            await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+
             var policy = await GetLateEarlyPolicyAsync(employee.DeptCode, ct);
             if (policy.IsActive && policy.MonthlyLimit > 0)
             {
@@ -136,6 +141,7 @@ public sealed class LateEarlyService : ILateEarlyService
 
             await _uow.Repository<F03LateEarlyRequest>().AddAsync(entity, ct);
             await _uow.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
             return ServiceResult<LateEarlyRequestDto>.Ok(ToDto(entity, employee.EmployeeName), "Đã tạo bản nháp đăng ký.");
         }
         catch (DbUpdateException)
