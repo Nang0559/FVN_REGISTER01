@@ -73,7 +73,7 @@ public sealed class RequestIdentitySignatureTests
         var timestamp = now.ToUnixTimeSeconds().ToString();
         var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
         var bodyHash = Convert.ToHexString(SHA256.HashData(Array.Empty<byte>()));
-        var canonical = string.Join("\\n", "GET", "/api/ai/v1/business-context/me",
+        var canonical = string.Join("\n", "GET", "/api/ai/v1/business-context/me",
             Tenant, Actor, timestamp, nonce, bodyHash);
         var signature = Convert.ToHexString(HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(Key), Encoding.UTF8.GetBytes(canonical)));
@@ -90,7 +90,7 @@ public sealed class RequestIdentitySignatureTests
         var timestamp = now.ToUnixTimeSeconds().ToString();
         var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
         var bodyHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("{\\"value\\":1}")));
-        var canonical = string.Join("\\n", "POST", "/api/ai/v1/business-context/snapshot",
+        var canonical = string.Join("\n", "POST", "/api/ai/v1/business-context/snapshot",
             Tenant, Actor, timestamp, nonce, bodyHash);
         var signature = Convert.ToHexString(HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(Key), Encoding.UTF8.GetBytes(canonical)));
