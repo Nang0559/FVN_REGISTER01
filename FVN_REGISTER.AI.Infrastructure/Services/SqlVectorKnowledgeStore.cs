@@ -93,9 +93,11 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlV
         var rows = await db.KnowledgeChunks
             .FromSqlInterpolated($@"SELECT k.* FROM ai.AiKnowledgeChunks AS k
                 INNER JOIN ai.AiReviews AS r ON r.Id = k.ReviewId
+                INNER JOIN ai.AiDocuments AS d ON d.Id = k.DocumentId
                 WHERE k.TenantCode = {tenantCode} AND k.IsActive = 1
                   AND r.TenantCode = {tenantCode} AND r.DocumentId = k.DocumentId
                   AND (r.Decision = N'Approved' OR r.Decision = N'Corrected')
+                  AND d.TenantCode = {tenantCode} AND d.Status = N'Approved'
                   AND k.Content IS NOT NULL
                   AND k.EmbeddingJson IS NOT NULL
                   AND EXISTS (
