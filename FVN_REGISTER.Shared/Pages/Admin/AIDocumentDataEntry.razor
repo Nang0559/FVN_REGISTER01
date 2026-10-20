@@ -1,0 +1,188 @@
+@page "/admin/ai-document-entry"
+@attribute [Authorize]
+@using System.Net.Http.Json
+@using System.Text.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Security
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+<PageTitle>AI nhập dữ liệu chứng từ</PageTitle>
+
+<MudStack Spacing="3" Class="py-3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Color="Color.Primary" Size="Size.Large" />
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">AI nhập dữ liệu chứng từ</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Ảnh/PDF giấy tờ → AI đọc → kiểm tra → người dùng xác nhận → Excel mẫu. Không ghi trực tiếp vào nghiệp vụ.</MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadTemplatesAsync" Disabled="_loading">Làm mới</MudButton>
+    </MudStack>
+
+    @if (!string.IsNullOrWhiteSpace(_error)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert> }
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" lg="5">
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudText Typo="Typo.h6">1. Đăng ký Excel mẫu</MudText>
+                <MudText Typo="body2" Color="Color.Secondary" Class="mb-3">Chỉ cấu hình một lần cho mỗi biểu mẫu. Mapping dùng path nghiệp vụ, vì vậy có thể tái sử dụng cho HR, sản xuất và chất lượng.</MudText>
+                <MudTextField @bind-Value="_templateCode" Label="Template code" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_displayName" Label="Tên mẫu" Variant="Variant.Outlined" Class="mt-2" />
+                <MudGrid Spacing="2" Class="mt-1">
+                    <MudItem xs="6"><MudTextField @bind-Value="_moduleCode" Label="Module code" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6"><MudTextField @bind-Value="_schemaCode" Label="Schema code" Variant="Variant.Outlined" /></MudItem>
+                </MudGrid>
+                <MudGrid Spacing="2" Class="mt-1">
+                    <MudItem xs="6"><MudNumericField T="int" @bind-Value="_headerRow" Label="Header row" Min="1" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6"><MudNumericField T="int" @bind-Value="_dataStartRow" Label="Data start row" Min="1" Variant="Variant.Outlined" /></MudItem>
+                </MudGrid>
+                <MudTextField @bind-Value="_worksheetName" Label="Worksheet" Variant="Variant.Outlined" Class="mt-2" />
+                <InputFile OnChange="OnTemplateSelected" accept=".xlsx" class="mt-3" />
+                @if (_templateFile is not null) { <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@_templateFile.Name · @FormatBytes(_templateFile.Size)</MudAlert> }
+                <MudTextField @bind-Value="_definitionJson" Label="Mapping JSON" Lines="12" Variant="Variant.Outlined" Class="mt-3" HelperText="Ví dụ: columns [{path:'items[].itemCode',header:'Mã hàng',columnLetter:'A',dataType:'string',required:true}]. Dùng JSON hợp lệ." />
+                <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="@(_loading || _templateFile is null)" OnClick="CreateTemplateAsync" Class="mt-3">Lưu Excel mẫu</MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="7">
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudText Typo="Typo.h6">2. Đưa giấy tờ vào AI</MudText>
+                <MudSelect T="string" @bind-Value="_selectedTemplate" Label="Excel mẫu" Variant="Variant.Outlined" Class="mt-2">
+                    @foreach (var template in _templates) { <MudSelectItem Value="@template.TemplateCode">@template.TemplateCode — @template.DisplayName</MudSelectItem> }
+                </MudSelect>
+                <InputFile OnChange="OnDocumentSelected" accept=".pdf,.png,.jpg,.jpeg,.docx,.txt" class="mt-3" />
+                @if (_documentFile is not null) { <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@_documentFile.Name · @FormatBytes(_documentFile.Size)</MudAlert> }
+                <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" Disabled="@(_loading || _documentFile is null || string.IsNullOrWhiteSpace(_selectedTemplate))" OnClick="CreateRunAsync" Class="mt-3">AI đọc và lập dữ liệu</MudButton>
+                @if (_runId.HasValue)
+                {
+                    <MudDivider Class="my-3" />
+                    <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="Typo.subtitle1">Run: @_runId</MudText><MudSpacer /><MudChip T="string" Size="Size.Small" Color="@StatusColor(_status)">@_status</MudChip></MudStack>
+                    <MudText Typo="caption" Color="Color.Secondary">Document: @_documentId</MudText>
+                    @if (!string.IsNullOrWhiteSpace(_validation)) { <MudAlert Severity="@(_validation.Contains("\"valid\":true", StringComparison.OrdinalIgnoreCase) ? Severity.Success : Severity.Warning)" Dense="true" Class="mt-2">@_validation</MudAlert> }
+                    <MudTextField @bind-Value="_candidateRows" Label="Dữ liệu AI nhận dạng — có thể sửa trực tiếp trước khi xác nhận" Lines="14" Variant="Variant.Outlined" Class="mt-3" />
+                    <MudTextField @bind-Value="_comment" Label="Ghi chú xác nhận" Variant="Variant.Outlined" Class="mt-2" />
+                    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.CheckCircle" Disabled="@(_loading || !string.Equals(_status, "AwaitingConfirmation", StringComparison.OrdinalIgnoreCase))" OnClick="ConfirmAsync">Xác nhận dữ liệu</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_loading" OnClick="RefreshRunAsync">Kiểm tra trạng thái</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" Disabled="@(_loading || !string.Equals(_status, "Confirmed", StringComparison.OrdinalIgnoreCase) && !string.Equals(_status, "Exported", StringComparison.OrdinalIgnoreCase))" OnClick="ExportAsync">Xuất Excel</MudButton>
+                    </MudStack>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudText Typo="Typo.h6">3. Excel mẫu đang hoạt động</MudText>
+        <MudTable Items="_templates" Dense="true" Hover="true">
+            <HeaderContent><MudTh>Code</MudTh><MudTh>Tên</MudTh><MudTh>Module</MudTh><MudTh>Schema</MudTh><MudTh>Version</MudTh><MudTh>Worksheet</MudTh><MudTh>Cột</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.TemplateCode</MudTd><MudTd>@context.DisplayName</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.SchemaCode</MudTd><MudTd>@context.Version</MudTd><MudTd>@context.Definition.WorksheetName</MudTd><MudTd>@context.Definition.Columns.Count</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText Class="pa-3" Color="Color.Secondary">Chưa có Excel mẫu.</MudText></NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
+    private bool _loading;
+    private string _error = "";
+    private List<DataEntryTemplateView> _templates = [];
+    private string _templateCode = "FVN_FORM_DEFAULT";
+    private string _displayName = "Mẫu nhập chứng từ FVN";
+    private string _moduleCode = "FVN_REGISTER";
+    private string _schemaCode = "FVN_DOCUMENT_ENTRY";
+    private string _worksheetName = "Sheet1";
+    private int _headerRow = 1;
+    private int _dataStartRow = 2;
+    private string _definitionJson = "{\n  \"worksheetName\": \"Sheet1\",\n  \"headerRow\": 1,\n  \"dataStartRow\": 2,\n  \"columns\": [\n    { \"path\": \"items[].itemCode\", \"header\": \"Mã hàng\", \"columnLetter\": \"A\", \"dataType\": \"string\", \"required\": true, \"sourceHints\": [\"Mã hàng\", \"Item Code\"] },\n    { \"path\": \"items[].itemName\", \"header\": \"Tên hàng\", \"columnLetter\": \"B\", \"dataType\": \"string\", \"required\": true },\n    { \"path\": \"items[].unit\", \"header\": \"Đơn vị\", \"columnLetter\": \"C\", \"dataType\": \"string\", \"required\": true },\n    { \"path\": \"items[].quantity\", \"header\": \"Số lượng\", \"columnLetter\": \"D\", \"dataType\": \"decimal\", \"required\": true },\n    { \"path\": \"items[].remark\", \"header\": \"Ghi chú\", \"columnLetter\": \"E\", \"dataType\": \"string\", \"required\": false }\n  ]\n}";
+    private IBrowserFile? _templateFile;
+    private IBrowserFile? _documentFile;
+    private string _selectedTemplate = "";
+    private Guid? _runId;
+    private Guid? _documentId;
+    private string _status = "";
+    private string _candidateRows = "[]";
+    private string _validation = "";
+    private string _comment = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        if (!permissions.IsSuccess || permissions.Data?.Has(SecurityFunctionCodes.SecurityView) != true) { _error = "Tài khoản cần quyền Security.View để sử dụng AI nhập dữ liệu."; return; }
+        await LoadTemplatesAsync();
+    }
+
+    private async Task LoadTemplatesAsync()
+    {
+        _loading = true; _error = "";
+        try { var response = await Http.GetAsync("api/ai/document-data-entry/templates"); if (!response.IsSuccessStatusCode) { _error = await response.Content.ReadAsStringAsync(); return; } _templates = await response.Content.ReadFromJsonAsync<List<DataEntryTemplateView>>(_json) ?? []; if (string.IsNullOrWhiteSpace(_selectedTemplate) && _templates.Count > 0) _selectedTemplate = _templates[0].TemplateCode; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private void OnTemplateSelected(InputFileChangeEventArgs e) => _templateFile = e.FileCount > 0 ? e.File : null;
+    private void OnDocumentSelected(InputFileChangeEventArgs e) => _documentFile = e.FileCount > 0 ? e.File : null;
+
+    private async Task CreateTemplateAsync()
+    {
+        if (_templateFile is null) return; _loading = true; _error = "";
+        try
+        {
+            var definition = JsonSerializer.Deserialize<DataEntryTemplateDefinition>(_definitionJson, _json) ?? throw new InvalidOperationException("Mapping JSON không hợp lệ.");
+            using var form = new MultipartFormDataContent(); await using var stream = _templateFile.OpenReadStream(20 * 1024 * 1024); using var file = new StreamContent(stream); file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            form.Add(file, "file", _templateFile.Name); form.Add(new StringContent(_templateCode), "templateCode"); form.Add(new StringContent(_displayName), "displayName"); form.Add(new StringContent(_moduleCode), "moduleCode"); form.Add(new StringContent(_schemaCode), "schemaCode"); form.Add(new StringContent(JsonSerializer.Serialize(definition, _json)), "definitionJson");
+            var response = await Http.PostAsync("api/ai/document-data-entry/templates", form); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); Snackbar.Add("Đã lưu Excel mẫu.", Severity.Success); await LoadTemplatesAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task CreateRunAsync()
+    {
+        if (_documentFile is null || string.IsNullOrWhiteSpace(_selectedTemplate)) return; _loading = true; _error = "";
+        try
+        {
+            using var form = new MultipartFormDataContent(); await using var stream = _documentFile.OpenReadStream(20 * 1024 * 1024); using var file = new StreamContent(stream); file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(string.IsNullOrWhiteSpace(_documentFile.ContentType) ? "application/octet-stream" : _documentFile.ContentType); form.Add(file, "file", _documentFile.Name); form.Add(new StringContent(_selectedTemplate), "templateCode");
+            var response = await Http.PostAsync("api/ai/document-data-entry/runs", form); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); var receipt = await response.Content.ReadFromJsonAsync<DataEntryRunReceipt>(_json) ?? throw new InvalidOperationException("AI không trả về run."); _runId = receipt.RunId; _documentId = receipt.DocumentId; _status = receipt.Status; _candidateRows = "[]"; _validation = ""; await PollRunAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task PollRunAsync()
+    {
+        for (var i = 0; i < 24 && _runId.HasValue; i++) { await RefreshRunAsync(); if (_status is "AwaitingConfirmation" or "Confirmed" or "Exported" or "Failed" or "Rejected") break; await Task.Delay(2500); }
+    }
+
+    private async Task RefreshRunAsync()
+    {
+        if (!_runId.HasValue) return;
+        try { var response = await Http.GetAsync($"api/ai/document-data-entry/runs/{_runId:D}"); if (!response.IsSuccessStatusCode) { _error = await response.Content.ReadAsStringAsync(); return; } var run = await response.Content.ReadFromJsonAsync<DataEntryRunView>(_json); if (run is null) return; _status = run.Status; _documentId = run.DocumentId; _candidateRows = run.CandidateRowsJson ?? _candidateRows; _validation = run.ValidationJson ?? ""; }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (!_runId.HasValue) return; _loading = true; _error = "";
+        try { var response = await Http.PostAsJsonAsync($"api/ai/document-data-entry/runs/{_runId:D}/confirm", new { rowsJson = _candidateRows, comment = _comment }, _json); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); _status = "Confirmed"; Snackbar.Add("Đã xác nhận dữ liệu.", Severity.Success); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task ExportAsync()
+    {
+        if (!_runId.HasValue) return; _loading = true; _error = "";
+        try { var response = await Http.GetAsync($"api/ai/document-data-entry/runs/{_runId:D}/export"); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); var bytes = await response.Content.ReadAsByteArrayAsync(); var fileName = response.Content.Headers.ContentDisposition?.FileNameStar?.Trim('"') ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? $"data-entry-{_runId:N}.xlsx"; await JSRuntime.InvokeVoidAsync("FvnDownloadFile", fileName, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); _status = "Exported"; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private static Color StatusColor(string status) => status switch { "AwaitingConfirmation" => Color.Warning, "Confirmed" or "Exported" => Color.Success, "Failed" or "Rejected" => Color.Error, "Running" => Color.Info, _ => Color.Default };
+    private static string FormatBytes(long value) => value < 1024 ? $"{value} B" : value < 1024 * 1024 ? $"{value / 1024d:0.##} KB" : $"{value / 1024d / 1024d:0.##} MB";
+}
