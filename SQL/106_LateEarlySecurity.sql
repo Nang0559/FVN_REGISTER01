@@ -74,6 +74,28 @@ SELECT 1, 0, d.FunctionCode, d.FunctionKey, d.FunctionName,
 FROM @Definitions d
 WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode = d.FunctionCode);
 
+/* Seed role grants by cloning the closest existing request capability:
+   - registrar creation follows OT.Create (registrars are still constrained by LATE_EARLY policy)
+   - personal view/edit/cancel follows Trip equivalents
+   - approver grant follows either Trip.Approve or OT.Approve.
+   Administrators can refine these grants later in Security Center. */
+DECLARE @GrantMap TABLE(SourceCode int NOT NULL, TargetCode int NOT NULL);
+INSERT @GrantMap(SourceCode, TargetCode)
+VALUES (2201,3401),(2102,3402),(2203,3403),(2204,3404),(2205,3405),(2105,3405);
+
+INSERT dbo.F03RoleFunctions(IdRole, IdFunction, ScopeCode, AccessMode)
+SELECT DISTINCT sourceGrant.IdRole, targetFunction.Id, sourceGrant.ScopeCode, sourceGrant.AccessMode
+FROM @GrantMap mapping
+JOIN dbo.F03Functions sourceFunction ON sourceFunction.FunctionCode = mapping.SourceCode AND sourceFunction.IsActive = 1
+JOIN dbo.F03RoleFunctions sourceGrant ON sourceGrant.IdFunction = sourceFunction.Id
+JOIN dbo.F03Functions targetFunction ON targetFunction.FunctionCode = mapping.TargetCode AND targetFunction.IsActive = 1
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03RoleFunctions existing
+    WHERE existing.IdRole = sourceGrant.IdRole
+      AND existing.IdFunction = targetFunction.Id
+);
+
 IF OBJECT_ID(N'dbo.F03SecurityFunctionRegistry', N'U') IS NOT NULL
 BEGIN
     INSERT dbo.F03SecurityFunctionRegistry
