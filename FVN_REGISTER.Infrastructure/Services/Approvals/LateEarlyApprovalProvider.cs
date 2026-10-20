@@ -85,6 +85,9 @@ public sealed class LateEarlyApprovalProvider
                     ? ApprovalStatus.InProgress
                     : ApprovalStatus.Pending;
 
+        if (entity.RequestStatus == ApprovalStatus.Rejected)
+            entity.IsActive = false;
+
         await _uow.SaveChangesAsync(ct);
     }
 
