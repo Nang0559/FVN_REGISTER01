@@ -44,6 +44,21 @@ public sealed class ApprovalBuildContext
         PositionCode = positionCode
     };
 
+    public static ApprovalBuildContext ForLateEarly(
+        int requestId, string employeeCode, int deptCode, string positionCode,
+        bool isRetroactive, string lateEarlyTypeCode) => new()
+    {
+        RequestId = requestId,
+        EmployeeCode = employeeCode,
+        DeptCode = deptCode,
+        PositionCode = positionCode,
+        Extra = new Dictionary<string, object?>
+        {
+            ["IsRetroactive"] = isRetroactive,
+            ["LateEarlyTypeCode"] = lateEarlyTypeCode
+        }
+    };
+
     public static ApprovalBuildContext ForEquipment(int requestId, string employeeCode, int deptCode, string positionCode) => new()
     {
         RequestId = requestId,
