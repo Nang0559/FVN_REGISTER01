@@ -92,6 +92,35 @@ public sealed class AIBusinessContextController : ControllerBase
             })
             .ToArray();
 
+        // Group only authoritative permission metadata. This is discovery metadata, not an
+        // executable tool catalog and must never be treated as a grant by the AI service.
+        var modules = functions
+            .Where(x => !string.IsNullOrWhiteSpace(x.moduleCode))
+            .GroupBy(x => x.moduleCode!, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new
+            {
+                moduleCode = group.Key,
+                displayName = group.Key,
+                functions = group.Select(x => new
+                {
+                    functionCode = x.functionCode,
+                    functionName = x.functionName,
+                    description = x.description,
+                    actionCode = x.actionCode,
+                    scopeCode = x.scopeCode,
+                    accessMode = x.accessMode,
+                    isSystemCritical = x.isSystemCritical
+                }).ToArray()
+            })
+            .ToArray();
+
+        // Permission snapshots contain security-sensitive data. Never let a proxy/browser
+        // cache a previous user's context and replay it after an account switch.
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers.Vary = "Authorization";
+
         return Ok(new
         {
             context = new
@@ -107,6 +136,7 @@ public sealed class AIBusinessContextController : ControllerBase
                 retrievedAtUtc = DateTimeOffset.UtcNow,
                 contextVersion
             },
+            modules,
             functions,
             managedScopes
         });
