@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FVN_REGISTER.Infrastructure.Services.OT;
 
 /// <summary>
-/// Single source of truth for "who may register OT / Trip".
+/// Single source of truth for who may register OT / Trip / LateEarly, with independent Feature Operator assignments per registration type.
 /// Registrar of a department = (a) active Feature Operator assignment of OT.RegistrarManage covering the department
 /// (department / block = nhóm phòng ban / all), OR (b) the department rule: Everyone / assigned users / approver positions.
 /// Everybody else is NOT a registrar: they cannot create OT and cannot add other people to a Trip; they report to their
@@ -27,7 +27,7 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
     public async Task<bool> IsRegistrarAsync(UserIdentityDto user, int deptCode, string registerType = "OT", CancellationToken ct = default)
     {
         if (user == null) return false;
-        if (await IsAssignedRegistrarAsync(user, deptCode, ct)) return true;
+        if (await IsAssignedRegistrarAsync(user, deptCode, NormalizeType(registerType), ct)) return true;
 
         var rule = await ResolveAsync(deptCode, NormalizeType(registerType), ct);
         if (rule == null) return false;
@@ -80,8 +80,8 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
         if (!string.IsNullOrWhiteSpace(code)
             && await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking().AnyAsync(x =>
                 x.IsActive == true
-                && x.FunctionCode == SecurityFunctionCodes.OTRegistrarManage
-                && x.ResourceType == FeatureOperatorCatalog.OtRegistrar
+                && x.FunctionCode == RegistrarFunctionCode(type)
+                && x.ResourceType == RegistrarResourceType(type)
                 && x.EmployeeCode == code, ct))
             return true;
 
@@ -114,15 +114,15 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
         };
     }
 
-    private async Task<bool> IsAssignedRegistrarAsync(UserIdentityDto user, int deptCode, CancellationToken ct)
+    private async Task<bool> IsAssignedRegistrarAsync(UserIdentityDto user, int deptCode, string registerType, CancellationToken ct)
     {
         var code = user.EmployeeCode?.Trim();
         if (string.IsNullOrWhiteSpace(code)) return false;
 
         var rows = await _db.Set<F03FeatureOperatorAssignment>().AsNoTracking()
             .Where(x => x.IsActive == true
-                        && x.FunctionCode == SecurityFunctionCodes.OTRegistrarManage
-                        && x.ResourceType == FeatureOperatorCatalog.OtRegistrar
+                        &&  x.FunctionCode == RegistrarFunctionCode(registerType)
+                        && x.ResourceType == RegistrarResourceType(registerType)
                         && x.EmployeeCode == code)
             .Select(x => new { x.ResourceId, x.ScopeCode })
             .ToListAsync(ct);
@@ -146,6 +146,16 @@ public sealed class OtRegistrationPolicy : IOtRegistrationPolicy
             .Where(x => x.IsActive == true && x.RegisterType == registerType && (x.DepartmentCode == deptCode || x.DepartmentCode == 0))
             .OrderByDescending(x => x.DepartmentCode == deptCode)
             .FirstOrDefaultAsync(ct);
+
+    private static int RegistrarFunctionCode(string registerType)
+        => registerType == "LATE_EARLY"
+            ? SecurityFunctionCodes.LateEarlyRegistrarManage
+            : SecurityFunctionCodes.OTRegistrarManage;
+
+    private static string RegistrarResourceType(string registerType)
+        => registerType == "LATE_EARLY"
+            ? FeatureOperatorCatalog.LateEarlyRegistrar
+            : FeatureOperatorCatalog.OtRegistrar;
 
     private static string NormalizeType(string value)
         => string.Equals(value, "TRIP", StringComparison.OrdinalIgnoreCase) ? "TRIP"
