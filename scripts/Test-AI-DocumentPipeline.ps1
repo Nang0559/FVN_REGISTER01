@@ -204,11 +204,29 @@ try {
         throw "Timed out waiting for ingestion completion. Last job status: $($status.jobStatus)"
     }
 
-    Write-Host "4/4 - End-to-end ingestion completed." -ForegroundColor Cyan
+    Write-Host "4/4 - Verifying persisted extraction result..." -ForegroundColor Cyan
+    $extractionPath = "/api/ai/v1/documents/$documentId/extraction"
+    $extractionRequest = New-SignedRequest -Method "GET" -Path $extractionPath -BodyBytes ([byte[]]@()) -ContentType ""
+    try {
+        $extractionResponse = $client.SendAsync($extractionRequest).GetAwaiter().GetResult()
+        $extractionText = Get-ResponseText $extractionResponse
+        if (-not $extractionResponse.IsSuccessStatusCode) {
+            throw "Extraction query failed (HTTP $([int]$extractionResponse.StatusCode)): $extractionText"
+        }
+        $extraction = $extractionText | ConvertFrom-Json
+        $extractionFields = @($extraction.PSObject.Properties.Name) -join ", "
+        Write-Host "Extraction endpoint returned HTTP $([int]$extractionResponse.StatusCode). Response fields: $extractionFields" -ForegroundColor Green
+        $extractionResponse.Dispose()
+    }
+    finally {
+        $extractionRequest.Dispose()
+    }
+
+    Write-Host "End-to-end ingestion and extraction persistence completed." -ForegroundColor Cyan
     Write-Host "DocumentId: $documentId"
     Write-Host "Document status: $($status.status)"
     Write-Host "Job status: $($status.jobStatus)"
-    Write-Host "Next: inspect the extraction endpoint and review candidate; this test does not approve or write business records." -ForegroundColor Green
+    Write-Host "This smoke test does not approve the candidate or write business records." -ForegroundColor Green
 }
 finally {
     $client.Dispose()
