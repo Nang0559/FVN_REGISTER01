@@ -51,7 +51,7 @@ The P1–P8 sequence is a separate product architecture roadmap, not a renumberi
 
 For an empty dedicated `FVN_AI` database run exactly:
 
-`001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014`
+`001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015 → 016 → 017 → 018 → 019`
 
 Migration `014_Phase5_ReleaseRetentionTenantHardening.sql` is a forward migration; do not edit already-applied migrations. It adds release provenance, tenant composite constraints, retention/dedup hardening, replay-window enforcement and queue/document state propagation.
 
@@ -59,7 +59,7 @@ Migration `014_Phase5_ReleaseRetentionTenantHardening.sql` is a forward migratio
 
 `.github/workflows/ai-platform-sql-validation.yml` now:
 
-- applies migrations 001–014 twice;
+- applies migrations 001–019 twice;
 - checks release-aware extraction indexes, tenant columns/FKs, dedup index and migration checksums;
 - verifies duplicate legacy chunk ordinals fail clearly;
 - exercises concurrent lease claims and nonce replay;
@@ -158,10 +158,10 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - Every user turn stores the strict, validated business-context projection used for that turn. EmployeeCode and unknown fields remain excluded by the shared validator.
 - Prior turns are loaded only from the same tenant, actor, and conversation; at most eight completed turns are passed as a separate `conversationHistory` property. Current RAG evidence remains a distinct property and only current-question search results can be cited. Conversation history is explicitly treated as untrusted context, never as evidence or instructions.
 - Message sequence allocation is serialized per append and protected by a unique tenant/conversation/sequence index. Conversations expire after 90 days; the migration includes a bounded purge procedure for an externally scheduled SQL Agent job. The API hides expired conversations even before physical purge.
-- This provides persistence and bounded context inside the signed AI API. The authenticated FVN web/API proxy still needs matching user-facing conversation routes before the feature can be considered end-to-end available in the product UI. SQL migration 016 must be applied before enabling these endpoints.
+- This provides persistence and bounded context inside the signed AI API. The authenticated FVN API proxy now has matching conversation lifecycle routes; the Blazor UI still needs wiring. SQL migrations 001–019 must be applied before enabling these endpoints.
 
 
-- Follow-up: the FVN authenticated API controller now exposes conversation create/list/transcript/ask proxy routes. Each upstream request is signed with the current session's actor ID; browser-supplied actor IDs are not accepted. The proxy constructs the strict business-context projection from the current FVN authorization snapshot. The conversation prompt is limited to the latest eight turns, each truncated to 2,500 characters for the AI request-size budget. UI wiring and applying SQL migration 016 remain deployment/product rollout tasks.
+- Follow-up: the FVN authenticated API controller now exposes conversation create/list/transcript/ask proxy routes. Each upstream request is signed with the current session's actor ID; browser-supplied actor IDs are not accepted. The proxy constructs the strict business-context projection from the current FVN authorization snapshot. The conversation prompt is limited to the latest eight turns, each truncated to 2,500 characters for the AI request-size budget. UI wiring and applying SQL migrations 001–019 remain deployment/product rollout tasks.
 
 - Conversation turns are recorded as `Pending` before model execution, changed to `Completed` only after a successful response, and marked `Failed` if the model call errors. Failed/incomplete turns are excluded from subsequent prompt history. Conversation reads and lists use no-store cache headers.
 
@@ -172,11 +172,11 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - Corrected the history validation error text to match the 24,000-character bound.
 - Conversation history now includes both user and assistant roles, excludes only `Pending` and `Failed`, and is still limited to the latest eight messages. Assistant status values such as `Supported`, `PartiallySupported`, and `NotFound` are therefore retained.
 - Migration runner now applies 001–019 and records SHA-256 checksums for 015–019. SQL integration workflow applies the full set twice and asserts data-entry tables, conversation tables, purge/recovery procedures, ownership FK, and migration checksums. Migration 017/019 correct dead-letter document status transactionally without leaving a trigger on the queue table (the claim procedure uses OUTPUT); migration 018 marks abandoned Pending user turns Failed after a bounded age.
-- Documentation index now links only to files that exist. Operations, architecture and integration documentation were aligned to migration 016.
+- Documentation index now links only to files that exist. Operations, architecture and integration documentation were aligned to migration 019.
 - Data-entry FVN proxy authorization was changed from the generic system-critical `SecurityView` permission to dedicated function codes: View (3501), TemplateManage (3502), RunCreate (3503), Confirm (3504), Export (3505). Each host route checks the matching permission before forwarding.
 - Conversation message sequence allocation now uses a transaction-owned SQL application lock with a bounded 10-second wait and ReadCommitted transaction instead of Serializable range locking plus MAX+1 alone. The unique sequence index remains the final integrity guard.
 
-**Verification caveats:** SQL CI run 39462131988 successfully applied migrations 001–016 twice and passed the migration/checksum/schema verification and duplicate-ordinal test, but failed later in the pre-existing concurrent lease/dead-letter test step; remaining SQL CI steps were skipped. The full .NET build/test workflow for HEAD 5ed8035 is pending. No local build is claimed.
+**Verification caveats:** SQL CI run 39462131988 successfully applied migrations 001–016 twice and passed the migration/checksum/schema verification and duplicate-ordinal test, but failed later in the pre-existing concurrent lease/dead-letter test step; remaining SQL CI steps were skipped. The full .NET build/test workflow for the latest branch HEAD is queued/pending. SQL CI for migration 019 is also queued; the previous SQL run exposed the queue-trigger/OUTPUT incompatibility, which migration 019 removes by moving the document update into the failure procedure. No local build is claimed.
 
 **Outstanding risks:** conversation `Content` and per-turn `ContextJson` remain plaintext SQL columns and need a reviewed encryption-at-rest/application-key design before sensitive conversations are enabled in production. The 90-day expiry requires a scheduled purge job. A process crash can leave a user turn `Pending`; migration 018 adds a stored procedure, but it still requires a scheduled SQL Agent job or equivalent scheduler to run. Conversation API endpoint-level integration tests are still outstanding.
 
