@@ -17,6 +17,16 @@ on:
         required: false
         default: "500"
         type: string
+      route_filter:
+        description: "Only capture routes matching this regex, e.g. /equipment|/admin/import (blank = whole site)"
+        required: false
+        default: ""
+        type: string
+      open_forms:
+        description: "Click buttons that only OPEN forms/dialogs (Tạo, Thêm, Sửa). Use a TEST environment only."
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -42,6 +52,12 @@ jobs:
       PLAYWRIGHT_CRAWL_BUDGET_MINUTES: "85"
       PLAYWRIGHT_MAX_TARGETS_PER_PAGE: "30"
       PLAYWRIGHT_PAGE_BUDGET_SECONDS: "150"
+      # User-manual capture: numbered/outlined copy of every screenshot + buttons-inventory.csv
+      PLAYWRIGHT_ANNOTATE: "true"
+      PLAYWRIGHT_ROW_BUTTON_SAMPLE: "1"
+      PLAYWRIGHT_INCLUDE_FORM_CONTROLS: "true"
+      PLAYWRIGHT_ROUTE_FILTER: ${{ inputs.route_filter }}
+      PLAYWRIGHT_OPEN_FORMS: ${{ inputs.open_forms && 'true' || 'false' }}
       CI: "true"
 
     steps:
