@@ -37,7 +37,7 @@
                                   Variant="Variant.Outlined" Margin="Margin.Dense"
                                   HelperText="Nhập mã công nhân cần đăng ký." />
                     <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
-                               OnClick="LoadApprovalRouteAsync" Disabled="@_loadingRoute || string.IsNullOrWhiteSpace(_employeeCode)">
+                               OnClick="LoadApprovalRouteAsync" Disabled="@(_loadingRoute || string.IsNullOrWhiteSpace(_employeeCode))">
                         Tải luồng duyệt theo nhân viên
                     </MudButton>
                 </MudItem>
@@ -138,7 +138,7 @@
     private async Task CreateAndSubmit()
     {
         if (_saving) return;
-        await _form!.Validate();
+        await _form!.ValidateAsync();
         if (!_form.IsValid || string.IsNullOrWhiteSpace(_employeeCode)
             || string.IsNullOrWhiteSpace(_reasonCode) || !_workDate.HasValue || !_plannedTime.HasValue)
         {
