@@ -233,6 +233,112 @@ public sealed class AIBusinessContextController : ControllerBase
         }
     }
 
+    [HttpPost("conversations")]
+    public Task<IActionResult> CreateConversation([FromBody] CreateAiConversationGatewayRequest input, CancellationToken ct) =>
+        ForwardConversationAsync(HttpMethod.Post, "/api/ai/v1/conversations", new { title = input.Title }, false, ct);
+
+    [HttpGet("conversations")]
+    public Task<IActionResult> ListConversations(CancellationToken ct) =>
+        ForwardConversationAsync(HttpMethod.Get, "/api/ai/v1/conversations", null, false, ct);
+
+    [HttpGet("conversations/{conversationId:guid}")]
+    public Task<IActionResult> GetConversation(Guid conversationId, CancellationToken ct) =>
+        ForwardConversationAsync(HttpMethod.Get, $"/api/ai/v1/conversations/{conversationId:D}", null, false, ct);
+
+    [HttpPost("conversations/ask")]
+    public Task<IActionResult> AskInConversation([FromBody] AskAiConversationGatewayRequest input, CancellationToken ct)
+    {
+        if (input.ConversationId == Guid.Empty || string.IsNullOrWhiteSpace(input.Query) || input.Query.Trim().Length > 4000)
+            return Task.FromResult<IActionResult>(BadRequest(new { error = "Conversation ID and question of 1 to 4000 characters are required." }));
+        return ForwardConversationAsync(HttpMethod.Post, "/api/ai/v1/conversations/ask", new
+        {
+            conversationId = input.ConversationId,
+            query = input.Query.Trim(),
+            retrievalLimit = Math.Clamp(input.RetrievalLimit, 1, 20)
+        }, true, ct);
+    }
+
+    private async Task<IActionResult> ForwardConversationAsync(HttpMethod method, string path, object? payload,
+        bool includeBusinessContext, CancellationToken cancellationToken)
+    {
+        var snapshotResult = await GetCurrentContext(cancellationToken);
+        if (snapshotResult is not OkObjectResult ok || ok.Value is null) return snapshotResult;
+        var baseUrl = _configuration["AIPlatform:BaseUrl"];
+        var apiKey = _configuration["AIPlatform:ApiKey"];
+        var signingKey = _configuration["AIPlatform:ContextSigningKey"];
+        var tenant = _configuration["AIPlatform:TenantCode"]?.Trim();
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) || string.IsNullOrWhiteSpace(apiKey) ||
+            string.IsNullOrWhiteSpace(signingKey) || signingKey.Length < 32 ||
+            string.IsNullOrWhiteSpace(tenant) || tenant.Length > 64)
+            return Problem("AIPlatform gateway configuration is incomplete.", statusCode:503);
+
+        var user = _currentUser.GetCurrentUser();
+        if (user is null || !user.IsLoggedIn || user.UserId <= 0) return Unauthorized();
+        object? requestPayload = payload;
+        if (includeBusinessContext)
+        {
+            using var snapshot = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+            if (!snapshot.RootElement.TryGetProperty("context", out var context) || context.ValueKind != JsonValueKind.Object)
+                return Problem("Authenticated FVN business context is incomplete.", statusCode:503);
+            static string? ReadString(JsonElement source, string name) =>
+                source.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+            static string[] ReadCodes(JsonElement source, string name)
+            {
+                if (!source.TryGetProperty(name, out var values) || values.ValueKind != JsonValueKind.Array) return [];
+                return values.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String)
+                    .Select(x => x.GetString()?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x) && x!.Length <= 160)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(500).ToArray()!;
+            }
+            requestPayload = new
+            {
+                conversationId = ((AskAiConversationGatewayRequest)payload!).ConversationId,
+                query = ((AskAiConversationGatewayRequest)payload!).Query.Trim(),
+                retrievalLimit = Math.Clamp(((AskAiConversationGatewayRequest)payload!).RetrievalLimit, 1, 20),
+                businessContext = new
+                {
+                    tenantCode = ReadString(context, "tenantCode"), actorId = ReadString(context, "actorId"),
+                    departmentCode = ReadString(context, "departmentCode"), positionCode = ReadString(context, "positionCode"),
+                    roleCodes = ReadCodes(context, "roleCodes"), permissionCodes = ReadCodes(context, "permissionCodes"),
+                    functionScopeCodes = ReadCodes(context, "functionScopeCodes"), managedScopeCodes = ReadCodes(context, "managedScopeCodes"),
+                    contextVersion = ReadString(context, "contextVersion")
+                }
+            };
+        }
+
+        var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
+        var body = requestPayload is null ? Array.Empty<byte>() : JsonSerializer.SerializeToUtf8Bytes(requestPayload);
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
+        var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+        var bodyHash = Convert.ToHexString(SHA256.HashData(body));
+        var canonical = string.Join("\n", method.Method.ToUpperInvariant(), path, tenant, actor, timestamp, nonce, bodyHash);
+        var signature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingKey), Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+        using var request = new HttpRequestMessage(method, new Uri(baseUri, path.TrimStart('/')));
+        if (requestPayload is not null)
+        {
+            request.Content = new ByteArrayContent(body);
+            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        }
+        request.Headers.TryAddWithoutValidation("X-AI-API-Key", apiKey);
+        request.Headers.TryAddWithoutValidation("X-Tenant-Code", tenant);
+        request.Headers.TryAddWithoutValidation("X-Actor-Id", actor);
+        request.Headers.TryAddWithoutValidation("X-AI-Timestamp", timestamp);
+        request.Headers.TryAddWithoutValidation("X-AI-Nonce", nonce);
+        request.Headers.TryAddWithoutValidation("X-AI-Signature", signature);
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers.Vary = "Authorization";
+        try
+        {
+            using var upstream = await _httpClientFactory.CreateClient("FvnAi").SendAsync(request,
+                HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            return new ContentResult { StatusCode = (int)upstream.StatusCode,
+                ContentType = upstream.Content.Headers.ContentType?.ToString() ?? "application/json",
+                Content = await upstream.Content.ReadAsStringAsync(cancellationToken) };
+        }
+        catch (HttpRequestException) { return Problem("AI service unavailable.", statusCode:503); }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { return Problem("AI service timed out.", statusCode:503); }
+    }
+
     [HttpGet("me")]
     public async Task<IActionResult> GetCurrentContext(CancellationToken cancellationToken)
     {
@@ -359,3 +465,6 @@ public sealed class AIBusinessContextController : ControllerBase
 }
 
 public sealed record AssistantAskGatewayRequest(string Query, int RetrievalLimit = 8);
+
+public sealed record CreateAiConversationGatewayRequest(string? Title);
+public sealed record AskAiConversationGatewayRequest(Guid ConversationId, string Query, int RetrievalLimit = 8);
