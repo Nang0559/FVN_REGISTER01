@@ -13,7 +13,7 @@ public sealed record FeatureOperatorDefinition(int FunctionCode,string ResourceT
 public static class FeatureOperatorCatalog
 {
  /// <summary>Người được chỉ định đăng ký OT/Trip/LateEarly cho nhiều người. ResourceId = DeptCode; ScopeCode = Department | All | Block:{BlockCode}.</summary>
- public const string OtRegistrar="OT_REGISTRAR";
+ public const string OtRegistrar="OT_REGISTRAR"; public const string LateEarlyRegistrar="LATE_EARLY_REGISTRAR";
  public const string Equipment="EQUIPMENT"; public const string ExecutionPolicy="EXECUTION_POLICY"; public const string ApprovalPolicy="APPROVAL_POLICY"; public const string OtLimitRule="OT_LIMIT_RULE"; public const string WorkCalendar="WORK_CALENDAR"; public const string AttendanceSymbolRule="ATTENDANCE_SYMBOL_RULE"; public const string HrmUserRoleRule="HRM_USER_ROLE_RULE"; public const string PublicInformation="PUBLIC_INFORMATION"; public const string PublicForm="PUBLIC_FORM"; public const string ExecutionReview="EXECUTION_REVIEW"; public const string EquipmentSchema="EQUIPMENT_SCHEMA"; public const string EndpointSoftwareCatalog="ENDPOINT_SOFTWARE_CATALOG";
  private static readonly IReadOnlyDictionary<int,FeatureOperatorDefinition> Definitions=new Dictionary<int,FeatureOperatorDefinition>
  {
@@ -33,7 +33,8 @@ public static class FeatureOperatorCatalog
   [SecurityFunctionCodes.PublicFormExport]=new(SecurityFunctionCodes.PublicFormExport,PublicForm,true),
   [SecurityFunctionCodes.EquipmentFormManage]=new(SecurityFunctionCodes.EquipmentFormManage,EquipmentSchema,true),
   [SecurityFunctionCodes.EndpointSoftwareCatalogManage]=new(SecurityFunctionCodes.EndpointSoftwareCatalogManage,EndpointSoftwareCatalog,false),
-  [SecurityFunctionCodes.OTRegistrarManage]=new(SecurityFunctionCodes.OTRegistrarManage,OtRegistrar,true,AssignmentIsAuthority:true)
+  [SecurityFunctionCodes.OTRegistrarManage]=new(SecurityFunctionCodes.OTRegistrarManage,OtRegistrar,true,AssignmentIsAuthority:true),
+  [SecurityFunctionCodes.LateEarlyRegistrarManage]=new(SecurityFunctionCodes.LateEarlyRegistrarManage,LateEarlyRegistrar,true,AssignmentIsAuthority:true)
  };
  public static bool TryGet(int functionCode,out FeatureOperatorDefinition definition)=>Definitions.TryGetValue(functionCode,out definition!);
  public static bool TryGetResourceType(int functionCode,out string resourceType){if(Definitions.TryGetValue(functionCode,out var definition)){resourceType=definition.ResourceType;return true;}resourceType=string.Empty;return false;}
