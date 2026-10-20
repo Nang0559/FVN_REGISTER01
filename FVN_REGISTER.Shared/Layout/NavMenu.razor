@@ -12,7 +12,7 @@
 <MudNavMenu>
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">@Language.T("nav.dashboard")</MudText>
     <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@Language.T("nav.home")</MudNavLink>
-    @if (CanPersonal(SecurityFunctionCodes.CalendarView) || CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.AttendanceView))
+    @if (CanPersonal(SecurityFunctionCodes.CalendarView) || CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.LateEarlyView) || CanPersonal(SecurityFunctionCodes.AttendanceView))
     {
         <MudNavLink href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendar")</MudNavLink>
     }
@@ -20,7 +20,7 @@
     {
         <MudNavLink href="/execution" Icon="@Icons.Material.Filled.FactCheck">@Language.T("nav.executionReconciliation")</MudNavLink>
     }
-    @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
+    @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.LateEarlyApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
     {
         <MudNavLink href="/work/inbox" Icon="@Icons.Material.Filled.Inbox">@Language.T("nav.workInbox")</MudNavLink>
     }
@@ -82,6 +82,20 @@
             @if (CanPersonal(SecurityFunctionCodes.TripCreate))
             {
                 <MudNavLink href="/trip/create" Icon="@Icons.Material.Filled.Add">@Language.T("nav.tripCreate")</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
+    @if (CanPersonal(SecurityFunctionCodes.LateEarlyView) || CanPersonal(SecurityFunctionCodes.LateEarlyCreate))
+    {
+        <MudNavGroup Title="Đi muộn / Về sớm" Icon="@Icons.Material.Filled.AccessTime" Expanded="false">
+            @if (CanPersonal(SecurityFunctionCodes.LateEarlyView))
+            {
+                <MudNavLink href="/late-early/history" Icon="@Icons.Material.Filled.History">Lịch sử đăng ký</MudNavLink>
+            }
+            @if (CanPersonal(SecurityFunctionCodes.LateEarlyCreate))
+            {
+                <MudNavLink href="/late-early/create" Icon="@Icons.Material.Filled.AddAlarm">Tạo đăng ký / Đăng ký hộ</MudNavLink>
             }
         </MudNavGroup>
     }
