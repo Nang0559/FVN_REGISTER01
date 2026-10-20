@@ -71,21 +71,39 @@ app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o,IServiceProvide
 // Buffer and hash signed request bodies before Minimal API argument binding consumes them.
 // Endpoint filters execute after binding, so hashing Request.Body inside the filter is too late.
 const string SignedBodyHashItemKey = "FVN_REGISTER.AI.SignedBodySha256";
+const long MaximumBusinessContextSnapshotBytes = 1_048_576;
 app.Use(async (http, next) =>
 {
  if (http.Request.Path.StartsWithSegments("/api/ai/v1"))
  {
   // Context snapshots are small authorization projections, never document uploads.
-  if (http.Request.Path.Equals("/api/ai/v1/business-context/snapshot", StringComparison.OrdinalIgnoreCase) &&
-      http.Request.ContentLength is > 1_048_576)
+  var isContextSnapshot = string.Equals(
+   http.Request.Path.Value,
+   "/api/ai/v1/business-context/snapshot",
+   StringComparison.OrdinalIgnoreCase);
+  if (isContextSnapshot && http.Request.ContentLength is > MaximumBusinessContextSnapshotBytes)
   {
    http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
    return;
   }
+
   http.Request.EnableBuffering();
-  using var hash = SHA256.Create();
-  var digest = await hash.ComputeHashAsync(http.Request.Body, http.RequestAborted);
-  http.Items[SignedBodyHashItemKey] = Convert.ToHexString(digest);
+  using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+  var buffer = new byte[81_920];
+  long bytesRead = 0;
+  int read;
+  while ((read = await http.Request.Body.ReadAsync(buffer.AsMemory(), http.RequestAborted)) > 0)
+  {
+   bytesRead += read;
+   // Enforce the limit while streaming too; Content-Length may be absent or untrusted.
+   if (isContextSnapshot && bytesRead > MaximumBusinessContextSnapshotBytes)
+   {
+    http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+    return;
+   }
+   hash.AppendData(buffer, 0, read);
+  }
+  http.Items[SignedBodyHashItemKey] = Convert.ToHexString(hash.GetHashAndReset());
   http.Request.Body.Position = 0;
  }
  await next();
