@@ -388,11 +388,32 @@ public sealed class AIHRCaseController : BaseApiController
                 Content = JsonContent.Create(new { error = "AIPlatform BaseUrl, ApiKey and ContextSigningKey must be configured." })
             };
 
+        // AI API requires signatures bound to the exact query string and body bytes.
+        // Buffer and recreate the content so the signature digest and transmitted bytes are identical.
+        byte[] bodyBytes;
+        try { bodyBytes = content is null ? Array.Empty<byte>() : await content.ReadAsByteArrayAsync(ct); }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+        {
+            return new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = JsonContent.Create(new { error = "Unable to read AI request content." })
+            };
+        }
+
+        var bodySha256 = Convert.ToHexString(SHA256.HashData(bodyBytes));
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
         var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
-        var canonical = string.Join("\n", method.Method.ToUpperInvariant(), path.Split('?')[0], tenant, actor, timestamp, nonce);
+        var canonical = string.Join("\n", method.Method.ToUpperInvariant(), path, tenant, actor, timestamp, nonce, bodySha256);
         var signature = Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingKey), Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
-        using var request = new HttpRequestMessage(method, new Uri(baseUri, path.TrimStart('/'))) { Content = content };
+
+        using var request = new HttpRequestMessage(method, new Uri(baseUri, path.TrimStart('/')));
+        if (content is not null)
+        {
+            var copy = new ByteArrayContent(bodyBytes);
+            foreach (var header in content.Headers)
+                copy.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            request.Content = copy;
+        }
         request.Headers.TryAddWithoutValidation("X-AI-API-Key", apiKey);
         request.Headers.TryAddWithoutValidation("X-Tenant-Code", tenant);
         request.Headers.TryAddWithoutValidation("X-Actor-Id", actor);
