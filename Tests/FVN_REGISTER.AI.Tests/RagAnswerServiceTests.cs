@@ -50,6 +50,33 @@ public sealed class RagAnswerServiceTests
         Assert.False(model.Called);
     }
 
+    [Fact]
+    public async Task AnswerWithContextAsync_PassesContextAsMetadataNotAsRetrievedEvidence()
+    {
+        var chunkId = Guid.NewGuid().ToString();
+        var search = new StubSearch([new KnowledgeSearchHit(chunkId, Guid.NewGuid().ToString(),
+            "Policy.pdf", 2, "The approved policy requires manager approval.", 0.88, "Policy.pdf, page 2")]);
+        var model = new StubModelProvider($"""{"status":"Supported","answer":"Manager approval is required.","citations":["{{chunkId}}"]}""");
+        const string businessContext = """{"tenantCode":"FCCVN","actorId":"42","departmentCode":"27","contextVersion":"v1"}""";
+
+        var result = await CreateService(search, model).AnswerWithContextAsync("FCCVN", "42",
+            ["EMPLOYEE"], "Who approves my request?", businessContext);
+
+        Assert.Equal("Supported", result.Status);
+        Assert.NotNull(model.LastRequest);
+        using var payload = System.Text.Json.JsonDocument.Parse(model.LastRequest!.Input);
+        Assert.Equal("27", payload.RootElement.GetProperty("userContext").GetProperty("departmentCode").GetString());
+        Assert.Equal(chunkId, payload.RootElement.GetProperty("evidence")[0].GetProperty("chunkId").GetString());
+    }
+
+    [Fact]
+    public async Task AnswerWithContextAsync_RejectsNonObjectContext()
+    {
+        var service = CreateService(new StubSearch([]), new StubModelProvider("{}"));
+        await Assert.ThrowsAsync<System.Text.Json.JsonException>(() =>
+            service.AnswerWithContextAsync("FCCVN", "42", ["EMPLOYEE"], "Question?", "[]"));
+    }
+
     private static RagAnswerService CreateService(StubSearch search, StubModelProvider model) =>
         new(search, model, new StubReleaseService());
 
@@ -63,10 +90,12 @@ public sealed class RagAnswerServiceTests
     private sealed class StubModelProvider(string output) : IAIModelProvider
     {
         public bool Called { get; private set; }
+        public AIModelRequest? LastRequest { get; private set; }
         public string ProviderName => "Test";
         public Task<AIModelResponse> GenerateAsync(AIModelRequest request, CancellationToken cancellationToken = default)
         {
             Called = true;
+            LastRequest = request;
             return Task.FromResult(new AIModelResponse(output, "Test", "test-model", "stop", 10, 10, TimeSpan.Zero));
         }
     }
