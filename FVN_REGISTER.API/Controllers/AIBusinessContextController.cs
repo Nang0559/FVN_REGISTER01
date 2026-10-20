@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using Microsoft.AspNetCore.Authorization;
@@ -58,12 +59,11 @@ public sealed class AIBusinessContextController : ControllerBase
         var scopeCodes = snapshot.Functions
             .Where(x => !string.IsNullOrWhiteSpace(x.ScopeCode))
             .Select(x => $"{x.FunctionCode.ToString(CultureInfo.InvariantCulture)}:{x.ScopeCode!.Trim()}")
-            .Concat(managedScopes.Select(x => x.ToString() ?? string.Empty))
-            .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+        var managedScopeSnapshot = JsonSerializer.Serialize(managedScopes);
         var contextVersionSource = string.Join("|",
             tenantCode,
             user.UserId.ToString(CultureInfo.InvariantCulture),
@@ -72,7 +72,8 @@ public sealed class AIBusinessContextController : ControllerBase
             user.PositionCode ?? string.Empty,
             string.Join(",", snapshot.RoleCodes.OrderBy(x => x)),
             string.Join(",", permissionCodes),
-            string.Join(",", scopeCodes));
+            string.Join(",", scopeCodes),
+            managedScopeSnapshot);
         var contextVersion = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(contextVersionSource)));
 
         var functions = snapshot.Functions
@@ -102,7 +103,7 @@ public sealed class AIBusinessContextController : ControllerBase
                 positionCode = user.PositionCode,
                 roleCodes = snapshot.RoleCodes.Select(x => x.ToString(CultureInfo.InvariantCulture)).ToArray(),
                 permissionCodes,
-                managedScopeCodes = scopeCodes,
+                functionScopeCodes = scopeCodes,
                 retrievedAtUtc = DateTimeOffset.UtcNow,
                 contextVersion
             },
