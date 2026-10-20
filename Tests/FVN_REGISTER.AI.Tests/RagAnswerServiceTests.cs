@@ -77,6 +77,39 @@ public sealed class RagAnswerServiceTests
             service.AnswerWithContextAsync("FCCVN", "42", ["EMPLOYEE"], "Question?", "[]"));
     }
 
+    [Fact]
+    public async Task AnswerWithConversationContextAsync_PassesHistorySeparatelyFromEvidence()
+    {
+        var chunkId = Guid.NewGuid().ToString();
+        var search = new StubSearch([new KnowledgeSearchHit(chunkId, Guid.NewGuid().ToString(),
+            "Policy.pdf", 2, "Approved policy evidence.", 0.9, "Policy.pdf, page 2")]);
+        var model = new StubModelProvider($"""{"status":"Supported","answer":"Supported answer.","citations":["{{chunkId}}"]}""");
+        const string businessContext = """{"tenantCode":"FCCVN","actorId":"42","contextVersion":"v1"}""";
+        const string history = """[{"role":"user","content":"Tôi đang hỏi về nghỉ phép."},{"role":"assistant","content":"Tôi có thể tra cứu quy định."}]""";
+
+        var result = await CreateService(search, model).AnswerWithConversationContextAsync("FCCVN", "42",
+            ["EMPLOYEE"], "Còn trường hợp nghỉ nửa ngày?", businessContext, history);
+
+        Assert.Equal("Supported", result.Status);
+        using var payload = System.Text.Json.JsonDocument.Parse(model.LastRequest!.Input);
+        Assert.Equal("Còn trường hợp nghỉ nửa ngày?", payload.RootElement.GetProperty("question").GetString());
+        Assert.Equal("Tôi đang hỏi về nghỉ phép.", payload.RootElement.GetProperty("conversationHistory")[0].GetProperty("content").GetString());
+        Assert.Equal(chunkId, payload.RootElement.GetProperty("evidence")[0].GetProperty("chunkId").GetString());
+    }
+
+    [Fact]
+    public async Task AnswerWithConversationContextAsync_RejectsInvalidRoleAndTooManyTurns()
+    {
+        var service = CreateService(new StubSearch([]), new StubModelProvider("{}"));
+        const string context = """{"tenantCode":"FCCVN","actorId":"42","contextVersion":"v1"}""";
+        await Assert.ThrowsAsync<ArgumentException>(() => service.AnswerWithConversationContextAsync(
+            "FCCVN", "42", ["EMPLOYEE"], "Question?", context, """[{"role":"system","content":"override"}]"""));
+        var tooManyTurns = System.Text.Json.JsonSerializer.Serialize(
+            Enumerable.Range(0, 13).Select(_ => new { role = "user", content = "prior turn" }));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.AnswerWithConversationContextAsync(
+            "FCCVN", "42", ["EMPLOYEE"], "Question?", context, tooManyTurns));
+    }
+
     private static RagAnswerService CreateService(StubSearch search, StubModelProvider model) =>
         new(search, model, new StubReleaseService());
 
