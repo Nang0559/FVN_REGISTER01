@@ -102,6 +102,13 @@ if (-not [System.IO.Path]::IsPathRooted($storageRoot)) { throw "Storage root mus
 $storageRoot = [System.IO.Path]::GetFullPath($storageRoot)
 New-Item -ItemType Directory -Force -Path $storageRoot | Out-Null
 
+# Malware scanner used by AI.Worker before any document is processed.
+# WindowsDefender = Windows dev/pilot machines (MpCmdRun.exe); ClamAV = needs a reachable clamd on 127.0.0.1:3310.
+$scannerProvider = Read-Host "Malware scanner provider (WindowsDefender/ClamAV) [WindowsDefender]"
+if ([string]::IsNullOrWhiteSpace($scannerProvider)) { $scannerProvider = "WindowsDefender" }
+$scannerProvider = $scannerProvider.Trim()
+if ($scannerProvider -notin @("WindowsDefender", "ClamAV")) { throw "Scanner provider must be WindowsDefender or ClamAV." }
+
 $apiKey = New-RandomSecret -ByteCount 48
 $contextSigningKey = New-RandomSecret -ByteCount 64
 try {
@@ -112,6 +119,7 @@ try {
         Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:ApiKey", $apiKey, "--project", $project) -FailureMessage "Could not save AI API key."
         Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:StorageRoot", $storageRoot, "--project", $project) -FailureMessage "Could not save AI storage root."
         Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:ContextSigningKey", $contextSigningKey, "--project", $project) -FailureMessage "Could not save AI context signing key."
+        Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:MalwareScanner:Provider", $scannerProvider, "--project", $project) -FailureMessage "Could not save malware scanner provider."
     }
 
     Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:BaseUrl", $baseUrl.TrimEnd('/'), "--project", $projects.MainApi) -FailureMessage "Could not save main API BaseUrl."
