@@ -29,7 +29,7 @@ flowchart LR
   LLM -->|"answer + validated citations"| API
 ```
 
-Current retrieval is **cosine similarity**, not hybrid/BM25 retrieval. A future hybrid/reranking adapter may be introduced only after a benchmark and quality gate.
+Current retrieval first obtains ACL-filtered vector candidates using cosine similarity, then applies a lightweight lexical token-overlap rerank. This is not a full BM25 index or a production-grade hybrid search engine; any replacement requires benchmark and recall gates.
 
 ## 3. Security boundaries
 
