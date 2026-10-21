@@ -13,7 +13,6 @@ public sealed class DocumentDataEntryService(
     IOriginalDocumentStore store,
     IUploadContentValidator uploadValidator,
     IDocumentIngestionService ingestion,
-    IDocumentExtractionQueryService extractionQuery,
     IDocumentTextExtractor textExtractor,
     IAIModelProvider modelProvider,
     IAIVisionModelProvider visionProvider,
@@ -65,7 +64,7 @@ public sealed class DocumentDataEntryService(
         return await (from run in db.DataEntryRuns.AsNoTracking()
                       join document in db.Documents.AsNoTracking() on run.DocumentId equals document.Id
                       join template in db.DataEntryTemplates.AsNoTracking() on run.TemplateId equals template.Id
-                      where run.Id == runId && run.TenantCode == tenantCode && document.TenantCode == tenantCode
+                      where run.Id == runId && run.TenantCode == tenantCode && run.CreatedBy == actorId && document.TenantCode == tenantCode
                       select new DataEntryRunView(run.Id, run.DocumentId, document.FileName, template.TemplateCode, run.Status, run.AttemptCount, run.CandidateRowsJson, run.ValidationJson, run.ConfirmedRowsJson, run.Comment, run.FailureCode, run.ModelProvider, run.ModelVersion, run.CreatedAtUtc, run.CompletedAtUtc, run.UpdatedAtUtc)).SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -106,7 +105,7 @@ public sealed class DocumentDataEntryService(
     public async Task<DataEntryRunView> ConfirmAsync(Guid runId, string tenantCode, string actorId, string confirmedRowsJson, string? comment = null, CancellationToken cancellationToken = default)
     {
         ValidateIdentity(tenantCode, actorId); if (string.IsNullOrWhiteSpace(confirmedRowsJson) || confirmedRowsJson.Length > 2_000_000) throw new ArgumentException("Confirmed rows payload is empty or too large.", nameof(confirmedRowsJson));
-        var run = await db.DataEntryRuns.SingleOrDefaultAsync(x => x.Id == runId && x.TenantCode == tenantCode, cancellationToken) ?? throw new KeyNotFoundException("DATA_ENTRY_RUN_NOT_FOUND");
+        var run = await db.DataEntryRuns.SingleOrDefaultAsync(x => x.Id == runId && x.TenantCode == tenantCode && x.CreatedBy == actorId, cancellationToken) ?? throw new KeyNotFoundException("DATA_ENTRY_RUN_NOT_FOUND");
         if (run.Status != "AwaitingConfirmation") throw new InvalidOperationException("DATA_ENTRY_RUN_NOT_AWAITING_CONFIRMATION");
         var template = await db.DataEntryTemplates.AsNoTracking().SingleAsync(x => x.Id == run.TemplateId && x.TenantCode == tenantCode, cancellationToken);
         var definition = JsonSerializer.Deserialize<DataEntryTemplateDefinition>(template.DefinitionJson, JsonOptions) ?? throw new InvalidDataException("DATA_ENTRY_TEMPLATE_DEFINITION_INVALID");
@@ -120,7 +119,7 @@ public sealed class DocumentDataEntryService(
     public async Task<StoredDataEntryFile?> ExportAsync(Guid runId, string tenantCode, string actorId, CancellationToken cancellationToken = default)
     {
         ValidateIdentity(tenantCode, actorId);
-        var run = await db.DataEntryRuns.SingleOrDefaultAsync(x => x.Id == runId && x.TenantCode == tenantCode, cancellationToken) ?? throw new KeyNotFoundException("DATA_ENTRY_RUN_NOT_FOUND");
+        var run = await db.DataEntryRuns.SingleOrDefaultAsync(x => x.Id == runId && x.TenantCode == tenantCode && x.CreatedBy == actorId, cancellationToken) ?? throw new KeyNotFoundException("DATA_ENTRY_RUN_NOT_FOUND");
         if (run.Status is not ("Confirmed" or "Exported")) throw new InvalidOperationException("DATA_ENTRY_CONFIRMATION_REQUIRED");
         if (!string.IsNullOrWhiteSpace(run.OutputStorageKey))
         {
@@ -169,7 +168,10 @@ public sealed class DocumentDataEntryService(
             {
                 if (!rows[rowIndex].Values.TryGetValue(column.Path, out var value) || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined || (value.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(value.GetString())))
                 { if (column.Required) issues.Add(new { row = rowIndex + 1, path = column.Path, code = "REQUIRED_FIELD_MISSING", severity = "Error", message = $"Required field '{column.Header}' is missing." }); continue; }
-                if (rows[rowIndex].Confidence is not null && rows[rowIndex].Confidence.TryGetValue(column.Path, out var confidenceValue) && (confidenceValue < 0 || confidenceValue > 1 || double.IsNaN(confidenceValue) || double.IsInfinity(confidenceValue))) issues.Add(new { row = rowIndex + 1, path = column.Path, code = "INVALID_CONFIDENCE", severity = "Error", message = "Confidence must be between 0 and 1." });
+                var confidenceMap = rows[rowIndex].Confidence;
+                if (confidenceMap is not null && confidenceMap.TryGetValue(column.Path, out var confidenceValue) &&
+                    (confidenceValue < 0 || confidenceValue > 1 || double.IsNaN(confidenceValue) || double.IsInfinity(confidenceValue)))
+                    issues.Add(new { row = rowIndex + 1, path = column.Path, code = "INVALID_CONFIDENCE", severity = "Error", message = "Confidence must be between 0 and 1." });
                 if (!MatchesType(value, column.DataType)) issues.Add(new { row = rowIndex + 1, path = column.Path, code = "FIELD_TYPE_MISMATCH", severity = "Error", message = $"Field '{column.Header}' does not match data type '{column.DataType}'." });
             }
         }
