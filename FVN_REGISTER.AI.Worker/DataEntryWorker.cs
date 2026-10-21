@@ -59,11 +59,54 @@ public sealed class DataEntryWorker(IServiceScopeFactory scopes, IOptions<AIPlat
 
     private async Task<AiDataEntryRunRecord?> ClaimAsync(AiPlatformDbContext db, CancellationToken cancellationToken)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, cancellationToken); var now = DateTimeOffset.UtcNow;
-        var job = await db.DataEntryRuns.FromSqlInterpolated($"SELECT TOP (1) * FROM ai.AiDataEntryRuns WITH (UPDLOCK, READPAST, ROWLOCK) WHERE Status = N'WaitingForDocument' AND (NextAttemptAtUtc IS NULL OR NextAttemptAtUtc <= {now}) AND (LeaseUntilUtc IS NULL OR LeaseUntilUtc < {now}) ORDER BY CreatedAtUtc ASC").SingleOrDefaultAsync(cancellationToken);
-        if (job is null) { await tx.RollbackAsync(cancellationToken); return null; }
-        job.Status = "Running"; job.AttemptCount += 1; job.StartedAtUtc ??= now; job.LastAttemptAtUtc = now; job.LeaseOwner = _workerId; job.LeaseUntilUtc = now.AddMinutes(10); job.UpdatedAtUtc = now;
-        await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); return job;
+        // SQL Server's retrying execution strategy must own the complete transaction.
+        // The worker id also makes the claim idempotent if SQL committed but the
+        // connection dropped before the client received the commit acknowledgement.
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            // A retry reuses this DbContext; discard entities from the previous attempt.
+            db.ChangeTracker.Clear();
+
+            await using var tx = await db.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.ReadCommitted, cancellationToken);
+            var now = DateTimeOffset.UtcNow;
+
+            // Recover the result of our own previous attempt before claiming another job.
+            var previouslyClaimed = await db.DataEntryRuns
+                .SingleOrDefaultAsync(x =>
+                    x.Status == "Running" &&
+                    x.LeaseOwner == _workerId &&
+                    x.LeaseUntilUtc > now,
+                    cancellationToken);
+            if (previouslyClaimed is not null)
+            {
+                await tx.CommitAsync(cancellationToken);
+                return previouslyClaimed;
+            }
+
+            var job = await db.DataEntryRuns
+                .FromSqlInterpolated($"SELECT TOP (1) * FROM ai.AiDataEntryRuns WITH (UPDLOCK, READPAST, ROWLOCK) WHERE Status = N'WaitingForDocument' AND (NextAttemptAtUtc IS NULL OR NextAttemptAtUtc <= {now}) AND (LeaseUntilUtc IS NULL OR LeaseUntilUtc < {now}) ORDER BY CreatedAtUtc ASC")
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (job is null)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                return null;
+            }
+
+            job.Status = "Running";
+            job.AttemptCount += 1;
+            job.StartedAtUtc ??= now;
+            job.LastAttemptAtUtc = now;
+            job.LeaseOwner = _workerId;
+            job.LeaseUntilUtc = now.AddMinutes(10);
+            job.UpdatedAtUtc = now;
+
+            await db.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+            return job;
+        });
     }
 
     private static async Task RecoverExpiredAsync(AiPlatformDbContext db, CancellationToken cancellationToken)
