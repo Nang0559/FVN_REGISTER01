@@ -56,7 +56,7 @@ public sealed class RagAnswerServiceTests
         var chunkId = Guid.NewGuid().ToString();
         var search = new StubSearch([new KnowledgeSearchHit(chunkId, Guid.NewGuid().ToString(),
             "Policy.pdf", 2, "The approved policy requires manager approval.", 0.88, "Policy.pdf, page 2")]);
-        var model = new StubModelProvider($"""{"status":"Supported","answer":"Manager approval is required.","citations":["{{chunkId}}"]}""");
+        var model = new StubModelProvider(System.Text.Json.JsonSerializer.Serialize(new { status = "Supported", answer = "Manager approval is required.", citations = new[] { chunkId } }));
         const string businessContext = """{"tenantCode":"FCCVN","actorId":"42","departmentCode":"27","contextVersion":"v1"}""";
 
         var result = await CreateService(search, model).AnswerWithContextAsync("FCCVN", "42",
@@ -83,7 +83,7 @@ public sealed class RagAnswerServiceTests
         var chunkId = Guid.NewGuid().ToString();
         var search = new StubSearch([new KnowledgeSearchHit(chunkId, Guid.NewGuid().ToString(),
             "Policy.pdf", 2, "Approved policy evidence.", 0.9, "Policy.pdf, page 2")]);
-        var model = new StubModelProvider($"""{"status":"Supported","answer":"Supported answer.","citations":["{{chunkId}}"]}""");
+        var model = new StubModelProvider(System.Text.Json.JsonSerializer.Serialize(new { status = "Supported", answer = "Supported answer.", citations = new[] { chunkId } }));
         const string businessContext = """{"tenantCode":"FCCVN","actorId":"42","contextVersion":"v1"}""";
         const string history = """[{"role":"user","content":"Tôi đang hỏi về nghỉ phép."},{"role":"assistant","content":"Tôi có thể tra cứu quy định."}]""";
 
