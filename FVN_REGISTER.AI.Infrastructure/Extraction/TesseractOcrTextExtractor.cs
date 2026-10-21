@@ -175,6 +175,10 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                // Tesseract and Poppler write UTF-8. Without this, .NET decodes redirected output with the
+                // console OEM code page on Windows (437), which corrupts Vietnamese text (mojibake).
+                StandardOutputEncoding = System.Text.Encoding.UTF8,
+                StandardErrorEncoding = System.Text.Encoding.UTF8,
                 CreateNoWindow = true
             }
         };
