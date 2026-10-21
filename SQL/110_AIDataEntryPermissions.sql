@@ -46,7 +46,8 @@ IF EXISTS
         (3502,N'AIDocumentDataEntry.TemplateManage'),
         (3503,N'AIDocumentDataEntry.RunCreate'),
         (3504,N'AIDocumentDataEntry.Confirm'),
-        (3505,N'AIDocumentDataEntry.Export')
+        (3505,N'AIDocumentDataEntry.Export'),
+        (3510,N'AIAssistant.Chat')
     ) v(FunctionCode,FunctionKey)
       ON f.FunctionKey = v.FunctionKey
     WHERE f.FunctionCode <> v.FunctionCode
@@ -130,5 +131,5 @@ IF EXISTS
 )
     THROW 51906, N'AI data-entry capability seed verification failed.', 1;
 
-PRINT N'110_AIDataEntryPermissions completed: capabilities 3501-3505 seeded and least-privilege role grants applied.';
+PRINT N'110_AIDataEntryPermissions completed: capabilities 3501-3505 and 3510 seeded and least-privilege role grants applied.';
 GO
