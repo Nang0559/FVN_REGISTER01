@@ -123,11 +123,12 @@
     protected override async Task OnInitializedAsync()
     {
         var permissions = await SecurityService.GetMyPermissionsAsync();
-        if (!permissions.IsSuccess || permissions.Data?.Has(SecurityFunctionCodes.AIDocumentDataEntryView) != true) { _error = "Tài khoản cần quyền AIDocumentDataEntry.View (3501) để sử dụng AI nhập dữ liệu."; return; }
-        _canManageTemplates = permissions.Data.Has(SecurityFunctionCodes.AIDocumentDataEntryTemplateManage);
-        _canCreateRuns = permissions.Data.Has(SecurityFunctionCodes.AIDocumentDataEntryRunCreate);
-        _canConfirm = permissions.Data.Has(SecurityFunctionCodes.AIDocumentDataEntryConfirm);
-        _canExport = permissions.Data.Has(SecurityFunctionCodes.AIDocumentDataEntryExport);
+        var granted = permissions.Data;
+        if (!permissions.IsSuccess || granted is null || !granted.Has(SecurityFunctionCodes.AIDocumentDataEntryView)) { _error = "Tài khoản cần quyền AIDocumentDataEntry.View (3501) để sử dụng AI nhập dữ liệu."; return; }
+        _canManageTemplates = granted.Has(SecurityFunctionCodes.AIDocumentDataEntryTemplateManage);
+        _canCreateRuns = granted.Has(SecurityFunctionCodes.AIDocumentDataEntryRunCreate);
+        _canConfirm = granted.Has(SecurityFunctionCodes.AIDocumentDataEntryConfirm);
+        _canExport = granted.Has(SecurityFunctionCodes.AIDocumentDataEntryExport);
         await LoadTemplatesAsync();
     }
 
