@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using Microsoft.AspNetCore.Authorization;
@@ -126,6 +127,8 @@ public sealed class AIBusinessContextController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(input.Query) || input.Query.Trim().Length > 4000)
             return BadRequest(new { error = "Question must contain 1 to 4000 characters." });
+        var assistantAccess = await RequireAssistantAccessAsync(cancellationToken);
+        if (assistantAccess is not null) return assistantAccess;
 
         var snapshotResult = await GetCurrentContext(cancellationToken);
         if (snapshotResult is not OkObjectResult ok || ok.Value is null)
@@ -257,6 +260,8 @@ public sealed class AIBusinessContextController : ControllerBase
     private async Task<IActionResult> ForwardConversationAsync(HttpMethod method, string path, object? payload,
         bool includeBusinessContext, CancellationToken cancellationToken)
     {
+        var assistantAccess = await RequireAssistantAccessAsync(cancellationToken);
+        if (assistantAccess is not null) return assistantAccess;
         var snapshotResult = await GetCurrentContext(cancellationToken);
         if (snapshotResult is not OkObjectResult ok || ok.Value is null) return snapshotResult;
         var baseUrl = _configuration["AIPlatform:BaseUrl"];
@@ -333,6 +338,16 @@ public sealed class AIBusinessContextController : ControllerBase
         }
         catch (HttpRequestException) { return Problem("AI service unavailable.", statusCode:503); }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { return Problem("AI service timed out.", statusCode:503); }
+    }
+
+    private async Task<IActionResult?> RequireAssistantAccessAsync(CancellationToken cancellationToken)
+    {
+        var user = _currentUser.GetCurrentUser();
+        if (user is null || !user.IsLoggedIn || user.UserId <= 0)
+            return Unauthorized();
+
+        var allowed = await _authorization.HasAsync(user, SecurityFunctionCodes.AIAssistantChat, cancellationToken);
+        return allowed ? null : Forbid();
     }
 
     [HttpGet("me")]
