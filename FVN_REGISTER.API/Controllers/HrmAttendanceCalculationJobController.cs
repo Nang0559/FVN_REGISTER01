@@ -86,9 +86,11 @@ public sealed class HrmAttendanceCalculationJobController : BaseApiController
             """).SingleOrDefaultAsync(ct);
         if(live is null){await _jobs.RequestCancelAsync(jobId,UserInfo?.EmployeeCode??"HRM-UI",CancellationToken.None);return Conflict(ApiResponse<object>.Fail("SQL session đã không còn tồn tại. Job đã được chuyển sang yêu cầu dừng; hãy Resume để tính phần còn thiếu."));}
         if(live.SessionLoginTime!=target.SqlSessionLoginTime||live.ConnectionId!=target.SqlConnectionId)return Conflict(ApiResponse<object>.Fail("SPID đã được tái sử dụng cho connection khác. Không thực hiện KILL để tránh dừng nhầm session."));
+        if(live.SessionId<=0||live.SessionId>32767)return BadRequest(ApiResponse<object>.Fail("SQL session không hợp lệ."));
         var ownSpid=await _db.Database.SqlQuery<int>($"SELECT @@SPID AS [Value]").SingleAsync(ct);
         if(live.SessionId==ownSpid)return BadRequest(ApiResponse<object>.Fail("Không thể kết thúc SQL session đang phục vụ request này."));
-        await _db.Database.ExecuteSqlRawAsync($"KILL {live.SessionId}",CancellationToken.None);
+        // KILL does not accept SQL parameters. Session id comes from sys.dm_exec_requests and is range-validated above.
+        await _db.Database.ExecuteSqlRawAsync("KILL " + live.SessionId.ToString(System.Globalization.CultureInfo.InvariantCulture),CancellationToken.None);
         await _jobs.RequestCancelAsync(jobId,UserInfo?.EmployeeCode??"HRM-UI",CancellationToken.None);
         return Ok(ApiResponse<object>.Ok(new{jobId,sessionId=live.SessionId,status="Terminating"}));
     }
