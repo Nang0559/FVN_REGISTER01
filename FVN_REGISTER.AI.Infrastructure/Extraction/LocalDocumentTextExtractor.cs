@@ -35,7 +35,7 @@ public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumen
                 try { return ExtractPdf(content); }
                 catch (NotSupportedException)
                 {
-                    content.Position = start;
+                    content.Position = 0;
                     return "[OCR]\n" + await ocr.ExtractTextAsync(content, mediaType, cancellationToken);
                 }
             }
