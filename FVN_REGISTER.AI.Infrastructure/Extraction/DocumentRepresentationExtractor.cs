@@ -25,8 +25,7 @@ public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExt
                       mediaType.Equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", StringComparison.OrdinalIgnoreCase);
 
         var pages = new List<PageBuilder>();
-        var current = new PageBuilder(1);
-        pages.Add(current);
+        PageBuilder? current = null;
         var rowNumber = 0;
         var sourceLines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
 
@@ -44,6 +43,7 @@ public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExt
                 continue;
             }
 
+            current ??= CreateDefaultPage(pages);
             var row = RowMarker.Match(line);
             if (row.Success)
             {
@@ -63,6 +63,7 @@ public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExt
                 $"page:{current.PageNumber};paragraph:{paragraphNumber}", line, confidence));
         }
 
+        if (pages.Count == 0) pages.Add(new PageBuilder(1));
         var normalizedPages = pages.OrderBy(x => x.PageNumber).Select(x => x.Build()).ToArray();
         var tables = normalizedPages
             .Where(x => x.Rows.Count > 0)
@@ -74,6 +75,13 @@ public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExt
                 new DocumentRegion(c.Locator, page.PageNumber, c.Text, c.Confidence, "TableCell"))))).ToArray();
 
         return Task.FromResult(new DocumentRepresentation("1.0", mediaType, isOcr, normalizedPages, tables, regions));
+    }
+
+    private static PageBuilder CreateDefaultPage(List<PageBuilder> pages)
+    {
+        var page = pages.FirstOrDefault(x => x.PageNumber == 1) ?? new PageBuilder(1);
+        if (!pages.Contains(page)) pages.Add(page);
+        return page;
     }
 
     private static void AddRow(PageBuilder page, int rowNumber, string value, double confidence)
