@@ -123,7 +123,7 @@
     private async Task LoadTemplatesAsync()
     {
         _loading = true; _error = "";
-        try { var response = await Http.GetAsync("api/ai/document-data-entry/templates"); if (!response.IsSuccessStatusCode) { _error = await response.Content.ReadAsStringAsync(); return; } _templates = await response.Content.ReadFromJsonAsync<List<DataEntryTemplateView>>(_json) ?? []; if (string.IsNullOrWhiteSpace(_selectedTemplate) && _templates.Count > 0) _selectedTemplate = _templates[0].TemplateCode; }
+        try { var response = await Http.GetAsync<List<DataEntryTemplateView>>("api/ai/document-data-entry/templates"); if (!response.IsSuccess) { _error = response.Message; return; } _templates = response.Data ?? []; if (string.IsNullOrWhiteSpace(_selectedTemplate) && _templates.Count > 0) _selectedTemplate = _templates[0].TemplateCode; }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }
@@ -139,7 +139,7 @@
             var definition = JsonSerializer.Deserialize<DataEntryTemplateDefinition>(_definitionJson, _json) ?? throw new InvalidOperationException("Mapping JSON không hợp lệ.");
             using var form = new MultipartFormDataContent(); await using var stream = _templateFile.OpenReadStream(20 * 1024 * 1024); using var file = new StreamContent(stream); file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             form.Add(file, "file", _templateFile.Name); form.Add(new StringContent(_templateCode), "templateCode"); form.Add(new StringContent(_displayName), "displayName"); form.Add(new StringContent(_moduleCode), "moduleCode"); form.Add(new StringContent(_schemaCode), "schemaCode"); form.Add(new StringContent(JsonSerializer.Serialize(definition, _json)), "definitionJson");
-            var response = await Http.PostAsync("api/ai/document-data-entry/templates", form); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); Snackbar.Add("Đã lưu Excel mẫu.", Severity.Success); await LoadTemplatesAsync();
+            var response = await Http.PostMultipartAsync<JsonElement>("api/ai/document-data-entry/templates", form); if (!response.IsSuccess) throw new InvalidOperationException(response.Message); Snackbar.Add("Đã lưu Excel mẫu.", Severity.Success); await LoadTemplatesAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
@@ -151,7 +151,7 @@
         try
         {
             using var form = new MultipartFormDataContent(); await using var stream = _documentFile.OpenReadStream(20 * 1024 * 1024); using var file = new StreamContent(stream); file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(string.IsNullOrWhiteSpace(_documentFile.ContentType) ? "application/octet-stream" : _documentFile.ContentType); form.Add(file, "file", _documentFile.Name); form.Add(new StringContent(_selectedTemplate), "templateCode");
-            var response = await Http.PostAsync("api/ai/document-data-entry/runs", form); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); var receipt = await response.Content.ReadFromJsonAsync<DataEntryRunReceipt>(_json) ?? throw new InvalidOperationException("AI không trả về run."); _runId = receipt.RunId; _documentId = receipt.DocumentId; _status = receipt.Status; _candidateRows = "[]"; _validation = ""; await PollRunAsync();
+            var response = await Http.PostMultipartAsync<DataEntryRunReceipt>("api/ai/document-data-entry/runs", form); if (!response.IsSuccess) throw new InvalidOperationException(response.Message); var receipt = response.Data ?? throw new InvalidOperationException("AI không trả về run."); _runId = receipt.RunId; _documentId = receipt.DocumentId; _status = receipt.Status; _candidateRows = "[]"; _validation = ""; await PollRunAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
@@ -165,14 +165,14 @@
     private async Task RefreshRunAsync()
     {
         if (!_runId.HasValue) return;
-        try { var response = await Http.GetAsync($"api/ai/document-data-entry/runs/{_runId:D}"); if (!response.IsSuccessStatusCode) { _error = await response.Content.ReadAsStringAsync(); return; } var run = await response.Content.ReadFromJsonAsync<DataEntryRunView>(_json); if (run is null) return; _status = run.Status; _documentId = run.DocumentId; _candidateRows = run.CandidateRowsJson ?? _candidateRows; _validation = run.ValidationJson ?? ""; }
+        try { var response = await Http.GetAsync<DataEntryRunView>($"api/ai/document-data-entry/runs/{_runId:D}"); if (!response.IsSuccess) { _error = response.Message; return; } var run = response.Data; if (run is null) return; _status = run.Status; _documentId = run.DocumentId; _candidateRows = run.CandidateRowsJson ?? _candidateRows; _validation = run.ValidationJson ?? ""; }
         catch (Exception ex) { _error = ex.Message; }
     }
 
     private async Task ConfirmAsync()
     {
         if (!_runId.HasValue) return; _loading = true; _error = "";
-        try { var response = await Http.PostAsJsonAsync($"api/ai/document-data-entry/runs/{_runId:D}/confirm", new { rowsJson = _candidateRows, comment = _comment }, _json); if (!response.IsSuccessStatusCode) throw new InvalidOperationException(await response.Content.ReadAsStringAsync()); _status = "Confirmed"; Snackbar.Add("Đã xác nhận dữ liệu.", Severity.Success); }
+        try { var response = await Http.PostAsync<JsonElement>($"api/ai/document-data-entry/runs/{_runId:D}/confirm", new { rowsJson = _candidateRows, comment = _comment }); if (!response.IsSuccess) throw new InvalidOperationException(response.Message); _status = "Confirmed"; Snackbar.Add("Đã xác nhận dữ liệu.", Severity.Success); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }
