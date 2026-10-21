@@ -102,7 +102,7 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
         using var fileContent = new StreamContent(input);
         fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
             string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
-        form.Add(fileContent, "file", Path.GetFileName(file.FileName));
+        form.Add(fileContent, "file", System.IO.Path.GetFileName(file.FileName));
         if (!string.IsNullOrWhiteSpace(moduleCode)) form.Add(new StringContent(moduleCode.Trim()), "moduleCode");
         if (!string.IsNullOrWhiteSpace(schemaCode)) form.Add(new StringContent(schemaCode.Trim()), "schemaCode");
 
