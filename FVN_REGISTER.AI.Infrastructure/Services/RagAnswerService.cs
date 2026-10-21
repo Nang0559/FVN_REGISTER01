@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Encodings.Web;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Contracts;
 
@@ -7,7 +8,11 @@ namespace FVN_REGISTER.AI.Infrastructure.Services;
 /// <summary>Grounded RAG orchestration. Only ACL-filtered retrieval hits are sent to the model, and active releases control the model hint.</summary>
 public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelProvider modelProvider, IAIReleaseService releases) : IRagAnswerService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const int MaxEvidenceCharacters = 9_000;
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     public Task<RagAnswerResult> AnswerAsync(string tenantCode, string actorId, IReadOnlyCollection<string> allowedScopes, string query, int retrievalLimit = 8, CancellationToken cancellationToken = default) =>
         AnswerCoreAsync(tenantCode, actorId, allowedScopes, query, null, retrievalLimit, cancellationToken);
@@ -52,7 +57,21 @@ public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelPro
         if (allowedScopes.Count == 0) return Abstain("Bạn không có quyền truy cập kho tri thức phù hợp.", "Forbidden");
         var hits = await search.SearchAsync(tenantCode, actorId, allowedScopes, query, Math.Clamp(retrievalLimit, 1, 20), cancellationToken);
         if (hits.Count == 0) return Abstain("Tôi chưa tìm thấy tài liệu đã được phê duyệt có thể trả lời câu hỏi này.", "NotFound");
-        var context = hits.Select(x => new { chunkId = x.ChunkId, source = x.Citation, content = x.Text, relevance = x.Score }).ToArray();
+        // Keep a conservative input budget for an 8K context window. Vietnamese/Japanese
+        // text is sent as UTF-8 rather than six-character Unicode escape sequences.
+        var boundedHits = new List<KnowledgeSearchHit>();
+        var evidenceCharacters = 0;
+        foreach (var hit in hits)
+        {
+            if (evidenceCharacters >= MaxEvidenceCharacters) break;
+            var remaining = MaxEvidenceCharacters - evidenceCharacters;
+            var boundedText = hit.Text.Length > remaining ? hit.Text[..remaining] : hit.Text;
+            if (string.IsNullOrWhiteSpace(boundedText)) continue;
+            boundedHits.Add(hit with { Text = boundedText });
+            evidenceCharacters += boundedText.Length;
+        }
+        if (boundedHits.Count == 0) return Abstain("Tài liệu tìm được vượt ngân sách ngữ cảnh an toàn; chưa thể tạo câu trả lời.", "NotFound");
+        var context = boundedHits.Select(x => new { chunkId = x.ChunkId, source = x.Citation, content = x.Text, relevance = x.Score }).ToArray();
         object inputPayload;
         if (businessContextJson is null)
             inputPayload = new { question = query, evidence = context };
@@ -83,7 +102,7 @@ public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelPro
             if (status is not ("Supported" or "PartiallySupported" or "NotFound") || string.IsNullOrWhiteSpace(answer) || answer.Length > 10000) return Abstain("Không thể xác minh câu trả lời do kết quả mô hình không đúng định dạng.", "InvalidModelResponse");
             if (status == "NotFound") return Abstain(answer, "NotFound");
             if (!root.TryGetProperty("citations", out var citationArray) || citationArray.ValueKind != JsonValueKind.Array || citationArray.GetArrayLength() is < 1 or > 20) return Abstain("Không thể xác minh nguồn trích dẫn cho câu trả lời.", "MissingCitation");
-            var allowed = hits.ToDictionary(x => x.ChunkId, StringComparer.OrdinalIgnoreCase);
+            var allowed = boundedHits.ToDictionary(x => x.ChunkId, StringComparer.OrdinalIgnoreCase);
             var ids = citationArray.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             if (ids.Length == 0 || ids.Any(x => !allowed.ContainsKey(x))) return Abstain("Câu trả lời chứa nguồn trích dẫn không thuộc kết quả tìm kiếm được phép.", "InvalidCitation");
             var citations = ids.Select(id => { var hit = allowed[id]; return new RagCitation(hit.ChunkId, hit.DocumentId, hit.FileName, hit.PageNumber, hit.Citation, hit.Score); }).ToArray();
