@@ -1,5 +1,7 @@
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Configuration;
+using FVN_REGISTER.AI.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.AI.Worker;
@@ -17,6 +19,20 @@ internal sealed class RetentionWorker(
             try
             {
                 using var scope = scopes.CreateScope();
+                var db = scope.ServiceProvider.GetService<AiPlatformDbContext>();
+                if (db is null)
+                {
+                    logger.LogWarning("AI SQL connection string is not configured; retention worker is idle.");
+                    await Task.Delay(interval, stoppingToken);
+                    continue;
+                }
+                if (!await db.Database.CanConnectAsync(stoppingToken))
+                {
+                    logger.LogWarning("AI SQL is unavailable; retention worker will retry.");
+                    await Task.Delay(interval, stoppingToken);
+                    continue;
+                }
+
                 var retention = scope.ServiceProvider.GetService<IDocumentRetentionService>();
                 if (retention is not null)
                 {
