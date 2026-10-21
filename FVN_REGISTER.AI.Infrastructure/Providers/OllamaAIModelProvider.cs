@@ -32,7 +32,7 @@ public sealed class OllamaAIModelProvider(HttpClient httpClient, IOptions<AIPlat
                 new OllamaMessage("system", request.SystemInstruction ?? "Answer using only the supplied context."),
                 new OllamaMessage("user", request.Input)
             },
-            new OllamaOptions(0.1, 8192, 800),
+            new OllamaOptions(0.1, 8192, 1200),
             request.Task is "document-classification" or "schema-driven-extraction" or "rag-grounded-answer" ? "json" : null);
 
         var stopwatch = Stopwatch.StartNew();
