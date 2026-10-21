@@ -42,9 +42,12 @@ public sealed class KnowledgeSearchService(
             .Select(x => new { x.Id, x.FileName })
             .ToDictionaryAsync(x => x.Id, x => x.FileName, cancellationToken);
         var queryTokens = Tokens(query);
+        // MinimumScore is a cosine threshold. Apply it to the raw vector similarity
+        // before mapping cosine from [-1,1] into the blended ranking score [0,1].
         var minScore = Math.Clamp(settings.MinimumScore, -1, 1);
 
         return candidates
+            .Where(x => x.Score >= minScore)
             .Where(x => documents.ContainsKey(Guid.Parse(x.Chunk.DocumentId)))
             .Select(x =>
             {
@@ -56,7 +59,6 @@ public sealed class KnowledgeSearchService(
                 var citation = $"{documents[documentId]}{pageText}, chunk {x.Chunk.Metadata.GetValueOrDefault("chunkOrdinal", "0")}";
                 return new { Hit = new KnowledgeSearchHit(x.Chunk.ChunkId, documentId.ToString(), documents[documentId], int.TryParse(page, out var pageNumber) ? pageNumber : null, x.Chunk.Text, score, citation), Score = score };
             })
-            .Where(x => x.Score >= minScore)
             .OrderByDescending(x => x.Score)
             .Take(Math.Clamp(limit, 1, 20))
             .Select(x => x.Hit)
