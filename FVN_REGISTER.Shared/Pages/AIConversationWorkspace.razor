@@ -183,7 +183,7 @@
         var question = _query.Trim();
         try
         {
-            var response = await Http.PostAsync<ConversationAskResponse>(
+            var response = await Http.PostAsync<System.Text.Json.JsonElement>(
                 "api/ai/business-context/conversations/ask",
                 new { conversationId = _selectedConversationId, query = question, retrievalLimit = 8 });
             if (!response.IsSuccess) { _error = response.Message; return; }
@@ -232,6 +232,4 @@
         public string? CitationsJson { get; init; }
         public DateTimeOffset CreatedAtUtc { get; init; }
     }
-
-    private sealed record ConversationAskResponse;
 }
