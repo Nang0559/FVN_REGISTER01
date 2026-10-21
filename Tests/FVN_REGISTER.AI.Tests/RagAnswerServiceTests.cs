@@ -98,6 +98,50 @@ public sealed class RagAnswerServiceTests
     }
 
     [Fact]
+    public async Task AnswerWithConversationContextAsync_PreservesVietnameseHistoryWithoutUnicodeExpansion()
+    {
+        var chunkId = Guid.NewGuid().ToString();
+        var search = new StubSearch([new KnowledgeSearchHit(chunkId, Guid.NewGuid().ToString(),
+            "Policy.pdf", 1, "Quy định nghỉ phép đã được phê duyệt.", 0.9, "Policy.pdf, page 1")]);
+        var model = new StubModelProvider(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = "Supported", answer = "Có thể đăng ký nghỉ phép.", citations = new[] { chunkId }
+        }));
+        const string context = """{"tenantCode":"FCCVN","actorId":"42","contextVersion":"v1"}""";
+        var history = System.Text.Json.JsonSerializer.Serialize(
+            Enumerable.Range(0, 8).Select(i => new { role = i % 2 == 0 ? "user" : "assistant", content = string.Concat(Enumerable.Repeat("Tôi cần hướng dẫn đăng ký nghỉ phép có dấu tiếng Việt. ", 20)) }),
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+        var result = await CreateService(search, model).AnswerWithConversationContextAsync(
+            "FCCVN", "42", ["EMPLOYEE"], "Còn trường hợp nghỉ nửa ngày?", context, history);
+
+        Assert.Equal("Supported", result.Status);
+        Assert.Contains("nghỉ phép", model.LastRequest!.Input, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\u0111", model.LastRequest.Input, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AnswerAsync_BoundsTotalEvidenceCharactersBeforeModelCall()
+    {
+        var chunkIds = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid().ToString()).ToArray();
+        var hits = chunkIds.Select(id => new KnowledgeSearchHit(id, Guid.NewGuid().ToString(),
+            "Policy.pdf", 1, new string('A', 6000), 0.9, "Policy.pdf, page 1")).ToArray();
+        var search = new StubSearch(hits);
+        var model = new StubModelProvider(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = "Supported", answer = "Supported.", citations = new[] { chunkIds[0], chunkIds[1] }
+        }));
+
+        var result = await CreateService(search, model).AnswerAsync("FCCVN", "42", ["EMPLOYEE"], "Question?");
+
+        Assert.Equal("Supported", result.Status);
+        using var payload = System.Text.Json.JsonDocument.Parse(model.LastRequest!.Input);
+        var evidenceLength = payload.RootElement.GetProperty("evidence").EnumerateArray()
+            .Sum(x => x.GetProperty("content").GetString()!.Length);
+        Assert.InRange(evidenceLength, 1, 9000);
+    }
+
+    [Fact]
     public async Task AnswerWithConversationContextAsync_RejectsInvalidRoleAndTooManyTurns()
     {
         var service = CreateService(new StubSearch([]), new StubModelProvider("{}"));
