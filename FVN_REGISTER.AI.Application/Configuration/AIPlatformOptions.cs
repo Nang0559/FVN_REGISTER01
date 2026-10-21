@@ -18,6 +18,7 @@ public sealed class AIPlatformOptions
  public bool RequireContentBoundSignatures{get;set;}=true;
  public int QueuePollSeconds{get;set;}=15;
  public int RetentionPollMinutes{get;set;}=30;
+ public int ConversationMaintenancePollMinutes{get;set;}=5;
  public int ConnectorPollMinutes{get;set;}=5;
  public List<FolderConnectorOptions> FolderConnectors{get;set;}=[];
 }
