@@ -2,7 +2,7 @@
 
 ## Scope
 
-This is the current operational guide for `feature/ai-platform-phase1-6`. The canonical phase status is the root `AI_PLATFORM_PHASES_STATUS.md`; do not use an older phase-status copy under `docs/`.
+This is the current operational guide for `feature/ai-platform-phase1-6-integration`. The canonical phase status is the root `AI_PLATFORM_PHASES_STATUS.md`; do not use an older phase-status copy under `docs/`.
 
 ## 1. Topology
 
@@ -81,9 +81,9 @@ A claimed job moves its document to `Processing`. Retryable failures return the 
 
 ## 8. RAG and scale boundary
 
-The current store uses tenant/ACL-filtered SQL candidate loading and application cosine scoring. It is intentionally a PoC/medium-corpus baseline. Candidate scan limit and minimum score are configuration points, but benchmark evidence is still required before production scale.
+The current store uses tenant/ACL-filtered SQL candidate loading and application cosine scoring. It is intentionally a PoC/medium-corpus baseline. Candidate materialization is capped at 5,000 ACL-filtered rows per request. `MinimumScore` is applied to raw cosine similarity before semantic/lexical reranking. This remains a bounded PoC baseline; benchmark evidence is still required before production scale.
 
-SQL Server 2025 provides native `VECTOR`, `VECTOR_DISTANCE` and `VECTOR_SEARCH`; an eventual migration can use server-side exact kNN or an approximate vector index after compatibility and recall benchmarks. urlSQL Server vector search documentationhttps://learn.microsoft.com/en-us/sql/sql-server/ai/vectors?view=sql-server-ver17
+SQL Server 2025 provides native `VECTOR`, `VECTOR_DISTANCE` and `VECTOR_SEARCH`; an eventual migration can use server-side exact kNN or an approximate vector index after compatibility and recall benchmarks. [SQL Server vector search documentation](https://learn.microsoft.com/en-us/sql/sql-server/ai/vectors?view=sql-server-ver17)
 
 ## 9. Monitoring
 
