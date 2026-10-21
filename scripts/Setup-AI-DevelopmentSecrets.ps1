@@ -93,6 +93,15 @@ finally {
     $secureConnectionString = $null
 }
 
+# Original uploaded documents. AI.Api and AI.Worker MUST use the same absolute path.
+$defaultStorageRoot = Join-Path $root "OriginalDocuments"
+$storageRoot = Read-Host "Original document storage root [$defaultStorageRoot]"
+if ([string]::IsNullOrWhiteSpace($storageRoot)) { $storageRoot = $defaultStorageRoot }
+$storageRoot = $storageRoot.Trim().Trim('"').Trim("'")
+if (-not [System.IO.Path]::IsPathRooted($storageRoot)) { throw "Storage root must be an absolute path: $storageRoot" }
+$storageRoot = [System.IO.Path]::GetFullPath($storageRoot)
+New-Item -ItemType Directory -Force -Path $storageRoot | Out-Null
+
 $apiKey = New-RandomSecret -ByteCount 48
 $contextSigningKey = New-RandomSecret -ByteCount 64
 try {
@@ -101,6 +110,7 @@ try {
     foreach ($project in @($projects.AiApi, $projects.Worker)) {
         Invoke-DotNet -Arguments @("user-secrets", "set", "ConnectionStrings:FvnAi", $connectionString, "--project", $project) -FailureMessage "Could not save AI database connection string."
         Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:ApiKey", $apiKey, "--project", $project) -FailureMessage "Could not save AI API key."
+        Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:StorageRoot", $storageRoot, "--project", $project) -FailureMessage "Could not save AI storage root."
         Invoke-DotNet -Arguments @("user-secrets", "set", "AIPlatform:ContextSigningKey", $contextSigningKey, "--project", $project) -FailureMessage "Could not save AI context signing key."
     }
 
