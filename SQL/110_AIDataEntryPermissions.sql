@@ -57,20 +57,20 @@ GO
 
 MERGE dbo.F03Functions AS target
 USING (VALUES
-    (3501,N'AIDocumentDataEntry.View',N'Xem biểu mẫu và kết quả nhập liệu AI',N'Cho phép xem danh sách biểu mẫu và các lượt nhập liệu thuộc phạm vi tenant.',N'View',N'All',3501),
-    (3502,N'AIDocumentDataEntry.TemplateManage',N'Quản lý biểu mẫu nhập liệu AI',N'Cho phép tạo và cập nhật cấu hình biểu mẫu Excel; chỉ dành cho quản trị viên.',N'TemplateManage',N'All',3502),
-    (3503,N'AIDocumentDataEntry.RunCreate',N'Tạo lượt nhập liệu AI',N'Cho phép tải chứng từ và tạo lượt trích xuất dữ liệu; lượt chạy được ràng buộc với người tạo.',N'RunCreate',N'All',3503),
-    (3504,N'AIDocumentDataEntry.Confirm',N'Xác nhận dữ liệu trích xuất AI',N'Cho phép người sở hữu lượt nhập liệu xác nhận dữ liệu đã kiểm tra.',N'Confirm',N'All',3504),
-    (3505,N'AIDocumentDataEntry.Export',N'Xuất kết quả nhập liệu AI',N'Cho phép người sở hữu lượt nhập liệu xuất Excel sau khi xác nhận.',N'Export',N'All',3505),
-    (3510,N'AIAssistant.Chat',N'Sử dụng trợ lý AI',N'Cho phép mở hội thoại AI; quyền này không tự cấp quyền đọc tri thức.',N'Chat',N'Own',3510)
-) AS source(FunctionCode,FunctionKey,DisplayName,Detail,ActionCode,ScopeCode,DisplayOrder)
+    (3501,N'AIDocumentDataEntry.View',N'AIDocumentDataEntry',N'Xem biểu mẫu và kết quả nhập liệu AI',N'Cho phép xem danh sách biểu mẫu và các lượt nhập liệu thuộc phạm vi tenant.',N'View',N'All',3501),
+    (3502,N'AIDocumentDataEntry.TemplateManage',N'AIDocumentDataEntry',N'Quản lý biểu mẫu nhập liệu AI',N'Cho phép tạo và cập nhật cấu hình biểu mẫu Excel; chỉ dành cho quản trị viên.',N'TemplateManage',N'All',3502),
+    (3503,N'AIDocumentDataEntry.RunCreate',N'AIDocumentDataEntry',N'Tạo lượt nhập liệu AI',N'Cho phép tải chứng từ và tạo lượt trích xuất dữ liệu; lượt chạy được ràng buộc với người tạo.',N'RunCreate',N'All',3503),
+    (3504,N'AIDocumentDataEntry.Confirm',N'AIDocumentDataEntry',N'Xác nhận dữ liệu trích xuất AI',N'Cho phép người sở hữu lượt nhập liệu xác nhận dữ liệu đã kiểm tra.',N'Confirm',N'All',3504),
+    (3505,N'AIDocumentDataEntry.Export',N'AIDocumentDataEntry',N'Xuất kết quả nhập liệu AI',N'Cho phép người sở hữu lượt nhập liệu xuất Excel sau khi xác nhận.',N'Export',N'All',3505),
+    (3510,N'AIAssistant.Chat',N'AIAssistant',N'Sử dụng trợ lý AI',N'Cho phép mở hội thoại AI; quyền này không tự cấp quyền đọc tri thức.',N'Chat',N'Own',3510)
+) AS source(FunctionCode,FunctionKey,ModuleCode,DisplayName,Detail,ActionCode,ScopeCode,DisplayOrder)
 ON target.FunctionCode = source.FunctionCode
 WHEN MATCHED THEN UPDATE SET
     target.IsActive = 1,
     target.FunctionName = source.FunctionKey,
     target.Detail = source.Detail,
     target.FunctionKey = source.FunctionKey,
-    target.ModuleCode = N'AIDocumentDataEntry',
+    target.ModuleCode = source.ModuleCode,
     target.ActionCode = source.ActionCode,
     target.ScopeCode = source.ScopeCode,
     target.LifecycleStatus = N'Active',
@@ -87,7 +87,7 @@ WHEN NOT MATCHED BY TARGET THEN
     VALUES
     (
         1,0,N'110_AI_DATA_ENTRY_PERMISSIONS',GETDATE(),
-        source.FunctionCode,source.FunctionKey,source.Detail,source.FunctionKey,N'AIDocumentDataEntry',
+        source.FunctionCode,source.FunctionKey,source.Detail,source.FunctionKey,source.ModuleCode,
         source.ActionCode,source.ScopeCode,N'Active',N'SecurityFunctionCodes',GETDATE(),source.DisplayOrder
     );
 GO
