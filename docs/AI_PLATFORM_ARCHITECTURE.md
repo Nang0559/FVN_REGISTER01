@@ -3,7 +3,7 @@
 **Version:** 1.2  
 **Runtime target:** .NET 9 / SQL Server  
 **Deployment:** Hybrid, on-premises first  
-**Branch:** `feature/ai-platform-phase1-6`  
+**Branch:** `feature/ai-platform-phase1-6-integration`  
 **Status:** Current architecture baseline. Phase readiness is tracked only in the root `AI_PLATFORM_PHASES_STATUS.md`.
 
 ## 1. Boundary
@@ -72,7 +72,7 @@ Human-corrected publication uses `CorrectedPayloadJson` rather than silently re-
 - Embedding generation is bounded to eight concurrent calls instead of one call per chunk serially.
 - Publication is limited to 1,000 chunks per document.
 - Retrieval applies tenant and ACL filters before materializing candidates in memory.
-- Retrieval is designed for a configurable candidate scan limit (default 5,000) and minimum cosine score (default 0.05). The current SQL store remains the PoC baseline and requires benchmark evidence before production scale.
+- Retrieval is designed for a configurable candidate scan limit (default 5,000) and minimum cosine score (default 0.05). The current SQL store remains the PoC baseline. ACL-filtered candidate materialization is capped at 5,000 rows per query; benchmark evidence is still required before production scale.
 - SQL Server 2025 native `VECTOR`/`VECTOR_SEARCH` is a future optimization path; the current implementation remains JSON embeddings plus application cosine scoring.
 
 ## 7. Retention and recovery
@@ -85,7 +85,7 @@ The SQL queue records lease ownership, retry/dead-letter state and document stat
 
 - **Phase readiness:** `../AI_PLATFORM_PHASES_STATUS.md`
 - **Operations:** `AI_PLATFORM_OPERATIONS.md`
-- **Migrations:** `../SQL/AI/001_*.sql` through `019_DeadLetterProcedureAndTriggerCompatibility.sql`
+- **Migrations:** `../SQL/AI/001_*.sql` through `021_FailProcedureAnsiQuotedSettings.sql`
 - **CI:** `.github/workflows/ai-platform-sql-validation.yml`
 
 This document must not describe planned hybrid retrieval, real authorization adapters, or complete policy lifecycle as already implemented.
