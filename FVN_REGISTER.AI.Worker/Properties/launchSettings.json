@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FVN_REGISTER.AI.Worker": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

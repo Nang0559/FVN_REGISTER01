@@ -8,6 +8,7 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -18,6 +19,7 @@ namespace FVN_REGISTER.API.Controllers;
 /// </summary>
 [Authorize]
 [ApiController]
+[EnableRateLimiting("AIAuthenticated")]
 [Route("api/ai/business-context")]
 public sealed class AIBusinessContextController : ControllerBase
 {

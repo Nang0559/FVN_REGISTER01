@@ -121,6 +121,32 @@ public sealed class RagAnswerServiceTests
     }
 
     [Fact]
+    public async Task AnswerWithConversationContextAsync_KeepsOnlyNewestTurnsWithinHistoryBudget()
+    {
+        var chunkId = Guid.NewGuid().ToString();
+        var search = new StubSearch([new KnowledgeSearchHit(chunkId, Guid.NewGuid().ToString(),
+            "Policy.pdf", 1, "Quy định nghỉ phép.", 0.9, "Policy.pdf, page 1")]);
+        var model = new StubModelProvider(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = "Supported", answer = "Có.", citations = new[] { chunkId }
+        }));
+        const string context = """{"tenantCode":"FCCVN","actorId":"42","contextVersion":"v1"}""";
+        var history = System.Text.Json.JsonSerializer.Serialize(
+            Enumerable.Range(0, 8).Select(i => new { role = i % 2 == 0 ? "user" : "assistant", content = $"Lượt {i}: " + new string('ạ', 2400) }),
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+        var result = await CreateService(search, model).AnswerWithConversationContextAsync(
+            "FCCVN", "42", ["EMPLOYEE"], "Còn nửa ngày?", context, history);
+
+        Assert.Equal("Supported", result.Status);
+        using var payload = System.Text.Json.JsonDocument.Parse(model.LastRequest!.Input);
+        var kept = payload.RootElement.GetProperty("conversationHistory");
+        Assert.InRange(kept.GetArrayLength(), 1, 3);
+        Assert.StartsWith("Lượt 7:", kept[kept.GetArrayLength() - 1].GetProperty("content").GetString(), StringComparison.Ordinal);
+        Assert.True(kept.EnumerateArray().Sum(x => x.GetProperty("content").GetString()!.Length) <= 8_000 + 2_500);
+    }
+
+    [Fact]
     public async Task AnswerAsync_BoundsTotalEvidenceCharactersBeforeModelCall()
     {
         var chunkIds = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid().ToString()).ToArray();

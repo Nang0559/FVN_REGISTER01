@@ -5,6 +5,7 @@ using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Contracts;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.AI.Infrastructure.Services;
 
@@ -12,9 +13,11 @@ namespace FVN_REGISTER.AI.Infrastructure.Services;
 /// SQL-backed vector store for moderate corpora. Tenant and ACL filtering happens before
 /// any candidate text is returned to the RAG orchestration layer.
 /// </summary>
-public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlVectorKnowledgeStore> logger) : IVectorKnowledgeStore
+public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlVectorKnowledgeStore> logger,
+    IOptions<KnowledgeSearchOptions>? searchOptions = null) : IVectorKnowledgeStore
 {
-    private const int MaxCandidateScan = 5_000;
+    // Bounded in-memory scan; configurable via AIPlatform:KnowledgeSearch:MaxCandidateScan.
+    private int MaxCandidateScan => Math.Clamp(searchOptions?.Value.MaxCandidateScan ?? 5_000, 100, 50_000);
 
     public async Task UpsertAsync(string tenantCode, IReadOnlyCollection<KnowledgeChunk> chunks,
         IReadOnlyCollection<EmbeddingVector> vectors, CancellationToken cancellationToken = default)
@@ -111,6 +114,8 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlV
             .ToListAsync(cancellationToken);
 
         logger.LogDebug("Vector search scanned {CandidateCount} ACL-filtered chunks for tenant {TenantCode}.", rows.Count, tenantCode);
+        if (rows.Count >= MaxCandidateScan)
+            logger.LogWarning("Vector search hit the {Limit}-chunk scan cap for tenant {TenantCode}; older chunks were not considered. Move to server-side vector search or raise AIPlatform:KnowledgeSearch:MaxCandidateScan.", MaxCandidateScan, tenantCode);
 
         var allowed = new HashSet<string>(allowedScopes.Where(x => !string.IsNullOrWhiteSpace(x)), StringComparer.OrdinalIgnoreCase);
         var results = new List<KnowledgeSearchCandidate>();

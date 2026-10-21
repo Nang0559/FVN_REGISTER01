@@ -9,6 +9,8 @@ namespace FVN_REGISTER.AI.Infrastructure.Services;
 public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelProvider modelProvider, IAIReleaseService releases) : IRagAnswerService
 {
     private const int MaxEvidenceCharacters = 9_000;
+    // Keeps the newest turns only; with evidence this stays inside an 8K-token window.
+    private const int MaxHistoryCharacters = 8_000;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -46,8 +48,17 @@ public sealed class RagAnswerService(IKnowledgeSearchService search, IAIModelPro
                 !x.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.String ||
                 content.GetString()!.Length > 2500))
             throw new ArgumentException("Conversation history has an invalid or excessive shape.", nameof(conversationHistoryJson));
+        var kept = new List<JsonElement>();
+        var keptCharacters = 0;
+        foreach (var turn in history.RootElement.EnumerateArray().Reverse())
+        {
+            var length = turn.GetProperty("content").GetString()!.Length;
+            if (kept.Count > 0 && keptCharacters + length > MaxHistoryCharacters) break;
+            kept.Insert(0, turn);
+            keptCharacters += length;
+        }
         return AnswerCoreAsync(tenantCode, actorId, allowedScopes, query, businessContextJson,
-            retrievalLimit, cancellationToken, history.RootElement.GetRawText());
+            retrievalLimit, cancellationToken, JsonSerializer.Serialize(kept, JsonOptions));
     }
 
     private async Task<RagAnswerResult> AnswerCoreAsync(string tenantCode, string actorId, IReadOnlyCollection<string> allowedScopes, string query, string? businessContextJson, int retrievalLimit, CancellationToken cancellationToken, string? conversationHistoryJson = null)

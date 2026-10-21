@@ -19,7 +19,10 @@ public sealed class FileSystemOriginalDocumentStore : IOriginalDocumentStore
         var configuredRoot = options.Value.StorageRoot?.Trim();
 
         if (string.IsNullOrWhiteSpace(configuredRoot))
-            throw new InvalidOperationException("AIPlatform:StorageRoot must be configured.");
+            throw new InvalidOperationException(
+                "AIPlatform:StorageRoot must be configured with an absolute path shared by AI.Api and AI.Worker " +
+                "(for example: dotnet user-secrets set \"AIPlatform:StorageRoot\" \"D:\\FvnAi\\OriginalDocuments\" " +
+                "or the AIPlatform__StorageRoot environment variable).");
 
         if (!Path.IsPathFullyQualified(configuredRoot))
         {

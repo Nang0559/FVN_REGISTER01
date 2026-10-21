@@ -138,3 +138,17 @@ CI verifies tenant predicates in the RAG retrieval query, tenant references in r
 - 3510 AIAssistant.Chat, which grants access to the chat surface but does **not** grant access to protected knowledge.
 
 Roles 1–5 receive the chat and own-run capabilities; only roles 1–2 receive template management. Guest role 6 receives none. Data-entry run read/confirm/export also checks `CreatedBy` against the current actor. Review the role matrix before production rollout if the company role policy differs.
+
+## Local development configuration
+
+Do not commit machine-specific paths or secrets. `AIPlatform:StorageRoot` is intentionally empty in the committed appsettings and must be an absolute path shared by `FVN_REGISTER.AI.Api` and `FVN_REGISTER.AI.Worker`. Set it, and the SQL connection string, for **both** projects with user-secrets (or `AIPlatform__StorageRoot` / `ConnectionStrings__FvnAi` environment variables):
+
+```powershell
+cd FVN_REGISTER.AI.Api
+dotnet user-secrets set "AIPlatform:StorageRoot" "D:\FvnAi\OriginalDocuments"
+cd ..\FVN_REGISTER.AI.Worker
+dotnet user-secrets set "AIPlatform:StorageRoot" "D:\FvnAi\OriginalDocuments"
+dotnet user-secrets set "ConnectionStrings:FvnAi" "<same FVN_AI connection string as the API>"
+```
+
+Ingestion also requires `AIPlatform:MalwareScanner:Provider=ClamAV` with a reachable clamd, and Tesseract/pdftoppm on PATH for images and scanned PDFs. Worker failure codes: `ORIGINAL_BLOB_MISSING` (storage root differs between Api and Worker), `OCR_TOOL_UNAVAILABLE` (OCR executable missing), `MALWARE_SCANNER_NOT_CONFIGURED`.
