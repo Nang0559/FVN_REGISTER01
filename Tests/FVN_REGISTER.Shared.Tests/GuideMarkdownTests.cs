@@ -53,7 +53,8 @@ public sealed class GuideMarkdownTests
     public void HeadingTextId_SelectsTheAppendixBlock()
     {
         var block = GuideMarkdown.ExtractSection(Guide(), "~Nghiệp vụ, chấm công và báo cáo");
-        Assert.Contains("/payroll/table", block);
+        Assert.Contains("### 8.1.", block);
+        Assert.DoesNotContain("Phụ lục A", block);
     }
 
     [Fact]

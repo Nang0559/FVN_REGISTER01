@@ -71,6 +71,15 @@ public static class HelpRegistry
         Prefix("profile", "PROFILE"),
         Prefix("change-password", "PROFILE"),
 
+        // AI platform
+        Prefix("ai/assistant", "AI_ASSISTANT"),
+        Prefix("ai/hr-assistant", "AI_HR_ASSISTANT"),
+        Prefix("admin/ai-document-entry", "ADMIN_AI_PLATFORM"),
+        Prefix("admin/ai-platform-test", "ADMIN_AI_PLATFORM"),
+
+        // Late arrival / early leave
+        Prefix("late-early", "LATE_EARLY"),
+
         // HRM
         Prefix("hrm/attendance-calculation", "HRM_ATTENDANCE_CALCULATION"),
 
@@ -104,8 +113,8 @@ public static class HelpRegistry
         Prefix("admin/localization", "ADMIN_SYSTEM"),
     };
 
-    /// <summary>Routes that intentionally have no help text (login, the guide page itself, the public landing page).</summary>
-    public static readonly IReadOnlyList<string> RoutesWithoutHelp = new[] { "login", "huong-dan", "public" };
+    /// <summary>Routes that intentionally have no help text (login, the guide page itself, the public landing page, the error page).</summary>
+    public static readonly IReadOnlyList<string> RoutesWithoutHelp = new[] { "login", "huong-dan", "public", "error" };
 
     /// <summary>The user guide that <c>/huong-dan</c> renders (copied next to the app by FVN_REGISTER.Web.csproj).</summary>
     public const string GuideFile = "04_USER_GUIDE.md";

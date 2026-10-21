@@ -387,7 +387,7 @@ public sealed class CalendarDayRuleTests
         var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtActualWithoutRequestRule() });
 
         var issue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(
-            DayWithOt(status), Array.Empty<CalendarItemDto>())));
+            DayWithOt(status), Array.Empty<CalendarItemDto>(), isOtRegistrar: true)));
 
         Assert.Equal((byte)3, issue.Severity);
         Assert.Contains(issue.Actions, x => x.Code == "OPEN_OT");

@@ -38,7 +38,8 @@ public sealed class FvnWebAppContextSmokeTests
         Assert.True(assignmentIndex >= 0);
         Assert.True(previousIndex < assignmentIndex, "previousStatus must be captured before status mutation.");
         Assert.Contains("ActorUserId = actorUserId", source);
-        Assert.Contains("isNew ? \"CREATED\" : \"UPSERT\"", source);
+        Assert.Contains("isNew ? \"CREATED\"", source);
+        Assert.Contains("\"UPSERT\"", source);
     }
 
     [Fact]

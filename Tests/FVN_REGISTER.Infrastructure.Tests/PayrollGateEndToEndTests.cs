@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Infrastructure.Tests;
 
 public sealed class PayrollGateEndToEndTests
 {
-    [Fact]
+    [SqlIntegrationFact]
     public async Task Payroll_lock_is_blocked_by_unresolved_execution_then_succeeds_after_resolution()
     {
         var connectionString = Environment.GetEnvironmentVariable("FVN_REGISTER_SQL_CONNECTION");

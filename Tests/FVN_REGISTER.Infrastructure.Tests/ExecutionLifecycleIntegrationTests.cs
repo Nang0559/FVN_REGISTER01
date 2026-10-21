@@ -9,7 +9,7 @@ namespace FVN_REGISTER.Infrastructure.Tests;
 
 public sealed class ExecutionLifecycleIntegrationTests
 {
-    [Fact]
+    [SqlIntegrationFact]
     public async Task Action_writer_is_idempotent_and_preserves_original_due_at()
     {
         var connectionString = Environment.GetEnvironmentVariable("FVN_REGISTER_SQL_CONNECTION");
@@ -75,7 +75,7 @@ public sealed class ExecutionLifecycleIntegrationTests
         await transaction.RollbackAsync();
     }
 
-    [Fact]
+    [SqlIntegrationFact]
     public async Task Action_writer_keeps_participants_isolated()
     {
         var connectionString = Environment.GetEnvironmentVariable("FVN_REGISTER_SQL_CONNECTION");

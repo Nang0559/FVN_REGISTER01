@@ -37,6 +37,10 @@ public static class HelpAccessPolicy
         ["REPORTS"] = new[] { SecurityFunctionCodes.PayrollView, SecurityFunctionCodes.AttendanceView, SecurityFunctionCodes.LeaveView, SecurityFunctionCodes.OTView, SecurityFunctionCodes.TripView },
         ["PAYROLL_TABLE"] = new[] { SecurityFunctionCodes.PayrollView, SecurityFunctionCodes.PayrollPrepare, SecurityFunctionCodes.PayrollExport },
         ["HISTORY"] = new[] { SecurityFunctionCodes.LeaveView, SecurityFunctionCodes.OTView, SecurityFunctionCodes.TripView, SecurityFunctionCodes.EquipmentHistory },
+        ["AI_ASSISTANT"] = new[] { SecurityFunctionCodes.AIAssistantChat },
+        ["AI_HR_ASSISTANT"] = new[] { SecurityFunctionCodes.OTView, SecurityFunctionCodes.AttendanceView, SecurityFunctionCodes.LeaveView },
+        ["ADMIN_AI_PLATFORM"] = new[] { SecurityFunctionCodes.AIDocumentDataEntryView, SecurityFunctionCodes.SecurityView },
+        ["LATE_EARLY"] = new[] { SecurityFunctionCodes.LateEarlyView, SecurityFunctionCodes.LateEarlyCreate, SecurityFunctionCodes.LateEarlyApprove },
         ["PROFILE"] = Array.Empty<int>()
     };
 

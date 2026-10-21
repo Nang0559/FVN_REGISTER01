@@ -20,24 +20,24 @@ public sealed class CalendarSupervisorFeedbackRuleTests
         Attendance = new CalendarAttendanceInfoDto { HasActualOt = true, ActualOtMinutes = 120 }
     };
 
-    private static CalendarIssueDto Evaluate(CalendarDayDto day) =>
+    private static CalendarIssueDto Evaluate(CalendarDayDto day, bool isOtRegistrar = false) =>
         Assert.Single(new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtActualWithoutRequestRule() })
-            .Evaluate(new CalendarDayRuleContext(day, Array.Empty<CalendarItemDto>())));
+            .Evaluate(new CalendarDayRuleContext(day, Array.Empty<CalendarItemDto>(), isOtRegistrar)));
 
     [Fact]
     public void NonRegistrar_SeesSupervisorFeedback_NotRegisterOt()
     {
         var issue = Evaluate(Day(mustReport: true));
-        Assert.DoesNotContain(issue.Actions, x => x.Code == "OPEN_OT");
-        Assert.Contains(issue.Actions, x => x.Code == "OPEN_SUPERVISOR_FEEDBACK");
-        Assert.Contains(issue.Actions, x => x.Code == "OPEN_HR_FEEDBACK");
+        // Không có quyền đăng ký OT: chỉ được phản hồi cấp trên (không mở đăng ký OT, không gửi thẳng HR).
+        Assert.Equal("OPEN_SUPERVISOR_FEEDBACK", Assert.Single(issue.Actions).Code);
     }
 
     [Fact]
     public void Registrar_StillSeesRegisterOt_NotSupervisorFeedback()
     {
-        var issue = Evaluate(Day(mustReport: false));
+        var issue = Evaluate(Day(mustReport: false), isOtRegistrar: true);
         Assert.Contains(issue.Actions, x => x.Code == "OPEN_OT");
+        Assert.Contains(issue.Actions, x => x.Code == "OPEN_HR_FEEDBACK");
         Assert.DoesNotContain(issue.Actions, x => x.Code == "OPEN_SUPERVISOR_FEEDBACK");
     }
 
