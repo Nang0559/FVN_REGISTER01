@@ -13,7 +13,7 @@ This branch integrates `Nang0559/FVN_REGISTER_AI` feature `ai-platform-phase1-6`
 
 - AI Core / Application / Infrastructure / Api / Worker projects.
 - AI unit tests.
-- SQL/AI migrations 001-019.
+- SQL/AI migrations 001-021.
 - HR case gateway controller and workspace.
 - AI operational documentation and migration script.
 - AI validation workflows.
