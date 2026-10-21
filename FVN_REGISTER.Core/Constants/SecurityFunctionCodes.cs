@@ -22,6 +22,7 @@ public static class SecurityFunctionCodes
  [SecurityFunctionDefinition("AIDocumentDataEntry.RunCreate","Tạo lượt nhập liệu AI",ModuleCode="AIDocumentDataEntry",ActionCode="RunCreate",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryRunCreate=3503;
  [SecurityFunctionDefinition("AIDocumentDataEntry.Confirm","Xác nhận dữ liệu trích xuất AI",ModuleCode="AIDocumentDataEntry",ActionCode="Confirm",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryConfirm=3504;
  [SecurityFunctionDefinition("AIDocumentDataEntry.Export","Xuất kết quả nhập liệu AI",ModuleCode="AIDocumentDataEntry",ActionCode="Export",ScopeCode=AuthorizationScopeCodes.All)] public const int AIDocumentDataEntryExport=3505;
+ [SecurityFunctionDefinition("AIAssistant.Chat","Sử dụng trợ lý AI",ModuleCode="AIAssistant",ActionCode="Chat",ScopeCode=AuthorizationScopeCodes.Own)] public const int AIAssistantChat=3510;
  public static readonly IReadOnlySet<int> SystemCriticalCodes=new HashSet<int>{SecurityView,SecurityManageRoles,SecurityManageFunctions,SecurityAudit};
  public static bool IsSystemCritical(int functionCode)=>SystemCriticalCodes.Contains(functionCode);
  public const int PublicInformationManage=2801,PublicFormManage=2807,PublicFormSubmissionView=2808,PublicFormExport=2809,PublicFormView=2819,PublicFormSubmit=2811,PublicFormFeedback=2812,PublicFormCreate=2813,PublicFormEdit=2814,PublicFormAssignAudience=2815,PublicFormResultView=2816,PublicFormResultExport=2817,PublicFormAuditView=2818,ExecutionReview=2802;
