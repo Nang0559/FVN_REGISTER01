@@ -22,7 +22,11 @@ public static class DependencyInjection
   var options=configuration.GetSection(AIPlatformOptions.SectionName).Get<AIPlatformOptions>()??new AIPlatformOptions();
   if(!options.RequireContentBoundSignatures) throw new InvalidOperationException("AIPlatform:RequireContentBoundSignatures must be true. Production startup is refused when signed requests do not bind query/body content.");
   var connection=configuration.GetConnectionString(options.ConnectionStringName);
-  if(!string.IsNullOrWhiteSpace(connection)) services.AddDbContext<AiPlatformDbContext>(db=>db.UseSqlServer(connection,sql=>sql.EnableRetryOnFailure(3)));
+  // EF Core refuses user-initiated transactions (knowledge publish/unpublish, schema registry, data entry,
+  // conversation turns, releases) while a retrying execution strategy is active. Retries are therefore opt-in:
+  // set AIPlatform:SqlRetryCount > 0 only after every BeginTransactionAsync is wrapped in CreateExecutionStrategy().
+  var sqlRetryCount=Math.Clamp(configuration.GetValue<int>("AIPlatform:SqlRetryCount",0),0,6);
+  if(!string.IsNullOrWhiteSpace(connection)) services.AddDbContext<AiPlatformDbContext>(db=>db.UseSqlServer(connection,sql=>{if(sqlRetryCount>0)sql.EnableRetryOnFailure(sqlRetryCount);}));
   if(options.DefaultProvider.Equals("Ollama",StringComparison.OrdinalIgnoreCase))
   {
    if(!Uri.TryCreate(options.Endpoint,UriKind.Absolute,out var modelEndpoint)||(modelEndpoint.Scheme!=Uri.UriSchemeHttp&&modelEndpoint.Scheme!=Uri.UriSchemeHttps)) throw new InvalidOperationException("AIPlatform:Endpoint must be an absolute HTTP(S) URL when DefaultProvider is Ollama.");

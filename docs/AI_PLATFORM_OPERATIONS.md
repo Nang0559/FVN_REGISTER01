@@ -168,3 +168,11 @@ Configuration (`AIPlatform:KnowledgeAuthorization`): `ConnectionStringName` (def
 ## 17. Protected diagnostics endpoints
 
 `/health` remains anonymous (liveness only). `/health/ready` and `/api/ai/capabilities` require the `X-AI-API-Key` header; FVN_REGISTER.API sends it server-side. `GET api/ai/assistant/availability` (authenticated, cached 30 s) returns one boolean that the UI uses to hide the "Trợ lý AI" menu when `ragOperational` is false.
+
+## SQL retry and transactions
+
+`AIPlatform:SqlRetryCount` (default `0`) controls EF Core's SQL Server retrying execution strategy. With a retrying
+strategy, EF Core throws `The configured execution strategy 'SqlServerRetryingExecutionStrategy' does not support
+user-initiated transactions` from every manual `BeginTransactionAsync` (knowledge publish, schema registry, data entry,
+conversation turns, releases). Keep it `0` unless all manual transactions are wrapped in
+`db.Database.CreateExecutionStrategy().ExecuteAsync(...)`.
