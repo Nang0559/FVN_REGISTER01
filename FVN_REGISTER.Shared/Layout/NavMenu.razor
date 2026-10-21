@@ -12,6 +12,10 @@
 <MudNavMenu>
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">@Language.T("nav.dashboard")</MudText>
     <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@Language.T("nav.home")</MudNavLink>
+    @if (Can(SecurityFunctionCodes.AIAssistantChat))
+    {
+        <MudNavLink href="/ai/assistant" Icon="@Icons.Material.Filled.Psychology">Trợ lý AI</MudNavLink>
+    }
     @if (CanPersonal(SecurityFunctionCodes.CalendarView) || CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.LateEarlyView) || CanPersonal(SecurityFunctionCodes.AttendanceView))
     {
         <MudNavLink href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendar")</MudNavLink>
