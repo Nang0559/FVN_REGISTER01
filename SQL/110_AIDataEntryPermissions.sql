@@ -29,7 +29,8 @@ IF EXISTS
         (3502,N'AIDocumentDataEntry.TemplateManage'),
         (3503,N'AIDocumentDataEntry.RunCreate'),
         (3504,N'AIDocumentDataEntry.Confirm'),
-        (3505,N'AIDocumentDataEntry.Export')
+        (3505,N'AIDocumentDataEntry.Export'),
+        (3510,N'AIAssistant.Chat')
     ) v(FunctionCode,FunctionKey)
       ON f.FunctionCode = v.FunctionCode
     WHERE ISNULL(f.FunctionKey,N'') <> v.FunctionKey
@@ -59,7 +60,8 @@ USING (VALUES
     (3502,N'AIDocumentDataEntry.TemplateManage',N'Quản lý biểu mẫu nhập liệu AI',N'Cho phép tạo và cập nhật cấu hình biểu mẫu Excel; chỉ dành cho quản trị viên.',N'TemplateManage',N'All',3502),
     (3503,N'AIDocumentDataEntry.RunCreate',N'Tạo lượt nhập liệu AI',N'Cho phép tải chứng từ và tạo lượt trích xuất dữ liệu; lượt chạy được ràng buộc với người tạo.',N'RunCreate',N'All',3503),
     (3504,N'AIDocumentDataEntry.Confirm',N'Xác nhận dữ liệu trích xuất AI',N'Cho phép người sở hữu lượt nhập liệu xác nhận dữ liệu đã kiểm tra.',N'Confirm',N'All',3504),
-    (3505,N'AIDocumentDataEntry.Export',N'Xuất kết quả nhập liệu AI',N'Cho phép người sở hữu lượt nhập liệu xuất Excel sau khi xác nhận.',N'Export',N'All',3505)
+    (3505,N'AIDocumentDataEntry.Export',N'Xuất kết quả nhập liệu AI',N'Cho phép người sở hữu lượt nhập liệu xuất Excel sau khi xác nhận.',N'Export',N'All',3505),
+    (3510,N'AIAssistant.Chat',N'Sử dụng trợ lý AI',N'Cho phép mở hội thoại AI; quyền này không tự cấp quyền đọc tri thức.',N'Chat',N'Own',3510)
 ) AS source(FunctionCode,FunctionKey,DisplayName,Detail,ActionCode,ScopeCode,DisplayOrder)
 ON target.FunctionCode = source.FunctionCode
 WHEN MATCHED THEN UPDATE SET
@@ -90,7 +92,7 @@ WHEN NOT MATCHED BY TARGET THEN
 GO
 
 /* Least privilege:
-   - All authenticated business roles (1..5) can view and process their own runs.
+   - All authenticated business roles (1..5) can use the assistant and process their own data-entry runs.
    - Template design is restricted to SuperAdmin/Admin (1..2).
    - Guest role (6) receives no AI data-entry capability.
    - Run ownership is independently enforced by the AI data-entry service.
@@ -99,7 +101,7 @@ INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
 SELECT r.Id,f.Id
 FROM dbo.F03Roles r
 JOIN dbo.F03Functions f
-  ON f.FunctionCode IN (3501,3503,3504,3505)
+  ON f.FunctionCode IN (3501,3503,3504,3505,3510)
 WHERE r.RoleCode IN (1,2,3,4,5)
   AND NOT EXISTS
   (
@@ -122,7 +124,7 @@ GO
 IF EXISTS
 (
     SELECT required.FunctionCode
-    FROM (VALUES (3501),(3502),(3503),(3504),(3505)) required(FunctionCode)
+    FROM (VALUES (3501),(3502),(3503),(3504),(3505),(3510)) required(FunctionCode)
     LEFT JOIN dbo.F03Functions f ON f.FunctionCode=required.FunctionCode AND f.IsActive=1
     WHERE f.Id IS NULL
 )
