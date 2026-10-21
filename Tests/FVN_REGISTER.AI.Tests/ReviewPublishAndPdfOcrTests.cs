@@ -1,6 +1,7 @@
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Infrastructure.Extraction;
 using FVN_REGISTER.AI.Infrastructure.Services;
+using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.Writer;
 
 namespace FVN_REGISTER.AI.Tests;
