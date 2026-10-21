@@ -51,7 +51,7 @@ The P1–P8 sequence is a separate product architecture roadmap, not a renumberi
 
 For an empty dedicated `FVN_AI` database run exactly:
 
-`001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015 → 016 → 017 → 018 → 019`
+`001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015 → 016 → 017 → 018 → 019 → 020 → 021`
 
 Migration `014_Phase5_ReleaseRetentionTenantHardening.sql` is a forward migration; do not edit already-applied migrations. It adds release provenance, tenant composite constraints, retention/dedup hardening, replay-window enforcement and queue/document state propagation.
 
@@ -59,7 +59,7 @@ Migration `014_Phase5_ReleaseRetentionTenantHardening.sql` is a forward migratio
 
 `.github/workflows/ai-platform-sql-validation.yml` now:
 
-- applies migrations 001–019 twice;
+- applies migrations 001–021 twice;
 - checks release-aware extraction indexes, tenant columns/FKs, dedup index and migration checksums;
 - verifies duplicate legacy chunk ordinals fail clearly;
 - exercises concurrent lease claims and nonce replay;
@@ -158,10 +158,10 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 - Every user turn stores the strict, validated business-context projection used for that turn. EmployeeCode and unknown fields remain excluded by the shared validator.
 - Prior turns are loaded only from the same tenant, actor, and conversation; at most eight completed turns are passed as a separate `conversationHistory` property. Current RAG evidence remains a distinct property and only current-question search results can be cited. Conversation history is explicitly treated as untrusted context, never as evidence or instructions.
 - Message sequence allocation is serialized per append and protected by a unique tenant/conversation/sequence index. Conversations expire after 90 days; the migration includes a bounded purge procedure for an externally scheduled SQL Agent job. The API hides expired conversations even before physical purge.
-- This provides persistence and bounded context inside the signed AI API. The authenticated FVN API proxy now has matching conversation lifecycle routes; the Blazor UI still needs wiring. SQL migrations 001–019 must be applied before enabling these endpoints.
+- This provides persistence and bounded context inside the signed AI API. The authenticated FVN API proxy now has matching conversation lifecycle routes; the Blazor chat, data-entry and HR workspaces are wired; a universal AI document-review queue and E2E verification remain. SQL migrations 001–021 must be applied before enabling these endpoints.
 
 
-- Follow-up: the FVN authenticated API controller now exposes conversation create/list/transcript/ask proxy routes. Each upstream request is signed with the current session's actor ID; browser-supplied actor IDs are not accepted. The proxy constructs the strict business-context projection from the current FVN authorization snapshot. The conversation prompt is limited to the latest eight turns, each truncated to 2,500 characters for the AI request-size budget. UI wiring and applying SQL migrations 001–019 remain deployment/product rollout tasks.
+- Follow-up: the FVN authenticated API controller now exposes conversation create/list/transcript/ask proxy routes. Each upstream request is signed with the current session's actor ID; browser-supplied actor IDs are not accepted. The proxy constructs the strict business-context projection from the current FVN authorization snapshot. The conversation prompt is limited to the latest eight turns, each truncated to 2,500 characters for the AI request-size budget. UI pages are now wired for chat, data-entry and HR; applying SQL migrations 001–021 and completing E2E verification remain rollout tasks.
 
 - Conversation turns are recorded as `Pending` before model execution, changed to `Completed` only after a successful response, and marked `Failed` if the model call errors. Failed/incomplete turns are excluded from subsequent prompt history. Conversation reads and lists use no-store cache headers.
 
@@ -170,15 +170,22 @@ No Phase 3/4/5 row should be labelled implementation-complete until the remainin
 
 - Corrected `AnswerWithConversationContextAsync` argument order: retrieval limit and cancellation token now precede the optional serialized history argument passed to `AnswerCoreAsync`.
 - Corrected the history validation error text to match the 24,000-character bound.
-- Conversation history now includes both user and assistant roles, excludes only `Pending` and `Failed`, and is still limited to the latest eight messages. Assistant status values such as `Supported`, `PartiallySupported`, and `NotFound` are therefore retained.
-- Migration runner now applies 001–019 and records SHA-256 checksums for 015–019. SQL integration workflow applies the full set twice and asserts data-entry tables, conversation tables, purge/recovery procedures, ownership FK, and migration checksums. Migration 017/019 correct dead-letter document status transactionally without leaving a trigger on the queue table (the claim procedure uses OUTPUT); migration 018 marks abandoned Pending user turns Failed after a bounded age.
+- Conversation history includes only completed user turns and assistant outcomes `Supported`, `PartiallySupported`, or `NotFound`. `Forbidden`, `InvalidModelResponse`, and other abstentions remain visible in the transcript with their status but are excluded from future model context.
+- Migration runner now applies 001–021 and records SHA-256 checksums for 015–021. SQL integration workflow applies the full set twice and asserts data-entry tables, conversation tables, purge/recovery procedures, ownership FK, queue claim serialization, dead-letter procedure SET options, and migration checksums. Migration 017/019 correct dead-letter document status transactionally without leaving a trigger on the queue table (the claim procedure uses OUTPUT); migration 018 marks abandoned Pending user turns Failed after a bounded age.
 - Documentation index now links only to files that exist. Operations, architecture and integration documentation were aligned to migration 019.
 - Data-entry FVN proxy authorization was changed from the generic system-critical `SecurityView` permission to dedicated function codes: View (3501), TemplateManage (3502), RunCreate (3503), Confirm (3504), Export (3505). Each host route checks the matching permission before forwarding.
 - Conversation message sequence allocation now uses a transaction-owned SQL application lock with a bounded 10-second wait and ReadCommitted transaction instead of Serializable range locking plus MAX+1 alone. The unique sequence index remains the final integrity guard.
 
-**Verification caveats:** SQL CI run 39462131988 successfully applied migrations 001–016 twice and passed the migration/checksum/schema verification and duplicate-ordinal test, but failed later in the pre-existing concurrent lease/dead-letter test step; remaining SQL CI steps were skipped. The full .NET build/test workflow for the latest branch HEAD is queued/pending. SQL CI for migration 019 is also queued; the previous SQL run exposed the queue-trigger/OUTPUT incompatibility, which migration 019 removes by moving the document update into the failure procedure. No local build is claimed.
+**Verification update (2026-10-21):** SQL CI run 39523741526 passed at commit `5127b3ec`: migrations 001–021 applied twice with checksum verification; duplicate-ordinal guard passed; 12 concurrent queue claimers obtained 12 distinct jobs; nonce replay produced exactly 1 accepted and 11 replay results; dead-letter propagated to document status; conversation recovery and expiry purge passed; tenant/dedup checks passed; AI unit tests passed **89/89**. This SQL workflow is green. The full solution build on the latest branch HEAD is still pending and must be checked separately; no production build claim is made yet.
 
-**Outstanding risks:** conversation `Content` and per-turn `ContextJson` remain plaintext SQL columns and need a reviewed encryption-at-rest/application-key design before sensitive conversations are enabled in production. The 90-day expiry requires a scheduled purge job. A process crash can leave a user turn `Pending`; migration 018 adds a stored procedure, but it still requires a scheduled SQL Agent job or equivalent scheduler to run. Conversation API endpoint-level integration tests are still outstanding.
+**Outstanding risks:** conversation `Content` and per-turn `ContextJson` remain plaintext SQL columns and need a reviewed encryption-at-rest/application-key design before sensitive conversations are enabled in production. Conversation API endpoint-level integration/E2E tests are still outstanding. The trusted FVN knowledge authorization adapter and HR facts adapter remain fail-closed until the approved FVN permission-to-knowledge-scope mapping and authoritative HR source contracts are supplied. OCR and malware scanning still require environment smoke tests. A universal AI document-review queue is not yet implemented.
+### Integration implementation update (2026-10-21)
 
-
-- Conversation turn recovery is available as `ai.usp_RecoverStaleConversationTurns` (15-minute default, bounded batch). Schedule it alongside `ai.usp_PurgeExpiredConversations`; neither stored procedure runs automatically by itself.
+- Added `/ai/assistant` Blazor conversation workspace and role-gated navigation. New permission `AIAssistant.Chat` (3510) is checked server-side by the FVN conversation proxy; browser requests never supply an actor ID.
+- Added role-gated navigation for the existing AI data-entry (3501) and HR assistant workspaces. The data-entry UI checks 3501–3505 separately and hides template management unless 3502 is granted.
+- Added FVN SQL deployment script `SQL/110_AIDataEntryPermissions.sql` to both main deployment entrypoints. Roles 1–5 receive assistant chat and own-run capabilities; template management (3502) is limited to roles 1–2; Guest receives none. Chat permission 3510 does not grant knowledge access.
+- Data-entry run retrieval, confirmation and export now require `CreatedBy == currentActor` in addition to tenant ownership. This prevents one authorized user from reading or confirming another user's run.
+- Conversation history eligibility is status-aware and remains scoped by tenant, actor and conversation. The status predicate is grouped inside the tenant/actor filter to prevent OR-precedence from bypassing those isolation predicates.
+- Added regression tests for conversation abstention policy; `Forbidden` and `InvalidModelResponse` are not replayed into later prompts.
+- Document processing tests exposed and fixed a phantom page 1 when a PDF starts with `[PAGE n]`, strict UTF-8 validation that previously accepted malformed input through BOM detection, and text extraction that skipped bytes when the caller stream position was non-zero. XLSX test ZIP entries are now disposed before the next entry is created.
+- Queue claim concurrency is protected by migration 020; migration 021 fixes the stored procedure `ANSI_NULLS`/`QUOTED_IDENTIFIER` metadata required for filtered-index updates. SQL CI proves both behaviors.
