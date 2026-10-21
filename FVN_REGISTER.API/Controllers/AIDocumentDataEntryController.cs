@@ -45,7 +45,7 @@ public sealed class AIDocumentDataEntryController : BaseApiController
         using var form = new MultipartFormDataContent();
         await using var input = file.OpenReadStream(); using var content = new StreamContent(input);
         content.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(file.ContentType) ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : file.ContentType);
-        form.Add(content, "file", Path.GetFileName(file.FileName)); form.Add(new StringContent(templateCode ?? ""), "templateCode"); form.Add(new StringContent(displayName ?? ""), "displayName"); form.Add(new StringContent(moduleCode ?? ""), "moduleCode"); form.Add(new StringContent(schemaCode ?? ""), "schemaCode"); form.Add(new StringContent(definitionJson), "definitionJson");
+        form.Add(content, "file", System.IO.Path.GetFileName(file.FileName)); form.Add(new StringContent(templateCode ?? ""), "templateCode"); form.Add(new StringContent(displayName ?? ""), "displayName"); form.Add(new StringContent(moduleCode ?? ""), "moduleCode"); form.Add(new StringContent(schemaCode ?? ""), "schemaCode"); form.Add(new StringContent(definitionJson), "definitionJson");
         return await ExecuteAuthorizedAsync("POST", "/api/ai/v1/data-entry/templates", form, SecurityFunctionCodes.AIDocumentDataEntryTemplateManage, ct);
     }
 
@@ -57,7 +57,7 @@ public sealed class AIDocumentDataEntryController : BaseApiController
         if (file is null || file.Length <= 0) return BadRequest(new { error = "Vui lòng chọn giấy tờ cần nhập." });
         using var form = new MultipartFormDataContent(); await using var input = file.OpenReadStream(); using var content = new StreamContent(input);
         content.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
-        form.Add(content, "file", Path.GetFileName(file.FileName)); form.Add(new StringContent(templateCode ?? ""), "templateCode");
+        form.Add(content, "file", System.IO.Path.GetFileName(file.FileName)); form.Add(new StringContent(templateCode ?? ""), "templateCode");
         return await ExecuteAuthorizedAsync("POST", "/api/ai/v1/data-entry/runs", form, SecurityFunctionCodes.AIDocumentDataEntryRunCreate, ct);
     }
 
