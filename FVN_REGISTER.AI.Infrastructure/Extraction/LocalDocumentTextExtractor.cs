@@ -18,6 +18,7 @@ public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumen
         var start = content.Position;
         try
         {
+            content.Position = 0;
             if (mediaType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) ||
                 mediaType.Equals("text/csv", StringComparison.OrdinalIgnoreCase) ||
                 mediaType.Equals("text/markdown", StringComparison.OrdinalIgnoreCase))
