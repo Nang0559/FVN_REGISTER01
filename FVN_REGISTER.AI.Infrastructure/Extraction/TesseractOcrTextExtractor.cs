@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using UglyToad.PdfPig;
 
@@ -10,9 +11,12 @@ namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 /// OCR adapter for image files and scanned PDFs. Uses local Tesseract and Poppler executables;
 /// processes are launched without a shell and receive only generated temporary file paths.
 /// </summary>
-public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options) : IOcrTextExtractor
+public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options,
+    ILogger<TesseractOcrTextExtractor> logger) : IOcrTextExtractor
 {
     private readonly OcrOptions settings = options.Value;
+    private readonly SemaphoreSlim languageCheckLock = new(1, 1);
+    private volatile bool languagesVerified;
     private const long MaximumInputBytes = 25L * 1024 * 1024;
     private const int MaximumPdfPages = 100;
     private const int MaximumOutputCharacters = 2_000_000;
@@ -44,7 +48,7 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options) : IO
                     if (pdf.NumberOfPages > MaximumPdfPages)
                         throw new InvalidDataException("PDF_OCR_PAGE_LIMIT_EXCEEDED");
                 var prefix = Path.Combine(directory, "page");
-                await RunAsync(settings.PdfToPpmExecutable,
+                await RunAsync(ResolveExecutable(settings.PdfToPpmExecutable, PopplerCandidates),
                     ["-f", "1", "-l", MaximumPdfPages.ToString(), "-r", Math.Clamp(settings.Dpi, 100, 300).ToString(),
                      "-png", input, prefix], directory, cancellationToken);
                 images.AddRange(Directory.GetFiles(directory, "page-*.png")
@@ -54,11 +58,12 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options) : IO
             }
             else images.Add(input);
 
+            await EnsureLanguagesAvailableAsync(directory, cancellationToken);
             var output = new System.Text.StringBuilder();
             for (var index = 0; index < images.Count; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var pageText = await RunAsync(settings.TesseractExecutable,
+                var pageText = await RunAsync(ResolveExecutable(settings.TesseractExecutable, TesseractCandidates),
                     [images[index], "stdout", "-l", SafeLanguages(settings.Languages), "--psm", "6"],
                     directory, cancellationToken);
                 output.AppendLine($"[PAGE {index + 1}]");
@@ -76,6 +81,67 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options) : IO
             try { Directory.Delete(directory, recursive: true); } catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+
+    private static readonly string[] TesseractCandidates =
+    [
+        @"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        @"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"
+    ];
+
+    private static readonly string[] PopplerCandidates =
+    [
+        @"C:\Program Files\poppler\Library\bin\pdftoppm.exe",
+        @"C:\Program Files\poppler\bin\pdftoppm.exe",
+        @"C:\poppler\Library\bin\pdftoppm.exe",
+        @"C:\poppler\bin\pdftoppm.exe"
+    ];
+
+    /// <summary>
+    /// Returns the configured executable unchanged when it is an explicit path or is found on PATH.
+    /// On Windows, where installers often do not update PATH, falls back to well-known install folders.
+    /// </summary>
+    private static string ResolveExecutable(string configured, IReadOnlyList<string> windowsFallbacks)
+    {
+        if (string.IsNullOrWhiteSpace(configured)) return configured;
+        if (Path.IsPathRooted(configured) || configured.Contains(Path.DirectorySeparatorChar)) return configured;
+        if (!OperatingSystem.IsWindows()) return configured;
+        var names = new[] { configured, configured + ".exe" };
+        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "")
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            foreach (var name in names)
+                try { if (File.Exists(Path.Combine(directory, name))) return configured; }
+                catch (ArgumentException) { }
+        return windowsFallbacks.FirstOrDefault(File.Exists) ?? configured;
+    }
+
+    /// <summary>Fails fast with an explicit code when a requested language pack is not installed.</summary>
+    private async Task EnsureLanguagesAvailableAsync(string workingDirectory, CancellationToken cancellationToken)
+    {
+        if (languagesVerified) return;
+        await languageCheckLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (languagesVerified) return;
+            var requested = SafeLanguages(settings.Languages).Split('+');
+            var listing = await RunAsync(ResolveExecutable(settings.TesseractExecutable, TesseractCandidates),
+                ["--list-langs"], workingDirectory, cancellationToken);
+            var installed = listing.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(x => !x.StartsWith("List of available", StringComparison.OrdinalIgnoreCase))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missing = requested.Where(x => !installed.Contains(x)).ToArray();
+            if (missing.Length > 0)
+            {
+                logger.LogError(
+                    "Tesseract language pack(s) missing: {Missing}. Installed: {Installed}. " +
+                    "Install the traineddata files or change AIPlatform:Ocr:Languages.",
+                    string.Join(", ", missing), string.Join(", ", installed));
+                throw new InvalidOperationException("OCR_LANGUAGE_MISSING");
+            }
+            languagesVerified = true;
+        }
+        finally { languageCheckLock.Release(); }
     }
 
     private async Task CopyBoundedAsync(Stream source, string destination, CancellationToken cancellationToken)
@@ -128,7 +194,17 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options) : IO
         var output = await stdout;
         var error = await stderr;
         if (process.ExitCode != 0)
-            throw new InvalidOperationException($"OCR_PROCESS_FAILED_{process.ExitCode}: {error[..Math.Min(error.Length, 500)]}");
+        {
+            if (error.Contains("Failed loading language", StringComparison.OrdinalIgnoreCase) ||
+                error.Contains("Error opening data file", StringComparison.OrdinalIgnoreCase) ||
+                error.Contains("Could not initialize tesseract", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogError("Tesseract could not load language data. Requested '{Languages}'. stderr: {Error}",
+                    settings.Languages, error[..Math.Min(error.Length, 500)]);
+                throw new InvalidOperationException("OCR_LANGUAGE_MISSING");
+            }
+            throw new InvalidOperationException($"OCR_PROCESS_FAILED_{process.ExitCode}");
+        }
         return output;
     }
 

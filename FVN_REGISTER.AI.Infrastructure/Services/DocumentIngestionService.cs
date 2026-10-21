@@ -11,7 +11,8 @@ public sealed class DocumentIngestionService(
     AiPlatformDbContext db,
     IOriginalDocumentStore store,
     IUploadContentValidator validator,
-    IOptions<AIPlatformOptions> options) : IDocumentIngestionService
+    IOptions<AIPlatformOptions> options,
+    IExtractionSchemaRegistry schemaRegistry) : IDocumentIngestionService
 {
     public async Task<IngestionReceipt> IngestAsync(
         string tenant, string actor, string fileName, Stream content,
@@ -28,6 +29,11 @@ public sealed class DocumentIngestionService(
             throw new ArgumentException("ModuleCode and SchemaCode must be supplied together.");
         moduleCode = moduleCode is null ? null : Required(moduleCode, 64);
         schemaCode = schemaCode is null ? null : Required(schemaCode, 128);
+        if (moduleCode is not null && schemaCode is not null &&
+            await schemaRegistry.GetPublishedAsync(tenant, moduleCode, schemaCode, ct) is null)
+            throw new ArgumentException(
+                $"EXTRACTION_SCHEMA_NOT_PUBLISHED: schema '{schemaCode}' of module '{moduleCode}' is not published. " +
+                "Publish it first, or leave Schema code empty to run generic extraction.");
         sourceReference = string.IsNullOrWhiteSpace(sourceReference) ? null : Required(sourceReference, 512);
         if (retentionUntilUtc.HasValue && retentionUntilUtc.Value <= DateTimeOffset.UtcNow)
             throw new ArgumentException("RetentionUntilUtc must be in the future.", nameof(retentionUntilUtc));

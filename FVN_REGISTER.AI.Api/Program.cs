@@ -329,6 +329,9 @@ group.MapPost("/documents",async (HttpRequest req,IServiceProvider services,IOpt
  {
   var moduleCode=form["moduleCode"].FirstOrDefault();
   var schemaCode=form["schemaCode"].FirstOrDefault();
+  // Blank Schema code means generic extraction: ignore a lone module code instead of failing.
+  if(string.IsNullOrWhiteSpace(schemaCode)){moduleCode=null;schemaCode=null;}
+  else if(string.IsNullOrWhiteSpace(moduleCode)) return Results.BadRequest(new{error="ModuleCode and SchemaCode must be supplied together."});
   var receipt=await service.IngestAsync(tenant,actor,file.FileName,stream,ct,moduleCode,schemaCode);
   return Results.Accepted($"/api/ai/v1/documents/{receipt.DocumentId}",receipt);
  }
