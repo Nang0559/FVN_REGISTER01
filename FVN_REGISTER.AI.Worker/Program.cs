@@ -10,6 +10,7 @@ builder.Services.AddFvnAiInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<IngestionWorker>();
 builder.Services.AddHostedService<DataEntryWorker>();
 builder.Services.AddHostedService<RetentionWorker>();
+builder.Services.AddHostedService<ConversationMaintenanceWorker>();
 builder.Services.AddHostedService<ConnectorWorker>();
 await builder.Build().RunAsync();
 internal sealed class IngestionWorker(IServiceScopeFactory scopes,IOptions<AIPlatformOptions> options,ILogger<IngestionWorker> logger) : BackgroundService
