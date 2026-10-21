@@ -1,5 +1,6 @@
 @page "/ai/assistant"
 @attribute [Authorize]
+@using FVN_REGISTER.AI.Application.Contracts
 @using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
@@ -100,8 +101,8 @@
 </MudContainer>
 
 @code {
-    private readonly List<ConversationSummary> _conversations = [];
-    private readonly List<ConversationMessage> _messages = [];
+    private readonly List<AIConversationSummaryDto> _conversations = [];
+    private readonly List<AIConversationMessageDto> _messages = [];
     private Guid? _selectedConversationId;
     private string? _selectedTitle;
     private string _query = "";
@@ -117,7 +118,7 @@
         _error = "";
         try
         {
-            var response = await Http.GetAsync<List<ConversationSummary>>("api/ai/business-context/conversations");
+            var response = await Http.GetAsync<List<AIConversationSummaryDto>>("api/ai/business-context/conversations");
             if (!response.IsSuccess) { _error = response.Message; return; }
             _conversations.Clear();
             _conversations.AddRange(response.Data ?? []);
@@ -141,7 +142,7 @@
         _error = "";
         try
         {
-            var response = await Http.PostAsync<ConversationSummary>(
+            var response = await Http.PostAsync<AIConversationSummaryDto>(
                 "api/ai/business-context/conversations", new { title = "Hội thoại mới" });
             if (!response.IsSuccess || response.Data is null) { _error = response.Message; return; }
             _conversations.Insert(0, response.Data);
@@ -159,7 +160,7 @@
         _error = "";
         try
         {
-            var response = await Http.GetAsync<ConversationTranscript>($"api/ai/business-context/conversations/{id:D}");
+            var response = await Http.GetAsync<AIConversationTranscriptDto>($"api/ai/business-context/conversations/{id:D}");
             if (!response.IsSuccess || response.Data is null) { _error = response.Message; return; }
             _selectedConversationId = response.Data.Id;
             _selectedTitle = response.Data.Title;
@@ -206,30 +207,4 @@
         _ => Color.Default
     };
 
-    private sealed record ConversationSummary
-    {
-        public Guid Id { get; init; }
-        public string Title { get; init; } = "";
-        public string Status { get; init; } = "";
-        public DateTimeOffset CreatedAtUtc { get; init; }
-        public DateTimeOffset UpdatedAtUtc { get; init; }
-    }
-
-    private sealed record ConversationTranscript
-    {
-        public Guid Id { get; init; }
-        public string Title { get; init; } = "";
-        public List<ConversationMessage>? Messages { get; init; }
-    }
-
-    private sealed record ConversationMessage
-    {
-        public Guid Id { get; init; }
-        public int Sequence { get; init; }
-        public string Role { get; init; } = "";
-        public string Content { get; init; } = "";
-        public string Status { get; init; } = "";
-        public string? CitationsJson { get; init; }
-        public DateTimeOffset CreatedAtUtc { get; init; }
-    }
 }
