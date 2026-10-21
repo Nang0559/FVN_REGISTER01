@@ -5,6 +5,7 @@ using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Contracts;
 using FVN_REGISTER.AI.Application.Configuration;
 using FVN_REGISTER.AI.Infrastructure;
+using FVN_REGISTER.AI.Application.Policies;
 using FVN_REGISTER.AI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -626,7 +627,8 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
         var scopes = await access.GetSearchScopesAsync(tenant, actor, ct);
         var previous = await db.ConversationMessages.AsNoTracking().Where(x => x.TenantCode == tenant &&
             x.ActorId == actor && x.ConversationId == conversation.Id &&
-            (x.Role == "user" || x.Role == "assistant") && x.Status != "Pending" && x.Status != "Failed")
+            (x.Role == "user" && x.Status == "Completed") ||
+            (x.Role == "assistant" && (x.Status == "Supported" || x.Status == "PartiallySupported" || x.Status == "NotFound")))
             .OrderByDescending(x => x.Sequence).Take(8).OrderBy(x => x.Sequence)
             .Select(x => new { role = x.Role, content = x.Content.Length > 2500 ? x.Content.Substring(0, 2500) : x.Content }).ToListAsync(ct);
         var historyJson = System.Text.Json.JsonSerializer.Serialize(previous);
@@ -665,7 +667,7 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
             var assistantSequence = (await db.ConversationMessages.Where(x => x.TenantCode == tenant && x.ConversationId == conversation.Id)
                 .Select(x => (int?)x.Sequence).MaxAsync(ct) ?? 0) + 1;
             var completedTurn = await db.ConversationMessages.SingleAsync(x => x.Id == userMessageId, ct);
-            completedTurn.Status = "Completed";
+            completedTurn.Status = ConversationTurnStatusPolicy.GetUserTurnStatus(answer.Status);
             db.ConversationMessages.Add(new AiConversationMessageRecord { Id = Guid.NewGuid(), ConversationId = conversation.Id,
                 TenantCode = tenant, ActorId = actor, Sequence = assistantSequence, Role = "assistant", Content = answer.Answer,
                 Status = answer.Status, CitationsJson = System.Text.Json.JsonSerializer.Serialize(answer.Citations),
