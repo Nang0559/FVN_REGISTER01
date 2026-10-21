@@ -16,6 +16,14 @@
     {
         <MudNavLink href="/ai/assistant" Icon="@Icons.Material.Filled.Psychology">Trợ lý AI</MudNavLink>
     }
+    @if (Can(SecurityFunctionCodes.AIDocumentDataEntryView))
+    {
+        <MudNavLink href="/admin/ai-document-entry" Icon="@Icons.Material.Filled.DocumentScanner">AI nhập dữ liệu chứng từ</MudNavLink>
+    }
+    @if (CanManagement(SecurityFunctionCodes.ExecutionReview))
+    {
+        <MudNavLink href="/ai/hr-assistant" Icon="@Icons.Material.Filled.SupportAgent">Trợ lý AI HR</MudNavLink>
+    }
     @if (CanPersonal(SecurityFunctionCodes.CalendarView) || CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.LateEarlyView) || CanPersonal(SecurityFunctionCodes.AttendanceView))
     {
         <MudNavLink href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendar")</MudNavLink>
