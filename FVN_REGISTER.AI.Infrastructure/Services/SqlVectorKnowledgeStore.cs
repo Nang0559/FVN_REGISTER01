@@ -14,6 +14,7 @@ namespace FVN_REGISTER.AI.Infrastructure.Services;
 /// </summary>
 public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlVectorKnowledgeStore> logger) : IVectorKnowledgeStore
 {
+    private const int MaxCandidateScan = 5_000;
 
     public async Task UpsertAsync(string tenantCode, IReadOnlyCollection<KnowledgeChunk> chunks,
         IReadOnlyCollection<EmbeddingVector> vectors, CancellationToken cancellationToken = default)
@@ -106,6 +107,7 @@ public sealed class SqlVectorKnowledgeStore(AiPlatformDbContext db, ILogger<SqlV
                   )")
             .AsNoTracking()
             .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(MaxCandidateScan)
             .ToListAsync(cancellationToken);
 
         logger.LogDebug("Vector search scanned {CandidateCount} ACL-filtered chunks for tenant {TenantCode}.", rows.Count, tenantCode);
