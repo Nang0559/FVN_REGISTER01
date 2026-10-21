@@ -53,10 +53,10 @@ public sealed class UploadContentValidatorTests
         await using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, true))
         {
-            await using var types = new StreamWriter(archive.CreateEntry("[Content_Types].xml").Open());
-            await types.WriteAsync("<Types />");
-            await using var workbook = new StreamWriter(archive.CreateEntry("xl/workbook.xml").Open());
-            await workbook.WriteAsync("<workbook />");
+            using (var types = new StreamWriter(archive.CreateEntry("[Content_Types].xml").Open()))
+                await types.WriteAsync("<Types />");
+            using (var workbook = new StreamWriter(archive.CreateEntry("xl/workbook.xml").Open()))
+                await workbook.WriteAsync("<workbook />");
         }
         stream.Position = 0;
         var result = await _validator.ValidateAsync(stream, "workbook.xlsx");
