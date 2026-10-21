@@ -114,7 +114,15 @@
                         <MudText Typo="Typo.body2" Style="overflow-wrap:anywhere">@_documentId</MudText>
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="RefreshDocumentAsync" Disabled="_loadingDocument">Làm mới trạng thái</MudButton>
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="LoadExtractionAsync" Disabled="_loadingDocument">Xem extraction</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" OnClick="ApproveAndPublishAsync" Disabled="@(_loadingDocument || _reviewing)">Duyệt và publish</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" OnClick="RejectDocumentAsync" Disabled="@(_loadingDocument || _reviewing)">Từ chối</MudButton>
                     </MudStack>
+                    <MudText Typo="Typo.caption" Class="mt-1">Duyệt và publish cần quyền 3502 (data scope All). Chỉ duyệt khi nội dung trích xuất đúng.</MudText>
+                    @if (!string.IsNullOrWhiteSpace(_reviewResult))
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-3">Kết quả duyệt / publish</MudText>
+                        <MudPaper Outlined="true" Class="pa-3 mt-1" Style="max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">@_reviewResult</MudPaper>
+                    }
                     @if (!string.IsNullOrWhiteSpace(_documentStatus))
                     {
                         <MudText Typo="Typo.subtitle2" Class="mt-3">Trạng thái xử lý</MudText>
@@ -198,6 +206,8 @@
     private Guid? _documentId;
     private string _documentStatus = "";
     private string _extraction = "";
+    private bool _reviewing;
+    private string _reviewResult = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -275,6 +285,7 @@
             _documentId = id;
             _documentStatus = "";
             _extraction = "";
+            _reviewResult = "";
             _ = RefreshDocumentAsync();
         }
     }
@@ -391,6 +402,29 @@
         }
         catch (Exception ex) { _extraction = ex.Message; }
         finally { _loadingDocument = false; }
+    }
+
+    private async Task ApproveAndPublishAsync() => await ReviewActionAsync("approve-publish", "Đã duyệt và publish tài liệu vào kho tri thức.");
+
+    private async Task RejectDocumentAsync() => await ReviewActionAsync("reject", "Đã từ chối tài liệu. Bạn có thể tải lại tệp để xử lý lại.");
+
+    private async Task ReviewActionAsync(string action, string successMessage)
+    {
+        if (!_documentId.HasValue) return;
+        _reviewing = true;
+        _reviewResult = "";
+        try
+        {
+            var result = await Http.PostAsync<JsonElement>($"api/ai/platform-test/documents/{_documentId:D}/{action}",
+                new { comment = "Duyệt từ trang kiểm thử AI Platform" }, showLoading: false);
+            _reviewResult = result.IsSuccess && result.Data.ValueKind != JsonValueKind.Undefined
+                ? successMessage + "\n" + JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true })
+                : result.Message ?? "Thao tác thất bại. Kiểm tra quyền 3502 (data scope All) và log AI API.";
+            await RefreshDocumentAsync();
+            await LoadRecentJobsAsync();
+        }
+        catch (Exception ex) { _reviewResult = $"Lỗi: {ex.Message}"; }
+        finally { _reviewing = false; }
     }
 
     private static bool TryReadGuid(JsonElement root, string property, out Guid value)

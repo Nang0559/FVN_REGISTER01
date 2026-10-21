@@ -139,6 +139,79 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
         return await RelayAsync(upstream, ct);
     }
 
+    /// <summary>Rejects the latest extraction of a document (also frees the file hash so it can be uploaded again).</summary>
+    [HttpPost("documents/{documentId:guid}/reject")]
+    public async Task<IActionResult> RejectDocument(Guid documentId, [FromBody] DocumentReviewTestRequest? request, CancellationToken ct)
+    {
+        if (!await CanManageDiagnosticsAsync(ct)) return Forbid();
+        var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture);
+        var extractionId = await ResolveLatestExtractionIdAsync(documentId, actor, ct);
+        if (extractionId is null) return NotFound(new { error = "Chưa có kết quả extraction để từ chối." });
+        using var upstream = await SendSignedAiAsync(HttpMethod.Post, $"/api/ai/v1/reviews/{extractionId.Value:D}",
+            JsonContent.Create(new { decision = "Rejected", correctedPayloadJson = (string?)null, comment = Truncate(request?.Comment) }),
+            actor, ct);
+        return await RelayAsync(upstream, ct);
+    }
+
+    /// <summary>
+    /// Approves the latest extraction and publishes the document to the knowledge base. The AI API still
+    /// enforces the reviewer/publisher right (function 3502, data scope All) on both calls.
+    /// </summary>
+    [HttpPost("documents/{documentId:guid}/approve-publish")]
+    public async Task<IActionResult> ApproveAndPublish(Guid documentId, [FromBody] DocumentReviewTestRequest? request, CancellationToken ct)
+    {
+        if (!await CanManageDiagnosticsAsync(ct)) return Forbid();
+        var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture);
+        var extractionId = await ResolveLatestExtractionIdAsync(documentId, actor, ct);
+        if (extractionId is null) return NotFound(new { error = "Chưa có kết quả extraction để duyệt." });
+
+        using var review = await SendSignedAiAsync(HttpMethod.Post, $"/api/ai/v1/reviews/{extractionId.Value:D}",
+            JsonContent.Create(new { decision = "Approved", correctedPayloadJson = (string?)null, comment = Truncate(request?.Comment) }),
+            actor, ct);
+        var reviewBody = await review.Content.ReadAsStringAsync(ct);
+        if (!review.IsSuccessStatusCode)
+            return StatusCode((int)review.StatusCode, new { stage = "review", error = $"Duyệt thất bại (HTTP {(int)review.StatusCode}).", detail = TryParseJson(reviewBody) });
+
+        var reviewJson = TryParseJson(reviewBody);
+        if (reviewJson is not JsonElement reviewElement || !TryReadGuidProperty(reviewElement, "reviewId", out var reviewId))
+            return StatusCode(StatusCodes.Status502BadGateway, new { stage = "review", error = "AI API không trả về reviewId.", detail = reviewJson });
+
+        using var publish = await SendSignedAiAsync(HttpMethod.Post, $"/api/ai/v1/knowledge/{documentId:D}/publish",
+            JsonContent.Create(new { reviewId }), actor, ct);
+        var publishBody = await publish.Content.ReadAsStringAsync(ct);
+        if (!publish.IsSuccessStatusCode)
+            return StatusCode((int)publish.StatusCode, new
+            {
+                stage = "publish",
+                error = $"Đã duyệt nhưng publish thất bại (HTTP {(int)publish.StatusCode}). Kiểm tra quyền 3502 (data scope All), Ollama embedding và OCR (Tesseract/pdftoppm) của AI API.",
+                review = reviewJson,
+                detail = TryParseJson(publishBody)
+            });
+        return Ok(new { stage = "published", review = reviewJson, publish = TryParseJson(publishBody) });
+    }
+
+    private async Task<Guid?> ResolveLatestExtractionIdAsync(Guid documentId, string actor, CancellationToken ct)
+    {
+        using var upstream = await SendSignedAiAsync(HttpMethod.Get, $"/api/ai/v1/documents/{documentId:D}/extraction", null, actor, ct);
+        if (!upstream.IsSuccessStatusCode) return null;
+        var body = await upstream.Content.ReadAsStringAsync(ct);
+        return TryParseJson(body) is JsonElement element && TryReadGuidProperty(element, "extractionId", out var id) ? id : null;
+    }
+
+    private static bool TryReadGuidProperty(JsonElement element, string name, out Guid value)
+    {
+        value = Guid.Empty;
+        if (element.ValueKind != JsonValueKind.Object) return false;
+        foreach (var property in element.EnumerateObject())
+            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase) &&
+                property.Value.ValueKind == JsonValueKind.String && Guid.TryParse(property.Value.GetString(), out value))
+                return true;
+        return false;
+    }
+
+    private static string? Truncate(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : (value.Trim().Length > 500 ? value.Trim()[..500] : value.Trim());
+
     private async Task<bool> CanManageDiagnosticsAsync(CancellationToken ct)
     {
         var user = UserInfo;
@@ -237,3 +310,4 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
 }
 
 public sealed record PromptTestRequest(string Query, int RetrievalLimit = 3);
+public sealed record DocumentReviewTestRequest(string? Comment = null);

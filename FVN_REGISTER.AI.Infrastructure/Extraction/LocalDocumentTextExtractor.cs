@@ -11,6 +11,7 @@ namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumentTextExtractor
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+    private const int MinimumEmbeddedPdfCharacters = 20;
 
     public async Task<string> ExtractTextAsync(Stream content, string mediaType, CancellationToken cancellationToken = default)
     {
@@ -117,13 +118,19 @@ public sealed class LocalDocumentTextExtractor(IOcrTextExtractor ocr) : IDocumen
         using var document = PdfDocument.Open(content);
         if (document.NumberOfPages > 500) throw new InvalidDataException("PDF exceeds the 500-page extraction limit.");
         var output = new StringBuilder();
+        var embeddedLetterOrDigitCount = 0;
         foreach (var page in document.GetPages())
         {
-            output.AppendLine($"[PAGE {page.Number}]"); output.AppendLine(page.Text);
+            var pageText = page.Text;
+            embeddedLetterOrDigitCount += pageText.Count(char.IsLetterOrDigit);
+            output.AppendLine($"[PAGE {page.Number}]"); output.AppendLine(pageText);
             if (output.Length > 2_000_000) throw new InvalidDataException("PDF extracted text exceeds the 2 MB limit.");
         }
         var text = output.ToString();
-        if (string.IsNullOrWhiteSpace(text)) throw new NotSupportedException("PDF has no embedded text. Scanned/image-only PDF requires the approved OCR service.");
+        // The "[PAGE n]" markers above are never whitespace, so a scanned PDF used to look non-empty and
+        // OCR was never attempted. Judge by the real page text only.
+        if (embeddedLetterOrDigitCount < MinimumEmbeddedPdfCharacters)
+            throw new NotSupportedException("PDF has no embedded text. Scanned/image-only PDF requires the approved OCR service.");
         return text;
     }
 
