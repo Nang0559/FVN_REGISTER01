@@ -27,17 +27,13 @@ internal sealed class ConversationMaintenanceWorker(
 
                 if (db is not null && await db.Database.CanConnectAsync(stoppingToken))
                 {
-                    var recovered = await db.Database.SqlQuery<int>(
-                        $"EXEC ai.usp_RecoverStaleConversationTurns @StaleMinutes={15}, @BatchSize={200}")
-                        .SingleOrDefaultAsync(stoppingToken);
-                    var purged = await db.Database.SqlQuery<int>(
-                        $"EXEC ai.usp_PurgeExpiredConversations @BatchSize={200}")
-                        .SingleOrDefaultAsync(stoppingToken);
-
-                    if (recovered > 0 || purged > 0)
-                        logger.LogInformation(
-                            "AI conversation maintenance recovered {Recovered} stale turns and purged {Purged} expired conversations.",
-                            recovered, purged);
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"EXEC ai.usp_RecoverStaleConversationTurns @StaleMinutes={15}, @BatchSize={200}",
+                        stoppingToken);
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"EXEC ai.usp_PurgeExpiredConversations @BatchSize={200}",
+                        stoppingToken);
+                    logger.LogDebug("AI conversation recovery and expiry-purge procedures completed.");
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
