@@ -631,7 +631,7 @@ group.MapPost("/conversations/ask", async (AIConversationAskRequest body, HttpRe
              (x.Role == "assistant" && (x.Status == "Supported" || x.Status == "PartiallySupported" || x.Status == "NotFound"))))
             .OrderByDescending(x => x.Sequence).Take(8).OrderBy(x => x.Sequence)
             .Select(x => new { role = x.Role, content = x.Content.Length > 2500 ? x.Content.Substring(0, 2500) : x.Content }).ToListAsync(ct);
-        var historyJson = System.Text.Json.JsonSerializer.Serialize(previous);
+        var historyJson = System.Text.Json.JsonSerializer.Serialize(previous, new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
         var contextJson = body.BusinessContext.GetRawText();
         int nextSequence;
         var userMessageId = Guid.NewGuid();
