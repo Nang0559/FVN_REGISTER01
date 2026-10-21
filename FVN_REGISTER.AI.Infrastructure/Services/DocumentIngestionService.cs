@@ -43,23 +43,47 @@ public sealed class DocumentIngestionService(
                      x.ModuleCode == moduleCode && x.SchemaCode == schemaCode, ct);
             if (duplicate is not null)
             {
-                await store.DeleteAsync(stored.StorageKey, ct);
                 var oldJob = await db.IngestionJobs.SingleOrDefaultAsync(x => x.DocumentId == duplicate.Id, ct);
+
+                // Deduplication must not discard the only healthy copy when the existing
+                // document metadata points to a blob that has already disappeared.
+                if (!await StoredContentExistsAsync(duplicate.StorageKey, ct))
+                {
+                    duplicate.StorageKey = stored.StorageKey;
+                    duplicate.Length = stored.Length;
+
+                    if (oldJob is null)
+                    {
+                        oldJob = new AiIngestionJobRecord
+                        {
+                            Id = Guid.NewGuid(),
+                            DocumentId = duplicate.Id,
+                            Status = "Queued",
+                            CreatedAtUtc = DateTimeOffset.UtcNow
+                        };
+                        db.IngestionJobs.Add(oldJob);
+                        duplicate.Status = "Quarantined";
+                    }
+                    else if (oldJob.Status is "DeadLetter" or "Failed" or "Running")
+                    {
+                        ResetJobForRetry(oldJob);
+                        duplicate.Status = "Quarantined";
+                    }
+
+                    await db.SaveChangesAsync(ct);
+                    return new(duplicate.Id, oldJob.Id, duplicate.FileName, duplicate.Length,
+                        duplicate.Sha256, duplicate.Status, true);
+                }
+
+                // Existing blob is healthy: discard only the newly uploaded duplicate.
+                await store.DeleteAsync(stored.StorageKey, ct);
                 if (oldJob is not null && oldJob.Status is "DeadLetter" or "Failed")
                 {
-                    oldJob.Status = "Queued";
-                    oldJob.AttemptCount = 0;
-                    oldJob.NextAttemptAtUtc = DateTimeOffset.UtcNow;
-                    oldJob.StartedAtUtc = null;
-                    oldJob.LastAttemptAtUtc = null;
-                    oldJob.LastErrorAtUtc = null;
-                    oldJob.LeaseOwner = null;
-                    oldJob.LeaseUntilUtc = null;
-                    oldJob.CompletedAtUtc = null;
-                    oldJob.FailureCode = null;
+                    ResetJobForRetry(oldJob);
                     duplicate.Status = "Quarantined";
                     await db.SaveChangesAsync(ct);
                 }
+
                 return new(duplicate.Id, oldJob?.Id ?? Guid.Empty, duplicate.FileName, duplicate.Length,
                     duplicate.Sha256, duplicate.Status, true);
             }
@@ -95,11 +119,58 @@ public sealed class DocumentIngestionService(
         }
         catch (DbUpdateException)
         {
-            await store.DeleteAsync(stored.StorageKey, CancellationToken.None);
             var old = await db.Documents.AsNoTracking().FirstOrDefaultAsync(
                 x => x.TenantCode == tenant && x.DedupActive && x.Sha256 == stored.Sha256 &&
                      x.ModuleCode == moduleCode && x.SchemaCode == schemaCode, ct);
-            if (old is null) throw;
+            if (old is null)
+            {
+                await store.DeleteAsync(stored.StorageKey, CancellationToken.None);
+                throw;
+            }
+
+            if (!await StoredContentExistsAsync(old.StorageKey, ct))
+            {
+                // A concurrent upload won the filtered unique index, but its old metadata
+                // references a missing blob. Repoint that metadata to this verified copy.
+                db.ChangeTracker.Clear();
+                var repair = await db.Documents.SingleAsync(x => x.Id == old.Id, ct);
+                repair.StorageKey = stored.StorageKey;
+                repair.Length = stored.Length;
+
+                var repairJob = await db.IngestionJobs.SingleOrDefaultAsync(x => x.DocumentId == old.Id, ct);
+                if (repairJob is null)
+                {
+                    repairJob = new AiIngestionJobRecord
+                    {
+                        Id = Guid.NewGuid(),
+                        DocumentId = old.Id,
+                        Status = "Queued",
+                        CreatedAtUtc = DateTimeOffset.UtcNow
+                    };
+                    db.IngestionJobs.Add(repairJob);
+                    repair.Status = "Quarantined";
+                }
+                else if (repairJob.Status is "DeadLetter" or "Failed" or "Running")
+                {
+                    ResetJobForRetry(repairJob);
+                    repair.Status = "Quarantined";
+                }
+
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                }
+                catch
+                {
+                    await store.DeleteAsync(stored.StorageKey, CancellationToken.None);
+                    throw;
+                }
+
+                return new(repair.Id, repairJob.Id, repair.FileName, repair.Length,
+                    repair.Sha256, repair.Status, true);
+            }
+
+            await store.DeleteAsync(stored.StorageKey, CancellationToken.None);
             var job = await db.IngestionJobs.AsNoTracking().FirstOrDefaultAsync(x => x.DocumentId == old.Id, ct);
             return new(old.Id, job?.Id ?? Guid.Empty, old.FileName, old.Length, old.Sha256, old.Status, true);
         }
@@ -123,6 +194,37 @@ public sealed class DocumentIngestionService(
             .Select(x => new { x.Id, x.Status, x.FailureCode })
             .SingleOrDefaultAsync(ct);
         return new(doc.Id, doc.FileName, doc.Status, doc.ReceivedAtUtc, job?.Id, job?.Status, job?.FailureCode);
+    }
+
+    private async Task<bool> StoredContentExistsAsync(string storageKey, CancellationToken ct)
+    {
+        try
+        {
+            await using var stream = await store.OpenReadAsync(storageKey, ct);
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    private static void ResetJobForRetry(AiIngestionJobRecord job)
+    {
+        job.Status = "Queued";
+        job.AttemptCount = 0;
+        job.NextAttemptAtUtc = DateTimeOffset.UtcNow;
+        job.StartedAtUtc = null;
+        job.LastAttemptAtUtc = null;
+        job.LastErrorAtUtc = null;
+        job.LeaseOwner = null;
+        job.LeaseUntilUtc = null;
+        job.CompletedAtUtc = null;
+        job.FailureCode = null;
     }
 
     private static string Required(string value, int max) =>
