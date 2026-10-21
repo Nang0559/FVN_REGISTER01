@@ -52,12 +52,12 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 new { status = "not-ready", error = "AIPlatform:BaseUrl chưa được cấu hình." });
 
-        using var ready = await SendUnauthenticatedHealthAsync(new Uri(baseUri, "/health/ready"), ct);
+        using var ready = await SendServiceHealthAsync(new Uri(baseUri, "/health/ready"), ct);
         var readyBody = await ready.Content.ReadAsStringAsync(ct);
         string capabilities = "";
         try
         {
-            using var caps = await SendUnauthenticatedHealthAsync(new Uri(baseUri, "/api/ai/capabilities"), ct);
+            using var caps = await SendServiceHealthAsync(new Uri(baseUri, "/api/ai/capabilities"), ct);
             capabilities = await caps.Content.ReadAsStringAsync(ct);
         }
         catch (HttpRequestException) { }
@@ -146,9 +146,19 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
             await _authorization.CanAccessAsync(user, SecurityFunctionCodes.SecurityView, null, null, ct);
     }
 
-    private async Task<HttpResponseMessage> SendUnauthenticatedHealthAsync(Uri uri, CancellationToken ct)
+    // /health/ready and /api/ai/capabilities now require the shared service key (held server-side only).
+    private async Task<HttpResponseMessage> SendServiceHealthAsync(Uri uri, CancellationToken ct)
     {
-        try { return await _clients.CreateClient("FvnAi").GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct); }
+        var apiKey = _configuration["AIPlatform:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey))
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            { Content = JsonContent.Create(new { status = "not-ready", error = "Cần cấu hình AIPlatform:ApiKey." }) };
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            request.Headers.TryAddWithoutValidation("X-AI-API-Key", apiKey);
+            return await _clients.CreateClient("FvnAi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        }
         catch (HttpRequestException)
         {
             return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)

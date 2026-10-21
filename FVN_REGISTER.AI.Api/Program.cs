@@ -19,6 +19,18 @@ builder.Services.AddFvnAiInfrastructure(builder.Configuration);
 builder.Services.AddHealthChecks();
 var app=builder.Build();
 var replayCleanupCounter = 0;
+// Operational detail (dependency state, model names, capability flags) is not public.
+// /health stays anonymous as a minimal liveness probe; /health/ready and /api/ai/capabilities
+// require the shared service key, which only FVN_REGISTER.API holds.
+ValueTask<object?> RequireServiceKey(EndpointFilterInvocationContext ctx, EndpointFilterDelegate next)
+{
+ var configured=app.Configuration[$"{AIPlatformOptions.SectionName}:ApiKey"];
+ if(string.IsNullOrWhiteSpace(configured)) return ValueTask.FromResult<object?>(Results.Problem("AI API key is not configured.",statusCode:503));
+ if(!ctx.HttpContext.Request.Headers.TryGetValue("X-AI-API-Key",out var supplied)) return ValueTask.FromResult<object?>(Results.Unauthorized());
+ var a=Encoding.UTF8.GetBytes(configured); var b=Encoding.UTF8.GetBytes(supplied.ToString());
+ if(a.Length!=b.Length||!CryptographicOperations.FixedTimeEquals(a,b)) return ValueTask.FromResult<object?>(Results.Unauthorized());
+ return next(ctx);
+}
 app.MapHealthChecks("/health");
 app.MapGet("/health/ready",async (IServiceProvider sp,IOptions<AIPlatformOptions> aiOptions,IOptions<MalwareScannerOptions> scannerOptions,IHttpClientFactory clients,CancellationToken ct)=>{
  var db=sp.GetService<AiPlatformDbContext>();
@@ -57,7 +69,7 @@ app.MapGet("/health/ready",async (IServiceProvider sp,IOptions<AIPlatformOptions
  var ready=databaseConnected&&providerConfigured&&chatModelAvailable&&embeddingModelAvailable&&scannerConfigured;
  var result=new{status=ready?"ready":"not-ready",database=databaseConnected?"connected":"unavailable",provider=ai.DefaultProvider,model=ai.Model,embeddingModel=ai.EmbeddingModel,malwareScannerProvider=scannerOptions.Value.Provider,providerConfigured,chatModelAvailable,embeddingModelAvailable,malwareScannerConfigured=scannerConfigured};
  return ready?Results.Ok(result):Results.Json(result,statusCode:503);
-});
+}).AddEndpointFilter(RequireServiceKey);
 app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o,IServiceProvider services)=>{
  var s=o.Value;
  var providerConfigured=string.Equals(s.DefaultProvider,"Ollama",StringComparison.OrdinalIgnoreCase)&&Uri.TryCreate(s.Endpoint,UriKind.Absolute,out var endpoint)&&(endpoint.Scheme==Uri.UriSchemeHttp||endpoint.Scheme==Uri.UriSchemeHttps)&&!string.IsNullOrWhiteSpace(s.Model)&&!string.IsNullOrWhiteSpace(s.EmbeddingModel);
@@ -93,7 +105,7 @@ app.MapGet("/api/ai/capabilities",(IOptions<AIPlatformOptions> o,IServiceProvide
  var malwareScannerOperational=malwareScanner is not FVN_REGISTER.AI.Infrastructure.Security.UnconfiguredMalwareScanner;
  var documentIntelligenceOperational=documentPipelineConfigured&&documentTextExtractionConfigured&&malwareScannerOperational;
  return Results.Ok(new{service="FVN_REGISTER.AI",deploymentMode=s.DeploymentMode,provider=s.DefaultProvider,providerConfigured,modelConfigured=!string.IsNullOrWhiteSpace(s.Model),embeddingModelConfigured=!string.IsNullOrWhiteSpace(s.EmbeddingModel),malwareScannerConfigured=string.Equals(app.Configuration["AIPlatform:MalwareScanner:Provider"],"ClamAV",StringComparison.OrdinalIgnoreCase),businessContextConfigured,businessToolCatalogConfigured,businessToolExecutorConfigured,knowledgeAuthorizationConfigured,ragServiceConfigured,ragOperational,hrFactsAuthorizationConfigured,hrReviewAuthorizationConfigured,hrReconciliationConfigured,hrReadOnlyToolsOperational,feedbackEvaluationConfigured,goldenDatasetConfigured,releaseManagementConfigured,learningAdministrationAuthorized,controlledLearningOperational,documentPipelineConfigured,documentTextExtractionConfigured,ocrConfigurationPresent,malwareScannerOperational,documentIntelligenceOperational,businessCommandGatewayConfigured,transactionExecutionEnabled=false,capabilities=new[]{"multipart-ingestion","quarantine-storage","sql-job-queue","document-status","pdf-text-extraction","docx-text-extraction","image-ocr","scanned-pdf-ocr","generic-document-classification","schema-registry","schema-driven-extraction","extraction-validation","human-review-persistence","feedback-capture","feedback-evaluation","knowledge-publication","hr-evidence-reconciliation-foundation","hr-case-inbox","hr-case-review-audit","fvn-business-context-contracts","signed-fvn-context-snapshot","fail-closed-business-tool-gateway"},maximumFileSizeMb=s.MaximumFileSizeMb,businessWriteRequiresHumanApproval=s.RequireHumanApprovalBeforeBusinessWrite});
-});
+}).AddEndpointFilter(RequireServiceKey);
 // Buffer and hash signed request bodies before Minimal API argument binding consumes them.
 // Endpoint filters execute after binding, so hashing Request.Body inside the filter is too late.
 const string SignedBodyHashItemKey = "FVN_REGISTER.AI.SignedBodySha256";

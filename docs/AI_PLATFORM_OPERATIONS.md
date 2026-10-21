@@ -152,3 +152,19 @@ dotnet user-secrets set "ConnectionStrings:FvnAi" "<same FVN_AI connection strin
 ```
 
 Ingestion also requires `AIPlatform:MalwareScanner:Provider=ClamAV` with a reachable clamd, and Tesseract/pdftoppm on PATH for images and scanned PDFs. Worker failure codes: `ORIGINAL_BLOB_MISSING` (storage root differs between Api and Worker), `OCR_TOOL_UNAVAILABLE` (OCR executable missing), `MALWARE_SCANNER_NOT_CONFIGURED`.
+
+## 16. Knowledge authorization (FVN RBAC adapter)
+
+`FvnKnowledgeAccessProvider` replaces the fail-closed default whenever a SQL connection is available. It reads the FVN security tables (`dbo.F03Users`, `F03UserRoles`, `F03Roles`, `F03RoleFunctions`, `F03Functions`, `F03Employees`) with the same activity rules as `AuthorizationService`, using the actor from the HMAC-validated gateway header.
+
+| Operation | Rule | Result |
+|---|---|---|
+| Search | Active user holding `AIAssistant.Chat` (3510); an `Own` grant counts only for an active HRM employee | `fvn:staff`, `fvn:role:{RoleCode}` per active role, `fvn:dept:{DeptCode}` |
+| Publish | Active user holding the publish function with data scope `All` | `fvn:staff` |
+| Unpublish | Same as publish | allow or HTTP 403 |
+
+Configuration (`AIPlatform:KnowledgeAuthorization`): `ConnectionStringName` (default `FvnRegister`, falls back to `FvnAi`), `ChatFunctionCode` (3510), `PublishFunctionCode` (3502, `AIDocumentDataEntry.TemplateManage`), `StaffScope` (`fvn:staff`). If the AI schema is in a different database from FVN_REGISTER, set `ConnectionStrings:FvnRegister` for the AI API. SQL failures return HTTP 503 (fail closed).
+
+## 17. Protected diagnostics endpoints
+
+`/health` remains anonymous (liveness only). `/health/ready` and `/api/ai/capabilities` require the `X-AI-API-Key` header; FVN_REGISTER.API sends it server-side. `GET api/ai/assistant/availability` (authenticated, cached 30 s) returns one boolean that the UI uses to hide the "Trợ lý AI" menu when `ragOperational` is false.
