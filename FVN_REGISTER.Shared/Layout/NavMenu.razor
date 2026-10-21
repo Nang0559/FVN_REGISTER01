@@ -20,7 +20,7 @@
     {
         <MudNavLink href="/admin/ai-document-entry" Icon="@Icons.Material.Filled.DocumentScanner">AI nhập dữ liệu chứng từ</MudNavLink>
     }
-    @if (CanManagement(SecurityFunctionCodes.ExecutionReview))
+    @if (CanManagement(SecurityFunctionCodes.OTView) || CanManagement(SecurityFunctionCodes.AttendanceView) || CanManagement(SecurityFunctionCodes.LeaveView))
     {
         <MudNavLink href="/ai/hr-assistant" Icon="@Icons.Material.Filled.SupportAgent">Trợ lý AI HR</MudNavLink>
     }
