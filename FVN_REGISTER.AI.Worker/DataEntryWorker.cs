@@ -38,7 +38,7 @@ public sealed class DataEntryWorker(IServiceScopeFactory scopes, IOptions<AIPlat
             try
             {
                 using var scope = scopes.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<AiPlatformDbContext>(); var current = await db.DataEntryRuns.SingleOrDefaultAsync(x => x.Id == job.Id, stoppingToken);
-                if (current is null || !string.Equals(current.LeaseOwner, _workerId, StringComparison.Ordinal)) { leaseLost = true; linked.Cancel(); break; }
+                if (current is null || !string.Equals(current.LeaseOwner, job.LeaseOwner, StringComparison.Ordinal)) { leaseLost = true; linked.Cancel(); break; }
                 current.LeaseUntilUtc = DateTimeOffset.UtcNow.AddMinutes(10); current.UpdatedAtUtc = DateTimeOffset.UtcNow; await db.SaveChangesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { linked.Cancel(); break; }
@@ -54,7 +54,7 @@ public sealed class DataEntryWorker(IServiceScopeFactory scopes, IOptions<AIPlat
     {
         using var scope = scopes.CreateScope(); var service = scope.ServiceProvider.GetRequiredService<IDocumentDataEntryService>(); await service.ProcessAsync(job.Id, _workerId, cancellationToken);
         using var updateScope = scopes.CreateScope(); var db = updateScope.ServiceProvider.GetRequiredService<AiPlatformDbContext>(); var current = await db.DataEntryRuns.SingleOrDefaultAsync(x => x.Id == job.Id, cancellationToken);
-        if (current is not null && string.Equals(current.LeaseOwner, _workerId, StringComparison.Ordinal)) { current.LeaseOwner = null; current.LeaseUntilUtc = null; current.UpdatedAtUtc = DateTimeOffset.UtcNow; await db.SaveChangesAsync(cancellationToken); }
+        if (current is not null && string.Equals(current.LeaseOwner, job.LeaseOwner, StringComparison.Ordinal)) { current.LeaseOwner = null; current.LeaseUntilUtc = null; current.UpdatedAtUtc = DateTimeOffset.UtcNow; await db.SaveChangesAsync(cancellationToken); }
     }
 
     private async Task<AiDataEntryRunRecord?> ClaimAsync(AiPlatformDbContext db, CancellationToken cancellationToken)
@@ -62,6 +62,9 @@ public sealed class DataEntryWorker(IServiceScopeFactory scopes, IOptions<AIPlat
         // SQL Server's retrying execution strategy must own the complete transaction.
         // The worker id also makes the claim idempotent if SQL committed but the
         // connection dropped before the client received the commit acknowledgement.
+        // A distinct owner token per claim allows this worker to claim several jobs concurrently
+        // while keeping retries of this particular claim idempotent.
+        var claimOwner = _workerId + ":" + Guid.NewGuid().ToString("N");
         var strategy = db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
@@ -76,7 +79,7 @@ public sealed class DataEntryWorker(IServiceScopeFactory scopes, IOptions<AIPlat
             var previouslyClaimed = await db.DataEntryRuns
                 .SingleOrDefaultAsync(x =>
                     x.Status == "Running" &&
-                    x.LeaseOwner == _workerId &&
+                    x.LeaseOwner == claimOwner &&
                     x.LeaseUntilUtc > now,
                     cancellationToken);
             if (previouslyClaimed is not null)
@@ -99,7 +102,7 @@ public sealed class DataEntryWorker(IServiceScopeFactory scopes, IOptions<AIPlat
             job.AttemptCount += 1;
             job.StartedAtUtc ??= now;
             job.LastAttemptAtUtc = now;
-            job.LeaseOwner = _workerId;
+            job.LeaseOwner = claimOwner;
             job.LeaseUntilUtc = now.AddMinutes(10);
             job.UpdatedAtUtc = now;
 
