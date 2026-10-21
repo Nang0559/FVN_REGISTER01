@@ -2,7 +2,7 @@ name: AI Platform validation
 
 concurrency:
   group: ai-platform-validation-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 on:
   push:
