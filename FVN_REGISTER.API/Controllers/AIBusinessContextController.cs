@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,13 +21,13 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class AIBusinessContextController : ControllerBase
 {
     private readonly ICurrentUserService _currentUser;
-    private readonly IAuthorizationService _authorization;
+    private readonly FvnAuthorizationService _authorization;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
 
     public AIBusinessContextController(
         ICurrentUserService currentUser,
-        IAuthorizationService authorization,
+        FvnAuthorizationService authorization,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory)
     {
