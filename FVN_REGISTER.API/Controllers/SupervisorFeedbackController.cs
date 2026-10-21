@@ -92,7 +92,7 @@ public sealed class SupervisorFeedbackController : BaseApiController
         var entity = new F03SupervisorFeedback
         {
             EmployeeId = employee.Id,
-            EmployeeCode = employee.EmployeeCode,
+            EmployeeCode = employee.EmployeeCode ?? dto.EmployeeCode.Trim(),
             DepartmentCode = employee.DeptCode,
             WorkDate = dto.WorkDate.Date,
             ActualIn = attendance?.CheckInTime,
