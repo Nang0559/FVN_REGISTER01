@@ -123,7 +123,7 @@ public sealed class DocumentIngestionService(
             await db.SaveChangesAsync(ct);
             return new(id, job, valid.FileName, stored.Length, stored.Sha256, "Quarantined", false);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
             var old = await db.Documents.AsNoTracking().FirstOrDefaultAsync(
                 x => x.TenantCode == tenant && x.DedupActive && x.Sha256 == stored.Sha256 &&
@@ -218,6 +218,10 @@ public sealed class DocumentIngestionService(
             return false;
         }
     }
+
+    // 2601 = duplicate key in unique index, 2627 = unique/primary key constraint violation.
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
 
     private static void ResetJobForRetry(AiIngestionJobRecord job)
     {
