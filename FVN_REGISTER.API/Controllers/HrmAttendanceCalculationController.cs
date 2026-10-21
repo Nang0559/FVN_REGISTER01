@@ -55,7 +55,8 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
   if(live.SessionLoginTime!=target.SqlSessionLoginTime||live.ConnectionId!=target.SqlConnectionId)return Conflict(ApiResponse<object>.Fail("SQL session id đã được tái sử dụng cho connection khác. Không thực hiện KILL để tránh kết thúc nhầm session."));
   if(live.SessionId<=0||live.SessionId>32767)return BadRequest(ApiResponse<object>.Fail("SQL session không hợp lệ."));
   if(live.SessionId==await GetOwnSqlSessionIdAsync(ct))return BadRequest(ApiResponse<object>.Fail("Không thể force terminate chính SQL session đang phục vụ request monitor."));
-  await _db.Database.ExecuteSqlRawAsync($"KILL {live.SessionId}",CancellationToken.None);
+  // KILL does not accept SQL parameters. Session id is sourced from SQL DMV and range-validated above.
+  await _db.Database.ExecuteSqlRawAsync("KILL " + live.SessionId.ToString(System.Globalization.CultureInfo.InvariantCulture),CancellationToken.None);
   await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.F03HrmAttendanceCalculationRun SET Status=N'Terminating' WHERE CalculationBatchId={batchId} AND Status=N'Running'",CancellationToken.None);
   _logger.LogWarning("Force terminated HRM attendance calculation batch {BatchId}; SQL session {SessionId}, blocker {BlockingSessionId}, wait {WaitType}.",batchId,live.SessionId,live.BlockingSessionId,live.WaitType);
   return Ok(ApiResponse<object>.Ok(new{batchId,sessionId=live.SessionId,status="Terminating"}));
