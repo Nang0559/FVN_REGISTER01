@@ -90,6 +90,31 @@ public sealed class LocalDocumentTextExtractorTests
 
 }
 
+public sealed class WindowsDefenderMalwareScannerTests
+{
+    [Fact]
+    public async Task ScanAsync_WhenExecutableMissing_ReturnsUnknownAndNeverClean()
+    {
+        var options = Microsoft.Extensions.Options.Options.Create(new FVN_REGISTER.AI.Application.Configuration.MalwareScannerOptions
+        {
+            Provider = "WindowsDefender",
+            DefenderExecutable = @"Z:\does-not-exist\MpCmdRun.exe"
+        });
+        var result = await new WindowsDefenderMalwareScanner(options).ScanAsync(new MemoryStream([1, 2, 3]));
+        Assert.Equal(MalwareScanVerdict.Unknown, result.Verdict);
+        Assert.Contains(result.FailureCode, new[] { "DEFENDER_UNAVAILABLE", "DEFENDER_UNSUPPORTED_PLATFORM" });
+    }
+
+    [Theory]
+    [InlineData("ClamAV", true)]
+    [InlineData("WindowsDefender", true)]
+    [InlineData("windowsdefender", true)]
+    [InlineData("Unconfigured", false)]
+    [InlineData(null, false)]
+    public void IsOperationalProvider_RecognisesOnlyRealScanners(string? provider, bool expected) =>
+        Assert.Equal(expected, FVN_REGISTER.AI.Application.Configuration.MalwareScannerOptions.IsOperationalProvider(provider));
+}
+
 public sealed class UnconfiguredMalwareScannerTests
 {
     [Fact]

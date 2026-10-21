@@ -151,7 +151,7 @@ dotnet user-secrets set "AIPlatform:StorageRoot" "D:\FvnAi\OriginalDocuments"
 dotnet user-secrets set "ConnectionStrings:FvnAi" "<same FVN_AI connection string as the API>"
 ```
 
-Ingestion also requires `AIPlatform:MalwareScanner:Provider=ClamAV` with a reachable clamd, and Tesseract/pdftoppm on PATH for images and scanned PDFs. Worker failure codes: `ORIGINAL_BLOB_MISSING` (storage root differs between Api and Worker), `OCR_TOOL_UNAVAILABLE` (OCR executable missing), `MALWARE_SCANNER_NOT_CONFIGURED`.
+Ingestion also requires `AIPlatform:MalwareScanner:Provider=ClamAV` with a reachable clamd (or, on Windows dev/pilot machines only, `Provider=WindowsDefender`, which scans a temp copy with `MpCmdRun.exe`; optional `DefenderExecutable` overrides auto-detection; failure codes `DEFENDER_UNAVAILABLE`, `DEFENDER_TIMEOUT`, `DEFENDER_SCAN_ERROR`), and Tesseract/pdftoppm on PATH for images and scanned PDFs. Worker failure codes: `ORIGINAL_BLOB_MISSING` (storage root differs between Api and Worker), `OCR_TOOL_UNAVAILABLE` (OCR executable missing), `MALWARE_SCANNER_NOT_CONFIGURED`.
 
 ## 16. Knowledge authorization (FVN RBAC adapter)
 
