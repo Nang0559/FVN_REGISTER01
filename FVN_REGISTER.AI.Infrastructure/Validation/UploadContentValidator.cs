@@ -75,8 +75,16 @@ public sealed class UploadContentValidator:IUploadContentValidator
     return new(safe,isPng?"image/png":"image/jpeg",ext.ToLowerInvariant());
    }
    if(stream.Length-start>10L*1024*1024)throw new InvalidDataException("Structured text documents are limited to 10 MB.");
-   using var reader=new StreamReader(stream,Utf8,true,8192,true);
-   var fullText=await reader.ReadToEndAsync(ct);
+   string fullText;
+   try
+   {
+    using var reader=new StreamReader(stream,Utf8,false,8192,true);
+    fullText=await reader.ReadToEndAsync(ct);
+   }
+   catch(DecoderFallbackException ex)
+   {
+    throw new InvalidDataException("Text file must be valid UTF-8.",ex);
+   }
    stream.Position=start;
    if(string.IsNullOrWhiteSpace(fullText)||fullText.Contains('\0'))throw new InvalidDataException("Text file is empty or contains binary data.");
    if(fullText.Count(ch=>char.IsControl(ch)&&ch is not('\r' or '\n' or '\t' or '\f'))>Math.Max(2,fullText.Length/100))
