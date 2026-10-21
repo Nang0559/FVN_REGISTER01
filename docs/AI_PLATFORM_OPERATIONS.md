@@ -42,7 +42,7 @@ The timestamp acceptance window is ±5 minutes. Migration `014` installs a SQL t
 
 For an empty database use exactly this sequence:
 
-`001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015 → 016 → 017`
+`001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015 → 016 → 017 → 018 → 019 → 020 → 021`
 
 Migration `014_Phase5_ReleaseRetentionTenantHardening.sql` is the forward migration for:
 
@@ -58,7 +58,7 @@ Never edit an already-applied migration to change its historical behavior. The m
 
 ## 5. Apply and rollback
 
-Use `scripts/apply-ai-migrations.sh`. It applies all 19 migrations and verifies recorded checksums before executing them.
+Use `scripts/apply-ai-migrations.sh`. It applies all 21 migrations and verifies recorded checksums before executing them.
 
 Rollback is forward-only at the application/schema level: restore from a tested SQL backup for destructive rollback, or create a new compensating migration. Do not delete rows from `AiSchemaMigrations` to bypass the ledger.
 
@@ -121,4 +121,20 @@ CI verifies tenant predicates in the RAG retrieval query, tenant references in r
 
 ## 13. CI
 
-`.github/workflows/ai-platform-sql-validation.yml` runs SQL Server 2022 integration checks, applies migrations 001–019 twice, verifies checksums and constraints, tests duplicate legacy ordinal failure, concurrent lease claims, nonce replay, dead-letter document state, tenant-scoped deduplication, and the AI unit-test project.
+`.github/workflows/ai-platform-sql-validation.yml` runs SQL Server 2022 integration checks, applies migrations 001–021 twice, verifies checksums and constraints, tests duplicate legacy ordinal failure, 12 concurrent queue claims, nonce replay, dead-letter document state, conversation recovery/purge, tenant-scoped deduplication, and the AI unit-test project.
+
+## 14. Conversation maintenance and queue claim hardening
+
+- `ConversationMaintenanceWorker` is hosted by `FVN_REGISTER.AI.Worker` and runs `ai.usp_RecoverStaleConversationTurns` plus `ai.usp_PurgeExpiredConversations` every 5 minutes by default. Override with `AIPlatform:ConversationMaintenancePollMinutes` (bounded to 1–60 minutes). The AI Worker must be running and migrations 016/018 must be applied.
+- Migration 020 serializes only the short queue-claim transaction with a transaction-owned SQL application lock. Document extraction/validation remains parallel after claim. SQL CI verifies 12 simultaneous callers claim 12 distinct jobs without deadlock.
+- Migration 021 recreates `ai.usp_FailAiIngestionJob` with `ANSI_NULLS ON` and `QUOTED_IDENTIFIER ON`, and keeps queue/document dead-letter transitions in one transaction. SQL CI verifies both procedure SET options and that terminal failure marks the source document `Failed`.
+- Conversation messages retain status-specific outcomes. Only successful/usable assistant statuses (`Supported`, `PartiallySupported`, `NotFound`) and their completed user turns are reused as prompt history; `Forbidden`, `InvalidModelResponse` and other abstentions are not reused.
+
+## 15. FVN application permission seed
+
+`SQL/110_AIDataEntryPermissions.sql` is a separate FVN_REGISTER database deployment script, not an `FVN_AI` migration. Include it through `SQL/00_Deploy_All.sql` or `SQL/00_Deploy_Run.sql` after the security registry schema is available. It seeds:
+
+- 3501 View, 3502 TemplateManage, 3503 RunCreate, 3504 Confirm, 3505 Export;
+- 3510 AIAssistant.Chat, which grants access to the chat surface but does **not** grant access to protected knowledge.
+
+Roles 1–5 receive the chat and own-run capabilities; only roles 1–2 receive template management. Guest role 6 receives none. Data-entry run read/confirm/export also checks `CreatedBy` against the current actor. Review the role matrix before production rollout if the company role policy differs.
