@@ -116,7 +116,7 @@
     protected override async Task OnInitializedAsync()
     {
         var permissions = await SecurityService.GetMyPermissionsAsync();
-        if (!permissions.IsSuccess || permissions.Data?.Has(SecurityFunctionCodes.SecurityView) != true) { _error = "Tài khoản cần quyền Security.View để sử dụng AI nhập dữ liệu."; return; }
+        if (!permissions.IsSuccess || permissions.Data?.Has(SecurityFunctionCodes.AIDocumentDataEntryView) != true) { _error = "Tài khoản cần quyền AIDocumentDataEntry.View (3501) để sử dụng AI nhập dữ liệu."; return; }
         await LoadTemplatesAsync();
     }
 
