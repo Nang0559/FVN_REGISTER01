@@ -80,7 +80,45 @@
                     @if (_testingPrompt) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
                     Chạy kiểm thử
                 </MudButton>
-                @if (!string.IsNullOrWhiteSpace(_promptResult))
+                @if (!string.IsNullOrWhiteSpace(_chatAnswer))
+                {
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Hội thoại</MudText>
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" Justify="Justify.FlexEnd">
+                            <MudPaper Elevation="0" Class="pa-3" Style="max-width:85%;background:var(--mud-palette-primary);color:var(--mud-palette-primary-text);border-radius:14px 14px 2px 14px;white-space:pre-wrap;overflow-wrap:anywhere">@_chatQuestion</MudPaper>
+                        </MudStack>
+                        <MudStack Row="true" Justify="Justify.FlexStart">
+                            <MudPaper Elevation="0" Class="pa-3" Style="max-width:92%;background:var(--mud-palette-background-gray);border-radius:14px 14px 14px 2px;overflow-wrap:anywhere">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Trợ lý AI</MudText>
+                                <MudText Typo="Typo.body1" Style="white-space:pre-wrap">@_chatAnswer</MudText>
+                                <MudStack Row="true" Spacing="1" Class="mt-2" Style="flex-wrap:wrap">
+                                    <MudChip T="string" Size="Size.Small" Color="@ChatStatusColor()">@ChatStatusLabel()</MudChip>
+                                    @if (!string.IsNullOrWhiteSpace(_chatModel))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_chatModel</MudChip>
+                                    }
+                                </MudStack>
+                                @if (_chatCitations.Count > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">Nguồn tham khảo</MudText>
+                                    @foreach (var source in _chatCitations)
+                                    {
+                                        <MudText Typo="Typo.body2">• @source.FileName@(source.PageNumber.HasValue ? $" · trang {source.PageNumber}" : "")@(source.Relevance.HasValue ? $" · độ liên quan {source.Relevance.Value:P0}" : "")</MudText>
+                                    }
+                                }
+                            </MudPaper>
+                        </MudStack>
+                    </MudStack>
+                    @if (!string.IsNullOrWhiteSpace(_promptResult))
+                    {
+                        <details class="mt-3">
+                            <summary style="cursor:pointer">Xem JSON gốc</summary>
+                            <MudPaper Outlined="true" Class="pa-3 mt-2" Style="max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">@_promptResult</MudPaper>
+                        </details>
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(_promptResult))
                 {
                     <MudDivider Class="my-3" />
                     <MudText Typo="Typo.subtitle2">Phản hồi / thông tin lỗi</MudText>
@@ -196,6 +234,13 @@
     private int _retrievalLimit = 3;
     private bool _testingPrompt;
     private string _promptResult = "";
+    private string _chatQuestion = "";
+    private string _chatAnswer = "";
+    private string _chatStatus = "";
+    private string _chatModel = "";
+    private List<ChatSource> _chatCitations = [];
+
+    private sealed record ChatSource(string FileName, int? PageNumber, double? Relevance);
     private IBrowserFile? _selectedFile;
     private string _moduleCode = "";
     private string _schemaCode = "";
@@ -310,6 +355,8 @@
     {
         _testingPrompt = true;
         _promptResult = "";
+        _chatAnswer = "";
+        _chatCitations = [];
         _error = "";
         try
         {
@@ -319,11 +366,57 @@
                 ? JsonDocument.Parse(result.Data.GetRawText()).RootElement.ToString()
                 : result.Message ?? "AI API trả về lỗi hoặc phản hồi rỗng.";
             if (result.IsSuccess && result.Data.ValueKind == JsonValueKind.Object)
-                _promptResult = JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true });
+            {
+                _promptResult = JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+                ReadChatAnswer(result.Data);
+            }
         }
         catch (Exception ex) { _promptResult = $"Lỗi kiểm thử: {ex.Message}"; }
         finally { _testingPrompt = false; }
     }
+
+    /// <summary>Turns the RAG JSON into a chat-style answer (the raw JSON stays available under "Xem JSON gốc").</summary>
+    private void ReadChatAnswer(JsonElement root)
+    {
+        if (!root.TryGetProperty("answer", out var answer) || answer.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(answer.GetString())) return;
+        _chatQuestion = _prompt;
+        _chatAnswer = answer.GetString()!.Trim();
+        _chatStatus = root.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String ? status.GetString() ?? "" : "";
+        var provider = root.TryGetProperty("modelProvider", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+        var version = root.TryGetProperty("modelVersion", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        _chatModel = string.Join(" ", new[] { provider, version }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        var sources = new List<ChatSource>();
+        if (root.TryGetProperty("citations", out var citations) && citations.ValueKind == JsonValueKind.Array)
+            foreach (var citation in citations.EnumerateArray())
+            {
+                var fileName = citation.TryGetProperty("fileName", out var f) && f.ValueKind == JsonValueKind.String ? f.GetString() : null;
+                if (string.IsNullOrWhiteSpace(fileName)) continue;
+                int? page = citation.TryGetProperty("pageNumber", out var pg) && pg.ValueKind == JsonValueKind.Number && pg.TryGetInt32(out var pageNumber) ? pageNumber : null;
+                double? relevance = citation.TryGetProperty("relevanceScore", out var r) && r.ValueKind == JsonValueKind.Number && r.TryGetDouble(out var score) ? score : null;
+                var existing = sources.FindIndex(x => x.FileName == fileName && x.PageNumber == page);
+                if (existing < 0) sources.Add(new ChatSource(fileName!, page, relevance));
+                else if (relevance > sources[existing].Relevance) sources[existing] = sources[existing] with { Relevance = relevance };
+            }
+        _chatCitations = sources;
+    }
+
+    private string ChatStatusLabel() => _chatStatus switch
+    {
+        "Supported" => "Có nguồn xác thực",
+        "PartiallySupported" => "Chỉ đáp ứng một phần",
+        "NotFound" => "Không tìm thấy trong tài liệu",
+        "" => "Không rõ trạng thái",
+        _ => _chatStatus
+    };
+
+    private Color ChatStatusColor() => _chatStatus switch
+    {
+        "Supported" => Color.Success,
+        "PartiallySupported" => Color.Warning,
+        "NotFound" => Color.Default,
+        _ => Color.Default
+    };
 
     private void OnFileSelected(InputFileChangeEventArgs args)
     {
