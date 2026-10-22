@@ -46,7 +46,12 @@ builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies")
 builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState(); builder.Services.AddScoped<CustomAuthStateProvider>(); builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>()); builder.Services.AddScoped<ITokenStorage, LocalStorageTokenService>(); var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
 builder.Services.AddHttpClient<IAuthClientService, AuthClientService>(client => client.BaseAddress = new Uri(baseUrl));
 builder.Services.AddHttpClient<ILanguageCatalogClientService, LanguageCatalogClientService>(client => client.BaseAddress = new Uri(baseUrl));
-builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => client.BaseAddress = new Uri(baseUrl));
+builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client =>
+{
+    client.BaseAddress = new Uri(baseUrl);
+    // Must stay above the gateway "FvnAiChat" timeout (240 s); the default 100 s cancels AI answers early.
+    client.Timeout = TimeSpan.FromSeconds(300);
+});
 builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>();
 builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
 builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();

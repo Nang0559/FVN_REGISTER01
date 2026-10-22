@@ -81,7 +81,7 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
         var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture);
         using var upstream = await SendSignedAiAsync(HttpMethod.Post, "/api/ai/v1/rag/answer",
             JsonContent.Create(new { query = request.Query.Trim(), retrievalLimit = Math.Clamp(request.RetrievalLimit, 1, 10) }),
-            actor, ct);
+            actor, ct, "FvnAiChat");
         return await RelayAsync(upstream, ct);
     }
 

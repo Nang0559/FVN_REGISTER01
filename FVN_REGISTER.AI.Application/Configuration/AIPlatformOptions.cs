@@ -17,6 +17,8 @@ public sealed class AIPlatformOptions
  public string? ContextSigningKey{get;set;}
  public bool RequireContentBoundSignatures{get;set;}=true;
  public int QueuePollSeconds{get;set;}=15;
+ /// <summary>Upper bound for one local-LLM (Ollama) chat call. A CPU-only 3B model can need well over a minute.</summary>
+ public int ModelTimeoutSeconds{get;set;}=180;
  public int RetentionPollMinutes{get;set;}=30;
  public int ConversationMaintenancePollMinutes{get;set;}=5;
  public int ConnectorPollMinutes{get;set;}=5;

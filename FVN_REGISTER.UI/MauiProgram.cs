@@ -57,7 +57,7 @@ namespace FVN_REGISTER
             builder.Services.AddScoped<ITokenStorage, SecureTokenService>(); builder.Services.AddScoped<CustomAuthStateProvider>(); builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
             builder.Services.AddTransient<AuthHeaderHandler>();
             string baseUrl = "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
-            builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => client.BaseAddress = new Uri(baseUrl)).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler()).AddHttpMessageHandler<AuthHeaderHandler>();
+            builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => { client.BaseAddress = new Uri(baseUrl); client.Timeout = TimeSpan.FromSeconds(300); }).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler()).AddHttpMessageHandler<AuthHeaderHandler>();
             builder.Services.AddHttpClient<IAuthClientService, AuthClientService>(client => client.BaseAddress = new Uri(baseUrl)).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler());
             builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>();
             builder.Services.AddScoped<IDashboardClientService, DashboardClientService>(); builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
