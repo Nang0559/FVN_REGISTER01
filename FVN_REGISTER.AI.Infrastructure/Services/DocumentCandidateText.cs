@@ -174,7 +174,8 @@ public static class DocumentCandidateText
     {
         if (string.IsNullOrWhiteSpace(text)) return false;
         var head = text.Length > 3000 ? text[..3000] : text;
-        return DecisionTitle.IsMatch(head.Normalize(NormalizationForm.FormC));
+        // ToModelText() uses AppendLine, i.e. "\r\n" on Windows; "$" would not match before the "\r".
+        return DecisionTitle.IsMatch(head.Replace("\r\n", "\n").Replace('\r', '\n').Normalize(NormalizationForm.FormC));
     }
 
     /// <summary>

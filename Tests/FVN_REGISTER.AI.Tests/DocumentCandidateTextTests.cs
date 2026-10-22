@@ -115,6 +115,7 @@ public sealed class DocumentCandidateTextTests
     [Theory]
     [InlineData("[PAGE 1]\nHà Nội, ngày 06 tháng 04 năm 2023\nQUYÉT ĐỊNH\n(V/v: Sửa đổi nội quy)", true)]
     [InlineData("QUYẾT ĐỊNH", true)]
+    [InlineData("[PAGE 1]\r\nHà Nội, ngày 06 tháng 04 năm 2023\r\nQUYÉT ĐỊNH\r\n(V/v: Sửa đổi nội quy)\r\n", true)]
     [InlineData("Căn cứ quyết định số 12 của Giám đốc", false)]
     [InlineData("Quy trình xin nghỉ phép", false)]
     public void LooksLikeDecision_RequiresATitleLine(string text, bool expected) =>
