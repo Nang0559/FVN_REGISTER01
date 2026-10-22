@@ -60,18 +60,23 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options,
 
             await EnsureLanguagesAvailableAsync(directory, cancellationToken);
             var output = new System.Text.StringBuilder();
+            var recognisedWords = 0;
             for (var index = 0; index < images.Count; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var pageText = await RunAsync(ResolveExecutable(settings.TesseractExecutable, TesseractCandidates),
-                    [images[index], "stdout", "-l", SafeLanguages(settings.Languages), "--psm", Math.Clamp(settings.PageSegmentationMode, 3, 13).ToString()],
+                // TSV (not plain text) carries per-word confidence and geometry, used for real confidence and tables.
+                var tsv = await RunAsync(ResolveExecutable(settings.TesseractExecutable, TesseractCandidates),
+                    [images[index], "stdout", "-l", SafeLanguages(settings.Languages), "--psm", Math.Clamp(settings.PageSegmentationMode, 3, 13).ToString(), "tsv"],
                     directory, cancellationToken);
+                var words = TesseractTsvFormatter.ParseWords(tsv);
+                recognisedWords += words.Count;
                 output.AppendLine($"[PAGE {index + 1}]");
-                output.AppendLine(pageText);
+                output.Append(TesseractTsvFormatter.FormatPage(words));
                 if (output.Length > MaximumOutputCharacters)
                     throw new InvalidDataException("OCR_OUTPUT_EXCEEDS_LIMIT");
             }
-            if (string.IsNullOrWhiteSpace(output.ToString()))
+            // The [PAGE n] markers are never whitespace, so judge emptiness by the recognised words.
+            if (recognisedWords == 0)
                 throw new InvalidDataException("OCR_RETURNED_EMPTY_TEXT");
             return output.ToString();
         }

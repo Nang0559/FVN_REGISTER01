@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Contracts;
@@ -11,7 +12,8 @@ namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExtractor
 {
     private static readonly Regex PageMarker = new(@"^\[PAGE\s+(?<page>\d+)\]$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-    private static readonly Regex RowMarker = new(@"^\[ROW\s+(?<row>\d+)\]\s*(?<text>.*)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex RowMarker = new(@"^\[ROW\s+(?<row>\d+)(?:\s+conf=(?<conf>[0-9.]+))?(?:\s+cc=(?<cc>[0-9.,]*))?\]\s*(?<text>.*)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex LineMarker = new(@"^\[LINE\s+conf=(?<conf>[0-9.]+)\]\s*(?<text>.*)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public Task<DocumentRepresentation> ExtractAsync(string text, string mediaType, CancellationToken cancellationToken = default)
     {
@@ -48,7 +50,22 @@ public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExt
             if (row.Success)
             {
                 rowNumber = int.Parse(row.Groups["row"].Value);
-                AddRow(current, rowNumber, row.Groups["text"].Value, confidence);
+                var rowConfidence = ParseConfidence(row.Groups["conf"].Value, confidence);
+                var cellConfidences = row.Groups["cc"].Success
+                    ? row.Groups["cc"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => ParseConfidence(x, rowConfidence)).ToArray()
+                    : null;
+                AddRow(current, rowNumber, row.Groups["text"].Value, rowConfidence, cellConfidences);
+                continue;
+            }
+
+            var marked = LineMarker.Match(line);
+            if (marked.Success)
+            {
+                var lineConfidence = ParseConfidence(marked.Groups["conf"].Value, confidence);
+                var markedText = marked.Groups["text"].Value.Trim();
+                if (markedText.Length == 0) continue;
+                current.Paragraphs.Add(new DocumentParagraph(
+                    $"page:{current.PageNumber};paragraph:{current.Paragraphs.Count + 1}", markedText, lineConfidence));
                 continue;
             }
 
@@ -67,7 +84,7 @@ public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExt
         var normalizedPages = pages.OrderBy(x => x.PageNumber).Select(x => x.Build()).ToArray();
         var tables = normalizedPages
             .Where(x => x.Rows.Count > 0)
-            .Select(x => new DocumentTable($"page:{x.PageNumber};table:1", x.Rows, confidence))
+            .Select(x => new DocumentTable($"page:{x.PageNumber};table:1", x.Rows, x.Rows.Average(r => r.Confidence)))
             .ToArray();
         var regions = normalizedPages.SelectMany(page =>
             page.Paragraphs.Select(p => new DocumentRegion(p.Locator, page.PageNumber, p.Text, p.Confidence, "Paragraph"))
@@ -84,14 +101,19 @@ public sealed class DocumentRepresentationExtractor : IDocumentRepresentationExt
         return page;
     }
 
-    private static void AddRow(PageBuilder page, int rowNumber, string value, double confidence)
+    private static double ParseConfidence(string value, double fallback) =>
+        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? Math.Clamp(parsed, 0d, 1d)
+            : fallback;
+
+    private static void AddRow(PageBuilder page, int rowNumber, string value, double confidence, double[]? cellConfidences = null)
     {
         var parts = value.Split('\t');
         var cells = parts.Select((cell, index) => new DocumentCell(
             index + 1,
             $"page:{page.PageNumber};row:{rowNumber};cell:{index + 1}",
             cell.Trim(),
-            confidence)).ToArray();
+            cellConfidences is not null && index < cellConfidences.Length ? cellConfidences[index] : confidence)).ToArray();
         page.Rows.Add(new DocumentRow(rowNumber, $"page:{page.PageNumber};row:{rowNumber}", cells, confidence));
     }
 

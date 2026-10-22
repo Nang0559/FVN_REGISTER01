@@ -94,7 +94,7 @@ public sealed class KnowledgeIndexingService(
         var result=new List<TextChunk>();var buffer=new StringBuilder();int? page=null;string? section=null;var currentPage=1;
         foreach(var raw in text.Replace("\r\n","\n").Replace('\r','\n').Split('\n'))
         {
-            var line=raw.Trim();if(line.Length==0)continue;
+            var line=FVN_REGISTER.AI.Infrastructure.Extraction.OcrTextMarkers.StripLine(raw.Trim());if(line.Length==0)continue;
             if(line.StartsWith("[PAGE ",StringComparison.Ordinal)&&line.EndsWith(']')&&int.TryParse(line.AsSpan(6,line.Length-7),out var pageNumber)){Flush(false);currentPage=pageNumber;continue;}
             if(line.Length>maximumCharacters){Flush(false);for(var offset=0;offset<line.Length;offset+=maximumCharacters-overlapCharacters){var length=Math.Min(maximumCharacters,line.Length-offset);result.Add(new TextChunk(line.Substring(offset,length),currentPage,section));if(offset+length>=line.Length)break;}continue;}
             if(buffer.Length>0&&buffer.Length+line.Length+1>maximumCharacters)Flush(true);

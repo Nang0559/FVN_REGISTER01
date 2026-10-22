@@ -90,7 +90,7 @@ public sealed class DocumentDataEntryService(
         else
         {
             await using var content = await store.OpenReadAsync(document.StorageKey, cancellationToken);
-            var text = await textExtractor.ExtractTextAsync(content, document.MediaType, cancellationToken);
+            var text = FVN_REGISTER.AI.Infrastructure.Extraction.OcrTextMarkers.StripText(await textExtractor.ExtractTextAsync(content, document.MediaType, cancellationToken));
             response = await modelProvider.GenerateAsync(BuildRequest(definition, text, "document-data-entry"), cancellationToken);
         }
 
