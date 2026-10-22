@@ -64,7 +64,7 @@ public sealed class TesseractOcrTextExtractor(IOptions<OcrOptions> options,
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var pageText = await RunAsync(ResolveExecutable(settings.TesseractExecutable, TesseractCandidates),
-                    [images[index], "stdout", "-l", SafeLanguages(settings.Languages), "--psm", "6"],
+                    [images[index], "stdout", "-l", SafeLanguages(settings.Languages), "--psm", Math.Clamp(settings.PageSegmentationMode, 3, 13).ToString()],
                     directory, cancellationToken);
                 output.AppendLine($"[PAGE {index + 1}]");
                 output.AppendLine(pageText);

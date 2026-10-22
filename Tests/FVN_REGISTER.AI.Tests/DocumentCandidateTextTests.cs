@@ -44,4 +44,40 @@ public sealed class DocumentCandidateTextTests
     [InlineData("2.1. Trường hợp", false)]
     public void IsNoiseLine_FlagsOnlyJunk(string line, bool expected) =>
         Assert.Equal(expected, DocumentCandidateText.IsNoiseLine(line));
+
+    [Fact]
+    public void ExtractDocumentNumberCandidates_ReadsNumberAfterSo()
+    {
+        var result = DocumentCandidateText.ExtractDocumentNumberCandidates("Số: FCC-06042023 cerer 000 =r-ee=");
+        Assert.Equal(["FCC-06042023"], result);
+    }
+
+    [Fact]
+    public void ExtractFormCodeCandidates_FindsInternalFormCodes()
+    {
+        var result = DocumentCandidateText.ExtractFormCodeCandidates("viết vào “Don xin nghỉ” (HC-NS-05) và FCC-06042023");
+        Assert.Equal(["HC-NS-05"], result);
+    }
+
+    [Fact]
+    public void ExtractArticleCandidates_NormalisesArticleAndChapter()
+    {
+        var result = DocumentCandidateText.ExtractArticleCandidates(
+            "Điều 15- Chương 3 Nghỉ phép năm\nĐiều 18 - Chương 3 Thủ tục xin nghỉ\nĐiều 2. Quyết định này\nĐiều 15- Chương 3");
+        Assert.Equal(["Điều 15 - Chương 3", "Điều 18 - Chương 3", "Điều 2"], result);
+    }
+
+    [Fact]
+    public void ExtractNumericCandidates_DropsDatesNumbersCodesAndOutlineNumbering()
+    {
+        const string text = "[PAGE 1]\nSố: FCC-06042023\nHà Nội, ngày 06 tháng 04 năm 2023\nĐiều 15- Chương 3\n" +
+                            "2.1. Trường hợp sử dụng 3 ngày và 15.8 giờ\nmẫu HC-NS-05\n[PAGE 2]";
+        Assert.Equal(["3", "15.8"], DocumentCandidateText.ExtractNumericCandidates(text));
+    }
+
+    [Fact]
+    public void ExtractNumericCandidates_KeepsDecimalAtLineStart()
+    {
+        Assert.Equal(["15.8"], DocumentCandidateText.ExtractNumericCandidates("15.8 giờ"));
+    }
 }

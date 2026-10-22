@@ -9,7 +9,7 @@ public sealed class ModelDocumentClassifier(IAIModelProvider modelProvider) : ID
 {
     private static readonly HashSet<string> Types = new(StringComparer.Ordinal)
     {
-        "Form", "Policy", "Procedure", "Report", "Spreadsheet", "Invoice",
+        "Form", "Policy", "Procedure", "Decision", "Report", "Spreadsheet", "Invoice",
         "Correspondence", "TechnicalDocument", "Other", "Unknown"
     };
 
@@ -27,7 +27,7 @@ public sealed class ModelDocumentClassifier(IAIModelProvider modelProvider) : ID
                 "document-classification",
                 sample,
                 "Classify the document by its content, not by a business module. Return only JSON: " +
-                "{\"documentType\":\"Form|Policy|Procedure|Report|Spreadsheet|Invoice|Correspondence|TechnicalDocument|Other|Unknown\",\"confidence\":0.0}. " +
+                "{\"documentType\":\"Form|Policy|Procedure|Decision|Report|Spreadsheet|Invoice|Correspondence|TechnicalDocument|Other|Unknown\",\"confidence\":0.0}. " +
                 "Do not infer missing content. Confidence must be between 0 and 1."), cancellationToken);
             ProviderName = response.Provider;
             ModelVersion = response.Model;
@@ -53,6 +53,7 @@ public sealed class ModelDocumentClassifier(IAIModelProvider modelProvider) : ID
         if (sample.Contains("báo cáo") || sample.Contains("report")) return ("Report", 0.6);
         if (sample.Contains("hóa đơn") || sample.Contains("invoice")) return ("Invoice", 0.65);
         if (sample.Contains("đơn đề nghị") || sample.Contains("request form")) return ("Form", 0.6);
+        if (sample.Contains("quyết định") || sample.Contains("decision")) return ("Decision", 0.55);
         return ("Unknown", 0.35);
     }
 }
