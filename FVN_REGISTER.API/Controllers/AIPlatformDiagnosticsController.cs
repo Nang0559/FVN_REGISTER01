@@ -154,41 +154,99 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
     }
 
     /// <summary>
-    /// Approves the latest extraction and publishes the document to the knowledge base. The AI API still
-    /// enforces the reviewer/publisher right (function 3502, data scope All) on both calls.
+    /// Approves the latest extraction and publishes the document to the knowledge base. Publishing embeds every
+    /// chunk and can take minutes, so the work runs in the background and the page polls publish-status.
+    /// The AI API still enforces the reviewer/publisher right (function 3502, data scope All) on both calls.
     /// </summary>
     [HttpPost("documents/{documentId:guid}/approve-publish")]
     public async Task<IActionResult> ApproveAndPublish(Guid documentId, [FromBody] DocumentReviewTestRequest? request, CancellationToken ct)
     {
         if (!await CanManageDiagnosticsAsync(ct)) return Forbid();
         var actor = UserInfo!.UserId.ToString(CultureInfo.InvariantCulture);
+        PruneFinishedPublishStates();
+        if (PublishStates.TryGetValue(documentId, out var existing) && existing.Status == "Running")
+            return Accepted(new { status = existing.Status, startedAtUtc = existing.StartedAtUtc });
+
         var extractionId = await ResolveLatestExtractionIdAsync(documentId, actor, ct);
         if (extractionId is null) return NotFound(new { error = "Chưa có kết quả extraction để duyệt." });
 
-        using var review = await SendSignedAiAsync(HttpMethod.Post, $"/api/ai/v1/reviews/{extractionId.Value:D}",
-            JsonContent.Create(new { decision = "Approved", correctedPayloadJson = (string?)null, comment = Truncate(request?.Comment) }),
-            actor, ct);
-        var reviewBody = await review.Content.ReadAsStringAsync(ct);
-        if (!review.IsSuccessStatusCode)
-            return StatusCode((int)review.StatusCode, new { stage = "review", error = $"Duyệt thất bại (HTTP {(int)review.StatusCode}).", detail = TryParseJson(reviewBody) });
-
-        var reviewJson = TryParseJson(reviewBody);
-        if (reviewJson is not JsonElement reviewElement || !TryReadGuidProperty(reviewElement, "reviewId", out var reviewId))
-            return StatusCode(StatusCodes.Status502BadGateway, new { stage = "review", error = "AI API không trả về reviewId.", detail = reviewJson });
-
-        using var publish = await SendSignedAiAsync(HttpMethod.Post, $"/api/ai/v1/knowledge/{documentId:D}/publish",
-            JsonContent.Create(new { reviewId }), actor, ct);
-        var publishBody = await publish.Content.ReadAsStringAsync(ct);
-        if (!publish.IsSuccessStatusCode)
-            return StatusCode((int)publish.StatusCode, new
-            {
-                stage = "publish",
-                error = $"Đã duyệt nhưng publish thất bại (HTTP {(int)publish.StatusCode}). Kiểm tra quyền 3502 (data scope All), Ollama embedding và OCR (Tesseract/pdftoppm) của AI API.",
-                review = reviewJson,
-                detail = TryParseJson(publishBody)
-            });
-        return Ok(new { stage = "published", review = reviewJson, publish = TryParseJson(publishBody) });
+        var started = new PublishState("Running", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
+        PublishStates[documentId] = started;
+        var comment = Truncate(request?.Comment);
+        _ = Task.Run(() => RunApproveAndPublishAsync(documentId, extractionId.Value, actor, comment, started.StartedAtUtc));
+        return Accepted(new { status = started.Status, startedAtUtc = started.StartedAtUtc });
     }
+
+    /// <summary>Progress of the background approve-and-publish started from this page.</summary>
+    [HttpGet("documents/{documentId:guid}/publish-status")]
+    public async Task<IActionResult> GetPublishStatus(Guid documentId, CancellationToken ct)
+    {
+        if (!await CanManageDiagnosticsAsync(ct)) return Forbid();
+        return PublishStates.TryGetValue(documentId, out var state)
+            ? Ok(new { status = state.Status, startedAtUtc = state.StartedAtUtc, updatedAtUtc = state.UpdatedAtUtc, result = state.Result })
+            : Ok(new { status = "None" });
+    }
+
+    private async Task RunApproveAndPublishAsync(Guid documentId, Guid extractionId, string actor, string? comment, DateTimeOffset startedAtUtc)
+    {
+        using var overall = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+        var ct = overall.Token;
+        try
+        {
+            using var review = await SendSignedAiAsync(HttpMethod.Post, $"/api/ai/v1/reviews/{extractionId:D}",
+                JsonContent.Create(new { decision = "Approved", correctedPayloadJson = (string?)null, comment }), actor, ct, "FvnAiLong");
+            var reviewBody = await review.Content.ReadAsStringAsync(ct);
+            if (!review.IsSuccessStatusCode)
+            {
+                FinishPublish(documentId, startedAtUtc, "Failed", new { stage = "review", error = $"Duyệt thất bại (HTTP {(int)review.StatusCode}).", detail = TryParseJson(reviewBody) });
+                return;
+            }
+            var reviewJson = TryParseJson(reviewBody);
+            if (reviewJson is not JsonElement reviewElement || !TryReadGuidProperty(reviewElement, "reviewId", out var reviewId))
+            {
+                FinishPublish(documentId, startedAtUtc, "Failed", new { stage = "review", error = "AI API không trả về reviewId.", detail = reviewJson });
+                return;
+            }
+
+            using var publish = await SendSignedAiAsync(HttpMethod.Post, $"/api/ai/v1/knowledge/{documentId:D}/publish",
+                JsonContent.Create(new { reviewId }), actor, ct, "FvnAiLong");
+            var publishBody = await publish.Content.ReadAsStringAsync(ct);
+            if (!publish.IsSuccessStatusCode)
+            {
+                FinishPublish(documentId, startedAtUtc, "Failed", new
+                {
+                    stage = "publish",
+                    error = $"Đã duyệt nhưng publish thất bại (HTTP {(int)publish.StatusCode}). Kiểm tra quyền 3502 (data scope All), Ollama embedding và log AI API.",
+                    review = reviewJson,
+                    detail = TryParseJson(publishBody)
+                });
+                return;
+            }
+            FinishPublish(documentId, startedAtUtc, "Succeeded", new { stage = "published", review = reviewJson, publish = TryParseJson(publishBody) });
+        }
+        catch (OperationCanceledException)
+        {
+            FinishPublish(documentId, startedAtUtc, "Failed", new { stage = "publish", error = "Quá 20 phút chưa hoàn tất. Kiểm tra Ollama embedding và log AI API." });
+        }
+        catch (Exception ex)
+        {
+            FinishPublish(documentId, startedAtUtc, "Failed", new { stage = "publish", error = $"Lỗi không mong đợi: {ex.GetType().Name}" });
+        }
+    }
+
+    private static void FinishPublish(Guid documentId, DateTimeOffset startedAtUtc, string status, object result) =>
+        PublishStates[documentId] = new PublishState(status, startedAtUtc, DateTimeOffset.UtcNow, result);
+
+    private static void PruneFinishedPublishStates()
+    {
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-1);
+        foreach (var pair in PublishStates)
+            if (pair.Value.Status != "Running" && pair.Value.UpdatedAtUtc < cutoff) PublishStates.TryRemove(pair.Key, out _);
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, PublishState> PublishStates = new();
+
+    private sealed record PublishState(string Status, DateTimeOffset StartedAtUtc, DateTimeOffset UpdatedAtUtc, object? Result);
 
     private async Task<Guid?> ResolveLatestExtractionIdAsync(Guid documentId, string actor, CancellationToken ct)
     {
@@ -244,7 +302,7 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
         }
     }
 
-    private async Task<HttpResponseMessage> SendSignedAiAsync(HttpMethod method, string path, HttpContent? content, string actor, CancellationToken ct)
+    private async Task<HttpResponseMessage> SendSignedAiAsync(HttpMethod method, string path, HttpContent? content, string actor, CancellationToken ct, string clientName = "FvnAi")
     {
         var baseUrl = _configuration["AIPlatform:BaseUrl"];
         var apiKey = _configuration["AIPlatform:ApiKey"];
@@ -277,7 +335,7 @@ public sealed class AIPlatformDiagnosticsController : BaseApiController
         request.Headers.TryAddWithoutValidation("X-AI-Nonce", nonce);
         request.Headers.TryAddWithoutValidation("X-AI-Signature", signature);
 
-        try { return await _clients.CreateClient("FvnAi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct); }
+        try { return await _clients.CreateClient(clientName).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct); }
         catch (HttpRequestException)
         {
             return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)

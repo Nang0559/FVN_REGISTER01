@@ -35,8 +35,15 @@ public sealed class KnowledgeIndexingService(
         }
         else
         {
-            await using var original=await documents.OpenReadAsync(document.StorageKey,cancellationToken);
-            text=await textExtractor.ExtractTextAsync(original,document.MediaType,cancellationToken);
+            // Publish the text the reviewer actually approved: the representation stored by the worker.
+            // Re-running OCR here made publishing of scanned/large PDFs slow enough to time out the HTTP request.
+            var storedRepresentation=await db.Extractions.AsNoTracking().Where(x=>x.DocumentId==documentId&&x.TenantCode==tenantCode).OrderByDescending(x=>x.CreatedAtUtc).Select(x=>x.RepresentationJson).FirstOrDefaultAsync(cancellationToken);
+            text=TryReadRepresentationText(storedRepresentation)??string.Empty;
+            if(string.IsNullOrWhiteSpace(text))
+            {
+                await using var original=await documents.OpenReadAsync(document.StorageKey,cancellationToken);
+                text=await textExtractor.ExtractTextAsync(original,document.MediaType,cancellationToken);
+            }
         }
         if(string.IsNullOrWhiteSpace(text))throw new InvalidDataException("KNOWLEDGE_DOCUMENT_HAS_NO_TEXT");
         if(text.Length>2_000_000)throw new InvalidDataException("KNOWLEDGE_DOCUMENT_TEXT_LIMIT_EXCEEDED");
@@ -89,6 +96,17 @@ public sealed class KnowledgeIndexingService(
 
     private bool IsInMemory()=>string.Equals(db.Database.ProviderName,"Microsoft.EntityFrameworkCore.InMemory",StringComparison.Ordinal);
     private static Guid StableChunkId(Guid documentId,Guid reviewId,int ordinal,string text){var bytes=SHA256.HashData(Encoding.UTF8.GetBytes($"{documentId:N}|{reviewId:N}|{ordinal}|{text}"));Span<byte> guidBytes=stackalloc byte[16];bytes.AsSpan(0,16).CopyTo(guidBytes);return new Guid(guidBytes);}
+    private static string? TryReadRepresentationText(string? representationJson)
+    {
+        if(string.IsNullOrWhiteSpace(representationJson))return null;
+        try
+        {
+            var representation=JsonSerializer.Deserialize<DocumentRepresentation>(representationJson,new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            var value=representation?.ToModelText();
+            return string.IsNullOrWhiteSpace(value)?null:value;
+        }
+        catch(JsonException){return null;}
+    }
     private static List<TextChunk> SplitIntoChunks(string text,int maximumCharacters,int overlapCharacters)
     {
         var result=new List<TextChunk>();var buffer=new StringBuilder();int? page=null;string? section=null;var currentPage=1;
