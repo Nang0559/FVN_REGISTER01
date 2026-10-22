@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FVN_REGISTER.AI.Application.Abstractions;
 using FVN_REGISTER.AI.Application.Contracts;
+using FVN_REGISTER.AI.Infrastructure.Services;
 
 namespace FVN_REGISTER.AI.Infrastructure.Extraction;
 
@@ -36,6 +37,10 @@ public sealed class ModelDocumentClassifier(IAIModelProvider modelProvider) : ID
             var confidence = json.RootElement.GetProperty("confidence").GetDouble();
             if (!Types.Contains(type) || double.IsNaN(confidence) || double.IsInfinity(confidence) ||
                 confidence is < 0 or > 1) return Fallback(text);
+            // Small local models label every formal Vietnamese document "Procedure" with ~0.99 confidence.
+            // A "QUYẾT ĐỊNH" title is a reliable structural signal, so it overrides generic labels.
+            if (DocumentCandidateText.LooksLikeDecision(sample) && type is "Procedure" or "Policy" or "Other" or "Unknown")
+                return ("Decision", Math.Min(confidence, 0.8));
             return (type, confidence);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -48,6 +53,7 @@ public sealed class ModelDocumentClassifier(IAIModelProvider modelProvider) : ID
     private static (string DocumentType, double Confidence) Fallback(string text)
     {
         var sample = text[..Math.Min(text.Length, 12000)].ToLowerInvariant();
+        if (DocumentCandidateText.LooksLikeDecision(text)) return ("Decision", 0.6);
         if (sample.Contains("chính sách") || sample.Contains("policy")) return ("Policy", 0.65);
         if (sample.Contains("quy trình") || sample.Contains("procedure")) return ("Procedure", 0.65);
         if (sample.Contains("báo cáo") || sample.Contains("report")) return ("Report", 0.6);

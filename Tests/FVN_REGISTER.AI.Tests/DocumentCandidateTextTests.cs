@@ -80,4 +80,43 @@ public sealed class DocumentCandidateTextTests
     {
         Assert.Equal(["15.8"], DocumentCandidateText.ExtractNumericCandidates("15.8 giờ"));
     }
+
+    [Theory]
+    [InlineData("~ z G x I 2 ng 7 {", true)]
+    [InlineData("7 4ÙT H@ÔONG DOAN TONG GEAM DOC", true)]
+    [InlineData("05 * Sy, \\2 4 AN }", true)]
+    [InlineData("Q việt NAIR i œ 4 Ea \\", true)]
+    [InlineData("Zz RACH NIỆM HOU lề / kỷ h #À", true)]
+    [InlineData("Số: FCC-06042023 creeee OỦO ==~--==", false)]
+    [InlineData("Điều 15- Chương 3 Nghỉ phép năm có hưởng lương (muc 15.6&15.7&15.8)", false)]
+    [InlineData("viết vào “Đơn xin nghỉ” (HC-NS-05) trong các trường hợp sau:", false)]
+    [InlineData("Ngày đầu tiên đi làm trở lại : TAYE SENS NBN PMP kg ° NON việt", false)]
+    [InlineData("1 2 3 4 5 6 7", false)]
+    [InlineData("- Như Điều 3.", false)]
+    public void IsLowQualityLine_FlagsGarbageButKeepsRealLines(string line, bool expected) =>
+        Assert.Equal(expected, DocumentCandidateText.IsLowQualityLine(line));
+
+    [Fact]
+    public void ExtractNumericCandidates_FromCleanText_IgnoresDigitsInGarbageLines()
+    {
+        const string text = "Điều 15- Chương 3 Nghỉ phép năm (muc 15.6&15.7&15.8)\n~ z G x I 2 ng 7 {\n05 * Sy, \\2 4 AN }";
+        var clean = DocumentCandidateText.CleanForCandidates(text);
+        Assert.Equal(["15.6", "15.7", "15.8"], DocumentCandidateText.ExtractNumericCandidates(clean));
+    }
+
+    [Fact]
+    public void ExtractReferencedArticleCandidates_SkipsOwnHeadings()
+    {
+        const string text = "Điều 1. Sửa đổi các nội dung\nĐiều 15- Chương 3 Nghỉ phép năm\nĐiều 18 - Chương 3 Thủ tục\nĐiều 2. Quyết định này có hiệu lực\n- Như Điều 3.";
+        Assert.Equal(["Điều 15 - Chương 3", "Điều 18 - Chương 3", "Điều 3"],
+            DocumentCandidateText.ExtractReferencedArticleCandidates(text));
+    }
+
+    [Theory]
+    [InlineData("[PAGE 1]\nHà Nội, ngày 06 tháng 04 năm 2023\nQUYÉT ĐỊNH\n(V/v: Sửa đổi nội quy)", true)]
+    [InlineData("QUYẾT ĐỊNH", true)]
+    [InlineData("Căn cứ quyết định số 12 của Giám đốc", false)]
+    [InlineData("Quy trình xin nghỉ phép", false)]
+    public void LooksLikeDecision_RequiresATitleLine(string text, bool expected) =>
+        Assert.Equal(expected, DocumentCandidateText.LooksLikeDecision(text));
 }

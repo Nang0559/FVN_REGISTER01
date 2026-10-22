@@ -113,6 +113,70 @@ public static class DocumentCandidateText
         return Number.Matches(new string(chars)).Select(m => m.Value).Distinct().Take(maximum).ToArray();
     }
 
+    private static readonly char[] GarbageSymbols = "@#*^\\|~{}[]<>=_`".ToCharArray();
+
+    // A decision's title line: "QUYẾT ĐỊNH" (OCR often swaps the accent: "QUYÉT").
+    private static readonly Regex DecisionTitle = new(
+        @"^[ \t]*quy[ếéêe]t[ \t]+[đd][ịi]nh[ \t]*$",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Multiline, MatchTimeout);
+
+    /// <summary>
+    /// True for OCR garbage (stamp / signature / mangled table fragments such as "~ z G x I 2 ng 7 {"):
+    /// fewer than three letters or digits, or (for lines of 6+ tokens) at least 25% of the tokens are single symbols,
+    /// single letters, or letters mixed with digits/symbols. Hyphenated codes (HC-NS-05) and plain numbers are not penalised.
+    /// </summary>
+    public static bool IsLowQualityLine(string line)
+    {
+        if (IsNoiseLine(line)) return true;
+        var tokens = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length < 6) return false;
+        var bad = 0;
+        foreach (var token in tokens)
+        {
+            var alnum = token.Count(char.IsLetterOrDigit);
+            var letters = token.Count(char.IsLetter);
+            var digits = token.Count(char.IsDigit);
+            var hasSymbol = token.IndexOfAny(GarbageSymbols) >= 0;
+            if (alnum < 2 && digits == 0) bad++;
+            else if (letters > 0 && (hasSymbol || (digits > 0 && !token.Contains('-') && !token.Contains('/')))) bad++;
+        }
+        return bad * 4 >= tokens.Length;
+    }
+
+    /// <summary>The text without low-quality lines; candidate fields are extracted from this so garbage digits do not leak in.</summary>
+    public static string CleanForCandidates(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        return string.Join('\n', text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Where(l => !IsLowQualityLine(l)));
+    }
+
+    /// <summary>
+    /// Articles that the document refers to or amends ("Điều 15 - Chương 3"), excluding the document's own
+    /// numbered headings at the start of a line ("Điều 1. Sửa đổi ...").
+    /// </summary>
+    public static string[] ExtractReferencedArticleCandidates(string text, int maximum = 50)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return [];
+        text = text.Normalize(NormalizationForm.FormC);
+        var result = new List<string>();
+        foreach (Match m in Article.Matches(text))
+        {
+            var end = m.Index + m.Length;
+            var atLineStart = text[..m.Index].TrimEnd(' ', '\t').Length == 0 || text[..m.Index].TrimEnd(' ', '\t').EndsWith('\n');
+            if (atLineStart && end < text.Length && text[end] == '.') continue;
+            result.Add(m.Groups["c"].Success ? $"Điều {m.Groups["a"].Value} - Chương {m.Groups["c"].Value}" : $"Điều {m.Groups["a"].Value}");
+        }
+        return result.Distinct().Take(maximum).ToArray();
+    }
+
+    /// <summary>True when a "QUYẾT ĐỊNH" title line appears near the top of the document.</summary>
+    public static bool LooksLikeDecision(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var head = text.Length > 3000 ? text[..3000] : text;
+        return DecisionTitle.IsMatch(head.Normalize(NormalizationForm.FormC));
+    }
+
     /// <summary>
     /// True for OCR junk such as stamp/signature fragments ("aS", "Sy", "a 1"): lines with fewer than
     /// three letters or digits carry no evidence value.
