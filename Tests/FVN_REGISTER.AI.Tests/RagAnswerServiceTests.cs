@@ -190,6 +190,30 @@ public sealed class RagAnswerServiceTests
             CancellationToken cancellationToken = default) => Task.FromResult(hits);
     }
 
+    [Theory]
+    [InlineData("nội quy lao động ?", "Vietnamese")]
+    [InlineData("noi quy lao dong noi gi", "Vietnamese")]
+    [InlineData("What does the leave policy say?", "English")]
+    [InlineData("休暇の規定は？", "Japanese")]
+    public void DetectAnswerLanguage_FollowsTheQuestion(string question, string expected) =>
+        Assert.Equal(expected, RagAnswerService.DetectAnswerLanguage(question));
+
+    [Fact]
+    public async Task AnswerAsync_TellsTheModelToAnswerInTheQuestionLanguageAndListMainHeadings()
+    {
+        var chunkId = Guid.NewGuid().ToString();
+        var search = new StubSearch([new KnowledgeSearchHit(chunkId, Guid.NewGuid().ToString(),
+            "Nội quy.pdf", 1, "Điều 1. Phạm vi áp dụng.", 0.9, "Nội quy.pdf, page 1")]);
+        var model = new StubModelProvider(System.Text.Json.JsonSerializer.Serialize(new { status = "Supported", answer = "- Điều 1", citations = new[] { chunkId } }));
+
+        await CreateService(search, model).AnswerAsync("FCCVN", "actor", ["EMPLOYEE"], "nội quy lao động nói gì?");
+
+        using var payload = System.Text.Json.JsonDocument.Parse(model.LastRequest!.Input);
+        Assert.Equal("Vietnamese", payload.RootElement.GetProperty("answerLanguage").GetString());
+        Assert.Contains("answerLanguage", model.LastRequest.SystemInstruction, StringComparison.Ordinal);
+        Assert.Contains("bullet points", model.LastRequest.SystemInstruction, StringComparison.Ordinal);
+    }
+
     private sealed class StubModelProvider(string output) : IAIModelProvider
     {
         public bool Called { get; private set; }
