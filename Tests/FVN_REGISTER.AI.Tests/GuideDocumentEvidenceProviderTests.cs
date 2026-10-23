@@ -53,6 +53,13 @@ public sealed class GuideDocumentEvidenceProviderTests
     {
         public Task<IReadOnlyCollection<string>> GetSearchScopesAsync(string tenantCode, string actorId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<string>>(scopes);
+
+        // Publication and unpublish authorization are not used by the guide assistant.
+        public Task<IReadOnlyCollection<string>> GetPublicationScopesAsync(string tenantCode, string actorId, Guid documentId, Guid reviewId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task AuthorizeUnpublishAsync(string tenantCode, string actorId, Guid documentId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeSearch(params KnowledgeSearchHit[] hits) : IKnowledgeSearchService
