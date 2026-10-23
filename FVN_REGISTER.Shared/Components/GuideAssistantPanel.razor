@@ -4,17 +4,21 @@
 @inject IHttpClientWithAuth Http
 @inject NavigationManager Navigation
 
-<MudPaper Outlined="true" Class="pa-4 mt-5">
+<MudPaper Outlined="true" Class="pa-4 mb-5" Style="border-color:var(--mud-palette-primary)">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.SmartToy" Color="Color.Primary" />
             <MudText Typo="Typo.h6">Hỏi đáp hướng dẫn sử dụng</MudText>
         </MudStack>
-        @if (_turns.Count > 0)
-        {
-            <MudButton Size="Size.Small" Variant="Variant.Text" Disabled="_busy" OnClick="Clear">Xóa hội thoại</MudButton>
-        }
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            @if (_turns.Count > 0)
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Text" Disabled="_busy" OnClick="Clear">Xóa hội thoại</MudButton>
+            }
+            <MudIconButton Icon="@(_open ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" OnClick="Toggle" />
+        </MudStack>
     </MudStack>
+    <MudCollapse Expanded="_open">
     <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-3">
         Trợ lý chỉ trả lời từ tài liệu hướng dẫn mà tài khoản của bạn được xem. Hãy đối chiếu với mục nguồn bên dưới câu trả lời.
     </MudText>
@@ -95,6 +99,7 @@
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_question))"
                    StartIcon="@Icons.Material.Filled.Send" OnClick="@(() => AskAsync(_question))">Hỏi</MudButton>
     </MudStack>
+    </MudCollapse>
 </MudPaper>
 
 @code {
@@ -122,6 +127,7 @@
     private readonly CancellationTokenSource _disposed = new();
     private string? _question;
     private bool _busy;
+    private bool _open = true;
     private int _elapsedSeconds;
 
     private async Task OnKeyDown(KeyboardEventArgs e)
@@ -131,6 +137,8 @@
     }
 
     private void Clear() => _turns.Clear();
+
+    private void Toggle() => _open = !_open;
 
     private void Open(string feature) =>
         // forceLoad: /huong-dan reads ?feature= only when the page is created, so a client-side navigation would keep the old topic.

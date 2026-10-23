@@ -21,6 +21,9 @@
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back">@Language.T("common.back")</MudButton>
     </MudStack>
 
+    @* Server-side retrieval only returns guide passages this account may see, so the assistant is safe to show even when this topic is hidden. *@
+    <GuideAssistantPanel Feature="@(_accessDenied || _missing ? null : _feature)" />
+
     @if (_accessDenied)
     {
         <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Tài khoản hiện tại chưa được cấp quyền xem hướng dẫn này. Nội dung được ẩn theo quyền hiệu lực; hãy liên hệ quản trị viên nếu bạn cần truy cập.</MudAlert>
@@ -75,10 +78,6 @@
     </MudPaper>
     }
 
-    @if (!_accessDenied)
-    {
-        <GuideAssistantPanel Feature="@(_missing ? null : _feature)" />
-    }
 </MudContainer>
 
 @code {

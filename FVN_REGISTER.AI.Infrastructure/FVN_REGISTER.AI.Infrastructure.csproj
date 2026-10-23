@@ -13,4 +13,7 @@
 <ItemGroup>
 <Using Include="Microsoft.Extensions.Logging" />
 </ItemGroup>
+<ItemGroup>
+<InternalsVisibleTo Include="FVN_REGISTER.AI.Tests" />
+</ItemGroup>
 </Project>
