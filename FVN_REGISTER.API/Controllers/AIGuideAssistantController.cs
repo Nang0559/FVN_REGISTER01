@@ -66,7 +66,7 @@ public sealed class AIGuideAssistantController : ControllerBase
             return BadRequest(new { message = $"Câu hỏi phải có từ 1 đến {MaxQueryChars} ký tự." });
 
         var user = _currentUser.GetCurrentUser();
-        if (user is null || !user.IsLoggedIn || user.UserId <= 0) return Unauthorized();
+        if (user is null || user.UserId <= 0) return Unauthorized(new { message = "Không xác định được tài khoản đang đăng nhập. Vui lòng đăng nhập lại." });
         if (!await _authorization.HasAsync(user, SecurityFunctionCodes.AIAssistantChat, cancellationToken))
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Tài khoản chưa được cấp quyền dùng trợ lý AI (AIAssistant.Chat)." });
 
