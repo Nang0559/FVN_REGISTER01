@@ -116,7 +116,9 @@ public sealed class GuideAnswerServiceTests
         var input = provider.LastRequest!.Input;
         Assert.DoesNotContain("turn 0 ", input);
         Assert.Contains("turn 9 ", input);
-        Assert.True(input.IndexOf("Earlier conversation", StringComparison.Ordinal) < input.IndexOf("Guide passages", StringComparison.Ordinal));
+        var history = input.IndexOf("Earlier conversation", StringComparison.Ordinal);
+        var passages = input.IndexOf("Passages:", StringComparison.Ordinal);
+        Assert.True(history >= 0 && passages > history, "History must be present and come before the passages.");
     }
 
     private sealed class FakeProvider(string output) : IAIModelProvider
