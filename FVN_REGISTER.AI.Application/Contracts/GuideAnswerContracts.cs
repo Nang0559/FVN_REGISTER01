@@ -10,7 +10,15 @@ public sealed record GuideAnswerRequest(
     string Query,
     string? Feature,
     IReadOnlyList<GuideTurn>? History,
-    IReadOnlyList<GuideEvidence> Evidence);
+    IReadOnlyList<GuideEvidence> Evidence,
+    bool IncludeDocuments = false,
+    /// <summary>Text used to search approved documents; the host fills it with the previous question for very short follow-ups.</summary>
+    string? SearchQuery = null);
+
+/// <summary>An approved knowledge-base passage offered as evidence "D1".."D3".</summary>
+public sealed record GuideDocumentSource(string Id, string Title, string DocumentId, string FileName, int? PageNumber);
+
+public sealed record GuideDocumentEvidence(GuideEvidence Evidence, GuideDocumentSource Source);
 
 /// <param name="Status">Supported | PartiallySupported | NotFound.</param>
 /// <param name="CitedEvidenceIds">Evidence ids the answer refers to; all supplied ids when the model did not tag its sources.</param>
@@ -20,4 +28,5 @@ public sealed record GuideAnswerResult(
     IReadOnlyList<string> CitedEvidenceIds,
     string? ModelProvider,
     string? ModelVersion,
-    long ElapsedMilliseconds);
+    long ElapsedMilliseconds,
+    IReadOnlyList<GuideDocumentSource>? DocumentSources = null);

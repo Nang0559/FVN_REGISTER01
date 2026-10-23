@@ -38,4 +38,9 @@ public sealed class GuideSourceDto
 
     /// <summary>Feature code to open at <c>/huong-dan?feature=…</c>; empty for general passages that have no page of their own.</summary>
     public string? Feature { get; set; }
+
+    /// <summary>"Guide" (the Markdown user guide) or "Document" (an approved knowledge-base document).</summary>
+    public string Kind { get; set; } = "Guide";
+
+    public string? DocumentId { get; set; }
 }

@@ -581,7 +581,16 @@ group.MapPost("/guide/answer", async (GuideAnswerRequest body, HttpRequest req, 
     {
         req.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
         req.HttpContext.Response.Headers.Pragma = "no-cache";
-        return Results.Ok(await guide.AnswerAsync(body, ct));
+        // Optional second source: approved knowledge-base documents, retrieved with the actor's own (freshly resolved) ACL scopes.
+        var searchQuery = !string.IsNullOrWhiteSpace(body.SearchQuery) && body.SearchQuery.Length <= 2_000 ? body.SearchQuery : body.Query;
+        var documents = body.IncludeDocuments && !string.IsNullOrWhiteSpace(searchQuery) && services.GetService<IGuideDocumentEvidenceProvider>() is { } documentProvider
+            ? await documentProvider.FindAsync(tenant, actor, searchQuery, ct)
+            : [];
+        var merged = body with { Evidence = (body.Evidence ?? []).Concat(documents.Select(d => d.Evidence)).ToArray() };
+        if (merged.Evidence.Count == 0) return Results.Ok(new GuideAnswerResult(string.Empty, "NotFound", [], null, null, 0));
+        var result = await guide.AnswerAsync(merged, ct);
+        var cited = result.CitedEvidenceIds.ToHashSet(StringComparer.Ordinal);
+        return Results.Ok(result with { DocumentSources = documents.Select(d => d.Source).Where(s => cited.Contains(s.Id)).ToArray() });
     }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
     catch (InvalidOperationException ex) when (ex.Message is "OLLAMA_MODEL_NOT_CONFIGURED" or "OLLAMA_EMPTY_RESPONSE")

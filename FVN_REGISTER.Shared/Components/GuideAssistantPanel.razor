@@ -23,7 +23,7 @@
     }
     <MudCollapse Expanded="@(_open || Compact)">
     <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-3">
-        Trợ lý chỉ trả lời từ tài liệu hướng dẫn mà tài khoản của bạn được xem. Hãy đối chiếu với mục nguồn bên dưới câu trả lời.
+        Trợ lý trả lời từ hướng dẫn sử dụng và các tài liệu đã được phê duyệt mà tài khoản của bạn được xem. Hãy đối chiếu với mục nguồn bên dưới câu trả lời.
     </MudText>
 
     @foreach (var turn in _turns)
@@ -52,11 +52,16 @@
                     }
                     if (turn.Sources.Count > 0)
                     {
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">Nguồn trong tài liệu hướng dẫn:</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">Nguồn:</MudText>
                         <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-1">
                             @foreach (var source in turn.Sources)
                             {
-                                if (!string.IsNullOrWhiteSpace(source.Feature) && !string.Equals(source.Feature, Feature, StringComparison.OrdinalIgnoreCase))
+                                if (source.Kind == "Document")
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                             Icon="@Icons.Material.Filled.Description">Tài liệu: @source.Title</MudChip>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(source.Feature) && !string.Equals(source.Feature, Feature, StringComparison.OrdinalIgnoreCase))
                                 {
                                     var target = source.Feature;
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"

@@ -31,6 +31,25 @@ public sealed class GuideAnswerServiceTests
     }
 
     [Fact]
+    public async Task DocumentTags_AreAcceptedAsEvidence()
+    {
+        var evidence = new[]
+        {
+            new GuideEvidence("S1", "2.2. Đăng ký OT", "Mở **OT → Đăng ký OT**."),
+            new GuideEvidence("D1", "Quy dinh OT.pdf, page 2, chunk 1", "Hạn mức OT tối đa là 40 giờ mỗi tháng.")
+        };
+        var provider = new FakeProvider("Hạn mức OT là 40 giờ mỗi tháng. [D1]");
+
+        var result = await new GuideAnswerService(provider).AnswerAsync(Request(evidence: evidence));
+
+        Assert.Equal("Supported", result.Status);
+        Assert.Equal(new[] { "D1" }, result.CitedEvidenceIds);
+        Assert.DoesNotContain("[D1]", result.Answer);
+        Assert.Contains("[D1] Quy dinh OT.pdf", provider.LastRequest!.Input);
+        Assert.Contains("approved company documents", provider.LastRequest.SystemInstruction);
+    }
+
+    [Fact]
     public async Task UntaggedAnswer_IsOnlyPartiallySupported_AndListsEveryPassage()
     {
         var result = await new GuideAnswerService(new FakeProvider("Mở menu OT rồi chọn Đăng ký OT.")).AnswerAsync(Request());

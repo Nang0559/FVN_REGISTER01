@@ -110,7 +110,10 @@ public sealed class AIGuideAssistantController : ControllerBase
         var maxPassages = Math.Clamp(_configuration.GetValue("AIPlatform:Guide:MaxPassages", 4), 1, 6);
         var maxChars = Math.Clamp(_configuration.GetValue("AIPlatform:Guide:MaxEvidenceChars", 3600), 800, 10_000);
         var hits = GuideSearch.Search(chunks, retrievalQuery, CanSee, feature, maxPassages, maxChars);
-        if (hits.Count == 0)
+        // Approved knowledge-base documents are searched by the AI API with the user's own document permissions.
+        // Turn off with AIPlatform:Guide:IncludeApprovedDocuments=false.
+        var includeDocuments = _configuration.GetValue("AIPlatform:Guide:IncludeApprovedDocuments", true);
+        if (hits.Count == 0 && !includeDocuments)
             return Ok(new GuideAnswerDto
             {
                 Status = "NotFound",
@@ -119,7 +122,7 @@ public sealed class AIGuideAssistantController : ControllerBase
             });
 
         var evidence = hits.Select((hit, i) => new { id = $"S{i + 1}", title = Label(hit.Chunk), text = hit.Chunk.Text }).ToArray();
-        var envelope = new { query, feature, history, evidence };
+        var envelope = new { query, searchQuery = retrievalQuery, feature, history, evidence, includeDocuments };
 
         // 2) Signed call to the private AI API (same canonical string as the other gateway routes).
         var actor = user.UserId.ToString(CultureInfo.InvariantCulture);
@@ -163,7 +166,7 @@ public sealed class AIGuideAssistantController : ControllerBase
             if (answer.Status == "NotFound" || string.IsNullOrWhiteSpace(answer.Answer))
             {
                 answer.Status = "NotFound";
-                answer.Answer = "Tài liệu hướng dẫn hiện có chưa nói rõ về câu hỏi này. Bạn thử diễn đạt cụ thể hơn hoặc xem mục hướng dẫn của chức năng liên quan.";
+                answer.Answer = "Tài liệu hướng dẫn và các tài liệu đã phê duyệt mà bạn được xem chưa nói rõ về câu hỏi này. Bạn thử diễn đạt cụ thể hơn hoặc xem mục hướng dẫn của chức năng liên quan.";
                 return Ok(answer);
             }
 
@@ -176,6 +179,16 @@ public sealed class AIGuideAssistantController : ControllerBase
                 var chunk = hits[i].Chunk;
                 if (answer.Sources.Any(x => x.Title == Label(chunk))) continue;
                 answer.Sources.Add(new GuideSourceDto { Title = Label(chunk), Feature = PickFeature(chunk, feature, snapshot) });
+            }
+            if (root.TryGetProperty("documentSources", out var documents) && documents.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var document in documents.EnumerateArray().Take(3))
+                {
+                    var title = document.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
+                    var documentId = document.TryGetProperty("documentId", out var d) && d.ValueKind == JsonValueKind.String ? d.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(title)) continue;
+                    answer.Sources.Add(new GuideSourceDto { Kind = "Document", Title = title!, DocumentId = documentId });
+                }
             }
             return Ok(answer);
         }
