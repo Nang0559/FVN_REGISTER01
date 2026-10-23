@@ -1,7 +1,7 @@
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Constants;
 
-namespace FVN_REGISTER.Shared.Services.Help;
+namespace FVN_REGISTER.Contract.Help;
 
 /// <summary>Controls Help visibility using the user's effective function grants, not a single legacy role label.</summary>
 public static class HelpAccessPolicy

@@ -119,8 +119,9 @@ app.Use(async (http, next) =>
   var isContextSnapshot = string.Equals(http.Request.Path.Value, "/api/ai/v1/business-context/snapshot", StringComparison.OrdinalIgnoreCase);
   var isAssistantAsk = string.Equals(http.Request.Path.Value, "/api/ai/v1/assistant/ask", StringComparison.OrdinalIgnoreCase);
   var isConversationAsk = string.Equals(http.Request.Path.Value, "/api/ai/v1/conversations/ask", StringComparison.OrdinalIgnoreCase);
-  var maximumSignedBodyBytes = isContextSnapshot ? MaximumBusinessContextSnapshotBytes : (isAssistantAsk || isConversationAsk) ? MaximumAssistantAskBytes : long.MaxValue;
-  if ((isContextSnapshot || isAssistantAsk || isConversationAsk) && http.Request.ContentLength is long contentLength && contentLength > maximumSignedBodyBytes)
+  var isGuideAnswer = string.Equals(http.Request.Path.Value, "/api/ai/v1/guide/answer", StringComparison.OrdinalIgnoreCase);
+  var maximumSignedBodyBytes = isContextSnapshot ? MaximumBusinessContextSnapshotBytes : (isAssistantAsk || isConversationAsk || isGuideAnswer) ? MaximumAssistantAskBytes : long.MaxValue;
+  if ((isContextSnapshot || isAssistantAsk || isConversationAsk || isGuideAnswer) && http.Request.ContentLength is long contentLength && contentLength > maximumSignedBodyBytes)
   {
    http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
    return;
@@ -135,7 +136,7 @@ app.Use(async (http, next) =>
   {
    bytesRead += read;
    // Enforce the limit while streaming too; Content-Length may be absent or untrusted.
-   if ((isContextSnapshot || isAssistantAsk || isConversationAsk) && bytesRead > maximumSignedBodyBytes)
+   if ((isContextSnapshot || isAssistantAsk || isConversationAsk || isGuideAnswer) && bytesRead > maximumSignedBodyBytes)
    {
     http.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
     return;
@@ -564,6 +565,29 @@ group.MapPost("/assistant/ask", async (AssistantAskRequest body, HttpRequest req
     catch (InvalidOperationException ex) when (ex.Message == "KNOWLEDGE_AUTHORIZATION_PROVIDER_NOT_CONFIGURED")
     { return Results.Problem("Trusted FVN_REGISTER knowledge authorization adapter is not configured.", statusCode: 503); }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+// User-guide assistant. The trusted FVN host selects and permission-filters the guide passages and signs the whole body;
+// this endpoint only turns those passages into a short grounded answer. Tenant and actor come from the validated headers.
+group.MapPost("/guide/answer", async (GuideAnswerRequest body, HttpRequest req, IServiceProvider services, CancellationToken ct) =>
+{
+    var guide = services.GetService<IGuideAnswerService>();
+    if (guide is null) return Results.Problem("Guide answer service is not configured.", statusCode: 503);
+    var tenant = req.Headers["X-Tenant-Code"].ToString().Trim();
+    var actor = req.Headers["X-Actor-Id"].ToString().Trim();
+    if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(actor))
+        return Results.BadRequest(new { error = "Signed tenant and actor context is required." });
+    try
+    {
+        req.HttpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        req.HttpContext.Response.Headers.Pragma = "no-cache";
+        return Results.Ok(await guide.AnswerAsync(body, ct));
+    }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (InvalidOperationException ex) when (ex.Message is "OLLAMA_MODEL_NOT_CONFIGURED" or "OLLAMA_EMPTY_RESPONSE")
+    { return Results.Problem("The language model is not available.", statusCode: 503); }
+    catch (HttpRequestException) { return Results.Problem("The language model is not reachable.", statusCode: 503); }
+    catch (TaskCanceledException) when (!ct.IsCancellationRequested) { return Results.Problem("The language model timed out.", statusCode: 504); }
 });
 
 // Conversation endpoints are tenant + actor bound to the authenticated signed FVN gateway identity.

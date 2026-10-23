@@ -32,8 +32,10 @@ public sealed class OllamaAIModelProvider(HttpClient httpClient, IOptions<AIPlat
                 new OllamaMessage("system", request.SystemInstruction ?? "Answer using only the supplied context."),
                 new OllamaMessage("user", request.Input)
             },
-            new OllamaOptions(0.1, 8192, 1200),
-            request.Task is "document-classification" or "schema-driven-extraction" or "rag-grounded-answer" ? "json" : null);
+            // Guide answers are short how-to texts over a few small passages: a smaller context window and output cap keep a CPU-only model responsive.
+            request.Task == "guide-answer" ? new OllamaOptions(0.2, 4096, 500) : new OllamaOptions(0.1, 8192, 1200),
+            request.Task is "document-classification" or "schema-driven-extraction" or "rag-grounded-answer" ? "json" : null,
+            string.IsNullOrWhiteSpace(_options.ModelKeepAlive) ? null : _options.ModelKeepAlive.Trim());
 
         var stopwatch = Stopwatch.StartNew();
         using var response = await httpClient.PostAsJsonAsync("api/chat", payload, JsonOptions, cancellationToken);
@@ -48,7 +50,8 @@ public sealed class OllamaAIModelProvider(HttpClient httpClient, IOptions<AIPlat
             result?.DoneReason, result?.PromptEvalCount, result?.EvalCount, stopwatch.Elapsed);
     }
 
-    private sealed record OllamaChatRequest(string Model, bool Stream, IReadOnlyList<OllamaMessage> Messages, OllamaOptions Options, string? Format);
+    private sealed record OllamaChatRequest(string Model, bool Stream, IReadOnlyList<OllamaMessage> Messages, OllamaOptions Options, string? Format,
+        [property: JsonPropertyName("keep_alive")] string? KeepAlive);
     private sealed record OllamaMessage(string Role, string Content);
     private sealed record OllamaOptions(double Temperature, [property: JsonPropertyName("num_ctx")] int NumCtx, [property: JsonPropertyName("num_predict")] int NumPredict);
     private sealed record OllamaChatResponse(OllamaMessage? Message, bool Done,

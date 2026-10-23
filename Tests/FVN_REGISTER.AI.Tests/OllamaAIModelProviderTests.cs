@@ -45,6 +45,21 @@ public sealed class OllamaAIModelProviderTests
     }
 
     [Fact]
+    public async Task GenerateAsync_GuideAnswersUseSmallContextPlainTextAndKeepTheModelLoaded()
+    {
+        var handler = new StubHandler("""{"message":{"role":"assistant","content":"ok"},"done":true}""");
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:11434/") };
+        var provider = new OllamaAIModelProvider(client,
+            Options.Create(new AIPlatformOptions { Model = "qwen2.5:3b", ModelKeepAlive = "45m" }));
+
+        await provider.GenerateAsync(new AIModelRequest("guide-answer", "input"));
+
+        Assert.Contains("\"num_ctx\":4096", handler.RequestBody);
+        Assert.Contains("\"keep_alive\":\"45m\"", handler.RequestBody);
+        Assert.DoesNotContain("\"format\":\"json\"", handler.RequestBody);
+    }
+
+    [Fact]
     public async Task GenerateAsync_RejectsMissingModelConfiguration()
     {
         using var client = new HttpClient(new StubHandler("{}")) { BaseAddress = new Uri("http://localhost:11434/") };
