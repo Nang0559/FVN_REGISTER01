@@ -4,7 +4,9 @@
 @inject IHttpClientWithAuth Http
 @inject NavigationManager Navigation
 
-<MudPaper Outlined="true" Class="pa-4 mb-5" Style="border-color:var(--mud-palette-primary)">
+<MudPaper Outlined="@(!Compact)" Elevation="0" Class="@RootClass" Style="@RootStyle">
+    @if (!Compact)
+    {
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.SmartToy" Color="Color.Primary" />
@@ -18,7 +20,8 @@
             <MudIconButton Icon="@(_open ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" OnClick="Toggle" />
         </MudStack>
     </MudStack>
-    <MudCollapse Expanded="_open">
+    }
+    <MudCollapse Expanded="@(_open || Compact)">
     <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-3">
         Trợ lý chỉ trả lời từ tài liệu hướng dẫn mà tài khoản của bạn được xem. Hãy đối chiếu với mục nguồn bên dưới câu trả lời.
     </MudText>
@@ -99,12 +102,22 @@
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_question))"
                    StartIcon="@Icons.Material.Filled.Send" OnClick="@(() => AskAsync(_question))">Hỏi</MudButton>
     </MudStack>
+        @if (Compact && _turns.Count > 0)
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Text" Disabled="_busy" OnClick="Clear" Class="mt-1">Xóa hội thoại</MudButton>
+        }
     </MudCollapse>
 </MudPaper>
 
 @code {
     /// <summary>Feature code of the screen being read (ranks passages of that screen first). Never grants access.</summary>
     [Parameter] public string? Feature { get; set; }
+
+    /// <summary>Floating-window mode (see GuideChatLauncher): no frame, no own header and never collapsed.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    private string RootClass => Compact ? "pa-3" : "pa-4 mb-5";
+    private string RootStyle => Compact ? string.Empty : "border-color:var(--mud-palette-primary)";
 
     private sealed class Turn
     {
