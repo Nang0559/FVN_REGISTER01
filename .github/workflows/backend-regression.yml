@@ -29,6 +29,24 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
+      - name: Validate PowerShell script syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            "scripts/Test-BackendRegression.ps1",
+            "scripts/Test-ApprovalEmailE2E.ps1"
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$file:$($_.Message) at line $($_.Extent.StartLineNumber)" }
+              throw "PowerShell syntax validation failed: $file"
+            }
+            Write-Host "PowerShell syntax OK: $file"
+          }
+
       - name: Run backend build and all test projects
         shell: pwsh
         run: .\scripts\Test-BackendRegression.ps1
