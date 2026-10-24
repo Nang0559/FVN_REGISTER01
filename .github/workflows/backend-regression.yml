@@ -1,0 +1,43 @@
+name: Backend regression tests
+
+on:
+  pull_request:
+    branches:
+      - test/full-application-regression-from-182ca84
+  push:
+    branches:
+      - test/full-application-regression-from-182ca84
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-regression:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      # Optional repository secret pointing ONLY to a disposable test database.
+      # If absent, SQL integration tests are skipped and the script reports PASS_WITH_SKIPS.
+      FVN_REGISTER_SQL_CONNECTION: ${{ secrets.FVN_REGISTER_SQL_CONNECTION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Run backend build and all test projects
+        shell: pwsh
+        run: .\scripts\Test-BackendRegression.ps1
+
+      - name: Upload regression evidence (TRX + summary)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-regression-${{ github.run_id }}
+          path: TestResults/BackendRegression_*
+          if-no-files-found: warn
+          retention-days: 14
