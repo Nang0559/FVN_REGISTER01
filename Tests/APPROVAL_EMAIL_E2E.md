@@ -24,7 +24,7 @@ Run one case per invocation so each run has an independent marker and report:
 .\scripts\Test-ApprovalEmailE2E.ps1 -CaseId FLOW-DUPLICATE-SUBMIT
 ```
 
-The wrong-approver case additionally requires `E2E_PEER_USERNAME` and `E2E_PEER_PASSWORD` for an ordinary peer who is not an approver on the request. The duplicate-submit case deliberately fails if two request rows are persisted for the same run marker. The mail-retry case currently returns **BLOCKED** because the application does not yet expose a deterministic injectable mail-transport fault; do not simulate this by interrupting a shared SMTP service. A fake transport seam must be added before that scenario can be automated.
+The wrong-approver case additionally requires `E2E_PEER_USERNAME` and `E2E_PEER_PASSWORD` for an ordinary peer who is not an approver on the request. Set them to test-only credentials before selecting that case. The duplicate-submit case deliberately fails if two request rows are persisted for the same run marker. The mail-retry case currently returns **BLOCKED** because the application does not yet expose a deterministic injectable mail-transport fault; do not simulate this by interrupting a shared SMTP service. A fake transport seam must be added before that scenario can be automated.
 
 ## Environment variables (PowerShell)
 
@@ -48,6 +48,10 @@ $env:E2E_APPROVER1_EMAIL = "..."
 $env:E2E_APPROVER2_USERNAME = "..."
 $env:E2E_APPROVER2_PASSWORD = "..."
 $env:E2E_APPROVER2_EMPLOYEE_CODE = "..."
+
+# Only for FLOW-DENY-WRONG-APPROVER
+$env:E2E_PEER_USERNAME = "..."
+$env:E2E_PEER_PASSWORD = "..."
 ```
 
 Run from repository root in Windows PowerShell:
