@@ -184,7 +184,7 @@ WHERE p.IsActive=1
   $approverQueue=Get-CorrelatedEmailCount $Approver1Email $id
   Add-Result "Duplicate submit notification exactly once" ($approverQueue -eq 1) "correlated email rows=$approverQueue"
  } else {
-  $snapshotCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalSnapshots WHERE RequestId=@id" @{id=$id})
+  $snapshotCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalSnapshots WHERE RequestId=@id AND RequestType=0" @{id=$id})
   Add-Result "Approval snapshot persisted" ($snapshotCount -eq 1) "snapshot count=$snapshotCount"
  }
 
