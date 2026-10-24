@@ -56,7 +56,7 @@ function Test-ContainsExactRequestId($Json,[int]$RequestId) {
  }
  return $false
 }
-function Invoke-Api([string]$Method,[string]$Path,[string]$Token,$Body=$null) {
+function Invoke-Api([string]$Method,[string]$Path,[string]$Token,$Body=$null,[bool]$AllowHttpError=$false) {
  $headers=@{}; if($Token){$headers.Authorization="Bearer $Token"}
  $args=@{Method=$Method;Uri=($ApiBaseUrl.TrimEnd("/")+$Path);Headers=$headers;ContentType="application/json";ErrorAction="Stop"}
  if($null -ne $Body){$args.Body=($Body|ConvertTo-Json -Depth 20 -Compress)}
@@ -69,6 +69,11 @@ function Invoke-Api([string]$Method,[string]$Path,[string]$Token,$Body=$null) {
   if($_.Exception.Response){
    try{$status=[int]$_.Exception.Response.StatusCode}catch{}
    try{$sr=[IO.StreamReader]::new($_.Exception.Response.GetResponseStream());$bodyText=$sr.ReadToEnd();$sr.Dispose()}catch{}
+  }
+  if($AllowHttpError){
+   $errorJson=$null
+   if($bodyText){try{$errorJson=$bodyText|ConvertFrom-Json}catch{}}
+   return [pscustomobject]@{StatusCode=$status;Json=$errorJson;Content=$bodyText}
   }
   throw "HTTP $Method $Path failed status=$status body=$bodyText $($_.Exception.Message)"
  }
@@ -176,9 +181,10 @@ WHERE p.IsActive=1
  Add-Result "SQL request persisted" $true "RequestId=$id; CaseId=$CaseId; RunId=$RunId"
 
  if($CaseId -eq "FLOW-DUPLICATE-SUBMIT"){
-  $second=Invoke-Api POST "/api/LeaveDays/create" $requesterToken $body
+  $second=Invoke-Api POST "/api/LeaveDays/create" $requesterToken $body $true
   $duplicateCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03LeaveDays WHERE EmployeeCode=@employee AND LeaveReason=@reason" @{employee=$RequesterEmployeeCode;reason=$reason})
-  Add-Result "Duplicate submit creates one request" ($duplicateCount -eq 1) "Rows for same run marker=$duplicateCount; second HTTP status=$($second.StatusCode)"
+  Add-Result "Duplicate submit response is documented class" ($second.StatusCode -in @(200,400,409)) "second HTTP status=$($second.StatusCode)"
+  Add-Result "Duplicate submit creates one request" ($duplicateCount -eq 1) "Rows for same run marker=$duplicateCount"
   $snapshotCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalSnapshots WHERE RequestId=@id AND RequestType=0" @{id=$id})
   Add-Result "Duplicate submit has one approval snapshot" ($snapshotCount -eq 1) "snapshot count=$snapshotCount"
   $approverQueue=Get-CorrelatedEmailCount $Approver1Email $id
