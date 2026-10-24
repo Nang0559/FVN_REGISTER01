@@ -43,24 +43,24 @@ $env:E2E_SQL_CONNECTION_STRING = "Server=localhost;Database=FVN_E2E_Test;Integra
 $env:E2E_ALLOW_RUN = "YES"
 $env:E2E_FAKE_SMTP_PORT = "1025" # Mailpit/smtp4dev capture port
 
-$env:E2E_LEAVE_TYPE_CODE = "ANNUAL" # replace with an active code from the test DB
-$env:E2E_REQUESTER_USERNAME = "..." # test-only account
-$env:E2E_REQUESTER_PASSWORD = "..."
-$env:E2E_REQUESTER_EMPLOYEE_CODE = "..."
-$env:E2E_REQUESTER_EMAIL = "..."
+$env:E2E_LEAVE_TYPE_CODE = "AL" # seeded by SQL/06_Seed.sql; verify active in the disposable DB
+$env:E2E_REQUESTER_USERNAME = "E0001" # seed password Test@123; E0001 is SuperAdmin in the seed, disposable DB only
+$env:E2E_REQUESTER_PASSWORD = "Test@123"
+$env:E2E_REQUESTER_EMPLOYEE_CODE = "E0001"
+$env:E2E_REQUESTER_EMAIL = "e0001@test.local"
 
-$env:E2E_APPROVER1_USERNAME = "..."
-$env:E2E_APPROVER1_PASSWORD = "..."
-$env:E2E_APPROVER1_EMPLOYEE_CODE = "..."
-$env:E2E_APPROVER1_EMAIL = "..."
+$env:E2E_APPROVER1_USERNAME = "E0002" # Sub-Leader / PermissionCode 4
+$env:E2E_APPROVER1_PASSWORD = "Test@123"
+$env:E2E_APPROVER1_EMPLOYEE_CODE = "E0002"
+$env:E2E_APPROVER1_EMAIL = "e0002@test.local"
 
-$env:E2E_APPROVER2_USERNAME = "..."
-$env:E2E_APPROVER2_PASSWORD = "..."
-$env:E2E_APPROVER2_EMPLOYEE_CODE = "..."
+$env:E2E_APPROVER2_USERNAME = "E0003" # Chief / PermissionCode 2
+$env:E2E_APPROVER2_PASSWORD = "Test@123"
+$env:E2E_APPROVER2_EMPLOYEE_CODE = "E0003"
 
 # Only for FLOW-DENY-WRONG-APPROVER
-$env:E2E_PEER_USERNAME = "..."
-$env:E2E_PEER_PASSWORD = "..."
+$env:E2E_PEER_USERNAME = "E0099" # created by Prepare-ApprovalEmailE2E.sql
+$env:E2E_PEER_PASSWORD = "Test@123"
 ```
 
 Run from repository root in Windows PowerShell:
