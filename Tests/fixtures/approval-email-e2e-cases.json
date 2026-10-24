@@ -11,17 +11,49 @@
   "identityResolution": {
     "rule": "Resolve users/employees/department/positions by business key at runtime. Do not hard-code generated database IDs.",
     "seedUsers": [
-      { "key": "requester", "employeeCode": "E0001", "expectedRole": "Employee", "purpose": "Submits request and receives final result" },
-      { "key": "approverLevel1", "employeeCode": "E0002", "expectedRole": "Sub Leader", "purpose": "First approval level" },
-      { "key": "approverLevel2", "employeeCode": "E0003", "expectedRole": "Chief", "purpose": "Second approval level" },
-      { "key": "unauthorizedPeer", "employeeCode": "E0004", "expectedRole": "Employee", "purpose": "Negative authorization and cross-request isolation" },
-      { "key": "adminObserver", "employeeCode": "E0005", "expectedRole": "Manager", "purpose": "Read-only test verification where permitted" }
+      {
+        "key": "requester",
+        "employeeCode": "E0001",
+        "expectedPosition": "Worker (0003)",
+        "expectedPermissionCode": 1,
+        "purpose": "Submits request and receives final result; this legacy seed account has SuperAdmin permission and is for disposable DB only"
+      },
+      {
+        "key": "approverLevel1",
+        "employeeCode": "E0002",
+        "expectedPosition": "Sub-Leader (0002)",
+        "expectedPermissionCode": 4,
+        "purpose": "First approval level"
+      },
+      {
+        "key": "approverLevel2",
+        "employeeCode": "E0003",
+        "expectedPosition": "Chief (0004)",
+        "expectedPermissionCode": 2,
+        "purpose": "Second approval level"
+      },
+      {
+        "key": "unauthorizedPeer",
+        "employeeCode": "E0099",
+        "expectedPosition": "Employee (0012)",
+        "expectedPermissionCode": 5,
+        "purpose": "Dedicated ordinary-user fixture created by Tests/sql/Prepare-ApprovalEmailE2E.sql; not an approver"
+      },
+      {
+        "key": "adminObserver",
+        "employeeCode": "E0005",
+        "expectedPosition": "Director (0001)",
+        "expectedPermissionCode": 3,
+        "purpose": "Read-only test verification only; this seed row is an Editor"
+      }
     ],
     "preconditions": [
-      "Verify the listed seed users exist and are active in the isolated database.",
-      "Resolve each user's actual department and position; configure the approval policy to match those real values.",
-      "Use a dedicated test email sink/address for every recipient; do not rely on production mailboxes.",
-      "If a seed user or role is absent, create it through the application's supported seed/test fixture rather than guessing IDs."
+      "Use only a dedicated disposable test database and review SQL/06_Seed.sql before relying on demo identities.",
+      "The current SQL/06_Seed.sql maps E0001 to Worker/PermissionCode 1 (SuperAdmin), E0002 to Sub-Leader/PermissionCode 4 (Approver), E0003 to Chief/PermissionCode 2 (Admin), E0004 to Manager/PermissionCode 2 (Admin), and E0005 to Director/PermissionCode 3 (Editor). Do not use E0004 as the unauthorized peer because it has Admin permission.",
+      "Run Tests/sql/Prepare-ApprovalEmailE2E.sql after applying the normal schema migrations and seed. It creates/normalizes E0099 as a non-approver User and points all active email dispatch to local SMTP capture.",
+      "Resolve user and employee identities by business key at runtime; do not hard-code generated database IDs.",
+      "Use only test sink addresses and a local SMTP capture service; never point the test DB at production SMTP.",
+      "If any required seed identity or schema object is missing, stop and correct the disposable test database rather than guessing IDs."
     ]
   },
   "requestCases": [
@@ -38,16 +70,38 @@
         "requesterKey": "requester"
       },
       "approvalRoute": [
-        { "level": 1, "approverKey": "approverLevel1", "action": "Approve" },
-        { "level": 2, "approverKey": "approverLevel2", "action": "Approve" }
+        {
+          "level": 1,
+          "approverKey": "approverLevel1",
+          "action": "Approve"
+        },
+        {
+          "level": 2,
+          "approverKey": "approverLevel2",
+          "action": "Approve"
+        }
       ],
       "expected": {
         "registration": "Persisted once with generated request ID and initial pending status.",
         "routing": "Only level 1 is actionable after submission; level 2 becomes actionable only after level 1 approves.",
         "emails": [
-          { "event": "RequestSubmitted", "recipientKey": "approverLevel1", "count": 1 },
-          { "event": "ApprovalRequired", "recipientKey": "approverLevel2", "count": 1, "condition": "After level 1 approval, if the implementation notifies the next approver" },
-          { "event": "RequestApproved", "recipientKey": "requester", "count": 1, "condition": "Only after final approval" }
+          {
+            "event": "RequestSubmitted",
+            "recipientKey": "approverLevel1",
+            "count": 1
+          },
+          {
+            "event": "ApprovalRequired",
+            "recipientKey": "approverLevel2",
+            "count": 1,
+            "condition": "After level 1 approval, if the implementation notifies the next approver"
+          },
+          {
+            "event": "RequestApproved",
+            "recipientKey": "requester",
+            "count": 1,
+            "condition": "Only after final approval"
+          }
         ],
         "result": "Final approved state visible through the requester-facing query/API/UI and approval history records both actors in order.",
         "integrity": "One business request; one history entry per accepted action; retrying the same action does not create duplicate transitions or duplicate emails."
@@ -66,15 +120,32 @@
         "requesterKey": "requester"
       },
       "approvalRoute": [
-        { "level": 1, "approverKey": "approverLevel1", "action": "Reject", "comment": "TST_E2E rejection reason" },
-        { "level": 2, "approverKey": "approverLevel2", "action": "MustNotBeActionable" }
+        {
+          "level": 1,
+          "approverKey": "approverLevel1",
+          "action": "Reject",
+          "comment": "TST_E2E rejection reason"
+        },
+        {
+          "level": 2,
+          "approverKey": "approverLevel2",
+          "action": "MustNotBeActionable"
+        }
       ],
       "expected": {
         "registration": "Persisted once and routed to level 1.",
         "result": "Final rejected state and rejection reason are visible to the requester.",
         "emails": [
-          { "event": "RequestSubmitted", "recipientKey": "approverLevel1", "count": 1 },
-          { "event": "RequestRejected", "recipientKey": "requester", "count": 1 }
+          {
+            "event": "RequestSubmitted",
+            "recipientKey": "approverLevel1",
+            "count": 1
+          },
+          {
+            "event": "RequestRejected",
+            "recipientKey": "requester",
+            "count": 1
+          }
         ],
         "integrity": "Level 2 cannot approve after rejection; repeated rejection does not duplicate history or email."
       }
@@ -91,7 +162,10 @@
         "reason": "Automated E2E fixture; permission check",
         "requesterKey": "requester"
       },
-      "attempt": { "actorKey": "unauthorizedPeer", "action": "Approve" },
+      "attempt": {
+        "actorKey": "unauthorizedPeer",
+        "action": "Approve"
+      },
       "expected": {
         "result": "Forbidden or the application's documented equivalent; never successful.",
         "state": "Request remains pending at the same approval level.",
@@ -111,7 +185,9 @@
         "reason": "Automated E2E fixture; mail retry",
         "requesterKey": "requester"
       },
-      "faultInjection": { "mailTransport": "Fail first send; succeed on retry" },
+      "faultInjection": {
+        "mailTransport": "Fail first send; succeed on retry"
+      },
       "expected": {
         "businessState": "Registration/approval state remains consistent with the documented outbox transaction design; mail failure must not silently corrupt the request.",
         "mailState": "Failed delivery is observable and retryable.",
@@ -131,7 +207,10 @@
         "reason": "Automated E2E fixture; idempotency",
         "requesterKey": "requester"
       },
-      "attempt": { "operation": "SubmitSamePayloadTwice", "intervalMilliseconds": 100 },
+      "attempt": {
+        "operation": "SubmitSamePayloadTwice",
+        "intervalMilliseconds": 100
+      },
       "expected": {
         "businessRecords": "One request if an idempotency key/duplicate rule is part of the contract; otherwise assert the explicitly documented duplicate-submission behavior.",
         "emails": "No accidental duplicate submission notification.",
