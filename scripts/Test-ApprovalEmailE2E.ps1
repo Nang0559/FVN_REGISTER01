@@ -201,6 +201,8 @@ WHERE p.IsActive=1
   Add-Result "Denied attempt leaves request pending" ($state -eq 1) "status=$state"
   if($null -eq $historyCount){Add-BlockedResult "Denied attempt history" "F03ApprovalHistories table not found; history assertion could not run."}
   else{Add-Result "Denied attempt has no history" ($historyCount -eq 0) "history rows=$historyCount"}
+  $prematureEmail=Get-CorrelatedEmailCount $RequesterEmail $id
+  Add-Result "Denied action sends no requester result email" ($prematureEmail -eq 0) "correlated requester email rows before valid approval=$prematureEmail"
  }
 
  if($CaseId -eq "FLOW-REJECT-L1"){
