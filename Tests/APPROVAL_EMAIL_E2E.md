@@ -53,7 +53,7 @@ The script writes a JSON evidence report under `TestResults/` with run ID, reque
 4. Level 1 sees the request; level 1 approves; level 2 then sees the request and approves.
 5. The requester can query the final result.
 6. SQL approval history has two decisions where the expected history table is present.
-7. The email queue contains notifications for the first approver and requester tagged to the run.
+7. The email queue contains notifications addressed to the first approver and requester, correlated to the request ID and test time window.
 
 ## Current limitations
 
