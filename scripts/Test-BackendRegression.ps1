@@ -104,7 +104,6 @@ try {
         }
     }
 
-    $sqlTests = @($results | Where-Object { $_.Check -like '*Infrastructure.Tests*' } | Measure-Object -Property Skipped -Sum).Sum
     if (-not $sqlConnection) {
         Write-Warning 'FVN_REGISTER_SQL_CONNECTION is not set. SQL integration tests marked with SqlIntegrationFactAttribute are skipped; see the TRX counts above.'
         if ($overall -eq 'PASS') { $overall = 'PASS_WITH_SKIPS' }
