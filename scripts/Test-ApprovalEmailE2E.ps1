@@ -125,7 +125,7 @@ WHERE p.IsActive = 1
   Add-Result "SQL approval history" ($historyCount -eq 2) "history rows=$historyCount"
  }else{Write-Warning "Approval history SQL check BLOCKED: deployed table name differs from dbo.F03ApprovalHistories."}
 
- $approverQueue=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03EmailQueues WHERE CreatedAt>=@started AND ToEmail=@email AND (Payload LIKE @marker OR Body LIKE @marker OR Subject LIKE @marker)" @{started=$startedAt.ToString("s");email=$Approver1Email;marker="%$RunId%"})
+ $approverQueue=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03EmailQueues WHERE CreatedAt>=@started AND ToEmail=@email AND (Payload LIKE @marker OR Body LIKE @marker OR Subject LIKE @marker)" @{started=$startedAt.ToString("s");email=$Approver1Email;marker="%$id%"})
  $requesterQueue=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03EmailQueues WHERE CreatedAt>=@started AND ToEmail=@email AND (Payload LIKE @marker OR Body LIKE @marker OR Subject LIKE @marker)" @{started=$startedAt.ToString("s");email=$RequesterEmail;marker="%$RunId%"})
  Add-Result "Approval email queued" ($approverQueue -ge 1) "Captured email queue rows to level 1=$approverQueue"
  Add-Result "Final result email queued" ($requesterQueue -ge 1) "Captured email queue rows to requester=$requesterQueue"
