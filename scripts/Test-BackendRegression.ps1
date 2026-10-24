@@ -84,7 +84,7 @@ try {
         Invoke-DotNet @('test', $project, '--no-restore', '--logger', "trx;LogFileName=$trxName", '--results-directory', $resultsDir, '--verbosity', 'normal')
 
         $trxPath = Join-Path $resultsDir $trxName
-        if (-not (Test-Path $trxPath)) { throw "TRX output missing for $relative: $trxPath" }
+        if (-not (Test-Path $trxPath)) { throw "TRX output missing for ${relative}: $trxPath" }
         [xml]$trx = Get-Content -Raw $trxPath
         $unitResults = @($trx.SelectNodes("//*[local-name()='UnitTestResult']"))
         $passed = @($unitResults | Where-Object { $_.GetAttribute('outcome') -eq 'Passed' }).Count
