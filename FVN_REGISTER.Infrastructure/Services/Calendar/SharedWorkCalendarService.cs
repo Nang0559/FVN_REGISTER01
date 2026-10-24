@@ -535,7 +535,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             return new CalendarIssueDto
             {
                 Code = issue.Code,
-                ModuleCode = issue.ModuleCode,
+                ModuleCode = issue.ModuleCode ?? string.Empty,
                 Severity = item.Severity,
                 Marker = item.FeedbackMarker ?? issue.Marker ?? "?",
                 Title = issue.Title,

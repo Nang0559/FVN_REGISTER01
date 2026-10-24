@@ -39,7 +39,8 @@ public sealed class GuideAnswerService(IAIModelProvider modelProvider) : IGuideA
         var total = 0;
         foreach (var item in evidence)
         {
-            if (item is null || !EvidenceId.IsMatch(item.Id ?? string.Empty) || !seen.Add(item.Id) ||
+            var id = item?.Id;
+            if (item is null || string.IsNullOrWhiteSpace(id) || !EvidenceId.IsMatch(id) || !seen.Add(id) ||
                 string.IsNullOrWhiteSpace(item.Text) || item.Text.Length > MaxEvidenceItemChars || (item.Title ?? string.Empty).Length > 300)
                 throw new ArgumentException("A guide passage is missing, duplicated or too long.", nameof(request));
             total += item.Text.Length;
