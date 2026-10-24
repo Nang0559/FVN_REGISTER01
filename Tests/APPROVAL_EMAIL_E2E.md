@@ -6,7 +6,7 @@ login requester and two approvers -> create request -> check approval inbox -> a
 ## Safety requirements
 
 - Use a **disposable test database**. The script refuses database names that do not contain `Test`, `QA`, `E2E`, or `Automation`.
-- The API URL must be localhost for this first version.
+- The API URL must be localhost for this first version. The runner also refuses to start if an active/default email profile or profile referenced by an active dispatch policy points to a non-local SMTP host, or uses a port other than the capture port (default 1025).
 - Set `E2E_ALLOW_RUN=YES` only after checking the connection string and current environment.
 - Configure the application's active email profile/policy to point to a local SMTP capture tool such as Mailpit or smtp4dev. Do not point it at a real SMTP server. The runner verifies queued email rows; it does not send test mail itself.
 - Use test accounts with LeaveCreate/LeaveApprove permissions and two configured approval levels. The request's approval selections use the real employee codes resolved from the test database.
@@ -19,6 +19,7 @@ login requester and two approvers -> create request -> check approval inbox -> a
 $env:E2E_API_BASE_URL = "http://localhost:5000"
 $env:E2E_SQL_CONNECTION_STRING = "Server=localhost;Database=FVN_E2E_Test;Integrated Security=True;TrustServerCertificate=True"
 $env:E2E_ALLOW_RUN = "YES"
+$env:E2E_FAKE_SMTP_PORT = "1025" # Mailpit/smtp4dev capture port
 
 $env:E2E_LEAVE_TYPE_CODE = "ANNUAL" # replace with an active code from the test DB
 $env:E2E_REQUESTER_USERNAME = "..." # test-only account
