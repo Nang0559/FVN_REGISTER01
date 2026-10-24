@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Deterministic E2E fixtures for registration -> approval -> email notification -> requester result.",
+  "baselineCommit": "182ca845f80e901152533366c838f0b9039521a5",
+  "safety": {
+    "database": "Dedicated disposable test database only; never production.",
+    "recordPrefix": "TST_E2E",
+    "mailMode": "Capture/outbox sink by default; do not send to real employees.",
+    "cleanup": "Delete only records tagged with this test run ID, using the application's supported cleanup path."
+  },
+  "identityResolution": {
+    "rule": "Resolve users/employees/department/positions by business key at runtime. Do not hard-code generated database IDs.",
+    "seedUsers": [
+      { "key": "requester", "employeeCode": "E0001", "expectedRole": "Employee", "purpose": "Submits request and receives final result" },
+      { "key": "approverLevel1", "employeeCode": "E0002", "expectedRole": "Sub Leader", "purpose": "First approval level" },
+      { "key": "approverLevel2", "employeeCode": "E0003", "expectedRole": "Chief", "purpose": "Second approval level" },
+      { "key": "unauthorizedPeer", "employeeCode": "E0004", "expectedRole": "Employee", "purpose": "Negative authorization and cross-request isolation" },
+      { "key": "adminObserver", "employeeCode": "E0005", "expectedRole": "Manager", "purpose": "Read-only test verification where permitted" }
+    ],
+    "preconditions": [
+      "Verify the listed seed users exist and are active in the isolated database.",
+      "Resolve each user's actual department and position; configure the approval policy to match those real values.",
+      "Use a dedicated test email sink/address for every recipient; do not rely on production mailboxes.",
+      "If a seed user or role is absent, create it through the application's supported seed/test fixture rather than guessing IDs."
+    ]
+  },
+  "requestCases": [
+    {
+      "caseId": "FLOW-APPROVE-2-LEVEL",
+      "title": "Successful registration, two approvals, notifications, final result",
+      "request": {
+        "kind": "Leave",
+        "testRunId": "TST_E2E_APPROVE",
+        "subject": "E2E approval happy path",
+        "startDate": "2030-04-08",
+        "endDate": "2030-04-08",
+        "reason": "Automated E2E fixture; no real absence",
+        "requesterKey": "requester"
+      },
+      "approvalRoute": [
+        { "level": 1, "approverKey": "approverLevel1", "action": "Approve" },
+        { "level": 2, "approverKey": "approverLevel2", "action": "Approve" }
+      ],
+      "expected": {
+        "registration": "Persisted once with generated request ID and initial pending status.",
+        "routing": "Only level 1 is actionable after submission; level 2 becomes actionable only after level 1 approves.",
+        "emails": [
+          { "event": "RequestSubmitted", "recipientKey": "approverLevel1", "count": 1 },
+          { "event": "ApprovalRequired", "recipientKey": "approverLevel2", "count": 1, "condition": "After level 1 approval, if the implementation notifies the next approver" },
+          { "event": "RequestApproved", "recipientKey": "requester", "count": 1, "condition": "Only after final approval" }
+        ],
+        "result": "Final approved state visible through the requester-facing query/API/UI and approval history records both actors in order.",
+        "integrity": "One business request; one history entry per accepted action; retrying the same action does not create duplicate transitions or duplicate emails."
+      }
+    },
+    {
+      "caseId": "FLOW-REJECT-L1",
+      "title": "First-level rejection and requester result",
+      "request": {
+        "kind": "Leave",
+        "testRunId": "TST_E2E_REJECT",
+        "subject": "E2E rejection path",
+        "startDate": "2030-04-09",
+        "endDate": "2030-04-09",
+        "reason": "Automated E2E fixture; rejection path",
+        "requesterKey": "requester"
+      },
+      "approvalRoute": [
+        { "level": 1, "approverKey": "approverLevel1", "action": "Reject", "comment": "TST_E2E rejection reason" },
+        { "level": 2, "approverKey": "approverLevel2", "action": "MustNotBeActionable" }
+      ],
+      "expected": {
+        "registration": "Persisted once and routed to level 1.",
+        "result": "Final rejected state and rejection reason are visible to the requester.",
+        "emails": [
+          { "event": "RequestSubmitted", "recipientKey": "approverLevel1", "count": 1 },
+          { "event": "RequestRejected", "recipientKey": "requester", "count": 1 }
+        ],
+        "integrity": "Level 2 cannot approve after rejection; repeated rejection does not duplicate history or email."
+      }
+    },
+    {
+      "caseId": "FLOW-DENY-WRONG-APPROVER",
+      "title": "A peer cannot approve a request outside their authority",
+      "request": {
+        "kind": "Leave",
+        "testRunId": "TST_E2E_RBAC",
+        "subject": "E2E unauthorized approval",
+        "startDate": "2030-04-10",
+        "endDate": "2030-04-10",
+        "reason": "Automated E2E fixture; permission check",
+        "requesterKey": "requester"
+      },
+      "attempt": { "actorKey": "unauthorizedPeer", "action": "Approve" },
+      "expected": {
+        "result": "Forbidden or the application's documented equivalent; never successful.",
+        "state": "Request remains pending at the same approval level.",
+        "audit": "Denied attempt is logged if required by the application's audit policy.",
+        "emails": "No approval-success or final-result email is emitted."
+      }
+    },
+    {
+      "caseId": "FLOW-MAIL-RETRY",
+      "title": "Email provider failure and safe retry",
+      "request": {
+        "kind": "Leave",
+        "testRunId": "TST_E2E_MAIL_RETRY",
+        "subject": "E2E mail retry",
+        "startDate": "2030-04-11",
+        "endDate": "2030-04-11",
+        "reason": "Automated E2E fixture; mail retry",
+        "requesterKey": "requester"
+      },
+      "faultInjection": { "mailTransport": "Fail first send; succeed on retry" },
+      "expected": {
+        "businessState": "Registration/approval state remains consistent with the documented outbox transaction design; mail failure must not silently corrupt the request.",
+        "mailState": "Failed delivery is observable and retryable.",
+        "retry": "Retry delivers the intended notification once; no duplicate final result email.",
+        "safety": "Fault injection must use a fake/captured mail transport, not production SMTP."
+      }
+    },
+    {
+      "caseId": "FLOW-DUPLICATE-SUBMIT",
+      "title": "Double-click/retry registration does not create duplicate requests",
+      "request": {
+        "kind": "Leave",
+        "testRunId": "TST_E2E_DUPLICATE",
+        "subject": "E2E duplicate submission",
+        "startDate": "2030-04-12",
+        "endDate": "2030-04-12",
+        "reason": "Automated E2E fixture; idempotency",
+        "requesterKey": "requester"
+      },
+      "attempt": { "operation": "SubmitSamePayloadTwice", "intervalMilliseconds": 100 },
+      "expected": {
+        "businessRecords": "One request if an idempotency key/duplicate rule is part of the contract; otherwise assert the explicitly documented duplicate-submission behavior.",
+        "emails": "No accidental duplicate submission notification.",
+        "approvalRoute": "No duplicate approval route entries."
+      }
+    }
+  ],
+  "evidenceRequiredPerCase": [
+    "Request/Correlation ID and testRunId",
+    "HTTP status and sanitized response body for submit, approve/reject, and requester result query",
+    "Persisted request status and approval-history rows before/after each transition",
+    "Captured email outbox records: event, recipient, count, correlation/request ID, delivery status",
+    "Audit record and actor identity",
+    "Cleanup outcome limited to the test run's tagged data"
+  ]
+}
