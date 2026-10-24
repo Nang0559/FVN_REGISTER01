@@ -26,7 +26,7 @@ function Invoke-Api([string]$Method,[string]$Path,[string]$Token,$Body=$null) {
  $headers=@{}; if($Token){$headers.Authorization="Bearer $Token"}
  $args=@{Method=$Method;Uri=($ApiBaseUrl.TrimEnd("/")+$Path);Headers=$headers;ContentType="application/json";ErrorAction="Stop"}
  if($null -ne $Body){$args.Body=($Body|ConvertTo-Json -Depth 20 -Compress)}
- try {$r=Invoke-WebRequest @args; $j=$null;if($r.Content){$j=$r.Content|ConvertFrom-Json -Depth 30};return [pscustomobject]@{StatusCode=[int]$r.StatusCode;Json=$j;Content=$r.Content}}
+ try {$r=Invoke-WebRequest @args; $j=$null;if($r.Content){$j=$r.Content|ConvertFrom-Json};return [pscustomobject]@{StatusCode=[int]$r.StatusCode;Json=$j;Content=$r.Content}}
  catch { $status=0;$bodyText="";if($_.Exception.Response){try{$status=[int]$_.Exception.Response.StatusCode}catch{};try{$sr=[IO.StreamReader]::new($_.Exception.Response.GetResponseStream());$bodyText=$sr.ReadToEnd();$sr.Dispose()}catch{}};throw "HTTP $Method $Path failed status=$status body=$bodyText $($_.Exception.Message)" }
 }
 function Get-Token($Response) {
