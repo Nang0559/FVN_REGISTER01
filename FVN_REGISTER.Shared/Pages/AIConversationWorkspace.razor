@@ -28,7 +28,7 @@
             <MudPaper Outlined="true" Class="pa-3">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
                     <MudText Typo="Typo.h6">Hội thoại</MudText>
-                    <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Title="Tạo hội thoại mới"
+                    <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" title="Tạo hội thoại mới"
                                    Disabled="_loading" OnClick="CreateConversationAsync" />
                 </MudStack>
                 @if (_conversations.Count == 0)
@@ -50,7 +50,7 @@
             <MudPaper Outlined="true" Class="pa-3">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
                     <MudText Typo="Typo.h6">@(_selectedTitle ?? "Cuộc trò chuyện mới")</MudText>
-                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Title="Tải lại" Disabled="_loading" OnClick="RefreshAsync" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" title="Tải lại" Disabled="_loading" OnClick="RefreshAsync" />
                 </MudStack>
 
                 <MudPaper Outlined="true" Class="pa-3 mb-3" Style="min-height:360px; max-height:58vh; overflow-y:auto;">
