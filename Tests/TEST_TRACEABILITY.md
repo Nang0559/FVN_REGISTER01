@@ -37,7 +37,7 @@ Append one row per actual run. Do not paste secrets, tokens, connection strings,
 
 | UTC/local timestamp | Commit SHA | Environment | Command / run ID | Passed | Failed | Skipped | Status | Evidence path / URL |
 |---|---|---|---|---:|---:|---:|---|---|
-| Not run in this change session | — | No connected runtime/SQL/SMTP | — | — | — | — | BLOCKED | Awaiting execution on disposable test environment |
+| 2026-10-24 06:51–06:54 UTC | `11f99d2c12261cab4fa1f95ea064350df72f9e67` | GitHub Actions, Windows Server 2025, .NET 9; no SQL connection secret | `scripts/Test-BackendRegression.ps1`, run [40071812600](https://github.com/Nang0559/FVN_REGISTER01/actions/runs/40071812600) | 431 | 0 | 4 | PASS_WITH_SKIPS | [TRX + summary artifact](https://github.com/Nang0559/FVN_REGISTER01/actions/runs/40071812600/artifacts/12551348939); 10 backend/AI builds passed; SQL integration tests were skipped because `FVN_REGISTER_SQL_CONNECTION` was not configured |
 
 ## Completion rule
 
