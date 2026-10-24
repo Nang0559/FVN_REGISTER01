@@ -30,7 +30,8 @@ function Invoke-Api([string]$Method,[string]$Path,[string]$Token,$Body=$null) {
  catch { $status=0;$bodyText="";if($_.Exception.Response){try{$status=[int]$_.Exception.Response.StatusCode}catch{};try{$sr=[IO.StreamReader]::new($_.Exception.Response.GetResponseStream());$bodyText=$sr.ReadToEnd();$sr.Dispose()}catch{}};throw "HTTP $Method $Path failed status=$status body=$bodyText $($_.Exception.Message)" }
 }
 function Get-Token($Response) {
- foreach($v in @($Response.Json.data.token,$Response.Json.data.Token,$Response.Json.result.data.token,$Response.Json.result.data.Token,$Response.Json.token,$Response.Json.Token)){if(-not [string]::IsNullOrWhiteSpace([string]$v)){return [string]$v}}
+ $json = $Response.Content
+ if ($json -match '(?i)"token"\s*:\s*"([^"]+)"') { return [string]$Matches[1] }
  throw "No token in login response: $($Response.Content)"
 }
 function Invoke-SqlScalar([string]$Query,[hashtable]$Parameters=@{}) {
@@ -66,10 +67,8 @@ try {
  Details=@(@{LeaveDate=$date.ToString("yyyy-MM-dd");LeaveTypeCode=$LeaveTypeCode;IsHalfDay=$false;HalfDayOption=$null})
  ApprovalSelections=@(@{Level=1;ApproverCode=$Approver1EmployeeCode},@{Level=2;ApproverCode=$Approver2EmployeeCode})}
  $created=Invoke-Api POST "/api/LeaveDays/create" $requesterToken $body
- Add-Result "Submit registration" ($created.StatusCode -eq 200 -and $created.Json.success -ne $false) "POST /api/LeaveDays/create"
- $id=0
- foreach($v in @($created.Json.data.id,$created.Json.data.Id,$created.Json.result.data.id,$created.Json.result.data.Id)){if($v -and [int]$v -gt 0){$id=[int]$v;break}}
- if($id -le 0){$id=[int](Invoke-SqlScalar "SELECT TOP(1) Id FROM dbo.F03LeaveDays WHERE EmployeeCode=@employee AND LeaveReason=@reason ORDER BY Id DESC" @{employee=$RequesterEmployeeCode;reason=$reason})}
+ Add-Result "Submit registration" ($created.StatusCode -eq 200 -and $created.Json.IsSuccess -eq $true) "POST /api/LeaveDays/create"
+ $id=[int](Invoke-SqlScalar "SELECT TOP(1) Id FROM dbo.F03LeaveDays WHERE EmployeeCode=@employee AND LeaveReason=@reason ORDER BY Id DESC" @{employee=$RequesterEmployeeCode;reason=$reason})
  if($id -le 0){throw "Could not resolve created request ID."}
  Add-Result "SQL request persisted" $true "dbo.F03LeaveDays.Id=$id; marker=$RunId"
 
@@ -79,15 +78,16 @@ try {
  $pending1=Invoke-Api GET "/api/LeaveDays/pending" $approver1Token
  Add-Result "Level 1 inbox" ($pending1.StatusCode -eq 200 -and $pending1.Content.Contains([string]$id)) "Request appears for first approver"
  $a1=Invoke-Api POST "/api/LeaveDays/approve" $approver1Token @{Ids=@($id);Level=1;Comment="$RunId level 1"}
- Add-Result "Approve level 1" ($a1.StatusCode -eq 200 -and $a1.Json.success -ne $false) "First decision accepted"
+ Add-Result "Approve level 1" ($a1.StatusCode -eq 200 -and $a1.Json.IsSuccess -eq $true) "First decision accepted"
 
  $pending2=Invoke-Api GET "/api/LeaveDays/pending" $approver2Token
  Add-Result "Level 2 inbox" ($pending2.StatusCode -eq 200 -and $pending2.Content.Contains([string]$id)) "Request appears for second approver after level 1"
  $a2=Invoke-Api POST "/api/LeaveDays/approve" $approver2Token @{Ids=@($id);Level=2;Comment="$RunId level 2"}
- Add-Result "Approve level 2" ($a2.StatusCode -eq 200 -and $a2.Json.success -ne $false) "Final decision accepted"
+ Add-Result "Approve level 2" ($a2.StatusCode -eq 200 -and $a2.Json.IsSuccess -eq $true) "Final decision accepted"
 
  $details=Invoke-Api GET "/api/LeaveDays/details/$id" $requesterToken
- Add-Result "Requester reads final result" ($details.StatusCode -eq 200 -and $details.Content -match '(?i)Approved|Đã duyệt|approve') "Details endpoint returned final approval result"
+ $finalStatus=[int](Invoke-SqlScalar "SELECT RequestStatus FROM dbo.F03LeaveDays WHERE Id=@id" @{id=$id})
+ Add-Result "Requester reads final result" ($details.StatusCode -eq 200 -and $finalStatus -eq 3) "Details endpoint status=$($details.StatusCode); SQL RequestStatus=$finalStatus (Approved=3)"
 
  $historyExists=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM sys.tables WHERE name='F03ApprovalHistories'")
  if($historyExists -gt 0){
