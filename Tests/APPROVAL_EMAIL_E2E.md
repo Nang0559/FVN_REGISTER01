@@ -13,6 +13,15 @@ login requester and two approvers -> create request -> check approval inbox -> a
 - The configured leave type must be active and suitable for a one-day test leave. The requester needs any required entitlement/balance.
 - The deployed schema must include `F03LeaveDays`, `F03ApprovalSnapshots`, and `F03EmailQueues`. If the approval-history table name differs, the script reports that assertion as blocked rather than pretending it passed.
 
+## Prepare and clean up test data
+
+1. Create a **disposable** database, apply the repository schema migrations, then run `SQL/06_Seed.sql` and the email-center migrations required by the target build (including `SQL/40_EmailCenter.sql`).
+2. Select that disposable database in SQL Server Management Studio and execute `Tests/sql/Prepare-ApprovalEmailE2E.sql`. It creates/normalizes `E0099` as an ordinary non-approver user and changes the active email profile/dispatch policies to local `localhost:1025` capture. It deliberately blocks databases whose names do not contain Test/QA/E2E/Automation.
+3. Start Mailpit or smtp4dev listening on port 1025, then configure the environment variables below. The default seeded profile points at `smtp.gmail.com`; never run the E2E runner against that unmodified profile.
+4. After reviewing the JSON report and captured mail, edit the exact `@RunId`, `@RunStartedAt`, and requester employee code at the top of `Tests/sql/Cleanup-ApprovalEmailE2E.sql`, then run it against the same disposable database. Cleanup targets the tagged leave request, its approval history/snapshots, and correlated email queue rows; it does not remove the reusable E0099 test account or change the local SMTP profile.
+
+The current `SQL/06_Seed.sql` demo accounts are not five equivalent roles: E0001 is Worker/PermissionCode 1 (SuperAdmin), E0002 is Sub-Leader/4 (Approver), E0003 is Chief/2 (Admin), E0004 is Manager/2 (Admin), and E0005 is Director/3 (Editor). The wrong-approver test therefore uses the separate E0099 ordinary-user fixture, not E0004.
+
 ## Scenario selection
 
 Run one case per invocation so each run has an independent marker and report:
