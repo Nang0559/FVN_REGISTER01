@@ -91,7 +91,6 @@ function Get-CorrelatedEmailCount([string]$Email,[int]$RequestId) {
   started=$startedAt.ToString("s");email=$Email;
   p1='%"requestId":'+$idText+',%';p2='%"requestId":'+$idText+'}%';
   p3='%"RequestId":'+$idText+',%';p4='%"RequestId":'+$idText+'}%';
-  p3='%"RequestId":'+$idText+',%';p4='%"RequestId":'+$idText+'}%';
   p5='%Request ID: '+$idText+' %'
  }
  $query=@"
