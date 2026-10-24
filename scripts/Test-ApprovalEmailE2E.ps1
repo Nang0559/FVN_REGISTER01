@@ -88,7 +88,7 @@ function Invoke-SqlScalar([string]$Query,[hashtable]$Parameters=@{}) {
 function Get-ApprovalHistoryCount([int]$RequestId) {
  $exists=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM sys.tables WHERE name='F03ApprovalHistories' AND schema_id=SCHEMA_ID('dbo')")
  if($exists -eq 0){return $null}
- return [int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalHistories WHERE RequestId=@id" @{id=$RequestId})
+ return [int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalHistories WHERE RequestId=@id AND RequestType=0" @{id=$RequestId})
 }
 function Get-CorrelatedEmailCount([string]$Email,[int]$RequestId) {
  $idText=[string]$RequestId
@@ -179,7 +179,7 @@ WHERE p.IsActive=1
   $second=Invoke-Api POST "/api/LeaveDays/create" $requesterToken $body
   $duplicateCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03LeaveDays WHERE EmployeeCode=@employee AND LeaveReason=@reason" @{employee=$RequesterEmployeeCode;reason=$reason})
   Add-Result "Duplicate submit creates one request" ($duplicateCount -eq 1) "Rows for same run marker=$duplicateCount; second HTTP status=$($second.StatusCode)"
-  $snapshotCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalSnapshots WHERE RequestId=@id" @{id=$id})
+  $snapshotCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalSnapshots WHERE RequestId=@id AND RequestType=0" @{id=$id})
   Add-Result "Duplicate submit has one approval snapshot" ($snapshotCount -eq 1) "snapshot count=$snapshotCount"
   $approverQueue=Get-CorrelatedEmailCount $Approver1Email $id
   Add-Result "Duplicate submit notification exactly once" ($approverQueue -eq 1) "correlated email rows=$approverQueue"
