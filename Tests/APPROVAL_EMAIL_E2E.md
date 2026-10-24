@@ -1,6 +1,6 @@
 # Approval + email API/SQL E2E runner
 
-This runner exercises the real local API and a dedicated SQL Server test database for one leave request:
+This runner reads `Tests/fixtures/approval-email-e2e-cases.json` and accepts a case selector. It exercises the real local API and a dedicated SQL Server test database for one leave request:
 login requester and two approvers -> create request -> check approval inbox -> approve level 1 -> approve level 2 -> query final result -> verify SQL snapshot/history/email queue.
 
 ## Safety requirements
@@ -12,6 +12,19 @@ login requester and two approvers -> create request -> check approval inbox -> a
 - Use test accounts with LeaveCreate/LeaveApprove permissions and two configured approval levels. The request's approval selections use the real employee codes resolved from the test database.
 - The configured leave type must be active and suitable for a one-day test leave. The requester needs any required entitlement/balance.
 - The deployed schema must include `F03LeaveDays`, `F03ApprovalSnapshots`, and `F03EmailQueues`. If the approval-history table name differs, the script reports that assertion as blocked rather than pretending it passed.
+
+## Scenario selection
+
+Run one case per invocation so each run has an independent marker and report:
+
+```powershell
+.\scripts\Test-ApprovalEmailE2E.ps1 -CaseId FLOW-APPROVE-2-LEVEL
+.\scripts\Test-ApprovalEmailE2E.ps1 -CaseId FLOW-REJECT-L1
+.\scripts\Test-ApprovalEmailE2E.ps1 -CaseId FLOW-DENY-WRONG-APPROVER
+.\scripts\Test-ApprovalEmailE2E.ps1 -CaseId FLOW-DUPLICATE-SUBMIT
+```
+
+The wrong-approver case additionally requires `E2E_PEER_USERNAME` and `E2E_PEER_PASSWORD` for an ordinary peer who is not an approver on the request. The duplicate-submit case deliberately fails if two request rows are persisted for the same run marker. The mail-retry case currently returns **BLOCKED** because the application does not yet expose a deterministic injectable mail-transport fault; do not simulate this by interrupting a shared SMTP service. A fake transport seam must be added before that scenario can be automated.
 
 ## Environment variables (PowerShell)
 
@@ -43,17 +56,17 @@ Run from repository root in Windows PowerShell:
 .\scripts\Test-ApprovalEmailE2E.ps1
 ```
 
-The script writes a JSON evidence report under `TestResults/` with run ID, request ID, each assertion and overall status. It does not clean up automatically because preserving evidence is useful; delete only records tagged with the run ID after reviewing the report.
+The script writes a JSON evidence report under `TestResults/` with run ID, case ID, request ID, each assertion and overall status. A run with blocked assertions is not reported as a full PASS. It does not clean up automatically because preserving evidence is useful; delete only records tagged with the run ID after reviewing the report.
 
 ## Assertions covered
 
 1. All three users can authenticate.
 2. Leave registration returns success and persists a uniquely tagged row in `F03LeaveDays`.
 3. Approval snapshot is persisted.
-4. Level 1 sees the request; level 1 approves; level 2 then sees the request and approves.
+4. Level 2 does not see the request before level 1 acts; exact request IDs (not substring matches) are checked. Level 1 sees and approves; level 2 then sees and approves.
 5. The requester can query the final result.
-6. SQL approval history has two decisions where the expected history table is present.
-7. The email queue contains notifications addressed to the first approver and requester, correlated to the request ID and test time window.
+6. SQL approval history has exactly two decisions where the mapped history table is present; a missing table is recorded as BLOCKED and later assertions still run.
+7. The email queue has exactly one correlated submission notification to the first approver and one final-result notification to the requester; correlation uses request-ID token boundaries to avoid matching ID 12 to ID 112.
 
 ## Current limitations
 
