@@ -54,6 +54,36 @@ try {
  if($db.InitialCatalog -notmatch '(?i)(test|qa|e2e|automation)'){throw "Safety stop: database '$($db.InitialCatalog)' must contain Test, QA, E2E, or Automation."}
  if($ApiBaseUrl -notmatch '^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)'){throw "Safety stop: first-run runner only permits localhost API."}
 
+ # Refuse to run when active/default dispatch profiles could send to real SMTP.
+ $fakePort = 1025
+ if($env:E2E_FAKE_SMTP_PORT){$fakePort=[int]$env:E2E_FAKE_SMTP_PORT}
+ $unsafeProfiles = [int](Invoke-SqlScalar @"
+SELECT COUNT(*)
+FROM dbo.F03EmailProfiles p
+WHERE p.IsActive = 1
+  AND (p.IsDefault = 1 OR EXISTS (
+      SELECT 1 FROM dbo.F03EmailDispatchPolicies d
+      WHERE d.IsActive = 1 AND d.EmailProfileCode = p.Code
+  ))
+  AND NOT (
+      LOWER(p.EmailServerName) IN ('localhost','127.0.0.1','::1','host.docker.internal')
+      OR LOWER(p.EmailServerName) LIKE '%mailpit%'
+      OR LOWER(p.EmailServerName) LIKE '%smtp4dev%'
+  );
+"@)
+ if($unsafeProfiles -gt 0){throw "Safety stop: $unsafeProfiles active/default email profile(s) point outside a local SMTP capture host. Configure Mailpit/smtp4dev in the disposable test DB before running."}
+ $wrongPorts = [int](Invoke-SqlScalar @"
+SELECT COUNT(*)
+FROM dbo.F03EmailProfiles p
+WHERE p.IsActive = 1
+  AND (p.IsDefault = 1 OR EXISTS (
+      SELECT 1 FROM dbo.F03EmailDispatchPolicies d
+      WHERE d.IsActive = 1 AND d.EmailProfileCode = p.Code
+  ))
+  AND p.EmailServerPort <> @port;
+"@ @{port="$fakePort"})
+ if($wrongPorts -gt 0){throw "Safety stop: active/default email profile port does not match E2E_FAKE_SMTP_PORT=$fakePort. Configure the local capture service."}
+
  # Authenticate all three actors. This also confirms the API is reachable.
  $loginBody={param($u,$p) @{UserName=$u;Password=$p;DeviceId=[guid]::NewGuid().ToString();DeviceType="E2E";DeviceName="E2E Regression";RememberMe=$false}}
  $requesterToken=Get-Token (Invoke-Api POST "/api/Auth/login" "" (&$loginBody $RequesterUserName $RequesterPassword))
