@@ -123,7 +123,7 @@ WHERE p.IsActive = 1
  if($historyExists -gt 0){
   $historyCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalHistories WHERE RequestId=@id" @{id=$id})
   Add-Result "SQL approval history" ($historyCount -eq 2) "history rows=$historyCount"
- }else{Write-Warning "Approval history SQL check BLOCKED: deployed table name differs from dbo.F03ApprovalHistories."}
+ }else{throw "BLOCKED: approval history table dbo.F03ApprovalHistories was not found; map the deployed EF table name before accepting this run."}
 
  $approverQueue=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03EmailQueues WHERE CreatedAt>=@started AND ToEmail=@email AND (Payload LIKE @marker OR Body LIKE @marker OR Subject LIKE @marker)" @{started=$startedAt.ToString("s");email=$Approver1Email;marker="%$id%"})
  $requesterQueue=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03EmailQueues WHERE CreatedAt>=@started AND ToEmail=@email AND (Payload LIKE @marker OR Body LIKE @marker OR Subject LIKE @marker)" @{started=$startedAt.ToString("s");email=$RequesterEmail;marker="%$RunId%"})
