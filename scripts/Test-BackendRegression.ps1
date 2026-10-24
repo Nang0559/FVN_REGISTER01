@@ -55,11 +55,13 @@ function Invoke-DotNet {
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw '.NET SDK not found. Install the .NET 9 SDK and retry.'
 }
-if (-not (Test-Path $solution)) { throw "Solution not found: $solution" }
-
 try {
     if (-not $SkipRestore) {
-        Invoke-DotNet @('restore', $solution)
+        foreach ($relative in @($backendProjects + $testProjects | Select-Object -Unique)) {
+            $project = Join-Path $root $relative
+            if (-not (Test-Path $project)) { throw "Expected project not found for restore: $project" }
+            Invoke-DotNet @('restore', $project)
+        }
     }
 
     if (-not $SkipBuild) {
