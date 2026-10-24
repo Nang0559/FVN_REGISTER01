@@ -1,0 +1,8 @@
+dotnet user-secrets set "AIPlatform:Ocr:PdfToPpmExecutable" "C:\poppler\poppler-26.09.0\Library\bin\pdftoppm.exe" --project FVN_REGISTER.AI.Worker
+dotnet user-secrets set "AIPlatform:Ocr:PdfToPpmExecutable" "C:\poppler\poppler-26.09.0\Library\bin\pdftoppm.exe" --project FVN_REGISTER.AI.Api
+
+
+// Defender 
+
+   dotnet user-secrets set "AIPlatform:MalwareScanner:Provider" "WindowsDefender" --project FVN_REGISTER.AI.Worker
+   dotnet user-secrets set "AIPlatform:MalwareScanner:Provider" "WindowsDefender" --project FVN_REGISTER.AI.Api

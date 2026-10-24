@@ -1,5 +1,6 @@
 using FVN_REGISTER.Contract.Requests.Approvals;
 using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
+using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Trips;
@@ -20,12 +21,15 @@ public sealed class TripController : ControllerBase
     private readonly ITripService _service;
     private readonly ICurrentUserService _currentUser;
     private readonly AppAuthorizationService _authorization;
+    private readonly IOtRegistrationPolicy _registrationPolicy;
 
     public TripController(
         ITripService service,
         ICurrentUserService currentUser,
-        AppAuthorizationService authorization)
+        AppAuthorizationService authorization,
+        IOtRegistrationPolicy registrationPolicy)
     {
+        _registrationPolicy = registrationPolicy;
         _service = service;
         _currentUser = currentUser;
         _authorization = authorization;
@@ -37,6 +41,7 @@ public sealed class TripController : ControllerBase
         CancellationToken ct)
     {
         if (!await CanPersonalAsync(SecurityFunctionCodes.TripCreate, ct)) return Forbid();
+        if (!await CanAddCompanionsAsync(request, ct)) return StatusCode(403, ApiResponse<TripRequestDto>.Fail(CompanionDeniedMessage));
         var result = await _service.CreateDraftAsync(request, ct); return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
     }
 
@@ -45,7 +50,23 @@ public sealed class TripController : ControllerBase
         int id, [FromBody] CreateTripRequestDto request, CancellationToken ct)
     {
         if (!await CanPersonalAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
+        if (!await CanAddCompanionsAsync(request, ct)) return StatusCode(403, ApiResponse<TripRequestDto>.Fail(CompanionDeniedMessage));
         var result = await _service.UpdateDraftAsync(id, request, ct); return result.IsSuccess ? Ok(ApiResponse<TripRequestDto>.FromResult(result)) : BadRequest(ApiResponse<TripRequestDto>.FromResult(result));
+    }
+
+    private const string CompanionDeniedMessage =
+        "Bạn không có quyền đăng ký công tác cho người khác. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký.";
+
+    /// <summary>Công tác một mình: ai cũng tạo được. Thêm người đi cùng: phải là registrar của phòng ban từng người.</summary>
+    private async Task<bool> CanAddCompanionsAsync(CreateTripRequestDto request, CancellationToken ct)
+    {
+        var companions = (request.CompanionEmployeeCodes ?? string.Empty)
+            .Split(new[] { ',', ';', ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var user = _currentUser.GetCurrentUser();
+        if (user == null) return false;
+        var others = companions.Where(x => !string.Equals(x, user.EmployeeCode, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (others.Count == 0) return true;
+        return await _registrationPolicy.CanRegisterForEmployeesAsync(user, others.Append(user.EmployeeCode ?? string.Empty), "TRIP", ct);
     }
 
     [HttpPost("{id:int}/cancel")]

@@ -15,7 +15,7 @@ public sealed class CalendarDayRuleTests
     {
         var calendarEvent = new WorkCalendarEventDto
         {
-            ModuleCode = "OT",
+            ModuleCode = "Overtime",
             Start = new DateTime(2026, 9, 22, 18, 0, 0),
             End = new DateTime(2026, 9, 22, 20, 0, 0)
         };
@@ -34,7 +34,7 @@ public sealed class CalendarDayRuleTests
     {
         var calendarEvent = new WorkCalendarEventDto
         {
-            ModuleCode = "OT",
+            ModuleCode = "Overtime",
             Start = new DateTime(2026, 9, 22, 22, 0, 0),
             End = new DateTime(2026, 9, 23, 0, 0, 0)
         };
@@ -74,7 +74,8 @@ public sealed class CalendarDayRuleTests
 
         var issues = engine.Evaluate(new CalendarDayRuleContext(
             day,
-            Array.Empty<CalendarItemDto>()));
+            Array.Empty<CalendarItemDto>(),
+            isOtRegistrar: true));
 
         var issue = Assert.Single(issues);
         Assert.Equal("ATTENDANCE_TIME_VARIANCE", issue.Code);
@@ -82,6 +83,58 @@ public sealed class CalendarDayRuleTests
         Assert.Equal((byte)2, issue.Severity);
         Assert.Contains(issue.Actions, x => x.Code == "OPEN_OT");
         Assert.Contains(issue.Actions, x => x.Code == "OPEN_HR_FEEDBACK");
+    }
+
+    private static CalendarIssueDto EvaluateVariance(CalendarAttendanceInfoDto attendance, bool isOtRegistrar)
+    {
+        var day = new CalendarDayDto { Date = new DateOnly(2026, 9, 24), IsPast = true, Attendance = attendance, MustReportOtToSupervisor = !isOtRegistrar };
+        var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new AttendanceNumericVarianceRule() });
+        return Assert.Single(engine.Evaluate(new CalendarDayRuleContext(day, Array.Empty<CalendarItemDto>(), isOtRegistrar)));
+    }
+
+    [Fact]
+    public void NumericAttendanceVariance_NonRegistrarWithOtHours_OnlyOffersSupervisorFeedback()
+    {
+        var issue = EvaluateVariance(new CalendarAttendanceInfoDto
+        {
+            ActualHours = 10m, RequiredHours = 8m, IsNumericVariance = true, DisplayValue = "10"
+        }, isOtRegistrar: false);
+
+        var action = Assert.Single(issue.Actions);
+        Assert.Equal("OPEN_SUPERVISOR_FEEDBACK", action.Code);
+        Assert.Equal("Phản hồi cấp trên về OT", action.Title);
+    }
+
+    [Fact]
+    public void NumericAttendanceVariance_WithoutWorkHours_OnlyOffersHrFeedback()
+    {
+        foreach (var registrar in new[] { false, true })
+        {
+            var issue = EvaluateVariance(new CalendarAttendanceInfoDto
+            {
+                HasActual = false, IsNumericVariance = true, DisplayValue = "?"
+            }, registrar);
+
+            var action = Assert.Single(issue.Actions);
+            Assert.Equal("OPEN_HR_FEEDBACK", action.Code);
+            Assert.Equal("Phản hồi HR", action.Title);
+        }
+    }
+
+    [Fact]
+    public void ActualOtWithoutRequest_NonRegistrar_OnlyOffersSupervisorFeedback()
+    {
+        var attendance = new CalendarAttendanceInfoDto { HasActualOt = true, ActualOtMinutes = 90 };
+        var day = new CalendarDayDto { Date = new DateOnly(2026, 9, 21), Attendance = attendance, MustReportOtToSupervisor = true };
+        var registrarDay = new CalendarDayDto { Date = new DateOnly(2026, 9, 21), Attendance = attendance };
+        var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtActualWithoutRequestRule() });
+
+        var issue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(day, Array.Empty<CalendarItemDto>(), isOtRegistrar: false)));
+        Assert.Equal("OPEN_SUPERVISOR_FEEDBACK", Assert.Single(issue.Actions).Code);
+
+        var registrarIssue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(registrarDay, Array.Empty<CalendarItemDto>(), isOtRegistrar: true)));
+        Assert.Contains(registrarIssue.Actions, x => x.Code == "OPEN_OT");
+        Assert.DoesNotContain(registrarIssue.Actions, x => x.Code == "OPEN_SUPERVISOR_FEEDBACK");
     }
 
     [Fact]
@@ -100,7 +153,7 @@ public sealed class CalendarDayRuleTests
             {
                 new CalendarRegistrationDto
                 {
-                    ModuleCode = "OT",
+                    ModuleCode = "Overtime",
                     RequestId = 123,
                     Status = "Approved",
                     Title = "OT 18:00-20:00",
@@ -121,7 +174,7 @@ public sealed class CalendarDayRuleTests
 
         var issue = Assert.Single(issues);
         Assert.Equal("OT_NO_ACTUAL", issue.Code);
-        Assert.Equal("OT", issue.ModuleCode);
+        Assert.Equal("Overtime", issue.ModuleCode);
         Assert.Equal((byte)3, issue.Severity);
         Assert.Contains(issue.Actions, x => x.Code == "OPEN_HR_FEEDBACK");
         Assert.Contains(issue.Actions, x => x.Code == "CANCEL_OT" && x.RequestId == 123);
@@ -138,7 +191,7 @@ public sealed class CalendarDayRuleTests
             {
                 new CalendarRegistrationDto
                 {
-                    ModuleCode = "OT",
+                    ModuleCode = "Overtime",
                     RequestId = 123,
                     Status = "Pending",
                     Start = new DateTime(2026, 9, 22, 18, 0, 0),
@@ -172,7 +225,7 @@ public sealed class CalendarDayRuleTests
             {
                 new CalendarRegistrationDto
                 {
-                    ModuleCode = "OT",
+                    ModuleCode = "Overtime",
                     RequestId = 55,
                     Status = "Pending"
                 }
@@ -300,7 +353,7 @@ public sealed class CalendarDayRuleTests
         {
             new CalendarRegistrationDto
             {
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 RequestId = 55,
                 Status = status,
                 DetailRoute = detailRoute
@@ -334,7 +387,7 @@ public sealed class CalendarDayRuleTests
         var engine = new CalendarDayRuleEngine(new ICalendarDayRule[] { new OtActualWithoutRequestRule() });
 
         var issue = Assert.Single(engine.Evaluate(new CalendarDayRuleContext(
-            DayWithOt(status), Array.Empty<CalendarItemDto>())));
+            DayWithOt(status), Array.Empty<CalendarItemDto>(), isOtRegistrar: true)));
 
         Assert.Equal((byte)3, issue.Severity);
         Assert.Contains(issue.Actions, x => x.Code == "OPEN_OT");

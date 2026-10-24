@@ -17,6 +17,7 @@ namespace FVN_REGISTER.Shared.Services.Employees
         public Task<ApiResponse<List<EmployeeDeptTreeDto>>> GetTreeAsync(
             string? searchTerm = null,
             int? deptCode = null,
+            bool includeInactive = false,
             CancellationToken ct = default)
         {
             var query = new List<string>();
@@ -24,6 +25,8 @@ namespace FVN_REGISTER.Shared.Services.Employees
                 query.Add($"searchTerm={Uri.EscapeDataString(searchTerm)}");
             if (deptCode != null)
                 query.Add($"deptCode={deptCode}");
+            if (includeInactive)
+                query.Add("includeInactive=true");
 
             var url = query.Count == 0
                 ? $"{Base}/tree"

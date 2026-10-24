@@ -4,6 +4,7 @@
   "public.archiveThatBai": "Archive thất bại.",
   "public.banChuaChonDoiTuong": "Bạn chưa chọn đối tượng đăng ký.",
   "public.bieuMau": "Biểu mẫu",
+  "public.bieuMauDangKyDangMo": "Biểu mẫu đăng ký đang mở",
   "public.bieuMauDangMo": "Biểu mẫu đang mở",
   "public.cacThongBaoHoacQuy": "Các thông báo hoặc quy định mới sẽ được đăng tại đây.",
   "public.cancelled": "Cancelled",
@@ -26,6 +27,7 @@
   "public.daLuuNoiDungNhap": "Đã lưu nội dung nháp.",
   "public.dangKyBieuMau": "Đăng ký biểu mẫu",
   "public.dangKyThongTin": "Đăng ký thông tin",
+  "public.dangNhapDeDangKy": "Đăng nhập để đăng ký",
   "public.danhDauQuanTrong": "Đánh dấu quan trọng",
   "public.daPublish": "Đã Publish.",
   "public.daXuatExcel": "Đã xuất Excel.",
@@ -83,6 +85,7 @@
   "public.quanTrong": "Quan trọng",
   "public.quyDinh": "Quy định",
   "public.rejected": "Rejected",
+  "public.soDangHieuLuc": "{0} thông báo & biểu mẫu đang hiệu lực",
   "public.submitted": "Submitted",
   "public.taoNoiDung": "Tạo nội dung",
   "public.target": "Đối tượng nhận",
@@ -105,10 +108,12 @@
   "public.xemDanhSachTongHop": "Xem danh sách, tổng hợp và xuất dữ liệu đăng ký theo biểu mẫu.",
   "public.xemTaiLieu": "Xem tài liệu",
   "public.xuatExcelThatBai": "Xuất Excel thất bại.",
-  "public.yeuCauApproval": "Yêu cầu Approval"
-,
+  "public.yeuCauApproval": "Yêu cầu Approval",
   "public.feedback": "Phản hồi",
   "public.guiPhanHoi": "Gửi phản hồi",
   "public.guiPhanHoiThanhCong": "Đã gửi phản hồi.",
-  "public.guiPhanHoiThatBai": "Gửi phản hồi thất bại."
+  "public.guiPhanHoiThatBai": "Gửi phản hồi thất bại.",
+  "public.dinhKem": "Tệp đính kèm",
+  "public.chonFileDinhKem": "Đính kèm văn bản đã ký đóng dấu (PDF, ảnh, Word, Excel; tối đa 10 MB mỗi file).",
+  "public.taiFileThatBai": "Không tải được file."
 }

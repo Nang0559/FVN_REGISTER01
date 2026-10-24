@@ -66,7 +66,7 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
     public Task<ApiResponse<List<EquipmentInspectionTemplateDto>>> GetInspectionTemplatesAsync(int? deptCode = null, CancellationToken ct = default) => Get<List<EquipmentInspectionTemplateDto>>(deptCode == null ? "api/equipment-inspections/templates" : $"api/equipment-inspections/templates?deptCode={deptCode}", "inspection templates", ct);
     public Task<ApiResponse<EquipmentInspectionTemplateDto>> GetInspectionTemplateAsync(int id, CancellationToken ct = default) => Get<EquipmentInspectionTemplateDto>($"api/equipment-inspections/templates/{id}", "inspection template", ct);
 
-    public async Task<ApiResponse<EquipmentInspectionTemplateImportResultDto>> ImportInspectionTemplateExcelAsync(IBrowserFile file, CancellationToken ct = default)
+    public async Task<ApiResponse<EquipmentInspectionTemplateImportResultDto>> ImportInspectionTemplateExcelAsync(IBrowserFile file, int? deptCode = null, int? sheetIndex = null, CancellationToken ct = default)
     {
         try
         {
@@ -75,6 +75,8 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
             using var fileContent = new StreamContent(stream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             form.Add(fileContent, "file", file.Name);
+            if (deptCode.HasValue) form.Add(new StringContent(deptCode.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)), "deptCode");
+            if (sheetIndex.HasValue) form.Add(new StringContent(sheetIndex.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)), "sheetIndex");
             return await _http.PostMultipartAsync<EquipmentInspectionTemplateImportResultDto>("api/equipment-inspections/templates/import", form, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -90,6 +92,9 @@ public sealed partial class EquipmentClientService : IEquipmentClientService
 
     public Task<ApiResponse<EquipmentInspectionTemplateDto>> SaveInspectionTemplateAsync(EquipmentInspectionTemplateUpsertRequest request, CancellationToken ct = default) => Post<EquipmentInspectionTemplateDto>("api/equipment-inspections/templates", request, "save inspection template", ct);
     public Task<ApiResponse<EquipmentInspectionTemplateDto>> CloneInspectionTemplateAsync(int id, string? name = null, CancellationToken ct = default) => Post<EquipmentInspectionTemplateDto>($"api/equipment-inspections/templates/{id}/clone", new EquipmentInspectionTemplateCloneRequest { TemplateName = name }, "clone inspection template", ct);
+    public Task<ApiResponse<EquipmentInspectionAssetGroupsDto>> GetInspectionAssetGroupsAsync(int? deptCode = null, CancellationToken ct = default) => Get<EquipmentInspectionAssetGroupsDto>(deptCode == null ? "api/equipment-inspections/asset-groups" : $"api/equipment-inspections/asset-groups?deptCode={deptCode}", "inspection asset groups", ct);
+    public Task<ApiResponse<EquipmentInspectionBulkAssignmentResultDto>> BulkAssignInspectionAsync(EquipmentInspectionBulkAssignmentRequest request, CancellationToken ct = default) => Post<EquipmentInspectionBulkAssignmentResultDto>("api/equipment-inspections/assignments/bulk", request, "bulk assign inspection", ct);
+    public Task<ApiResponse<byte[]>> DownloadInspectionTemplateSampleAsync(CancellationToken ct = default) => _http.GetFileAsync("api/equipment-inspections/templates/import-sample", ct);
     public Task<ApiResponse<List<EquipmentInspectionAssignmentDto>>> GetInspectionAssignmentsAsync(int? equipmentId = null, CancellationToken ct = default) => Get<List<EquipmentInspectionAssignmentDto>>(equipmentId.HasValue ? $"api/equipment-inspections/assignments?equipmentId={equipmentId}" : "api/equipment-inspections/assignments", "inspection assignments", ct);
     public Task<ApiResponse<EquipmentInspectionAssignmentDto>> AssignInspectionAsync(EquipmentInspectionAssignmentRequest request, CancellationToken ct = default) => Post<EquipmentInspectionAssignmentDto>("api/equipment-inspections/assignments", request, "assign inspection", ct);
     public Task<ApiResponse<List<EquipmentInspectionTaskDto>>> GetInspectionTasksAsync(bool includeCompleted = false, CancellationToken ct = default) => Get<List<EquipmentInspectionTaskDto>>($"api/equipment-inspections/tasks?includeCompleted={includeCompleted}", "inspection tasks", ct);

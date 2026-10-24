@@ -1,14 +1,19 @@
 /*
 ===============================================================================
-77 - Chuẩn hóa F03Approvers.RequestType về mã chuẩn (LEAVE / OT / TRIP / EQUIPMENT)
+77 - Chuẩn hóa F03Approvers.RequestType về tên enum (Leave / Overtime / Trip / Equipment)
+
+LƯU Ý: nếu DB cho phép xóa dữ liệu cũ, dùng 80_PurgeLegacyApproverRequestType.sql thay cho script này.
+  Script 77 chỉ ĐỔI TÊN nên có thể tạo ra dòng trùng khóa (dòng 'Overtime' inactive cũ
+  + dòng vừa đổi từ 'OT'), và phần kiểm tra trùng ở cuối chỉ liệt kê dòng active.
 
 Vì sao:
-  Code (EF) lọc F03Approvers.RequestType bằng mã chuẩn: Overtime -> 'OT'.
-  Proc usp_ReconcileEmployeeApprovers (bản cũ) lại ghi 'Overtime' => route không thấy
-  approver OT và báo "Chưa cấu hình người phê duyệt...".
+  Quy ước thống nhất: F03Approvers.RequestType lưu đúng tên enum RequestModule
+  (Leave / Overtime / Trip / Equipment). Code EF (ToStorageName) và proc
+  usp_ReconcileEmployeeApprovers (SQL/31) đều dùng giá trị này. Dòng cũ lưu 'OT'
+  (hoặc LEAVE/TRIP/EQUIPMENT viết hoa) cần đổi về cùng quy ước.
 
 THỨ TỰ:
-  1) Chạy 31_Hrm_User_Approval_Provisioning.sql (bản đã vá: proc ghi mã chuẩn)
+  1) Deploy code mới (ToStorageName) và chạy 31_Hrm_User_Approval_Provisioning.sql
   2) Chạy script này với @DryRun = 1 để xem, rồi @DryRun = 0 để ghi (có backup)
   3) Đồng bộ lại / F5 trang đăng ký
 ===============================================================================
@@ -30,18 +35,18 @@ IF OBJECT_ID('tempdb..#Map') IS NOT NULL DROP TABLE #Map;
 
 SELECT a.Id, a.RequestType AS Cu,
        Moi = CASE UPPER(LTRIM(RTRIM(a.RequestType)))
-                WHEN N'LEAVE'         THEN N'LEAVE'
-                WHEN N'LEAVE_REQUEST' THEN N'LEAVE'
-                WHEN N'OT'            THEN N'OT'
-                WHEN N'OVERTIME'      THEN N'OT'
-                WHEN N'TRIP'          THEN N'TRIP'
-                WHEN N'TRIP_REQUEST'  THEN N'TRIP'
-                WHEN N'EQUIPMENT'     THEN N'EQUIPMENT'
-                WHEN N'ATTENDANCE'    THEN N'ATTENDANCE'
-                WHEN N'PAYROLL'       THEN N'PAYROLL'
-                WHEN N'ACCESSCHANGE'  THEN N'ACCESSCHANGE'
-                WHEN N'ACCESS_CHANGE' THEN N'ACCESSCHANGE'
-                WHEN N'ENDPOINT'      THEN N'ENDPOINT'
+                WHEN N'LEAVE'         THEN N'Leave'
+                WHEN N'LEAVE_REQUEST' THEN N'Leave'
+                WHEN N'OT'            THEN N'Overtime'
+                WHEN N'OVERTIME'      THEN N'Overtime'
+                WHEN N'TRIP'          THEN N'Trip'
+                WHEN N'TRIP_REQUEST'  THEN N'Trip'
+                WHEN N'EQUIPMENT'     THEN N'Equipment'
+                WHEN N'ATTENDANCE'    THEN N'Attendance'
+                WHEN N'PAYROLL'       THEN N'Payroll'
+                WHEN N'ACCESSCHANGE'  THEN N'AccessChange'
+                WHEN N'ACCESS_CHANGE' THEN N'AccessChange'
+                WHEN N'ENDPOINT'      THEN N'Endpoint'
              END
 INTO   #Map
 FROM   dbo.F03Approvers a;

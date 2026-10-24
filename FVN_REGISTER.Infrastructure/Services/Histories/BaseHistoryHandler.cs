@@ -69,6 +69,7 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
             RequestModule.Leave => SecurityFunctionCodes.LeaveCancel,
             RequestModule.Overtime => SecurityFunctionCodes.OTCancel,
             RequestModule.Trip => SecurityFunctionCodes.TripCancel,
+            RequestModule.LateEarly => SecurityFunctionCodes.LateEarlyCancel,
             RequestModule.Equipment => SecurityFunctionCodes.EquipmentCancel,
             _ => 0
         };

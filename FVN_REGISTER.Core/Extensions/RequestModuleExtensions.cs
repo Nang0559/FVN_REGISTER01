@@ -4,6 +4,13 @@ namespace FVN_REGISTER.Core.Extensions;
 
 public static class RequestModuleExtensions
 {
+    /// <summary>
+    /// Giá trị lưu trong DB cho cột RequestType của F03Approvers: đúng tên enum
+    /// (Leave / Overtime / Trip / Equipment). KHÁC với <see cref="ToCode"/> (LEAVE / OT / ...),
+    /// vẫn dùng cho URL lịch sử, mã template email...
+    /// </summary>
+    public static string ToStorageName(this RequestModule module) => module.ToString();
+
     public static string ToDisplayName(this RequestModule module) => module switch
     {
         RequestModule.Leave => "Nghỉ phép",
@@ -14,6 +21,7 @@ public static class RequestModuleExtensions
         RequestModule.Payroll => "Tính lương",
         RequestModule.AccessChange => "Thay đổi quyền truy cập",
         RequestModule.Endpoint => "Quản lý thiết bị đầu cuối",
+        RequestModule.LateEarly => "Đi muộn / Về sớm",
         _ => throw new ArgumentOutOfRangeException(nameof(module), module, "RequestModule chưa được định nghĩa")
     };
 
@@ -27,6 +35,7 @@ public static class RequestModuleExtensions
         RequestModule.Payroll => "PAYROLL",
         RequestModule.AccessChange => "ACCESSCHANGE",
         RequestModule.Endpoint => "ENDPOINT",
+        RequestModule.LateEarly => "LATE_EARLY",
         _ => throw new ArgumentOutOfRangeException(nameof(module), module, "RequestModule chưa được định nghĩa")
     };
 
@@ -51,6 +60,7 @@ public static class RequestModuleExtensions
         RequestModule.Payroll => "/payroll",
         RequestModule.AccessChange => "/access-change",
         RequestModule.Endpoint => "/endpoint",
+        RequestModule.LateEarly => "/late-early/history",
         _ => throw new ArgumentOutOfRangeException(nameof(module), module, "RequestModule chưa được định nghĩa")
     };
 
@@ -78,6 +88,8 @@ public static class RequestModuleExtensions
             "ACCESSCHANGE" => RequestModule.AccessChange,
             "ACCESS_CHANGE" => RequestModule.AccessChange,
             "ENDPOINT" => RequestModule.Endpoint,
+            "LATE_EARLY" => RequestModule.LateEarly,
+            "LATEEARLY" => RequestModule.LateEarly,
             _ => throw new ArgumentException($"RequestModule code không hợp lệ: '{code}'.", nameof(code))
         };
     }

@@ -16,6 +16,7 @@ public sealed class PublicFormService : IPublicFormService
 {
     public Task<ServiceResult<List<PublicFormDto>>> GetManageListAsync(CancellationToken ct=default)=>GuardAsync(()=>GetManageListAsyncCoreAsync(ct));
     public Task<ServiceResult<List<PublicFormDto>>> GetAvailableAsync(string e,int? d,string? p,CancellationToken ct=default)=>GuardAsync(()=>GetAvailableAsyncCoreAsync(e,d,p,ct));
+    public Task<ServiceResult<List<PublicFormNoticeDto>>> GetOpenForAllCompanyAsync(CancellationToken ct=default)=>GuardAsync(()=>GetOpenForAllCompanyAsyncCoreAsync(ct));
     public Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudienceDepartmentsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetAudienceDepartmentsAsyncCoreAsync(ct));
     public Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudiencePositionsAsync(CancellationToken ct=default)=>GuardAsync(()=>GetAudiencePositionsAsyncCoreAsync(ct));
     public Task<ServiceResult<PublicFormAudienceEmployeePageDto>> SearchAudienceEmployeesAsync(string? s,int page,int size,CancellationToken ct=default)=>GuardAsync(()=>SearchAudienceEmployeesAsyncCoreAsync(s,page,size,ct));
@@ -45,6 +46,31 @@ public sealed class PublicFormService : IPublicFormService
             .Include(x => x.Questions).ThenInclude(x => x.Options)
             .Include(x => x.Audiences).AsSplitQuery().OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
         return rows.Select(Map).ToList();
+    }
+
+    private async Task<List<PublicFormNoticeDto>> GetOpenForAllCompanyAsyncCoreAsync(CancellationToken ct = default)
+    {
+        var now = DateTime.Now;
+
+        // Same status/window rules as GetAvailableAsyncCoreAsync, restricted to AllCompany audiences:
+        // an anonymous visitor has no employee/department/position, so targeted forms must never leak here.
+        return await _uow.Repository<F03PublicForm>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true
+                && x.Status == "Published"
+                && (!x.StartAt.HasValue || x.StartAt <= now)
+                && (!x.EndAt.HasValue || x.EndAt >= now)
+                && x.Audiences.Any(a => a.IsActive == true && a.ScopeType == "AllCompany"))
+            .OrderBy(x => x.EndAt == null).ThenBy(x => x.EndAt)
+            .Select(x => new PublicFormNoticeDto
+            {
+                Id = x.Id,
+                Title = x.Title,
+                Description = x.Description,
+                StartAt = x.StartAt,
+                EndAt = x.EndAt
+            })
+            .ToListAsync(ct);
     }
 
     private async Task<List<PublicFormDto>> GetAvailableAsyncCoreAsync(string employeeCode, int? deptCode, string? positionCode, CancellationToken ct = default)

@@ -20,11 +20,12 @@ public sealed class F03ApproverConfiguration : IEntityTypeConfiguration<F03Appro
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // RequestType is persisted as the canonical module code. The converter is
-        // intentionally fail-fast: an unknown DB value must never become Leave.
+        // RequestType is persisted as the enum name (Leave / Overtime / Trip / Equipment),
+        // the same value usp_ReconcileEmployeeApprovers (SQL/31) writes. Reading goes through
+        // ParseCode, which is fail-fast: an unknown DB value must never become Leave.
         entity.Property(e => e.RequestType)
             .HasConversion(
-                v => v.ToCode(),
+                v => v.ToStorageName(),
                 v => RequestModuleExtensions.ParseCode(v))
             .IsRequired()
             .HasMaxLength(20);

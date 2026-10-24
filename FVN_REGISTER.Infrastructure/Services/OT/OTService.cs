@@ -13,6 +13,8 @@ using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Core.Entities;
+using FVN_REGISTER.Core.Entities.Approvers;
+using FVN_REGISTER.Core.Entities.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -85,7 +87,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                     EmployeeCode = user.EmployeeCode ?? "",
                     DeptCode = model.DeptCode,
                     RequestStatus = ApprovalStatus.Draft,
-                    OTDate = model.OTDate,
+                    OTDate = model.OTDate.Date,
+                    // These are non-null SQL datetime columns; never leave them at DateTime.MinValue.
+                    StartTime = model.OTDate.Date.Add(model.StartTime),
+                    EndTime = model.OTDate.Date.Add(model.EndTime <= model.StartTime ? model.EndTime.Add(TimeSpan.FromDays(1)) : model.EndTime),
                     OTTypeCode = model.OTTypeCode,
                     OTReasonSummary = model.OTReasonSummary,
                     TotalOTHours = totalHours,
@@ -102,8 +107,17 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                     {
                         OTRequestId = entity.Id,
                         EmployeeCode = e.EmployeeCode,
+                        DeptCode = e.DeptCode ?? model.DeptCode,
+                        DeptName = e.DeptName,
+                        CvCode = e.CvCode,
+                        OTTypeCode = string.IsNullOrWhiteSpace(e.OTTypeCode) ? model.OTTypeCode : e.OTTypeCode,
+                        StartTime = model.OTDate.Date.Add(e.StartTime),
+                        EndTime = model.OTDate.Date.Add(e.EndTime <= e.StartTime ? e.EndTime.Add(TimeSpan.FromDays(1)) : e.EndTime),
                         OTHours = e.OTHours,
+                        OTRateMultiplier = e.OTRateMultiplier,
+                        OTReasonCategoryCode = e.OTReasonCategoryCode,
                         OTReasonDetail = e.OTReasonDetail,
+                        Note = e.Note,
                         IsActive = true,
                         CreatedAt = DateTime.Now,
                         CreatedBy = user.UserId
@@ -131,11 +145,42 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                         approvalResult.Message ?? "Không thể khởi tạo luồng duyệt cho đơn OT.");
                 }
 
+                // The OT create endpoint submits the request and initializes its approval snapshot
+                // in one transaction. Persist Pending just like Leave; otherwise the inbox engine
+                // sees a valid assigned step but hides the request because its status is still Draft.
+                entity.RequestStatus = ApprovalStatus.Pending;
+                entity.ModifiedAt = DateTime.Now;
+                await Uow.SaveChangesAsync(ct);
+
                 await tx.CommitAsync(ct);
                 Logger.LogInfoIf(Debug, "[{Component}] Created OTId={Id} By={User}", ComponentName, entity.Id, user.EmployeeCode);
                 return ServiceResult<int>.Ok(entity.Id, "Đã tạo đơn tăng ca thành công.");
             }
+            catch (DbUpdateException ex) when (IsRegistrarPolicyViolation(ex))
+            {
+                // Trigger dbo.trg_F03OTEmployees_RegistrarPolicy trả lỗi 51531/51532:
+                // đây là lỗi quyền nghiệp vụ, không phải lỗi hệ thống.
+                Logger.LogWarning(
+                    "[{Component}] OT registrar policy rejected by DB. User={User} Dept={Dept}",
+                    ComponentName, user.EmployeeCode, model.DeptCode);
+                return ServiceResult<int>.Fail(
+                    "Bạn không có quyền đăng ký OT cho nhân viên khác theo policy của phòng ban. Hãy báo cấp quản lý hoặc người được chỉ định.");
+            }
             catch (Exception ex) { return InternalError<int>(ex, "Lỗi hệ thống khi tạo đơn tăng ca."); }
+        }
+
+        private static bool IsRegistrarPolicyViolation(DbUpdateException ex)
+        {
+            for (Exception? current = ex; current != null; current = current.InnerException)
+            {
+                if (current is Microsoft.Data.SqlClient.SqlException sql
+                    && (sql.Number == 51531 || sql.Number == 51532))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public async Task<ServiceResult> JoinAsync(int otRequestId, UserIdentityDto user, CancellationToken ct = default)
@@ -278,6 +323,12 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
 
             foreach (var entity in entities)
             {
+                // Người được gán ở bước đang chờ trong luồng duyệt của CHÍNH đơn này (snapshot) thì được duyệt,
+                // không áp thêm phạm vi dữ liệu theo người đăng ký/phòng ban (khớp ApprovalInboxService:
+                // đơn đã hiện trong hộp duyệt của họ thì phải duyệt được). Người khác vẫn phải qua kiểm tra phạm vi.
+                if (await IsAssignedActionableApproverAsync(entity.Id, user, ct))
+                    continue;
+
                 if (!await _authorization.CanAccessAsync(
                     user,
                     SecurityFunctionCodes.OTApprove,
@@ -290,6 +341,47 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             }
 
             return null;
+        }
+
+        private async Task<bool> IsAssignedActionableApproverAsync(
+            int requestId,
+            UserIdentityDto user,
+            CancellationToken ct)
+        {
+            var code = user.EmployeeCode?.Trim();
+            if (string.IsNullOrWhiteSpace(code))
+                return false;
+
+            var snapshot = await Uow.Repository<F03ApprovalSnapshot>()
+                .Query()
+                .AsNoTracking()
+                .Include(x => x.Steps)
+                .FirstOrDefaultAsync(
+                    x => x.RequestId == requestId && x.RequestType == ModuleKind,
+                    ct);
+
+            if (snapshot == null)
+                return false;
+
+            var histories = await Uow.Repository<F03ApprovalHistory>()
+                .Query()
+                .AsNoTracking()
+                .Where(h => h.RequestId == requestId && h.RequestType == ModuleKind)
+                .ToListAsync(ct);
+
+            var steps = FVN_REGISTER.Application.Maps.ApprovalStepMapper
+                .MapToList(snapshot.Steps, histories);
+
+            return steps.Any(s => s.IsRequired
+                && FVN_REGISTER.Application.Maps.ApprovalStepMapper.IsOpen(s.Decision)
+                && string.Equals(
+                    s.ApproverCode?.Trim(),
+                    code,
+                    StringComparison.OrdinalIgnoreCase)
+                && steps
+                    .Where(p => p.IsRequired && p.Level < s.Level)
+                    .All(p => FVN_REGISTER.Application.Maps.ApprovalStepMapper
+                        .IsDoneForNext(p.Decision)));
         }
 
         protected override void ApplyCancel(F03OTRequest entity, string reason, UserIdentityDto user)

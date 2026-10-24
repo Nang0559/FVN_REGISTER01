@@ -49,6 +49,11 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         _logger.LogInformation("[HRM_ATTENDANCE_WORKER] Khởi động.");
         _health.Started(nameof(HrmAttendanceCalculationWorker));
 
+        // Recover abandoned calculation audit rows before any new calculation starts.
+        // Exact session_id + login_time + connection_id matching prevents SQL SPID reuse from keeping
+        // an old Run alive or incorrectly failing a calculation owned by another API instance.
+        await ReconcileAbandonedRunsAsync(stoppingToken);
+
         // Never wait for the first scheduled run when the application starts.
         // This closes the gap after deployment/restart and guarantees the current
         // payroll period has calculated data before users open the dashboard.
@@ -84,6 +89,9 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                     lastDailyRunDate = now.Date;
                 }
 
+                // Reconcile missing company-wide coverage periodically as well as at startup.
+                // Failed/abandoned catch-up jobs are re-enqueued from the first uncovered open date.
+                await RunCatchUpAsync(stoppingToken);
                 await RunTodayAsync(stoppingToken);
                 await Task.Delay(TimeSpan.FromMinutes(refreshMinutes), stoppingToken);
             }
@@ -113,8 +121,6 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                     "[HRM_ATTENDANCE_WORKER] Bỏ qua catch-up: một lần tính company-wide khác đang chạy.");
                 return;
             }
-
-            await AbandonStaleRunsAsync(ct);
 
             var yesterday = DateTime.Today.AddDays(-1).Date;
             var from = await GetCompanyWideCatchUpStartAsync(yesterday, ct);
@@ -147,7 +153,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             if (guard is null)
             {
                 _logger.LogDebug(
-                    "[HRM_ATTENDANCE_WORKER] Bỏ qua refresh hôm nay: một lần tính company-wide khác đang chạy.");
+                    "[HRM_ATTENDANCE_WORKER] Bỏ qua enqueue refresh hôm nay: một instance scheduler khác đang chuẩn bị job company-wide.");
                 return;
             }
 
@@ -178,11 +184,9 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             if (guard is null)
             {
                 _logger.LogInformation(
-                    "[HRM_ATTENDANCE_WORKER] Bỏ qua lần chạy hằng ngày: một lần tính company-wide khác đang chạy.");
+                    "[HRM_ATTENDANCE_WORKER] Bỏ qua enqueue lần chạy hằng ngày: một instance scheduler khác đang chuẩn bị job company-wide.");
                 return;
             }
-
-            await AbandonStaleRunsAsync(ct);
 
             var yesterday = DateTime.Today.AddDays(-1).Date;
 
@@ -195,7 +199,9 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 yesterday < payrollStart.Value ? payrollStart.Value : yesterday,
                 yesterday,
                 "HRM-ATTENDANCE-WORKER",
-                ct);
+                ct,
+                skipCoveredDates: false,
+                forceNewCalculation: true);
         }
         catch (OperationCanceledException)
         {
@@ -217,28 +223,38 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         DateTime from,
         DateTime to,
         string triggeredBy,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool skipCoveredDates = true,
+        bool forceNewCalculation = false)
     {
-        var total = (to.Date - from.Date).Days + 1;
-        var done = 0;
+        if (from.Date > to.Date)
+            return;
 
-        for (var day = from.Date; day <= to.Date; day = day.AddDays(1))
+        // Persist each bounded range before returning. The dedicated job worker owns SQL execution,
+        // per-day progress, cancellation and recovery; this scheduler never holds a long SQL call.
+        for (var cursor = from.Date; cursor <= to.Date;)
         {
             ct.ThrowIfCancellationRequested();
+            var chunkTo = cursor.AddDays(92) < to.Date ? cursor.AddDays(92) : to.Date;
+            var queued = await EnqueueCompanyWideAsync(
+                cursor,
+                chunkTo,
+                triggeredBy,
+                reopenPayrollPeriod: true,
+                skipCoveredDates: skipCoveredDates,
+                ct: ct,
+                forceNewCalculation: forceNewCalculation);
 
-            var ok = await CalculateCompanyWideAsync(day, day, triggeredBy, ct);
-            if (!ok)
+            if (!queued)
             {
                 _logger.LogWarning(
-                    "[HRM_ATTENDANCE_WORKER] Dừng tại {Day}: đã xong {Done}/{Total} ngày. Lần sau sẽ tiếp tục từ ngày này.",
-                    day.ToString("dd/MM/yyyy"), done, total);
+                    "[HRM_ATTENDANCE_WORKER] Không thể đưa range {From} -> {To} vào job queue; lần catch-up sau sẽ kiểm tra lại.",
+                    cursor.ToString("dd/MM/yyyy"),
+                    chunkTo.ToString("dd/MM/yyyy"));
                 return;
             }
 
-            done++;
-            _logger.LogInformation(
-                "[HRM_ATTENDANCE_WORKER] Tiến độ {Done}/{Total} ngày (vừa xong {Day}).",
-                done, total, day.ToString("dd/MM/yyyy"));
+            cursor = chunkTo.AddDays(1);
         }
     }
 
@@ -249,51 +265,67 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         CancellationToken ct,
         bool reopenPayrollPeriod = true)
     {
+        return await EnqueueCompanyWideAsync(
+            from.Date,
+            to.Date,
+            triggeredBy,
+            reopenPayrollPeriod,
+            skipCoveredDates: false,
+            ct: ct);
+    }
+
+    private async Task<bool> EnqueueCompanyWideAsync(
+        DateTime from,
+        DateTime to,
+        string triggeredBy,
+        bool reopenPayrollPeriod,
+        bool skipCoveredDates,
+        CancellationToken ct,
+        bool forceNewCalculation = false)
+    {
         try
         {
             await using var scope = _serviceProvider.CreateAsyncScope();
-            var calculation = scope.ServiceProvider.GetRequiredService<IHrmAttendanceCalculationService>();
-
-            var result = await calculation.CalculateAsync(
-                new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
+            var jobs = scope.ServiceProvider.GetRequiredService<IHrmAttendanceCalculationJobService>();
+            var result = await jobs.EnqueueAsync(
+                new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationJobCommandDto
                 {
                     // NULL = all active HRM employees/company-wide.
                     DeptCode = null,
                     EmployeeCode = null,
-                    FromDate = from,
-                    ToDate = to,
+                    FromDate = from.Date,
+                    ToDate = to.Date,
                     ReopenPayrollPeriod = reopenPayrollPeriod
                 },
                 triggeredBy,
-                ct);
+                ct,
+                skipCoveredDates,
+                priority: 2,
+                forceNewCalculation: forceNewCalculation);
 
             if (result.IsSuccess && result.Data is not null)
             {
                 _health.Success(nameof(HrmAttendanceCalculationWorker));
                 _logger.LogInformation(
-                    "[HRM_ATTENDANCE_WORKER] Calculation OK {From} -> {To}: {Employees} nhân viên / {Rows} dòng. Batch={BatchId}",
+                    "[HRM_ATTENDANCE_WORKER] Job {JobId} đã được đưa vào hàng đợi: {From} -> {To}, SkipCoveredDates={SkipCoveredDates}",
+                    result.Data.JobId,
                     from.ToString("dd/MM/yyyy"),
                     to.ToString("dd/MM/yyyy"),
-                    result.Data.EmployeeCount,
-                    result.Data.CalculatedRows,
-                    result.Data.CalculationBatchId);
+                    skipCoveredDates);
                 return true;
             }
 
-            _health.Failure(
-                nameof(HrmAttendanceCalculationWorker),
-                new InvalidOperationException(result.Message ?? "Attendance calculation failed."));
-            _logger.LogWarning(
-                "[HRM_ATTENDANCE_WORKER] Calculation failed {From} -> {To}: {Message}",
+            _logger.LogInformation(
+                "[HRM_ATTENDANCE_WORKER] Bỏ qua/enqueue chưa thành công {From} -> {To}: {Message}",
                 from.ToString("dd/MM/yyyy"),
                 to.ToString("dd/MM/yyyy"),
                 result.Message ?? "Unknown error");
             return false;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             _logger.LogWarning(
-                "[HRM_ATTENDANCE_WORKER] Calculation bị hủy {From} -> {To}.",
+                "[HRM_ATTENDANCE_WORKER] Enqueue job bị hủy {From} -> {To}.",
                 from.ToString("dd/MM/yyyy"),
                 to.ToString("dd/MM/yyyy"));
             return false;
@@ -303,7 +335,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             _health.Failure(nameof(HrmAttendanceCalculationWorker), ex);
             _logger.LogError(
                 ex,
-                "[HRM_ATTENDANCE_WORKER] Lỗi khi tính {From} -> {To}.",
+                "[HRM_ATTENDANCE_WORKER] Lỗi khi enqueue job {From} -> {To}.",
                 from.ToString("dd/MM/yyyy"),
                 to.ToString("dd/MM/yyyy"));
             return false;
@@ -311,12 +343,13 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     }
 
     /// <summary>
-    /// Marks company-wide worker Run rows that are still 'Running' after BackgroundWorkers:StaleMinutes
-    /// as Failed. Only called while this process holds the company-run guard, so no live worker
-    /// calculation can own those rows (the process that did was restarted or killed and the proc's
-    /// CATCH block never ran). Manual / calendar runs are never touched.
+    /// Reconciles stale Running rows for ALL calculation sources (worker, manual and calendar backfill).
+    /// A tracked Run is failed only when its exact SQL session (SPID + login_time) no longer exists.
+    /// Legacy rows created before session tracking are failed only when no attendance calculation
+    /// request and no attendance application lock exists anywhere on this SQL Server.
+    /// If DMV permissions are missing, the method fails closed and leaves every Run untouched.
     /// </summary>
-    private async Task AbandonStaleRunsAsync(CancellationToken ct)
+    private async Task ReconcileAbandonedRunsAsync(CancellationToken ct)
     {
         var staleMinutes = Math.Clamp(
             _configuration.GetValue<int?>("BackgroundWorkers:StaleMinutes") ?? 15,
@@ -326,28 +359,91 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         await using var scope = _serviceProvider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
 
-        var affected = await db.Database.ExecuteSqlAsync($"""
-            UPDATE dbo.F03HrmAttendanceCalculationRun
-            SET Status=N'Failed',
-                FinishedAt=GETDATE(),
-                ErrorMessage=N'Abandoned: tiến trình đã dừng trước khi hoàn tất (quá hạn StaleMinutes).'
-            WHERE Status=N'Running'
-              AND DeptCode IS NULL
-              AND EmployeeCode IS NULL
-              AND TriggeredBy LIKE N'HRM-ATTENDANCE-WORKER%'
-              AND StartedAt < DATEADD(minute, {-staleMinutes}, GETDATE())
-        """, ct);
+        try
+        {
+            var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
+                DECLARE @HasActiveAttendanceCalculation bit = 0;
 
-        if (affected > 0)
-            _logger.LogWarning(
-                "[HRM_ATTENDANCE_WORKER] Đã đóng {Count} dòng Run 'Running' quá {Minutes} phút (process cũ đã dừng).",
-                affected, staleMinutes);
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM sys.dm_exec_requests AS r
+                    CROSS APPLY sys.dm_exec_input_buffer(r.session_id,r.request_id) AS ib
+                    WHERE r.session_id <> @@SPID
+                      AND ib.event_info LIKE N'%usp_CalculateHrmAttendance%'
+                )
+                OR EXISTS
+                (
+                    SELECT 1
+                    FROM sys.dm_tran_locks AS l
+                    WHERE l.resource_type=N'APPLICATION'
+                      AND l.resource_description LIKE N'%FVN_REGISTER:ATTENDANCE:DATE:%'
+                )
+                    SET @HasActiveAttendanceCalculation = 1;
+
+                UPDATE run
+                SET Status=N'Failed',
+                    FinishedAt=GETDATE(),
+                    ErrorMessage=N'Abandoned: SQL session của lần tính đã kết thúc trước khi Run hoàn tất.'
+                FROM dbo.F03HrmAttendanceCalculationRun AS run
+                WHERE run.Status=N'Running'
+                  AND
+                  (
+                      (
+                          run.SqlSessionId IS NOT NULL
+                          AND run.SqlSessionLoginTime IS NOT NULL
+                          AND run.SqlConnectionId IS NOT NULL
+                          AND NOT EXISTS
+                          (
+                              SELECT 1
+                              FROM sys.dm_exec_sessions AS sessionInfo
+                              INNER JOIN sys.dm_exec_connections AS connectionInfo
+                                ON connectionInfo.session_id=sessionInfo.session_id
+                              WHERE sessionInfo.session_id=run.SqlSessionId
+                                AND CONVERT(datetime2(3),sessionInfo.login_time)=run.SqlSessionLoginTime
+                                AND connectionInfo.connection_id=run.SqlConnectionId
+                          )
+                      )
+                      OR
+                      (
+                          (run.SqlSessionId IS NULL OR run.SqlSessionLoginTime IS NULL OR run.SqlConnectionId IS NULL)
+                          AND run.StartedAt < DATEADD(minute,{-staleMinutes},GETDATE())
+                          AND @HasActiveAttendanceCalculation=0
+                      )
+                  );
+                """, ct);
+
+            if (affected > 0)
+                _logger.LogWarning(
+                    "[HRM_ATTENDANCE_WORKER] Đã phục hồi {Count} Run 'Running' bị bỏ dở sau khi xác nhận session SQL không còn tồn tại (ngưỡng legacy {Minutes} phút).",
+                    affected, staleMinutes);
+
+            var unresolvedLegacy = await db.Database.SqlQuery<int>($"""
+                SELECT COUNT(*) AS Value
+                FROM dbo.F03HrmAttendanceCalculationRun
+                WHERE Status=N'Running'
+                  AND (SqlSessionId IS NULL OR SqlSessionLoginTime IS NULL OR SqlConnectionId IS NULL)
+                """).SingleAsync(ct);
+
+            if (unresolvedLegacy > 0)
+                _logger.LogWarning(
+                    "[HRM_ATTENDANCE_WORKER] Còn {Count} Run chưa có đủ SQL session metadata; không tự động đổi trạng thái vì SQL vẫn có thể đang giữ khóa attendance.",
+                    unresolvedLegacy);
+        }
+        catch (Exception ex)
+        {
+            // DMV access requires VIEW SERVER STATE (or the SQL Server-version equivalent).
+            // Fail closed: never mark rows Failed when the session state cannot be verified.
+            _logger.LogError(
+                ex,
+                "[HRM_ATTENDANCE_WORKER] Không thể đối chiếu SQL sessions; giữ nguyên tất cả Run 'Running'. Kiểm tra quyền VIEW SERVER STATE của tài khoản kết nối FVN.");
+        }
     }
 
     /// <summary>
-    /// Takes a session-scoped SQL applock on a dedicated, non-pooled connection that stays open for the
-    /// whole company-wide run. Returns null when another run (this or another API instance) holds it.
-    /// If this process dies, SQL Server drops the session and the lock goes with it.
+    /// Takes a session-scoped SQL applock on a dedicated, non-pooled connection for the scheduler's enqueue/reconciliation pass.
+    /// It prevents multiple API instances from scheduling the same company-wide range simultaneously; actual SQL execution
+    /// and recovery are owned by HrmAttendanceCalculationJobWorker. If this process dies, SQL Server drops the lock.
     /// </summary>
     private async Task<CompanyRunGuard?> TryAcquireCompanyRunGuardAsync(CancellationToken ct)
     {
@@ -425,19 +521,64 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         await using var scope = _serviceProvider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
 
-        var last = await db.Database.SqlQuery<DateTime?>($"""
-            SELECT MAX(CONVERT(datetime2, r.ToDate)) AS Value
+        // Today's refresh is intentionally independent and must not move the catch-up cursor
+        // past an uncovered day in the current payroll period.
+        var periodStart = await GetPayrollPeriodStartAsync(yesterday, ct);
+        if (!periodStart.HasValue || periodStart.Value.Date > yesterday.Date)
+            return null;
+
+        var from = DateOnly.FromDateTime(periodStart.Value.Date);
+        var to = DateOnly.FromDateTime(yesterday.Date);
+        var ranges = await db.Database.SqlQuery<CoverageRun>($"""
+            SELECT r.FromDate, r.ToDate
             FROM dbo.F03HrmAttendanceCalculationRun AS r
             WHERE r.Status=N'Succeeded'
               AND r.DeptCode IS NULL
               AND r.EmployeeCode IS NULL
-        """).SingleOrDefaultAsync(ct);
+              AND r.FromDate<={to}
+              AND r.ToDate>={from}
+            ORDER BY r.FromDate
+            """).ToListAsync(ct);
 
-        if (last.HasValue)
-            return last.Value.Date.AddDays(1);
+        var covered = new HashSet<DateOnly>();
+        foreach (var range in ranges)
+        {
+            var first = range.FromDate < from ? from : range.FromDate;
+            var last = range.ToDate > to ? to : range.ToDate;
+            for (var date = first; date <= last; date = date.AddDays(1))
+                covered.Add(date);
+        }
 
-        return await GetPayrollPeriodStartAsync(yesterday, ct);
+        var candidate = from;
+        while (candidate <= to)
+        {
+            if (covered.Contains(candidate))
+            {
+                candidate = candidate.AddDays(1);
+                continue;
+            }
+
+            var period = await db.PayrollCalculationPeriods.AsNoTracking()
+                .Where(x => x.IsActive != false
+                    && x.FromDate <= candidate
+                    && x.ToDate >= candidate)
+                .OrderByDescending(x => x.Id)
+                .Select(x => new { x.ToDate, x.Status })
+                .FirstOrDefaultAsync(ct);
+
+            if (period is not null && (period.Status == "Locked" || period.Status == "Exported"))
+            {
+                candidate = period.ToDate.AddDays(1);
+                continue;
+            }
+
+            return candidate.ToDateTime(TimeOnly.MinValue);
+        }
+
+        return null;
     }
+
+    private sealed record CoverageRun(DateOnly FromDate, DateOnly ToDate);
 
     private async Task<DateTime?> GetPayrollPeriodStartAsync(DateTime date, CancellationToken ct)
     {

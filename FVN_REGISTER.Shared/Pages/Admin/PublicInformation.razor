@@ -1,12 +1,16 @@
 @page "/admin/public-information"
 @attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Dtos.PublicInformation
 @using FVN_REGISTER.Contract.Requests.PublicInformation
 @using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
 @inherits AppComponentBase
 @inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>@Language.T("public.quanLyNoiDungCong")</PageTitle>
 
@@ -36,6 +40,20 @@
         <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_from" Label="@Language.T("public.hieuLucTu")" Variant="Variant.Outlined" /></MudItem>
         <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_to" Label="@Language.T("public.hieuLucDen")" Variant="Variant.Outlined" /></MudItem>
         <MudItem xs="12"><MudSwitch T="bool" @bind-Value="_form.IsImportant">@Language.T("public.danhDauQuanTrong")</MudSwitch></MudItem>
+        <MudItem xs="12">
+            <MudText Typo="Typo.subtitle2">@Language.T("public.dinhKem")</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("public.chonFileDinhKem")</MudText>
+            <InputFile OnChange="OnFilesSelected" multiple accept="@AcceptedFiles" />
+            @if (_pending.Count > 0)
+            {
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-2">
+                    @foreach (var f in _pending.ToList())
+                    {
+                        <MudChip T="string" Size="Size.Small" OnClose="@(() => { _pending.Remove(f); })">@f.Name</MudChip>
+                    }
+                </MudStack>
+            }
+        </MudItem>
     </MudGrid>
     <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
         <MudButton Variant="Variant.Text" OnClick="New">@Language.T("common.cancel")</MudButton>
@@ -47,12 +65,32 @@
 else
 {
     <MudTable Items="_items" Dense="true" Hover="true">
-        <HeaderContent><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("common.tieuDe")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("public.hieuLuc")</MudTh><MudTh /></HeaderContent>
+        <HeaderContent><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("common.tieuDe")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh>@Language.T("public.hieuLuc")</MudTh><MudTh>@Language.T("public.dinhKem")</MudTh><MudTh /></HeaderContent>
         <RowTemplate>
             <MudTd>@TypeName(context.Type)</MudTd>
             <MudTd><b>@context.Title</b><MudText Typo="Typo.body2">@context.Summary</MudText></MudTd>
             <MudTd><MudChip T="string" Size="Size.Small">@context.Status</MudChip></MudTd>
             <MudTd>@context.PublishedAt?.ToString("dd/MM/yyyy HH:mm")</MudTd>
+            @{ var rowId = context.Id; var isDraft = context.Status == "Draft"; }
+            <MudTd>
+                <MudStack Spacing="0">
+                    @foreach (var file in context.Attachments)
+                    {
+                        var attachment = file;
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
+                            <MudLink Typo="Typo.body2" OnClick="@(() => DownloadAsync(rowId, attachment))">@attachment.FileName</MudLink>
+                            @if (isDraft)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveAttachmentAsync(rowId, attachment.FileId))" />
+                            }
+                        </MudStack>
+                    }
+                    @if (isDraft)
+                    {
+                        <InputFile OnChange="@(async (InputFileChangeEventArgs e) => await AddFilesToAsync(rowId, e))" multiple accept="@AcceptedFiles" />
+                    }
+                </MudStack>
+            </MudTd>
             <MudTd>
                 @if (context.Status == "Draft")
                 { <MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => PublishAsync(context.Id))">Publish</MudButton> }
@@ -69,6 +107,9 @@ else
     private DateTime? _from = DateTime.Today;
     private DateTime? _to;
     private bool _loading;
+    private const string AcceptedFiles = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx";
+    private const long MaxFileBytes = 10 * 1024 * 1024;
+    private readonly List<IBrowserFile> _pending = new();
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
     private async Task LoadAsync()
@@ -78,13 +119,58 @@ else
         if(r.IsSuccess) _items=r.Data??new(); else Snackbar.Add(r.Message??Language.T("public.khongTaiDuocNoiDung"),Severity.Error);
         _loading=false;
     }
-    private void New(){_form=new();_from=DateTime.Today;_to=null;}
+    private void New(){_form=new();_from=DateTime.Today;_to=null;_pending.Clear();}
     private async Task SaveAsync()
     {
         _form.EffectiveFrom=_from;_form.EffectiveTo=_to;
         var r=await Http.PostAsync<PublicInformationDto>("api/public-information",_form);
         if(!r.IsSuccess){Snackbar.Add(r.Message??Language.T("public.khongLuuDuoc"),Severity.Error);return;}
-        Snackbar.Add(Language.T("public.daLuuNoiDungNhap"),Severity.Success);New();await LoadAsync();
+
+        // Signed / stamped documents are uploaded to the Draft that was just created.
+        var failed = 0;
+        if (r.Data != null) foreach (var file in _pending.ToList()) if (!await UploadAsync(r.Data.Id, file)) failed++;
+        _pending.Clear();
+
+        Snackbar.Add(Language.T("public.daLuuNoiDungNhap"),failed==0?Severity.Success:Severity.Warning);New();await LoadAsync();
+    }
+
+    private void OnFilesSelected(InputFileChangeEventArgs e) => _pending.AddRange(e.GetMultipleFiles(20));
+
+    private async Task AddFilesToAsync(int id, InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles(20)) await UploadAsync(id, file);
+        await LoadAsync();
+    }
+
+    private async Task<bool> UploadAsync(int id, IBrowserFile file)
+    {
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxFileBytes);
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+            var r = await Http.PostMultipartAsync<AttachmentDto>($"api/public-information/{id}/attachments", content);
+            if (r.IsSuccess) return true;
+            Snackbar.Add($"{file.Name}: {r.Message ?? Language.T("public.taiFileThatBai")}", Severity.Error);
+        }
+        catch (IOException ex) { Snackbar.Add($"{file.Name}: {ex.Message}", Severity.Error); }
+        return false;
+    }
+
+    private async Task RemoveAttachmentAsync(int id, int attachmentId)
+    {
+        var r = await Http.DeleteAsync<object>($"api/public-information/{id}/attachments/{attachmentId}");
+        if (!r.IsSuccess) Snackbar.Add(r.Message ?? Language.T("public.taiFileThatBai"), Severity.Error);
+        await LoadAsync();
+    }
+
+    private async Task DownloadAsync(int id, AttachmentDto file)
+    {
+        var r = await Http.GetFileAsync($"api/public-information/{id}/attachments/{file.FileId}");
+        if (!r.IsSuccess || r.Data == null) { Snackbar.Add(r.Message ?? Language.T("public.taiFileThatBai"), Severity.Error); return; }
+        await JS.InvokeVoidAsync("fvnFileDownload.downloadBase64", file.FileName, "application/octet-stream", Convert.ToBase64String(r.Data));
     }
     private async Task PublishAsync(int id){var r=await Http.PostAsync<object>($"api/public-information/{id}/publish",new { });if(r.IsSuccess){Snackbar.Add(Language.T("public.daPublish"),Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??Language.T("public.publishThatBai"),Severity.Error);}
     private async Task ArchiveAsync(int id){var r=await Http.PostAsync<object>($"api/public-information/{id}/archive",new { });if(r.IsSuccess){Snackbar.Add(Language.T("public.daArchive"),Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??Language.T("public.archiveThatBai"),Severity.Error);}

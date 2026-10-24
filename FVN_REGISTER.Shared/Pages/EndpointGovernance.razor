@@ -2,6 +2,10 @@
 @using FVN_REGISTER.Contract.Dtos.Security
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Core.Excel
+@using System.Net.Http.Json
+@inject FVN_REGISTER.Shared.Handlers.IHttpClientWithAuth ExcelHttp
+
 @using FVN_REGISTER.Shared.Services.Security
 @using Microsoft.AspNetCore.Components.Forms
 @inject IEndpointGovernanceClientService Governance
@@ -16,15 +20,130 @@
 <MudTabs Rounded="true" Elevation="1">
 <MudTabPanel Text="@Language.T("endpoint.catalog2")" Icon="@Icons.Material.Filled.LibraryBooks"><MudStack Spacing="3" Class="pa-3">
 <MudPaper Class="pa-4"><MudText Typo="Typo.h6">@Language.T("endpoint.taoDraftCatalog")</MudText><MudGrid Class="mt-2">
-<MudItem xs="12" sm="3"><MudSelect T="EndpointGovernanceItemType" Label="@Language.T("endpoint.loaiCatalog")" @bind-Value="_editorType"><MudSelectItem Value="@EndpointGovernanceItemType.Software">@Language.T("endpoint.software2")</MudSelectItem><MudSelectItem Value="@EndpointGovernanceItemType.WindowsService">@Language.T("endpoint.windowsService")</MudSelectItem></MudSelect></MudItem>
+<MudItem xs="12" sm="3"><MudSelect T="EndpointGovernanceItemType" Label="@Language.T("endpoint.loaiCatalog")" Value="_editorType" ValueChanged="OnEditorTypeChanged"><MudSelectItem Value="@EndpointGovernanceItemType.Software">@Language.T("endpoint.software2")</MudSelectItem><MudSelectItem Value="@EndpointGovernanceItemType.WindowsService">@Language.T("endpoint.windowsService")</MudSelectItem></MudSelect></MudItem>
 <MudItem xs="12" sm="3"><MudTextField Label="@Language.T("endpoint.policyCode")" @bind-Value="_policyCode"/></MudItem><MudItem xs="12" sm="3"><MudTextField Label="@Language.T("endpoint.policyName")" @bind-Value="_policyName"/></MudItem><MudItem xs="12" sm="3"><MudSelect T="EndpointTargetType" Label="@Language.T("endpoint.target")" @bind-Value="_targetType">@foreach(var value in Enum.GetValues<EndpointTargetType>()){<MudSelectItem Value="@value">@value</MudSelectItem>}</MudSelect></MudItem></MudGrid>
 <MudDivider Class="my-3"/><MudText Typo="Typo.subtitle2">@Language.T("endpoint.nhapThuCong")</MudText><MudGrid Class="mt-1">
 <MudItem xs="12" sm="3"><MudTextField Label='@Language.T("common.name")' @bind-Value="_newName"/></MudItem><MudItem xs="12" sm="3"><MudTextField Label="@Language.T("endpoint.publisher")" @bind-Value="_newPublisher"/></MudItem><MudItem xs="12" sm="3"><MudTextField Label="@Language.T("endpoint.versionConstraint")" Placeholder="*, =1.2.3, >=140.0" @bind-Value="_newVersionConstraint"/></MudItem><MudItem xs="12" sm="2"><MudSwitch Color="Color.Primary" @bind-Value="_newAllowed">@Language.T("endpoint.allowed")</MudSwitch></MudItem><MudItem xs="12" sm="1"><MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Disabled="!CanManage" OnClick="AddManualItem"/></MudItem></MudGrid>
 <MudTable Items="_items" Dense="true" Hover="true" Class="mt-3"><HeaderContent><MudTh>@Language.T("common.name")</MudTh><MudTh>@Language.T("endpoint.publisher")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("endpoint.allowed")</MudTh><MudTh/></HeaderContent><RowTemplate><MudTd>@context.Name</MudTd><MudTd>@context.Publisher</MudTd><MudTd>@context.VersionConstraint</MudTd><MudTd>@(context.IsAllowed?Language.T("common.yes"):Language.T("common.no"))</MudTd><MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="!CanManage" OnClick="@(()=>_items.Remove(context))"/></MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-3">@Language.T("endpoint.chuaCoItem")</MudText></NoRecordsContent></MudTable>
 <MudPaper Class="pa-3 mt-3" Outlined="true"><MudText Typo="Typo.subtitle2">@Language.T("endpoint.checklistTruocKhiDuaCatalog")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("endpoint.checklistDuocLuuCungCatalog")</MudText><MudCheckBox T="bool" @bind-Value="_checkIdentity">@Language.T("endpoint.tenDinhDanhItemDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkPublisher">@Language.T("endpoint.publisherNguonPhatHanhDa")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkVersion">@Language.T("endpoint.versionRangeDuocXacDinh")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkScope">@Language.T("endpoint.targetWorkstationServerDaDuoc")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkEvidence">@Language.T("endpoint.nguonEvidenceVaLyDo")</MudCheckBox><MudCheckBox T="bool" @bind-Value="_checkOwner">@Language.T("endpoint.daXacDinhNguoiBo")</MudCheckBox></MudPaper>
-<MudStack Row="true" Spacing="2" Class="mt-3"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!CanManage || _items.Count==0 || !ChecklistCompleted" OnClick="SaveDraftAsync">@Language.T("endpoint.luuDraftVersion")</MudButton><InputFile OnChange="OnFileSelected" accept=".xlsx,.xls"/><MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null" OnClick="PreviewExcelAsync">@Language.T("endpoint.previewExcel")</MudButton><MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !ChecklistCompleted" OnClick="ImportExcelAsync">@Language.T("endpoint.importExcelDraft")</MudButton></MudStack></MudPaper>
-@if(_preview is not null){<MudAlert Severity="@(_preview.Errors.Count==0?Severity.Success:Severity.Warning)">@Language.T("endpoint.previewDongLoi", _preview.FileName, _preview.RowCount, _preview.Errors.Count)</MudAlert>}
-<MudPaper Class="pa-4"><MudText Typo="Typo.h6">@Language.T("endpoint.catalogVersions")</MudText><MudTable Items="_policies" Dense="true" Hover="true" Striped="true" Class="mt-2"><HeaderContent><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("endpoint.name")</MudTh><MudTh>@Language.T("endpoint.type")</MudTh><MudTh>@Language.T("endpoint.target")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("common.checklist")</MudTh><MudTh>@Language.T("endpoint.workflow")</MudTh><MudTh>@Language.T("common.publish")</MudTh><MudTh>@Language.T("common.action2")</MudTh></HeaderContent><RowTemplate><MudTd>@context.PolicyCode</MudTd><MudTd>@context.PolicyName</MudTd><MudTd>@context.ItemType</MudTd><MudTd>@context.TargetType</MudTd><MudTd>v@context.Version</MudTd><MudTd>@(context.ChecklistCompleted?"OK":Language.T("endpoint.thieu"))</MudTd><MudTd>@context.WorkflowStatus</MudTd><MudTd>@(context.IsPublished?"Published":"Draft")</MudTd><MudTd>@if(!context.IsPublished&&CanSubmit(context.ItemType)&&(context.WorkflowStatus=="Draft"||context.WorkflowStatus=="Rejected")){<MudButton Size="Size.Small" Disabled="!context.ChecklistCompleted" OnClick="@(()=>SubmitAsync(context))">Submit</MudButton>}@if(!context.IsPublished&&CanPublish(context.ItemType)&&context.WorkflowStatus=="Approved"){<MudButton Size="Size.Small" Color="Color.Success" Disabled="!context.ChecklistCompleted" OnClick="@(()=>PublishAsync(context))">Publish</MudButton>}</MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-3">@Language.T("endpoint.chuaCoCatalog")</MudText></NoRecordsContent></MudTable></MudPaper>
+</MudPaper>
+<MudPaper Outlined="true" Class="pa-3">
+<MudText Typo="Typo.subtitle1">Tạo schema từ file Excel (dùng chung Excel Platform)</MudText>
+<MudText Typo="Typo.caption" Color="Color.Secondary">Chọn file mẫu, sheet và dòng tiêu đề; ánh xạ từng cột sang trường Catalog. Schema được tạo ở trạng thái Draft. Hãy kiểm tra cấu hình và kích hoạt riêng trước khi dùng cho preview/import.</MudText>
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2" Wrap="Wrap.Wrap">
+<InputFile OnChange="OnSchemaFileSelected" accept=".xlsx,.xls" />
+<MudTextField T="string" Label="Tên schema" @bind-Value="_newSchemaName" Margin="Margin.Dense" Style="min-width:240px" />
+<MudButton Variant="Variant.Outlined" Disabled="@(_schemaFile is null || _inspectingSchema)" OnClick="InspectSchemaFileAsync">@(_inspectingSchema ? "Đang đọc..." : "Đọc cấu trúc file")</MudButton>
+</MudStack>
+@if (_schemaInspection is not null)
+{
+<MudGrid Class="mt-2" Spacing="2">
+<MudItem xs="12" sm="4"><MudSelect T="int" Label="Sheet" Value="_schemaSheetIndex" ValueChanged="OnSchemaSheetChanged" Dense="true">@foreach(var sheet in _schemaInspection.Sheets){<MudSelectItem Value="@sheet.Index">@sheet.Name</MudSelectItem>}</MudSelect></MudItem>
+<MudItem xs="12" sm="8"><MudSelect T="int" Label="Dòng tiêu đề" Value="_schemaHeaderRow" ValueChanged="OnSchemaHeaderChanged" Dense="true">@foreach(var candidate in CurrentHeaderCandidates){<MudSelectItem Value="@candidate.RowIndex">Dòng @(candidate.RowIndex+1): @string.Join(" | ", candidate.Values.Take(6).Select(v=>v??""))</MudSelectItem>}</MudSelect></MudItem>
+</MudGrid>
+@if (_schemaColumnMappings.Count > 0)
+{
+<MudText Typo="Typo.subtitle2" Class="mt-3">Ánh xạ cột → trường Endpoint</MudText>
+<MudTable Items="_schemaColumnMappings" Dense="true" Hover="true">
+<HeaderContent><MudTh>Cột Excel</MudTh><MudTh>Trường đích</MudTh><MudTh>Bắt buộc</MudTh></HeaderContent>
+<RowTemplate>
+<MudTd>@context.Header</MudTd>
+<MudTd><MudSelect T="string" @bind-Value="context.TargetProperty" Dense="true" Clearable="true" Placeholder="Bỏ qua cột">@foreach(var target in EndpointSchemaTargets){<MudSelectItem Value="@target.Code">@target.Label</MudSelectItem>}</MudSelect></MudTd>
+<MudTd>@(context.TargetProperty=="Name" ? "Có" : context.TargetProperty is null ? "—" : "Không")</MudTd>
+</RowTemplate>
+</MudTable>
+<MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanCreateSchema)" OnClick="CreateEndpointSchemaAsync">@(_editingSchemaId.HasValue ? "Lưu thay đổi Draft" : "Tạo Draft schema")</MudButton>
+<MudText Typo="Typo.caption" Color="Color.Secondary">Bắt buộc ánh xạ đúng một cột Name; không được ánh xạ trùng trường đích.</MudText>
+</MudStack>
+}
+}
+</MudPaper>
+<MudPaper Outlined="true" Class="pa-3 mt-3">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle2">Quản lý schema dùng chung</MudText>
+        <MudTable Items="_schemas" Dense="true" Hover="true">
+            <HeaderContent><MudTh>Tên schema</MudTh><MudTh>Module / Entity</MudTh><MudTh>Phiên bản</MudTh><MudTh>Trạng thái</MudTh><MudTh>File nguồn</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.SchemaName</MudTd><MudTd>@context.ModuleCode / @context.EntityCode</MudTd><MudTd>v@context.Version</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.SourceFileName</MudTd>
+                <MudTd><MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                    @if(context.Status==ExcelSchemaStatus.Draft){<MudButton Size="Size.Small" OnClick="@(()=>ActivateSchemaAsync(context.Id))">Kích hoạt</MudButton><MudButton Size="Size.Small" Color="Color.Error" OnClick="@(()=>DeleteSchemaAsync(context.Id))">Xóa Draft</MudButton><MudButton Size="Size.Small" OnClick="@(()=>EditDraftSchemaAsync(context.Id))">Sửa cấu hình</MudButton>}
+                    @if(context.Status==ExcelSchemaStatus.Active){<MudButton Size="Size.Small" OnClick="@(()=>CreateSchemaVersionAsync(context.Id))">Tạo phiên bản</MudButton><MudButton Size="Size.Small" Color="Color.Warning" OnClick="@(()=>RetireSchemaAsync(context.Id))">Ngừng sử dụng</MudButton>}
+                    @if(context.Status!=ExcelSchemaStatus.Deleted){<MudButton Size="Size.Small" OnClick="@(()=>CloneSchemaAsync(context.Id))">Nhân bản</MudButton>}
+                </MudStack></MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText Class="pa-3">Chưa có schema cho module/entity này.</MudText></NoRecordsContent>
+        </MudTable>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Endpoint chỉ hiển thị ENDPOINT và loại Catalog đang chọn; schema mới luôn là Draft, không tự kích hoạt.</MudText>
+        <MudStack Spacing="2" Class="mt-3">
+            <MudText Typo="Typo.subtitle2">Excel Schema dùng chung</MudText>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudSelect T="int?" Label="Schema đang hoạt động" @bind-Value="_schemaId" Margin="Margin.Dense" Clearable="true" Disabled="!CanManage" Style="min-width:300px">
+                    @foreach(var schema in _schemas.Where(x=>x.Status==ExcelSchemaStatus.Active)){<MudSelectItem T="int?" Value="@((int?)schema.Id)">@schema.SchemaName v@schema.Version</MudSelectItem>}
+                </MudSelect>
+                <MudButton Variant="Variant.Outlined" OnClick="LoadSchemasAsync">Tải schema</MudButton><InputFile OnChange="OnFileSelected" accept=".xlsx,.xls,.xlsm"/>
+            </MudStack>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Schema thuộc module ENDPOINT và đúng loại Catalog; ánh xạ TargetProperty: Name (bắt buộc), Publisher, VersionConstraint, IsAllowed, Remark.</MudText>
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue" OnClick="PreviewExcelAsync">@Language.T("endpoint.previewExcel")</MudButton>
+                <MudButton Variant="Variant.Outlined" Disabled="!CanManage || _file is null || !_schemaId.HasValue || !ChecklistCompleted || (_preview is not null && _preview.Errors.Count > 0)" OnClick="ImportExcelAsync">@Language.T("endpoint.importExcelDraft")</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!CanManage || _items.Count==0 || !ChecklistCompleted" OnClick="SaveDraftAsync">@Language.T("endpoint.luuDraftVersion")</MudButton>
+            </MudStack>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+@if(_preview is not null)
+{
+    <MudAlert Severity="@(_preview.Errors.Count==0?Severity.Success:Severity.Warning)">
+        @Language.T("endpoint.previewDongLoi", _preview.FileName, _preview.RowCount, _preview.Errors.Count)
+    </MudAlert>
+    @if(_preview.Errors.Count > 0)
+    {
+        <MudPaper Outlined="true" Class="pa-3 mt-2">
+            <MudText Typo="Typo.subtitle2" Color="Color.Error">Chi tiết lỗi Preview (@_preview.Errors.Count)</MudText>
+            <MudList T="string" Dense="true">
+                @foreach(var error in _preview.Errors)
+                {
+                    <MudListItem T="string">
+                        <MudText Color="Color.Error">@error</MudText>
+                    </MudListItem>
+                }
+            </MudList>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Sửa các lỗi trong file Excel rồi chọn Preview Excel lại. Không thể Import Draft khi Preview còn lỗi.</MudText>
+        </MudPaper>
+    }
+}
+<MudPaper Class="pa-4"><MudText Typo="Typo.h6">@Language.T("endpoint.catalogVersions")</MudText><MudTable Items="_policies" Dense="true" Hover="true" Striped="true" Class="mt-2"><HeaderContent><MudTh>@Language.T("common.code2")</MudTh><MudTh>@Language.T("endpoint.name")</MudTh><MudTh>@Language.T("endpoint.type")</MudTh><MudTh>@Language.T("endpoint.target")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("common.checklist")</MudTh><MudTh>@Language.T("endpoint.workflow")</MudTh><MudTh>@Language.T("common.publish")</MudTh><MudTh>@Language.T("common.action2")</MudTh></HeaderContent><RowTemplate><MudTd>@context.PolicyCode</MudTd><MudTd>
+    <MudText Typo="Typo.body2">@context.PolicyName</MudText>
+    <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mt-1" StartIcon="@(IsPolicyExpanded(context.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.List)"
+               OnClick="@(() => TogglePolicyExpanded(context.Id))">
+        @(IsPolicyExpanded(context.Id) ? "Ẩn danh sách item" : $"Xem {context.Items?.Count ?? 0} item con")
+    </MudButton>
+    @if (IsPolicyExpanded(context.Id))
+    {
+        <MudPaper Outlined="true" Class="pa-2 mt-2" Style="min-width:360px">
+            @if (context.Items is null || context.Items.Count == 0)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Catalog này chưa có item.</MudText>
+            }
+            else
+            {
+                <MudTable Items="context.Items" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Tên phần mềm / dịch vụ</MudTh><MudTh>Publisher</MudTh><MudTh>Phiên bản</MudTh><MudTh>Cho phép</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="catalogItem">
+                        <MudTd>@(catalogItem.DisplayName ?? catalogItem.NormalizedName)</MudTd>
+                        <MudTd>@(catalogItem.Publisher ?? "—")</MudTd>
+                        <MudTd>@(catalogItem.VersionConstraint ?? "—")</MudTd>
+                        <MudTd>@(catalogItem.IsAllowed ? "Có" : "Không")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText Typo="Typo.caption">Chưa có item.</MudText></NoRecordsContent>
+                </MudTable>
+            }
+        </MudPaper>
+    }
+</MudTd><MudTd>@context.ItemType</MudTd><MudTd>@context.TargetType</MudTd><MudTd>v@context.Version</MudTd><MudTd>@(context.ChecklistCompleted?"OK":Language.T("endpoint.thieu"))</MudTd><MudTd>@context.WorkflowStatus</MudTd><MudTd>@(context.IsPublished?"Published":"Draft")</MudTd><MudTd>@if(!context.IsPublished&&CanSubmit(context.ItemType)&&(context.WorkflowStatus=="Draft"||context.WorkflowStatus=="Rejected")){<MudButton Size="Size.Small" Disabled="!context.ChecklistCompleted" OnClick="@(()=>SubmitAsync(context))">Submit</MudButton>}@if(!context.IsPublished&&CanPublish(context.ItemType)&&context.WorkflowStatus=="Approved"){<MudButton Size="Size.Small" Color="Color.Success" Disabled="!context.ChecklistCompleted" OnClick="@(()=>PublishAsync(context))">Publish</MudButton>}</MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-3">@Language.T("endpoint.chuaCoCatalog")</MudText></NoRecordsContent></MudTable></MudPaper>
 </MudStack></MudTabPanel>
 <MudTabPanel Text="@Language.T("endpoint.requests")" Icon="@Icons.Material.Filled.Assignment">@if(CanReview){<MudPaper Class="ma-3 pa-3"><MudTextField Label="@Language.T("endpoint.securityReviewComment")" @bind-Value="_reviewComment" Lines="2"/></MudPaper>}<MudTable Items="_requests" Dense="true" Hover="true" Striped="true" Class="pa-3"><HeaderContent><MudTh>ID</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("endpoint.endpoint")</MudTh><MudTh>@Language.T("endpoint.item")</MudTh><MudTh>@Language.T("endpoint.workflow")</MudTh><MudTh>@Language.T("endpoint.security")</MudTh><MudTh>@Language.T("endpoint.tao")</MudTh><MudTh/></HeaderContent><RowTemplate><MudTd>@context.Id</MudTd><MudTd>@context.RequestType</MudTd><MudTd>@context.EndpointDeviceId</MudTd><MudTd>@context.ItemName</MudTd><MudTd>@context.WorkflowStatus</MudTd><MudTd>@context.SecurityReviewStatus</MudTd><MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd><MudTd>@if(CanReview&&context.SecurityReviewStatus=="Pending"){<MudButtonGroup Size="Size.Small"><MudButton Color="Color.Success" OnClick="@(()=>ReviewAsync(context,true))">Approve</MudButton><MudButton Color="Color.Error" OnClick="@(()=>ReviewAsync(context,false))">Reject</MudButton></MudButtonGroup>}</MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-4">@Language.T("endpoint.khongCoRequestPhuHop")</MudText></NoRecordsContent></MudTable></MudTabPanel>
 <MudTabPanel Text='@Language.T("endpoint.compliance")' Icon="@Icons.Material.Filled.Security"><MudStack Spacing="2" Class="pa-3"><MudStack Row="true" Spacing="2"><MudSwitch Color="Color.Primary" @bind-Value="_openOnly">@Language.T("endpoint.chiCanhBaoDangMo")</MudSwitch><MudButton Variant="Variant.Outlined" OnClick="LoadFindingsAsync">@Language.T("common.taiLai")</MudButton></MudStack><MudTable Items="_findings" Dense="true" Hover="true" Striped="true"><HeaderContent><MudTh>@Language.T("hrm.result")</MudTh><MudTh>@Language.T("endpoint.endpoint")</MudTh><MudTh>@Language.T("common.type")</MudTh><MudTh>@Language.T("endpoint.observed")</MudTh><MudTh>@Language.T("common.version")</MudTh><MudTh>@Language.T("endpoint.policy")</MudTh><MudTh>@Language.T("common.code")</MudTh><MudTh>@Language.T("endpoint.thoiDiem")</MudTh></HeaderContent><RowTemplate><MudTd><MudChip T="string" Color="@FindingColor(context.Result)" Size="Size.Small">@context.Result</MudChip></MudTd><MudTd>@context.EndpointDeviceId</MudTd><MudTd>@context.ItemType</MudTd><MudTd>@context.ObservedName</MudTd><MudTd>@context.ObservedVersion</MudTd><MudTd>v@context.PolicyVersion</MudTd><MudTd>@context.FindingCode</MudTd><MudTd>@context.EvaluatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd></RowTemplate><NoRecordsContent><MudText Class="pa-4">@Language.T("endpoint.khongCoFinding")</MudText></NoRecordsContent></MudTable></MudStack></MudTabPanel>
@@ -32,17 +151,91 @@
 </MudStack></MudContainer>
 
 @code{
-private bool _loading=true,_openOnly=true;private HashSet<int> _permissions=new();private List<EndpointGovernancePolicyDto> _policies=new();private List<EndpointGovernanceRequestDto> _requests=new();private List<EndpointComplianceFindingDto> _findings=new();private EndpointGovernanceItemType _editorType=EndpointGovernanceItemType.Software;private EndpointTargetType _targetType=EndpointTargetType.Both;private string _policyCode="ENDPOINT-SW",_policyName="Software Allowlist",_newName=string.Empty;private string? _newPublisher,_newVersionConstraint="*",_reviewComment;private bool _newAllowed=true;private bool _checkIdentity,_checkPublisher,_checkVersion,_checkScope,_checkEvidence,_checkOwner;private IBrowserFile? _file;private EndpointGovernanceExcelPreviewDto? _preview;private readonly List<EditorItem> _items=new();
+private bool _loading=true,_openOnly=true,_inspectingSchema,_creatingSchema;private int? _editingSchemaId;private int? _schemaId;private IBrowserFile? _schemaFile;private ExcelWorkbookInspection? _schemaInspection;private int _schemaSheetIndex,_schemaHeaderRow;private string _newSchemaName="Endpoint Catalog Schema";private readonly List<SchemaColumnMapping> _schemaColumnMappings=new();private List<ExcelSchemaSummary> _schemas=new();private HashSet<int> _permissions=new();private List<EndpointGovernancePolicyDto> _policies=new();private readonly HashSet<int> _expandedPolicyIds=new();private List<EndpointGovernanceRequestDto> _requests=new();private List<EndpointComplianceFindingDto> _findings=new();private EndpointGovernanceItemType _editorType=EndpointGovernanceItemType.Software;private EndpointTargetType _targetType=EndpointTargetType.Both;private string _policyCode="ENDPOINT-SW",_policyName="Software Allowlist",_newName=string.Empty;private string? _newPublisher,_newVersionConstraint="*",_reviewComment;private bool _newAllowed=true;private bool _checkIdentity,_checkPublisher,_checkVersion,_checkScope,_checkEvidence,_checkOwner;private IBrowserFile? _file;private EndpointGovernanceExcelPreviewDto? _preview;private readonly List<EditorItem> _items=new();
 private bool ChecklistCompleted=>_checkIdentity&&_checkPublisher&&_checkVersion&&_checkScope&&_checkEvidence&&_checkOwner;private bool CanManage=>_permissions.Contains(_editorType==EndpointGovernanceItemType.Software?SecurityFunctionCodes.EndpointSoftwareCatalogManage:SecurityFunctionCodes.EndpointServiceCatalogManage);private bool CanReview=>_permissions.Contains(SecurityFunctionCodes.EndpointSoftwareSecurityReview)||_permissions.Contains(SecurityFunctionCodes.EndpointServiceSecurityReview)||_permissions.Contains(SecurityFunctionCodes.EndpointInstallRequestApprove)||_permissions.Contains(SecurityFunctionCodes.EndpointExceptionApprove);private bool CanSubmit(EndpointGovernanceItemType type)=>_permissions.Contains(type==EndpointGovernanceItemType.Software?SecurityFunctionCodes.EndpointSoftwarePolicySubmit:SecurityFunctionCodes.EndpointServicePolicySubmit);private bool CanPublish(EndpointGovernanceItemType type)=>_permissions.Contains(type==EndpointGovernanceItemType.Software?SecurityFunctionCodes.EndpointSoftwarePolicyApprove:SecurityFunctionCodes.EndpointServicePolicyApprove);
-protected override async Task OnInitializedAsync()=>await ReloadAsync();
-private async Task ReloadAsync(){_loading=true;try{var permissions=await Security.GetMyPermissionsAsync();_permissions=permissions.Data?.FunctionCodes??new();var policies=await Governance.GetPoliciesAsync();_policies=policies.Data??new();var requests=await Governance.GetRequestsAsync(!CanReview);_requests=requests.Data??new();await LoadFindingsAsync();}finally{_loading=false;}}
+protected override async Task OnInitializedAsync(){await LoadSchemasAsync();await ReloadAsync();}
+private async Task OnEditorTypeChanged(EndpointGovernanceItemType value){_editorType=value;_schemaId=null;await LoadSchemasAsync();}
+private async Task LoadSchemasAsync(){try{var response=await ExcelHttp.GetAsync<List<ExcelSchemaSummary>>($"api/excel/schemas?moduleCode=ENDPOINT&entityCode={_editorType}&includeRetired=true");if(!response.IsSuccess){Snackbar.Add(response.Message??"Không tải được Excel Schema.",Severity.Error);return;}_schemas=response.Data??new();if(_schemaId.HasValue&&!_schemas.Any(x=>x.Id==_schemaId.Value&&x.Status==ExcelSchemaStatus.Active))_schemaId=null;}catch(Exception ex){Snackbar.Add($"Không tải được Excel Schema: {ex.Message}",Severity.Error);}}
+private static readonly (string Code,string Label)[] EndpointSchemaTargets=[("Name","Name (bắt buộc)"),("Publisher","Publisher"),("VersionConstraint","VersionConstraint"),("IsAllowed","IsAllowed"),("Remark","Remark")];
+private IEnumerable<ExcelHeaderCandidate> CurrentHeaderCandidates => _schemaInspection?.Sheets.FirstOrDefault(x=>x.Index==_schemaSheetIndex)?.HeaderCandidates ?? Array.Empty<ExcelHeaderCandidate>();
+private bool CanCreateSchema => CanManage && !_creatingSchema && !string.IsNullOrWhiteSpace(_newSchemaName) && _schemaColumnMappings.Any(x=>x.TargetProperty=="Name") && _schemaColumnMappings.Where(x=>x.TargetProperty!=null).GroupBy(x=>x.TargetProperty,StringComparer.OrdinalIgnoreCase).All(g=>g.Count()==1);
+private void OnSchemaFileSelected(InputFileChangeEventArgs args){_schemaFile=args.File;_schemaInspection=null;_schemaColumnMappings.Clear();}
+private async Task InspectSchemaFileAsync(){
+ if(_schemaFile is null)return; _inspectingSchema=true;
+ try{
+  await using var stream=_schemaFile.OpenReadStream(25*1024*1024);
+  using var form=new MultipartFormDataContent();using var content=new StreamContent(stream);form.Add(content,"file",_schemaFile.Name);
+  var response=await ExcelHttp.PostMultipartAsync<ExcelWorkbookInspection>("api/excel/inspect",form);
+  if(!response.IsSuccess){Snackbar.Add(response.Message??"Không đọc được cấu trúc Excel.",Severity.Error);return;}
+  _schemaInspection=response.Data;
+  if(_schemaInspection?.Sheets.Count>0){_schemaSheetIndex=_schemaInspection.Sheets[0].Index;var candidate=CurrentHeaderCandidates.OrderByDescending(x=>x.Score).FirstOrDefault();_schemaHeaderRow=candidate?.RowIndex??_schemaInspection.Sheets[0].FirstRowIndex;BuildSchemaColumnMappings();}
+  if(string.IsNullOrWhiteSpace(_newSchemaName))_newSchemaName=Path.GetFileNameWithoutExtension(_schemaFile.Name)+" Endpoint";
+ }catch(Exception ex){Snackbar.Add($"Không đọc được cấu trúc Excel: {ex.Message}",Severity.Error);}
+ finally{_inspectingSchema=false;}
+}
+private Task OnSchemaSheetChanged(int index){_schemaSheetIndex=index;var candidate=CurrentHeaderCandidates.OrderByDescending(x=>x.Score).FirstOrDefault();_schemaHeaderRow=candidate?.RowIndex??0;BuildSchemaColumnMappings();return Task.CompletedTask;}
+private Task OnSchemaHeaderChanged(int index){_schemaHeaderRow=index;BuildSchemaColumnMappings();return Task.CompletedTask;}
+private void BuildSchemaColumnMappings(){
+ _schemaColumnMappings.Clear();var candidate=CurrentHeaderCandidates.FirstOrDefault(x=>x.RowIndex==_schemaHeaderRow);if(candidate is null)return;
+ foreach(var entry in candidate.Values.Select((header,index)=>(header,index)).Where(x=>!string.IsNullOrWhiteSpace(x.header))){
+  var h=entry.header!.Trim();var target=(string?)null;
+  _schemaColumnMappings.Add(new SchemaColumnMapping{ColumnIndex=entry.index,Header=h,TargetProperty=target});
+ }
+}
+private async Task ActivateSchemaAsync(int id){var r=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/{id}/activate",new{});Snackbar.Add(r.IsSuccess?"Đã kích hoạt schema.":r.Message??"Không kích hoạt được schema.",r.IsSuccess?Severity.Success:Severity.Error);await LoadSchemasAsync();}
+private async Task RetireSchemaAsync(int id){var r=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/{id}/retire",new{});Snackbar.Add(r.IsSuccess?"Đã ngừng sử dụng schema.":r.Message??"Không thể ngừng sử dụng schema.",r.IsSuccess?Severity.Success:Severity.Error);await LoadSchemasAsync();}
+private async Task CreateSchemaVersionAsync(int id){var r=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/{id}/version",new{});Snackbar.Add(r.IsSuccess?$"Đã tạo phiên bản Draft v{r.Data?.Version}.":r.Message??"Không tạo được phiên bản.",r.IsSuccess?Severity.Success:Severity.Error);await LoadSchemasAsync();}
+private async Task CloneSchemaAsync(int id){var source=_schemas.FirstOrDefault(x=>x.Id==id);if(source is null)return;var name=$"{source.SchemaName} - Copy";var r=await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/{id}/clone?name={Uri.EscapeDataString(name)}",new{});Snackbar.Add(r.IsSuccess?"Đã nhân bản schema thành Draft.":r.Message??"Không nhân bản được schema.",r.IsSuccess?Severity.Success:Severity.Error);await LoadSchemasAsync();}
+private async Task DeleteSchemaAsync(int id){var r=await ExcelHttp.DeleteAsync<bool>($"api/excel/schemas/{id}");Snackbar.Add(r.IsSuccess?"Đã xóa Draft.":r.Message??"Không thể xóa Draft.",r.IsSuccess?Severity.Success:Severity.Error);await LoadSchemasAsync();}
+private async Task EditDraftSchemaAsync(int id){
+ var r=await ExcelHttp.GetAsync<ExcelSchemaDefinition>($"api/excel/schemas/{id}/definition");
+ if(!r.IsSuccess||r.Data is null){Snackbar.Add(r.Message??"Không tải được định nghĩa schema.",Severity.Error);return;}
+ var d=r.Data;_editingSchemaId=id;_newSchemaName=_schemas.FirstOrDefault(x=>x.Id==id)?.SchemaName??d.SchemaKey;
+ _schemaSheetIndex=d.SheetIndex;_schemaHeaderRow=d.HeaderRowIndex;
+ _schemaColumnMappings.Clear();_schemaColumnMappings.AddRange(d.Fields.Select(f=>new SchemaColumnMapping{ColumnIndex=f.SourceColumnIndex,Header=f.HeaderName??f.FieldKey,TargetProperty=f.TargetProperty}));
+ Snackbar.Add("Đã nạp cấu hình Draft. Chỉnh ánh xạ rồi bấm Lưu thay đổi schema.",Severity.Info);
+}
+private async Task CreateEndpointSchemaAsync(){
+ if(!CanCreateSchema||(!_editingSchemaId.HasValue&&(_schemaFile is null||_schemaInspection is null)))return;
+ _creatingSchema=true;
+ try{
+  var mapped=_schemaColumnMappings.Where(x=>!string.IsNullOrWhiteSpace(x.TargetProperty)).OrderBy(x=>x.ColumnIndex).ToList();
+  var fields=mapped.Select((x,i)=>new ExcelSchemaField(x.TargetProperty!,x.TargetProperty=="IsAllowed"?"Boolean":"Text",x.TargetProperty=="Name",x.ColumnIndex,x.Header,null,null,x.TargetProperty,i+1,x.TargetProperty!="Name",x.TargetProperty=="Name"?500:null,null,null)).ToList();
+  var sheet=_schemaInspection?.Sheets.FirstOrDefault(x=>x.Index==_schemaSheetIndex);
+  var module="ENDPOINT";var entity=_editorType.ToString();
+  ExcelSchemaCreateRequest request;
+  if(_editingSchemaId.HasValue){
+   var existing=await ExcelHttp.GetAsync<ExcelSchemaDefinition>($"api/excel/schemas/{_editingSchemaId.Value}/definition");
+   if(!existing.IsSuccess||existing.Data is null){Snackbar.Add(existing.Message??"Không tải được Draft.",Severity.Error);return;}
+   var d=existing.Data;
+   request=new ExcelSchemaCreateRequest(module,entity,d.SchemaKey,_newSchemaName.Trim(),d.SheetIndex,d.SheetName,d.HeaderRowIndex,d.DataStartRowIndex,d.DataEndRowIndex,d.SelectedColumnIndexes,fields,d.Culture);
+  }else{
+   if(_schemaFile is null||_schemaInspection is null)return;
+   if(sheet is null)return;
+   request=new ExcelSchemaCreateRequest(module,entity,$"ENDPOINT-{_editorType}-{DateTime.UtcNow.Ticks}",_newSchemaName.Trim(),sheet.Index,sheet.Name,_schemaHeaderRow,_schemaHeaderRow+1,sheet.LastRowIndex,mapped.Select(x=>x.ColumnIndex).ToArray(),fields);
+  }
+  var response=_editingSchemaId.HasValue
+   ? await ExcelHttp.PutAsync<ExcelSchemaSummary>("api/excel/schemas/draft",new ExcelSchemaUpdateRequest(_editingSchemaId.Value,request))
+   : await ExcelHttp.PostAsync<ExcelSchemaSummary>($"api/excel/schemas/draft?sourceFileName={Uri.EscapeDataString(_schemaFile!.Name)}",request);
+  if(!response.IsSuccess||response.Data is null){Snackbar.Add(response.Message??"Không tạo được schema.",Severity.Error);return;}
+  var created=response.Data;
+  await LoadSchemasAsync();
+  _schemaId=created.Id;_editingSchemaId=null;
+  Snackbar.Add($"Đã lưu schema Draft '{created.SchemaName}' v{created.Version}. Hãy kích hoạt riêng sau khi rà soát.",Severity.Success);
+ }catch(Exception ex){Snackbar.Add($"Không tạo được schema: {ex.Message}",Severity.Error);}
+ finally{_creatingSchema=false;}
+}
+private sealed class SchemaColumnMapping{public int ColumnIndex{get;set;}public string Header{get;set;}=string.Empty;public string? TargetProperty{get;set;}}
+
+private bool IsPolicyExpanded(int id)=>_expandedPolicyIds.Contains(id);private void TogglePolicyExpanded(int id){if(!_expandedPolicyIds.Add(id))_expandedPolicyIds.Remove(id);}
+private async Task ReloadAsync(){_loading=true;try{var permissions=await Security.GetMyPermissionsAsync();_permissions=permissions.Data?.FunctionCodes??new();var policies=await Governance.GetPoliciesAsync();if(policies.IsSuccess){_policies=policies.Data??new();}else{_policies=new();Snackbar.Add($"Không tải được Catalog versions: {policies.Message}",Severity.Error);}var requests=await Governance.GetRequestsAsync(!CanReview);if(requests.IsSuccess){_requests=requests.Data??new();}else{_requests=new();Snackbar.Add($"Không tải được yêu cầu Endpoint: {requests.Message}",Severity.Error);}await LoadFindingsAsync();}finally{_loading=false;}}
 private async Task LoadFindingsAsync(){var response=await Governance.GetFindingsAsync(null,_openOnly);_findings=response.Data??new();}
 private void AddManualItem(){if(!CanManage||string.IsNullOrWhiteSpace(_newName))return;if(_items.Any(x=>x.Name.Equals(_newName.Trim(),StringComparison.OrdinalIgnoreCase))){Snackbar.Add(Language.T("endpoint.itemDaTonTaiTrong"),Severity.Warning);return;}_items.Add(new EditorItem{Name=_newName.Trim(),Publisher=_newPublisher?.Trim(),VersionConstraint=string.IsNullOrWhiteSpace(_newVersionConstraint)?"*":_newVersionConstraint.Trim(),IsAllowed=_newAllowed});_newName=string.Empty;_newPublisher=null;_newVersionConstraint="*";_newAllowed=true;}
 private async Task SaveDraftAsync(){if(!CanManage||_items.Count==0||!ChecklistCompleted)return;var items=_items.Select(x=>new EndpointGovernancePolicyItemDto(0,_editorType,x.Name.Trim().ToUpperInvariant(),x.Name.Trim(),x.Publisher,x.VersionConstraint,x.IsAllowed,x.Remark)).ToList();var note=Language.T("endpoint.catalogChecklistIdentity");var response=await Governance.CreateVersionAsync(new EndpointGovernancePolicyUpsertRequest(_policyCode.Trim(),_policyName.Trim(),_editorType,_targetType,null,items,true,note));if(response.IsSuccess){Snackbar.Add(Language.T("endpoint.daTaoDraftVersionSau"),Severity.Success);await ReloadAsync();}else Snackbar.Add(response.Message,Severity.Error);}
-private async Task PreviewExcelAsync(){if(_file is null||!CanManage)return;var response=await Governance.PreviewExcelAsync(_file,_editorType,_targetType);if(!response.IsSuccess){Snackbar.Add(response.Message,Severity.Error);return;}_preview=response.Data;if(_preview is not null&&_preview.Errors.Count==0){_items.Clear();_items.AddRange(_preview.Rows.Where(x=>string.IsNullOrWhiteSpace(x.Error)).Select(x=>new EditorItem{Name=x.Name,Publisher=x.Publisher,VersionConstraint=x.VersionConstraint,IsAllowed=x.IsAllowed,Remark=x.Remark}));}}
-private async Task ImportExcelAsync(){if(_file is null||!CanManage||!ChecklistCompleted)return;var response=await Governance.ImportExcelAsync(_file,_policyCode.Trim(),_policyName.Trim(),_editorType,_targetType,null);if(response.IsSuccess){Snackbar.Add(Language.T("endpoint.daImportThanhDraftVersion"),Severity.Success);await ReloadAsync();}else Snackbar.Add(response.Message,Severity.Error);}
+private async Task PreviewExcelAsync(){if(_file is null||!CanManage||!_schemaId.HasValue)return;var response=await Governance.PreviewExcelAsync(_file,_schemaId.Value,_editorType,_targetType);if(!response.IsSuccess){Snackbar.Add(response.Message,Severity.Error);return;}_preview=response.Data;if(_preview is not null&&_preview.Errors.Count==0){_items.Clear();_items.AddRange(_preview.Rows.Where(x=>string.IsNullOrWhiteSpace(x.Error)).Select(x=>new EditorItem{Name=x.Name,Publisher=x.Publisher,VersionConstraint=x.VersionConstraint,IsAllowed=x.IsAllowed,Remark=x.Remark}));}}
+private async Task ImportExcelAsync(){if(_file is null||!CanManage||!ChecklistCompleted||!_schemaId.HasValue)return;var response=await Governance.ImportExcelAsync(_file,_schemaId.Value,_policyCode.Trim(),_policyName.Trim(),_editorType,_targetType,null);if(response.IsSuccess){Snackbar.Add(Language.T("endpoint.daImportThanhDraftVersion"),Severity.Success);await ReloadAsync();}else Snackbar.Add(response.Message,Severity.Error);}
 private async Task SubmitAsync(EndpointGovernancePolicyDto policy){if(!policy.ChecklistCompleted)return;var response=await Governance.SubmitAsync(policy.Id);if(response.IsSuccess){Snackbar.Add(Language.T("endpoint.daSubmitCommonApproval"),Severity.Success);await ReloadAsync();}else Snackbar.Add(response.Message,Severity.Error);}
 private async Task PublishAsync(EndpointGovernancePolicyDto policy){if(!policy.ChecklistCompleted)return;var response=await Governance.PublishAsync(policy.Id);if(response.IsSuccess){Snackbar.Add(Language.T("endpoint.daPublishV", policy.PolicyCode, policy.Version),Severity.Success);await ReloadAsync();}else Snackbar.Add(response.Message,Severity.Error);}
 private async Task ReviewAsync(EndpointGovernanceRequestDto request,bool approved){var response=await Governance.ReviewAsync(request.Id,approved,_reviewComment);if(response.IsSuccess){Snackbar.Add(approved?Language.T("endpoint.daSecurityApproveRequest"):Language.T("endpoint.daSecurityRejectRequest"),approved?Severity.Success:Severity.Warning);_reviewComment=null;await ReloadAsync();}else Snackbar.Add(response.Message,Severity.Error);}
-private void OnFileSelected(InputFileChangeEventArgs args)=>_file=args.File;private static Color FindingColor(EndpointComplianceResult result)=>result switch{EndpointComplianceResult.Compliant=>Color.Success,EndpointComplianceResult.NonCompliant=>Color.Error,EndpointComplianceResult.Exception=>Color.Warning,_=>Color.Info};private sealed class EditorItem{public string Name{get;set;}=string.Empty;public string? Publisher{get;set;}public string? VersionConstraint{get;set;}public bool IsAllowed{get;set;}public string? Remark{get;set;}}
+private void OnFileSelected(InputFileChangeEventArgs args){_file=args.File;_preview=null;}private static Color FindingColor(EndpointComplianceResult result)=>result switch{EndpointComplianceResult.Compliant=>Color.Success,EndpointComplianceResult.NonCompliant=>Color.Error,EndpointComplianceResult.Exception=>Color.Warning,_=>Color.Info};private sealed class EditorItem{public string Name{get;set;}=string.Empty;public string? Publisher{get;set;}public string? VersionConstraint{get;set;}public bool IsAllowed{get;set;}public string? Remark{get;set;}}
 }

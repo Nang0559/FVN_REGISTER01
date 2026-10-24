@@ -35,7 +35,15 @@ public static class ApprovalStepMapper
         IEnumerable<F03ApprovalStepSnapshot> snapshots,
         IEnumerable<F03ApprovalHistory> histories)
     {
-        var historyByStepId = histories.ToDictionary(h => h.StepId);
+        // Một bước có thể có nhiều history (ví dụ: hệ thống Escalated rồi người duyệt mới Approved).
+        // Lấy quyết định mới nhất để tránh ToDictionary lỗi khóa trùng và phản ánh đúng trạng thái hiện tại.
+        var historyByStepId = histories
+            .GroupBy(h => h.StepId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(h => h.ActionAt)
+                      .ThenByDescending(h => h.Id)
+                      .First());
 
         return snapshots
             .OrderBy(s => s.Level)
@@ -46,6 +54,14 @@ public static class ApprovalStepMapper
             })
             .ToList();
     }
+
+    /// <summary>Bước vẫn có thể được người duyệt xử lý: đang chờ hoặc đã được hệ thống chuyển cấp.</summary>
+    public static bool IsOpen(DecisionType decision) =>
+        decision == DecisionType.Pending || decision == DecisionType.Escalated;
+
+    /// <summary>Bước trước được xem là đã nhường quyền xử lý cho cấp sau khi đã duyệt hoặc được chuyển cấp.</summary>
+    public static bool IsDoneForNext(DecisionType decision) =>
+        decision == DecisionType.Approved || decision == DecisionType.Escalated;
 
     public static ApprovalStatus ComputeOverallStatus(IEnumerable<ApprovalStepDto> steps)
     {

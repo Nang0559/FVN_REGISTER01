@@ -1,0 +1,210 @@
+@page "/ai/assistant"
+@attribute [Authorize]
+@using FVN_REGISTER.AI.Application.Contracts
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>FVN AI – Trợ lý AI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-4">
+    <MudStack Spacing="1" Class="mb-4">
+        <MudText Typo="Typo.h4" Style="font-weight:800">Trợ lý AI FVN</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Hội thoại sử dụng danh tính và quyền FVN hiện tại ở mỗi lượt hỏi. AI chỉ trả lời dựa trên tri thức được cấp quyền;
+            lịch sử hội thoại không thay thế bằng chứng và không tự thực hiện nghiệp vụ.
+        </MudText>
+    </MudStack>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-3">@_error</MudAlert>
+    }
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="3">
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                    <MudText Typo="Typo.h6">Hội thoại</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" title="Tạo hội thoại mới"
+                                   Disabled="_loading" OnClick="CreateConversationAsync" />
+                </MudStack>
+                @if (_conversations.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Chưa có hội thoại. Tạo một hội thoại mới để bắt đầu.</MudText>
+                }
+                @foreach (var item in _conversations)
+                {
+                    <MudButton FullWidth="true" Variant="@(item.Id == _selectedConversationId ? Variant.Filled : Variant.Text)"
+                               Color="@(item.Id == _selectedConversationId ? Color.Primary : Color.Default)"
+                               Class="justify-start mb-1" Disabled="_loading" OnClick="@(() => OpenConversationAsync(item.Id))">
+                        <MudText Typo="Typo.body2" Class="text-truncate">@item.Title</MudText>
+                    </MudButton>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="9">
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                    <MudText Typo="Typo.h6">@(_selectedTitle ?? "Cuộc trò chuyện mới")</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" title="Tải lại" Disabled="_loading" OnClick="RefreshAsync" />
+                </MudStack>
+
+                <MudPaper Outlined="true" Class="pa-3 mb-3" Style="min-height:360px; max-height:58vh; overflow-y:auto;">
+                    @if (_messages.Count == 0)
+                    {
+                        <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-12">
+                            <MudIcon Icon="@Icons.Material.Filled.Psychology" Size="Size.Large" Color="Color.Primary" />
+                            <MudText Typo="Typo.body1">Hãy đặt câu hỏi về quy định và tài liệu FVN.</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Mỗi câu trả lời phải có căn cứ tri thức được phép truy cập.</MudText>
+                        </MudStack>
+                    }
+                    @foreach (var message in _messages)
+                    {
+                        <MudPaper Outlined="true" Class="pa-3 mb-2" Elevation="0">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.subtitle2" Color="@(message.Role == "user" ? Color.Primary : Color.Secondary)">
+                                    @(message.Role == "user" ? "Bạn" : "Trợ lý AI")
+                                </MudText>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                         Color="@StatusColor(message.Status)">@message.Status</MudChip>
+                            </MudStack>
+                            <MudText Typo="Typo.body1" Style="white-space:pre-wrap">@message.Content</MudText>
+                            @if (!string.IsNullOrWhiteSpace(message.CitationsJson))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Nguồn tham chiếu: @message.CitationsJson</MudText>
+                            }
+                        </MudPaper>
+                    }
+                    @if (_sending)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                            <MudText Typo="Typo.caption">Đang kiểm tra quyền, tìm kiếm tri thức và tạo câu trả lời…</MudText>
+                        </MudStack>
+                    }
+                </MudPaper>
+
+                <MudTextField @bind-Value="_query" Label="Nhập câu hỏi" Variant="Variant.Outlined" Lines="3"
+                              MaxLength="4000" Disabled="_sending" Placeholder="Ví dụ: Quy định đăng ký làm thêm giờ như thế nào?" />
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mt-2">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tối đa 4.000 ký tự. Không gửi mã nhân viên hoặc dữ liệu bí mật vào câu hỏi.</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Send"
+                               Disabled="@(_sending || string.IsNullOrWhiteSpace(_query))" OnClick="SendAsync">Gửi câu hỏi</MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private readonly List<AIConversationSummaryDto> _conversations = [];
+    private readonly List<AIConversationMessageDto> _messages = [];
+    private Guid? _selectedConversationId;
+    private string? _selectedTitle;
+    private string _query = "";
+    private string _error = "";
+    private bool _loading;
+    private bool _sending;
+
+    protected override async Task OnInitializedAsync() => await LoadConversationsAsync();
+
+    private async Task LoadConversationsAsync()
+    {
+        _loading = true;
+        _error = "";
+        try
+        {
+            var response = await Http.GetAsync<List<AIConversationSummaryDto>>("api/ai/business-context/conversations");
+            if (!response.IsSuccess) { _error = response.Message; return; }
+            _conversations.Clear();
+            _conversations.AddRange(response.Data ?? []);
+            if (_selectedConversationId is Guid selected && _conversations.Any(x => x.Id == selected))
+                await OpenConversationAsync(selected);
+            else if (_conversations.Count > 0)
+                await OpenConversationAsync(_conversations[0].Id);
+            else
+            {
+                _selectedConversationId = null;
+                _selectedTitle = null;
+                _messages.Clear();
+            }
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task CreateConversationAsync()
+    {
+        _loading = true;
+        _error = "";
+        try
+        {
+            var response = await Http.PostAsync<AIConversationSummaryDto>(
+                "api/ai/business-context/conversations", new { title = "Hội thoại mới" });
+            if (!response.IsSuccess || response.Data is null) { _error = response.Message; return; }
+            _conversations.Insert(0, response.Data);
+            _selectedConversationId = response.Data.Id;
+            _selectedTitle = response.Data.Title;
+            _messages.Clear();
+            Snackbar.Add("Đã tạo hội thoại.", Severity.Success);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task OpenConversationAsync(Guid id)
+    {
+        _loading = true;
+        _error = "";
+        try
+        {
+            var response = await Http.GetAsync<AIConversationTranscriptDto>($"api/ai/business-context/conversations/{id:D}");
+            if (!response.IsSuccess || response.Data is null) { _error = response.Message; return; }
+            _selectedConversationId = response.Data.Id;
+            _selectedTitle = response.Data.Title;
+            _messages.Clear();
+            _messages.AddRange(response.Data.Messages ?? []);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task SendAsync()
+    {
+        if (_sending || string.IsNullOrWhiteSpace(_query)) return;
+        if (_selectedConversationId is null)
+        {
+            await CreateConversationAsync();
+            if (_selectedConversationId is null) return;
+        }
+
+        _sending = true;
+        _error = "";
+        var question = _query.Trim();
+        try
+        {
+            var response = await Http.PostAsync<System.Text.Json.JsonElement>(
+                "api/ai/business-context/conversations/ask",
+                new { conversationId = _selectedConversationId, query = question, retrievalLimit = 8 });
+            if (!response.IsSuccess) { _error = response.Message; return; }
+            _query = "";
+            await OpenConversationAsync(_selectedConversationId.Value);
+        }
+        finally { _sending = false; }
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadConversationsAsync();
+    }
+
+    private static Color StatusColor(string? status) => status switch
+    {
+        "Supported" => Color.Success,
+        "PartiallySupported" => Color.Warning,
+        "Forbidden" or "InvalidModelResponse" or "Failed" or "Abstained" => Color.Error,
+        _ => Color.Default
+    };
+
+}

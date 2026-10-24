@@ -12,10 +12,14 @@ namespace FVN_REGISTER.Application.Interfaces.Employees
         {
             // ================= EMPLOYEE (READ) =================
 
-            /// <summary>Cây nhân viên theo phòng ban, kèm phép tồn + OT năm hiện tại.</summary>
+            /// <summary>
+            /// Cây nhân viên theo phòng ban, kèm phép tồn + OT năm hiện tại.
+            /// Mặc định chỉ trả nhân viên đang làm việc; includeInactive=true trả cả nhân viên đã nghỉ.
+            /// </summary>
             Task<ServiceResult<List<EmployeeDeptTreeDto>>> GetTreeAsync(
                 string? searchTerm = null,
                 int? deptCode = null,
+                bool includeInactive = false,
                 CancellationToken ct = default);
 
             Task<ServiceResult<EmployeeCardDto>> GetByIdAsync(

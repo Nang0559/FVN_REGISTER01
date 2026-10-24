@@ -185,4 +185,65 @@ public sealed class FeatureOperatorAuthorizationPolicyTests
         Assert.True(FeatureOperatorCatalog.IsModuleWide(functionCode));
         Assert.False(FeatureOperatorCatalog.AssignmentGrantsCapability(functionCode));
     }
+
+    // ---- OT.RegistrarManage: người được chỉ định đăng ký OT/Trip cho nhiều người ----
+
+    [Fact]
+    public void OtRegistrar_IsInCatalog_AsDepartmentScopedAssignmentAuthority()
+    {
+        Assert.True(FeatureOperatorCatalog.TryGet(SecurityFunctionCodes.OTRegistrarManage, out var definition));
+        Assert.Equal(FeatureOperatorCatalog.OtRegistrar, definition.ResourceType);
+        Assert.True(definition.ResourceScoped);
+        Assert.True(FeatureOperatorCatalog.IsAssignmentAuthority(SecurityFunctionCodes.OTRegistrarManage));
+        // Chỉ định registrar KHÔNG được cấp luôn quyền RBAC OT.RegistrarManage (trang quản trị policy).
+        Assert.False(FeatureOperatorCatalog.AssignmentGrantsCapability(SecurityFunctionCodes.OTRegistrarManage));
+        Assert.DoesNotContain(SecurityFunctionCodes.OTRegistrarManage, FeatureOperatorCatalog.CapabilityGrantingFunctionCodes);
+    }
+
+    [Fact]
+    public void OtRegistrar_CanBeAssigned_WithoutRoleGrant()
+    {
+        Assert.True(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.OTRegistrarManage, employeeExists: true, activeUserExists: true, hasRbacCapability: false));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.OTRegistrarManage, employeeExists: true, activeUserExists: false, hasRbacCapability: false));
+        // Các function khác vẫn bắt buộc RBAC.
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.WorkCalendarManage, employeeExists: true, activeUserExists: true, hasRbacCapability: false));
+    }
+
+    [Fact]
+    public void LateEarlyRegistrar_IsIndependentAssignmentAuthority()
+    {
+        Assert.NotEqual(SecurityFunctionCodes.OTRegistrarManage, SecurityFunctionCodes.LateEarlyRegistrarManage);
+        Assert.True(FeatureOperatorCatalog.TryGet(SecurityFunctionCodes.LateEarlyRegistrarManage, out var lateEarly));
+        Assert.Equal(FeatureOperatorCatalog.LateEarlyRegistrar, lateEarly.ResourceType);
+        Assert.True(lateEarly.ResourceScoped);
+        Assert.True(FeatureOperatorCatalog.IsAssignmentAuthority(SecurityFunctionCodes.LateEarlyRegistrarManage));
+        Assert.False(FeatureOperatorCatalog.AssignmentGrantsCapability(SecurityFunctionCodes.LateEarlyRegistrarManage));
+        Assert.NotEqual(FeatureOperatorCatalog.OtRegistrar, lateEarly.ResourceType);
+    }
+
+    [Fact]
+    public void LateEarlyRegistrar_CanBeAssignedWithoutRoleGrant()
+    {
+        Assert.True(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.LateEarlyRegistrarManage, employeeExists: true, activeUserExists: true, hasRbacCapability: false));
+        Assert.False(FeatureOperatorAuthorizationPolicy.CanAssignOperator(
+            SecurityFunctionCodes.LateEarlyRegistrarManage, employeeExists: true, activeUserExists: false, hasRbacCapability: false));
+    }
+
+    [Theory]
+    [InlineData(120, null, 120, "A", true)]            // đúng phòng ban
+    [InlineData(120, "Department", 121, "A", false)]   // phòng ban khác
+    [InlineData(null, "All", 999, null, true)]         // toàn công ty
+    [InlineData(null, null, 999, null, true)]          // null/null = toàn công ty
+    [InlineData(null, "Block:A", 130, "A", true)]      // nhóm phòng ban (khối) khớp
+    [InlineData(null, "block:a", 130, "A", true)]      // không phân biệt hoa thường
+    [InlineData(null, "Block:A", 130, "B", false)]     // khối khác
+    [InlineData(null, "Block:A", 130, null, false)]    // phòng ban không có khối
+    [InlineData(null, "Block:", 130, "A", false)]      // thiếu mã khối
+    [InlineData(null, "Own", 130, "A", false)]         // scope lạ không được hiểu là toàn công ty
+    public void OtRegistrarCovers_MatchesDepartmentBlockAndAll(int? resourceId, string? scope, int deptCode, string? block, bool expected)
+        => Assert.Equal(expected, FeatureOperatorAuthorizationPolicy.OtRegistrarCovers(resourceId, scope, deptCode, block));
 }

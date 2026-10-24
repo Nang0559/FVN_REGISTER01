@@ -127,7 +127,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         return await UpsertAsyncCoreAsync(
             normalizedEmployeeCode,
             new ExecutionReconciliationUpsertRequest(
-                "OT",
+                "Overtime",
                 "OT_ACTUAL_ONLY",
                 sourceId,
                 normalizedEmployeeCode,

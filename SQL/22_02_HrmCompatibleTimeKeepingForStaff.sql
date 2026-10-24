@@ -651,31 +651,63 @@ BEGIN
 						  ) > 0;
 
 					/*
+					  FIX C3 NHIEU DEM LIEN TIEP: @TGDen/@TGVe o tren la IN som nhat / OUT muon nhat trong cua so
+					  D-6h..D+30h nen dem thu 2 tro di bi lay nham IN cua dem D-1 (21:49 ngay D-1) va OUT cua dem D-1
+					  (06:0x ngay D) -> khong ca nao khop -> @Maca=0 -> mat ca, mat gio vao/ra.
+					  Khop ca phai xet TUNG ca ung vien: IN trong [Start-CQuetTruocCa, Start+60], OUT trong
+					  [End-60, End+CQuetSauCa]. OUT cua ca qua dem co the vuot D+30h nen doc den D+42h.
+					*/
+					CREATE TABLE #tblRecordDataShiftScan
+					(
+						IDM smallint NULL,
+						ThoiGian datetime NOT NULL,
+						DDChinhVao bit NULL
+					);
+					INSERT INTO #tblRecordDataShiftScan(IDM,ThoiGian,DDChinhVao)
+					SELECT DISTINCT R.IDM,R.ThoiGian,DD.DDChinhVao
+					FROM HRM.dbo.RecordDataNew R
+					INNER JOIN HRM.dbo.tblCapThe C ON C.CTMaNV=@StaffID AND C.CTMaThe=R.IDCard
+					LEFT JOIN HRM.dbo.tblDauDoc DD ON DD.DDMa=R.IDM
+					WHERE R.ThoiGian >= DATEADD(HOUR,-6,CONVERT(datetime,CONVERT(date,@D)))
+					  AND R.ThoiGian <  DATEADD(HOUR,42,CONVERT(datetime,CONVERT(date,@D)))
+					  AND ISNULL(DD.DDloaiChamCong,N'')=N'';
+
+					/*
 					  For TTDD this is the exact HRM rule:
 					  ShiftID2 = IN and OUT both fit.
 					  ShiftID1 = either IN or OUT fits.
 					*/
 					IF ISNULL(@HrmFindShiftType,N'TTDD') = N'TTDD'
 					BEGIN
-						SELECT TOP (1) @ShiftID2=CMa
-						FROM #HrmShiftCandidates
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
-						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
-						                  AND DATEADD(minute,60,s.ShiftStart)
-						  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
-						                 AND DATEADD(minute,ISNULL(CQuetSauCa,0),e.ShiftEnd)
-						ORDER BY CTGBatDau DESC, CMa DESC;
+						SELECT TOP (1) @ShiftID2=c.CMa
+						FROM #HrmShiftCandidates c
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+						CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
+						WHERE EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=1
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-ISNULL(c.CQuetTruocCa,0),s.ShiftStart)
+						                                   AND DATEADD(minute,60,s.ShiftStart))
+						  AND EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=0
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-60,e.ShiftEnd)
+						                                   AND DATEADD(minute,ISNULL(c.CQuetSauCa,0),e.ShiftEnd))
+						ORDER BY c.CTGBatDau DESC, c.CMa DESC;
 
-						SELECT TOP (1) @ShiftID1=CMa
-						FROM #HrmShiftCandidates
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
-						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
-						                  AND DATEADD(minute,60,s.ShiftStart)
-						   OR @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
-						                 AND DATEADD(minute,ISNULL(CQuetSauCa,0),e.ShiftEnd)
-						ORDER BY CTGBatDau DESC, CMa DESC;
+						SELECT TOP (1) @ShiftID1=c.CMa
+						FROM #HrmShiftCandidates c
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),c.CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+						CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
+						WHERE EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=1
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-ISNULL(c.CQuetTruocCa,0),s.ShiftStart)
+						                                   AND DATEADD(minute,60,s.ShiftStart))
+						   OR EXISTS (SELECT 1 FROM #tblRecordDataShiftScan x
+						              WHERE x.DDChinhVao=0
+						                AND x.ThoiGian BETWEEN DATEADD(minute,-60,e.ShiftEnd)
+						                                   AND DATEADD(minute,ISNULL(c.CQuetSauCa,0),e.ShiftEnd))
+						ORDER BY c.CTGBatDau DESC, c.CMa DESC;
 					END
 					ELSE
 					BEGIN
@@ -684,7 +716,8 @@ BEGIN
 							SELECT TOP (1) @ShiftID2=CMa
 							FROM #HrmShiftCandidates
 							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
-							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
+							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+							CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
 							WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
 							                  AND DATEADD(minute,60,s.ShiftStart)
 							  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
@@ -703,6 +736,7 @@ BEGIN
 						END
 					END;
 					DROP TABLE #HrmShiftCandidates;
+					DROP TABLE #tblRecordDataShiftScan;
 
 					-- HRM sphrmvn_FindShift_New resolves the selected shift after
 					-- scanning all scheduled candidates: ShiftID2 (both IN/OUT)
@@ -712,6 +746,80 @@ BEGIN
 					ELSE IF @ShiftID1 > 0
 						SET @Maca = @ShiftID1;
 				END
+			END
+			/*
+			  SUA LECH NGAY CUA SO RAW (D-6h .. D+30h) CHO CA QUA DEM (vd C3 18:00 -> 06:00 hom sau).
+			  (1) GIO RA: cua so ket thuc luc D+30h = 06:00 hom sau nen lan quet OUT luc 06:01-06:16 bi loai; khi do
+			      "OUT muon nhat" lai la lan quet 06:0x cua CA DEM TRUOC (cung ngay D) -> gio ra < gio vao, WorkMinutes = 0.
+			      Sau khi da biet ca: neu ca ket thuc sang ngay hom sau thi chon lai OUT trong
+			      [ShiftEnd-60 phut, ShiftEnd+CQuetSauCa] (cung cua so HRM dung de ghep ca), doc truc tiep RecordDataNew.
+			      Khong co lan quet nao trong cua so do -> OUT = thieu (1900-01-01), khong lay OUT cua ca truoc.
+			  (2) GIO VAO: cua so bat dau luc D-6h = 18:00 ngay D-1 nen IN cua ca dem NGAY D-1 (vao sau 18:00, vd 21:52)
+			      bi lay nham lam IN cua ngay D. IN hop le cua ca chi nam tu ShiftStart-CQuetTruocCa tro di; IN som hon
+			      va thuoc ngay lich truoc do duoc chon lai trong #tblRecordDataRaw (hoac bo neu khong co).
+			      Ngay khong co ca (@Maca=0) ma IN nam o ngay lich D-1 thi do la IN cua ca D-1: bo IN va OUT cung cap.
+			*/
+			IF @Maca > 0
+			BEGIN
+				DECLARE @FxStart datetime = NULL;
+				DECLARE @FxEnd datetime = NULL;
+				DECLARE @FxTruoc int = 0;
+				DECLARE @FxSau int = 0;
+				DECLARE @FxTime datetime = NULL;
+				DECLARE @FxGate smallint = 0;
+
+				SELECT @FxStart=s.ShiftStart, @FxEnd=e.ShiftEnd, @FxTruoc=ISNULL(ca.CQuetTruocCa,0), @FxSau=ISNULL(ca.CQuetSauCa,0)
+				FROM HRM.dbo.tblCa ca
+				CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),ca.CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+				CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),ca.CTGKetThuc),s.ShiftStart) AS ShiftEndRaw) er
+				CROSS APPLY (SELECT CASE WHEN er.ShiftEndRaw <= s.ShiftStart THEN DATEADD(day,1,er.ShiftEndRaw) ELSE er.ShiftEndRaw END AS ShiftEnd) e
+				WHERE ca.CMa=@Maca;
+
+				-- (2) IN lay tu ngay lich truoc, som hon cua so quet-truoc-ca cua ca ngay D
+				IF @FxStart IS NOT NULL
+				   AND @TGDen > '19000101'
+				   AND CONVERT(date,@TGDen) < CONVERT(date,@D)
+				   AND @TGDen < DATEADD(minute,-@FxTruoc,@FxStart)
+				BEGIN
+					SET @FxTime = NULL;
+					SELECT TOP (1) @FxTime=ThoiGian, @FxGate=ISNULL(IDM,0)
+					FROM #tblRecordDataRaw
+					WHERE DDChinhVao=1
+					  AND ThoiGian >= DATEADD(minute,-@FxTruoc,@FxStart)
+					ORDER BY ThoiGian ASC, IDM ASC;
+
+					IF @FxTime IS NOT NULL
+						SELECT @TGDen=@FxTime, @Cuaden=@FxGate;
+					ELSE
+						SELECT @TGDen='1900-01-01 00:00:00.000', @Cuaden=0;
+				END
+
+				-- (1) OUT cua ca qua dem: doc lai dung cua so cua ca (D+1 06:00 + CQuetSauCa)
+				IF @FxEnd IS NOT NULL AND CONVERT(date,@FxEnd) > CONVERT(date,@D)
+				BEGIN
+					SET @FxTime = NULL;
+					SELECT TOP (1) @FxTime=R.ThoiGian, @FxGate=ISNULL(R.IDM,0)
+					FROM HRM.dbo.RecordDataNew R
+					INNER JOIN HRM.dbo.tblCapThe C ON C.CTMaNV=@StaffID AND C.CTMaThe=R.IDCard
+					LEFT JOIN HRM.dbo.tblDauDoc DD ON DD.DDMa=R.IDM
+					WHERE ISNULL(DD.DDloaiChamCong,N'')=N''
+					  AND DD.DDChinhVao=0
+					  AND R.ThoiGian >= DATEADD(minute,-60,@FxEnd)
+					  AND R.ThoiGian <= DATEADD(minute,@FxSau,@FxEnd)
+					ORDER BY R.ThoiGian DESC, R.IDM DESC;
+
+					IF @FxTime IS NOT NULL
+						SELECT @TGVe=@FxTime, @CuaVe=@FxGate;
+					ELSE
+						SELECT @TGVe='1900-01-01 00:00:00.000', @CuaVe=0;
+				END
+			END
+			ELSE IF @TGDen > '19000101' AND CONVERT(date,@TGDen) < CONVERT(date,@D)
+			BEGIN
+				-- Khong co ca ngay D nhung co IN o ngay lich D-1: day la cap IN/OUT cua ca dem D-1.
+				IF @TGVe > '19000101' AND @TGVe > @TGDen AND DATEDIFF(minute,@TGDen,@TGVe) <= 1200
+					SELECT @TGVe='1900-01-01 00:00:00.000', @CuaVe=0;
+				SELECT @TGDen='1900-01-01 00:00:00.000', @Cuaden=0;
 			END
 		END
 
@@ -770,6 +878,10 @@ BEGIN
 		set @TGBDNghi3=@TGBDCa + @TGBDNghi3
 		set @TGKTNghi3=@TGBDCa + @TGKTNghi3
 		set @TGKTCa=@TGBDCa + @TGKTCa
+		-- HRM stores overnight shift end as a time on 1900-01-01 (e.g. C3 08:00).
+		-- If that clock time is not later than the shift start, the end belongs to the next day.
+		IF @TGKTCa <= @TGBDCa
+			SET @TGKTCa = DATEADD(day, 1, @TGKTCa)
 				
 		set @TGLayDLDau= DateAdd(minute, -@QuetTruocCa, @TGBDCa)     -- Nguong nay de xac dinh lay gio vao hay gio ra
 		set @TGLayDLCuoi=DateAdd(minute, @QuetSauCa, @TGKTCa)			-- Nguong nay de xac dinh lay gio vao hay gio ra 

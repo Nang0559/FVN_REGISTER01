@@ -7,6 +7,8 @@ using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.OT;
+using FVN_REGISTER.Core.Entities.HRM;
+using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
@@ -14,6 +16,8 @@ using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Data;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers
@@ -27,6 +31,10 @@ namespace FVN_REGISTER.API.Controllers
         private readonly IOTService _otService;
         private readonly IOTQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _workflow;
+        private readonly IOtRegistrationPolicy _registrationPolicy;
+        private readonly FVNWEBAPPContext _db;
+        private const string RegistrarDeniedMessage =
+            "Bạn không có quyền đăng ký OT cho nhiều người. Hãy báo cấp quản lý hoặc người được chỉ định (hoặc dùng \"Phản hồi cấp trên\" trên lịch).";
 
         public OTController(
             IOTService otService,
@@ -36,13 +44,79 @@ namespace FVN_REGISTER.API.Controllers
             IUserLogService userLog,
             ILogger<OTController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
-            AppAuthorizationService authorization)
+            AppAuthorizationService authorization,
+            IOtRegistrationPolicy registrationPolicy,
+            FVNWEBAPPContext db)
             : base(currentUser, userLog, logger, options)
         {
+            _registrationPolicy = registrationPolicy;
+            _db = db;
             _authorization = authorization;
             _otService = otService;
             _queryService = queryService;
             _workflow = workflow;
+        }
+
+        /// <summary>OT thực tế theo ký hiệu lịch, chưa có đơn OT được duyệt tương ứng.</summary>
+        [HttpGet("unapproved-attendance")]
+        public async Task<IActionResult> GetUnapprovedAttendance([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, CancellationToken ct)
+        {
+            if (UserInfo == null || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+                return Unauthorized(ApiResponse<object>.Fail("Không xác định được nhân viên đăng nhập."));
+            if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTView, ct))
+                return Forbid();
+
+            var today = DateTime.Today;
+            var from = (fromDate ?? new DateTime(today.Year, today.Month, 1)).Date;
+            var to = (toDate ?? today).Date;
+            if (from > to) return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
+            if ((to - from).TotalDays > 92) return BadRequest(ApiResponse<object>.Fail("Chỉ xem tối đa 93 ngày mỗi lần."));
+
+            var rows = await _db.HrmAttendanceCalculated.AsNoTracking()
+                .Where(x => x.EmployeeCode == UserInfo.EmployeeCode
+                    && x.WorkDate >= from && x.WorkDate < to.AddDays(1)
+                    && x.OtSymbol != null && x.OtSymbol != "")
+                .OrderByDescending(x => x.WorkDate)
+                .Select(x => new
+                {
+                    x.WorkDate, x.EmployeeCode, x.FullName, x.ShiftAbbr, x.OtSymbol,
+                    x.CheckInTime, x.CheckOutTime,
+                    x.OTRecognizedMinutesDay, x.OTRecognizedMinutesNight
+                })
+                .ToListAsync(ct);
+
+            var approvedDates = await _db.OvertimeRequests.AsNoTracking()
+                .Where(x => x.EmployeeCode == UserInfo.EmployeeCode
+                    && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.OTDate >= from && x.OTDate < to.AddDays(1))
+                .Select(x => x.OTDate.Date)
+                .Distinct()
+                .ToListAsync(ct);
+            var approved = approvedDates.ToHashSet();
+            var result = rows.Where(x => !approved.Contains(x.WorkDate.Date))
+                .Select(x => new UnapprovedAttendanceOTDto
+                {
+                    WorkDate = x.WorkDate,
+                    EmployeeCode = x.EmployeeCode ?? UserInfo.EmployeeCode!,
+                    EmployeeName = x.FullName ?? UserInfo.FullName ?? UserInfo.EmployeeCode!,
+                    ShiftAbbr = x.ShiftAbbr,
+                    OtSymbol = x.OtSymbol,
+                    CheckInTime = x.CheckInTime,
+                    CheckOutTime = x.CheckOutTime,
+                    OTHours = ParseSymbolHours(x.OtSymbol) ?? decimal.Round((x.OTRecognizedMinutesDay + x.OTRecognizedMinutesNight) / 60m, 2)
+                })
+                .ToList();
+            return Ok(ApiResponse<List<UnapprovedAttendanceOTDto>>.Ok(result));
+        }
+
+        private static decimal? ParseSymbolHours(string? symbol)
+        {
+            if (string.IsNullOrWhiteSpace(symbol)) return null;
+            var match = System.Text.RegularExpressions.Regex.Match(symbol.Trim(), @"(-?\d+(?:[\.,]\d+)?)$");
+            return match.Success && decimal.TryParse(match.Groups[1].Value.Replace(',', '.'),
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var hours) ? Math.Abs(hours) : null;
         }
 
         [HttpGet("combined-data")]
@@ -74,7 +148,26 @@ namespace FVN_REGISTER.API.Controllers
             if (dept != UserInfo.DeptCode && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
             if (dept == null) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
             if (dept == null) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
+            // Danh sách nhân viên phòng ban chỉ dành cho registrar của phòng ban đó (staff/worker không được load).
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, dept.Value, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail(RegistrarDeniedMessage));
             return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept.Value, ct)));
+        }
+
+        /// <summary>Tìm nhân viên theo mã/tên (hoặc danh sách mã dán vào) để thêm vào đơn OT. Dùng chung policy registrar.</summary>
+        [HttpGet("search-employees")]
+        public async Task<IActionResult> SearchEmployees([FromQuery] string? keyword, [FromQuery] string? codes, [FromQuery] int? deptCode, [FromQuery] int take = 20, CancellationToken ct = default)
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            var dept = deptCode ?? UserInfo.DeptCode;
+            if (dept != UserInfo.DeptCode && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
+            if (dept == null) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
+            if (dept == null) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
+            var codeList = string.IsNullOrWhiteSpace(codes)
+                ? null
+                : codes.Split(new[] { ',', ';', '\n', '\r', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.SearchEmployeesAsync(dept.Value, keyword, codeList, take, ct)));
         }
 
         [HttpGet("recent")]
@@ -95,7 +188,8 @@ namespace FVN_REGISTER.API.Controllers
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
             var selectedYear = year ?? DateTime.Now.Year;
-            var result = await _queryService.GetPagedAsync(UserInfo.DeptCode, parsedStatus, new DateTime(selectedYear, 1, 1), new DateTime(selectedYear, 12, 31), page, pageSize, ct);
+            // "history" = lịch sử OT của chính mình (mọi user có quyền xem OT cá nhân), không trả đơn của cả phòng.
+            var result = await _queryService.GetMyHistoryAsync(UserInfo.EmployeeCode ?? string.Empty, parsedStatus, new DateTime(selectedYear, 1, 1), new DateTime(selectedYear, 12, 31), page, pageSize, ct);
             return HandleResult(result);
         }
 
@@ -192,7 +286,9 @@ namespace FVN_REGISTER.API.Controllers
                 {
                     Item = x,
                     Level = x.ApprovalSteps
-                        .Where(s => s.IsRequired && s.Decision == DecisionType.Pending)
+                        .Where(s => s.IsRequired
+                            && (s.Decision == DecisionType.Pending || s.Decision == DecisionType.Escalated)
+                            && string.Equals(s.ApproverCode, UserInfo.EmployeeCode, StringComparison.OrdinalIgnoreCase))
                         .OrderBy(s => s.Level)
                         .Select(s => s.Level)
                         .FirstOrDefault()
@@ -217,7 +313,66 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Chưa đăng nhập."));
             if (!ModelState.IsValid) return BadRequest(ModelState);
             if (dto.Employees == null || dto.Employees.Count == 0) return BadRequest(ApiResponse<object>.Fail("Phải có ít nhất 1 nhân viên."));
+
+            // Chính sách người đăng ký (OT.RegistrarManage / rule phòng ban): chỉ registrar của phòng ban của TỪNG nhân viên
+            // được đăng ký OT (kể cả cho chính mình). Nhân viên khác phải báo cấp quản lý / người được chỉ định.
+            var requestedCodes = dto.Employees.Select(x => x.EmployeeCode?.Trim() ?? string.Empty)
+                .Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var isSelfOnly = requestedCodes.Count == 1
+                && string.Equals(requestedCodes[0], UserInfo.EmployeeCode?.Trim(), StringComparison.OrdinalIgnoreCase);
+            var isSelfPositionAllowed = isSelfOnly && await IsSelfRegistrationPositionAllowedAsync(UserInfo.DeptCode ?? 0, UserInfo.PositionCode, ct);
+            if (!isSelfPositionAllowed
+                && !await _registrationPolicy.CanRegisterForEmployeesAsync(UserInfo, requestedCodes, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail("Bạn không có quyền đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT (hoặc dùng \"Phản hồi cấp trên\" trên lịch)."));
             return HandleResult(await _otService.CreateAsync(dto, UserInfo, ct));
+        }
+
+
+        private async Task<bool> IsSelfRegistrationPositionAllowedAsync(int deptCode, string? positionCode, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(positionCode)) return false;
+            var connection = _db.Database.GetDbConnection();
+            var shouldClose = connection.State != ConnectionState.Open;
+            if (shouldClose)
+                await connection.OpenAsync(ct);
+
+            try
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT CASE WHEN EXISTS
+                    (
+                        SELECT 1
+                        FROM dbo.F03OTSelfRegistrationPositions p
+                        WHERE p.IsActive = 1
+                          AND p.RegisterType = @registerType
+                          AND p.PositionCode = @positionCode
+                          AND p.DepartmentCode IN (0, @departmentCode)
+                    ) THEN 1 ELSE 0 END;";
+
+                var registerTypeParameter = command.CreateParameter();
+                registerTypeParameter.ParameterName = "@registerType";
+                registerTypeParameter.Value = "OT";
+                command.Parameters.Add(registerTypeParameter);
+
+                var positionParameter = command.CreateParameter();
+                positionParameter.ParameterName = "@positionCode";
+                positionParameter.Value = positionCode.Trim();
+                command.Parameters.Add(positionParameter);
+
+                var departmentParameter = command.CreateParameter();
+                departmentParameter.ParameterName = "@departmentCode";
+                departmentParameter.Value = deptCode;
+                command.Parameters.Add(departmentParameter);
+
+                var result = await command.ExecuteScalarAsync(ct);
+                return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) == 1;
+            }
+            finally
+            {
+                if (shouldClose)
+                    await connection.CloseAsync();
+            }
         }
 
         [HttpPost("approve")]
@@ -298,6 +453,8 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasPersonalAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, UserInfo.DeptCode ?? 0, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail("Bạn không có quyền đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT (hoặc dùng \"Phản hồi cấp trên\" trên lịch)."));
             return HandleResult(await _otService.JoinAsync(id, UserInfo, ct));
         }
 
@@ -307,6 +464,8 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, UserInfo.DeptCode ?? 0, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail(RegistrarDeniedMessage));
             return HandleResult(await _otService.RemoveEmployeeAsync(otRequestId, employeeCode, UserInfo, ct));
         }
 
@@ -316,6 +475,8 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _registrationPolicy.IsRegistrarAsync(UserInfo, UserInfo.DeptCode ?? 0, "OT", ct))
+                return StatusCode(403, ApiResponse<object>.Fail(RegistrarDeniedMessage));
             return HandleResult(await _otService.UpdateEmployeeOTInfoAsync(id, employees, UserInfo, ct));
         }
     }

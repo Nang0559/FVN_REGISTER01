@@ -1,0 +1,2 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net9.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>  <UserSecretsId>965e1895-a462-41e6-ba22-e75e626b0ccf</UserSecretsId>
+  </PropertyGroup><ItemGroup><ProjectReference Include="..\FVN_REGISTER.AI.Application\FVN_REGISTER.AI.Application.csproj" /><ProjectReference Include="..\FVN_REGISTER.AI.Infrastructure\FVN_REGISTER.AI.Infrastructure.csproj" /></ItemGroup></Project>

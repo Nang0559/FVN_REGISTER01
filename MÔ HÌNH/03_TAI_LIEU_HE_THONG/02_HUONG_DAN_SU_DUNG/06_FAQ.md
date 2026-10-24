@@ -1,75 +1,74 @@
-# FVN REGISTER — FAQ & TÌNH HUỐNG THƯỜNG GẶP
+# FVN_REGISTER — CÂU HỎI THƯỜNG GẶP
 
-## 1. Tôi nhận notification nhưng không thấy Approve?
-Notification chỉ là delivery/read state. Request có thể đã được xử lý, chuyển cấp, bị từ chối hoặc bạn không còn là actor hiện tại.
+## 1. Tôi mới sử dụng, nên bắt đầu từ đâu?
+Mở [04_USER_GUIDE.md](04_USER_GUIDE.md), đọc phần **Bắt đầu nhanh**. Ba việc đầu tiên nên biết là xem lịch/công, đăng ký nghỉ và đăng ký OT.
 
-## 2. Tôi có quyền Approve nhưng không thấy request?
-Kiểm tra required step, trạng thái request, actor hiện tại và data scope. Có capability không đồng nghĩa có quyền xem mọi dữ liệu.
+## 2. Tôi quên chấm công hoặc không thấy giờ vào/ra thì làm gì?
+Mở **Lịch làm việc**, chọn đúng ngày và kiểm tra chi tiết. Nếu dữ liệu vẫn thiếu, liên hệ quản lý hoặc HR để kiểm tra dữ liệu chấm công. Không tự nhập giờ vào/ra nếu màn hình không cung cấp chức năng đó.
 
-## 3. Approver thay đổi sau khi tôi Submit?
-Request đã Submit dùng Approval Snapshot tại thời điểm Submit. Cấu hình mới áp dụng cho request phù hợp sau đó; không sửa lịch sử snapshot cũ.
+## 3. Tôi thấy dấu ? màu cam trên lịch. Đây là gì?
+Dấu **?** là cảnh báo có chênh lệch hoặc việc cần bạn phản hồi. Ví dụ, có OT thực tế nhưng chưa tìm thấy đơn OT đã duyệt tương ứng. Chọn ngày có dấu ? để đọc nội dung. Đây không phải nút đăng ký OT.
 
-## 4. Escalated có phải Rejected?
-**Không.** Escalated là system decision do timeout để chuyển sang cấp/actor tiếp theo theo workflow.
+## 4. Tôi làm OT nhưng quên đăng ký thì xử lý thế nào?
+Mở ngày có dấu **?** trên lịch hoặc công việc tương ứng trong **Trung tâm công việc**. Đọc nội dung, gửi giải thích trung thực và đính kèm bằng chứng nếu được yêu cầu. Không tạo đơn mới cho ngày đã qua nếu quy trình không cho phép.
 
-## 5. Approved OT có nghĩa đã làm đủ giờ OT?
-**Không.** Approved là Planned. Actual được lấy từ attendance/calculation chính thức và được reconciliation.
+## 5. Đơn nghỉ phép/OT/công tác đã gửi nhưng chưa được duyệt?
+Mở lịch sử của phân hệ tương ứng và kiểm tra trạng thái, tiến trình, người đang xử lý. Nếu Pending, yêu cầu vẫn đang chờ. Nếu Rejected, đọc lý do. Nếu Escalated, yêu cầu đã được chuyển cấp do quá thời hạn, không phải bị từ chối.
 
-## 6. Ngày tương lai không có chấm công có phải lỗi?
-**Không.** Ngày tương lai chưa có Actual attendance là bình thường. Không tạo attendance mismatch chỉ vì ngày chưa tới.
+## 6. Vì sao tôi không chọn được người duyệt?
+Danh sách người duyệt được xác định theo loại yêu cầu, phòng ban, chức vụ và chính sách hiện hành. Nếu danh sách trống hoặc sai, liên hệ HR/Admin để kiểm tra dữ liệu nhân sự và cấu hình người duyệt.
 
-## 7. Calendar hiển thị Pending/Approved có phải Calendar là nguồn dữ liệu chính?
-Không. Calendar là projection/navigation. Trạng thái Pending/Approved/Rejected lấy từ business module source.
+## 7. Tôi có thông báo nhưng không thấy nút Approve?
+Yêu cầu có thể đã được xử lý, chuyển cấp hoặc không còn ở bước của bạn. Mở **Phê duyệt → Danh sách chờ duyệt**, tải lại và kiểm tra bộ lọc **Chờ tôi duyệt**.
 
-## 8. Tôi đã đăng ký OT nhưng Calendar vẫn cho đăng ký?
-Registration Opportunity phải bị suppress khi đã có registration tương ứng. Nếu UI không đồng nhất, kiểm tra refresh/projection và báo lỗi kèm ngày + mã request.
+## 8. Escalated có phải Rejected không?
+**Không.** Escalated nghĩa là yêu cầu được chuyển sang cấp/người xử lý tiếp theo theo quy trình do quá thời hạn. Rejected mới là trạng thái từ chối.
 
-## 9. Dấu `?` màu đỏ là gì?
-Đó là **Issue marker** của Calendar. Nó biểu diễn case cần chú ý/xử lý; không phải một request mới. Click để xem Issue và ActionOption.
+## 9. Approved OT có nghĩa là tôi đã làm đủ giờ OT?
+**Không.** Approved là kế hoạch OT đã được chấp thuận. Giờ thực tế lấy từ dữ liệu chấm công và được đối chiếu riêng.
 
-## 10. Planned và Actual khác nhau thì sao?
-Reconciliation tạo/duy trì case mismatch theo policy. Có thể cần Confirmation, Evidence và HR Resolution.
+## 10. Ngày tương lai chưa có giờ chấm công có phải lỗi?
+**Không.** Ngày tương lai chưa phát sinh giờ vào/ra là bình thường. Không tạo mismatch chỉ vì ngày chưa tới.
 
-```mermaid
-flowchart LR
-    P[Approved Planned] --> R[Reconciliation]
-    A[Actual] --> R
-    R -->|Matched| OK[Resolved]
-    R -->|Mismatch| C[Confirmation]
-    C --> E[Evidence / Review]
-    E --> H[HR Resolution]
-    H --> OK
-```
+## 11. Matched và Mismatch khác nhau thế nào?
+- **Matched:** kế hoạch và dữ liệu thực tế khớp.
+- **Mismatch:** có chênh lệch cần xem xét; có thể cần nhân viên phản hồi, cung cấp bằng chứng và HR xử lý.
 
-## 11. Action Completed có giải quyết mismatch không?
-Không. Action là work item. Business result/reconciliation phải được xử lý theo workflow.
+## 12. Action Completed có nghĩa là đơn đã được duyệt hoặc đối soát đã xong?
+Không. Action là việc được giao. Action Completed chỉ cho biết việc đó đã đóng. Trạng thái đơn và kết quả đối soát phải được xem riêng.
 
-## 12. Evidence bị Reject/NeedMoreEvidence?
-Reconciliation chưa được coi là Resolved và Action không tự động hoàn tất.
+## 13. HR đã xử lý nhưng tôi vẫn thấy yêu cầu?
+Một số trường hợp cần nhân viên đọc kết quả rồi chọn đồng ý hoặc khiếu nại. Hãy mở chi tiết, đọc kết quả và thực hiện lựa chọn nếu màn hình hiển thị.
 
-## 13. HR có sửa trực tiếp attendance result không?
-Theo luồng chuẩn, không. Correction phải đi qua calculation pipeline và để lại audit.
+## 14. HR yêu cầu bổ sung bằng chứng thì làm gì?
+Mở lại yêu cầu, đọc ý kiến HR, bổ sung thông tin hoặc bằng chứng còn thiếu rồi gửi lại. Theo dõi trạng thái sau khi gửi.
 
-## 14. Tôi có View nhưng không Export được?
-Đúng theo thiết kế. View và Export là capability riêng.
+## 15. Vì sao tôi không thấy một chức năng hoặc một yêu cầu?
+Chức năng và dữ liệu hiển thị phụ thuộc quyền và phạm vi được cấp. Liên hệ Admin/HR để kiểm tra. Việc không thấy dữ liệu không có nghĩa dữ liệu đã bị xóa.
 
-## 15. Tôi chọn DeptCode khác trên UI nhưng dữ liệu không hiện?
-UI filter không cấp quyền. Server vẫn áp dụng Data Scope.
+## 16. Vì sao tôi không đăng ký OT được?
+Có thể tài khoản không thuộc nhóm được tự đăng ký, hoặc quy tắc đăng ký/hạn mức không cho phép. Đọc cảnh báo trên màn hình và liên hệ quản lý. Nếu bạn đã làm OT thực tế nhưng thiếu đơn, xử lý theo dấu ? trên lịch.
 
-## 16. Không thấy Equipment?
-Kiểm tra capability/module assignment và data scope với Admin. Quyền dùng module và quyền approve là hai lớp khác nhau.
+## 17. Tôi đã lưu nháp công tác. Chuyến đi đã được duyệt chưa?
+Chưa. Lưu nháp chỉ lưu thông tin để hoàn thiện sau. Chọn **Gửi duyệt** và theo dõi trạng thái trước khi coi chuyến công tác đã được chấp thuận.
 
-## 17. QR đã in nhưng chưa scan/use được?
-QR có thể tồn tại trước approval nhưng chỉ active khi Equipment request được approval hoàn tất.
+## 18. Tôi import Excel thiết bị nhưng không xác nhận nhập được?
+Mở hồ sơ nhập, kiểm tra lỗi từng dòng. Sửa file theo mẫu, tải lại và chỉ xác nhận khi dữ liệu hợp lệ. Nếu gán người phụ trách, mã nhân viên phải còn hoạt động và thuộc đúng bộ phận tại thời điểm xác nhận.
 
-## 18. Repair đã nhập nhưng chưa thấy lịch sử chính thức?
-Repair History chính thức chỉ phản ánh repair đã qua workflow approval theo policy.
+## 19. QR thiết bị đã in nhưng chưa quét được?
+QR có thể được tạo trước khi yêu cầu thiết bị được duyệt. QR chỉ hoạt động sau khi thiết bị được phê duyệt và kích hoạt. Tài khoản quét cũng phải có quyền xem thông tin thiết bị.
 
-## 19. Payroll dùng kỳ nào?
-Kỳ hiện hành theo thiết kế là **ngày 21 → ngày 20**. Payroll input phải dựa trên dữ liệu đã tính và các readiness gate của kỳ.
+## 20. Yêu cầu sửa chữa đã tạo nhưng chưa xuất hiện trong lịch sử sửa chữa?
+Lịch sử sửa chữa chính thức chỉ phản ánh yêu cầu đã qua quy trình phê duyệt và hoàn tất theo quy định. Yêu cầu nháp/đang chờ duyệt không phải lịch sử sửa chữa đã xác nhận.
 
-## 20. Tôi gặp 401/403?
-401 thường liên quan authentication/session. 403 cho biết request đã xác thực nhưng capability/scope không cho phép thao tác. Liên hệ Admin/HR/IT theo loại vấn đề.
+## 21. Vì sao ngày thường có giờ công nhưng lịch không tô màu?
+Đó là hành vi đúng. Ngày thường không tự tô màu chỉ vì có giờ chấm công. Màu nền thể hiện loại ngày theo lịch HRM: ngày nghỉ công ty, Chủ nhật và ngày lễ được phân biệt riêng.
 
-## 21. Khi báo lỗi cần gửi gì?
-Module, thời điểm, thao tác, mã request nếu có và ảnh màn hình. Không gửi password, access token hoặc secret.
+## 22. Tôi có quyền xem báo cáo nhưng không xuất Excel được?
+Quyền xem và quyền xuất dữ liệu có thể được cấp riêng. Liên hệ Admin nếu công việc của bạn cần quyền xuất.
+
+## 23. Tôi gặp lỗi 401 hoặc 403 thì sao?
+401 thường liên quan đăng nhập hoặc phiên làm việc. 403 nghĩa là tài khoản đã đăng nhập nhưng không được phép thực hiện thao tác hoặc xem phạm vi dữ liệu đó. Đăng nhập lại nếu phiên hết hạn; nếu vẫn lỗi, liên hệ Admin/IT.
+
+## 24. Khi báo lỗi cần gửi thông tin gì?
+Gửi tên chức năng, thời điểm xảy ra, thao tác đã làm, mã đơn liên quan nếu có và ảnh chụp thông báo lỗi. Không gửi mật khẩu, mã xác thực, access token hoặc secret thiết bị.

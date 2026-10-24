@@ -121,11 +121,9 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03LeaveType x WHERE x.LeaveTypeCode=v.Code);
 
 INSERT dbo.F03OTTypes(IsActive,CreatedBy,OTTypeCode,OTTypeName,OTTypeName2,RateMultiplier,HRMCode)
 SELECT 1,0,v.Code,v.Name,v.Name2,v.Rate,v.HRM FROM (VALUES
-(N'WD',N'Weekday OT',N'Weekday OT',1.5,N'OT-WD'),
-(N'SAT',N'Saturday OT',N'Saturday OT',2.0,N'OT-SAT'),
-(N'SUN',N'Sunday OT',N'Sunday OT',2.0,N'OT-SUN'),
-(N'HOL',N'Holiday OT',N'Holiday OT',3.0,N'OT-HOL'),
-(N'NIGHT',N'Night OT',N'Night OT',2.0,N'OT-NIGHT')
+(N'WD',N'OT ngày thường (150%)',N'OT ngày thường (150%)',1.5,N'OT-WD'),
+(N'RESTDAY',N'OT ngày nghỉ công ty / Chủ nhật (200%)',N'OT ngày nghỉ công ty / Chủ nhật (200%)',2.0,N'OT-RESTDAY'),
+(N'HOL',N'OT ngày lễ (300%)',N'OT ngày lễ (300%)',3.0,N'OT-HOL')
 ) AS v(Code,Name,Name2,Rate,HRM)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTTypes x WHERE x.OTTypeCode=v.Code);
 
@@ -482,19 +480,22 @@ SELECT 1,0,v.Module,v.Code,v.Name,v.Json,NULL
 FROM (VALUES
 (N'Leave',N'LEAVE_WORKDAY',N'Leave working-day rule',N'{"excludeSunday":true}'),
 (N'Leave',N'LEAVE_HALF_DAY',N'Leave half-day rule',N'{"morning":0.5,"afternoon":0.5}'),
-(N'OT',N'OT_DAILY_LIMIT',N'Daily OT limit',N'{"hours":4}'),
+(N'Overtime',N'OT_DAILY_LIMIT',N'Daily OT limit',N'{"hours":4}'),
 (N'Trip',N'TRIP_APPROVAL',N'Trip approval',N'{"levels":3}'),
 (N'Equipment',N'EQUIPMENT_APPROVAL',N'Equipment approval',N'{"levels":2}')
 ) AS v(Module,Code,Name,Json)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03BusinessRules b WHERE b.Module=v.Module AND b.Code=v.Code);
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03BusinessRules b WHERE b.Code=v.Code AND (b.Module=v.Module OR (v.Module=N'Overtime' AND b.Module=N'OT')));
 
 INSERT dbo.F03EscalationRules(IsActive,CreatedBy,RequestModule,Level,DeptCode,WarningHours,EscalateHours,DeadlineHour)
 SELECT 1,0,v.Module,v.Level,v.Dept,v.Warning,v.Escalate,48
 FROM (VALUES
 (N'Leave',1,57,24,48),(N'Leave',2,57,24,48),(N'Leave',3,57,24,48),
-(N'OT',1,57,24,48),(N'OT',2,57,24,48)
+(N'Overtime',1,57,24,48),(N'Overtime',2,57,24,48)
 ) AS v(Module,Level,Dept,Warning,Escalate)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EscalationRules r WHERE r.RequestModule=v.Module AND r.Level=v.Level AND r.DeptCode=v.Dept);
+-- Chấp nhận dòng cũ lưu 'OT' (chưa chạy 78_NormalizeEscalationRuleRequestModule.sql) để không seed trùng.
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EscalationRules r
+                 WHERE (r.RequestModule=v.Module OR (v.Module=N'Overtime' AND r.RequestModule=N'OT'))
+                   AND r.Level=v.Level AND r.DeptCode=v.Dept);
 
 COMMIT;
 GO

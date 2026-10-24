@@ -8,6 +8,7 @@ public static class ExecutionNotificationModuleMapper
     {
         switch (moduleCode?.Trim().ToUpperInvariant())
         {
+            case "OVERTIME":
             case "OT":
                 return RequestModule.Overtime;
             case "LEAVE":

@@ -105,6 +105,35 @@ FVN_REGISTER không tạo calculation engine thứ hai. Attendance calculation/b
 
 Calendar đọc official result theo employee + WorkDate. Attendance provider không tạo reconciliation cho từng ngày attendance thông thường và không ghi CalendarProjection cho calculation result.
 
+### 5A. DayType và màu lịch — quy tắc canonical
+
+`DayType` được chuẩn hóa từ lịch nghỉ HRM; không suy ra chỉ từ việc có dòng chấm công. Hai nguồn HRM có ý nghĩa khác nhau:
+
+- `HRM.dbo.DM_Loainghile.LNLMa` là mã danh mục loại nghỉ (`0001`, `0002`, `0003`).
+- `HRM.dbo.tblNgayNghiLe.NNLLoai` là mã nhóm trên từng ngày; **không được nối trực tiếp số `NNLLoai` với `LNLMa` hoặc `LNLLoai`**.
+
+| Nguồn HRM | Ánh xạ | `DayType` FVN | `F03CompanyHolidays` | Màu lịch |
+|---|---|---|---|---|
+| `LNLMa=0001` | Ngày thường | `NORMAL` | Không tạo dòng ngày nghỉ | Không tô màu, kể cả khi đã có attendance |
+| `NNLLoai=2` → `LNLMa=0002`, ngày Chủ nhật | Chủ nhật | `SUNDAY` | Có | `Navy` |
+| `NNLLoai=2` → `LNLMa=0002`, thứ Hai–thứ Bảy | Nghỉ công ty | `COMPANY_HOLIDAY` | Có | `LightYellow` |
+| `NNLLoai=1` → `LNLMa=0003` | Lễ quốc gia | `NATIONAL_HOLIDAY` | Có | Giữ màu cấu hình HRM, ví dụ `HotPink` |
+| Mã HRM khác đã được cấu hình | Theo mapping loại ngày | `OTHER` hoặc DayType được quản trị | Theo dữ liệu nguồn hợp lệ | Theo màu cấu hình tương ứng |
+
+`NNLLoai=1` phải được ánh xạ tường minh tới `LNLMa=0003`; `NNLLoai=2` tới `LNLMa=0002`. Không dùng phép ghép `NNLLoai=1` → `LNLMa=0001`, vì `0001` là `NORMAL`.
+
+`F03CompanyHolidays.HolidayType` vẫn là nhóm phân loại nghiệp vụ rộng: `1=COMPANY` được dùng cho cả `SUNDAY` và `COMPANY_HOLIDAY`; `2=NATIONAL` cho ngày lễ. Vì vậy, **không suy ra DayType chi tiết từ HolidayType**. Dùng cột `DayType` để phân biệt Chủ nhật với ngày nghỉ công ty T2-T7.
+
+Quy tắc màu dùng chung:
+
+1. `NORMAL` luôn trả về màu nền rỗng/transparent. Màu `LightYellow` còn lưu trong danh mục HRM `0001` không được áp lên ngày thường.
+2. `COMPANY_HOLIDAY` thứ Hai–thứ Bảy dùng `LightYellow`; `SUNDAY` dùng `Navy`.
+3. `NATIONAL_HOLIDAY` giữ màu HRM của danh mục `0003`; không ghi đè thành màu nghỉ công ty.
+4. `OTHER` dùng màu cấu hình của loại ngày tương ứng.
+5. Nguồn màu nền là Company Calendar/DayType policy (`F03CompanyHolidays` và `F03HrmHolidayTypes`). Có attendance, giờ vào/ra hoặc Work/OT symbol **không làm phát sinh màu nền**. `Attendance.BackgroundColor` không phải nguồn màu độc lập.
+
+Ngày Chủ nhật không có bản ghi nghỉ HRM vẫn có thể được nhận diện/hiển thị như Chủ nhật; riêng quyền đăng ký được quyết định bởi dữ liệu `F03CompanyHolidays` và WorkYear, không phải chỉ bởi `DayOfWeek`.
+
 ## 6. Leave
 
 Leave workflow:
@@ -875,8 +904,10 @@ A day is assembled from five fact groups:
 1. Company calendar:
    - `F03WorkYears`
    - `F03CompanyHolidays`
-   - A date is a company working day when it is inside an active WorkYear and is not present in F03CompanyHolidays.
-   - Saturday/Sunday is informational only. It does not block registration unless the company calendar marks the date as a holiday.
+   - A date is a company working day when it is inside an active WorkYear and is not present in `F03CompanyHolidays`.
+   - Weekday/weekend alone does not block registration; the active HRM-synced company-calendar row is the deciding source. In the current HRM mapping, `NNLLoai=2` creates a rest-day row for Sunday and for configured Monday–Saturday company-rest dates.
+   - `LNLMa=0001` (`NORMAL`) is not copied into `F03CompanyHolidays`; a normal attendance row must not create a holiday or background color.
+   - A Sunday without an HRM rest-day row may be displayed as Sunday, but it is not automatically treated as a company holiday for registration availability.
 
 2. Shift:
    - `ShiftId`
@@ -1100,6 +1131,8 @@ Work Calendar đã có foundation trước khi thêm Action/Execution:
 - Branch hiện tại dùng `SQL/35_WorkCalendar.sql` để **chuẩn hóa/migrate** WorkYear + CompanyHoliday; file này không tạo một Calendar service thứ hai.
 - Shared Calendar runtime vẫn đi qua `CalendarModuleRegistry` → providers → `SharedWorkCalendarService`; không tạo một `LeaveCalendarService`, `OtCalendarService` hoặc `TripCalendarService` song song.
 - `F03CalendarProjection` là projection cho dữ liệu cần materialize/action-link; nó không thay thế các request tables. `WorkCalendarService` vẫn đọc business registration source để hiển thị đăng ký.
+- HRM holiday deployment: cài `SQL/83_HrmHolidaySync.sql`, sau đó cài `SQL/84_FixHrmHolidaySyncAndAttendanceSymbolHistory.sql` (sau các prerequisite `22_05`); `84` là procedure sync ngày nghỉ canonical và thực hiện initial sync. `SQL/87_BackfillHolidaySymbols.sql` chỉ dùng khi cần backfill ký hiệu đã tính; `SQL/88_RemoveLegacyDayTypes.sql` là cleanup có điều kiện, phải đọc backup/điều kiện trước khi chạy.
+- `SQL/90_NormalizeDayTypesToHrm.sql` là migration cũ không tương thích với mapping hiện tại vì gộp `SUNDAY` vào `COMPANY_HOLIDAY`; **không chạy** trên mô hình hiện tại. `SQL/84` là nguồn mapping chuẩn.
 - `24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md` là source of truth hiện tại của branch. Các blueprint cũ chỉ là historical input/reference; không tạo thêm một architecture document cùng cấp.
 
 

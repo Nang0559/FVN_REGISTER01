@@ -131,6 +131,11 @@ IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmBCNgayLeNV') IS NULL ALTER 
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmShiftDayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD HrmShiftDayType smallint NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'AttendanceDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD AttendanceDisplayValue nvarchar(50) NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'OtDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD OtDisplayValue nvarchar(50) NULL;
+-- Ngày nghỉ HRM + rule ký hiệu (SQL/83): DayType do dbo.fn_ResolveDayType, WorkSymbol/OtSymbol/SymbolRuleCode do rule F03AttendanceSymbolRules.
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'DayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD DayType nvarchar(40) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'WorkSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD WorkSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'OtSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD OtSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'SymbolRuleCode') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD SymbolRuleCode nvarchar(100) NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculated') AND name=N'IX_F03HrmAttendanceCalculated_DateDept')
@@ -309,9 +314,31 @@ BEGIN
         FinishedAt datetime2(0) NULL,
         EmployeeCount int NULL,
         CalculatedRows int NULL,
-        ErrorMessage nvarchar(2000) NULL
+        ErrorMessage nvarchar(2000) NULL,
+        SqlSessionId int NULL,
+        SqlSessionLoginTime datetime2(3) NULL,
+        SqlConnectionId uniqueidentifier NULL
     );
 END;
+GO
+
+/* Exact SQL session identity for safe startup recovery (SPID + login time + unique connection ID avoids SPID reuse). */
+IF EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun')
+      AND name=N'IX_F03HrmAttendanceCalculationRun_RunningSession'
+)
+    DROP INDEX IX_F03HrmAttendanceCalculationRun_RunningSession
+        ON dbo.F03HrmAttendanceCalculationRun;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionId') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionId int NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlSessionLoginTime') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlSessionLoginTime datetime2(3) NULL;
+ELSE
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ALTER COLUMN SqlSessionLoginTime datetime2(3) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculationRun',N'SqlConnectionId') IS NULL
+    ALTER TABLE dbo.F03HrmAttendanceCalculationRun ADD SqlConnectionId uniqueidentifier NULL;
 GO
 
 /* Employee-scoped coverage metadata for calendar lazy backfill. */

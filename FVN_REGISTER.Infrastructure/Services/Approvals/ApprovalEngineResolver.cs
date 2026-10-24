@@ -14,6 +14,7 @@ public sealed class ApprovalEngineResolver : IApprovalEngineResolver
     private readonly IApprovalEngine<EquipmentRequestSubject> _equipment;
     private readonly IApprovalEngine<PayrollPeriodSubject> _payroll;
     private readonly IApprovalEngine<EndpointGovernanceRequestSubject> _endpoint;
+    private readonly IApprovalEngine<LateEarlyRequestSubject> _lateEarly;
 
     public ApprovalEngineResolver(
         IApprovalEngine<LeaveRequestSubject> leave,
@@ -21,7 +22,8 @@ public sealed class ApprovalEngineResolver : IApprovalEngineResolver
         IApprovalEngine<TripRequestSubject> trip,
         IApprovalEngine<EquipmentRequestSubject> equipment,
         IApprovalEngine<PayrollPeriodSubject> payroll,
-        IApprovalEngine<EndpointGovernanceRequestSubject> endpoint)
+        IApprovalEngine<EndpointGovernanceRequestSubject> endpoint,
+        IApprovalEngine<LateEarlyRequestSubject> lateEarly)
     {
         _leave = leave;
         _ot = ot;
@@ -29,6 +31,7 @@ public sealed class ApprovalEngineResolver : IApprovalEngineResolver
         _equipment = equipment;
         _payroll = payroll;
         _endpoint = endpoint;
+        _lateEarly = lateEarly;
     }
 
     public Task<ApprovalActionResult> ProcessDecisionAsync(RequestModule module, ApprovalActionDto action, CancellationToken ct)
@@ -40,6 +43,7 @@ public sealed class ApprovalEngineResolver : IApprovalEngineResolver
             RequestModule.Equipment => _equipment.ProcessDecisionAsync(action, ct),
             RequestModule.Payroll => _payroll.ProcessDecisionAsync(action, ct),
             RequestModule.Endpoint => _endpoint.ProcessDecisionAsync(action, ct),
+            RequestModule.LateEarly => _lateEarly.ProcessDecisionAsync(action, ct),
             _ => throw new NotSupportedException($"Approval module {module} chưa được hỗ trợ.")
         };
 
@@ -52,6 +56,7 @@ public sealed class ApprovalEngineResolver : IApprovalEngineResolver
             RequestModule.Equipment => _equipment.GetPendingForApproverAsync(approverEmail, ct),
             RequestModule.Payroll => _payroll.GetPendingForApproverAsync(approverEmail, ct),
             RequestModule.Endpoint => _endpoint.GetPendingForApproverAsync(approverEmail, ct),
+            RequestModule.LateEarly => _lateEarly.GetPendingForApproverAsync(approverEmail, ct),
             _ => throw new NotSupportedException($"Approval module {module} chưa được hỗ trợ.")
         };
 }

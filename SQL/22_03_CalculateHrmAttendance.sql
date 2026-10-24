@@ -1,5 +1,5 @@
 CREATE OR ALTER PROCEDURE dbo.usp_CalculateHrmAttendance
- @DeptCode int=NULL,@EmployeeCode nvarchar(50)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
+ @DeptCode int=NULL,@EmployeeCode nvarchar(50)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.1-C3-OVERNIGHT'
 AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
@@ -10,6 +10,14 @@ BEGIN
  --   2) manual:     @DeptCode + date range => selected department/date
  -- The per-staff calculation remains dbo.usp_HrmCompatibleTimeKeepingForStaff.
  DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=@DeptCode,@HrmEmployeeId int=NULL;
+ DECLARE @SqlSessionLoginTime datetime2(3),@SqlConnectionId uniqueidentifier;
+ SELECT @SqlSessionLoginTime=CONVERT(datetime2(3),s.login_time),
+        @SqlConnectionId=c.connection_id
+ FROM sys.dm_exec_sessions AS s
+ INNER JOIN sys.dm_exec_connections AS c ON c.session_id=s.session_id
+ WHERE s.session_id=@@SPID;
+ IF @SqlSessionLoginTime IS NULL OR @SqlConnectionId IS NULL
+     THROW 51323,N'Không thể xác định danh tính SQL session cho lần tính chấm công.',1;
  SET @EmployeeCode=NULLIF(LTRIM(RTRIM(@EmployeeCode)),N'');
  IF @EmployeeCode IS NOT NULL
  BEGIN
@@ -17,8 +25,10 @@ BEGIN
    IF @HrmEmployeeId IS NULL THROW 51321,N'Không tìm thấy nhân viên HRM hoặc nhân viên đã bị khóa.',1;
  END
  INSERT dbo.F03HrmAttendanceCalculationRun
- (CalculationBatchId,DeptCode,EmployeeCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt)
- VALUES(@BatchId,@DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE());
+ (CalculationBatchId,DeptCode,EmployeeCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt,SqlSessionId,SqlSessionLoginTime,SqlConnectionId)
+ VALUES(@BatchId,@DeptCode,@EmployeeCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE(),@@SPID,@SqlSessionLoginTime,@SqlConnectionId);
+ /* Ngày nghỉ lấy từ HRM (DM_Loainghile/tblNgayNghiLe) - đồng bộ trước khi tính để DayType luôn mới. */
+ EXEC dbo.usp_SyncHrmHolidays;
  CREATE TABLE #Result(
   BCNgay datetime NOT NULL,BCMaNV int NOT NULL,BCMaBP int NOT NULL,BCMaCV int NOT NULL,BCMaCa int NOT NULL,
   BCCuaDen int NULL,BCTGDen datetime NULL,BCCuaVe int NULL,BCTGVe datetime NULL,BCCuaRa int NULL,BCTGRa datetime NULL,BCCuaVao int NULL,BCTGVao datetime NULL,
@@ -30,6 +40,24 @@ BEGIN
   BCTGDKNTheogio float NULL,BCLoaiDKN varchar(10) NULL,BCDangKyLTN float NULL,BCDangKyLTD float NULL,BCTGUuDaiN int NULL,BCTGUuDaiD int NULL,
   BCNgayLe int NULL,BCNgayLeNV int NULL,BCDaXacNhanLamThem bit NULL,DLocked bit NULL
  );
+ /*
+    Freeze the employee scope once for the whole run. The DELETE and cursor
+    must operate on exactly the same employees; do not re-read HRM department
+    membership independently for every date.
+ */
+ CREATE TABLE #EmployeesToCalculate
+ (
+     HrmEmployeeId int NOT NULL PRIMARY KEY
+ );
+
+ INSERT #EmployeesToCalculate(HrmEmployeeId)
+ SELECT NV.NVMa
+ FROM HRM.dbo.tblNhanVien AS NV
+ WHERE ISNULL(NV.DLocked,0)=0
+   AND (@HrmDeptId IS NULL OR NV.NVMaBP=@HrmDeptId)
+   AND (@HrmEmployeeId IS NULL OR NV.NVMa=@HrmEmployeeId);
+
+ DECLARE @LockHeld bit=0; -- chỉ release app lock khi phiên này THỰC SỰ đang giữ nó
  BEGIN TRY
  DECLARE @D date=@FromDate;
  WHILE @D<=@ToDate
@@ -48,40 +76,67 @@ BEGIN
   DECLARE @AppLockResource nvarchar(255) = N'FVN_REGISTER:ATTENDANCE:DATE:' + CONVERT(nvarchar(10),@D,112);
   EXEC @AppLockResult=sp_getapplock
       @Resource=@AppLockResource,
-      @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=30000;
-  IF @AppLockResult<0 THROW 51322,N'Ngày chấm công đang được một calculation khác xử lý.',1;
+      @LockMode=N'Exclusive',@LockOwner=N'Session',@LockTimeout=120000;
+  IF @AppLockResult<0
+  BEGIN
+      DECLARE @LockMsg nvarchar(200)=N'Ngày chấm công '+CONVERT(nvarchar(10),@D,23)+N' đang được một calculation khác xử lý (chờ khóa quá 120 giây). Vui lòng chạy lại sau khi lần tính kia hoàn tất.';
+      THROW 51322,@LockMsg,1;
+  END
+  SET @LockHeld=1;
 
-  DELETE FROM dbo.F03HrmAttendanceCalculated
-  WHERE WorkDate=@D
-    AND (@HrmDeptId IS NULL OR HrmDeptId=@HrmDeptId)
-    AND (@HrmEmployeeId IS NULL OR HrmEmployeeId=@HrmEmployeeId);
+  /*
+     Delete by the frozen employee scope, not by the department stored on an
+     old attendance row. This replaces old rows after department transfers
+     (e.g. stored HrmDeptId 7, current department 27) without touching employees
+     outside this run or dates outside the requested range.
+  */
+  DELETE A
+  FROM dbo.F03HrmAttendanceCalculated AS A
+  INNER JOIN #EmployeesToCalculate AS E
+      ON E.HrmEmployeeId=A.HrmEmployeeId
+  WHERE A.WorkDate=@D;
 
   -- OT actual is also current-state; clear the same employee/date scope
   -- inside the same date transaction so a failed calculation rolls it back.
-  DELETE oa
-  FROM dbo.F03HrmOTActual oa
-  WHERE oa.WorkDate=@D
-    AND
-    (
-        @HrmDeptId IS NULL
-        OR EXISTS
-        (
-            SELECT 1
-            FROM HRM.dbo.tblNhanVien nv
-            WHERE nv.NVMa=oa.HrmEmployeeId
-              AND nv.NVMaBP=@HrmDeptId
-        )
-    )
-    AND (@HrmEmployeeId IS NULL OR oa.HrmEmployeeId=@HrmEmployeeId);
+  DELETE OA
+  FROM dbo.F03HrmOTActual AS OA
+  INNER JOIN #EmployeesToCalculate AS E
+      ON E.HrmEmployeeId=OA.HrmEmployeeId
+  WHERE OA.WorkDate=@D;
 
   DECLARE @StaffID int;
   DECLARE staff_cur CURSOR LOCAL FAST_FORWARD FOR
-   SELECT NVMa FROM HRM.dbo.tblNhanVien WHERE ISNULL(DLocked,0)=0 AND (@HrmDeptId IS NULL OR NVMaBP=@HrmDeptId) AND (@HrmEmployeeId IS NULL OR NVMa=@HrmEmployeeId);
+   SELECT HrmEmployeeId FROM #EmployeesToCalculate ORDER BY HrmEmployeeId;
   OPEN staff_cur; FETCH NEXT FROM staff_cur INTO @StaffID;
   WHILE @@FETCH_STATUS=0
   BEGIN
    DELETE FROM #Result;
    INSERT #Result EXEC dbo.usp_HrmCompatibleTimeKeepingForStaff @StaffID=@StaffID,@D=@D;
+
+   /*
+      The current-state table has a unique key on (HrmEmployeeId, WorkDate).
+      Fail with a source-specific diagnostic if the legacy HRM engine returns
+      more than one row for this employee/date; never silently discard a row.
+   */
+   IF EXISTS
+   (
+       SELECT 1
+       FROM #Result
+       WHERE BCMaNV=@StaffID
+         AND CONVERT(date,BCNgay)=@D
+       GROUP BY BCMaNV,CONVERT(date,BCNgay)
+       HAVING COUNT_BIG(*)>1
+   )
+   BEGIN
+       DECLARE @DuplicateResultMessage nvarchar(2048) =
+           N'HRM-compatible calculation returned multiple rows for employee '
+           + CONVERT(nvarchar(20),@StaffID)
+           + N' on '
+           + CONVERT(nvarchar(10),@D,23)
+           + N'. The date transaction was rolled back; inspect dbo.usp_HrmCompatibleTimeKeepingForStaff.';
+       THROW 51324,@DuplicateResultMessage,1;
+   END;
+
    INSERT dbo.F03HrmAttendanceCalculated(
     CalculationBatchId,CalculationVersion,WorkDate,HrmEmployeeId,EmployeeCode,FullName,HrmDeptId,DeptCode,HrmPositionId,ShiftId,ShiftAbbr,
     CheckInGate,CheckInTime,CheckOutGate,CheckOutTime,ExitGate,ExitTime,EntryGate,EntryTime,WorkMinutesDay,WorkMinutesNight,
@@ -104,30 +159,21 @@ BEGIN
    WHERE r.BCMaNV=@StaffID AND CAST(r.BCNgay AS date)=@D;
    UPDATE a SET AttendanceDisplayValue=CASE
        WHEN ISNULL(a.LeaveTotal,0)>0 THEN COALESCE(NULLIF(LTRIM(RTRIM(a.HrmBCLyDoNghi)),N''),NULLIF(LTRIM(RTRIM(a.HrmBCGhiChu)),N''),N'K')
-       WHEN a.CheckInTime IS NULL AND a.CheckOutTime IS NULL THEN N''
+       WHEN a.CheckInTime IS NULL AND a.CheckOutTime IS NULL THEN COALESCE(CASE WHEN ds.IsHoliday=1 THEN ds.HolidaySymbol END,N'')
        WHEN a.CheckInTime IS NULL OR a.CheckOutTime IS NULL THEN N'?'
        WHEN ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)<=0 THEN N''
        WHEN ISNULL(a.RequiredMinutes,0)>0 AND ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)=a.RequiredMinutes THEN NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N'')
        ELSE CONVERT(nvarchar(50),CONVERT(float,(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0))/60.0)) END,
-       OtDisplayValue=CASE
-       /*
-          L/holiday classification must come from the HRM attendance result
-          (BCNgayLe / BCNgayLeNV), not from tblCa.CNgaynghi (HrmHoliday).
-          CNgaynghi describes the shift calendar and can mark a regular
-          Saturday/day-off for everyone on that shift, which caused false
-          "L" values in OT exports for employees whose HRM report did not
-          classify that date as a holiday.
-       */
-       WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)<=0
-            THEN CASE WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN N'L' ELSE N'' END
-       WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN
-            CASE WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)>=480
-                 THEN N'NL'+COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'')+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
-                 ELSE N'NL'+LEFT(COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'C'),1)+CONVERT(nvarchar(20),ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)) END
-       WHEN ISNULL(a.HrmShiftDayType,0) IN (2,3) THEN
-            N'CN'+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
-       ELSE CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0)) END
-   FROM dbo.F03HrmAttendanceCalculated a WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
+       /* DayType do dbo.fn_ResolveDayType quyết định (ngày nghỉ HRM > cờ HRM > CN > T7 > thường).
+          Ký hiệu OT/ công thật (NL4, CNK4, T2 8, ...) do rule F03AttendanceSymbolRules áp ở tầng ứng dụng
+          (HrmAttendanceCalculationService.ApplySymbolRulesAsync) ngay sau proc này. Ở đây chỉ để marker 'L'
+          cho ngày nghỉ chưa có OT; ký hiệu là LNLKyHieu của HRM (L/CT/NT...), không còn CASE cứng NL/CN. */
+       DayType=ds.DayType,
+       OtDisplayValue=CASE WHEN ds.IsHoliday=1 THEN COALESCE(ds.HolidaySymbol,N'L') ELSE NULL END,
+       WorkSymbol=NULL,OtSymbol=NULL,SymbolRuleCode=NULL
+   FROM dbo.F03HrmAttendanceCalculated a
+   CROSS APPLY dbo.fn_ResolveDayType(a.WorkDate,a.HrmBCNgayLe,a.HrmBCNgayLeNV) ds
+   WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
    FETCH NEXT FROM staff_cur INTO @StaffID;
   END
   CLOSE staff_cur;
@@ -146,6 +192,7 @@ BEGIN
 
   COMMIT TRANSACTION;
   EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
+  SET @LockHeld=0;
 
   SET @D=DATEADD(day,1,@D);
  END
@@ -183,8 +230,13 @@ BEGIN
      /* XACT_ABORT is ON: the per-date transaction is doomed after an error and must be
         rolled back before the Run row can be updated, otherwise the run stays 'Running'. */
      IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
-     IF @D IS NOT NULL AND @AppLockResource IS NOT NULL
+     /* Chỉ release khi đã giữ khóa. Trước đây release vô điều kiện nên khi sp_getapplock timeout (51322)
+        lệnh release ném lỗi 1223 "Cannot release the application lock" và che mất lỗi gốc. */
+     IF @LockHeld=1 AND @AppLockResource IS NOT NULL
+     BEGIN
          EXEC sp_releaseapplock @Resource=@AppLockResource,@LockOwner=N'Session';
+         SET @LockHeld=0;
+     END
      UPDATE dbo.F03HrmAttendanceCalculationRun
      SET Status=N'Failed',FinishedAt=GETDATE(),ErrorMessage=ERROR_MESSAGE()
      WHERE CalculationBatchId=@BatchId;

@@ -87,7 +87,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     Email = user.FindFirst("Email")?.Value ?? "",
                     LevelApprove = levelApprove,
                     Permission = (int)permission,
-                    Functions = functions
+                    Functions = functions,
+                    // GetCurrentUser returns null for anonymous callers, so a non-null identity is a signed-in user.
+                    // AI controllers test this flag; without it every AI endpoint answered 401.
+                    IsLoggedIn = true
                 };
 
                 Logger.LogDebugIf(Debug,

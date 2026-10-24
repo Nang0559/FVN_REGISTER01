@@ -1,0 +1,65 @@
+@inherits AppLayoutBase
+@using FVN_REGISTER.Shared.Utils
+@implements IDisposable
+@inject CustomAuthStateProvider AuthProvider
+
+@*
+    Layout of the public portal pages (/thong-tin-cong-khai, /public-information).
+    - Signed-in users keep the normal MainLayout (drawer, app bar, notifications).
+    - Anonymous visitors get a light shell WITHOUT the redirect to /login that MainLayout performs,
+      so company notices stay readable before login.
+*@
+@if (!_resolved)
+{
+    <MudLayout>
+        <div class="d-flex vh-100 align-center justify-center"><MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" /></div>
+    </MudLayout>
+}
+else if (_isAuthenticated)
+{
+    <MainLayout Body="@Body" />
+}
+else
+{
+    <MudLayout>
+        <MudAppBar Elevation="1" Color="Color.Primary">
+            <MudText Typo="Typo.h6">@Language.T("common.fccSmartPortal")</MudText>
+            <MudSpacer />
+            <MudSelect T="LanguageCode" Value="@Language.Current" ValueChanged="SetLanguageAsync" Variant="Variant.Text" Dense="true" Class="mr-2" Style="min-width:110px;color:white">
+                <MudSelectItem Value="LanguageCode.Vi">@Language.T("language.vi")</MudSelectItem>
+                <MudSelectItem Value="LanguageCode.Ja">@Language.T("language.ja")</MudSelectItem>
+            </MudSelect>
+            <MudButton Variant="Variant.Outlined" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login" Href="/login">@Language.T("login.submit")</MudButton>
+        </MudAppBar>
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer>
+        </MudMainContent>
+    </MudLayout>
+}
+
+@code {
+    private bool _resolved;
+    private bool _isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Language.LanguageChanged += OnLanguageChanged;
+        await Language.InitializeAsync();
+        try
+        {
+            var state = await AuthProvider.GetAuthenticationStateAsync();
+            _isAuthenticated = state.User.Identity?.IsAuthenticated == true;
+        }
+        catch (Exception ex)
+        {
+            // A broken/expired token must never lock visitors out of public content.
+            Logger.LogWarning(ex, "[{Component}] Could not resolve authentication state; treating visitor as anonymous", ComponentName);
+            _isAuthenticated = false;
+        }
+        finally { _resolved = true; }
+    }
+
+    private Task SetLanguageAsync(LanguageCode language) => Language.SetLanguageAsync(language);
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
+}

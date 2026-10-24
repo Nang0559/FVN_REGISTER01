@@ -63,7 +63,9 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
 
     public Task<LocalizationRuntimeSnapshotDto> GetRuntimeSnapshotAsync(long? sinceVersion, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested();
+        if (ct.IsCancellationRequested)
+            return Task.FromCanceled<LocalizationRuntimeSnapshotDto>(ct);
+
         // Missing folder is not an error here: clients simply keep their embedded text.
         return Task.FromResult(RuntimeCatalog.Get(ResolveLocalizationRoot(), sinceVersion));
     }
@@ -436,7 +438,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
     {
         var name = Path.GetFileNameWithoutExtension(file);
         var module = name[(language.Length + 1)..];
-        var json = File.ReadAllText(file, Encoding.UTF8);
+        var json = ReadAllTextShared(file);
         using var doc = JsonDocument.Parse(json);
         if (doc.RootElement.ValueKind != JsonValueKind.Object)
             throw new InvalidOperationException($"'{Path.GetFileName(file)}' phải là JSON object.");
@@ -462,7 +464,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (File.Exists(file))
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(file, Encoding.UTF8));
+            using var doc = JsonDocument.Parse(ReadAllTextShared(file));
             foreach (var p in doc.RootElement.EnumerateObject())
                 dict[p.Name] = p.Value.GetString() ?? string.Empty;
         }
@@ -470,14 +472,50 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
         WriteCatalogFile(file, dict);
     }
 
-    /// <summary>Sorted, written to a temp file first and then moved over the target, so a crash or a concurrent reader never sees a half-written file.</summary>
+    /// <summary>Sorted, written to a temp file first and then swapped over the target, so a crash or a concurrent reader never sees a half-written file.</summary>
     private static void WriteCatalogFile(string file, Dictionary<string, string> dict)
     {
         var ordered = dict.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-        var temp = file + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(ordered, JsonOptions) + Environment.NewLine, new UTF8Encoding(false));
-        File.Move(temp, file, overwrite: true);
+        var temp = $"{file}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            File.WriteAllText(temp, JsonSerializer.Serialize(ordered, JsonOptions) + Environment.NewLine, new UTF8Encoding(false));
+            ReplaceFile(temp, file);
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch { /* best effort */ }
+        }
+    }
+
+    /// <summary>
+    /// On Windows, replacing a file fails with "Access to the path is denied" while another handle (antivirus, search indexer,
+    /// a reader without FileShare.Delete) is still open on the target. Those handles are short-lived, so retry briefly.
+    /// </summary>
+    private static void ReplaceFile(string temp, string file)
+    {
+        const int attempts = 12;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(temp, file, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (attempt < attempts && ex is UnauthorizedAccessException or IOException)
+            {
+                Thread.Sleep(15 * attempt);
+            }
+        }
+    }
+
+    /// <summary>Reads a catalog file without blocking (or being blocked by) a concurrent replace.</summary>
+    private static string ReadAllTextShared(string file)
+    {
+        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 
     private static void RemoveKey(string root, string module, string key)
@@ -487,7 +525,7 @@ public sealed class LocalizationManagementService : ILocalizationManagementServi
             var file = Path.Combine(root, $"{language}.{module}.json");
             if (!File.Exists(file)) continue;
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            using var doc = JsonDocument.Parse(File.ReadAllText(file, Encoding.UTF8));
+            using var doc = JsonDocument.Parse(ReadAllTextShared(file));
             foreach (var p in doc.RootElement.EnumerateObject())
                 if (!string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase))
                     dict[p.Name] = p.Value.GetString() ?? string.Empty;

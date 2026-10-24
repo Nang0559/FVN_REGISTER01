@@ -67,8 +67,8 @@
   "calendar.halfDay": "nửa ngày",
   "calendar.handle": "Xử lý",
   "calendar.holiday": "Nghỉ",
-  "calendar.holidayTypeHint": "Loại ngày nghỉ: 1 = Nghỉ công ty, 2 = Nghỉ lễ quốc gia, 3 = Nghỉ bù, 4 = Nghỉ khác. Độc lập với TinhPhep.",
-  "calendar.holidayTypeInvalid": "Loại ngày nghỉ phải là 1, 2, 3 hoặc 4.",
+  "calendar.holidayTypeHint": "Loại ngày nghỉ theo HRM: 1 = Chủ nhật/Nghỉ công ty (CT), 2 = Ngày lễ (L), 4 = Ngày nghỉ thường (NT). Độc lập với TinhPhep.",
+  "calendar.holidayTypeInvalid": "Loại ngày nghỉ phải là 1, 2 hoặc 4.",
   "calendar.loaiNgayNghi": "Loại ngày nghỉ",
   "calendar.home": "Trang chủ",
   "calendar.hours": "giờ",
@@ -131,5 +131,15 @@
   "calendar.workHours": "Giờ công",
   "calendar.xoaNgay": "Xóa ngày {0:dd/MM/yyyy} - {1}?",
   "calendar.xoaNgayNghi": "Xóa ngày nghỉ",
-  "calendar.accessDenied": "Bạn không có quyền xem lịch làm việc."
+  "calendar.accessDenied": "Bạn không có quyền xem lịch làm việc.",
+  "calendar.hrmHolidaySync": "Đồng bộ từ HRM",
+  "calendar.hrmHolidaySyncing": "Đang đồng bộ...",
+  "calendar.hrmHolidaySyncDone": "Đã đồng bộ ngày nghỉ từ HRM.",
+  "calendar.hrmHolidaySyncHelp": "Ngày nghỉ được đồng bộ từ HRM (DM_Loainghile / tblNgayNghiLe) và dùng chung cho lịch, rule ký hiệu, xuất chấm công và tính OT. Hãy thêm, sửa hoặc xóa ngày nghỉ tại HRM rồi đồng bộ tại đây. Hệ thống cũng tự đồng bộ trước mỗi lần tính công.",
+  "calendar.dayTypeRule": "DayType (quy tắc)",
+  "calendar.source": "Nguồn dữ liệu",
+  "calendar.sourceHrm": "HRM",
+  "calendar.sourceLegacy": "FVN cũ",
+  "calendar.workYearName": "Năm {0}",
+  "calendar.hrmHolidaySyncFailed": "Không đồng bộ được ngày nghỉ từ HRM."
 }

@@ -26,12 +26,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Employees
             _uow = uow;
         }
 
-        public async Task<ServiceResult<List<EmployeeDeptTreeDto>>> GetTreeAsync(string? searchTerm = null, int? deptCode = null, CancellationToken ct = default)
+        public async Task<ServiceResult<List<EmployeeDeptTreeDto>>> GetTreeAsync(string? searchTerm = null, int? deptCode = null, bool includeInactive = false, CancellationToken ct = default)
         {
             try
             {
                 var currentYear = DateTime.Now.Year;
-                var empQuery = _db.Employees.AsNoTracking().Where(x => x.IsActive == true);
+                var empQuery = _db.Employees.AsNoTracking().AsQueryable();
+                if (!includeInactive) empQuery = empQuery.Where(x => x.IsActive == true);
                 if (deptCode != null) empQuery = empQuery.Where(x => x.DeptCode == deptCode);
                 if (!string.IsNullOrEmpty(searchTerm))
                 {

@@ -204,7 +204,7 @@ BEGIN
     INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
     SELECT 1,0,v.FunctionCode,v.FunctionName,v.Detail,N'PublicForm',v.ActionCode,v.ScopeCode,v.DisplayOrder
     FROM (VALUES
-        (2810,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2810),
+        (2819,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2819),
         (2811,N'PublicForm.Submit',N'Trả lời và gửi biểu mẫu được chỉ định',N'Submit',N'Own',2811),
         (2812,N'PublicForm.Feedback',N'Gửi phản hồi về biểu mẫu',N'Feedback',N'Own',2812),
         (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'All',2813),
@@ -218,7 +218,7 @@ BEGIN
 
     UPDATE f SET FunctionName=v.FunctionName,Detail=v.Detail,ModuleCode=N'PublicForm',ActionCode=v.ActionCode,ScopeCode=v.ScopeCode,DisplayOrder=v.DisplayOrder,IsActive=1
     FROM dbo.F03Functions f JOIN (VALUES
-        (2810,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2810),
+        (2819,N'PublicForm.View',N'Xem biểu mẫu được chỉ định cho bản thân',N'View',N'Own',2819),
         (2811,N'PublicForm.Submit',N'Trả lời và gửi biểu mẫu được chỉ định',N'Submit',N'Own',2811),
         (2812,N'PublicForm.Feedback',N'Gửi phản hồi về biểu mẫu',N'Feedback',N'Own',2812),
         (2813,N'PublicForm.Create',N'Tạo biểu mẫu',N'Create',N'All',2813),
@@ -257,7 +257,7 @@ BEGIN
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)
     SELECT r.Id,f.Id,N'Own',N'Personal'
     FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
-    WHERE r.RoleCode IN (3,4,5) AND f.FunctionCode IN (2810,2811,2812)
+    WHERE r.RoleCode IN (3,4,5) AND f.FunctionCode IN (2819,2811,2812)
       AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 
     INSERT dbo.F03RoleFunctions(IdRole,IdFunction,ScopeCode,AccessMode)

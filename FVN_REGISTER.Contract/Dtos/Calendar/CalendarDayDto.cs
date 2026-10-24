@@ -20,5 +20,15 @@ public sealed class CalendarDayDto
     public bool CanRegisterLeave { get; init; }
     public bool CanRegisterOT { get; init; }
     public bool CanRegisterTrip { get; init; }
+
+    /// <summary>User không có quyền đăng ký OT trực tiếp: ô "?" hiện "Phản hồi cấp trên" thay cho "Đăng ký OT".</summary>
+    public bool MustReportOtToSupervisor { get; init; }
+
+    /// <summary>Trạng thái phản hồi cấp trên gần nhất của ngày này (0 = chưa có). Giá trị theo SupervisorFeedbackStatus.</summary>
+    public int SupervisorFeedbackStatus { get; init; }
+    public string? SupervisorFeedbackNote { get; init; }
     public string? AvailabilityNote { get; init; }
+
+    /// <summary>Màu nền ô lịch theo cấu hình màu loại ngày HRM (đã chuẩn hoá CSS).</summary>
+    public string? DayColor { get; init; }
 }

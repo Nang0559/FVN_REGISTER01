@@ -14,55 +14,49 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
             return Array.Empty<CalendarIssueDto>();
 
         if (context.Day.Registrations.Any(x =>
-                x.ModuleCode == "OT" && IsApproved(x.Status)))
+                x.ModuleCode == "Overtime" && IsApproved(x.Status)))
             return Array.Empty<CalendarIssueDto>();
 
         // Đã có đơn OT nhưng còn đang chờ duyệt: OT thực tế vẫn chưa được ghi nhận (giữ cảnh báo),
         // nhưng KHÔNG phải "chưa có đơn" và không mời đăng ký trùng.
         var pending = CalendarOtRegistrations.FindOpenRequest(context.Day);
 
-        var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "OT" && x.RequiresAction);
+        var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "Overtime" && x.RequiresAction);
         long? reconciliationId = long.TryParse(source?.SourceId, out var parsedReconciliationId)
             ? parsedReconciliationId
             : null;
 
-        var actions = new List<CalendarActionOptionDto>
-        {
-            new CalendarActionOptionDto
-            {
-                Code = "OPEN_HR_FEEDBACK",
-                Title = "Phản hồi nhân sự",
-                Description = "Báo cho nhân sự về OT thực tế chưa có đăng ký.",
-                Kind = "FORM",
-                DetailRoute = source?.DetailRoute,
-                ReconciliationId = reconciliationId,
-                RequiresReason = true,
-                RequiresAttachment = true
-            }
-        };
+        var hrFeedback = CalendarOtActions.HrFeedback(
+            "Báo cho nhân sự về OT thực tế chưa có đăng ký.", source?.DetailRoute, reconciliationId);
+        var actions = new List<CalendarActionOptionDto>();
 
-        if (pending is null)
+        if (pending is null && context.Day.MustReportOtToSupervisor)
         {
-            actions.Add(new CalendarActionOptionDto
-            {
-                Code = "OPEN_OT",
-                Title = "Đăng ký OT",
-                Description = "Mở đăng ký OT cho ngày này.",
-                Kind = "NAVIGATION",
-                DetailRoute = $"/ot/create?date={context.Day.Date:yyyy-MM-dd}"
-            });
+            // Không có quyền đăng ký OT trực tiếp: báo cấp trên thay vì mở màn hình đăng ký.
+            var supervisorAction = CalendarSupervisorFeedback.BuildAction(context.Day);
+            actions.Add(supervisorAction ?? hrFeedback);
         }
-        else if (!string.IsNullOrWhiteSpace(pending.DetailRoute))
+        else if (pending is null)
         {
-            actions.Add(new CalendarActionOptionDto
+            actions.Add(hrFeedback);
+            if (context.IsOtRegistrar)
+                actions.Add(CalendarOtActions.RegisterOt(context.Day.Date, "Mở đăng ký OT cho ngày này."));
+        }
+        else
+        {
+            actions.Add(hrFeedback);
+            if (!string.IsNullOrWhiteSpace(pending.DetailRoute))
             {
-                Code = "OPEN_OT_REQUEST",
-                Title = "Xem đơn OT",
-                Description = "Mở đơn OT đang chờ duyệt của ngày này.",
-                Kind = "NAVIGATION",
-                DetailRoute = pending.DetailRoute,
-                RequestId = pending.RequestId
-            });
+                actions.Add(new CalendarActionOptionDto
+                {
+                    Code = "OPEN_OT_REQUEST",
+                    Title = "Xem đơn OT",
+                    Description = "Mở đơn OT đang chờ duyệt của ngày này.",
+                    Kind = "NAVIGATION",
+                    DetailRoute = pending.DetailRoute,
+                    RequestId = pending.RequestId
+                });
+            }
         }
 
         var minutes = context.Day.Attendance.ActualOtMinutes;
@@ -75,15 +69,15 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
             new CalendarIssueDto
             {
                 Code = "OT_ACTUAL_WITHOUT_REQUEST",
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 Severity = (byte)(pending is null ? 3 : 2),
                 Marker = "?",
                 Title = pending is null
                     ? "Có OT thực tế nhưng chưa có đơn OT"
                     : "Có OT thực tế, đơn OT đang chờ duyệt",
-                Summary = pending is null
+                Summary = (pending is null
                     ? $"Phát hiện {minutes} phút OT thực tế nhưng chưa có đăng ký OT được duyệt."
-                    : $"Phát hiện {minutes} phút OT thực tế. Đơn OT đã đăng ký đang chờ duyệt{approver}; OT sẽ được ghi nhận sau khi đơn được duyệt.",
+                    : $"Phát hiện {minutes} phút OT thực tế. Đơn OT đã đăng ký đang chờ duyệt{approver}; OT sẽ được ghi nhận sau khi đơn được duyệt.") + CalendarSupervisorFeedback.StatusText(context.Day),
                 SourceId = source?.SourceId ?? context.Day.Attendance.SourceId,
                 ActionId = source?.ActionId,
                 DetailRoute = source?.DetailRoute,

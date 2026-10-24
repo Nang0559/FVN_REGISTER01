@@ -9,7 +9,9 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.OTs
     {
         public void Configure(EntityTypeBuilder<F03OTRequest> entity)
         {
-            entity.ToTable("F03OTRequests");
+            // SQL Server table has enabled triggers. Disable OUTPUT clause for all EF writes,
+            // matching the configuration already used for F03Roles/F03RoleFunctions.
+            entity.ToTable("F03OTRequests", table => table.UseSqlOutputClause(false));
             entity.HasKey(e => e.Id).HasName("PK_F03OTRequests");
 
             // Index cho việc tìm kiếm đơn OT nhanh

@@ -63,3 +63,5 @@ public sealed record ExcelSchemaCreateRequest(string ModuleCode,string EntityCod
 public sealed record ExcelSchemaSummary(int Id,string ModuleCode,string EntityCode,string SchemaKey,string SchemaName,int Version,ExcelSchemaStatus Status,string? SourceFileName,DateTime CreatedAt,DateTime? UpdatedAt);
 public sealed record ExcelImportBatchSummary(long Id,string ModuleCode,string EntityCode,int SchemaId,string FileName,ExcelImportBatchStatus Status,int TotalRows,int ValidRows,int InvalidRows,int ImportedRows,DateTime CreatedAt,DateTime? CompletedAt);
 public sealed record ExcelImportRow(long Id,long BatchId,int RowNumber,ExcelImportRowStatus Status,string? RawDataJson,string? NormalizedDataJson,int ErrorCount);
+
+public sealed record ExcelSchemaUpdateRequest(int Id, ExcelSchemaCreateRequest Schema);

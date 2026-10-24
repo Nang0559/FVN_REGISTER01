@@ -13,7 +13,9 @@ public sealed class ApprovalRouteClientService : IApprovalRouteClientService
 
     public Task<ApiResponse<ApprovalRoutePreviewDto>> GetPreviewAsync(
         RequestModule requestType,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? employeeCode = null)
         => _http.GetAsync<ApprovalRoutePreviewDto>(
-            $"api/approval-route/preview?requestType={Uri.EscapeDataString(requestType.ToString())}", ct);
+            $"api/approval-route/preview?requestType={Uri.EscapeDataString(requestType.ToString())}"
+            + (string.IsNullOrWhiteSpace(employeeCode) ? string.Empty : $"&employeeCode={Uri.EscapeDataString(employeeCode.Trim())}"), ct);
 }

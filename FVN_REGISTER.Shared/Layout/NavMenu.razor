@@ -1,9 +1,10 @@
-﻿@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Contract.Dtos.Security
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Constants
 @inject ISecurityClientService SecurityService
+@inject FVN_REGISTER.Shared.Handlers.IHttpClientWithAuth PublicHttp
 @using MudBlazor
 @inject ICurrentUserClientService CurrentUser
 @implements IDisposable
@@ -11,7 +12,19 @@
 <MudNavMenu>
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">@Language.T("nav.dashboard")</MudText>
     <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@Language.T("nav.home")</MudNavLink>
-    @if (CanPersonal(SecurityFunctionCodes.CalendarView) || CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.AttendanceView))
+    @if (Can(SecurityFunctionCodes.AIAssistantChat) && _assistantAvailable)
+    {
+        <MudNavLink href="/ai/assistant" Icon="@Icons.Material.Filled.Psychology">Trợ lý AI</MudNavLink>
+    }
+    @if (Can(SecurityFunctionCodes.AIDocumentDataEntryView))
+    {
+        <MudNavLink href="/admin/ai-document-entry" Icon="@Icons.Material.Filled.DocumentScanner">AI nhập dữ liệu chứng từ</MudNavLink>
+    }
+    @if (CanManagement(SecurityFunctionCodes.OTView) || CanManagement(SecurityFunctionCodes.AttendanceView) || CanManagement(SecurityFunctionCodes.LeaveView))
+    {
+        <MudNavLink href="/ai/hr-assistant" Icon="@Icons.Material.Filled.SupportAgent">Trợ lý AI HR</MudNavLink>
+    }
+    @if (CanPersonal(SecurityFunctionCodes.CalendarView) || CanPersonal(SecurityFunctionCodes.LeaveView) || CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.TripView) || CanPersonal(SecurityFunctionCodes.LateEarlyView) || CanPersonal(SecurityFunctionCodes.AttendanceView))
     {
         <MudNavLink href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth">@Language.T("nav.workCalendar")</MudNavLink>
     }
@@ -19,16 +32,17 @@
     {
         <MudNavLink href="/execution" Icon="@Icons.Material.Filled.FactCheck">@Language.T("nav.executionReconciliation")</MudNavLink>
     }
-    @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
+    @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.LateEarlyApprove, SecurityFunctionCodes.EquipmentApprove, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, SecurityFunctionCodes.EndpointServicePolicyApprove))
     {
         <MudNavLink href="/work/inbox" Icon="@Icons.Material.Filled.Inbox">@Language.T("nav.workInbox")</MudNavLink>
     }
 
-    <MudNavGroup Title="@Language.T("nav.public")" Icon="@Icons.Material.Filled.Campaign" Expanded="false">
-        <MudNavLink href="/public-information" Icon="@Icons.Material.Filled.Public">@Language.T("nav.publicInformation")</MudNavLink>
+    <MudNavGroup Title="@PublicGroupTitle" Icon="@Icons.Material.Filled.Campaign" IconColor="@NoticeColor" Expanded="false">
+        <MudNavLink href="/public-information" Icon="@Icons.Material.Filled.Public">@Language.T("nav.publicInformation")@if (_noticeCount > 0) { <MudChip T="string" Size="Size.Small" Color="@NoticeColor" Class="ml-2">@_noticeCount</MudChip> }</MudNavLink>
         <MudNavLink href="/public-forms" Icon="@Icons.Material.Filled.Assignment">@Language.T("nav.publicForms")</MudNavLink>
-        @if (CanManagement(SecurityFunctionCodes.PublicFormCreate) || CanManagement(SecurityFunctionCodes.PublicFormEdit) || CanManagement(SecurityFunctionCodes.PublicFormAssignAudience)) { <MudNavLink href="/admin/public-forms" Icon="@Icons.Material.Filled.EditNote">@Language.T("nav.publicFormsManage")</MudNavLink> }
-        @if (CanManagement(SecurityFunctionCodes.PublicFormResultView)) { <MudNavLink href="/admin/public-forms/submissions" Icon="@Icons.Material.Filled.Assessment">@Language.T("public.tongHopDangKyBieu")</MudNavLink> }
+        @if (_publicCaps?.CanManageInformation == true) { <MudNavLink href="/admin/public-information" Icon="@Icons.Material.Filled.Campaign">@Language.T("public.quanLyNoiDungCong")</MudNavLink> }
+        @if (_publicCaps?.CanManageForms == true) { <MudNavLink href="/admin/public-forms" Icon="@Icons.Material.Filled.EditNote">@Language.T("nav.publicFormsManage")</MudNavLink> }
+        @if (_publicCaps?.CanViewResults == true) { <MudNavLink href="/admin/public-forms/submissions" Icon="@Icons.Material.Filled.Assessment">@Language.T("public.tongHopDangKyBieu")</MudNavLink> }
     </MudNavGroup>
 
     @if (CanAny(SecurityFunctionCodes.SecurityAccessChangeView, SecurityFunctionCodes.SecurityAccessChangeCreate, SecurityFunctionCodes.SecurityAccessChangeApprove, SecurityFunctionCodes.SecurityAccessChangeExecute))
@@ -51,7 +65,7 @@
             }
         </MudNavGroup>
     }
-    @if (CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.OTCreate))
+    @if (CanPersonal(SecurityFunctionCodes.OTView) || CanPersonal(SecurityFunctionCodes.OTCreate) || _otRegistrar)
     {
         <MudNavGroup Title="@Language.T("nav.ot")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
             @if (CanPersonal(SecurityFunctionCodes.OTView))
@@ -59,9 +73,13 @@
                 <MudNavLink href="/ot" Icon="@Icons.Material.Filled.Dashboard">@Language.T("nav.otOverview")</MudNavLink>
                 <MudNavLink href="/ot/history" Icon="@Icons.Material.Filled.ManageHistory">@Language.T("nav.otHistory")</MudNavLink>
             }
-            @if (CanPersonal(SecurityFunctionCodes.OTCreate))
+            @if (CanPersonal(SecurityFunctionCodes.OTCreate) && _otRegistrar)
             {
                 <MudNavLink href="/ot/create" Icon="@Icons.Material.Filled.AddAlarm">@Language.T("nav.otCreate")</MudNavLink>
+            }
+            @if (_otRegistrar)
+            {
+                <MudNavLink href="/ot/supervisor-requests" Icon="@Icons.Material.Filled.SupervisorAccount">Yêu cầu OT từ nhân viên</MudNavLink>
             }
         </MudNavGroup>
     }
@@ -76,6 +94,20 @@
             @if (CanPersonal(SecurityFunctionCodes.TripCreate))
             {
                 <MudNavLink href="/trip/create" Icon="@Icons.Material.Filled.Add">@Language.T("nav.tripCreate")</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
+    @if (CanPersonal(SecurityFunctionCodes.LateEarlyView) || CanPersonal(SecurityFunctionCodes.LateEarlyCreate))
+    {
+        <MudNavGroup Title="Đi muộn / Về sớm" Icon="@Icons.Material.Filled.AccessTime" Expanded="false">
+            @if (CanPersonal(SecurityFunctionCodes.LateEarlyView))
+            {
+                <MudNavLink href="/late-early/history" Icon="@Icons.Material.Filled.History">Lịch sử đăng ký</MudNavLink>
+            }
+            @if (CanPersonal(SecurityFunctionCodes.LateEarlyCreate))
+            {
+                <MudNavLink href="/late-early/create" Icon="@Icons.Material.Filled.AddAlarm">Tạo đăng ký / Đăng ký hộ</MudNavLink>
             }
         </MudNavGroup>
     }
@@ -116,6 +148,7 @@
             @if (Can(SecurityFunctionCodes.WorkCalendarSymbolRuleManage)){<MudNavLink href="/admin/attendance-symbol-rules" Icon="@Icons.Material.Filled.Rule">Rule ký hiệu chấm công</MudNavLink>}
             @if (CanManagement(SecurityFunctionCodes.DepartmentStatusView)){<MudNavLink href="/leave/department-status" Icon="@Icons.Material.Filled.Assessment">@Language.T("nav.departmentStatus")</MudNavLink>}
             @if (Can(SecurityFunctionCodes.AttendanceCalculate)){<MudNavLink href="/hrm/attendance-calculation" Icon="@Icons.Material.Filled.AccessTime">@Language.T("nav.attendanceCalculation")</MudNavLink>}
+            @if (Can(SecurityFunctionCodes.AttendanceCalculate)){<MudNavLink href="/admin/hrm-attendance-calculation-jobs" Icon="@Icons.Material.Filled.Schedule">Theo dõi job tính công</MudNavLink>}
         </MudNavGroup>
         <MudNavGroup Title="@Language.T("nav.otManagement")" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">@if(CanManagement(SecurityFunctionCodes.OTView)){<MudNavLink href="/ot/list" Icon="@Icons.Material.Filled.FormatListBulleted">@Language.T("nav.otList")</MudNavLink>}@if(CanManagement(SecurityFunctionCodes.OTLimitManage)){<MudNavLink href="/admin/ot-limit-rules" Icon="@Icons.Material.Filled.Rule">@Language.T("nav.otLimits")</MudNavLink>}</MudNavGroup>
     }
@@ -128,7 +161,7 @@
     {
         <MudNavGroup Title="@Language.T("nav.system")" Icon="@Icons.Material.Filled.Settings" Expanded="false">
             @if(Can(SecurityFunctionCodes.UserManagementView)){<MudNavLink href="/admin/managers" Icon="@Icons.Material.Filled.AdminPanelSettings">@Language.T("nav.admin")</MudNavLink>}
-            @if(Can(SecurityFunctionCodes.SecurityView)){<MudNavLink href="/admin/security" Icon="@Icons.Material.Filled.Security">@Language.T("nav.securityCenter")</MudNavLink><MudNavLink href="/admin/sessions" Icon="@Icons.Material.Filled.Devices">@Language.T("common.sessions")</MudNavLink>}
+            @if(Can(SecurityFunctionCodes.SecurityView)){<MudNavLink href="/admin/security" Icon="@Icons.Material.Filled.Security">@Language.T("nav.securityCenter")</MudNavLink><MudNavLink href="/admin/ai-platform-test" Icon="@Icons.Material.Filled.Psychology">Kiểm thử AI Platform</MudNavLink><MudNavLink href="/admin/sessions" Icon="@Icons.Material.Filled.Devices">@Language.T("common.sessions")</MudNavLink>}
             @if(Can(SecurityFunctionCodes.SecurityManageFunctions)){<MudNavLink href="/admin/security/function-registry" Icon="@Icons.Material.Filled.AppRegistration">@Language.T("nav.functionRegistry")</MudNavLink>}
             @if(Can(SecurityFunctionCodes.EmailTemplateManage)){<MudNavLink href="/admin/email-templates" Icon="@Icons.Material.Filled.Email">@Language.T("nav.emailTemplates")</MudNavLink>}
             @if(Can(SecurityFunctionCodes.EmailTemplateManage)){<MudNavLink href="/admin/email-profiles" Icon="@Icons.Material.Filled.Dns">@Language.T("nav.emailProfiles")</MudNavLink>}
@@ -138,4 +171,4 @@
         </MudNavGroup>
     }
 </MudNavMenu>
-@code { private PermissionSnapshotDto? _permissions; protected override async Task OnInitializedAsync(){Language.LanguageChanged+=OnLanguageChanged;var result=await SecurityService.GetMyPermissionsAsync();if(result.IsSuccess)_permissions=result.Data;} private void OnLanguageChanged(object? sender,EventArgs e)=>_=InvokeAsync(StateHasChanged); private bool Can(int functionCode)=>_permissions?.Has(functionCode)==true; private bool CanPersonal(int functionCode)=>_permissions?.HasPersonal(functionCode)==true; private bool CanManagement(int functionCode)=>_permissions?.HasManagement(functionCode)==true; private bool CanAny(params int[] functionCodes)=>functionCodes.Any(Can); public void Dispose()=>Language.LanguageChanged-=OnLanguageChanged; }
+@code { private bool _otRegistrar; private bool _assistantAvailable; private PermissionSnapshotDto? _permissions; private FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto? _publicCaps; private int _noticeCount; private bool _noticeImportant; private Color NoticeColor => _noticeCount == 0 ? Color.Default : _noticeImportant ? Color.Error : Color.Warning; private string PublicGroupTitle => _noticeCount > 0 ? Language.T("nav.public") + " (" + _noticeCount + ")" : Language.T("nav.public"); protected override async Task OnInitializedAsync(){Language.LanguageChanged+=OnLanguageChanged;var result=await SecurityService.GetMyPermissionsAsync();if(result.IsSuccess)_permissions=result.Data;await LoadOtRegistrarAsync();await LoadPublicCapabilitiesAsync();await LoadAssistantAvailabilityAsync();} private async Task LoadAssistantAvailabilityAsync(){if(!Can(SecurityFunctionCodes.AIAssistantChat)){_assistantAvailable=false;return;}try{var d=await PublicHttp.GetAsync<bool>("api/ai/assistant/availability",showLoading:false);_assistantAvailable=d.IsSuccess&&d.Data;}catch{_assistantAvailable=false;}} private async Task LoadOtRegistrarAsync(){try{var d=await PublicHttp.GetAsync<bool>("api/registration-policy/is-registrar?registerType=OT",showLoading:false);_otRegistrar=d.IsSuccess&&d.Data;}catch{_otRegistrar=false;}} private async Task LoadPublicCapabilitiesAsync(){try{var forms=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-forms/capabilities",showLoading:false);var info=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicCapabilitiesDto>("api/public-information/capabilities",showLoading:false);var notice=await PublicHttp.GetAsync<FVN_REGISTER.Contract.Dtos.PublicForms.PublicNoticeSummaryDto>("api/public-portal/summary",showLoading:false);if(notice.IsSuccess&&notice.Data!=null){_noticeCount=notice.Data.TotalCount;_noticeImportant=notice.Data.HasImportant;}_publicCaps=new(){CanRegister=forms.IsSuccess&&forms.Data?.CanRegister==true,CanManageForms=forms.IsSuccess&&forms.Data?.CanManageForms==true,CanViewResults=forms.IsSuccess&&forms.Data?.CanViewResults==true,CanManageInformation=info.IsSuccess&&info.Data?.CanManageInformation==true};}catch{_publicCaps=null;}} private void OnLanguageChanged(object? sender,EventArgs e)=>_=InvokeAsync(StateHasChanged); private bool Can(int functionCode)=>_permissions?.Has(functionCode)==true; private bool CanPersonal(int functionCode)=>_permissions?.HasPersonal(functionCode)==true; private bool CanManagement(int functionCode)=>_permissions?.HasManagement(functionCode)==true; private bool CanAny(params int[] functionCodes)=>functionCodes.Any(Can); public void Dispose()=>Language.LanguageChanged-=OnLanguageChanged; }

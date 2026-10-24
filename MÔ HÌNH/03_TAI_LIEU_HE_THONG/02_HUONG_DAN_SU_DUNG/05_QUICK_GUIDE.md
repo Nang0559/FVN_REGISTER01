@@ -1,88 +1,73 @@
-# FVN REGISTER — QUICK GUIDE
+# FVN_REGISTER — HƯỚNG DẪN NHANH
 
-## 1. 60 giây đầu tiên
+> Dành cho người đã biết mình cần làm gì và muốn xem nhanh các bước. Nếu đây là lần đầu sử dụng, hãy đọc phần **Bắt đầu nhanh** trong [04_USER_GUIDE.md](04_USER_GUIDE.md).
 
-**Login → Dashboard → xem Action/Notification → mở Calendar → chọn module.**
+## 1. Ba việc nhân viên thường làm
 
-## 2. Tạo request
+### Xem lịch và công
+1. Mở **Lịch làm việc**.
+2. Chọn tháng/ngày cần xem.
+3. Dùng bộ lọc để xem chấm công, nghỉ phép, OT hoặc công tác.
+4. Chọn ngày để xem ca, giờ vào/ra, giờ công và đơn liên quan.
 
-**Create → Validate/Preview → Submit → theo dõi status.**
+### Đăng ký nghỉ
+1. Mở **Nghỉ phép → Đăng ký nghỉ**.
+2. Chọn loại nghỉ, ngày bắt đầu/kết thúc và buổi nghỉ nếu có.
+3. Nhập lý do, kiểm tra người duyệt.
+4. Gửi yêu cầu và theo dõi tại **Lịch sử nghỉ phép**.
 
-## 3. Phê duyệt
+### Đăng ký OT
+1. Mở **OT → Đăng ký OT**.
+2. Chọn ngày, giờ bắt đầu/kết thúc, loại OT và lý do.
+3. Kiểm tra danh sách nhân viên tham gia (nếu được phép đăng ký cho người khác).
+4. Kiểm tra hạn mức và người duyệt.
+5. Chọn **Gửi đơn OT** và theo dõi tại lịch sử OT.
 
-**Action/Approval → Detail → kiểm tra → Approve hoặc Reject + Reason.**
+## 2. Đăng ký công tác
+1. Mở **Công tác → Đăng ký công tác**.
+2. Nhập ngày bắt đầu/kết thúc, địa điểm và mục đích.
+3. Bổ sung khách hàng/đối tác, phương tiện, chi phí, lưu trú và ghi chú nếu có.
+4. Kiểm tra người duyệt.
+5. Chọn **Lưu nháp** để hoàn thiện sau hoặc **Gửi duyệt** để trình duyệt.
 
-`Escalated` = chuyển cấp do timeout, **không phải Rejected**.
+## 3. Người phê duyệt
+1. Mở **Phê duyệt → Danh sách chờ duyệt**.
+2. Lọc loại đơn và bật **Chờ tôi duyệt** nếu cần.
+3. Kiểm tra người yêu cầu, thời gian, lý do và tiến trình.
+4. Chọn **Phê duyệt** hoặc **Từ chối**. Khi từ chối, nhập lý do.
+5. Tải lại danh sách để kiểm tra kết quả.
 
-## 4. Calendar
+## 4. Khi thấy dấu ? trên lịch
+Dấu **?** báo có chênh lệch hoặc việc cần bạn phản hồi; ví dụ có OT thực tế nhưng chưa tìm thấy đơn OT đã duyệt tương ứng.
 
-Một ngày có thể có: ca làm việc, attendance, Leave/OT/Trip, company holiday/workday, request status/approval status, Issue `?` và Action, Registration Opportunity.
+1. Chọn ngày có dấu **?**.
+2. Đọc nội dung chênh lệch.
+3. Gửi phản hồi và giải thích đúng tình huống.
+4. Đính kèm bằng chứng nếu được yêu cầu.
+5. Theo dõi trong **Trung tâm công việc**.
 
-**Ngày tương lai chưa có attendance = bình thường.**
+Dấu **?** không phải nút tạo đơn đăng ký. Ngày tương lai chưa có giờ chấm công là bình thường.
 
-Click ngày để chọn `Detail / Confirmation / Registration / Info`.
+## 5. Thuật ngữ cần nhớ
 
-### Ký hiệu chấm công
-
-- Ca `C1/C2/C3/HC/...` lấy từ HRM `F03HrmAttendanceCalculated`.
-- Không tính lại ca từ In/Out ở Calendar.
-- Rule Calendar quyết định symbol Work/OT.
-- T7 nghỉ công ty → `T...`.
-- CN → `CN...`.
-- Lễ quốc gia → `NL...`.
-- T7 đi làm bình thường → classification/màu ngày thường, không tự đổi thành `T`.
-- OT dùng block 15 phút theo Rule; `C1 05:49→14:05` không tạo `K0.25`; `C1 05:47→18:05` cho OT chuẩn 4 giờ → `K4`.
-
-Kíp 12h được split theo Rule, ví dụ `T8 + TK4`, `CN8 + CNK4`, `NL8 + NLK4` thay vì gộp thành một số giờ tổng.
-
-`?` là reconciliation state, không phải symbol. Ví dụ `C3 + K4 + ?` gồm ca từ HRM, OT symbol từ Rule và mismatch do Execution Reconciliation.
-
-## 5. Trạng thái cần nhớ
-
-| Trạng thái | Ý nghĩa |
+| Trạng thái | Nghĩa |
 |---|---|
-| Draft | Chưa gửi |
-| Pending | Đang chờ workflow |
-| Approved | Business request đã được approval |
+| Draft | Bản nháp, chưa gửi |
+| Pending | Đang chờ xử lý |
+| Approved | Đã duyệt |
 | Rejected | Bị từ chối |
-| Escalated | Timeout → chuyển cấp; không phải Rejected |
-| Mismatch | Planned và Actual khác nhau |
-| Resolved | Reconciliation đã được giải quyết |
-| Action Open | Có việc cần xử lý |
-| Action Completed | Work item đã đóng; không tự đồng nghĩa Approved |
+| Escalated | Được chuyển cấp do quá hạn; không phải từ chối |
+| Matched | Kế hoạch và thực tế khớp |
+| Mismatch | Có chênh lệch cần xem xét |
+| Resolved | Vấn đề đối soát đã được giải quyết |
+| Action Completed | Việc được giao đã đóng; không tự đồng nghĩa đơn đã duyệt |
 
-## 6. 8 nguyên tắc
+## 6. Điều cần nhớ
+- Đơn đã duyệt là kế hoạch được chấp thuận, không tự chứng minh đã thực hiện đủ thời gian.
+- OT thực tế được đối chiếu với dữ liệu chấm công riêng.
+- Thông báo không thay thế thao tác phê duyệt hoặc phản hồi.
+- Không tự sửa dữ liệu để làm mất cảnh báo.
+- Nếu không thấy chức năng, liên hệ Admin để kiểm tra quyền và phạm vi được cấp.
 
-1. Notification ≠ Approval.
-2. Action ≠ Business Result.
-3. Calendar ≠ Source of Truth.
-4. Approved ≠ Actual.
-5. Mismatch ≠ Rejected.
-6. HR correction ≠ Direct DB Edit.
-7. View ≠ Export.
-8. Capability ≠ Data Scope.
-
-## 7. Khi có dấu `?`
-
-Mở marker → đọc Issue → chọn ActionOption. Không tự đổi dữ liệu để làm mất mismatch.
-
-## 8. Quản trị Calendar Symbol Rules
-
-Rule được cấu hình trên UI; không sửa code khi thay đổi ký hiệu/block.
-
-**Test Rule:** nhập DayType + Shift/Pattern + In/Out → kiểm tra Work/OT segment, block, rounding và symbol trước khi Active.
-
-Quyền sửa Rule phải qua capability RBAC và Feature Operator Assignment nếu feature đã được cấu hình operator. Có quyền xem Calendar không đồng nghĩa có quyền sửa Rule.
-
-## 9. Execution Reconciliation — luồng sau HR Resolution
-
-HR Resolution không nhất thiết đóng case ngay. Nếu policy yêu cầu employee decision:
-
-**HR Resolution → AwaitingEmployeeDecision → Accept / Appeal**
-
-- Accept → Resolved.
-- Appeal → AppealReviewing → HR Resolution tiếp theo.
-- Đạt MaxAppealRounds → FinalDecisionPending.
-- Timeout → Escalate hoặc Auto-accept theo policy snapshot.
-
-ActionId luôn trỏ action hiện tại; Calendar và Action Center dùng cùng action chain. Nhiều HR có thể xử lý cùng function nhưng claim/lock bảo đảm một case chỉ có một người mutate tại một thời điểm.
+## 7. Cần hỗ trợ
+Gửi tên chức năng, thời điểm xảy ra, các bước đã làm, mã đơn (nếu có) và ảnh lỗi. Không gửi mật khẩu, mã xác thực hoặc secret thiết bị.

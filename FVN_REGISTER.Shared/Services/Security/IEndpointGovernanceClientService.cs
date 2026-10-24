@@ -11,8 +11,8 @@ public interface IEndpointGovernanceClientService
     Task<ApiResponse<EndpointGovernancePolicyDto>> CreateVersionAsync(EndpointGovernancePolicyUpsertRequest request, CancellationToken ct = default);
     Task<ApiResponse<EndpointGovernancePolicyDto>> SubmitAsync(int policyId, CancellationToken ct = default);
     Task<ApiResponse<EndpointGovernancePolicyDto>> PublishAsync(int policyId, CancellationToken ct = default);
-    Task<ApiResponse<EndpointGovernanceExcelPreviewDto>> PreviewExcelAsync(IBrowserFile file, EndpointGovernanceItemType itemType, EndpointTargetType targetType, CancellationToken ct = default);
-    Task<ApiResponse<EndpointGovernancePolicyDto>> ImportExcelAsync(IBrowserFile file, string policyCode, string policyName, EndpointGovernanceItemType itemType, EndpointTargetType targetType, string? remark, CancellationToken ct = default);
+    Task<ApiResponse<EndpointGovernanceExcelPreviewDto>> PreviewExcelAsync(IBrowserFile file, int schemaId, EndpointGovernanceItemType itemType, EndpointTargetType targetType, CancellationToken ct = default);
+    Task<ApiResponse<EndpointGovernancePolicyDto>> ImportExcelAsync(IBrowserFile file, int schemaId, string policyCode, string policyName, EndpointGovernanceItemType itemType, EndpointTargetType targetType, string? remark, CancellationToken ct = default);
     Task<ApiResponse<List<EndpointGovernanceRequestDto>>> GetRequestsAsync(bool mineOnly = true, CancellationToken ct = default);
     Task<ApiResponse<EndpointGovernanceRequestDto>> CreateRequestAsync(EndpointGovernanceRequestCreateDto request, CancellationToken ct = default);
     Task<ApiResponse<EndpointGovernanceRequestDto>> ReviewAsync(int requestId, bool approved, string? comment = null, CancellationToken ct = default);

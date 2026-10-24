@@ -323,9 +323,24 @@ public sealed class EndpointGovernanceService : IEndpointGovernanceService
     private async Task<bool> HasCatalogViewAsync(UserIdentityDto user, EndpointGovernanceItemType? itemType, CancellationToken ct)
     {
         if (user.IsAdmin) return true;
-        if (itemType == EndpointGovernanceItemType.WindowsService) return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogView, ct);
-        if (itemType == EndpointGovernanceItemType.Software) return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogView, ct);
-        return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogView, ct) || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogView, ct);
+
+        // A catalog operator must be able to see the Drafts they create and the
+        // workflow state returned after import/save, even when View is not granted
+        // as a separate legacy permission.
+        if (itemType == EndpointGovernanceItemType.WindowsService)
+            return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogView, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServiceCatalogManage, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServicePolicySubmit, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointServicePolicyApprove, ct);
+
+        if (itemType == EndpointGovernanceItemType.Software)
+            return await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogView, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwareCatalogManage, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwarePolicySubmit, ct)
+                || await _authorization.HasAsync(user, SecurityFunctionCodes.EndpointSoftwarePolicyApprove, ct);
+
+        return await HasCatalogViewAsync(user, EndpointGovernanceItemType.Software, ct)
+            || await HasCatalogViewAsync(user, EndpointGovernanceItemType.WindowsService, ct);
     }
 
     private async Task EnsureCatalogManageAsync(UserIdentityDto user, EndpointGovernanceItemType itemType, CancellationToken ct)

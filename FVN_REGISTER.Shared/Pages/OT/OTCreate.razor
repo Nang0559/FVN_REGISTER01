@@ -12,6 +12,8 @@
 @using FVN_REGISTER.Contract.Requests.Approvals
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
+@using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -20,12 +22,21 @@
 @inject IApprovalRouteClientService ApprovalRouteService
 @inject ICurrentUserClientService CurrentUser
 @inject ISnackbar Snackbar
+@inject IHttpClientWithAuth PolicyHttp
 @inject NavigationManager Nav
 
 <PageTitle>@Language.T("ot.taoDonOt")</PageTitle>
 
 <MudText Typo="Typo.h5" Class="mb-1"><MudIcon Icon="@Icons.Material.Filled.MoreTime" Class="mr-2" />@Language.T("ot.taoDonTangCaOt")</MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@Language.T("ot.dangKyLamThemGio")</MudText>
+
+@if (_policyLoaded && !CanRegisterOt)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        Bạn không có quyền tự đăng ký OT. Hãy báo cấp quản lý hoặc người được chỉ định đăng ký OT,
+        hoặc dùng "Phản hồi cấp trên về OT" ở ô có dấu "?" trên lịch.
+    </MudAlert>
+}
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
@@ -75,8 +86,32 @@ else if (_form != null)
             <MudCard Elevation="2" Class="mt-4 pa-4">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
                     <MudText Typo="Typo.subtitle1">@Language.T("ot.nhanVienThamGia2", _employees.Count)</MudText>
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddDepartmentEmployees">@Language.T("ot.themNhanVienPhongBan")</MudButton>
                 </MudStack>
+
+                @if (CanRegisterOtForOthers)
+                {
+                    <MudGrid Class="mb-3">
+                        <MudItem xs="12" md="6">
+                            <MudAutocomplete T="OTEmployeeDto" Label="Thêm nhân viên OT (nhập mã hoặc tên)" Variant="Variant.Outlined"
+                                             SearchFunc="SearchEmployeesAsync"
+                                             ToStringFunc="@(e => e == null ? string.Empty : $"{e.EmployeeCode} — {e.EmployeeName}")"
+                                             Value="_pickerValue" ValueChanged="OnEmployeePickedAsync"
+                                             DebounceInterval="300" MinCharacters="2" Clearable="true"
+                                             AdornmentIcon="@Icons.Material.Filled.PersonAdd" Adornment="Adornment.Start"
+                                             >
+                                <NoItemsTemplate>
+                                    <MudText Class="pa-2" Typo="Typo.caption">Không tìm thấy nhân viên (chỉ tìm trong phòng ban của bạn).</MudText>
+                                </NoItemsTemplate>
+                            </MudAutocomplete>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string" @bind-Value="_pasteCodes" Label="Hoặc dán nhiều mã nhân viên (cách nhau bởi dấu phẩy / xuống dòng)"
+                                          Variant="Variant.Outlined" Lines="2" />
+                            <MudButton Class="mt-1" Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PlaylistAdd"
+                                       Disabled="@string.IsNullOrWhiteSpace(_pasteCodes)" OnClick="AddPastedCodesAsync">Thêm theo mã</MudButton>
+                        </MudItem>
+                    </MudGrid>
+                }
 
                 @if (!_employees.Any())
                 {
@@ -152,7 +187,7 @@ else if (_form != null)
                 <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
             }
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@_submitting">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@(_submitting || (_policyLoaded && !CanRegisterOt))">
                 @(_submitting ? Language.T("calendar.feedback.sending") : Language.T("ot.guiDonOt"))
             </MudButton>
         </MudItem>
@@ -220,6 +255,7 @@ else if (_form != null)
             _recent = combined.Data.RecentOTRequests;
             _balance = combined.Data.Balance;
             await LoadApprovalRouteAsync();
+            await LoadRegistrationPolicyAsync();
 
             var types = await OTService.GetActiveOTTypesAsync(_cts.Token);
             if (types.IsSuccess && types.Data != null)
@@ -247,14 +283,74 @@ else if (_form != null)
         finally { _loading = false; }
     }
 
-    private async Task AddDepartmentEmployees()
+    private RegistrationPolicyDecisionDto? _policy;
+    private bool _policyLoaded;
+    private bool CanRegisterOt => _policy?.CanRegister == true;
+    private bool CanRegisterOtForOthers => _policy?.CanRegisterForOthers == true;
+
+    // Quyền đăng ký lấy từ cùng policy với API (API vẫn là nơi chặn cuối cùng).
+    private async Task LoadRegistrationPolicyAsync()
     {
-        if (_form == null) return;
-        var result = await OTService.GetDeptEmployeesAsync(_form.DeptCode, _cts.Token);
-        if (!result.IsSuccess || result.Data == null) { Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocNhanVien"), Severity.Warning); return; }
-        foreach (var source in result.Data)
+        var dept = CurrentUser.User?.DeptCode ?? 0;
+        var result = await PolicyHttp.GetAsync<RegistrationPolicyDecisionDto>($"api/registration-policy/decision?registerType=OT&deptCode={dept}", _cts.Token, showLoading: false);
+        _policy = result.IsSuccess ? result.Data : null;
+        _policyLoaded = true;
+    }
+
+    private OTEmployeeDto? _pickerValue;
+    private string? _pasteCodes;
+
+    // Tìm theo mã/tên ở server (policy registrar áp dụng ở API) thay vì nạp cả phòng ban rồi xoá bớt.
+    private async Task<IEnumerable<OTEmployeeDto>> SearchEmployeesAsync(string text, CancellationToken ct)
+    {
+        if (_form == null || string.IsNullOrWhiteSpace(text) || text.Trim().Length < 2)
+            return Array.Empty<OTEmployeeDto>();
+
+        var result = await OTService.SearchEmployeesAsync(text, null, _form.DeptCode, ct);
+        if (!result.IsSuccess || result.Data == null)
+            return Array.Empty<OTEmployeeDto>();
+
+        return result.Data.Where(x => _employees.All(e => !string.Equals(e.EmployeeCode, x.EmployeeCode, StringComparison.OrdinalIgnoreCase))).ToList();
+    }
+
+    private async Task OnEmployeePickedAsync(OTEmployeeDto? picked)
+    {
+        if (picked != null)
+            await AddEmployeesAsync(new[] { picked });
+        _pickerValue = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddPastedCodesAsync()
+    {
+        if (_form == null || string.IsNullOrWhiteSpace(_pasteCodes)) return;
+
+        var codes = _pasteCodes
+            .Split(new[] { ',', ';', '\n', '\r', '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (codes.Count == 0) return;
+
+        var result = await OTService.SearchEmployeesAsync(null, codes, _form.DeptCode, _cts.Token);
+        if (!result.IsSuccess || result.Data == null)
         {
-            if (_employees.Any(x => x.EmployeeCode == source.EmployeeCode)) continue;
+            Snackbar.Add(result.Message ?? Language.T("ot.khongTaiDuocNhanVien"), Severity.Warning);
+            return;
+        }
+
+        var missing = codes.Where(c => result.Data.All(x => !string.Equals(x.EmployeeCode, c, StringComparison.OrdinalIgnoreCase))).ToList();
+        await AddEmployeesAsync(result.Data);
+        _pasteCodes = missing.Count == 0 ? null : string.Join(", ", missing);
+        if (missing.Count > 0)
+            Snackbar.Add($"Không tìm thấy trong phòng ban: {string.Join(", ", missing)}", Severity.Warning);
+    }
+
+    private async Task AddEmployeesAsync(IEnumerable<OTEmployeeDto> sources)
+    {
+        if (_form == null || !CanRegisterOtForOthers) return;
+        foreach (var source in sources)
+        {
+            if (_employees.Any(x => string.Equals(x.EmployeeCode, source.EmployeeCode, StringComparison.OrdinalIgnoreCase))) continue;
             _employees.Add(new OTEmployeeDto
             {
                 EmployeeCode = source.EmployeeCode, EmployeeName = source.EmployeeName, DeptCode = source.DeptCode,

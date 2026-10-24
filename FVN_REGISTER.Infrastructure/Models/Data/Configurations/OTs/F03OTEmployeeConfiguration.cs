@@ -7,7 +7,7 @@ public sealed class F03OTEmployeeConfiguration : IEntityTypeConfiguration<F03OTE
 {
     public void Configure(EntityTypeBuilder<F03OTEmployee> entity)
     {
-        entity.ToTable("F03OTEmployees");
+        entity.ToTable("F03OTEmployees", table => table.UseSqlOutputClause(false));
         entity.HasKey(e => e.Id).HasName("PK_F03OTEmployees");
 
         entity.HasIndex(e => e.OTRequestId, "IX_F03OTEmployee_RequestId");

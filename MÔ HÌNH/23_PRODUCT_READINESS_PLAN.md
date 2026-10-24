@@ -1,8 +1,9 @@
 # PRODUCT READINESS PLAN & TRACKING
 
-> **Repository:** `Nang0559/Reggister`  
-> **Branch:** `feature/work-calendar-action-implementation`  
-> **Baseline:** `95cee16d7edca1f0610680db21b33a1c23709a41`  
+> **Repository:** `Nang0559/FVN_REGISTER01`  
+> **Branch:** `fix/hrm-holiday-symbol-sync-consistency`  
+> **Implementation baseline:** `c980f7531934d987b258da37f7d343a4e95876e3`  
+> **Review scope:** tài liệu và code được đối chiếu trên branch này; các trạng thái trong bảng tiến độ vẫn là trạng thái theo dõi, không phải bằng chứng build/UAT/production. Các mục ghi branch/commit khác ở phần lịch sử bên dưới là bằng chứng của lần rà soát trước, không phải baseline hiện tại.  
 > **Mục tiêu:** đưa hệ thống từ trạng thái development/integration sang Release Candidate và Production bằng một quy trình có kiểm soát, trong đó **thiết kế → SQL → Entity/Configuration → Service → API → UI → User Guide → Test → Production** phải cùng một contract.
 
 ---

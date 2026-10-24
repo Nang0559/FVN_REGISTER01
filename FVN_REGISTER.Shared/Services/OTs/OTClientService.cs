@@ -40,6 +40,17 @@ public sealed class OTClientService : IOTClientService
         return _http.GetAsync<List<OTEmployeeDto>>(url, ct);
     }
 
+    public Task<ApiResponse<List<OTEmployeeDto>>> SearchEmployeesAsync(string? keyword, IEnumerable<string>? codes = null, int? deptCode = null, CancellationToken ct = default)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(keyword)) query.Add($"keyword={Uri.EscapeDataString(keyword.Trim())}");
+        var codeText = codes == null ? null : string.Join(",", codes.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()));
+        if (!string.IsNullOrWhiteSpace(codeText)) query.Add($"codes={Uri.EscapeDataString(codeText)}");
+        if (deptCode.HasValue) query.Add($"deptCode={deptCode.Value}");
+        var url = query.Count == 0 ? $"{Base}/search-employees" : $"{Base}/search-employees?{string.Join("&", query)}";
+        return _http.GetAsync<List<OTEmployeeDto>>(url, ct, showLoading: false);
+    }
+
     public Task<ApiResponse<List<OTSummaryDto>>> GetMyHistoryAsync(int? year = null, CancellationToken ct = default)
         => _http.GetAsync<List<OTSummaryDto>>(year.HasValue ? $"{Base}/history?year={year.Value}" : $"{Base}/history", ct);
 

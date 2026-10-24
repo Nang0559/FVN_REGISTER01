@@ -28,15 +28,23 @@ Bộ tài liệu giới thiệu, trình chiếu và đánh giá hiệu quả n�
 
 ## 3. Tài liệu người dùng và Help
 
-- `02_HUONG_DAN_SU_DUNG/04_USER_GUIDE.md` — hướng dẫn sử dụng đầy đủ.
-- `02_HUONG_DAN_SU_DUNG/05_QUICK_GUIDE.md` — tra cứu nhanh.
-- `02_HUONG_DAN_SU_DUNG/06_FAQ.md` — câu hỏi thường gặp.
-- `02_HUONG_DAN_SU_DUNG/EQUIPMENT/` — hướng dẫn chi tiết Equipment.
+- [04_USER_GUIDE.md](02_HUONG_DAN_SU_DUNG/04_USER_GUIDE.md) — hướng dẫn chính thức theo công việc và vai trò; Help chức năng mở các mục trong tài liệu này.
+- [05_QUICK_GUIDE.md](02_HUONG_DAN_SU_DUNG/05_QUICK_GUIDE.md) — tra cứu nhanh các thao tác phổ biến.
+- [06_FAQ.md](02_HUONG_DAN_SU_DUNG/06_FAQ.md) — câu hỏi và tình huống thường gặp.
+- `02_HUONG_DAN_SU_DUNG/EQUIPMENT/` — hướng dẫn chi tiết nghiệp vụ Equipment.
 
-`FeatureHelp` là Help UI dùng chung. Nội dung Help phải tham chiếu tài liệu chuẩn; không tạo Help riêng cho từng module nếu nội dung có thể dùng chung.
+`FeatureHelp` là Help UI dùng chung. Giữ nguyên `04_USER_GUIDE.md` làm nguồn nội dung Help để không phải đổi cơ chế mở trợ giúp theo từng chức năng. `HelpRegistry` ánh xạ route tới các heading trong tài liệu; khi đổi số/mã heading phải rà lại `GuideMap` và các kiểm thử `GuideMarkdownTests`.
 
 ## 4. Tài liệu kỹ thuật / triển khai
 
+Tài liệu canonical cho Work Calendar, HRM Attendance và OT reconciliation nằm trong `01_KIEN_TRUC_HE_THONG` / `02_NGHIEP_VU_MODULE`:
+
+- [`24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md`](../01_KIEN_TRUC_HE_THONG/24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md) — kiến trúc Calendar, DayType, màu ngày, registration availability và Action.
+- [`22_HRM_ATTENDANCE_CALCULATION.md`](../01_KIEN_TRUC_HE_THONG/ATTENDANCE/22_HRM_ATTENDANCE_CALCULATION.md) — HRM-compatible calculation, backfill, DayType và symbol rules.
+- [`18_OT_ATTENDANCE_RECONCILIATION.md`](../01_KIEN_TRUC_HE_THONG/EXECUTION/18_OT_ATTENDANCE_RECONCILIATION.md) — OT actual và reconciliation.
+- [`08_OT.md`](../02_NGHIEP_VU_MODULE/OT/08_OT.md) — OT business module.
+
+Tài liệu kỹ thuật triển khai khác:
 - `04_KY_THUAT_TRIEN_KHAI/ENDPOINT/` — tài liệu Endpoint Inventory & Compliance.
 - Thư mục `docs/` ở gốc repository hiện vẫn tồn tại và chứa ghi chú kỹ thuật/kiểm toán. Đây không phải cổng tài liệu người dùng hay bộ tài liệu PR; các ghi chú cần được phân loại/hợp nhất dần vào đúng khu vực chuẩn trong `MÔ HÌNH/`. Không dùng ghi chú rời làm bằng chứng nghiệm thu nếu chưa đối chiếu branch và commit hiện tại.
 

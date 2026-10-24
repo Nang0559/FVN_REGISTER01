@@ -83,38 +83,55 @@ namespace FVN_REGISTER.Application.Orchestrators
                 // sequentially within this scope.
                 foreach (var provider in _providers)
                 {
-                    if (!await CanBuildProviderAsync(user, provider, ct))
-                        continue;
-
-                    var contribution = await provider.GetContributionAsync(user, ct);
-                    rawWidgets.AddRange(contribution.Widgets);
-
-                    switch (contribution.Module)
+                    try
                     {
-                        case RequestModule.Leave when contribution.Detail is LeaveDashboardDto leave:
-                            response.Leave = leave;
-                            response.DeptWarning = leave.DeptWarning;
-                            response.DepartmentStatistics = leave.DepartmentStatistics;
-                            break;
+                        if (!await CanBuildProviderAsync(user, provider, ct))
+                            continue;
 
-                        case RequestModule.Overtime when contribution.Detail is OTDashboardDto overtime:
-                            response.OT = overtime;
-                            break;
+                        var contribution = await provider.GetContributionAsync(user, ct);
+                        rawWidgets.AddRange(contribution.Widgets);
 
-                        case RequestModule.Trip:
-                            response.Trip = contribution.Detail;
-                            break;
+                        switch (contribution.Module)
+                        {
+                            case RequestModule.Leave when contribution.Detail is LeaveDashboardDto leave:
+                                response.Leave = leave;
+                                response.DeptWarning = leave.DeptWarning;
+                                response.DepartmentStatistics = leave.DepartmentStatistics;
+                                break;
 
-                        case RequestModule.Equipment when contribution.Detail is List<EquipmentRequestDto> equipment:
-                            response.Equipment = equipment;
-                            break;
+                            case RequestModule.Overtime when contribution.Detail is OTDashboardDto overtime:
+                                response.OT = overtime;
+                                break;
 
-                        default:
-                            _logger.LogWarning(
-                                "[DASHBOARD] Provider returned unsupported module/detail type: {Module} / {DetailType}",
-                                contribution.Module,
-                                contribution.Detail?.GetType().Name ?? "null");
-                            break;
+                            case RequestModule.Trip:
+                                response.Trip = contribution.Detail;
+                                break;
+
+                            case RequestModule.Equipment when contribution.Detail is List<EquipmentRequestDto> equipment:
+                                response.Equipment = equipment;
+                                break;
+
+                            default:
+                                _logger.LogWarning(
+                                    "[DASHBOARD] Provider returned unsupported module/detail type: {Module} / {DetailType}",
+                                    contribution.Module,
+                                    contribution.Detail?.GetType().Name ?? "null");
+                                break;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        // One module's slow/failing query must not take down the
+                        // entire dashboard. Other providers and shared inbox still load.
+                        _logger.LogWarning(
+                            ex,
+                            "[DASHBOARD] Skipping failed module contribution {Module} for UserId={UserId}",
+                            provider.Module,
+                            user.UserId);
                     }
                 }
 

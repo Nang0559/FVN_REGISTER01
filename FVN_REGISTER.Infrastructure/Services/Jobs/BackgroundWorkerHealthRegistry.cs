@@ -9,6 +9,10 @@ public sealed record BackgroundWorkerHealthSnapshot(
     DateTimeOffset? LastFailureAt,
     string? LastError);
 
+/// <summary>
+/// In-memory health/heartbeat registry only. Worker lifetime is owned by the Generic Host via
+/// AddHostedService, not started as a side effect of resolving this singleton.
+/// </summary>
 public sealed class BackgroundWorkerHealthRegistry
 {
     private sealed class State

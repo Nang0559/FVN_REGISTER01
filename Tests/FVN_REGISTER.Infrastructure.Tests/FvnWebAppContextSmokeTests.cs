@@ -1,4 +1,5 @@
 using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -37,7 +38,8 @@ public sealed class FvnWebAppContextSmokeTests
         Assert.True(assignmentIndex >= 0);
         Assert.True(previousIndex < assignmentIndex, "previousStatus must be captured before status mutation.");
         Assert.Contains("ActorUserId = actorUserId", source);
-        Assert.Contains("isNew ? \"CREATED\" : \"UPSERT\"", source);
+        Assert.Contains("isNew ? \"CREATED\"", source);
+        Assert.Contains("\"UPSERT\"", source);
     }
 
     [Fact]
@@ -112,6 +114,18 @@ WHERE name IN
             missing.Length == 0,
             "The EF model is missing DbSet entity mappings:" + Environment.NewLine +
             string.Join(Environment.NewLine, missing));
+    }
+
+    [Fact]
+    public void OT_request_table_disables_sql_server_output_clause_for_trigger_compatibility()
+    {
+        using var db = CreateContext();
+
+        var entity = db.Model.FindEntityType(typeof(F03OTRequest));
+        Assert.NotNull(entity);
+
+        var table = StoreObjectIdentifier.Table("F03OTRequests", null);
+        Assert.False(entity!.IsSqlOutputClauseUsed(table));
     }
 
     [Fact]

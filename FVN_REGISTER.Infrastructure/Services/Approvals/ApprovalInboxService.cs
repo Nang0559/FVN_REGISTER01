@@ -21,6 +21,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _tripWorkflow;
         private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _equipmentWorkflow;
         private readonly IApprovalWorkflowOrchestrator<PayrollPeriodSubject> _payrollWorkflow;
+        private readonly IApprovalWorkflowOrchestrator<LateEarlyRequestSubject> _lateEarlyWorkflow;
         private readonly IApprovalGroupingPolicy _groupingPolicy;
         private readonly IAuthorizationService _authorization;
         private readonly IApprovalPolicyService _approvalPolicies;
@@ -33,6 +34,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IApprovalWorkflowOrchestrator<TripRequestSubject> tripWorkflow,
             IApprovalWorkflowOrchestrator<EquipmentRequestSubject> equipmentWorkflow,
             IApprovalWorkflowOrchestrator<PayrollPeriodSubject> payrollWorkflow,
+            IApprovalWorkflowOrchestrator<LateEarlyRequestSubject> lateEarlyWorkflow,
             IApprovalGroupingPolicy groupingPolicy,
             IAuthorizationService authorization,
             IApprovalPolicyService approvalPolicies,
@@ -47,6 +49,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _tripWorkflow = tripWorkflow;
             _equipmentWorkflow = equipmentWorkflow;
             _payrollWorkflow = payrollWorkflow;
+            _lateEarlyWorkflow = lateEarlyWorkflow;
             _groupingPolicy = groupingPolicy;
             _authorization = authorization;
             _approvalPolicies = approvalPolicies;
@@ -70,7 +73,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     [RequestModule.Overtime] = await _otWorkflow.GetPendingForApproverAsync(approverKey, ct),
                     [RequestModule.Trip] = await _tripWorkflow.GetPendingForApproverAsync(approverKey, ct),
                     [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(approverKey, ct),
-                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(approverKey, ct)
+                    [RequestModule.Payroll] = await _payrollWorkflow.GetPendingForApproverAsync(approverKey, ct),
+                    [RequestModule.LateEarly] = await _lateEarlyWorkflow.GetPendingForApproverAsync(approverKey, ct)
                 };
 
                 var scopedByModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>();
@@ -83,6 +87,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                         RequestModule.Trip => SecurityFunctionCodes.TripApprove,
                         RequestModule.Equipment => SecurityFunctionCodes.EquipmentApprove,
                         RequestModule.Payroll => ApprovalSecurityFunctionCodes.PayrollApprove,
+                        RequestModule.LateEarly => SecurityFunctionCodes.LateEarlyApprove,
                         _ => 0
                     };
                     if (functionCode == 0) continue;
@@ -116,24 +121,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     scopedByModule[pair.Key] = scopedItems;
                 }
 
-                // Reconcile notification state against the actual unresolved approval route.
-                // If a user previously opened an approval alert, restore it while that request
-                // is still actionable; only workflow completion may resolve the alert.
-                var actionableApprovals = scopedByModule
+                // Reconcile the bell against the raw actionable workflow route BEFORE capability
+                // filtering. If the user lacks a module grant, the task may be hidden from the inbox,
+                // but its notification must remain unread so the configuration problem is visible.
+                var actionableApprovals = byModule
                     .SelectMany(pair => pair.Value.Select(item => (pair.Key, item.RequestId)))
                     .Distinct()
                     .ToList();
+
+                // Clear notifications only when the route no longer contains actionable work
+                // for this approver (step completed, request closed, or assignment moved on).
+                await _notifications.ResolveStaleApproverAsync(
+                    user.UserId, actionableApprovals, ct);
+
+                // A notification opened earlier is restored while the assigned step is still actionable.
                 await _notifications.RestorePendingApproverNotificationsAsync(
                     user.UserId, actionableApprovals, ct);
 
                 var groups = _groupingPolicy.BuildGroups(scopedByModule);
-
-                // Do not mark approver notifications as read merely because an item is absent
-                // from this inbox response. Policy/scope filtering can hide an otherwise valid
-                // pending step (e.g. policy changed after snapshot creation); auto-clearing here
-                // silently erases the bell count and makes notification, inbox, and dashboard
-                // all appear empty. Resolve notifications only when the workflow explicitly
-                // advances/completes the request. Keep diagnostic logs above for policy/scope issues.
 
                 return ServiceResult<List<PendingApprovalGroupDto>>.Ok(groups);
             }
@@ -158,6 +163,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     RequestModule.Trip => await _tripWorkflow.ApproveAsync(action, ct),
                     RequestModule.Equipment => await _equipmentWorkflow.ApproveAsync(action, ct),
                     RequestModule.Payroll => await _payrollWorkflow.ApproveAsync(action, ct),
+                    RequestModule.LateEarly => await _lateEarlyWorkflow.ApproveAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
                 if (result.Success)
@@ -192,6 +198,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     RequestModule.Trip => await _tripWorkflow.RejectAsync(action, ct),
                     RequestModule.Equipment => await _equipmentWorkflow.RejectAsync(action, ct),
                     RequestModule.Payroll => await _payrollWorkflow.RejectAsync(action, ct),
+                    RequestModule.LateEarly => await _lateEarlyWorkflow.RejectAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
                 if (result.Success)

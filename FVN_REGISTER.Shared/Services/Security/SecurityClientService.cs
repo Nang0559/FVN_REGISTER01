@@ -1,3 +1,5 @@
+using FVN_REGISTER.Contract.Dtos.Positions;
+using FVN_REGISTER.Contract.Dtos.Registration;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests.Security;
@@ -21,10 +23,20 @@ public sealed class SecurityClientService : ISecurityClientService
     public Task<ApiResponse<List<ManagedEmployeeDto>>> GetManagedEmployeesAsync(int userId, CancellationToken ct = default) => _http.GetAsync<List<ManagedEmployeeDto>>($"api/security/users/{userId}/managed-employees", ct);
     public Task<ApiResponse<List<ManagedEmployeeDto>>> GetMyManagedEmployeesAsync(CancellationToken ct = default) => _http.GetAsync<List<ManagedEmployeeDto>>("api/security/me/managed-employees", ct);
     public Task<ApiResponse<List<FeatureOperatorAssignmentDto>>> GetFeatureOperatorsAsync(int functionCode, string resourceType, int? resourceId = null, CancellationToken ct = default) => _http.GetAsync<List<FeatureOperatorAssignmentDto>>($"api/security/feature-operators?functionCode={functionCode}&resourceType={Uri.EscapeDataString(resourceType)}{(resourceId.HasValue ? $"&resourceId={resourceId.Value}" : string.Empty)}", ct);
+    public Task<ApiResponse<List<FeatureOperatorEmployeeDto>>> GetFeatureOperatorEmployeesByDepartmentAsync(string? search, int? deptCode, CancellationToken ct = default)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(search)) query.Add($"search={Uri.EscapeDataString(search)}");
+        if (deptCode.HasValue) query.Add($"deptCode={deptCode.Value}");
+        return _http.GetAsync<List<FeatureOperatorEmployeeDto>>($"api/security/feature-operators/employees{(query.Count == 0 ? string.Empty : "?" + string.Join("&", query))}", ct);
+    }
     public Task<ApiResponse<List<FeatureOperatorResourceDto>>> GetFeatureOperatorResourcesAsync(string resourceType, CancellationToken ct = default) => _http.GetAsync<List<FeatureOperatorResourceDto>>($"api/security/feature-operators/resources?resourceType={Uri.EscapeDataString(resourceType)}", ct);
     public Task<ApiResponse<List<FeatureOperatorEmployeeDto>>> GetFeatureOperatorEmployeesAsync(string? search = null, CancellationToken ct = default) => _http.GetAsync<List<FeatureOperatorEmployeeDto>>($"api/security/feature-operators/employees{(string.IsNullOrWhiteSpace(search) ? string.Empty : $"?search={Uri.EscapeDataString(search)}")}", ct);
     public Task<ApiResponse<FeatureOperatorAssignmentDto>> AddFeatureOperatorAsync(SaveFeatureOperatorAssignmentRequest request, CancellationToken ct = default) => _http.PostAsync<FeatureOperatorAssignmentDto>("api/security/feature-operators", request, ct);
     public Task<ApiResponse<object>> RemoveFeatureOperatorAsync(int id, CancellationToken ct = default) => _http.DeleteAsync<object>($"api/security/feature-operators/{id}", ct);
+    public Task<ApiResponse<List<PositionDto>>> GetRegistrarPositionsAsync(CancellationToken ct = default) => _http.GetAsync<List<PositionDto>>("api/registration-policy/positions", ct, showLoading: false);
+    public Task<ApiResponse<List<RegistrationPolicyDto>>> GetRegistrationPoliciesAsync(string registerType, CancellationToken ct = default) => _http.GetAsync<List<RegistrationPolicyDto>>($"api/registration-policy?registerType={Uri.EscapeDataString(registerType)}", ct, showLoading: false);
+    public Task<ApiResponse<RegistrationPolicyDto>> SaveRegistrationPolicyAsync(RegistrationPolicyUpsertDto request, CancellationToken ct = default) => _http.PutAsync<RegistrationPolicyDto>("api/registration-policy", request, ct);
     public Task<ApiResponse<SecurityRoleDto>> SetRoleFunctionsAsync(int roleCode, List<int> functionCodes, Dictionary<int, string?> scopeOverrides, Dictionary<int, string?> accessModeOverrides, CancellationToken ct = default) => _http.PutAsync<SecurityRoleDto>($"api/security/roles/{roleCode}/functions", new UpdateRoleFunctionsRequest { RoleCode = roleCode, FunctionCodes = functionCodes, ScopeOverrides = scopeOverrides, AccessModeOverrides = accessModeOverrides }, ct);
     public Task<ApiResponse<List<TwoFactorAdminUserDto>>> GetTwoFactorUsersAsync(CancellationToken ct = default) => _http.GetAsync<List<TwoFactorAdminUserDto>>("api/security/users/2fa", ct);
     public Task<ApiResponse<object>> SetTwoFactorRequiredAsync(int userId, bool required, CancellationToken ct = default) => _http.PutAsync<object>($"api/security/users/{userId}/2fa-required", new TwoFactorRequirementRequest { Required = required }, ct);

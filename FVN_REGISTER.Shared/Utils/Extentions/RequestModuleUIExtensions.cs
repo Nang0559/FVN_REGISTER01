@@ -17,6 +17,7 @@ namespace FVN_REGISTER.Shared.Utils.Extentions
             RequestModule.Payroll => "#4CAF50",
             RequestModule.AccessChange => "#9C27B0",
             RequestModule.Endpoint => "#607D8B",
+            RequestModule.LateEarly => "#8E24AA",
             _ => "#9E9E9E"
         };
 

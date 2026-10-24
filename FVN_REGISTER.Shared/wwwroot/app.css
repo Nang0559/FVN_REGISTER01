@@ -32,35 +32,7 @@ h1:focus {
     background-color: rgba(0,0,0,0.04);
 }
 
-/* Work Calendar semantic day colors */
-.fcc-saturday .fc-daygrid-day-frame {
-    background-color: #fff3b0;
-}
-
-.fcc-sunday .fc-daygrid-day-frame {
-    background-color: #1f4e78;
-    color: #fff;
-}
-
-.fcc-sunday .fc-daygrid-day-number,
-.fcc-sunday .fcc-calendar-day-content,
-.fcc-sunday .fcc-calendar-day-line {
-    color: #fff;
-}
-
-.fcc-company-holiday .fc-daygrid-day-frame {
-    background-color: #f8c8dc;
-}
-
-.fcc-company-holiday .fc-daygrid-day-number,
-.fcc-company-holiday .fcc-calendar-day-content,
-.fcc-company-holiday .fcc-calendar-day-line {
-    color: #7a173d;
-}
-
-.fcc-leave-day .fc-daygrid-day-frame {
-    background-color: #ead7f7;
-}
+/* Màu ô lịch do HRM (LNLMauSac) quyết định, tính ở server và đặt inline trong workCalendar.js — không khai báo màu theo class ở đây. */
 
 .fcc-calendar-day-line.leave-marker {
     color: #7b1fa2;
@@ -115,46 +87,46 @@ h1:focus {
     white-space: nowrap;
 }
 
-.fcc-calendar-day-line.holiday {
-    font-weight: 700;
-}
+    .fcc-calendar-day-line.holiday {
+        font-weight: 700;
+    }
 
-.fcc-calendar-day-line.shift {
-    font-weight: 700;
-}
+    .fcc-calendar-day-line.shift {
+        font-weight: 700;
+    }
 
-.fcc-calendar-day-line.attendance {
-    font-variant-numeric: tabular-nums;
-}
+    .fcc-calendar-day-line.attendance {
+        font-variant-numeric: tabular-nums;
+    }
 
-.fcc-calendar-day-line.hours {
-    font-weight: 600;
-}
+    .fcc-calendar-day-line.hours {
+        font-weight: 600;
+    }
 
-.fcc-calendar-day-line.registration {
-    font-weight: 600;
-}
+    .fcc-calendar-day-line.registration {
+        font-weight: 600;
+    }
 
-.fcc-calendar-day-line.registration.ot {
-    border-left: 3px solid var(--mud-palette-warning);
-    padding-left: 4px;
-}
+        .fcc-calendar-day-line.registration.ot {
+            border-left: 3px solid var(--mud-palette-warning);
+            padding-left: 4px;
+        }
 
-.fcc-calendar-day-line.registration.leave {
-    border-left: 3px solid var(--mud-palette-primary);
-    padding-left: 4px;
-}
+        .fcc-calendar-day-line.registration.leave {
+            border-left: 3px solid var(--mud-palette-primary);
+            padding-left: 4px;
+        }
 
-.fcc-calendar-day-line.registration.trip {
-    border-left: 3px solid var(--mud-palette-info);
-    padding-left: 4px;
-}
+        .fcc-calendar-day-line.registration.trip {
+            border-left: 3px solid var(--mud-palette-info);
+            padding-left: 4px;
+        }
 
-.fcc-calendar-day-line.registration-open {
-    margin-top: 2px;
-    font-weight: 700;
-    opacity: .8;
-}
+    .fcc-calendar-day-line.registration-open {
+        margin-top: 2px;
+        font-weight: 700;
+        opacity: .8;
+    }
 
 .fcc-calendar-issue-marker {
     border: 0;
@@ -170,17 +142,17 @@ h1:focus {
     box-shadow: 0 1px 3px rgba(0,0,0,.18);
 }
 
-.fcc-calendar-issue-marker.warning {
-    background: var(--mud-palette-warning);
-}
+    .fcc-calendar-issue-marker.warning {
+        background: var(--mud-palette-warning);
+    }
 
-.fcc-calendar-issue-marker.critical {
-    background: var(--mud-palette-error);
-}
+    .fcc-calendar-issue-marker.critical {
+        background: var(--mud-palette-error);
+    }
 
-.fcc-calendar-issue-marker.info {
-    background: var(--mud-palette-info);
-}
+    .fcc-calendar-issue-marker.info {
+        background: var(--mud-palette-info);
+    }
 
 .fcc-company-holiday .fc-daygrid-day-frame {
     background: rgba(25, 118, 210, .035);
@@ -325,37 +297,110 @@ h1:focus {
 }
 
 /* ---- Trạng thái phản hồi đối soát (?, -, !, ✕) ---- */
-.fcc-calendar-issue-marker.fcc-fb { cursor: default; }
-button.fcc-calendar-issue-marker.fcc-fb { cursor: pointer; }
-.fcc-calendar-issue-marker.fcc-fb-unanswered { background: var(--mud-palette-error); }
-.fcc-calendar-issue-marker.fcc-fb-pending { background: var(--mud-palette-info); }
-.fcc-calendar-issue-marker.fcc-fb-hr-request { background: #f9a825; color: #3e2723; }
-.fcc-calendar-issue-marker.fcc-fb-hr-resolved { background: #5c6bc0; }
-.fcc-calendar-issue-marker.fcc-fb-complete { background: var(--mud-palette-success); position: relative; }
-.fcc-calendar-issue-marker.fcc-fb-complete::after {
-    content: "✓";
-    position: absolute;
-    right: -5px;
-    bottom: -5px;
-    width: 12px;
-    height: 12px;
-    line-height: 12px;
-    font-size: 9px;
-    border-radius: 50%;
-    background: #fff;
-    color: var(--mud-palette-success);
-    box-shadow: 0 0 0 1px var(--mud-palette-success);
+.fcc-calendar-issue-marker.fcc-fb {
+    cursor: default;
 }
-.fcc-calendar-issue-marker.fcc-fb-rejected { background: #b71c1c; }
 
-.fcc-calendar-day-line.fcc-fb-label { font-weight: 700; font-size: 11px; }
-.fcc-calendar-day-line.fcc-fb-pending { color: var(--mud-palette-info); }
-.fcc-calendar-day-line.fcc-fb-hr-request { color: #f57f17; }
-.fcc-calendar-day-line.fcc-fb-hr-resolved { color: #5c6bc0; }
-.fcc-calendar-day-line.fcc-fb-complete { color: var(--mud-palette-success); }
-.fcc-calendar-day-line.fcc-fb-rejected { color: #b71c1c; }
-.fcc-calendar-day-line.fcc-fb-unanswered { color: var(--mud-palette-error); }
+button.fcc-calendar-issue-marker.fcc-fb {
+    cursor: pointer;
+}
 
-.fcc-calendar-legend { border-top: 1px solid var(--mud-palette-lines-default); padding-top: 8px; font-size: 13px; }
-.fcc-calendar-legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 6px 16px; }
-.fcc-calendar-legend-grid .fcc-calendar-issue-marker { display: inline-block; vertical-align: middle; margin: 0 6px 0 0; cursor: default; }
+.fcc-calendar-issue-marker.fcc-fb-unanswered {
+    background: var(--mud-palette-error);
+}
+
+.fcc-calendar-issue-marker.fcc-fb-pending {
+    background: var(--mud-palette-info);
+}
+
+.fcc-calendar-issue-marker.fcc-fb-hr-request {
+    background: #f9a825;
+    color: #3e2723;
+}
+
+.fcc-calendar-issue-marker.fcc-fb-hr-resolved {
+    background: #5c6bc0;
+}
+
+.fcc-calendar-issue-marker.fcc-fb-complete {
+    background: var(--mud-palette-success);
+    position: relative;
+}
+
+    .fcc-calendar-issue-marker.fcc-fb-complete::after {
+        content: "✓";
+        position: absolute;
+        right: -5px;
+        bottom: -5px;
+        width: 12px;
+        height: 12px;
+        line-height: 12px;
+        font-size: 9px;
+        border-radius: 50%;
+        background: #fff;
+        color: var(--mud-palette-success);
+        box-shadow: 0 0 0 1px var(--mud-palette-success);
+    }
+
+.fcc-calendar-issue-marker.fcc-fb-rejected {
+    background: #b71c1c;
+}
+
+.fcc-calendar-day-line.fcc-fb-label {
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.fcc-calendar-day-line.fcc-fb-pending {
+    color: var(--mud-palette-info);
+}
+
+.fcc-calendar-day-line.fcc-fb-hr-request {
+    color: #f57f17;
+}
+
+.fcc-calendar-day-line.fcc-fb-hr-resolved {
+    color: #5c6bc0;
+}
+
+.fcc-calendar-day-line.fcc-fb-complete {
+    color: var(--mud-palette-success);
+}
+
+.fcc-calendar-day-line.fcc-fb-rejected {
+    color: #b71c1c;
+}
+
+.fcc-calendar-day-line.fcc-fb-unanswered {
+    color: var(--mud-palette-error);
+}
+
+.fcc-calendar-legend {
+    border-top: 1px solid var(--mud-palette-lines-default);
+    padding-top: 8px;
+    font-size: 13px;
+}
+
+.fcc-calendar-legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 6px 16px;
+}
+
+    .fcc-calendar-legend-grid .fcc-calendar-issue-marker {
+        display: inline-block;
+        vertical-align: middle;
+        margin: 0 6px 0 0;
+        cursor: default;
+    }
+
+
+/* Rendered Markdown guide (/huong-dan) */
+.guide-md { line-height: 1.6; }
+.guide-md h2, .guide-md h3, .guide-md h4 { margin: 1.2rem 0 .6rem; }
+.guide-md img { max-width: 100%; height: auto; border: 1px solid rgba(128,128,128,.35); border-radius: 6px; margin: .5rem 0; }
+.guide-md table { border-collapse: collapse; width: 100%; margin: .75rem 0; display: block; overflow-x: auto; }
+.guide-md th, .guide-md td { border: 1px solid rgba(128,128,128,.4); padding: .4rem .6rem; text-align: left; vertical-align: top; }
+.guide-md code { font-family: monospace; font-size: .85em; padding: .1rem .3rem; border-radius: 4px; background: rgba(128,128,128,.18); }
+.guide-md pre { overflow-x: auto; padding: .75rem; border-radius: 6px; background: rgba(128,128,128,.12); }
+.guide-md blockquote { margin: .75rem 0; padding: .25rem .9rem; border-left: 4px solid rgba(128,128,128,.5); }

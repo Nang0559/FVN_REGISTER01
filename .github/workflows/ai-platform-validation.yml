@@ -1,0 +1,28 @@
+name: AI Platform validation
+
+concurrency:
+  group: ai-platform-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - feature/ai-platform-phase1-6-integration
+  pull_request:
+    branches:
+      - feature/ai-platform-phase1-6-integration
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Restore solution
+        run: dotnet restore FVN_REGISTER.sln
+      - name: Build solution
+        run: dotnet build FVN_REGISTER.sln --configuration Release --no-restore
+      - name: Run AI tests
+        run: dotnet test Tests/FVN_REGISTER.AI.Tests/FVN_REGISTER.AI.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=ai-tests.trx"

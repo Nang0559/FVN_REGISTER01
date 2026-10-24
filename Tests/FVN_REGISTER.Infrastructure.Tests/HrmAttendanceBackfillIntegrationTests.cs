@@ -9,7 +9,7 @@ namespace FVN_REGISTER.Infrastructure.Tests;
 
 public sealed class HrmAttendanceBackfillIntegrationTests
 {
-    [Fact]
+    [SqlIntegrationFact]
     public async Task Company_wide_attendance_calculation_accepts_null_department_scope()
     {
         var connectionString = Environment.GetEnvironmentVariable("FVN_REGISTER_SQL_CONNECTION");

@@ -248,7 +248,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (includeOwnData)
         {
             if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.OTView, ct))
-                result.Add("OT");
+                result.Add("Overtime");
             if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.LeaveView, ct))
                 result.Add("LEAVE");
             if (await _authorization.HasPersonalAsync(user, SecurityFunctionCodes.TripView, ct))
@@ -259,7 +259,7 @@ public sealed class WorkCalendarController : BaseApiController
         }
 
         if (await _authorization.HasManagementAsync(user, SecurityFunctionCodes.OTView, ct))
-            result.Add("OT");
+            result.Add("Overtime");
 
         if (await _authorization.HasManagementAsync(user, SecurityFunctionCodes.LeaveView, ct))
             result.Add("LEAVE");

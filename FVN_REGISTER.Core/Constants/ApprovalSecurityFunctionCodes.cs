@@ -1,3 +1,5 @@
+using FVN_REGISTER.Core.Attributes;
+
 namespace FVN_REGISTER.Core.Constants;
 
 /// <summary>
@@ -6,5 +8,9 @@ namespace FVN_REGISTER.Core.Constants;
 /// </summary>
 public static class ApprovalSecurityFunctionCodes
 {
+    // 2810 belongs to Payroll.Approve (SQL/53). PublicForm.View used to share this code and was moved to
+    // SecurityFunctionCodes.PublicFormView = 2819. The attribute makes the capability discoverable, otherwise
+    // SecurityFunctionRegistryService.ReconcileAsync sees an undeclared key and sets it to PendingRetirement / IsActive = 0.
+    [SecurityFunctionDefinition("Payroll.Approve", "Phê duyệt bảng công/bảng lương", ModuleCode = "Payroll", ActionCode = "Approve", ScopeCode = AuthorizationScopeCodes.Department)]
     public const int PayrollApprove = 2810;
 }

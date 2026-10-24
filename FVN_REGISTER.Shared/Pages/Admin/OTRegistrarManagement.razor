@@ -1,0 +1,171 @@
+@page "/admin/ot-registrars"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Contract.Dtos.Positions
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Người đăng ký OT / Trip / Đi muộn-Về sớm</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1">Người đăng ký OT / Trip / Đi muộn-Về sớm</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Cấu hình theo phòng ban. Chế độ 1 cho phép tất cả; chế độ 2 chỉ định user; chế độ 3 chỉ định chức vụ. Feature Operator OT.RegistrarManage có thể chỉ định người đăng ký hộ theo phòng ban, khối hoặc toàn công ty.
+</MudText>
+
+<MudTabs ActivePanelIndex="_tab" ActivePanelIndexChanged="OnTabChanged" Rounded="true" Elevation="1">
+    <MudTabPanel Text="Chính sách OT" />
+    <MudTabPanel Text="Chính sách Trip" />
+    <MudTabPanel Text="Đi muộn / Về sớm" />
+</MudTabs>
+
+<MudPaper Class="pa-4 mt-2">
+    <MudGrid>
+        <MudItem xs="12" md="3">
+            <MudNumericField T="int" @bind-Value="_edit.DepartmentCode" Label="DepartmentCode (0 = mặc định)" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudSelect T="RegistrationRuleMode" @bind-Value="_edit.Mode" Label="Cách xác định người đăng ký" Variant="Variant.Outlined">
+                <MudSelectItem Value="RegistrationRuleMode.Everyone">1 — Mọi người</MudSelectItem>
+                <MudSelectItem Value="RegistrationRuleMode.AssignedUsers">2 — Chỉ định user</MudSelectItem>
+                <MudSelectItem Value="RegistrationRuleMode.AssignedPositions">3 — Chỉ định chức vụ</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="5" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Lưu chính sách</MudButton>
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_userIdsText" Label="UserId (chế độ 2 — nhiều ID, phân cách bằng dấu phẩy)" Variant="Variant.Outlined" Disabled="@(_edit.Mode != RegistrationRuleMode.AssignedUsers)" />
+        </MudItem>
+        @if (_registerType == "OT")
+        {
+            <MudItem xs="12">
+                <MudSelect T="string" Label="Chức vụ được tự đăng ký OT (không cần được chỉ định làm registrar)" MultiSelection="true" SelectedValues="_selfPositionCodes" SelectedValuesChanged="OnSelfPositionsChanged" Variant="Variant.Outlined" Dense="true" Clearable="true">
+                    @foreach (var position in _positions)
+                    {
+                        <MudSelectItem T="string" Value="@position.PositionCode">@position.PositionCode — @position.PositionName (@position.EmployeeCount NV)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Có thể chọn nhiều chức vụ. Quyền này chỉ cho phép đăng ký OT cho chính mình; đăng ký cho người khác vẫn cần quyền registrar hiện có.</MudText>
+            </MudItem>
+        }
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_positionCodesText" Label="PositionCode (chế độ 3 — nhiều mã, phân cách bằng dấu phẩy)" Variant="Variant.Outlined" Disabled="@(_edit.Mode != RegistrationRuleMode.AssignedPositions)" />
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudTable Items="_rules" Dense="true" Hover="true" Bordered="true" Class="mt-4">
+    <HeaderContent>
+        <MudTh>Phòng ban</MudTh>
+        <MudTh>Chế độ</MudTh>
+        <MudTh>User</MudTh>
+        <MudTh>Chức vụ</MudTh>
+        <MudTh>Hiệu lực</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.DepartmentCode</MudTd>
+        <MudTd>@ModeText(context.Mode)</MudTd>
+        <MudTd>@string.Join(", ", context.UserIds)</MudTd>
+        <MudTd>@string.Join(", ", context.PositionCodes)</MudTd>
+        <MudTd>@(context.IsActive ? "Đang áp dụng" : "Tắt")</MudTd>
+        <MudTd><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => LoadRule(context))">Sửa</MudButton></MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private int _tab;
+    private string _registerType = "OT";
+    private List<RegistrationPolicyDto> _rules = new();
+    private List<PositionDto> _positions = new();
+    private HashSet<string> _selfPositionCodes = new(StringComparer.OrdinalIgnoreCase);
+    private RegistrationPolicyUpsertDto _edit = new() { RegisterType = "OT", Mode = RegistrationRuleMode.AssignedPositions };
+    private string _userIdsText = string.Empty;
+    private string _positionCodesText = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync("OT");
+
+    private async Task OnTabChanged(int index)
+    {
+        _tab = index;
+        await LoadAsync(index switch { 0 => "OT", 1 => "TRIP", _ => "LATE_EARLY" });
+    }
+
+    private async Task LoadAsync(string type)
+    {
+        _registerType = type;
+        var result = await Http.GetAsync<List<RegistrationPolicyDto>>($"api/registration-policy?registerType={type}", showLoading: false);
+        if (result.IsSuccess && result.Data != null)
+        {
+            _rules = result.Data;
+            if (type is "OT" or "LATE_EARLY")
+            {
+                var positions = await Http.GetAsync<List<PositionDto>>("api/registration-policy/positions", showLoading: false);
+                if (positions.IsSuccess && positions.Data != null) _positions = positions.Data;
+            }
+            ResetEditor(type);
+        }
+        else if (!string.IsNullOrWhiteSpace(result.Message)) Snackbar.Add(result.Message, Severity.Warning);
+    }
+
+    private void ResetEditor(string type)
+    {
+        _edit = new RegistrationPolicyUpsertDto { RegisterType = type, Mode = RegistrationRuleMode.AssignedPositions, IsActive = true };
+        _userIdsText = string.Empty;
+        _positionCodesText = string.Empty;
+        _selfPositionCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void LoadRule(RegistrationPolicyDto rule)
+    {
+        _edit = new RegistrationPolicyUpsertDto
+        {
+            DepartmentCode = rule.DepartmentCode,
+            RegisterType = rule.RegisterType,
+            Mode = rule.Mode,
+            IsActive = rule.IsActive,
+            UserIds = rule.UserIds.ToList(),
+            PositionCodes = rule.PositionCodes.ToList()
+        };
+        _userIdsText = string.Join(",", rule.UserIds);
+        _positionCodesText = string.Join(",", rule.PositionCodes);
+        _selfPositionCodes = new HashSet<string>(rule.SelfRegistrationPositionCodes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task SaveAsync()
+    {
+        _edit.RegisterType = _registerType;
+        _edit.UserIds = ParseInts(_userIdsText);
+        _edit.PositionCodes = ParseStrings(_positionCodesText);
+        _edit.SelfRegistrationPositionCodes = _selfPositionCodes.ToList();
+        var result = await Http.PutAsync<RegistrationPolicyDto>("api/registration-policy", _edit);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã lưu chính sách người đăng ký.", Severity.Success);
+            await LoadAsync(_registerType);
+        }
+        else Snackbar.Add(result.Message ?? "Không thể lưu chính sách.", Severity.Error);
+    }
+
+    private Task OnSelfPositionsChanged(IEnumerable<string> values) { _selfPositionCodes = new HashSet<string>(values, StringComparer.OrdinalIgnoreCase); return Task.CompletedTask; }
+
+    private static string ModeText(RegistrationRuleMode mode) => mode switch
+    {
+        RegistrationRuleMode.Everyone => "1 — Mọi người",
+        RegistrationRuleMode.AssignedUsers => "2 — Chỉ định user",
+        _ => "3 — Chỉ định chức vụ"
+    };
+
+    private static List<int> ParseInts(string value)
+        => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => int.TryParse(x, out _)).Select(int.Parse).Distinct().ToList();
+
+    private static List<string> ParseStrings(string value)
+        => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+}

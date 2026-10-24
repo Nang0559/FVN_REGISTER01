@@ -167,3 +167,71 @@ public sealed class EquipmentInspectionTemplateImportResultDto
     public int ItemCount { get; set; }
     public List<string> Errors { get; set; } = new();
 }
+
+/// <summary>Who may be assigned in one go: a whole import batch ("Cha"), a type group, or hand-picked equipment.</summary>
+public static class EquipmentInspectionAssignScope
+{
+    public const string Batch = "Batch";
+    public const string Group = "Group";
+    public const string Assets = "Assets";
+}
+
+/// <summary>Import batch (the "Cha" Excel list) with how many of its equipment are already approved and active.</summary>
+public sealed class EquipmentInspectionBatchGroupDto
+{
+    public long BatchId { get; set; }
+    public string FileName { get; set; } = "";
+    public int AssetCount { get; set; }
+}
+
+public sealed class EquipmentInspectionTypeGroupDto
+{
+    public string SchemaKey { get; set; } = "";
+    public int AssetCount { get; set; }
+}
+
+public sealed class EquipmentInspectionAssetGroupsDto
+{
+    public List<EquipmentInspectionBatchGroupDto> Batches { get; set; } = new();
+    public List<EquipmentInspectionTypeGroupDto> Types { get; set; } = new();
+}
+
+public sealed class EquipmentInspectionBulkAssignmentRequest
+{
+    public int TemplateId { get; set; }
+    /// <summary>Batch | Group | Assets (see <see cref="EquipmentInspectionAssignScope"/>).</summary>
+    public string Scope { get; set; } = EquipmentInspectionAssignScope.Assets;
+    public long? ImportBatchId { get; set; }
+    public string? SchemaKey { get; set; }
+    public List<int> EquipmentIds { get; set; } = new();
+    /// <summary>Optional override. Empty = use the checklist's own frequency.</summary>
+    public string? Frequency { get; set; }
+    public TimeSpan DueTime { get; set; } = new(8, 0, 0);
+    public int ReminderHoursBefore { get; set; } = 24;
+    public int? ScheduleDayOfWeek { get; set; }
+    public int? ScheduleDayOfMonth { get; set; }
+    public int? ScheduleMonth { get; set; }
+    public string InspectorEmployeeCode { get; set; } = "";
+    public string ApproverEmployeeCode { get; set; } = "";
+    public DateTime EffectiveFrom { get; set; } = DateTime.Today;
+    public DateTime? EffectiveTo { get; set; }
+}
+
+public sealed class EquipmentInspectionBulkAssignmentRowDto
+{
+    public int EquipmentId { get; set; }
+    public string EquipmentCode { get; set; } = "";
+    public string EquipmentName { get; set; } = "";
+    /// <summary>Created | Skipped | Failed</summary>
+    public string Status { get; set; } = "";
+    public string? Message { get; set; }
+}
+
+public sealed class EquipmentInspectionBulkAssignmentResultDto
+{
+    public int Requested { get; set; }
+    public int Created { get; set; }
+    public int Skipped { get; set; }
+    public int Failed { get; set; }
+    public List<EquipmentInspectionBulkAssignmentRowDto> Rows { get; set; } = new();
+}

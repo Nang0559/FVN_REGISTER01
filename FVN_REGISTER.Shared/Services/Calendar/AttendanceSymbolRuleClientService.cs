@@ -13,4 +13,5 @@ public sealed class AttendanceSymbolRuleClientService
     public Task<ApiResponse<AttendanceSymbolRuleDto>> UpdateAsync(int id,AttendanceSymbolRuleUpsertRequest request,CancellationToken ct=default)=>_http.PutAsync<AttendanceSymbolRuleDto>($"api/attendance-symbol-rules/{id}",request,ct);
     public Task<ApiResponse<object>> DeleteAsync(int id,CancellationToken ct=default)=>_http.DeleteAsync<object>($"api/attendance-symbol-rules/{id}",ct);
     public Task<ApiResponse<AttendanceSymbolRuleTestResultDto>> TestAsync(AttendanceSymbolRuleTestRequest request,CancellationToken ct=default)=>_http.PostAsync<AttendanceSymbolRuleTestResultDto>("api/attendance-symbol-rules/test",request,ct);
+    public Task<ApiResponse<object>> RefreshAsync(CancellationToken ct=default)=>_http.PostAsync<object>("api/attendance-symbol-rules/refresh",new { },ct);
 }

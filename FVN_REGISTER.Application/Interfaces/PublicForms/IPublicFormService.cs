@@ -8,6 +8,8 @@ public interface IPublicFormService
 {
     Task<ServiceResult<List<PublicFormDto>>> GetManageListAsync(CancellationToken ct = default);
     Task<ServiceResult<List<PublicFormDto>>> GetAvailableAsync(string employeeCode, int? deptCode, string? positionCode, CancellationToken ct = default);
+    /// <summary>Forms open to the whole company (AllCompany audience) that are effective now. Safe for anonymous callers.</summary>
+    Task<ServiceResult<List<PublicFormNoticeDto>>> GetOpenForAllCompanyAsync(CancellationToken ct = default);
     Task<ServiceResult<PublicFormDto>> GetAsync(int id, CancellationToken ct = default);
     Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudienceDepartmentsAsync(CancellationToken ct = default);
     Task<ServiceResult<List<PublicFormAudienceLookupDto>>> GetAudiencePositionsAsync(CancellationToken ct = default);

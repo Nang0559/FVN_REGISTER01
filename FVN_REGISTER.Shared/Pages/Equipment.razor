@@ -20,6 +20,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 
 @if (!_ready)
 {
@@ -617,13 +618,13 @@ else
     private async Task DeleteDetailAsync()
     {
         if (_detailDraft is null || _busy) return;
-        if (!await JS.InvokeAsync<bool>("confirm", $"Xóa bản nháp '{_detailDraft.EquipmentName}' (#{_detailDraft.Id})? Danh mục tài sản chính thức không bị ảnh hưởng.")) return;
+        if (!await ConfirmAsync(Language.T("equipment.confirm.deleteDraft", _detailDraft.EquipmentName, _detailDraft.Id), "common.delete")) return;
         _busy = true;
         try
         {
             var result = await EquipmentClient.DeleteDraftRequestAsync(_detailDraft.Id);
-            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa bản nháp.", Severity.Error); return; }
-            Snackbar.Add(result.Message ?? "Đã xóa bản nháp.", Severity.Success);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleteFailed"), Severity.Error); return; }
+            Snackbar.Add(result.Message ?? Language.T("equipment.importPanel.msg.deleted"), Severity.Success);
             CloseDetail();
             await ReloadMineAsync();
         }
@@ -631,9 +632,15 @@ else
     }
     private bool CanSubmitDrafts => _actions?.Edit == true || _actions?.Manage == true;
 
-    private static string DraftStatusLabel(FVN_REGISTER.Core.Enums.ApprovalStatus status) =>
-        status == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft ? "Bản nháp" :
-        status == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision ? "Cần chỉnh sửa" : status.ToString();
+    private string DraftStatusLabel(FVN_REGISTER.Core.Enums.ApprovalStatus status) =>
+        status == FVN_REGISTER.Core.Enums.ApprovalStatus.Draft ? Language.T("equipment.importPanel.status.draft") :
+        status == FVN_REGISTER.Core.Enums.ApprovalStatus.NeedsRevision ? Language.T("equipment.importPanel.status.needsRevision") : status.ToString();
+
+    /// <summary>Standard in-app confirmation (MudBlazor dialog) instead of the browser's native confirm().</summary>
+    private async Task<bool> ConfirmAsync(string message, string yesKey)
+        => await DialogService.ShowMessageBoxAsync(
+               Language.T("common.confirm"), message,
+               yesText: Language.T(yesKey), cancelText: Language.T("common.cancel")) == true;
 
     private async Task SubmitDraftAsync(EquipmentRequestDto draft)
     {
@@ -841,10 +848,10 @@ else
 
     private async Task DeleteAssetAsync(EquipmentAssetDto asset)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Bạn có chắc muốn xóa thiết bị '{asset.EquipmentName}' ({asset.EquipmentCode})? Lịch sử sửa chữa/bàn giao/checklist sẽ được giữ lại.")) return;
+        if (!await ConfirmAsync(Language.T("equipment.confirm.deleteAsset", asset.EquipmentName, asset.EquipmentCode), "common.delete")) return;
         var result = await EquipmentClient.DeleteAssetAsync(asset.Id);
-        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa thiết bị.", Severity.Error); return; }
-        Snackbar.Add(result.Message ?? "Đã xóa thiết bị.", Severity.Success);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("equipment.msg.deleteAssetFailed"), Severity.Error); return; }
+        Snackbar.Add(result.Message ?? Language.T("equipment.msg.assetDeleted"), Severity.Success);
         if (_editingAsset?.Id == asset.Id) CancelEditAsset();
         await ReloadAssetsAsync();
     }

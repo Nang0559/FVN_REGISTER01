@@ -1,0 +1,572 @@
+@page "/admin/ai-platform-test"
+@attribute [Authorize]
+@using System.Net.Http.Headers
+@using System.Text.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Shared.Handlers
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+<PageTitle>Kiểm thử AI Platform</PageTitle>
+
+<MudStack Spacing="3" Class="py-3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudIcon Icon="@Icons.Material.Filled.Psychology" Color="Color.Primary" Size="Size.Large" />
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Kiểm thử AI Platform</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Kiểm tra kết nối, thử truy vấn RAG và theo dõi vòng đời xử lý tài liệu. Chỉ dành cho người có quyền quản trị bảo mật.</MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_loadingReadiness" OnClick="LoadReadinessAsync">Kiểm tra hệ thống</MudButton>
+    </MudStack>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true">@_error</MudAlert>
+    }
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12">
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.MonitorHeart" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">1. Trạng thái dịch vụ</MudText>
+                    <MudSpacer />
+                    @if (_readinessLoaded)
+                    {
+                        <MudChip T="string" Color="@(_ready ? Color.Success : Color.Warning)" Size="Size.Small">@(_ready ? "Ready" : "Chưa sẵn sàng / cần kiểm tra")</MudChip>
+                    }
+                </MudStack>
+                @if (!_readinessLoaded && !_loadingReadiness)
+                {
+                    <MudText Color="Color.Secondary">Nhấn “Kiểm tra hệ thống” để lấy trạng thái thực tế từ AI API.</MudText>
+                }
+                @if (_loadingReadiness)
+                {
+                    <MudProgressLinear Indeterminate="true" />
+                }
+                @if (_readinessLoaded)
+                {
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.caption">AI API</MudText><MudText Typo="Typo.subtitle1">@ReadinessValue("status", "readiness")</MudText><MudText Typo="Typo.caption">HTTP @_readinessHttpStatus</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.caption">Cơ sở dữ liệu AI</MudText><MudText Typo="Typo.subtitle1">@ReadinessValue("database", "readiness")</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.caption">Mô hình chat</MudText><MudText Typo="Typo.subtitle1">@ReadinessValue("provider", "readiness")</MudText><MudText Typo="Typo.caption">Model: @ReadinessValue("model", "readiness")</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.caption">Embedding / Malware scan</MudText><MudText Typo="Typo.body2">Embedding: @ReadinessValue("embeddingModelAvailable", "readiness")</MudText><MudText Typo="Typo.body2">Scanner: @ReadinessValue("malwareScannerConfigured", "readiness")</MudText></MudPaper></MudItem>
+                    </MudGrid>
+                    @if (!string.IsNullOrWhiteSpace(_readinessJson))
+                    {
+                        <MudExpansionPanels Class="mt-3">
+                            <MudExpansionPanel Text="Chi tiết phản hồi readiness / capabilities">
+                                <pre style="white-space:pre-wrap;overflow-wrap:anywhere">@_readinessJson</pre>
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="5">
+            <MudPaper Outlined="true" Class="pa-4" Style="height:100%">
+                <MudText Typo="Typo.h6" Class="mb-1">2. Thử câu hỏi AI / RAG</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Truy vấn chạy qua backend đã xác thực. Kết quả phụ thuộc tài liệu tri thức đã được duyệt và publish.</MudText>
+                <MudTextField @bind-Value="_prompt" Label="Câu hỏi kiểm thử" Lines="4" MaxLength="4000" Variant="Variant.Outlined" />
+                <MudNumericField T="int" @bind-Value="_retrievalLimit" Label="Số nguồn truy xuất tối đa" Min="1" Max="10" Variant="Variant.Outlined" Class="mt-3" />
+                <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="@(_testingPrompt || string.IsNullOrWhiteSpace(_prompt))" OnClick="TestPromptAsync" Class="mt-3">
+                    @if (_testingPrompt) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
+                    Chạy kiểm thử
+                </MudButton>
+                @if (!string.IsNullOrWhiteSpace(_chatAnswer))
+                {
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Hội thoại</MudText>
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" Justify="Justify.FlexEnd">
+                            <MudPaper Elevation="0" Class="pa-3" Style="max-width:85%;background:var(--mud-palette-primary);color:var(--mud-palette-primary-text);border-radius:14px 14px 2px 14px;white-space:pre-wrap;overflow-wrap:anywhere">@_chatQuestion</MudPaper>
+                        </MudStack>
+                        <MudStack Row="true" Justify="Justify.FlexStart">
+                            <MudPaper Elevation="0" Class="pa-3" Style="max-width:92%;background:var(--mud-palette-background-gray);border-radius:14px 14px 14px 2px;overflow-wrap:anywhere">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Trợ lý AI</MudText>
+                                <MudText Typo="Typo.body1" Style="white-space:pre-wrap">@_chatAnswer</MudText>
+                                <MudStack Row="true" Spacing="1" Class="mt-2" Style="flex-wrap:wrap">
+                                    <MudChip T="string" Size="Size.Small" Color="@ChatStatusColor()">@ChatStatusLabel()</MudChip>
+                                    @if (!string.IsNullOrWhiteSpace(_chatModel))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_chatModel</MudChip>
+                                    }
+                                </MudStack>
+                                @if (_chatCitations.Count > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">Nguồn tham khảo</MudText>
+                                    @foreach (var source in _chatCitations)
+                                    {
+                                        <MudText Typo="Typo.body2">• @source.FileName@(source.PageNumber.HasValue ? $" · trang {source.PageNumber}" : "")@(source.Relevance.HasValue ? $" · độ liên quan {source.Relevance.Value:P0}" : "")</MudText>
+                                    }
+                                }
+                            </MudPaper>
+                        </MudStack>
+                    </MudStack>
+                    @if (!string.IsNullOrWhiteSpace(_promptResult))
+                    {
+                        <details class="mt-3">
+                            <summary style="cursor:pointer">Xem JSON gốc</summary>
+                            <MudPaper Outlined="true" Class="pa-3 mt-2" Style="max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">@_promptResult</MudPaper>
+                        </details>
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(_promptResult))
+                {
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2">Phản hồi / thông tin lỗi</MudText>
+                    <MudPaper Outlined="true" Class="pa-3 mt-2" Style="max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">@_promptResult</MudPaper>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="7">
+            <MudPaper Outlined="true" Class="pa-4" Style="height:100%">
+                <MudText Typo="Typo.h6" Class="mb-1">3. Kiểm thử pipeline tài liệu</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Tệp đi qua API, kiểm tra mã độc, hàng đợi SQL và worker trích xuất. Không tắt bước quét mã độc để kiểm thử.</MudText>
+                <InputFile OnChange="OnFileSelected" accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.tif,.tiff" />
+                @if (_selectedFile is not null)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">Tệp: @_selectedFile.Name · @FormatBytes(_selectedFile.Size)</MudAlert>
+                }
+                <MudGrid Spacing="2" Class="mt-2">
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_moduleCode" Label="Module code (tuỳ chọn)" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_schemaCode" Label="Schema code (tuỳ chọn)" Variant="Variant.Outlined" /></MudItem>
+                </MudGrid>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" Disabled="@(_uploading || _selectedFile is null)" OnClick="UploadAsync" Class="mt-3">
+                    @if (_uploading) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
+                    Tải lên và xử lý
+                </MudButton>
+                @if (_documentId.HasValue)
+                {
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2">Document ID</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                        <MudText Typo="Typo.body2" Style="overflow-wrap:anywhere">@_documentId</MudText>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="RefreshDocumentAsync" Disabled="_loadingDocument">Làm mới trạng thái</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="LoadExtractionAsync" Disabled="_loadingDocument">Xem extraction</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" OnClick="ApproveAndPublishAsync" Disabled="@(_loadingDocument || _reviewing)">Duyệt và publish</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" OnClick="RejectDocumentAsync" Disabled="@(_loadingDocument || _reviewing)">Từ chối</MudButton>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Class="mt-1">Duyệt và publish cần quyền 3502 (data scope All). Chỉ duyệt khi nội dung trích xuất đúng.</MudText>
+                    @if (!string.IsNullOrWhiteSpace(_reviewResult))
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-3">Kết quả duyệt / publish</MudText>
+                        <MudPaper Outlined="true" Class="pa-3 mt-1" Style="max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">@_reviewResult</MudPaper>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_documentStatus))
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-3">Trạng thái xử lý</MudText>
+                        <MudPaper Outlined="true" Class="pa-3 mt-1" Style="max-height:300px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">@_documentStatus</MudPaper>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_extraction))
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-3">Kết quả trích xuất</MudText>
+                        <MudPaper Outlined="true" Class="pa-3 mt-1" Style="max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">@_extraction</MudPaper>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.h6">4. Hàng đợi và lỗi xử lý gần đây</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Tối đa 100 job mới nhất trong tenant hiện tại; hiển thị số lần thử, lease và mã lỗi nếu có.</MudText>
+            </div>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_loadingJobs" OnClick="LoadRecentJobsAsync">Làm mới job</MudButton>
+        </MudStack>
+        @if (_loadingJobs)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        <MudTable T="JsonElement" Items="_jobs" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh>Tài liệu</MudTh><MudTh>Trạng thái job / tài liệu</MudTh><MudTh>Lần thử</MudTh><MudTh>Lỗi</MudTh><MudTh>Lease / cập nhật</MudTh><MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Tài liệu">
+                    <MudText Typo="Typo.body2">@JobField(context, "fileName")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@JobField(context, "documentId")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Trạng thái">
+                    <MudChip T="string" Size="Size.Small" Color="@JobStatusColor(JobField(context, "jobStatus"))">@JobField(context, "jobStatus")</MudChip>
+                    <MudText Typo="Typo.caption">@JobField(context, "documentStatus")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Lần thử">@JobField(context, "attemptCount") / @JobField(context, "maxAttempts")</MudTd>
+                <MudTd DataLabel="Lỗi">
+                    @if (!string.IsNullOrWhiteSpace(JobField(context, "failureCode")))
+                    {
+                        <MudText Color="Color.Error" Typo="Typo.body2">@JobField(context, "failureCode")</MudText>
+                    }
+                    else { <MudText Color="Color.Secondary" Typo="Typo.body2">—</MudText> }
+                </MudTd>
+                <MudTd DataLabel="Lease / cập nhật">
+                    <MudText Typo="Typo.caption">Owner: @JobField(context, "leaseOwner")</MudText>
+                    <MudText Typo="Typo.caption">Hạn lease: @JobField(context, "leaseUntilUtc")</MudText>
+                    <MudText Typo="Typo.caption">Lỗi lúc: @JobField(context, "lastErrorAtUtc")</MudText>
+                </MudTd>
+                <MudTd><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => SelectJobDocument(context))">Theo dõi</MudButton></MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText Class="pa-3" Color="Color.Secondary">Chưa có job hoặc chưa tải danh sách.</MudText></NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private bool _loadingReadiness;
+    private bool _readinessLoaded;
+    private bool _ready;
+    private int _readinessHttpStatus;
+    private string _readinessJson = "";
+    private string _error = "";
+    private string _prompt = "Hãy trả lời bằng tiếng Việt: 2 + 3 bằng bao nhiêu? Nếu không có dữ liệu, hãy nói rõ giới hạn.";
+    private int _retrievalLimit = 3;
+    private bool _testingPrompt;
+    private string _promptResult = "";
+    private string _chatQuestion = "";
+    private string _chatAnswer = "";
+    private string _chatStatus = "";
+    private string _chatModel = "";
+    private List<ChatSource> _chatCitations = [];
+
+    private sealed record ChatSource(string FileName, int? PageNumber, double? Relevance);
+    private IBrowserFile? _selectedFile;
+    private string _moduleCode = "";
+    private string _schemaCode = "";
+    private bool _uploading;
+    private bool _loadingDocument;
+    private bool _loadingJobs;
+    private List<JsonElement> _jobs = new();
+    private Guid? _documentId;
+    private string _documentStatus = "";
+    private string _extraction = "";
+    private bool _reviewing;
+    private string _reviewResult = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        if (!permissions.IsSuccess || permissions.Data?.Has(SecurityFunctionCodes.SecurityView) != true)
+        {
+            _error = "Tài khoản cần quyền Security.View để mở công cụ kiểm thử AI.";
+            return;
+        }
+        await LoadReadinessAsync();
+        await LoadRecentJobsAsync();
+    }
+
+    private async Task LoadReadinessAsync()
+    {
+        _loadingReadiness = true;
+        _error = "";
+        try
+        {
+            var result = await Http.GetAsync<JsonElement>("api/ai/platform-test/readiness", showLoading: false);
+            _readinessLoaded = result.IsSuccess && result.Data.ValueKind == JsonValueKind.Object;
+            if (_readinessLoaded)
+            {
+                var root = result.Data;
+                _readinessJson = root.GetRawText();
+                if (root.TryGetProperty("readinessHttpStatus", out var status)) _readinessHttpStatus = status.GetInt32();
+                if (root.TryGetProperty("readiness", out var ready))
+                {
+                    _ready = ready.ValueKind == JsonValueKind.Object &&
+                        ready.TryGetProperty("status", out var s) && s.GetString() == "ready";
+                }
+            }
+            else
+            {
+                _readinessJson = result.Message ?? "Không lấy được trạng thái AI API.";
+                _error = _readinessJson;
+            }
+        }
+        catch (Exception ex) { _error = $"Không thể kiểm tra AI Platform: {ex.Message}"; }
+        finally { _loadingReadiness = false; }
+    }
+
+    private string ReadinessValue(string name, string parent)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(_readinessJson);
+            if (doc.RootElement.TryGetProperty(parent, out var section) &&
+                section.ValueKind == JsonValueKind.Object && section.TryGetProperty(name, out var value))
+                return value.ValueKind == JsonValueKind.String ? value.GetString() ?? "—" : value.ToString();
+            return "—";
+        }
+        catch { return "—"; }
+    }
+
+    private async Task LoadRecentJobsAsync()
+    {
+        _loadingJobs = true;
+        try
+        {
+            var result = await Http.GetAsync<JsonElement>("api/ai/platform-test/jobs?limit=100", showLoading: false);
+            if (result.IsSuccess && result.Data.ValueKind == JsonValueKind.Array)
+                _jobs = result.Data.EnumerateArray().Select(x => x.Clone()).ToList();
+            else
+                _error = result.Message ?? "Không tải được danh sách job AI.";
+        }
+        catch (Exception ex) { _error = $"Không tải được job AI: {ex.Message}"; }
+        finally { _loadingJobs = false; }
+    }
+
+    private void SelectJobDocument(JsonElement job)
+    {
+        if (TryReadGuid(job, "documentId", out var id))
+        {
+            _documentId = id;
+            _documentStatus = "";
+            _extraction = "";
+            _reviewResult = "";
+            _ = RefreshDocumentAsync();
+        }
+    }
+
+    private static string JobField(JsonElement row, string property)
+    {
+        if (row.ValueKind != JsonValueKind.Object || !row.TryGetProperty(property, out var value) ||
+            value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return "—";
+        return value.ValueKind == JsonValueKind.String ? value.GetString() ?? "—" : value.ToString();
+    }
+
+    private static Color JobStatusColor(string status) => status.ToLowerInvariant() switch
+    {
+        "completed" or "succeeded" or "done" => Color.Success,
+        "failed" or "deadletter" or "dead-letter" => Color.Error,
+        "running" or "processing" or "leased" => Color.Info,
+        "retry" or "retrying" or "queued" or "pending" => Color.Warning,
+        _ => Color.Default
+    };
+
+    private async Task TestPromptAsync()
+    {
+        _testingPrompt = true;
+        _promptResult = "";
+        _chatAnswer = "";
+        _chatCitations = [];
+        _error = "";
+        try
+        {
+            var result = await Http.PostAsync<JsonElement>("api/ai/platform-test/prompt",
+                new { query = _prompt, retrievalLimit = _retrievalLimit }, showLoading: false);
+            _promptResult = result.IsSuccess && result.Data.ValueKind != JsonValueKind.Undefined
+                ? JsonDocument.Parse(result.Data.GetRawText()).RootElement.ToString()
+                : result.Message ?? "AI API trả về lỗi hoặc phản hồi rỗng.";
+            if (result.IsSuccess && result.Data.ValueKind == JsonValueKind.Object)
+            {
+                _promptResult = JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+                ReadChatAnswer(result.Data);
+            }
+        }
+        catch (Exception ex) { _promptResult = $"Lỗi kiểm thử: {ex.Message}"; }
+        finally { _testingPrompt = false; }
+    }
+
+    /// <summary>Turns the RAG JSON into a chat-style answer (the raw JSON stays available under "Xem JSON gốc").</summary>
+    private void ReadChatAnswer(JsonElement root)
+    {
+        if (!root.TryGetProperty("answer", out var answer) || answer.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(answer.GetString())) return;
+        _chatQuestion = _prompt;
+        _chatAnswer = answer.GetString()!.Trim();
+        _chatStatus = root.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String ? status.GetString() ?? "" : "";
+        var provider = root.TryGetProperty("modelProvider", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+        var version = root.TryGetProperty("modelVersion", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        _chatModel = string.Join(" ", new[] { provider, version }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        var sources = new List<ChatSource>();
+        if (root.TryGetProperty("citations", out var citations) && citations.ValueKind == JsonValueKind.Array)
+            foreach (var citation in citations.EnumerateArray())
+            {
+                var fileName = citation.TryGetProperty("fileName", out var f) && f.ValueKind == JsonValueKind.String ? f.GetString() : null;
+                if (string.IsNullOrWhiteSpace(fileName)) continue;
+                int? page = citation.TryGetProperty("pageNumber", out var pg) && pg.ValueKind == JsonValueKind.Number && pg.TryGetInt32(out var pageNumber) ? pageNumber : null;
+                double? relevance = citation.TryGetProperty("relevanceScore", out var r) && r.ValueKind == JsonValueKind.Number && r.TryGetDouble(out var score) ? score : null;
+                var existing = sources.FindIndex(x => x.FileName == fileName && x.PageNumber == page);
+                if (existing < 0) sources.Add(new ChatSource(fileName!, page, relevance));
+                else if (relevance > sources[existing].Relevance) sources[existing] = sources[existing] with { Relevance = relevance };
+            }
+        _chatCitations = sources;
+    }
+
+    private string ChatStatusLabel() => _chatStatus switch
+    {
+        "Supported" => "Có nguồn xác thực",
+        "PartiallySupported" => "Chỉ đáp ứng một phần",
+        "NotFound" => "Không tìm thấy trong tài liệu",
+        "" => "Không rõ trạng thái",
+        _ => _chatStatus
+    };
+
+    private Color ChatStatusColor() => _chatStatus switch
+    {
+        "Supported" => Color.Success,
+        "PartiallySupported" => Color.Warning,
+        "NotFound" => Color.Default,
+        _ => Color.Default
+    };
+
+    private void OnFileSelected(InputFileChangeEventArgs args)
+    {
+        _selectedFile = args.File;
+        _documentId = null;
+        _documentStatus = "";
+        _extraction = "";
+    }
+
+    private async Task UploadAsync()
+    {
+        if (_selectedFile is null) return;
+        if (_selectedFile.Size <= 0 || _selectedFile.Size > 20 * 1024 * 1024)
+        {
+            _error = "Tệp phải lớn hơn 0 byte và không vượt quá 20 MB.";
+            return;
+        }
+        _uploading = true;
+        _error = "";
+        try
+        {
+            using var form = new MultipartFormDataContent();
+            await using var stream = _selectedFile.OpenReadStream(20 * 1024 * 1024);
+            using var streamContent = new StreamContent(stream);
+            streamContent.Headers.ContentType = new MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(_selectedFile.ContentType) ? "application/octet-stream" : _selectedFile.ContentType);
+            form.Add(streamContent, "file", _selectedFile.Name);
+            if (!string.IsNullOrWhiteSpace(_moduleCode)) form.Add(new StringContent(_moduleCode.Trim()), "moduleCode");
+            if (!string.IsNullOrWhiteSpace(_schemaCode)) form.Add(new StringContent(_schemaCode.Trim()), "schemaCode");
+
+            var result = await Http.PostMultipartAsync<JsonElement>("api/ai/platform-test/documents", form, showLoading: false);
+            if (!result.IsSuccess || result.Data.ValueKind != JsonValueKind.Object)
+            {
+                _error = result.Message ?? "Tải tài liệu thất bại.";
+                return;
+            }
+            if (TryReadGuid(result.Data, "documentId", out var id) || TryReadGuid(result.Data, "DocumentId", out id))
+            {
+                _documentId = id;
+                await RefreshDocumentAsync();
+            }
+            else
+            {
+                _documentStatus = JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true });
+            }
+        }
+        catch (Exception ex) { _error = $"Không tải được tài liệu: {ex.Message}"; }
+        finally { _uploading = false; }
+    }
+
+    private async Task RefreshDocumentAsync()
+    {
+        if (!_documentId.HasValue) return;
+        _loadingDocument = true;
+        try
+        {
+            var result = await Http.GetAsync<JsonElement>($"api/ai/platform-test/documents/{_documentId:D}", showLoading: false);
+            _documentStatus = result.IsSuccess && result.Data.ValueKind != JsonValueKind.Undefined
+                ? JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true })
+                : result.Message ?? "Chưa đọc được trạng thái tài liệu.";
+        }
+        catch (Exception ex) { _documentStatus = ex.Message; }
+        finally { _loadingDocument = false; }
+    }
+
+    private async Task LoadExtractionAsync()
+    {
+        if (!_documentId.HasValue) return;
+        _loadingDocument = true;
+        try
+        {
+            var result = await Http.GetAsync<JsonElement>($"api/ai/platform-test/documents/{_documentId:D}/extraction", showLoading: false);
+            _extraction = result.IsSuccess && result.Data.ValueKind != JsonValueKind.Undefined
+                ? JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true })
+                : result.Message ?? "Chưa có kết quả extraction. Worker có thể vẫn đang xử lý.";
+        }
+        catch (Exception ex) { _extraction = ex.Message; }
+        finally { _loadingDocument = false; }
+    }
+
+    private async Task ApproveAndPublishAsync()
+    {
+        if (!_documentId.HasValue) return;
+        var documentId = _documentId.Value;
+        _reviewing = true;
+        _reviewResult = "Đang gửi yêu cầu duyệt và publish...";
+        try
+        {
+            var started = await Http.PostAsync<JsonElement>($"api/ai/platform-test/documents/{documentId:D}/approve-publish",
+                new { comment = "Duyệt từ trang kiểm thử AI Platform" }, showLoading: false);
+            if (!started.IsSuccess)
+            {
+                _reviewResult = started.Message ?? "Không bắt đầu được thao tác. Kiểm tra quyền 3502 (data scope All) và log AI API.";
+                return;
+            }
+
+            // Publishing embeds every chunk and can take minutes: poll instead of holding one long request.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (clock.Elapsed < TimeSpan.FromMinutes(25))
+            {
+                _reviewResult = $"Đang duyệt và publish... đã chạy {(int)clock.Elapsed.TotalSeconds} giây. Có thể rời trang, hệ thống vẫn xử lý.";
+                StateHasChanged();
+                await Task.Delay(TimeSpan.FromSeconds(3));
+                var poll = await Http.GetAsync<JsonElement>($"api/ai/platform-test/documents/{documentId:D}/publish-status", showLoading: false);
+                if (!poll.IsSuccess || poll.Data.ValueKind != JsonValueKind.Object) continue;
+                var status = poll.Data.TryGetProperty("status", out var statusElement) ? statusElement.GetString() : null;
+                if (status is "Running") continue;
+                var detail = poll.Data.TryGetProperty("result", out var resultElement)
+                    ? JsonSerializer.Serialize(resultElement, new JsonSerializerOptions { WriteIndented = true }) : "";
+                _reviewResult = status == "Succeeded"
+                    ? "Đã duyệt và publish tài liệu vào kho tri thức.\n" + detail
+                    : "Thao tác thất bại.\n" + detail;
+                break;
+            }
+            await RefreshDocumentAsync();
+            await LoadRecentJobsAsync();
+        }
+        catch (Exception ex) { _reviewResult = $"Lỗi: {ex.Message}"; }
+        finally { _reviewing = false; }
+    }
+
+    private async Task RejectDocumentAsync() => await ReviewActionAsync("reject", "Đã từ chối tài liệu. Bạn có thể tải lại tệp để xử lý lại.");
+
+    private async Task ReviewActionAsync(string action, string successMessage)
+    {
+        if (!_documentId.HasValue) return;
+        _reviewing = true;
+        _reviewResult = "";
+        try
+        {
+            var result = await Http.PostAsync<JsonElement>($"api/ai/platform-test/documents/{_documentId:D}/{action}",
+                new { comment = "Duyệt từ trang kiểm thử AI Platform" }, showLoading: false);
+            _reviewResult = result.IsSuccess && result.Data.ValueKind != JsonValueKind.Undefined
+                ? successMessage + "\n" + JsonSerializer.Serialize(result.Data, new JsonSerializerOptions { WriteIndented = true })
+                : result.Message ?? "Thao tác thất bại. Kiểm tra quyền 3502 (data scope All) và log AI API.";
+            await RefreshDocumentAsync();
+            await LoadRecentJobsAsync();
+        }
+        catch (Exception ex) { _reviewResult = $"Lỗi: {ex.Message}"; }
+        finally { _reviewing = false; }
+    }
+
+    private static bool TryReadGuid(JsonElement root, string property, out Guid value)
+    {
+        value = Guid.Empty;
+        return root.ValueKind == JsonValueKind.Object && root.TryGetProperty(property, out var item) &&
+            item.ValueKind == JsonValueKind.String && Guid.TryParse(item.GetString(), out value);
+    }
+
+    private static string FormatBytes(long bytes) => bytes >= 1024 * 1024
+        ? $"{bytes / 1024d / 1024d:0.##} MB"
+        : $"{bytes / 1024d:0.##} KB";
+}

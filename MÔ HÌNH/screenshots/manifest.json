@@ -1,0 +1,641 @@
+{
+  "baseUrl": "https://dangkyphep.fcc-vn.com.vn",
+  "generatedAt": "2026-10-19T09:11:43.513Z",
+  "status": "time-budget-reached",
+  "limits": {
+    "maxStates": 100,
+    "maxClicks": 200,
+    "maxDepth": 4,
+    "budgetMinutes": 26
+  },
+  "summary": {
+    "states": 69,
+    "screenshots": 69,
+    "clicks": 80,
+    "notReady": 9,
+    "elapsedSeconds": 1560
+  },
+  "states": [
+    {
+      "number": 1,
+      "depth": 0,
+      "reason": "initial-login",
+      "url": "https://dangkyphep.fcc-vn.com.vn/",
+      "signature": "157e18c17cf0cecefb1d7b6ae9756ddd86c8ba7f",
+      "screenshot": "state-1-depth-0-8f4e87f9.png",
+      "ready": true
+    },
+    {
+      "number": 2,
+      "depth": 1,
+      "reason": "nav:Lịch làm việc",
+      "url": "https://dangkyphep.fcc-vn.com.vn/calendar",
+      "signature": "b6ce8ee6d14eb75918291260b0140d38a8201030",
+      "screenshot": "state-2-depth-1--calendar-f69e2163.png",
+      "ready": true
+    },
+    {
+      "number": 3,
+      "depth": 1,
+      "reason": "nav:Trung tâm công việc",
+      "url": "https://dangkyphep.fcc-vn.com.vn/work/inbox",
+      "signature": "b68c2f2ebf753bb70212aa17664d51765bef04eb",
+      "screenshot": "state-3-depth-1--work-inbox-e9455449.png",
+      "ready": true
+    },
+    {
+      "number": 4,
+      "depth": 1,
+      "reason": "nav:Thông tin công khai 1",
+      "url": "https://dangkyphep.fcc-vn.com.vn/public-information",
+      "signature": "556fe089d0c60f21c5d60f4177ec1190098dbe42",
+      "screenshot": "state-4-depth-1--public-information-4ea37cde.png",
+      "ready": true
+    },
+    {
+      "number": 5,
+      "depth": 1,
+      "reason": "nav:Biểu mẫu đăng ký",
+      "url": "https://dangkyphep.fcc-vn.com.vn/public-forms",
+      "signature": "e8f81cd55c37abd153be7a9fc9526bee748e0bcc",
+      "screenshot": "state-5-depth-1--public-forms-02074056.png",
+      "ready": true
+    },
+    {
+      "number": 6,
+      "depth": 1,
+      "reason": "nav:Quản lý nội dung công khai",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-information",
+      "signature": "1a2a167f8390a84d20d094492768128ffede6714",
+      "screenshot": "state-6-depth-1--admin-public-information-5c84d052.png",
+      "ready": true
+    },
+    {
+      "number": 7,
+      "depth": 1,
+      "reason": "nav:Quản lý biểu mẫu đăng ký",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-forms",
+      "signature": "ff7a766e517a04cfae0e0aa952dd4f84bac451ae",
+      "screenshot": "state-7-depth-1--admin-public-forms-b7bb1924.png",
+      "ready": true
+    },
+    {
+      "number": 8,
+      "depth": 1,
+      "reason": "nav:Tổng hợp đăng ký biểu mẫu",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-forms/submissions",
+      "signature": "99788a9f4d4230c10be8e27bb30890dbfbccb350",
+      "screenshot": "state-8-depth-1--admin-public-forms-submissions-43541eaf.png",
+      "ready": true
+    },
+    {
+      "number": 9,
+      "depth": 1,
+      "reason": "nav:Phiếu thay đổi quyền / bàn giao",
+      "url": "https://dangkyphep.fcc-vn.com.vn/security/access-change",
+      "signature": "a479a732722fa0a4ee668e3eee38d5e55d009559",
+      "screenshot": "state-9-depth-1--security-access-change-69558bb3.png",
+      "ready": true
+    },
+    {
+      "number": 10,
+      "depth": 1,
+      "reason": "nav:Danh sách chờ duyệt",
+      "url": "https://dangkyphep.fcc-vn.com.vn/approvals",
+      "signature": "6490e77fef8a63e9884accf36499147aef169fdc",
+      "screenshot": "state-10-depth-1--approvals-24f57bb6.png",
+      "ready": true
+    },
+    {
+      "number": 11,
+      "depth": 1,
+      "reason": "nav:Tổng quan",
+      "url": "https://dangkyphep.fcc-vn.com.vn/leave",
+      "signature": "ed74717ace3ca86c9ce9252fa52e8ac90e162616",
+      "screenshot": "state-11-depth-1--leave-a42bd6b1.png",
+      "ready": true
+    },
+    {
+      "number": 12,
+      "depth": 1,
+      "reason": "nav:Lịch sử nghỉ phép",
+      "url": "https://dangkyphep.fcc-vn.com.vn/leave/history",
+      "signature": "93d4d1b9e5c0614e640c17c173076d7b43e69170",
+      "screenshot": "state-12-depth-1--leave-history-1cac4286.png",
+      "ready": true
+    },
+    {
+      "number": 13,
+      "depth": 1,
+      "reason": "nav:Tạo đơn mới",
+      "url": "https://dangkyphep.fcc-vn.com.vn/leave/create",
+      "signature": "dd5881ec51aafa3697c331e1ed2f67e0d7eee301",
+      "screenshot": "state-13-depth-1--leave-create-44320abb.png",
+      "ready": true
+    },
+    {
+      "number": 14,
+      "depth": 1,
+      "reason": "nav:Tổng quan",
+      "url": "https://dangkyphep.fcc-vn.com.vn/ot",
+      "signature": "1f4fc863212ba09b146ce02d639343a3c6cc8412",
+      "screenshot": "state-14-depth-1--ot-003940c0.png",
+      "ready": true
+    },
+    {
+      "number": 15,
+      "depth": 1,
+      "reason": "nav:Lịch sử OT",
+      "url": "https://dangkyphep.fcc-vn.com.vn/ot/history",
+      "signature": "1fd7a9d347350ce9d2e0bb1bcf4a8a76c9b56722",
+      "screenshot": "state-15-depth-1--ot-history-d33a6413.png",
+      "ready": true
+    },
+    {
+      "number": 16,
+      "depth": 1,
+      "reason": "nav:Đăng ký OT",
+      "url": "https://dangkyphep.fcc-vn.com.vn/ot/create",
+      "signature": "56a85f3a4b55109bc329be43fea297af4f2281df",
+      "screenshot": "state-16-depth-1--ot-create-170daec2.png",
+      "ready": false
+    },
+    {
+      "number": 17,
+      "depth": 1,
+      "reason": "nav:Yêu cầu OT từ nhân viên",
+      "url": "https://dangkyphep.fcc-vn.com.vn/ot/supervisor-requests",
+      "signature": "96f5b534baadcb98b04d43def30f86b39a117f79",
+      "screenshot": "state-17-depth-1--ot-supervisor-requests-4ae53c61.png",
+      "ready": true
+    },
+    {
+      "number": 18,
+      "depth": 1,
+      "reason": "nav:Tổng quan",
+      "url": "https://dangkyphep.fcc-vn.com.vn/trip",
+      "signature": "de2bb6afd7b82e6e38c63dd47ec11feb540765da",
+      "screenshot": "state-18-depth-1--trip-fcd38afb.png",
+      "ready": true
+    },
+    {
+      "number": 19,
+      "depth": 1,
+      "reason": "nav:Lịch sử công tác",
+      "url": "https://dangkyphep.fcc-vn.com.vn/trip/history",
+      "signature": "b6f55015140975fa407c868dcf28fba5a1cbeeab",
+      "screenshot": "state-19-depth-1--trip-history-8a0cb941.png",
+      "ready": true
+    },
+    {
+      "number": 20,
+      "depth": 1,
+      "reason": "nav:Đăng ký công tác",
+      "url": "https://dangkyphep.fcc-vn.com.vn/trip/create",
+      "signature": "72e5462868a35cf12ad6f8fc24b409d7bea704d9",
+      "screenshot": "state-20-depth-1--trip-create-b0a46d6e.png",
+      "ready": true
+    },
+    {
+      "number": 21,
+      "depth": 1,
+      "reason": "nav:Danh mục phần mềm / dịch vụ",
+      "url": "https://dangkyphep.fcc-vn.com.vn/endpoint-governance",
+      "signature": "331bd787a29cddc466cd7c693d1e47e155b738fd",
+      "screenshot": "state-21-depth-1--endpoint-governance-6b3b51a9.png",
+      "ready": true
+    },
+    {
+      "number": 22,
+      "depth": 1,
+      "reason": "nav:Danh mục Endpoint",
+      "url": "https://dangkyphep.fcc-vn.com.vn/endpoint-inventory",
+      "signature": "8bb829e654c5d9a44046a3e3a9778bd5c8232f39",
+      "screenshot": "state-22-depth-1--endpoint-inventory-00116dfc.png",
+      "ready": true
+    },
+    {
+      "number": 23,
+      "depth": 1,
+      "reason": "nav:Thông tin xác thực Agent",
+      "url": "https://dangkyphep.fcc-vn.com.vn/equipment",
+      "signature": "4bcc24ae488d324da771f1ea6dfc880e3b9cbe32",
+      "screenshot": "state-23-depth-1--equipment-508e9e08.png",
+      "ready": false
+    },
+    {
+      "number": 24,
+      "depth": 1,
+      "reason": "nav:Import Excel thiết bị",
+      "url": "https://dangkyphep.fcc-vn.com.vn/equipment/workspace",
+      "signature": "57b4d52e30478d49d63c789a7cd34e686ccf7152",
+      "screenshot": "state-24-depth-1--equipment-workspace-656cb5f6.png",
+      "ready": true
+    },
+    {
+      "number": 25,
+      "depth": 1,
+      "reason": "nav:Bộ phận",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/departments",
+      "signature": "ab8ceb4a538be776b2cb3222b9243e1e160380d5",
+      "screenshot": "state-25-depth-1--admin-departments-94af9429.png",
+      "ready": true
+    },
+    {
+      "number": 26,
+      "depth": 1,
+      "reason": "nav:Nhân viên",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/employees",
+      "signature": "5c90ec1c66b69937a4d67e452027d2e38b4c8ea6",
+      "screenshot": "state-26-depth-1--admin-employees-8b7744d7.png",
+      "ready": true
+    },
+    {
+      "number": 27,
+      "depth": 1,
+      "reason": "nav:Approver",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/approvers",
+      "signature": "dfc84d73543365bc9375a1b87e405008490ce8e9",
+      "screenshot": "state-27-depth-1--admin-approvers-d21bd62b.png",
+      "ready": false
+    },
+    {
+      "number": 28,
+      "depth": 1,
+      "reason": "nav:Hình thức nghỉ",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/leave-types",
+      "signature": "c75dc71e53b20f6ee4ff5455cd5b1ac93b78bfd4",
+      "screenshot": "state-28-depth-1--admin-leave-types-79859902.png",
+      "ready": false
+    },
+    {
+      "number": 29,
+      "depth": 1,
+      "reason": "nav:Đồng bộ HRM",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/hrm-sync",
+      "signature": "60876709273e879a4bf118280e4615ad254f6aea",
+      "screenshot": "state-29-depth-1--admin-hrm-sync-fea3bbe0.png",
+      "ready": false
+    },
+    {
+      "number": 30,
+      "depth": 1,
+      "reason": "nav:Lịch chạy background",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/background-jobs",
+      "signature": "3783219d9ccdd7a4646dfb083c38115dba5d0554",
+      "screenshot": "state-30-depth-1--admin-background-jobs-8cb06991.png",
+      "ready": false
+    },
+    {
+      "number": 31,
+      "depth": 1,
+      "reason": "nav:Conflict HRM",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/hrm-sync-review",
+      "signature": "b04862ef8218f3bd9cb2033f06bcd3ceef332a59",
+      "screenshot": "state-31-depth-1--admin-hrm-sync-review-e146b0c0.png",
+      "ready": true
+    },
+    {
+      "number": 32,
+      "depth": 1,
+      "reason": "nav:Role HRM → User",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/hrm-role-rules",
+      "signature": "a82c4ac7fc41f13f69985a580d42db404da6282b",
+      "screenshot": "state-32-depth-1--admin-hrm-role-rules-731fb3d4.png",
+      "ready": true
+    },
+    {
+      "number": 33,
+      "depth": 1,
+      "reason": "nav:Approval Policy",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/approval-policies",
+      "signature": "1b75ec4fe866ab843c060d035c4cb70b762ff906",
+      "screenshot": "state-33-depth-1--admin-approval-policies-cae8d1d0.png",
+      "ready": false
+    },
+    {
+      "number": 34,
+      "depth": 1,
+      "reason": "nav:Chính sách đối soát công",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/execution-policies",
+      "signature": "1b75ec4fe866ab843c060d035c4cb70b762ff906",
+      "screenshot": "state-34-depth-1--admin-execution-policies-c8151951.png",
+      "ready": false
+    },
+    {
+      "number": 35,
+      "depth": 1,
+      "reason": "nav:Rule ký hiệu chấm công",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/attendance-symbol-rules",
+      "signature": "fa4e166e3330529669be92bca7e5ff51061ac9f7",
+      "screenshot": "state-35-depth-1--admin-attendance-symbol-rules-e1b4aa6b.png",
+      "ready": true
+    },
+    {
+      "number": 36,
+      "depth": 1,
+      "reason": "nav:Trạng thái phòng ban",
+      "url": "https://dangkyphep.fcc-vn.com.vn/leave/department-status",
+      "signature": "0cc9f371be232a84f23a718fcb63e3b76d065e22",
+      "screenshot": "state-36-depth-1--leave-department-status-d9fb7004.png",
+      "ready": true
+    },
+    {
+      "number": 37,
+      "depth": 1,
+      "reason": "nav:Tính giờ theo HRM",
+      "url": "https://dangkyphep.fcc-vn.com.vn/hrm/attendance-calculation",
+      "signature": "df25ad2f5fb24b86655b5ce8e366b57f5ac22973",
+      "screenshot": "state-37-depth-1--hrm-attendance-calculation-8fe5444f.png",
+      "ready": true
+    },
+    {
+      "number": 38,
+      "depth": 1,
+      "reason": "nav:Theo dõi job tính công",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/hrm-attendance-calculation-jobs",
+      "signature": "eae4c3b5a533c9e920c7ada91e461a9c1247cc9a",
+      "screenshot": "state-38-depth-1--admin-hrm-attendance-calculation-jobs-eb65290f.png",
+      "ready": false
+    },
+    {
+      "number": 39,
+      "depth": 1,
+      "reason": "nav:Danh sách đơn OT",
+      "url": "https://dangkyphep.fcc-vn.com.vn/ot/list",
+      "signature": "5fbe8e16f27aa9db2315b993be224abe5b158718",
+      "screenshot": "state-39-depth-1--ot-list-b1fc7114.png",
+      "ready": true
+    },
+    {
+      "number": 40,
+      "depth": 1,
+      "reason": "nav:Hạn mức OT",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/ot-limit-rules",
+      "signature": "be7a6c8bb213c98c58f7f19f18bc5db2ee2c0b43",
+      "screenshot": "state-40-depth-1--admin-ot-limit-rules-8f27179d.png",
+      "ready": true
+    },
+    {
+      "number": 41,
+      "depth": 1,
+      "reason": "nav:Bảng công tính lương",
+      "url": "https://dangkyphep.fcc-vn.com.vn/payroll/table",
+      "signature": "16bbc7a218ae5f1d3e52c515a9b577f6aa4dd0bb",
+      "screenshot": "state-41-depth-1--payroll-table-3ebfa058.png",
+      "ready": true
+    },
+    {
+      "number": 42,
+      "depth": 1,
+      "reason": "nav:Trung tâm báo cáo",
+      "url": "https://dangkyphep.fcc-vn.com.vn/reports",
+      "signature": "099ed4e07f395386a6a7313b5d7296779c2db675",
+      "screenshot": "state-42-depth-1--reports-2484c266.png",
+      "ready": true
+    },
+    {
+      "number": 43,
+      "depth": 1,
+      "reason": "nav:Nghỉ phép",
+      "url": "https://dangkyphep.fcc-vn.com.vn/report/leave",
+      "signature": "0c2d13c23de96c5f9fb2e53bc9669f037bbe7b9c",
+      "screenshot": "state-43-depth-1--report-leave-23bbe355.png",
+      "ready": true
+    },
+    {
+      "number": 44,
+      "depth": 1,
+      "reason": "nav:OT",
+      "url": "https://dangkyphep.fcc-vn.com.vn/report/ot",
+      "signature": "17e4736ae79b7b1cce715d87115472b64a836af4",
+      "screenshot": "state-44-depth-1--report-ot-b6ce71f3.png",
+      "ready": true
+    },
+    {
+      "number": 45,
+      "depth": 1,
+      "reason": "nav:Công tác",
+      "url": "https://dangkyphep.fcc-vn.com.vn/report/operations?module=trip",
+      "signature": "c4d03a1bf31f7f87eef410b5d80d60fed555a6c1",
+      "screenshot": "state-45-depth-1--report-operations-5d00a7c9.png",
+      "ready": true
+    },
+    {
+      "number": 46,
+      "depth": 1,
+      "reason": "nav:Thiết bị",
+      "url": "https://dangkyphep.fcc-vn.com.vn/report/operations?module=equipment",
+      "signature": "fbd0a3130992c7c37fca46cd1fef444a546a2f32",
+      "screenshot": "state-46-depth-1--report-operations-4e430460.png",
+      "ready": true
+    },
+    {
+      "number": 47,
+      "depth": 1,
+      "reason": "nav:Chấm công",
+      "url": "https://dangkyphep.fcc-vn.com.vn/report/operations?module=attendance",
+      "signature": "e5eab33e789823b9e06af5513fb026cd068c9c36",
+      "screenshot": "state-47-depth-1--report-operations-1f62d69e.png",
+      "ready": true
+    },
+    {
+      "number": 48,
+      "depth": 1,
+      "reason": "nav:Quản trị viên",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/managers",
+      "signature": "457c1b69f6c29d9ee341c5ca3456f70f5270ebb7",
+      "screenshot": "state-48-depth-1--admin-managers-3c076b93.png",
+      "ready": true
+    },
+    {
+      "number": 49,
+      "depth": 1,
+      "reason": "nav:Security Center",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/security",
+      "signature": "ea8a11d605556f42c8090da601ce37795223c2b2",
+      "screenshot": "state-49-depth-1--admin-security-4bd4f3a4.png",
+      "ready": true
+    },
+    {
+      "number": 50,
+      "depth": 1,
+      "reason": "nav:Thiết bị & phiên đăng nhập",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/sessions",
+      "signature": "6a8f729cb3de5d196e28cfc6e43b2d9575a10c90",
+      "screenshot": "state-50-depth-1--admin-sessions-0ff96757.png",
+      "ready": true
+    },
+    {
+      "number": 51,
+      "depth": 1,
+      "reason": "nav:Đăng ký chức năng hệ thống",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/security/function-registry",
+      "signature": "d6ab4fd8a38de28dcc1449cedee8a5e4c819206f",
+      "screenshot": "state-51-depth-1--admin-security-function-registry-9dac5b62.png",
+      "ready": true
+    },
+    {
+      "number": 52,
+      "depth": 1,
+      "reason": "nav:Email mẫu",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/email-templates",
+      "signature": "63ccf641b12d3ba2acafd5b93fb5c4d462561cfe",
+      "screenshot": "state-52-depth-1--admin-email-templates-46ef5414.png",
+      "ready": true
+    },
+    {
+      "number": 53,
+      "depth": 1,
+      "reason": "nav:Cấu hình SMTP",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/email-profiles",
+      "signature": "0c0d7e7725cd344bcdaf28e2eef03fbc032d3cbc",
+      "screenshot": "state-53-depth-1--admin-email-profiles-b30b6e68.png",
+      "ready": true
+    },
+    {
+      "number": 54,
+      "depth": 1,
+      "reason": "nav:Quản trị ngôn ngữ",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/localization",
+      "signature": "3437de3e7be1c6c877de4a27e8760b11e0b7cbb0",
+      "screenshot": "state-54-depth-1--admin-localization-abe59762.png",
+      "ready": true
+    },
+    {
+      "number": 55,
+      "depth": 1,
+      "reason": "nav:Email chờ gửi",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/email-queue",
+      "signature": "94dda4d4369766eab8ada104fb048d445077cb0d",
+      "screenshot": "state-55-depth-1--admin-email-queue-1824bb90.png",
+      "ready": true
+    },
+    {
+      "number": 56,
+      "depth": 1,
+      "reason": "nav:Năm & ngày nghỉ",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/work-calendar",
+      "signature": "a649f67900b7ab73e7eba50eddca3a02451ad8fa",
+      "screenshot": "state-56-depth-1--admin-work-calendar-ee29b723.png",
+      "ready": true
+    },
+    {
+      "number": 57,
+      "depth": 2,
+      "reason": "THÔNG TIN",
+      "url": "https://dangkyphep.fcc-vn.com.vn/thong-tin-cong-khai",
+      "signature": "556fe089d0c60f21c5d60f4177ec1190098dbe42",
+      "screenshot": "state-57-depth-2--thong-tin-cong-khai-9bdcbe3e.png",
+      "ready": true
+    },
+    {
+      "number": 58,
+      "depth": 2,
+      "reason": "Open",
+      "url": "https://dangkyphep.fcc-vn.com.vn/calendar",
+      "signature": "6c84eb8106bbf36cb9e6905d0175929d7b13936c",
+      "screenshot": "state-58-depth-2--calendar-1a165859.png",
+      "ready": true
+    },
+    {
+      "number": 59,
+      "depth": 2,
+      "reason": "Open",
+      "url": "https://dangkyphep.fcc-vn.com.vn/calendar",
+      "signature": "7f054399fdaad0a9af09b9e61a780d83b61d9bc0",
+      "screenshot": "state-59-depth-2--calendar-f995a9d4.png",
+      "ready": true
+    },
+    {
+      "number": 60,
+      "depth": 2,
+      "reason": "Open",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-information",
+      "signature": "6bb7ff21c3bade765c11dd01d4db65c4f545b8cd",
+      "screenshot": "state-60-depth-2--admin-public-information-19432fd5.png",
+      "ready": true
+    },
+    {
+      "number": 61,
+      "depth": 2,
+      "reason": "Open",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-information",
+      "signature": "745f7e753dd85ef8905aeecd5719c2a9d94f3ee7",
+      "screenshot": "state-61-depth-2--admin-public-information-33af45bd.png",
+      "ready": true
+    },
+    {
+      "number": 62,
+      "depth": 2,
+      "reason": "ARCHIVE",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-information",
+      "signature": "0f26e0276cf1129d02bb47ddb6d0b919439f45e5",
+      "screenshot": "state-62-depth-2--admin-public-information-f9f859e0.png",
+      "ready": true
+    },
+    {
+      "number": 63,
+      "depth": 2,
+      "reason": "Open",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-forms",
+      "signature": "505e613d627675b7793f0bf48cfcac5436591a66",
+      "screenshot": "state-63-depth-2--admin-public-forms-a7bf0c6f.png",
+      "ready": true
+    },
+    {
+      "number": 64,
+      "depth": 2,
+      "reason": "Open",
+      "url": "https://dangkyphep.fcc-vn.com.vn/admin/public-forms/submissions",
+      "signature": "6b098701ef1606ef96f097548bf7fac0d506b54c",
+      "screenshot": "state-64-depth-2--admin-public-forms-submissions-6a5496b7.png",
+      "ready": true
+    },
+    {
+      "number": 65,
+      "depth": 2,
+      "reason": "LẬP PHIẾU",
+      "url": "https://dangkyphep.fcc-vn.com.vn/security/access-change",
+      "signature": "7f60e7705d5b7a1fbf39dd24153d23781211c24c",
+      "screenshot": "state-65-depth-2--security-access-change-f723bc77.png",
+      "ready": true
+    },
+    {
+      "number": 66,
+      "depth": 2,
+      "reason": "PHIẾU CỦA TÔI",
+      "url": "https://dangkyphep.fcc-vn.com.vn/security/access-change",
+      "signature": "4be946c0c22b34a255c71721b7cd0c3783bb4134",
+      "screenshot": "state-66-depth-2--security-access-change-4fc829a1.png",
+      "ready": true
+    },
+    {
+      "number": 67,
+      "depth": 2,
+      "reason": "CHỜ TÔI DUYỆT",
+      "url": "https://dangkyphep.fcc-vn.com.vn/security/access-change",
+      "signature": "b8666912eaecd3d01bf9d635575969a2fdb073c7",
+      "screenshot": "state-67-depth-2--security-access-change-709debda.png",
+      "ready": true
+    },
+    {
+      "number": 68,
+      "depth": 2,
+      "reason": "IT XỬ LÝ",
+      "url": "https://dangkyphep.fcc-vn.com.vn/security/access-change",
+      "signature": "020c779863e33c644e17d481ec993e1ac4b940b0",
+      "screenshot": "state-68-depth-2--security-access-change-52a5dacb.png",
+      "ready": true
+    },
+    {
+      "number": 69,
+      "depth": 2,
+      "reason": "LÀM MỚI",
+      "url": "https://dangkyphep.fcc-vn.com.vn/approvals",
+      "signature": "10b18caad88d66e913dfa0f83b55afc953982a07",
+      "screenshot": "state-69-depth-2--approvals-d9cb0bc0.png",
+      "ready": true
+    }
+  ]
+}

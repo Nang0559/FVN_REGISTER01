@@ -19,6 +19,7 @@ using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Language;
 using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.LateEarly;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.OT;
@@ -69,6 +70,7 @@ using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs;
 using FVN_REGISTER.Infrastructure.Services.Jobs;
 using FVN_REGISTER.Infrastructure.Services.Language;
 using FVN_REGISTER.Infrastructure.Services.Leaves;
+using FVN_REGISTER.Infrastructure.Services.LateEarly;
 using FVN_REGISTER.Infrastructure.Services.Notifications;
 using FVN_REGISTER.Infrastructure.Services.OT;
 using FVN_REGISTER.Infrastructure.Services.OTs;
@@ -98,8 +100,15 @@ var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<stri
     "https://localhost:7264", "http://localhost:5120", "http://localhost:5017", "https://localhost:7135"
 };
 
+builder.Services.AddHttpClient("FvnAi", client => client.Timeout = TimeSpan.FromSeconds(90));
+// Knowledge publication embeds every chunk and can legitimately take minutes for large documents.
+builder.Services.AddHttpClient("FvnAiLong", client => client.Timeout = TimeSpan.FromMinutes(15));
+// Grounded answers run a local LLM on CPU and can exceed 90 s. Keep this above AIPlatform:ModelTimeoutSeconds (default 180)
+// on the AI API, otherwise the gateway cancels the call first (TaskCanceledException inside OllamaAIModelProvider).
+builder.Services.AddHttpClient("FvnAiChat", client => client.Timeout = TimeSpan.FromSeconds(240));
+builder.Services.AddSingleton<FVN_REGISTER.API.Services.IGuideKnowledgeIndex, FVN_REGISTER.API.Services.GuideKnowledgeIndex>();
 builder.Services.Configure<ForwardedHeadersOptions>(options=>{options.ForwardedHeaders=ForwardedHeaders.XForwardedFor|ForwardedHeaders.XForwardedProto;foreach(var value in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()??Array.Empty<string>())if(IPAddress.TryParse(value,out var ip))options.KnownProxies.Add(ip);});
-builder.Services.AddRateLimiter(options=>{options.RejectionStatusCode=StatusCodes.Status429TooManyRequests;options.OnRejected=async(context,token)=>{context.HttpContext.Response.Headers.RetryAfter="60";await context.HttpContext.Response.WriteAsJsonAsync(new{message="Quá nhiều yêu cầu. Vui lòng thử lại sau.",status=429},token);};options.AddPolicy("EndpointAnonymous",httpContext=>RateLimitPartition.GetFixedWindowLimiter($"{httpContext.Request.Path}:{httpContext.Connection.RemoteIpAddress?.ToString()??"unknown"}",_=>new FixedWindowRateLimiterOptions{PermitLimit=60,Window=TimeSpan.FromMinutes(1),QueueLimit=0,AutoReplenishment=true}));});
+builder.Services.AddRateLimiter(options=>{options.RejectionStatusCode=StatusCodes.Status429TooManyRequests;options.OnRejected=async(context,token)=>{context.HttpContext.Response.Headers.RetryAfter="60";await context.HttpContext.Response.WriteAsJsonAsync(new{message="Quá nhiều yêu cầu. Vui lòng thử lại sau.",status=429},token);};options.AddPolicy("EndpointAnonymous",httpContext=>RateLimitPartition.GetFixedWindowLimiter($"{httpContext.Request.Path}:{httpContext.Connection.RemoteIpAddress?.ToString()??"unknown"}",_=>new FixedWindowRateLimiterOptions{PermitLimit=60,Window=TimeSpan.FromMinutes(1),QueueLimit=0,AutoReplenishment=true}));options.AddPolicy("AIAuthenticated",httpContext=>RateLimitPartition.GetFixedWindowLimiter($"ai:{httpContext.Connection.RemoteIpAddress?.ToString()??"unknown"}:{Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(httpContext.Request.Headers.Authorization.ToString())))[..16]}",_=>new FixedWindowRateLimiterOptions{PermitLimit=30,Window=TimeSpan.FromMinutes(1),QueueLimit=0,AutoReplenishment=true}));});
 builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
     .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 builder.Services.AddMemoryCache();
@@ -138,16 +147,18 @@ builder.Services.AddScoped<IWorkCalendarService, WorkCalendarService>();
 builder.Services.AddScoped<IAttendanceSymbolRuleService, AttendanceSymbolRuleService>();
 builder.Services.AddScoped<ISharedWorkCalendarService, SharedWorkCalendarService>();
 builder.Services.AddScoped<ICalendarDayRuleEngine, CalendarDayRuleEngine>();
+builder.Services.AddScoped<ICalendarDayRule, AttendanceMissingPunchRule>();
 builder.Services.AddScoped<ICalendarDayRule, AttendanceNumericVarianceRule>();
 builder.Services.AddScoped<ICalendarDayRule, OtNoActualRule>();
 builder.Services.AddScoped<ICalendarDayRule, LeaveAttendanceConflictRule>();
 builder.Services.AddScoped<ICalendarDayRule, TripAttendanceConflictRule>();
 builder.Services.AddScoped<ICalendarDayRule, OtActualWithoutRequestRule>();
 builder.Services.AddScoped<ICalendarModuleRegistry, CalendarModuleRegistry>();
-builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "OT"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "Overtime"));
 builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "LEAVE"));
 builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "TRIP"));
 builder.Services.AddScoped<ICalendarModuleProvider, AttendanceCalendarModuleProvider>();
+builder.Services.AddScoped<ICalendarModuleProvider, LateEarlyCalendarModuleProvider>();
 builder.Services.AddScoped<IActionItemService, ActionItemService>();
 builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
 builder.Services.AddScoped<IExecutionReconciliationService, ExecutionReconciliationService>();
@@ -193,6 +204,7 @@ builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Trip
 builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<ILateEarlyService, LateEarlyService>();
 builder.Services.AddScoped<ITripActualService, TripActualService>();
 
 // Equipment
@@ -228,6 +240,8 @@ builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 // Background workers (BackgroundService) - trước đây chưa được đăng ký nên không chạy
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
+builder.Services.AddHostedService<HrmAttendanceCalculationJobWorker>();
+builder.Services.AddHostedService<HrmAttendanceStaleSweepWorker>();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
@@ -255,6 +269,7 @@ builder.Services.AddScoped<IApprovalHistoryService, ApprovalHistoryService>();
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, TripHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, LateEarlyHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, EquipmentHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
@@ -270,24 +285,28 @@ builder.Services.AddScoped<TripApprovalProvider>();
 builder.Services.AddScoped<EquipmentApprovalProvider>();
 builder.Services.AddScoped<PayrollApprovalProvider>();
 builder.Services.AddScoped<EndpointGovernanceApprovalProvider>();
+builder.Services.AddScoped<LateEarlyApprovalProvider>();
 builder.Services.AddScoped<IApprovalProvider<LeaveRequestSubject>>(sp => sp.GetRequiredService<LeaveApprovalProvider>());
 builder.Services.AddScoped<IApprovalProvider<OTRequestSubject>>(sp => sp.GetRequiredService<OTApprovalProvider>());
 builder.Services.AddScoped<IApprovalProvider<TripRequestSubject>>(sp => sp.GetRequiredService<TripApprovalProvider>());
 builder.Services.AddScoped<IApprovalProvider<EquipmentRequestSubject>>(sp => sp.GetRequiredService<EquipmentApprovalProvider>());
 builder.Services.AddScoped<IApprovalProvider<PayrollPeriodSubject>>(sp => sp.GetRequiredService<PayrollApprovalProvider>());
 builder.Services.AddScoped<IApprovalProvider<EndpointGovernanceRequestSubject>>(sp => sp.GetRequiredService<EndpointGovernanceApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<LateEarlyRequestSubject>>(sp => sp.GetRequiredService<LateEarlyApprovalProvider>());
 builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<OTRequestSubject>, ApprovalEngine<OTRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<TripRequestSubject>, ApprovalEngine<TripRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<EquipmentRequestSubject>, ApprovalEngine<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<PayrollPeriodSubject>, ApprovalEngine<PayrollPeriodSubject>>();
 builder.Services.AddScoped<IApprovalEngine<EndpointGovernanceRequestSubject>, ApprovalEngine<EndpointGovernanceRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<LateEarlyRequestSubject>, ApprovalEngine<LateEarlyRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LeaveRequestSubject>, ApprovalWorkflowOrchestrator<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, ApprovalWorkflowOrchestrator<OTRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<TripRequestSubject>, ApprovalWorkflowOrchestrator<TripRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EquipmentRequestSubject>, ApprovalWorkflowOrchestrator<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<PayrollPeriodSubject>, ApprovalWorkflowOrchestrator<PayrollPeriodSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject>, ApprovalWorkflowOrchestrator<EndpointGovernanceRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LateEarlyRequestSubject>, ApprovalWorkflowOrchestrator<LateEarlyRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
 builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
@@ -311,6 +330,8 @@ builder.Services.AddScoped<IHrmSyncJobResolver, HrmSyncJobResolver>();
 builder.Services.AddScoped<IHrmSyncReviewQueryService, HrmSyncReviewQueryService>();
 builder.Services.AddScoped<IHrmSyncService, HrmSyncService>();
 builder.Services.AddScoped<IHrmAttendanceCalculationService, HrmAttendanceCalculationService>();
+builder.Services.AddScoped<IHrmAttendanceCalculationJobService, HrmAttendanceCalculationJobService>();
+builder.Services.AddScoped<IHrmSourceFreshnessService, HrmSourceFreshnessService>();
 builder.Services.AddSingleton<IAttendanceBackfillCoordinator, AttendanceBackfillCoordinator>();
 builder.Services.AddScoped<IHrmAttendanceExcelExportService, HrmAttendanceExcelExportService>();
 builder.Services.AddScoped<IHrmUserRoleRuleService, HrmUserRoleRuleService>();

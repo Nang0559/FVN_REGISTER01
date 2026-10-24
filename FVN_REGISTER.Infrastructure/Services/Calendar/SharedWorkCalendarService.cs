@@ -7,6 +7,7 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -197,16 +198,30 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 x => (IReadOnlyList<CalendarItemDto>)x.ToArray());
 
         var days = new List<CalendarDayDto>();
+        var dayTypeColors = await LoadDayTypeColorsAsync(cancellationToken);
+
+        // Phản hồi cấp trên gần nhất của từng ngày (để ô "?" hiện đúng: chờ xử lý / bị từ chối / đã đăng ký OT).
+        var fromDt = from.ToDateTime(TimeOnly.MinValue);
+        var toDt = to.ToDateTime(TimeOnly.MinValue);
+        var feedbackRows = await _db.Set<F03SupervisorFeedback>()
+            .AsNoTracking()
+            .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.WorkDate >= fromDt && x.WorkDate <= toDt)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var feedbackByDate = feedbackRows
+            .GroupBy(x => DateOnly.FromDateTime(x.WorkDate.Date))
+            .ToDictionary(g => g.Key, g => g.First());
 
         foreach (var baseDay in workCalendar.Days.OrderBy(x => x.Date))
         {
+            feedbackByDate.TryGetValue(DateOnly.FromDateTime(baseDay.Date.Date), out var supervisorFeedback);
             var date = DateOnly.FromDateTime(baseDay.Date.Date);
             var dateItems = itemsByDate.TryGetValue(date, out var sourceItems)
                 ? sourceItems
                 : Array.Empty<CalendarItemDto>();
 
             var registrations = workCalendar.Events
-                .Where(x => x.ModuleCode is "LEAVE" or "OT" or "TRIP"
+                .Where(x => x.ModuleCode is "LEAVE" or "Overtime" or "TRIP"
                     && CalendarEventDateMatcher.CoversDate(x, baseDay.Date))
                 .Where(x => allowedModules is null || allowedModules.Contains(x.ModuleCode))
                 .OrderBy(x => x.ModuleCode)
@@ -270,6 +285,10 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                     HasActualOt = attendanceItem.HasActualOt,
                     IsNumericVariance = attendanceItem.IsNumericVariance,
                     DisplayValue = attendanceItem.Marker,
+                    RuleWorkSymbol = attendanceItem.WorkSymbol,
+                    RuleOtSymbol = attendanceItem.OtMarker,
+                    RuleDayType = attendanceItem.DayType,
+                    RuleCode = attendanceItem.SymbolRuleCode,
                     SourceId = attendanceItem.SourceId,
                     ActionId = attendanceItem.ActionId,
                     DetailRoute = attendanceItem.DetailRoute,
@@ -293,22 +312,31 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                     : new CalendarHolidayInfoDto
                     {
                         Code = baseDay.HolidayCode,
-                        Name = baseDay.HolidayName
+                        Name = baseDay.HolidayName,
+                        Symbol = baseDay.HolidaySymbol,
+                        TypeName = baseDay.HolidayTypeName,
+                        Color = baseDay.HolidayColor
                     },
+                // Màu ô: ngày nghỉ HRM / Chủ nhật (WorkCalendarService) > màu loại ngày ghi trên dòng chấm công
+                // (vd NT = ngày nghỉ riêng của nhân viên, không có bản ghi ngày nghỉ công ty).
+                DayColor = baseDay.DayColor ?? ResolveAttendanceDayColor(date, attendance, dayTypeColors),
                 Shift = shift,
                 Attendance = attendance,
                 Registrations = registrations,
                 CanRegisterLeave = baseDay.CanRegisterLeave
                     && !registrations.Any(x => x.ModuleCode == "LEAVE"),
                 CanRegisterOT = baseDay.CanRegisterOT
-                    && !registrations.Any(x => x.ModuleCode == "OT"),
+                    && !registrations.Any(x => x.ModuleCode == "Overtime"),
                 CanRegisterTrip = baseDay.CanRegisterTrip
                     && !registrations.Any(x => x.ModuleCode == "TRIP"),
+                MustReportOtToSupervisor = baseDay.MustReportOtToSupervisor,
+                SupervisorFeedbackStatus = supervisorFeedback is null ? 0 : (int)supervisorFeedback.Status,
+                SupervisorFeedbackNote = supervisorFeedback?.Note,
                 AvailabilityNote = baseDay.AvailabilityNote
             };
 
             var issues = ApplyExecutionFeedback(
-                _ruleEngine.Evaluate(new CalendarDayRuleContext(provisional, dateItems)),
+                _ruleEngine.Evaluate(new CalendarDayRuleContext(provisional, dateItems, baseDay.IsOtRegistrar)),
                 dateItems);
 
             days.Add(new CalendarDayDto
@@ -321,6 +349,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 IsWeekend = provisional.IsWeekend,
                 IsWorkingDay = provisional.IsWorkingDay,
                 Holiday = provisional.Holiday,
+                DayColor = provisional.DayColor,
                 Shift = provisional.Shift,
                 Attendance = provisional.Attendance,
                 Registrations = provisional.Registrations,
@@ -328,6 +357,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 CanRegisterLeave = provisional.CanRegisterLeave,
                 CanRegisterOT = provisional.CanRegisterOT,
                 CanRegisterTrip = provisional.CanRegisterTrip,
+                MustReportOtToSupervisor = provisional.MustReportOtToSupervisor,
+                SupervisorFeedbackStatus = provisional.SupervisorFeedbackStatus,
+                SupervisorFeedbackNote = provisional.SupervisorFeedbackNote,
                 AvailabilityNote = BuildAvailabilityNote(provisional)
             });
         }
@@ -392,6 +424,56 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         }
     }
 
+    /// <summary>Màu HRM theo DayType: NORMAL không tô màu; SUNDAY=Navy; COMPANY_HOLIDAY (T2-T7)=LightYellow; NATIONAL_HOLIDAY giữ màu HRM (ví dụ HotPink); OTHER theo cấu hình.</summary>
+    private async Task<Dictionary<string, string>> LoadDayTypeColorsAsync(CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var rows = await _db.Database
+                .SqlQueryRaw<DayTypeColorRow>("SELECT DayType, LNLMauSac AS Color FROM dbo.F03HrmHolidayTypes WHERE ISNULL(DLocked,0)=0 AND LNLMauSac IS NOT NULL AND LNLMauSac<>'' ORDER BY LNLMa")
+                .ToListAsync(cancellationToken);
+            foreach (var row in rows)
+            {
+                var color = CalendarColor.Normalize(row.Color);
+                if (color is not null && !string.IsNullOrWhiteSpace(row.DayType) && !result.ContainsKey(row.DayType))
+                    result[row.DayType] = color;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Không đọc được màu loại ngày HRM (F03HrmHolidayTypes); ô lịch giữ nền trắng.");
+        }
+        return result;
+    }
+
+    private static string? ResolveAttendanceDayColor(
+        DateOnly date,
+        CalendarAttendanceInfoDto? attendance,
+        IReadOnlyDictionary<string, string> dayTypeColors)
+    {
+        var dayType = attendance?.DayType;
+        if (string.IsNullOrWhiteSpace(dayType))
+            return null;
+
+        dayTypeColors.TryGetValue(dayType, out var configuredColor);
+        dayTypeColors.TryGetValue("SUNDAY", out var sundayColor);
+
+        // Reuse the same policy as company-holiday calendar data.
+        // In particular, NORMAL must never inherit HRM catalog 0001's display color.
+        return CalendarHolidayColorPolicy.Resolve(
+            date.ToDateTime(TimeOnly.MinValue),
+            dayType,
+            configuredColor,
+            sundayColor);
+    }
+
+    private sealed class DayTypeColorRow
+    {
+        public string? DayType { get; set; }
+        public string? Color { get; set; }
+    }
+
     private static CalendarItemDto? GetSingleModuleProjection(
         IReadOnlyList<CalendarItemDto> items,
         string moduleCode)
@@ -453,9 +535,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             return new CalendarIssueDto
             {
                 Code = issue.Code,
-                ModuleCode = issue.ModuleCode,
+                ModuleCode = issue.ModuleCode ?? string.Empty,
                 Severity = item.Severity,
-                Marker = item.FeedbackMarker ?? issue.Marker,
+                Marker = item.FeedbackMarker ?? issue.Marker ?? "?",
                 Title = issue.Title,
                 Summary = string.IsNullOrWhiteSpace(item.FeedbackLabel)
                     ? issue.Summary
@@ -507,7 +589,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             return "Ngày nghỉ công ty — chỉ đăng ký OT.";
 
         if (day.IsToday)
-            return "Hôm nay không mở đăng ký.";
+            return "Hôm nay không mở đăng ký nghỉ/OT/công tác; có thể đăng ký đi muộn/về sớm theo chính sách.";
 
         if (day.IsPast)
             return "Ngày đã qua — chỉ xem và xử lý chênh lệch.";
@@ -528,10 +610,10 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         CalendarDayDto day,
         IReadOnlySet<string>? allowedModules)
     {
-        if (!day.IsFuture)
+        if (!day.IsFuture && !day.IsToday)
             yield break;
 
-        if (day.CanRegisterLeave && IsAllowed("LEAVE", allowedModules))
+        if (day.IsFuture && day.CanRegisterLeave && IsAllowed("LEAVE", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
@@ -543,19 +625,19 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             };
         }
 
-        if (day.CanRegisterOT && IsAllowed("OT", allowedModules))
+        if (day.IsFuture && day.CanRegisterOT && IsAllowed("Overtime", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
                 WorkDate = day.Date,
-                ModuleCode = "OT",
+                ModuleCode = "Overtime",
                 Title = "Đăng ký OT",
                 Route = $"/ot/create?date={day.Date:yyyy-MM-dd}",
                 IsEnabled = true
             };
         }
 
-        if (day.CanRegisterTrip && IsAllowed("TRIP", allowedModules))
+        if (day.IsFuture && day.CanRegisterTrip && IsAllowed("TRIP", allowedModules))
         {
             yield return new CalendarRegistrationOpportunityDto
             {
@@ -563,6 +645,21 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 ModuleCode = "TRIP",
                 Title = "Đăng ký công tác",
                 Route = $"/trip/create?date={day.Date:yyyy-MM-dd}",
+                IsEnabled = true
+            };
+        }
+
+        // LateEarly is allowed on the current day as well as future work dates.
+        // It is an explanatory registration overlay and never changes HRM attendance symbols.
+        if ((day.IsToday || day.IsFuture) && day.IsWorkingDay && day.Holiday is null
+            && IsAllowed("LATE_EARLY", allowedModules))
+        {
+            yield return new CalendarRegistrationOpportunityDto
+            {
+                WorkDate = day.Date,
+                ModuleCode = "LATE_EARLY",
+                Title = "Đăng ký đi muộn / về sớm",
+                Route = $"/late-early/create?date={day.Date:yyyy-MM-dd}",
                 IsEnabled = true
             };
         }

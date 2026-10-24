@@ -3,6 +3,8 @@
 @attribute [Authorize]
 @namespace FVN_REGISTER.Shared.Pages
 @using FVN_REGISTER.Contract.Dtos.Trips
+@using FVN_REGISTER.Contract.Dtos.Registration
+@using FVN_REGISTER.Shared.Handlers
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Requests.Approvals
 @using FVN_REGISTER.Shared.Components.Calendar
@@ -13,6 +15,7 @@
 @inject ITripClientService TripService
 @inject IApprovalRouteClientService ApprovalRouteService
 @inject ISnackbar Snackbar
+@inject IHttpClientWithAuth PolicyHttp
 @inject NavigationManager Navigation
 @inherits AppComponentBase
 
@@ -108,13 +111,16 @@
                                      Min="0"
                                      HideSpinButtons="true" />
                 </MudItem>
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="_companionEmployeeCodes"
-                                  Label="@Language.T("trip.nhanVienDiCung")"
-                                  HelperText="@Language.T("trip.nhapMaNhanVienPhan")"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense" />
-                </MudItem>
+                @if (_policy?.CanRegisterForOthers == true)
+                {
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_companionEmployeeCodes"
+                                      Label="@Language.T("trip.nhanVienDiCung")"
+                                      HelperText="@Language.T("trip.nhapMaNhanVienPhan")"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+                }
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_accommodation"
                                   Label="@Language.T("trip.luuTru")"
@@ -170,9 +176,13 @@
     [Parameter, SupplyParameterFromQuery(Name = "date")]
     public DateTime? CalendarDate { get; set; }
 
+    private RegistrationPolicyDecisionDto? _policy;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadApprovalRouteAsync();
+        var policy = await PolicyHttp.GetAsync<RegistrationPolicyDecisionDto>("api/registration-policy/decision?registerType=TRIP", default, showLoading: false);
+        _policy = policy.IsSuccess ? policy.Data : null;
         if (CalendarDate.HasValue)
         {
             _startDate = CalendarDate.Value.Date;

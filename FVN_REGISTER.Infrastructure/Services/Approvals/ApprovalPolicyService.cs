@@ -436,6 +436,7 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         RequestModule.Leave => "Nghỉ phép",
         RequestModule.Overtime => "Tăng ca",
         RequestModule.Trip => "Công tác",
+        RequestModule.LateEarly => "Đi muộn / Về sớm",
         RequestModule.Equipment => "Thiết bị",
         _ => type.ToString()
     };

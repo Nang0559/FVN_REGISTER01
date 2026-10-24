@@ -3,6 +3,7 @@ using Xunit;
 
 namespace FVN_REGISTER.Shared.Tests;
 
+/// <summary>AttendanceSymbolCalculator chỉ đọc ký hiệu do rule đã ghi, không được tự tính lại.</summary>
 public sealed class AttendanceSymbolCalculatorTests
 {
     private static CalendarDayDto Day(DateOnly date, string shift, DateTime? inTime, DateTime? outTime,
@@ -21,38 +22,31 @@ public sealed class AttendanceSymbolCalculatorTests
     };
 
     [Fact]
-    public void Weekday_C1_With245OtMinutes_ShowsC1AndK4()
+    public void NoRuleResult_DoesNotInventOtSymbol()
     {
-        var date = new DateOnly(2026, 9, 9); // Thứ tư
-        var day = Day(date, "Ca C1", new DateTime(2026, 9, 9, 5, 50, 0), new DateTime(2026, 9, 9, 18, 5, 0),
-            actualOt: 245, displayValue: "C1");
+        var day = Day(new DateOnly(2026, 9, 9), "Ca C1", new DateTime(2026, 9, 9, 5, 50, 0),
+            new DateTime(2026, 9, 9, 18, 5, 0), actualOt: 245, displayValue: "C1");
 
         var symbols = AttendanceSymbolCalculator.Resolve(day);
 
-        Assert.Equal("C1", symbols.WorkSymbol);
-        Assert.Equal("K4", symbols.OtSymbol);
+        Assert.Equal("C1", symbols.WorkSymbol); // giá trị HRM
+        Assert.Null(symbols.OtSymbol);          // không tự suy ra K4
     }
 
     [Fact]
-    public void Marker_QuestionMark_DoesNotReplaceWorkSymbol()
+    public void OffDayWithoutRuleResult_DoesNotInventNlCnTPrefix()
     {
-        var day = Day(new DateOnly(2026, 9, 9), "Ca C1", new DateTime(2026, 9, 9, 5, 50, 0),
-            new DateTime(2026, 9, 9, 18, 5, 0), actualOt: 245, displayValue: "?");
+        var day = Day(new DateOnly(2026, 9, 6), "Ca C1", new DateTime(2026, 9, 6, 6, 0, 0),
+            new DateTime(2026, 9, 6, 18, 0, 0), actualOt: 240, displayValue: "CN");
 
-        Assert.Equal("C1", AttendanceSymbolCalculator.Resolve(day).WorkSymbol);
+        var symbols = AttendanceSymbolCalculator.Resolve(day);
+
+        Assert.Equal("CN", symbols.WorkSymbol);
+        Assert.Null(symbols.OtSymbol);
     }
 
     [Fact]
-    public void Weekday_WithoutOt_HasNoOtSymbol()
-    {
-        var day = Day(new DateOnly(2026, 9, 9), "Ca C1", new DateTime(2026, 9, 9, 5, 50, 0),
-            new DateTime(2026, 9, 9, 14, 5, 0));
-
-        Assert.Null(AttendanceSymbolCalculator.Resolve(day).OtSymbol);
-    }
-
-    [Fact]
-    public void RuleEncodedValues_TakePrecedenceOverCalculation()
+    public void RuleEncodedValues_AreReturnedAsIs()
     {
         var day = Day(new DateOnly(2026, 9, 9), "Ca C1", new DateTime(2026, 9, 9, 5, 50, 0),
             new DateTime(2026, 9, 9, 18, 5, 0), actualOt: 245,
@@ -63,4 +57,8 @@ public sealed class AttendanceSymbolCalculatorTests
         Assert.Equal("C2", symbols.WorkSymbol);
         Assert.Equal("K3", symbols.OtSymbol);
     }
+
+    [Fact]
+    public void NoAttendance_ReturnsDefault() =>
+        Assert.Equal(default, AttendanceSymbolCalculator.Resolve(new CalendarDayDto { Date = new DateOnly(2026, 9, 9) }));
 }

@@ -98,6 +98,8 @@ Calendar projection của case này dùng `Marker=?`, `Severity=3`, `RequiresAct
 
 Không tạo calculation engine thứ hai. Attendance company-wide được worker/scheduler tính và backfill; Calendar/Dashboard chỉ đọc official read model. Payroll period hiện hành: ngày 21 → ngày 20.
 
+DayType dùng chung với Work Calendar: `LNLMa=0001 → NORMAL`; `NNLLoai=2` ánh xạ tới `LNLMa=0002` và được tách theo ngày thực tế thành `SUNDAY` (Chủ nhật) hoặc `COMPANY_HOLIDAY` (thứ Hai–thứ Bảy); `NNLLoai=1 → LNLMa=0003 → NATIONAL_HOLIDAY`. Không ghép trực tiếp `NNLLoai` với `LNLMa`. Quy tắc màu nền được định nghĩa tại tài liệu kiến trúc 24; OT reconciliation không tự quyết định màu.
+
 Calendar module `ATTENDANCE` đọc trực tiếp `F03HrmAttendanceCalculated` theo employee + WorkDate. Module này không ghi `F03CalendarProjection`, không tạo reconciliation cho từng ngày attendance thường và không thay đổi calculation result. Quyền truy cập endpoint Calendar được kiểm tra bằng `SecurityFunctionCodes.AttendanceView`; `F03CalendarModulePolicies` phải có row `ATTENDANCE` enabled.
 
 ## 11. Invariants

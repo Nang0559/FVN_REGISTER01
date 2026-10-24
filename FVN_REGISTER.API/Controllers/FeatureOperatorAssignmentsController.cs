@@ -40,10 +40,10 @@ public sealed class FeatureOperatorAssignmentsController : ControllerBase
     }
 
     [HttpGet("employees")]
-    public async Task<IActionResult> Employees([FromQuery] string? search, CancellationToken ct)
+    public async Task<IActionResult> Employees([FromQuery] string? search, [FromQuery] int? deptCode, CancellationToken ct)
     {
         if (!await CanManageAsync(ct)) return Forbid();
-        return Ok(await _service.GetEmployeesAsync(search, ct));
+        return Ok(await _service.GetEmployeesByDepartmentAsync(search, deptCode, ct));
     }
 
     [HttpGet("resources")]

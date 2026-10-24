@@ -29,6 +29,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
         {
             var targetDate = (date ?? DateTime.Today).Date;
             var targetDateOnly = DateOnly.FromDateTime(targetDate);
+            // F03LeaveDay.StartDate/EndDate là [NotMapped] -> EF không dịch được sang SQL.
+            // Dùng StartTime/EndTime (cột thật). targetDate đã là 00:00 nên:
+            //   StartTime.Date <= targetDate  <=>  StartTime <  targetDate + 1 ngày
+            //   EndTime.Date   >= targetDate  <=>  EndTime   >= targetDate
+            var nextDate = targetDate.AddDays(1);
 
             Logger.LogDebugIf(Debug, "[DEPT_STATUS] DeptCode={Dept} Date={Date}",
                 deptCode, targetDate.ToString("dd/MM/yyyy"));
@@ -60,8 +65,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                     empCodes.Contains(l.EmployeeCode) &&
                     l.IsActive == true &&
                     l.RequestStatus == ApprovalStatus.Approved &&
-                    l.StartDate.Date <= targetDate &&
-                    l.EndDate.Date >= targetDate)
+                    l.StartTime < nextDate &&
+                    l.EndTime >= targetDate)
                 .Select(l => new { l.EmployeeCode, l.LeaveTypeCode, l.LeaveReason, l.RequestStatus })
                 .ToListAsync(ct);
 
@@ -150,6 +155,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
         {
             var targetDate = (date ?? DateTime.Today).Date;
             var targetDateOnly = DateOnly.FromDateTime(targetDate);
+            // F03LeaveDay.StartDate/EndDate là [NotMapped] -> EF không dịch được sang SQL.
+            // Dùng StartTime/EndTime (cột thật). targetDate đã là 00:00 nên:
+            //   StartTime.Date <= targetDate  <=>  StartTime <  targetDate + 1 ngày
+            //   EndTime.Date   >= targetDate  <=>  EndTime   >= targetDate
+            var nextDate = targetDate.AddDays(1);
 
             var employees = await _uow.Repository<F03Employee>().Query()
                 .AsNoTracking().Where(e => e.IsActive == true)
@@ -163,8 +173,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                  .AsNoTracking()
                  .Where(l => l.IsActive == true &&
                              l.RequestStatus == ApprovalStatus.Approved &&
-                             l.StartDate.Date <= targetDate &&
-                             l.EndDate.Date >= targetDate)
+                             l.StartTime < nextDate &&
+                             l.EndTime >= targetDate)
                  .Select(l => l.EmployeeCode).ToListAsync(ct)).ToHashSet();
 
             var deptMap = (await _uow.Repository<F03Department>().Query()

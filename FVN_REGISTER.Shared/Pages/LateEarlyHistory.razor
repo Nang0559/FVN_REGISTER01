@@ -1,0 +1,137 @@
+@page "/late-early/history"
+@attribute [Authorize]
+@namespace FVN_REGISTER.Shared.Pages
+@using FVN_REGISTER.Contract.Responses.LateEarly
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.LateEarly
+@using Microsoft.AspNetCore.Authorization
+@inject ILateEarlyClientService LateEarlyService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inherits AppComponentBase
+
+<PageTitle>Lịch sử đi muộn / về sớm</PageTitle>
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3" Elevation="1">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <div>
+                <MudText Typo="Typo.h6">Lịch sử đi muộn / về sớm</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Theo dõi đăng ký của bạn và các đăng ký hộ trong phạm vi quyền được cấp.
+                </MudText>
+            </div>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Href="/late-early/create"
+                       StartIcon="@Icons.Material.Filled.Add">Tạo đăng ký</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <MudPaper Class="pa-4"><MudProgressLinear Indeterminate="true" /></MudPaper>
+    }
+    else if (_items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">Chưa có đăng ký đi muộn/về sớm.</MudAlert>
+    }
+    else
+    {
+        <MudPaper Class="pa-2" Elevation="1">
+            <MudTable Items="_items" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Mã đơn</MudTh>
+                    <MudTh>Nhân viên</MudTh>
+                    <MudTh>Ngày</MudTh>
+                    <MudTh>Loại</MudTh>
+                    <MudTh>Giờ dự kiến</MudTh>
+                    <MudTh>Trạng thái</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Mã đơn">@context.RequestCode</MudTd>
+                    <MudTd DataLabel="Nhân viên">
+                        <MudText Typo="Typo.body2">@context.EmployeeName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.EmployeeCode</MudText>
+                        @if (context.IsOnBehalf)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Đăng ký hộ</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Loại">@(context.LateEarlyType == LateEarlyType.LateArrival ? "Đi muộn" : "Về sớm")</MudTd>
+                    <MudTd DataLabel="Giờ dự kiến">@context.PlannedTime.ToString(@"hh\:mm")</MudTd>
+                    <MudTd DataLabel="Trạng thái">
+                        <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.RequestStatus)">
+                            @StatusText(context.RequestStatus)
+                        </MudChip>
+                        @if (context.IsRetroactive)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Bổ sung</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (context.RequestStatus is ApprovalStatus.Draft or ApprovalStatus.Pending or ApprovalStatus.NeedsRevision)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small"
+                                           title="Hủy đăng ký" OnClick="@(() => Cancel(context))" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</MudStack>
+
+@code {
+    private readonly List<LateEarlyRequestDto> _items = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await LateEarlyService.GetMineAsync();
+            _items.Clear();
+            if (result.IsSuccess && result.Data is not null) _items.AddRange(result.Data);
+            else if (!result.IsSuccess) Snackbar.Add(result.Message ?? "Không tải được lịch sử.", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task Cancel(LateEarlyRequestDto item)
+    {
+        var result = await LateEarlyService.CancelAsync(item.Id, "Người đăng ký chủ động hủy");
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không hủy được đăng ký.", Severity.Error);
+            return;
+        }
+        Snackbar.Add("Đã hủy đăng ký.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private static Color StatusColor(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => Color.Success,
+        ApprovalStatus.Rejected => Color.Error,
+        ApprovalStatus.Cancelled => Color.Default,
+        ApprovalStatus.InProgress => Color.Info,
+        ApprovalStatus.Draft => Color.Default,
+        ApprovalStatus.NeedsRevision => Color.Warning,
+        _ => Color.Warning
+    };
+
+    private static string StatusText(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => "Đã duyệt",
+        ApprovalStatus.Rejected => "Từ chối",
+        ApprovalStatus.Cancelled => "Đã hủy",
+        ApprovalStatus.InProgress => "Đang duyệt",
+        ApprovalStatus.Draft => "Nháp",
+        ApprovalStatus.NeedsRevision => "Cần chỉnh sửa",
+        _ => "Chờ duyệt"
+    };
+}

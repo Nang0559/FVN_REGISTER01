@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net9.0-windows10.0.19041.0</TargetFrameworks>
+    <!-- Keep Release MacCatalyst restore assets aligned with MAUI's default x64 + arm64 build targets. -->
+    <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers>
     <!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
     <!-- <TargetFrameworks>$(TargetFrameworks);net9.0-tizen</TargetFrameworks> -->
 
@@ -58,6 +60,13 @@
 
     <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Package the shared Markdown guide and its referenced screenshots for FeatureGuide in MAUI. -->
+    <MauiAsset Include="..\MÔ HÌNH\03_TAI_LIEU_HE_THONG\02_HUONG_DAN_SU_DUNG\04_USER_GUIDE.md" LogicalName="04_USER_GUIDE.md" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.png" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.jpg" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.jpeg" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.webp" LogicalName="screenshots/%(Filename)%(Extension)" />
+    <MauiAsset Include="..\MÔ HÌNH\screenshots\*.gif" LogicalName="screenshots/%(Filename)%(Extension)" />
   </ItemGroup>
 
 	<ItemGroup>

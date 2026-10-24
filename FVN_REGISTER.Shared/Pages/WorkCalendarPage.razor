@@ -9,6 +9,8 @@
 @using FVN_REGISTER.Shared.Services.Execution
 @using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Shared.Services.Calendar
+@using FVN_REGISTER.Shared.Services.HrmSync
+@using FVN_REGISTER.Contract.Dtos.HrmSync
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -19,6 +21,8 @@
 @inject ICurrentUserClientService CurrentUser
 @inject IOTClientService OTClient
 @inject IExecutionReconciliationClientService ExecutionService
+@inject IHrmAttendanceCalculationClientService AttendanceCalculation
+@inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
 
 <PageTitle>@Language.T("calendar.title")</PageTitle>
@@ -43,6 +47,32 @@
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Home" OnClick="@GoHome">@Language.T("calendar.home")</MudButton>
         </MudStack>
     </MudPaper>
+
+
+    @if (!string.IsNullOrWhiteSpace(_currentEmployeeCode))
+    {
+        <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Sync" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Style="font-weight:750">Buộc tính lại chấm công</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Tính lại dữ liệu của chính bạn trong khoảng ngày đã chọn. Tối đa 7 ngày/lần; mỗi tài khoản chỉ gửi yêu cầu mới sau 5 phút để tránh gây tải lớn cho SQL Server.</MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudDatePicker Label="Từ ngày" @bind-Date="_recalcFrom" Variant="Variant.Outlined" MaxDate="DateTime.Today" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudDatePicker Label="Đến ngày" @bind-Date="_recalcTo" Variant="Variant.Outlined" MaxDate="DateTime.Today" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4" Class="d-flex align-center">
+                        <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_forceRecalcRunning" OnClick="ForceRecalculateAsync">@(_forceRecalcRunning ? "Đang tính lại…" : "Buộc tính lại")</MudButton>
+                    </MudItem>
+                </MudGrid>
+                @if (_forceRecalcRunning) { <MudProgressLinear Indeterminate="true" /> }
+            </MudStack>
+        </MudPaper>
+    }
 
     @if (_alerts.Count > 0)
     {
@@ -91,6 +121,10 @@
     private string? _selectedEmployeeCode;
     private string? _currentEmployeeCode;
     private bool _canViewCalendar;
+    private DateTime? _recalcFrom = DateTime.Today.AddDays(-1);
+    private DateTime? _recalcTo = DateTime.Today;
+    private bool _forceRecalcRunning;
+    private HrmAttendanceCalculationJobClientService? _forceJobClient;
 
     private bool IsCurrentEmployee =>
         !string.IsNullOrWhiteSpace(_currentEmployeeCode)
@@ -98,6 +132,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _forceJobClient = new HrmAttendanceCalculationJobClientService(Http);
         try
         {
             await CurrentUser.InitializeAsync();
@@ -153,6 +188,79 @@
         await LoadAlertsAsync();
     }
 
+
+    private async Task ForceRecalculateAsync()
+    {
+        if (_forceRecalcRunning) return;
+        if (_forceJobClient is null || _recalcFrom is null || _recalcTo is null || _recalcFrom.Value.Date > _recalcTo.Value.Date)
+        {
+            Snackbar.Add("Khoảng ngày tính lại không hợp lệ.", Severity.Warning);
+            return;
+        }
+        if ((_recalcTo.Value.Date - _recalcFrom.Value.Date).TotalDays > 6)
+        {
+            Snackbar.Add("Mỗi lần chỉ được buộc tính lại tối đa 7 ngày.", Severity.Warning);
+            return;
+        }
+
+        _forceRecalcRunning = true;
+        try
+        {
+            var request = new HrmAttendanceCalculationRequestDto
+            {
+                FromDate = _recalcFrom.Value.Date,
+                ToDate = _recalcTo.Value.Date,
+                ReopenPayrollPeriod = false
+            };
+            var result = await AttendanceCalculation.ForceRecalculateSelfAsync(request);
+            if (!result.IsSuccess || result.Data is null)
+            {
+                Snackbar.Add(result.Message ?? "Buộc tính lại thất bại.", Severity.Error);
+                return;
+            }
+
+            var job = result.Data;
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            Snackbar.Add($"Đã đưa yêu cầu vào hàng đợi ({job.JobId:N}). Phép tính tiếp tục ở server nếu bạn rời trang.", Severity.Info);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                if (job.Status == "Completed")
+                {
+                    Snackbar.Add("Đã hoàn tất buộc tính lại chấm công.", Severity.Success);
+                    if (_calendar is not null) await _calendar.RefreshAsync();
+                    await LoadAlertsAsync();
+                    return;
+                }
+
+                if (job.Status is "Failed" or "Cancelled" or "Terminated")
+                {
+                    Snackbar.Add(job.ErrorMessage ?? $"Job kết thúc với trạng thái {job.Status}.", Severity.Error);
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+                var latest = await _forceJobClient.GetAsync(job.JobId);
+                if (!latest.IsSuccess || latest.Data is null)
+                {
+                    Snackbar.Add(latest.Message ?? "Không đọc được trạng thái job; job vẫn được lưu để kiểm tra lại.", Severity.Warning);
+                    return;
+                }
+                job = latest.Data;
+            }
+
+            Snackbar.Add($"Job {job.JobId:N} vẫn đang chạy nền. Bạn có thể tiếp tục sử dụng phần mềm; dữ liệu sẽ cập nhật sau khi job hoàn tất.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Không thể buộc tính lại: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _forceRecalcRunning = false;
+        }
+    }
+
     private async Task HandleDaySelected(CalendarDayDto day)
     {
         var parameters = new DialogParameters
@@ -174,7 +282,7 @@
         var route = moduleCode switch
         {
             "LEAVE" => $"/leave/create?date={date:yyyy-MM-dd}",
-            "OT" => $"/ot/create?date={date:yyyy-MM-dd}",
+            "Overtime" => $"/ot/create?date={date:yyyy-MM-dd}",
             "TRIP" => $"/trip/create?date={date:yyyy-MM-dd}",
             _ => "/calendar"
         };
@@ -195,6 +303,9 @@
                 return;
             case "OPEN_HR_FEEDBACK":
                 await OpenHrFeedbackAsync(request);
+                return;
+            case "OPEN_SUPERVISOR_FEEDBACK":
+                await OpenSupervisorFeedbackAsync(request);
                 return;
             case "CANCEL_OT":
                 if (request.RequestId is not int requestId)
@@ -275,6 +386,34 @@
         };
         await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(Language.T("calendar.feedbackTitle"), parameters,
             new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (_calendar is not null) await _calendar.RefreshAsync();
+        await LoadAlertsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenSupervisorFeedbackAsync(CalendarActionRequestDto request)
+    {
+        var employeeCode = _selectedEmployeeCode;
+        if (string.IsNullOrWhiteSpace(employeeCode)
+            || string.IsNullOrWhiteSpace(_currentEmployeeCode)
+            || !string.Equals(employeeCode, _currentEmployeeCode, StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add(Language.T("calendar.feedbackSelfOnly"), Severity.Warning);
+            return;
+        }
+
+        var result = await CalendarService.GetForEmployeeAsync(employeeCode, request.Date.ToDateTime(TimeOnly.MinValue), request.Date.ToDateTime(TimeOnly.MinValue));
+        var attendance = result.IsSuccess ? result.Data?.Days.FirstOrDefault(x => x.Date == request.Date)?.Attendance : null;
+
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarSupervisorFeedbackDialog.Date)] = request.Date,
+            [nameof(CalendarSupervisorFeedbackDialog.CheckIn)] = attendance?.CheckIn,
+            [nameof(CalendarSupervisorFeedbackDialog.CheckOut)] = attendance?.CheckOut
+        };
+        await DialogService.ShowAsync<CalendarSupervisorFeedbackDialog>("Phản hồi cấp trên", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
 
         if (_calendar is not null) await _calendar.RefreshAsync();
         await LoadAlertsAsync();

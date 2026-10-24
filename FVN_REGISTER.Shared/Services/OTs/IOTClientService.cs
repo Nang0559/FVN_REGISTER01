@@ -17,6 +17,7 @@ public interface IOTClientService
 
     Task<ApiResponse<List<OTRequestDto>>> GetDeptOTByDateAsync(DateTime date, CancellationToken ct = default);
     Task<ApiResponse<List<OTEmployeeDto>>> GetDeptEmployeesAsync(int? deptCode = null, CancellationToken ct = default);
+    Task<ApiResponse<List<OTEmployeeDto>>> SearchEmployeesAsync(string? keyword, IEnumerable<string>? codes = null, int? deptCode = null, CancellationToken ct = default);
     Task<ApiResponse<List<OTSummaryDto>>> GetMyHistoryAsync(int? year = null, CancellationToken ct = default);
     Task<ApiResponse<OTBalanceDto>> GetEmployeeBalanceAsync(string employeeCode, int year, CancellationToken ct = default);
     Task<ApiResponse<OTCombinedDataDto>> GetCombinedDataAsync(CancellationToken ct = default);

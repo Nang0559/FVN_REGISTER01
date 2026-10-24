@@ -32,6 +32,12 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmA
     ON dbo.F03HrmAttendanceCalculatedBatchSnapshot(CalculationBatchId,WorkDate,HrmEmployeeId);
 GO
 
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'DayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculatedBatchSnapshot ADD DayType nvarchar(40) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'WorkSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculatedBatchSnapshot ADD WorkSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'OtSymbol') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculatedBatchSnapshot ADD OtSymbol nvarchar(50) NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculatedBatchSnapshot',N'SymbolRuleCode') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculatedBatchSnapshot ADD SymbolRuleCode nvarchar(100) NULL;
+GO
+
 IF OBJECT_ID(N'dbo.tr_F03HrmAttendanceCalculated_BatchSnapshot',N'TR') IS NOT NULL
     DROP TRIGGER dbo.tr_F03HrmAttendanceCalculated_BatchSnapshot;
 GO
@@ -76,6 +82,7 @@ BEGIN
            HrmBCNgayLe=source.HrmBCNgayLe, HrmBCNgayLeNV=source.HrmBCNgayLeNV,
            HrmShiftDayType=source.HrmShiftDayType,
            AttendanceDisplayValue=source.AttendanceDisplayValue, OtDisplayValue=source.OtDisplayValue,
+           DayType=source.DayType, WorkSymbol=source.WorkSymbol, OtSymbol=source.OtSymbol, SymbolRuleCode=source.SymbolRuleCode,
            CalculatedAt=source.CalculatedAt, CalculatedBy=source.CalculatedBy, SourceSystem=source.SourceSystem
     FROM dbo.F03HrmAttendanceCalculatedBatchSnapshot target
     INNER JOIN inserted source
@@ -91,7 +98,7 @@ BEGIN
         EarlyLeaveMinutesDay,EarlyLeaveMinutesNight,RequiredMinutes,LeaveTotal,LeaveAnnual,Leave100,Leave70,LeaveUnpaid,LeaveBH100,LeaveBH70,LeaveBusinessTrip,
         LeaveCompensatory,LeaveOther,LeaveTypeCode,LeaveReason,Note,HrmType,HrmHoliday,HrmEmployeeHoliday,IsLocked,HrmBCGhiChu,HrmBCLyDoNghi,
         HrmBCNghiTotal,HrmBCNghiPhep,HrmBCNghiH100,HrmBCNghiH70,HrmBCNghiKL,HrmBCNghiBH100,HrmBCNghiBH70,HrmBCNghiCongTac,HrmBCNghiBu,HrmBCNghiKhac,
-        HrmBCDaXacNhanLamThem,HrmBCLoaiLamThem,HrmBCTinhLamThem,HrmBCNgayLe,HrmBCNgayLeNV,HrmShiftDayType,AttendanceDisplayValue,OtDisplayValue,CalculatedAt,CalculatedBy,SourceSystem
+        HrmBCDaXacNhanLamThem,HrmBCLoaiLamThem,HrmBCTinhLamThem,HrmBCNgayLe,HrmBCNgayLeNV,HrmShiftDayType,AttendanceDisplayValue,OtDisplayValue,DayType,WorkSymbol,OtSymbol,SymbolRuleCode,CalculatedAt,CalculatedBy,SourceSystem
     )
     SELECT source.CalculationBatchId,source.CalculationVersion,source.WorkDate,source.HrmEmployeeId,source.EmployeeCode,source.FullName,source.HrmDeptId,source.DeptCode,source.HrmPositionId,source.ShiftId,source.ShiftAbbr,
            source.CheckInGate,source.CheckInTime,source.CheckOutGate,source.CheckOutTime,source.ExitGate,source.ExitTime,source.EntryGate,source.EntryTime,source.WorkMinutesDay,source.WorkMinutesNight,
@@ -99,7 +106,7 @@ BEGIN
            source.EarlyLeaveMinutesDay,source.EarlyLeaveMinutesNight,source.RequiredMinutes,source.LeaveTotal,source.LeaveAnnual,source.Leave100,source.Leave70,source.LeaveUnpaid,source.LeaveBH100,source.LeaveBH70,source.LeaveBusinessTrip,
            source.LeaveCompensatory,source.LeaveOther,source.LeaveTypeCode,source.LeaveReason,source.Note,source.HrmType,source.HrmHoliday,source.HrmEmployeeHoliday,source.IsLocked,source.HrmBCGhiChu,source.HrmBCLyDoNghi,
            source.HrmBCNghiTotal,source.HrmBCNghiPhep,source.HrmBCNghiH100,source.HrmBCNghiH70,source.HrmBCNghiKL,source.HrmBCNghiBH100,source.HrmBCNghiBH70,source.HrmBCNghiCongTac,source.HrmBCNghiBu,source.HrmBCNghiKhac,
-           source.HrmBCDaXacNhanLamThem,source.HrmBCLoaiLamThem,source.HrmBCTinhLamThem,source.HrmBCNgayLe,source.HrmBCNgayLeNV,source.HrmShiftDayType,source.AttendanceDisplayValue,source.OtDisplayValue,source.CalculatedAt,source.CalculatedBy,source.SourceSystem
+           source.HrmBCDaXacNhanLamThem,source.HrmBCLoaiLamThem,source.HrmBCTinhLamThem,source.HrmBCNgayLe,source.HrmBCNgayLeNV,source.HrmShiftDayType,source.AttendanceDisplayValue,source.OtDisplayValue,source.DayType,source.WorkSymbol,source.OtSymbol,source.SymbolRuleCode,source.CalculatedAt,source.CalculatedBy,source.SourceSystem
     FROM inserted source
     WHERE NOT EXISTS
     (

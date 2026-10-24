@@ -33,10 +33,10 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("tree")]
-        public async Task<IActionResult> GetTree([FromQuery] string? searchTerm, [FromQuery] int? deptCode, CancellationToken ct)
+        public async Task<IActionResult> GetTree([FromQuery] string? searchTerm, [FromQuery] int? deptCode, [FromQuery] bool includeInactive, CancellationToken ct)
         {
             if (!await CanAsync(SecurityFunctionCodes.EmployeeView, ct)) return Forbid();
-            return HandleResult(await _service.GetTreeAsync(searchTerm, deptCode, ct));
+            return HandleResult(await _service.GetTreeAsync(searchTerm, deptCode, includeInactive, ct));
         }
 
         [HttpGet("{id:int}")]

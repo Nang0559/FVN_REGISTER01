@@ -33,6 +33,7 @@ else {
 <MudDivider /><MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout"><MudText Color="Color.Error">@Language.T("common.logout")</MudText></MudMenuItem>
 </ChildContent></MudMenu></MudAppBar>
 <MudDrawer @bind-Open="_drawerOpen" Elevation="1"><NavMenu /></MudDrawer><MudMainContent><MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer></MudMainContent>
+@if (_permissions?.Has(SecurityFunctionCodes.AIAssistantChat) == true) { <GuideChatLauncher /> }
 }
 </MudLayout>
 @code {

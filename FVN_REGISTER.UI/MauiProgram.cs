@@ -1,4 +1,5 @@
 ﻿using FVN_REGISTER.Services;
+using FVN_REGISTER.Shared.Services.Help;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Approvals;
 using FVN_REGISTER.Shared.Services.Security;
@@ -52,11 +53,11 @@ namespace FVN_REGISTER
             AppDomain.CurrentDomain.UnhandledException += (sender, e) => { var ex = e.ExceptionObject as Exception; System.Diagnostics.Debug.WriteLine("=== [UNHANDLED EXCEPTION] ==="); System.Diagnostics.Debug.WriteLine($"Message : {ex?.Message}"); System.Diagnostics.Debug.WriteLine($"Stack   :\n{ex?.StackTrace}"); };
             TaskScheduler.UnobservedTaskException += (sender, e) => { System.Diagnostics.Debug.WriteLine("=== [TASK EXCEPTION] ==="); System.Diagnostics.Debug.WriteLine($"Message : {e.Exception?.Message}"); e.SetObserved(); };
 #endif
-            builder.Services.AddMudServices(); builder.Services.AddScoped<ILoadingService, LoadingService>(); builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState();
+            builder.Services.AddMudServices(); builder.Services.AddScoped<ILoadingService, LoadingService>(); builder.Services.AddSingleton<IGuideDocumentProvider, MauiGuideDocumentProvider>(); builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<ITokenStorage, SecureTokenService>(); builder.Services.AddScoped<CustomAuthStateProvider>(); builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
             builder.Services.AddTransient<AuthHeaderHandler>();
             string baseUrl = "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
-            builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => client.BaseAddress = new Uri(baseUrl)).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler()).AddHttpMessageHandler<AuthHeaderHandler>();
+            builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => { client.BaseAddress = new Uri(baseUrl); client.Timeout = TimeSpan.FromSeconds(300); }).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler()).AddHttpMessageHandler<AuthHeaderHandler>();
             builder.Services.AddHttpClient<IAuthClientService, AuthClientService>(client => client.BaseAddress = new Uri(baseUrl)).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler());
             builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>();
             builder.Services.AddScoped<IDashboardClientService, DashboardClientService>(); builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();

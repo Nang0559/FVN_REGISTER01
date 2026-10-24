@@ -53,14 +53,14 @@ Không dùng từ “tự động hoàn toàn”, “đã sẵn sàng toàn bộ
 
 ## 5. Lưu ý từ việc rà soát repository
 
-Tại thời điểm rà soát tài liệu giới thiệu, tài liệu **MÔ HÌNH/23_PRODUCT_READINESS_PLAN.md** ghi Phase 0 là **IN PROGRESS** và các phase tiếp theo là **TODO**. Tuy nhiên, phần thông tin đầu tài liệu này đang tham chiếu repository **Nang0559/Reggister** và branch **feature/work-calendar-action-implementation**, không trùng repository/branch đang rà soát là **Nang0559/FVN_REGISTER01** / **feature/equipment-change-approval-workflow**.
+Tài liệu **MÔ HÌNH/23_PRODUCT_READINESS_PLAN.md** đã được gắn lại với repository **Nang0559/FVN_REGISTER01**, branch **fix/hrm-holiday-symbol-sync-consistency**, implementation baseline **c980f7531934d987b258da37f7d343a4e95876e3**. Phase 0 vẫn là **IN PROGRESS** và các phase tiếp theo vẫn là **TODO**; đây là bảng theo dõi, không phải chứng nhận build/UAT/production cho commit baseline.
 
 Vì vậy:
 
-1. Không dùng trạng thái trong file readiness đó làm chứng nhận phát hành cho branch hiện tại.
-2. Cần cập nhật hoặc lập biên bản readiness mới theo đúng commit của branch hiện tại.
+1. Không dùng trạng thái trong file readiness làm chứng nhận phát hành khi chưa có evidence runtime tương ứng.
+2. Mỗi lần đánh giá phải ghi SHA đầy đủ của commit thực tế được build/test/UAT.
 3. Chỉ đổi một mục sang “đã xác nhận vận hành” sau khi có bằng chứng build/test/UAT phù hợp.
-4. Bản trình chiếu hiện mô tả **giá trị và quy trình mục tiêu**; không phải biên bản xác nhận tất cả module đã sẵn sàng production.
+4. Bản trình chiếu mô tả **giá trị và quy trình mục tiêu**; không phải biên bản xác nhận tất cả module đã sẵn sàng production.
 
 Tài liệu **docs/ENDPOINT_GOVERNANCE_STATUS.md** cũng ghi branch **feature/i18n-vi-ja**, không phải branch đang rà soát; nó chỉ là ghi chú kỹ thuật tham khảo, không phải chứng nhận pilot cho branch hiện tại.
 
@@ -70,7 +70,7 @@ Trong thư mục **.github/workflows** của branch đang rà soát, workflow hi
 
 | Trường | Giá trị cần điền |
 |---|---|
-| Repository / branch | Nang0559/FVN_REGISTER01 / feature/equipment-change-approval-workflow |
+| Repository / branch | Nang0559/FVN_REGISTER01 / fix/hrm-holiday-symbol-sync-consistency |
 | Commit được kiểm tra | Ghi SHA đầy đủ |
 | Môi trường kiểm tra | Development / UAT / Demo / Production |
 | Các module đã kiểm tra | Ghi rõ phạm vi |
