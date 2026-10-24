@@ -7,7 +7,7 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 DECLARE @RunId nvarchar(100)=N'TST_E2E_REPLACE_WITH_EXACT_RUN_ID';
-DECLARE @RunStartedAt datetime2(0)='2000-01-01T00:00:00';
+DECLARE @RunStartedAt datetimeoffset(0)='2000-01-01T00:00:00+00:00';
 DECLARE @RequesterEmployeeCode nvarchar(50)=N'E0001';
 
 IF DB_NAME() NOT LIKE '%TEST%'
