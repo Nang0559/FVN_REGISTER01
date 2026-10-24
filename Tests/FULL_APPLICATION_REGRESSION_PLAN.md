@@ -130,6 +130,17 @@ Each scenario must assert HTTP/result status, persisted state, audit history, si
 - JOB-001: recurring worker can restart and resume without duplicate side effects.
 - JOB-002: cancellation, timeout, transient SQL failure, and concurrent execution are handled.
 
+### AI ASSISTANT / GUIDE / DOCUMENT ACCESS
+
+- AI-001: guide/help question returns an answer grounded in the allowed guide corpus and identifies uncertainty when no source supports an answer.
+- AI-002: user can retrieve only documents permitted by their role, department, and document-level policy; guessed file IDs do not bypass authorization.
+- AI-003: download/open endpoints re-check authorization server-side rather than trusting UI visibility.
+- AI-004: unsupported, missing, stale, or conflicting guide content is reported as such; the assistant does not fabricate policy details.
+- AI-005: prompt injection embedded in uploaded/connected documents is treated as untrusted content and cannot override system policy or disclose other users' documents.
+- AI-006: upload validates file type/size, rejects unsafe or unsupported files, and records owner, access scope, and audit metadata.
+- AI-007: retrieval, citation/source attribution, and answer output are tested with deterministic fake document fixtures; tests do not require a live LLM unless explicitly marked as integration tests.
+- AI-008: errors/timeouts from embedding, retrieval, or model providers fail safely and do not leak secrets, internal prompts, or unauthorized document excerpts.
+
 ### DASHBOARD / REPORTS / ADMIN / PUBLIC FORMS
 
 - RPT-001: dashboard totals match a direct query over the same authorized scope.
@@ -173,3 +184,14 @@ dotnet test .\FVN_REGISTER.sln --no-restore
 ```
 
 Run each command and capture exit code/output. The solution test command may require platform-specific workloads for UI/MAUI projects; report those separately from backend test failures.
+
+## 7. Test traceability and execution status
+
+The canonical scenario-to-test matrix is maintained in [TEST_TRACEABILITY.md](TEST_TRACEABILITY.md). Each row records the expected automated test or manual evidence, execution state, and known blocker. Status meanings:
+
+- **IMPLEMENTED**: an automated test exists; it still must run successfully in the target environment.
+- **PARTIAL**: some related assertions exist, but the full scenario is not covered.
+- **GAP**: no matching automated test has been verified in this branch.
+- **BLOCKED**: test requires SQL/API/HRM/SMTP or another runtime not available to the current run.
+
+Do not infer scenario coverage from a project build or from a test with a similar name. Update the traceability row with a commit SHA and TRX/E2E evidence after execution. The Test-BackendRegression.ps1 runner reports skipped tests as PASS_WITH_SKIPS, not as a full PASS.
