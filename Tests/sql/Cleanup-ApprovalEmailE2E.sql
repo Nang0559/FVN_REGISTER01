@@ -8,6 +8,7 @@ SET XACT_ABORT ON;
 
 DECLARE @RunId nvarchar(100)=N'TST_E2E_REPLACE_WITH_EXACT_RUN_ID';
 DECLARE @RunStartedAt datetime2(0)='2000-01-01T00:00:00';
+DECLARE @RequesterEmployeeCode nvarchar(50)=N'E0001';
 
 IF DB_NAME() NOT LIKE '%TEST%'
    AND DB_NAME() NOT LIKE '%QA%'
@@ -31,7 +32,7 @@ INSERT @RequestIds(Id)
 SELECT Id
 FROM dbo.F03LeaveDays
 WHERE LeaveReason LIKE @RunId+N'%'
-  AND EmployeeCode=N'E0001';
+  AND EmployeeCode=@RequesterEmployeeCode;
 
 IF NOT EXISTS (SELECT 1 FROM @RequestIds)
 BEGIN
