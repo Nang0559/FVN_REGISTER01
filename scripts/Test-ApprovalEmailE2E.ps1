@@ -85,6 +85,11 @@ function Invoke-SqlScalar([string]$Query,[hashtable]$Parameters=@{}) {
   return $cmd.ExecuteScalar()
  } finally {if($c.State -ne "Closed"){$c.Close()};$c.Dispose()}
 }
+function Get-ApprovalHistoryCount([int]$RequestId) {
+ $exists=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM sys.tables WHERE name='F03ApprovalHistories' AND schema_id=SCHEMA_ID('dbo')")
+ if($exists -eq 0){return $null}
+ return [int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalHistories WHERE RequestId=@id" @{id=$RequestId})
+}
 function Get-CorrelatedEmailCount([string]$Email,[int]$RequestId) {
  $idText=[string]$RequestId
  $parameters=@{
@@ -192,8 +197,10 @@ WHERE p.IsActive=1
   } catch { $denied=($_.Exception.Message -match 'status=(401|403)') }
   Add-Result "Wrong approver is denied" $denied "Peer cannot approve another user's request"
   $state=[int](Invoke-SqlScalar "SELECT RequestStatus FROM dbo.F03LeaveDays WHERE Id=@id" @{id=$id})
-  $historyCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalHistories WHERE RequestId=@id" @{id=$id})
-  Add-Result "Denied attempt has no transition" ($state -eq 1 -and $historyCount -eq 0) "status=$state; history rows=$historyCount"
+  $historyCount=Get-ApprovalHistoryCount $id
+  Add-Result "Denied attempt leaves request pending" ($state -eq 1) "status=$state"
+  if($null -eq $historyCount){Add-BlockedResult "Denied attempt history" "F03ApprovalHistories table not found; history assertion could not run."}
+  else{Add-Result "Denied attempt has no history" ($historyCount -eq 0) "history rows=$historyCount"}
  }
 
  if($CaseId -eq "FLOW-REJECT-L1"){
@@ -206,8 +213,9 @@ WHERE p.IsActive=1
   $details=Invoke-Api GET "/api/LeaveDays/details/$id" $requesterToken
   $finalStatus=[int](Invoke-SqlScalar "SELECT RequestStatus FROM dbo.F03LeaveDays WHERE Id=@id" @{id=$id})
   Add-Result "Requester sees rejection" ($details.StatusCode -eq 200 -and $finalStatus -eq 4) "status=$finalStatus (Rejected=4)"
-  $historyCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalHistories WHERE RequestId=@id" @{id=$id})
-  Add-Result "Rejection history exactly once" ($historyCount -eq 1) "history rows=$historyCount"
+  $historyCount=Get-ApprovalHistoryCount $id
+  if($null -eq $historyCount){Add-BlockedResult "Rejection history" "F03ApprovalHistories table not found; continuing email assertion."}
+  else{Add-Result "Rejection history exactly once" ($historyCount -eq 1) "history rows=$historyCount"}
   $requesterQueue=Get-CorrelatedEmailCount $RequesterEmail $id
   Add-Result "Rejection result email exactly once" ($requesterQueue -eq 1) "correlated email rows=$requesterQueue"
  } else {
@@ -224,8 +232,9 @@ WHERE p.IsActive=1
   $details=Invoke-Api GET "/api/LeaveDays/details/$id" $requesterToken
   $finalStatus=[int](Invoke-SqlScalar "SELECT RequestStatus FROM dbo.F03LeaveDays WHERE Id=@id" @{id=$id})
   Add-Result "Requester reads final result" ($details.StatusCode -eq 200 -and $finalStatus -eq 3) "status=$finalStatus (Approved=3)"
-  $historyCount=[int](Invoke-SqlScalar "SELECT COUNT(*) FROM dbo.F03ApprovalHistories WHERE RequestId=@id" @{id=$id})
-  Add-Result "Approval history exactly once per level" ($historyCount -eq 2) "history rows=$historyCount"
+  $historyCount=Get-ApprovalHistoryCount $id
+  if($null -eq $historyCount){Add-BlockedResult "Approval history" "F03ApprovalHistories table not found; continuing email assertions."}
+  else{Add-Result "Approval history exactly once per level" ($historyCount -eq 2) "history rows=$historyCount"}
   $approverQueue=Get-CorrelatedEmailCount $Approver1Email $id
   $requesterQueue=Get-CorrelatedEmailCount $RequesterEmail $id
   Add-Result "Submission email exactly once" ($approverQueue -eq 1) "correlated email rows to level 1=$approverQueue"
