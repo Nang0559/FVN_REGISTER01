@@ -22,6 +22,10 @@ on:
         description: "Develop API base URL for the anonymous smoke test (blank = skip). Never a production URL."
         type: string
         default: ""
+      run_role_access:
+        description: "Also run the per-role access test (needs api_base_url and ROLE_* secrets in the develop environment)"
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
