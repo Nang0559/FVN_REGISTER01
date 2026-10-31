@@ -153,4 +153,31 @@ jobs:
           name: api-auth-${{ github.run_number }}
           path: artifacts/api-auth/
           if-no-files-found: warn
+          retention-days: 14\n  api-role-access:
+    name: API role access (GET-only checks with test accounts)
+    needs: static-checks
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_role_access && inputs.api_base_url != '' }}
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    environment: develop
+    steps:
+      - uses: actions/checkout@v4
+      - name: Role access matrix
+        shell: pwsh
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+          ROLE_WORKER_USERNAME: ${{ secrets.ROLE_WORKER_USERNAME }}
+          ROLE_WORKER_PASSWORD: ${{ secrets.ROLE_WORKER_PASSWORD }}
+          ROLE_APPROVER_USERNAME: ${{ secrets.ROLE_APPROVER_USERNAME }}
+          ROLE_APPROVER_PASSWORD: ${{ secrets.ROLE_APPROVER_PASSWORD }}
+          ROLE_ADMIN_USERNAME: ${{ secrets.ROLE_ADMIN_USERNAME }}
+          ROLE_ADMIN_PASSWORD: ${{ secrets.ROLE_ADMIN_PASSWORD }}
+        run: ./test/api-auth/Test-ApiRoleAccess.ps1 -BaseUrl $env:API_BASE_URL -OutputDirectory artifacts/api-role-access -AllowRemote
+      - name: Upload role access report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-role-access-${{ github.run_number }}
+          path: artifacts/api-role-access/
+          if-no-files-found: warn
           retention-days: 14
