@@ -12,7 +12,7 @@ It does not create or modify employees, departments, users, roles, permissions, 
 4. Use a dedicated SQL login with SELECT permissions on the inspected dbo.F03 tables and VIEW DEFINITION. Do not use db_owner or sysadmin.
 5. Run Actions → Discover HRM Users and Roles → Run workflow and select the target environment.
 
-The runner must reach SQL Server and have PowerShell 7 installed. The connection string is never printed.
+The runner must reach SQL Server. Discovery runs on Windows PowerShell 5.1 (`powershell.exe`); the Tester workflow's static/regression jobs use PowerShell 7 (`pwsh`) and the .NET 9 SDK. The connection string is never printed.
 
 ## Artifacts
 
@@ -36,3 +36,16 @@ The runner must reach SQL Server and have PowerShell 7 installed. The connection
 ## Safety
 
 Run discovery first against a non-production/read-only target. The script only issues SELECT statements, but the SQL credential itself must also be restricted to read-only access. Do not seed or alter HRM-synchronized tables.
+
+
+## Tester workflow (`.github/workflows/tester-develop.yml`)
+
+Runs on the Develop self-hosted runner. Triggers: push to `test/role-discovery-actions` (paths under `test/`, `Tests/`, `scripts/Test-*.ps1`) and manual dispatch. It deliberately has **no** `pull_request` trigger because the repository is public and the runner is a real machine.
+
+| Job | What it does | Needs |
+|---|---|---|
+| static-checks | Parses every `.ps1` and JSON fixture | nothing |
+| backend-regression | `scripts/Test-BackendRegression.ps1` (10 builds + 4 test projects), TRX + summary artifact | `pwsh`, .NET 9; optional `FVN_REGISTER_SQL_CONNECTION` (used only if the DB name contains Test/QA/E2E/Automation) |
+| role-matrix | Discovery, then `Test-RoleMatrix.ps1`; manual dispatch only | `FVN_SQL_CONNECTION_STRING` in the `develop` environment |
+
+`Test-RoleMatrix.ps1` reads `role-discovery.json` (no database access) and checks: users without a permission group, approver rows without an active user, non-contiguous approval levels, required request types without a chain, Approve* grants for routed approvers, Leave/Overtime self-service users, ambiguous HRM rules. It also writes `e2e-fixture-proposal.json` (requester + approver L1 + L2 in one department) to seed `scripts/Test-ApprovalEmailE2E.ps1` variables. FAIL exits non-zero; WARN only fails with `-FailOnWarn`.
