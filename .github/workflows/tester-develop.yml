@@ -137,6 +137,9 @@ jobs:
       - name: Inventory endpoints (static, fails on implicitly open or unreviewed anonymous endpoints)
         shell: pwsh
         run: ./test/api-auth/Get-EndpointInventory.ps1 -OutputDirectory artifacts/api-auth -FailOnImplicitlyOpen -AnonymousAllowListPath test/api-auth/anonymous-allowlist.txt
+      - name: Authorization coverage (controllers without in-code permission checks must be reviewed)
+        shell: pwsh
+        run: ./test/api-auth/Get-AuthorizationCoverage.ps1 -OutputDirectory artifacts/api-auth
       - name: Anonymous GET smoke against Develop API (no credentials)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.api_base_url != '' }}
         shell: pwsh
