@@ -150,6 +150,43 @@ foreach ($group in ($userRows | Group-Object PermissionCode)) {
     }
 }
 
+# Propose business-role candidates from evidence, not from guessed role names.
+$businessCandidates = @()
+$selfService = $grantRows | Where-Object {
+    $_.ScopeCode -eq "Own" -and
+    $_.ActionCode -in @("Create", "Register") -and
+    $_.ModuleCode -in @("Leave", "Overtime")
+}
+foreach ($g in ($selfService | Group-Object ModuleCode,ActionCode,ScopeCode)) {
+    $candidate = $g.Group | Group-Object EmployeeCode | ForEach-Object {
+        $first = $_.Group | Select-Object -First 1
+        [pscustomobject]@{ UserId=$first.UserId; EmployeeCode=$first.EmployeeCode; GrantCount=$_.Count; Grant=$first }
+    } | Sort-Object @{Expression="GrantCount";Descending=$true} | Select-Object -First 1
+    $businessCandidates += [pscustomobject]@{
+        SuggestedBusinessRole = "Self-service $($candidate.Grant.ModuleCode) user"
+        UserId = $candidate.UserId
+        EmployeeCode = $candidate.EmployeeCode
+        ModuleCode = $candidate.Grant.ModuleCode
+        ActionCode = $candidate.Grant.ActionCode
+        ScopeCode = $candidate.Grant.ScopeCode
+        Evidence = "Active function grant"
+        Confidence = "Needs UI/server authorization verification"
+    }
+}
+foreach ($group in ($approverRows | Group-Object RequestType,ApproveForDeptCode,Level)) {
+    $a = $group.Group | Select-Object -First 1
+    $businessCandidates += [pscustomobject]@{
+        SuggestedBusinessRole = "Approver - $($a.RequestType) - Dept $($a.ApproveForDeptCode) - Level $($a.Level)"
+        UserId = $a.UserId
+        EmployeeCode = $a.EmployeeCode
+        ModuleCode = $a.RequestType
+        ActionCode = "Approve"
+        ScopeCode = "Department/approval routing"
+        Evidence = "Active F03Approvers routing row"
+        Confidence = "Needs matching function grant and workflow verification"
+    }
+}
+
 $suggestions = @(
  [pscustomobject]@{Priority="P0";Purpose="Map active users to permission groups";Query="SELECT u.Id,u.EmployeeCode,u.PermissionCode,p.PermissionName,u.DeptCode,u.Cvcode,u.LevelApprove FROM dbo.F03Users u LEFT JOIN dbo.F03Permissions p ON p.PermissionCode=u.PermissionCode WHERE u.IsActive=1 ORDER BY u.PermissionCode,u.EmployeeCode;"},
  [pscustomobject]@{Priority="P0";Purpose="Validate HRM department/position-to-role rules";Query="SELECT r.*,p.PermissionName FROM dbo.F03HrmUserRoleRules r LEFT JOIN dbo.F03Permissions p ON p.PermissionCode=r.PermissionCode WHERE r.IsActive=1 ORDER BY r.Priority;"},
@@ -166,12 +203,13 @@ $report = [ordered]@{
  Scope="Read-only discovery. No HRM sync, inserts, updates, deletes or permission changes."
  Counts=[ordered]@{ActiveUsers=$userRows.Count;PermissionGroups=@($userRows.PermissionCode | Select-Object -Unique).Count;ActiveFunctionGrants=$grantRows.Count;ActiveHrmRoleRules=$ruleRows.Count;ActiveApproverRows=$approverRows.Count}
  Users=$userRows;FunctionGrants=$grantRows;HrmRoleRules=$ruleRows;Approvers=$approverRows
- RepresentativeCandidates=$representatives;SuggestedQueries=$suggestions;SchemaInventory=$schemaRows
+ RepresentativeCandidates=$representatives;BusinessRoleCandidates=$businessCandidates;SuggestedQueries=$suggestions;SchemaInventory=$schemaRows
 }
 $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $OutputDirectory "role-discovery.json")
 $userRows | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $OutputDirectory "active-users.csv")
 $grantRows | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $OutputDirectory "function-grants.csv")
 $representatives | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $OutputDirectory "representative-candidates.csv")
+$businessCandidates | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $OutputDirectory "business-role-candidates.csv")
 $schemaRows | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $OutputDirectory "security-schema.csv")
 
 $md = [System.Collections.Generic.List[string]]::new()
@@ -190,6 +228,12 @@ $md.Add("")
 $md.Add("| PermissionCode | Permission | UserId | EmployeeCode | Dept | Position | Level | Grants |")
 $md.Add("|---:|---|---:|---|---|---|---:|---:|")
 foreach ($x in $representatives) { $md.Add("| $($x.PermissionCode) | $($x.PermissionName) | $($x.UserId) | $($x.EmployeeCode) | $($x.DeptCode) | $($x.PositionCode) | $($x.LevelApprove) | $($x.ActiveFunctionGrantCount) |") }
+$md.Add("")
+$md.Add("## Suggested business-role candidates")
+$md.Add("")
+$md.Add("| Suggested role | UserId | EmployeeCode | Module | Action | Scope | Evidence |")
+$md.Add("|---|---:|---|---|---|---|---|")
+foreach ($x in $businessCandidates) { $md.Add("| $($x.SuggestedBusinessRole) | $($x.UserId) | $($x.EmployeeCode) | $($x.ModuleCode) | $($x.ActionCode) | $($x.ScopeCode) | $($x.Evidence) |") }
 $md.Add("")
 $md.Add("## Suggested follow-up queries")
 foreach ($x in $suggestions) { $md.Add(""); $md.Add("### [$($x.Priority)] $($x.Purpose)"); $md.Add(""); $md.Add($x.Query) }
