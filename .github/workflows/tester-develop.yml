@@ -157,7 +157,8 @@ jobs:
           name: api-auth-${{ github.run_number }}
           path: artifacts/api-auth/
           if-no-files-found: warn
-          retention-days: 14\n  api-role-access:
+          retention-days: 14
+  api-role-access:
     name: API role access (GET-only checks with test accounts)
     needs: static-checks
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_role_access && inputs.api_base_url != '' }}
