@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$OutputDirectory = "./artifacts/role-discovery")
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -213,7 +213,7 @@ $businessCandidates | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $O
 $schemaRows | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $OutputDirectory "security-schema.csv")
 
 $md = [System.Collections.Generic.List[string]]::new()
-$md.Add("# FVN_REGISTER – HRM User/Role Discovery")
+$md.Add("# FVN_REGISTER - HRM User/Role Discovery")
 $md.Add("")
 $md.Add("- Server: **$($meta.ServerName)**")
 $md.Add("- Database: **$($meta.DatabaseName)**")
