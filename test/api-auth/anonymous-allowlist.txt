@@ -1,0 +1,18 @@
+# Reviewed anonymous endpoints. One 'VERB route' per line (lowercase).
+# A new [AllowAnonymous] endpoint that is not listed here fails the api-auth check.
+# Review every addition: anonymous endpoints must not return employee/business data without a token.
+post api/auth/2fa/setup
+post api/auth/2fa/setup-confirm
+post api/auth/2fa/verify
+post api/auth/login
+post api/auth/refresh
+get api/equipment/qr/{qrtoken}/image
+get api/localization/runtime
+post api/password-reset-requests
+get api/public-information
+get api/public-information/{id:int}/attachments/{attachmentid:int}
+get api/public-portal/forms
+get api/public-portal/summary
+post api/security/endpoints/credentials/agent-rotate
+post api/security/endpoints/inventory
+post api/security/endpoints/lanscope/enroll
