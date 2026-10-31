@@ -21,6 +21,7 @@ The runner must reach SQL Server and have PowerShell 7 installed. The connection
 - active-users.csv: active users and HRM context.
 - function-grants.csv: active direct function grants.
 - representative-candidates.csv: one candidate per actual PermissionCode.
+- business-role-candidates.csv: suggested self-service Leave/OT users and approvers inferred from active grants and routing rows.
 - security-schema.csv: security-related table/column inventory.
 
 ## Interpretation
