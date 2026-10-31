@@ -30,7 +30,10 @@ function Rows($table) {
         }
         $result += [pscustomobject]$item
     }
-    return ,$result
+    # Emit each row to the pipeline; callers use @(Rows ...) to capture a flat array.
+    # Returning ,$result would wrap the rows in a nested array and hide row properties
+    # such as PermissionCode from StrictMode property access.
+    return $result
 }
 
 $null = New-Item -ItemType Directory -Force -Path $OutputDirectory
