@@ -18,6 +18,10 @@ on:
         description: "Comma-separated request types requiring approval chains"
         type: string
         default: ""
+      api_base_url:
+        description: "Develop API base URL for the anonymous smoke test (blank = skip). Never a production URL."
+        type: string
+        default: ""
 permissions:
   contents: read
 concurrency:
@@ -120,5 +124,30 @@ jobs:
           path: |
             artifacts/role-discovery/
             artifacts/role-matrix/
+          if-no-files-found: warn
+          retention-days: 14
+
+  api-auth:
+    name: API authentication inventory + anonymous smoke
+    needs: static-checks
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inventory endpoints (static, fails on implicitly open or unreviewed anonymous endpoints)
+        shell: pwsh
+        run: ./test/api-auth/Get-EndpointInventory.ps1 -OutputDirectory artifacts/api-auth -FailOnImplicitlyOpen -AnonymousAllowListPath test/api-auth/anonymous-allowlist.txt
+      - name: Anonymous GET smoke against Develop API (no credentials)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.api_base_url != '' }}
+        shell: pwsh
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: ./test/api-auth/Test-ApiAuthSmoke.ps1 -BaseUrl $env:API_BASE_URL -InventoryPath artifacts/api-auth/endpoint-inventory.csv -OutputDirectory artifacts/api-auth -AllowRemote
+      - name: Upload API auth reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-auth-${{ github.run_number }}
+          path: artifacts/api-auth/
           if-no-files-found: warn
           retention-days: 14
