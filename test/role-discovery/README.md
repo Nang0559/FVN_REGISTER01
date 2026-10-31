@@ -49,3 +49,9 @@ Runs on the Develop self-hosted runner. Triggers: push to `test/role-discovery-a
 | role-matrix | Discovery, then `Test-RoleMatrix.ps1`; manual dispatch only | `FVN_SQL_CONNECTION_STRING` in the `develop` environment |
 
 `Test-RoleMatrix.ps1` reads `role-discovery.json` (no database access) and checks: users without a permission group, approver rows without an active user, non-contiguous approval levels, required request types without a chain, Approve* grants for routed approvers, Leave/Overtime self-service users, ambiguous HRM rules. It also writes `e2e-fixture-proposal.json` (requester + approver L1 + L2 in one department) to seed `scripts/Test-ApprovalEmailE2E.ps1` variables. FAIL exits non-zero; WARN only fails with `-FailOnWarn`.
+
+## API authentication checks (`test/api-auth/`)
+
+- `Get-EndpointInventory.ps1` statically scans `FVN_REGISTER.API/Controllers` (no build, no network) and writes `endpoint-inventory.csv/.json/.md` with each endpoint's access level: Authenticated, Anonymous or ImplicitlyOpen. The API has no fallback authorization policy, so an endpoint without `[Authorize]` or `[AllowAnonymous]` is open; the workflow fails on that, and on any anonymous endpoint missing from `anonymous-allowlist.txt`.
+- `Test-ApiAuthSmoke.ps1` (PowerShell 7) sends GET requests **without credentials** to authenticated endpoints and expects 401. It never sends POST/PUT/DELETE and refuses non-local hosts unless `-AllowRemote`. Run it from the workflow by filling `api_base_url` (Develop API only).
+- Both cover the authentication layer only. Per-function authorization (`IAuthorizationService.HasAsync`) and own/department/all scope still need tests with real role accounts, using the output of the role matrix.
