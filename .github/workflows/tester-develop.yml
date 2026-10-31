@@ -21,7 +21,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: tester-develop-\${{ github.ref }}
+  group: tester-develop-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   static-checks:
@@ -48,12 +48,12 @@ jobs:
   backend-regression:
     name: Backend build + unit tests
     needs: static-checks
-    if: \${{ github.event_name == 'push' || inputs.run_backend_regression }}
+    if: ${{ github.event_name == 'push' || inputs.run_backend_regression }}
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 60
     environment: develop
     env:
-      CANDIDATE_SQL: \${{ secrets.FVN_REGISTER_SQL_CONNECTION }}
+      CANDIDATE_SQL: ${{ secrets.FVN_REGISTER_SQL_CONNECTION }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -89,14 +89,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-regression-\${{ github.run_number }}
+          name: backend-regression-${{ github.run_number }}
           path: TestResults/BackendRegression_*
           if-no-files-found: warn
           retention-days: 14
   role-matrix:
     name: Role discovery + matrix (read-only)
     needs: static-checks
-    if: \${{ github.event_name == 'workflow_dispatch' && inputs.run_role_matrix }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_role_matrix }}
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 15
     environment: develop
@@ -105,18 +105,18 @@ jobs:
       - name: Discover role data (SELECT only)
         shell: cmd
         env:
-          FVN_SQL_CONNECTION_STRING: \${{ secrets.FVN_SQL_CONNECTION_STRING }}
+          FVN_SQL_CONNECTION_STRING: ${{ secrets.FVN_SQL_CONNECTION_STRING }}
         run: powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\role-discovery\Discover-UserRoles.ps1 -OutputDirectory artifacts\role-discovery
       - name: Validate role matrix
         shell: cmd
         env:
-          REQUIRED_TYPES: \${{ inputs.required_request_types }}
+          REQUIRED_TYPES: ${{ inputs.required_request_types }}
         run: powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\role-discovery\Test-RoleMatrix.ps1 -DiscoveryDirectory artifacts\role-discovery -OutputDirectory artifacts\role-matrix -RequiredRequestTypes "%REQUIRED_TYPES%"
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: role-matrix-\${{ github.run_number }}
+          name: role-matrix-${{ github.run_number }}
           path: |
             artifacts/role-discovery/
             artifacts/role-matrix/
