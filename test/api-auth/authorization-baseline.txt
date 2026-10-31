@@ -1,0 +1,13 @@
+# Controllers with no function/scope authorization reference in code. Format: Controller | STATUS | reason
+# STATUS: SELF = acts only on the current user / public lookup data (reviewed OK); GAP = needs a permission check (tracked defect).
+# Remove a GAP line once the controller enforces a SecurityFunctionCodes check; a fixed controller never needs a baseline line.
+AuthController | SELF | login/2FA/refresh; anonymous or acts on the caller's own session
+PublicPortalController | SELF | anonymous public portal data
+PushController | SELF | caller's own push subscription
+NotificationController | SELF | caller's own notifications (list/read)
+ActionsController | SELF | /me endpoints only; resolved from the caller's EmployeeCode
+LeaveEntitlementController | SELF | /me endpoint only
+CommonController | SELF | department lookup for dropdowns - confirm it returns no restricted data
+OTTypeController | SELF | /active lookup list for forms
+ApprovalListController | SELF | caller's own approval inbox; UserInfo is passed to the service which must enforce approver routing (covered by role-matrix + E2E)
+ExcelController | GAP | any authenticated user can create/activate/retire/delete Excel import schemas and the service (ExcelPlatform) performs no permission check

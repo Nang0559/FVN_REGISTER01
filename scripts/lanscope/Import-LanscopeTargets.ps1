@@ -56,7 +56,7 @@ for($offset=0;$offset -lt $rows.Count;$offset+=$BatchSize){
     for($j=0;$j -lt $slice.Count;$j++){
         $row=$slice[$j];$csvLine=$offset+$j+2
         $targetId=Get-Field $row @('TargetId','ClientId','ComputerName','Client ID','ClientId')
-        if([string]::IsNullOrWhiteSpace($targetId)){throw "Dòng CSV $csvLine: thiếu TargetId/ClientId/ComputerName."}
+        if([string]::IsNullOrWhiteSpace($targetId)){throw "Dòng CSV ${csvLine}: thiếu TargetId/ClientId/ComputerName."}
         if($existing.ContainsKey($targetId.Trim().ToUpperInvariant())){continue}
         $targets+=@{targetId=$targetId;client=@{
             clientId=Get-Field $row @('ClientId','Client ID');computerName=Get-Field $row @('ComputerName','Computer Name')

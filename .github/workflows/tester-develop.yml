@@ -1,0 +1,188 @@
+name: Tester - Develop runner
+# SECURITY: public repository + self-hosted runner; never add pull_request triggers.
+on:
+  push:
+    branches: ["test/role-discovery-actions"]
+    paths: ["test/**", "scripts/Test-*.ps1", "Tests/**", ".github/workflows/tester-develop.yml"]
+  workflow_dispatch:
+    inputs:
+      run_role_matrix:
+        description: "Run read-only role discovery and matrix validation"
+        type: boolean
+        default: true
+      run_backend_regression:
+        description: "Run backend build and tests"
+        type: boolean
+        default: true
+      required_request_types:
+        description: "Comma-separated request types requiring approval chains"
+        type: string
+        default: ""
+      api_base_url:
+        description: "Develop API base URL for the anonymous smoke test (blank = skip). Never a production URL."
+        type: string
+        default: ""
+      run_role_access:
+        description: "Also run the per-role access test (needs api_base_url and ROLE_* secrets in the develop environment)"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: tester-develop-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  static-checks:
+    name: Static checks (scripts, fixtures)
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell and JSON
+        shell: pwsh
+        run: |
+          $failed = @()
+          Get-ChildItem -Path scripts, test, Tests -Recurse -Filter *.ps1 -ErrorAction SilentlyContinue | ForEach-Object {
+            $tokens = $null; $errs = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errs) | Out-Null
+            if ($errs.Count -gt 0) { $failed += $_.FullName; $errs | ForEach-Object { Write-Host "::error file=$($_.Extent.File),line=$($_.Extent.StartLineNumber)::$($_.Message)" } }
+            else { Write-Host "OK $($_.FullName)" }
+          }
+          Get-ChildItem -Path Tests, playwright -Recurse -Filter *.json -ErrorAction SilentlyContinue | ForEach-Object {
+            try { Get-Content -Raw -Encoding UTF8 $_.FullName | ConvertFrom-Json | Out-Null; Write-Host "OK $($_.FullName)" }
+            catch { $failed += $_.FullName; Write-Host "::error file=$($_.FullName)::Invalid JSON: $($_.Exception.Message)" }
+          }
+          if ($failed.Count -gt 0) { throw "Static validation failed: $($failed -join ', ')" }
+  backend-regression:
+    name: Backend build + unit tests
+    needs: static-checks
+    if: ${{ github.event_name == 'push' || inputs.run_backend_regression }}
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 60
+    environment: develop
+    env:
+      CANDIDATE_SQL: ${{ secrets.FVN_REGISTER_SQL_CONNECTION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Guard SQL integration connection
+        shell: pwsh
+        run: |
+          $cs = $env:CANDIDATE_SQL
+          if ([string]::IsNullOrWhiteSpace($cs)) { Write-Host "SQL integration tests skipped (no connection)."; exit 0 }
+          $db = if ($cs -match '(?i)(?:Initial Catalog|Database)\s*=\s*([^;]+)') { $Matches[1].Trim() } else { '' }
+          if ($db -notmatch '(?i)(Test|QA|E2E|Automation)') {
+            Write-Host "::warning::Database '$db' is not identified as disposable; SQL tests skipped."
+            exit 0
+          }
+          "FVN_REGISTER_SQL_CONNECTION=$cs" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Run backend regression
+        shell: pwsh
+        run: .\scripts\Test-BackendRegression.ps1
+      - name: Publish summary
+        if: always()
+        shell: pwsh
+        run: |
+          $s = Get-ChildItem TestResults -Recurse -Filter summary.json -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+          if ($s) {
+            $j = Get-Content -Raw $s.FullName | ConvertFrom-Json
+            "## Backend regression: $($j.Overall)" | Add-Content $env:GITHUB_STEP_SUMMARY
+            "| Check | Result | Passed | Failed | Skipped |" | Add-Content $env:GITHUB_STEP_SUMMARY
+            "|---|---:|---:|---:|---:|" | Add-Content $env:GITHUB_STEP_SUMMARY
+            $j.Checks | ForEach-Object { "| $($_.Check) | $($_.Result) | $($_.Passed) | $($_.Failed) | $($_.Skipped) |" } | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
+      - name: Upload regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-regression-${{ github.run_number }}
+          path: TestResults/BackendRegression_*
+          if-no-files-found: warn
+          retention-days: 14
+  role-matrix:
+    name: Role discovery + matrix (read-only)
+    needs: static-checks
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_role_matrix }}
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    environment: develop
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover role data (SELECT only)
+        shell: cmd
+        env:
+          FVN_SQL_CONNECTION_STRING: ${{ secrets.FVN_SQL_CONNECTION_STRING }}
+        run: powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\role-discovery\Discover-UserRoles.ps1 -OutputDirectory artifacts\role-discovery
+      - name: Validate role matrix
+        shell: cmd
+        env:
+          REQUIRED_TYPES: ${{ inputs.required_request_types }}
+        run: powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test\role-discovery\Test-RoleMatrix.ps1 -DiscoveryDirectory artifacts\role-discovery -OutputDirectory artifacts\role-matrix -RequiredRequestTypes "%REQUIRED_TYPES%"
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: role-matrix-${{ github.run_number }}
+          path: |
+            artifacts/role-discovery/
+            artifacts/role-matrix/
+          if-no-files-found: warn
+          retention-days: 14
+
+  api-auth:
+    name: API authentication inventory + anonymous smoke
+    needs: static-checks
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inventory endpoints (static, fails on implicitly open or unreviewed anonymous endpoints)
+        shell: pwsh
+        run: ./test/api-auth/Get-EndpointInventory.ps1 -OutputDirectory artifacts/api-auth -FailOnImplicitlyOpen -AnonymousAllowListPath test/api-auth/anonymous-allowlist.txt
+      - name: Authorization coverage (controllers without in-code permission checks must be reviewed)
+        shell: pwsh
+        run: ./test/api-auth/Get-AuthorizationCoverage.ps1 -OutputDirectory artifacts/api-auth
+      - name: Anonymous GET smoke against Develop API (no credentials)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.api_base_url != '' }}
+        shell: pwsh
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: ./test/api-auth/Test-ApiAuthSmoke.ps1 -BaseUrl $env:API_BASE_URL -InventoryPath artifacts/api-auth/endpoint-inventory.csv -OutputDirectory artifacts/api-auth -AllowRemote
+      - name: Upload API auth reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-auth-${{ github.run_number }}
+          path: artifacts/api-auth/
+          if-no-files-found: warn
+          retention-days: 14
+  api-role-access:
+    name: API role access (GET-only checks with test accounts)
+    needs: static-checks
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_role_access && inputs.api_base_url != '' }}
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    environment: develop
+    steps:
+      - uses: actions/checkout@v4
+      - name: Role access matrix
+        shell: pwsh
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+          ROLE_WORKER_USERNAME: ${{ secrets.ROLE_WORKER_USERNAME }}
+          ROLE_WORKER_PASSWORD: ${{ secrets.ROLE_WORKER_PASSWORD }}
+          ROLE_APPROVER_USERNAME: ${{ secrets.ROLE_APPROVER_USERNAME }}
+          ROLE_APPROVER_PASSWORD: ${{ secrets.ROLE_APPROVER_PASSWORD }}
+          ROLE_ADMIN_USERNAME: ${{ secrets.ROLE_ADMIN_USERNAME }}
+          ROLE_ADMIN_PASSWORD: ${{ secrets.ROLE_ADMIN_PASSWORD }}
+        run: ./test/api-auth/Test-ApiRoleAccess.ps1 -BaseUrl $env:API_BASE_URL -OutputDirectory artifacts/api-role-access -AllowRemote
+      - name: Upload role access report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-role-access-${{ github.run_number }}
+          path: artifacts/api-role-access/
+          if-no-files-found: warn
+          retention-days: 14

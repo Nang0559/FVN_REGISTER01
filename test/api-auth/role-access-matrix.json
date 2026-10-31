@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Expected HTTP access per role for safe GET endpoints. allow = not 401/403; deny = 403; any = not asserted.",
+  "note": "Starter matrix. Supply dedicated test accounts through ROLE_<ROLE>_USERNAME / ROLE_<ROLE>_PASSWORD environment secrets. Confirm account grants using role discovery before relying on deny expectations.",
+  "roles": ["worker", "approver", "admin"],
+  "endpoints": [
+    {"route":"api/actions/me","expect":{"worker":"allow","approver":"allow","admin":"allow"},"why":"self-scoped (/me)"},
+    {"route":"api/notification/unread-count","expect":{"worker":"allow","approver":"allow","admin":"allow"},"why":"self-scoped"},
+    {"route":"api/systemupdate/overview","expect":{"worker":"deny","approver":"deny","admin":"any"},"why":"SuperAdmin only"},
+    {"route":"api/admin/ot-limit-rules","expect":{"worker":"deny","approver":"any","admin":"any"},"why":"OTLimitManage / feature operator"},
+    {"route":"api/email-admin/profiles","expect":{"worker":"deny","approver":"any","admin":"any"},"why":"email administration"},
+    {"route":"api/emailqueue","expect":{"worker":"deny","approver":"any","admin":"any"},"why":"email queue management"}
+  ]
+}
